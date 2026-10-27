@@ -34,12 +34,37 @@ The BOM manages versions of:
   and so on),
 - the container images used in tests (as Maven properties).
 
-You can override one managed version with a Maven property, as with Spring Boot:
+You can override one managed version. How depends on how your service uses Stratum.
+
+**With `stratum-parent`:** set the version property, as with Spring Boot's parent:
 
 ```xml
 <properties>
   <postgresql.version>X.Y.Z</postgresql.version> <!-- the patched version -->
 </properties>
+```
+
+**With the BOM import:** a property does **not** work, because Maven resolves the BOM's properties
+before importing it. Declare the dependency in your own `dependencyManagement`, **above** the BOM
+import (the first declaration wins):
+
+```xml
+<dependencyManagement>
+  <dependencies>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <version>X.Y.Z</version> <!-- the patched version -->
+    </dependency>
+    <dependency>
+      <groupId>com.example.stratum</groupId>
+      <artifactId>stratum-bom</artifactId>
+      <version>0.1.0-SNAPSHOT</version>
+      <type>pom</type>
+      <scope>import</scope>
+    </dependency>
+  </dependencies>
+</dependencyManagement>
 ```
 
 > [!WARNING]
