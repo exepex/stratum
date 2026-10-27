@@ -67,11 +67,16 @@ Every starter follows these rules:
 - **ST-ENG-20** Auto-configuration classes are annotated `@AutoConfiguration` and listed in
   `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`. Starters do not use component
   scanning.
-- **ST-ENG-21** Every bean has conditions: `@ConditionalOnMissingBean` so a service can supply its own,
-  `@ConditionalOnClass` when it needs an optional library, and `@ConditionalOnProperty(prefix = "stratum.<module>",
-  name = "enabled", matchIfMissing = true)` so the whole module can be turned off.
+- **ST-ENG-21** Every bean has conditions: `@ConditionalOnMissingBean` so a service or another framework can supply
+  its own, `@ConditionalOnClass` when it needs an optional library, and `@ConditionalOnProperty(prefix =
+  "stratum.<module>", name = "enabled", matchIfMissing = true)` so the whole module can be turned off. The missing-bean
+  condition checks the type that services inject, such as `RestClient.Builder`, not a Stratum class. Every bean is
+  also marked `@Fallback`, so that when another framework's bean of the same type exists, Spring injects that one
+  ([ADR 0001](../adr/0001-coexistence-with-company-frameworks.md)).
 - **ST-ENG-22** Ordering between auto-configurations is declared with `before` and `after` on `@AutoConfiguration`,
-  never left to classpath order.
+  never left to classpath order. Every Stratum auto-configuration also has an `@AutoConfigureOrder` value later than
+  the default, defined once in `stratum-core`, so that auto-configurations from other frameworks that declare no
+  order run first and their beans win (ADR 0001).
 - **ST-ENG-23** The `autoconfigure` package only creates and wires beans. Behaviour lives in ordinary classes that can
   be unit tested without Spring.
 - **ST-ENG-24** Services adjust behaviour through customizer beans (Spring's, such as `RestClientCustomizer`, or
@@ -150,9 +155,14 @@ Every starter follows these rules:
 
 ## Dependencies
 
-- **ST-ENG-60** All versions are set in `stratum-bom`, which `stratum-parent` imports. A module POM never sets the
-  version of a managed dependency. No version ranges and no `LATEST`.
-- **ST-ENG-61** Spring Boot manages most library versions. Override one only with a comment in the POM saying why.
+- **ST-ENG-60** The versions of Stratum's modules and of the libraries Spring Boot does not manage are set in
+  `stratum-bom`, which `stratum-parent` imports. Spring Boot's versions come from the parent: `stratum-parent`
+  inherits `spring-boot-starter-parent`, and `stratum-bom` does not import Spring Boot's BOM, so a service under a
+  company parent gets one Spring Boot version (ADR 0001). A module POM never sets the version of a managed
+  dependency. No version ranges and no `LATEST`.
+- **ST-ENG-61** Do not override a version that Spring Boot manages, in `stratum-bom` or in `stratum-parent`. Such an
+  override would not reach services that import the BOM under their own parent. When a security fix cannot wait for
+  a Spring Boot release, the release notes tell services how to override that version themselves.
 - **ST-ENG-62** A new third-party dependency needs a reason in the pull request: what it provides that Spring Boot or
   an existing dependency does not.
 - **ST-ENG-63** Do not write a utility that an established library already provides. Look first in the JDK, then
@@ -161,3 +171,6 @@ Every starter follows these rules:
 - **ST-ENG-64** Every dependency and Maven plugin comes from Maven Central. No other repository in any POM, no
   JitPack, no jars downloaded from GitHub and no source copied from another project. The library must be actively
   maintained and its licence compatible with Apache 2.0.
+- **ST-ENG-65** Each release supports one Spring Boot line, such as `4.1.x`, stated in the compatibility table of
+  `docs/guides/upgrading.md`. `stratum-core` checks the running Spring Boot version at startup and stops the service
+  with a message naming both versions when it is outside that line (ADR 0001).

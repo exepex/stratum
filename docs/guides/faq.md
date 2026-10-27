@@ -46,6 +46,11 @@ change, ask for the default to change in Stratum.
 **Can I use a library Stratum does not include?**
 Yes. Add it with a version as usual. If several services need it, propose adding it to the BOM.
 
+**Our company has its own framework on Spring Boot. Can we still use Stratum?**
+Yes. Keep the company parent and import the Stratum BOM. The company's beans win over Stratum's, and
+you can turn off any Stratum module that overlaps. See
+[Using Stratum with a company framework](company-framework.md).
+
 **Can I use WebFlux (reactive) instead of Spring MVC?**
 Not in the first release. The web and security starters target the servlet stack, which on Java 25
 handles high concurrency well with virtual threads. Reactive support may follow if services need it.
@@ -57,8 +62,9 @@ Stratum 0.1 targets Spring Boot 4.1.2 and Java 25. See
 [Versioning and upgrades](upgrading.md#compatibility).
 
 **Can I use a newer Spring Boot than Stratum's?**
-Not safely. Stratum is tested with one Spring Boot version. Wait for the Stratum release that moves
-to it.
+A newer patch release in the supported line, yes. A newer minor or major release, no: Stratum stops
+at startup outside its supported line. Wait for the Stratum release that moves to it. See
+[Compatibility](upgrading.md#compatibility).
 
 ## Testing
 

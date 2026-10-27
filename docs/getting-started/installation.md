@@ -22,10 +22,11 @@ There are two options. Both give you the same tested versions; they differ in wh
 
 | | Option A: parent POM | Option B: BOM import |
 | --- | --- | --- |
-| Use when | You start a new service, or your `pom.xml` has no parent | Your `pom.xml` already has a parent you must keep |
+| Use when | You start a new service, or your `pom.xml` has no parent | Your `pom.xml` already has a parent you must keep, such as your company's parent |
 | Dependency versions | Managed | Managed |
 | Java 25 compiler settings | Set for you | You set them |
 | Plugin versions and quality gates | Set for you | You set them |
+| Spring Boot version | Set by Stratum | Set by your parent |
 | Recommended | **Yes** | When A is not possible |
 
 ### Option A: inherit `stratum-parent`
@@ -66,8 +67,15 @@ There are two options. Both give you the same tested versions; they differ in wh
 </dependencyManagement>
 ```
 
-The BOM already imports Spring Boot's own BOM, so do not import Spring Boot's BOM separately: two
-BOMs can disagree on a version, and the first one listed wins silently.
+The BOM does not set Spring Boot's versions; your parent does. If your parent extends
+`spring-boot-starter-parent`, as most company parents do, there is nothing more to add. If it does
+not, also import `spring-boot-dependencies` at the version in the
+[compatibility table](../guides/upgrading.md#compatibility).
+
+If your parent belongs to a company framework with its own starters, read
+[Using Stratum with a company framework](../guides/company-framework.md). It explains which bean wins
+when both frameworks provide one, how to turn off a Stratum module that overlaps, and how a team can
+fork Stratum to put it under the company parent.
 
 With the BOM you also set the Java version yourself:
 

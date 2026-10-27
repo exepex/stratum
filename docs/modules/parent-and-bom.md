@@ -12,31 +12,54 @@ together and publishes it in two forms:
 
 | Artifact | What it is | Gives you |
 | --- | --- | --- |
-| `stratum-bom` | A *bill of materials*: a POM that lists versions only | Dependency versions |
-| `stratum-parent` | A parent POM that imports the BOM and adds build settings | Dependency versions **plus** Java 25, plugin versions and quality checks |
+| `stratum-bom` | A *bill of materials*: a POM that lists versions only | Versions of Stratum's modules and of the extra libraries Stratum uses |
+| `stratum-parent` | A parent POM that inherits Spring Boot's parent, imports the BOM and adds build settings | Spring Boot's versions, the BOM's versions, **plus** Java 25, plugin versions and quality checks |
 
 ```mermaid
 flowchart TD
-    SB[spring-boot-starter-parent] --> SP[stratum-parent]
+    SB[spring-boot-starter-parent] -->|parent of| SP[stratum-parent]
+    SB -->|parent of| CP[company parent]
     BOM[stratum-bom] -->|imported by| SP
-    SBB[spring-boot-dependencies] -->|imported by| BOM
     SP -->|parent of| S1[order-service]
-    BOM -->|imported by| S2[service with its own parent]
+    CP -->|parent of| S2[service with a company parent]
+    BOM -->|imported by| S2
 ```
+
+Spring Boot's versions always come from the parent, never from the BOM. A service with
+`stratum-parent` gets them from `spring-boot-starter-parent`; a service with a company parent gets
+them from that parent. This way a service never receives two Spring Boot versions, and Stratum can be
+used next to a company framework. The reasons are in
+[ADR 0001](../adr/0001-coexistence-with-company-frameworks.md), and how to set it up is in
+[Using Stratum with a company framework](../guides/company-framework.md).
 
 ## The BOM
 
 The BOM manages versions of:
 
 - every Stratum module,
-- Spring Boot and everything Spring Boot manages (it imports Spring Boot's BOM),
-- the extra libraries Stratum uses or recommends (Resilience4j, Testcontainers modules, cloud SDKs,
-  and so on),
+- the extra libraries Stratum uses or recommends that Spring Boot does not manage (Resilience4j,
+  cloud SDKs, and so on),
 - the container images used in tests (as Maven properties).
 
-You can override one managed version. How depends on how your service uses Stratum.
+It does **not** import Spring Boot's BOM (`spring-boot-dependencies`). If your parent does not
+manage Spring Boot's versions, import `spring-boot-dependencies` yourself, at the version in the
+[compatibility table](../guides/upgrading.md#compatibility). The two BOMs list different libraries,
+so their order does not matter.
 
-**With `stratum-parent`:** set the version property, as with Spring Boot's parent:
+### The supported Spring Boot version
+
+Each Stratum release supports one Spring Boot line, such as `4.1.x`. When your service starts,
+Stratum checks the Spring Boot version that is running. If it is outside the supported line, the
+service stops with a message that names both versions, so a mismatch is found on the first start
+and not in production.
+
+### Overriding one managed version
+
+How you override a version depends on who manages the library.
+
+**A library Spring Boot manages**, such as the PostgreSQL driver: set Spring Boot's version
+property. This works with `stratum-parent` and with any parent that extends
+`spring-boot-starter-parent`:
 
 ```xml
 <properties>
@@ -44,16 +67,17 @@ You can override one managed version. How depends on how your service uses Strat
 </properties>
 ```
 
-**With the BOM import:** a property does **not** work, because Maven resolves the BOM's properties
-before importing it. Declare the dependency in your own `dependencyManagement`, **above** the BOM
-import (the first declaration wins):
+**A library `stratum-bom` manages**, such as Resilience4j: a property does **not** work, because
+Maven resolves the BOM's properties before importing it. Declare the dependency in your own
+`dependencyManagement`. A version you declare in your own POM wins over every inherited or imported
+one. With a BOM import, put it above the import to make that clear to readers:
 
 ```xml
 <dependencyManagement>
   <dependencies>
     <dependency>
-      <groupId>org.postgresql</groupId>
-      <artifactId>postgresql</artifactId>
+      <groupId>io.github.resilience4j</groupId>
+      <artifactId>resilience4j-circuitbreaker</artifactId>
       <version>X.Y.Z</version> <!-- the patched version -->
     </dependency>
     <dependency>
@@ -67,13 +91,19 @@ import (the first declaration wins):
 </dependencyManagement>
 ```
 
+> [!NOTE]
+> With a company parent, a library that both the company parent and `stratum-bom` manage gets the
+> company parent's version: Maven lets versions inherited from a parent win over versions imported
+> from a BOM, without a warning. See
+> [Using Stratum with a company framework](../guides/company-framework.md#rule-1-one-spring-boot-version-set-by-the-parent).
+
 > [!WARNING]
 > An overridden version is no longer tested with the rest. Do it only for an urgent security fix,
 > and remove the override at the next Stratum upgrade.
 
 ## The parent POM
 
-On top of the BOM, `stratum-parent` sets:
+On top of Spring Boot's parent and the BOM, `stratum-parent` sets:
 
 | Area | Setting |
 | --- | --- |

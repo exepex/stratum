@@ -26,7 +26,8 @@ flowchart LR
 ## Step 1: versions
 
 Replace your parent with `stratum-parent`, or import `stratum-bom` (see
-[Installation](../getting-started/installation.md)). Then **remove every `<version>`** from
+[Installation](../getting-started/installation.md)). If your parent is your company's framework,
+keep it and follow [Using Stratum with a company framework](company-framework.md). Then **remove every `<version>`** from
 dependencies the BOM manages. Run `mvn dependency:tree` before and after, and compare.
 
 ## Step 2: logging

@@ -32,7 +32,8 @@ conventions. Each rule has an ID so that reviews and judge verdicts can cite it.
 - **ST-TEST-20** Every auto-configuration has `ApplicationContextRunner` tests (or `WebApplicationContextRunner` for
   web starters) that cover:
   - the beans created by default;
-  - each bean backing off when the service defines its own;
+  - each bean backing off when the service defines its own, and when an auto-configuration with no declared order
+    defines one, as a company framework would (ADR 0001 in `docs/adr/`);
   - the module turned off with `stratum.<module>.enabled=false`;
   - an optional library missing from the classpath (`FilteredClassLoader`);
   - property binding from both `.properties` and `.yml`, including a bad value stopping startup;
