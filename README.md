@@ -210,7 +210,6 @@ default, examples in YAML and properties, how to override it and how to troubles
 | [`stratum-parent`](docs/modules/parent-and-bom.md) | Parent POM: Java 25, plugin versions and the quality gates every service build runs. |
 | [`stratum-bom`](docs/modules/parent-and-bom.md#the-bom) | Bill of materials (BOM): one list of tested versions, for services that keep their own parent. |
 
-
 ### Starters
 
 | Starter | In one sentence | Property prefix |
@@ -307,7 +306,9 @@ In setups B and C three rules keep the two frameworks from conflicting:
 - **One Spring Boot version, set by the parent.** `stratum-bom` does not set Spring Boot's versions,
   and Stratum stops at startup if the running Spring Boot version is outside the line it supports.
 - **The company's bean wins.** Stratum's beans are created only when no bean of the same type exists,
-  and Stratum's auto-configurations run after the company's.
+  and Stratum's auto-configurations usually run after the company's. The exceptions, and what to do
+  about them, are in
+  [Rule 2 of the guide](docs/guides/company-framework.md#rule-2-the-companys-bean-wins).
 - **Overlapping setups are turned off.** Where both frameworks set up a whole concern, such as a
   security filter chain or the log format, the service keeps one and turns Stratum's off, for example
   with `stratum.security.enabled=false`.
@@ -352,9 +353,10 @@ Full guide: [Testing with stratum-test](docs/modules/test.md).
 
 - Stratum follows [semantic versioning](https://semver.org): a patch release never breaks you; a major
   release may, and its release notes list the exact migration steps.
-- Each Stratum release is tested against one Spring Boot release. With `stratum-parent`, upgrading
-  Stratum upgrades Spring Boot and every managed library together. Under a company parent, the
-  company parent sets the Spring Boot version, and Stratum checks at startup that it supports it.
+- Each Stratum release supports one Spring Boot line, such as `4.1.x`, and is tested with one release
+  in it. With `stratum-parent`, upgrading Stratum upgrades Spring Boot and every managed library
+  together. Under a company parent, the company parent sets the Spring Boot version, and Stratum
+  checks at startup that it supports it.
 
 Details: [Versioning and upgrades](docs/guides/upgrading.md).
 

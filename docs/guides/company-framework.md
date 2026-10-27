@@ -60,7 +60,11 @@ steps back. Stratum does this in three ways:
 
 1. **Every Stratum bean is conditional.** It is created only when no bean of the same type exists
    yet (`@ConditionalOnMissingBean`). The condition checks the type your code injects, such as
-   `RestClient.Builder` or `SecurityFilterChain`, so a company bean of that type is enough.
+   Resilience4j's `CircuitBreakerRegistry`, so a company bean of that type is enough. Where Spring
+   Boot already creates the bean, such as `RestClient.Builder`, Stratum does not create its own: it
+   adds its settings to Boot's bean through a customizer. A company bean of that type then replaces
+   Boot's bean, and Stratum's settings are applied to it only if the company builds it from Boot's
+   customizers.
 2. **Stratum's auto-configurations run late.** Spring Boot creates auto-configured beans in a
    sorted order. Stratum's auto-configurations sort after every auto-configuration that does not
    declare its own order, so the company's beans exist by the time Stratum checks for them.
@@ -82,8 +86,10 @@ What this means in practice:
 | A company bean of a different type that does the same job | Stratum cannot detect it; turn Stratum's part off (Rule 3) |
 
 One exception to the late order: a Stratum auto-configuration that must run before one of Spring
-Boot's own, for example to replace Spring Boot's default security filter chain, is moved before it,
-and so can also run before an unordered company auto-configuration. Its module page says so. In that
+Boot's own, to replace a bean Boot would otherwise create, is moved before it. The security starter
+is the expected case, because its `SecurityFilterChain` replaces Spring Boot's default one. Such a Stratum
+auto-configuration can also run before an unordered company auto-configuration, and its module page
+says so. In that
 case the company orders its auto-configuration before Stratum's with `beforeName`, as shown below, or
 the service turns the Stratum module off.
 

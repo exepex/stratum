@@ -70,9 +70,12 @@ Every starter follows these rules:
 - **ST-ENG-21** Every bean has conditions: `@ConditionalOnMissingBean` so a service or another framework can supply
   its own, `@ConditionalOnClass` when it needs an optional library, and `@ConditionalOnProperty(prefix =
   "stratum.<module>", name = "enabled", matchIfMissing = true)` so the whole module can be turned off. The missing-bean
-  condition checks the type that services inject, such as `RestClient.Builder`, not a Stratum class. Every bean is
-  also marked `@Fallback`, so that when another framework's bean of the same type exists, Spring injects that one
-  ([ADR 0001](../adr/0001-coexistence-with-company-frameworks.md)).
+  condition checks the type that services inject, such as Resilience4j's `CircuitBreakerRegistry`, not a Stratum
+  class. Every bean is also marked `@Fallback`, so that when another framework's bean of the same type exists, Spring
+  injects that one ([ADR 0001](../adr/0001-coexistence-with-company-frameworks.md)). For a type that Spring Boot
+  already auto-configures, such as `RestClient.Builder`, Stratum does not define its own bean: it adjusts Boot's bean
+  through a customizer (ST-ENG-24). A Stratum auto-configuration is ordered before a Spring Boot one only when it must
+  replace a bean Boot would otherwise create, such as the default `SecurityFilterChain`, and its module page says so.
 - **ST-ENG-22** Ordering between auto-configurations is declared with `before` and `after` on `@AutoConfiguration`,
   never left to classpath order. Every Stratum auto-configuration also has an `@AutoConfigureOrder` value later than
   the default, defined once in `stratum-core`, so that auto-configurations from other frameworks that declare no
