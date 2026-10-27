@@ -50,6 +50,9 @@ Two facts constrain the design:
   company's unordered auto-configuration, because `before` and `after` take precedence over the
   order value. Its module page says so, and the company orders against it with `beforeName` or the
   service turns the module off.
+- A company auto-configuration that also sorts late and is itself `@ConditionalOnMissingBean` backs
+  off when Stratum's bean exists, and `@Fallback` cannot bring it back. The company then orders
+  against Stratum with `beforeName`, or the service turns the module off.
 - Stratum's tests must show each bean backing off for a bean from an unordered auto-configuration,
   not only for a bean from the service.
 - Rules ST-ENG-21, ST-ENG-22, ST-ENG-60, ST-ENG-61, ST-ENG-65 and ST-TEST-20 carry the decision into

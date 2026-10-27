@@ -65,9 +65,11 @@ steps back. Stratum does this in three ways:
    sorted order. Stratum's auto-configurations sort after every auto-configuration that does not
    declare its own order, so the company's beans exist by the time Stratum checks for them.
 3. **Every Stratum bean is a fallback.** If a company bean of the same type is created anyway, for
-   example because a company auto-configuration also runs late, Spring injects the company's bean
-   and not Stratum's (`@Fallback`). Code that injects a list of all beans of that type still
-   receives both.
+   example by a company auto-configuration that runs late and creates its bean without a
+   condition, Spring injects the company's bean and not Stratum's (`@Fallback`). Code that injects
+   a list of all beans of that type still receives both. `@Fallback` only chooses between beans
+   that exist: it cannot bring back a company bean that backed off because Stratum's was there
+   first.
 
 What this means in practice:
 
@@ -75,7 +77,8 @@ What this means in practice:
 | --- | --- |
 | A `@Configuration` class in the service, or a company class found by component scanning | The company's bean wins: Spring processes these before any auto-configuration |
 | A company auto-configuration without an order | The company's bean wins: it runs before Stratum's |
-| A company auto-configuration that also runs late | Both beans exist; the company's is injected because Stratum's is a fallback |
+| A company auto-configuration that also runs late and creates its bean without a condition | Both beans exist; the company's is injected because Stratum's is a fallback |
+| A company auto-configuration that also runs late and creates its bean only when none exists (`@ConditionalOnMissingBean`) | Stratum's bean wins, because the company's backs off. The company orders its auto-configuration before Stratum's with `beforeName`, or the service turns the Stratum module off |
 | A company bean of a different type that does the same job | Stratum cannot detect it; turn Stratum's part off (Rule 3) |
 
 One exception to the late order: a Stratum auto-configuration that must run before one of Spring
