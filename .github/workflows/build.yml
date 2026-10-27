@@ -1,0 +1,75 @@
+# Builds Stratum on Java 25 for every pull request and every push to main.
+# One run does three things: mvn verify (every build check and test), the dependency vulnerability
+# scan (the security profile) and an SBOM, a CycloneDX list of every library the build includes.
+# Pushes to main also keep the Maven and vulnerability-database cache warm for pull requests.
+name: Build
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # A new push to a pull request replaces its running build; builds of main always finish.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: Verify, scan and SBOM
+    runs-on: ubuntu-24.04
+    # The first scan downloads the whole NVD database; later runs restore it from the cache.
+    timeout-minutes: 60
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      # The SBOM plugin version comes from Spring Boot's parent, so this file sets no plugin version.
+      - name: Read the SBOM plugin version
+        id: sbom-plugin
+        run: |
+          version=$(mvn -B -q -pl platform/stratum-parent help:evaluate \
+            -Dexpression=cyclonedx-maven-plugin.version -DforceStdout)
+          if [[ ! "$version" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
+            echo "::error::Could not read cyclonedx-maven-plugin.version from stratum-parent: '$version'"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build, test, scan dependencies and write the SBOM
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+          CYCLONEDX_VERSION: ${{ steps.sbom-plugin.outputs.version }}
+        run: >-
+          mvn -B --no-transfer-progress verify -Psecurity
+          "org.cyclonedx:cyclonedx-maven-plugin:${CYCLONEDX_VERSION}:makeAggregateBom"
+
+      - name: Upload the SBOM
+        if: success()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sbom
+          path: |
+            target/bom.json
+            target/bom.xml
+          if-no-files-found: error
+
+      - name: Upload the vulnerability reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dependency-check-reports
+          path: '**/target/dependency-check-report.html'
+          if-no-files-found: warn

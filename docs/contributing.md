@@ -40,6 +40,32 @@ Stratum's version is set once, as `revision` in `.mvn/maven.config`. To change i
 Then open a pull request. Its description and review follow
 [`AGENTS.md`](../AGENTS.md#git-and-pull-requests).
 
+## Checks on every pull request
+
+GitHub Actions builds every pull request, and every push to `main`, with
+[`.github/workflows/build.yml`](../.github/workflows/build.yml). It runs one command on JDK 25:
+
+```bash
+mvn verify -Psecurity org.cyclonedx:cyclonedx-maven-plugin:<version>:makeAggregateBom
+```
+
+| Part | What it does | Where to find the result |
+| --- | --- | --- |
+| `verify` | Every check that `mvn verify` runs on your machine | The run's log |
+| `-Psecurity` | Scans the dependencies with OWASP Dependency-Check and fails the run on a vulnerability scored 7.0 or higher | The `dependency-check-reports` artifact |
+| `makeAggregateBom` | Writes an SBOM (software bill of materials): a CycloneDX list of every library the build includes | The `sbom` artifact, as `bom.json` and `bom.xml` |
+
+An artifact is a file that a run keeps; open the run in the **Actions** tab and download it from
+the run's summary page. The SBOM is written only when the build and the scan pass. The SBOM
+plugin's version is not written in the workflow: it is the version Spring Boot's parent manages,
+which the workflow reads from `stratum-parent` before the build.
+
+The scan downloads vulnerability data from the US National Vulnerability Database (NVD). Without an
+API key that download is slow and often rate-limited, so the repository needs a secret named
+`NVD_API_KEY`. Request a free key from the [NVD](https://nvd.nist.gov/developers/request-an-api-key),
+then add it under **Settings → Secrets and variables → Actions** in the repository. Never write the
+key in a file.
+
 ## Rules for a new starter
 
 A new starter meets every rule in [engineering](agents/engineering.md), [testing](agents/testing.md),
