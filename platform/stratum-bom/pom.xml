@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Stratum's bill of materials: the versions of Stratum's modules and of the libraries Stratum uses that
+  Spring Boot does not manage. It has no parent and never imports spring-boot-dependencies, so a service
+  under a company parent gets Spring Boot's versions from that parent only (ADR 0001, ST-ENG-60).
+  Keep <properties> and <dependencyManagement> sorted by name.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.example.stratum</groupId>
+  <artifactId>stratum-bom</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+
+  <name>Stratum BOM</name>
+  <description>Versions of Stratum's modules and of the extra libraries Stratum uses.</description>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>com.example.stratum</groupId>
+        <artifactId>stratum-core</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.example.stratum</groupId>
+        <artifactId>stratum-starter-cache</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.example.stratum</groupId>
+        <artifactId>stratum-starter-data-jpa</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.example.stratum</groupId>
+        <artifactId>stratum-starter-http-client</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.example.stratum</groupId>
+        <artifactId>stratum-starter-kafka</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.example.stratum</groupId>
+        <artifactId>stratum-starter-logging</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.example.stratum</groupId>
+        <artifactId>stratum-starter-oauth2-client</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.example.stratum</groupId>
+        <artifactId>stratum-starter-observability</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.example.stratum</groupId>
+        <artifactId>stratum-starter-resilience</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.example.stratum</groupId>
+        <artifactId>stratum-starter-security</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.example.stratum</groupId>
+        <artifactId>stratum-starter-web</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.example.stratum</groupId>
+        <artifactId>stratum-test</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+</project>

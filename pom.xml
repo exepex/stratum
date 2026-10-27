@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Builds every Stratum module in one run. This POM only lists the modules; no module inherits it.
+  Dependency versions live in platform/stratum-bom, plugin versions in platform/stratum-parent.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.example.stratum</groupId>
+  <artifactId>stratum</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+
+  <name>Stratum</name>
+  <description>Builds every Stratum module: platform, shared libraries and starters.</description>
+
+  <modules>
+    <!-- Platform: versions, build rules and parent POMs -->
+    <module>platform/stratum-bom</module>
+    <module>platform/stratum-build-rules</module>
+    <module>platform/stratum-library-parent</module>
+    <module>platform/stratum-parent</module>
+
+    <!-- Shared libraries -->
+    <module>libs/stratum-core</module>
+    <module>libs/stratum-test</module>
+
+    <!-- Starters -->
+    <module>starters/stratum-starter-cache</module>
+    <module>starters/stratum-starter-data-jpa</module>
+    <module>starters/stratum-starter-http-client</module>
+    <module>starters/stratum-starter-kafka</module>
+    <module>starters/stratum-starter-logging</module>
+    <module>starters/stratum-starter-oauth2-client</module>
+    <module>starters/stratum-starter-observability</module>
+    <module>starters/stratum-starter-resilience</module>
+    <module>starters/stratum-starter-security</module>
+    <module>starters/stratum-starter-web</module>
+  </modules>
+</project>

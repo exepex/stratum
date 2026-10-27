@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The parent of Stratum's own shared libraries and starters. It inherits every version and build check
+  from stratum-parent and switches off the steps that only make sense for a service: the executable
+  jar, build-info.properties and git.properties. A library jar that carried those two files would
+  hide the service's own files from /actuator/info.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.example.stratum</groupId>
+    <artifactId>stratum-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <relativePath>../stratum-parent/pom.xml</relativePath>
+  </parent>
+
+  <artifactId>stratum-library-parent</artifactId>
+  <packaging>pom</packaging>
+
+  <name>Stratum library parent</name>
+  <description>Parent of Stratum's shared libraries and starters: stratum-parent's checks, packaged as a plain jar.</description>
+
+  <properties>
+    <maven.gitcommitid.skip>true</maven.gitcommitid.skip>
+    <spring-boot.build-info.skip>true</spring-boot.build-info.skip>
+    <spring-boot.repackage.skip>true</spring-boot.repackage.skip>
+  </properties>
+</project>

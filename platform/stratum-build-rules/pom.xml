@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Stratum's Checkstyle, PMD and Maven Enforcer rules, packaged as a jar so that stratum-parent can
+  load them from the classpath in every build. It has no parent: stratum-parent depends on it, so it
+  cannot inherit stratum-parent.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.example.stratum</groupId>
+  <artifactId>stratum-build-rules</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+  <packaging>jar</packaging>
+
+  <name>Stratum build rules</name>
+  <description>Checkstyle, PMD and Maven Enforcer rules that every Stratum and service build is checked against.</description>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+</project>

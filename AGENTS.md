@@ -121,9 +121,9 @@ topic file wins.
 ## Build
 
 - JDK 25 and Maven 3.9 or later.
-- Once the build exists, `mvn verify` must pass before every push. It will run formatting (Spotless with
-  google-java-format), Checkstyle, PMD, SpotBugs, the Maven Enforcer, unit tests (`*Test.java`, Surefire),
-  integration tests (`*IT.java`, Failsafe) and JaCoCo coverage. Each one fails the build.
+- `mvn verify` must pass before every push. It runs formatting (Spotless with google-java-format),
+  Checkstyle, PMD, SpotBugs, the Maven Enforcer, unit tests (`*Test.java`, Surefire), integration tests
+  (`*IT.java`, Failsafe) and JaCoCo coverage. Each one fails the build.
 - While working on one module, `mvn -pl <module> -am verify` is enough. Run the full `mvn verify` before asking for
   the judge.
 - A change that touches only Markdown, text or AsciiDoc files needs no build.

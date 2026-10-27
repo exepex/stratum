@@ -29,6 +29,11 @@ mvn spotless:apply   # format the code
 mvn verify           # formatting, static analysis, unit and integration tests
 ```
 
+Run whole phases up to at least `package` from the repository root, such as `mvn verify`. The
+Checkstyle, PMD and Enforcer rules are read from the `stratum-build-rules` jar, which a shorter run,
+such as `mvn validate`, does not build. To build one module and the modules it needs, use
+`mvn -pl starters/stratum-starter-web -am verify`.
+
 Then open a pull request. Its description and review follow
 [`AGENTS.md`](../AGENTS.md#git-and-pull-requests).
 
