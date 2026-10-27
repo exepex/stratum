@@ -61,5 +61,6 @@ conventions. Each rule has an ID so that reviews and judge verdicts can cite it.
   reports coverage, and a change must not lower a module's coverage. Coverage alone does not prove a test is good;
   ST-TEST-01 does.
 - **ST-TEST-41** Test code follows the same rules as production code, including the 400-line limit, with two
-  exceptions: `@DisplayName` replaces Javadoc on tests (ST-ENG-14), and field injection is allowed (ST-ENG-26). Split
-  a large test class by behaviour into `@Nested` classes or separate files.
+  exceptions: `@DisplayName` replaces Javadoc on tests (ST-ENG-14), and field injection is allowed where constructor
+  injection is not practical (ST-ENG-26). Split a large test class by behaviour into `@Nested` classes or separate
+  files.
