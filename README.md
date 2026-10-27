@@ -1,156 +1,158 @@
+<div align="center">
+
 # Stratum
 
-**A standardization SDK for building microservices on Spring Boot and Java 25.**
+**The standard foundation for building microservices on Spring Boot and Java 25.**
 
-Stratum sits between Spring Boot and your business services. It packages the
-components that every service needs (logging, observability, tracing, security,
-REST and OAuth2 clients, resilience, testing support) as pre-configured,
-opt-in modules. Teams add the modules they need, set a few properties, and get
-the same production-ready behaviour in every service, without writing the
-beans themselves.
+Add a starter. Set a few properties. Write only business code.
 
-> **Status: pre-alpha.** This README describes the intent and the planned
-> design. No modules are implemented yet. Names marked as placeholders below
-> are still to be decided.
+![Java 25](https://img.shields.io/badge/Java-25-orange?logo=openjdk)
+![Spring Boot 4.1.2](https://img.shields.io/badge/Spring%20Boot-4.1.2-6DB33F?logo=springboot&logoColor=white)
+![Maven](https://img.shields.io/badge/build-Maven-C71A36?logo=apachemaven)
+![Status: pre-alpha](https://img.shields.io/badge/status-pre--alpha-lightgrey)
+![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue)
+
+[Documentation](docs/README.md) ·
+[Quick start](#quick-start) ·
+[Modules](#modules) ·
+[Configuration](#configuration-yaml-or-properties) ·
+[FAQ](docs/guides/faq.md)
+
+</div>
 
 ---
 
+> [!IMPORTANT]
+> **Stratum is in the design stage.** This README and the [documentation](docs/README.md) describe what
+> Stratum will do once it is built. No module is released yet. Everything marked **Planned** is the
+> design target and may change. The Maven `groupId` (`com.example.stratum`) and version
+> (`0.1.0-SNAPSHOT`) in the examples are **placeholders** until they are decided.
+
+## Table of contents
+
+- [What is Stratum?](#what-is-stratum)
+- [Why Stratum exists](#why-stratum-exists)
+- [How it works](#how-it-works)
+- [What you get](#what-you-get)
+- [Quick start](#quick-start)
+- [Modules](#modules)
+- [Configuration: YAML or properties](#configuration-yaml-or-properties)
+- [Changing or switching off a default](#changing-or-switching-off-a-default)
+- [Testing your service](#testing-your-service)
+- [Upgrades and versions](#upgrades-and-versions)
+- [Documentation map](#documentation-map)
+- [Building Stratum](#building-stratum)
+- [Contributing](#contributing)
+- [License](#license)
+
+## What is Stratum?
+
+Stratum is an **SDK** (a software development kit: a set of ready-made libraries) that sits between
+Spring Boot and your business services.
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│   Your business services: orders, payments, inventory, ...   │  ← you write this
+├──────────────────────────────────────────────────────────────┤
+│   Stratum: logging, tracing, metrics, security, HTTP and     │  ← Stratum provides this,
+│   OAuth2 clients, resilience, data, cache, messaging, tests  │    the same in every service
+├──────────────────────────────────────────────────────────────┤
+│   Spring Boot 4.1  ·  Spring Framework 7  ·  Java 25         │  ← the platform underneath
+└──────────────────────────────────────────────────────────────┘
+```
+
+Every microservice needs the same building blocks: logs that the whole platform can search, traces
+that follow a request across services, metrics, health checks, token validation, HTTP clients with
+timeouts and retries, database and cache setup, and a way to test all of this. Stratum provides
+these building blocks once, already configured and tested, so every service gets them the same way.
+
+You keep writing normal Spring Boot code. Stratum does not replace Spring; it configures Spring for
+you, following one agreed standard.
+
 ## Why Stratum exists
 
-Spring Boot is mature and makes services quick to build, but it is a
-*general-purpose* framework. It supports many ways of doing the same thing,
-which leaves each team to work out:
+Spring Boot is mature and fast to build with, but it is a **general-purpose** framework. It supports
+many ways of doing the same thing. That freedom costs every team time:
 
-- **Which classes and modules to use.** Spring has a large surface area, and
-  the right choice for logging, tracing, HTTP clients or security is not
-  obvious.
-- **How to configure them.** Bean definitions, auto-configuration ordering,
-  property names and sensible defaults are easy to forget. Developers end up
-  searching the web or asking an AI assistant, and still get it slightly wrong.
-- **How to keep services consistent.** When every team wires its own logging
-  format, trace propagation, error responses and client timeouts, services in
-  the same architecture behave differently. That makes them harder to operate,
-  debug and secure.
-- **How to keep dependencies current.** Each service carries its own version
-  upgrades and migrations, repeated many times across the organisation.
-
-Stratum answers these questions once, centrally, so that business services
-don't have to.
-
-## What Stratum gives you
-
-| Without Stratum | With Stratum |
+| The problem | What it looks like in practice |
 | --- | --- |
-| Every service picks and configures its own libraries | One curated, tested set of components |
-| Custom beans copied between repositories | Auto-configured beans, overridable when needed |
-| Log formats, trace headers and error bodies differ per service | Same log format, trace propagation and error envelope everywhere |
-| Each team upgrades Spring Boot and libraries on its own | One Stratum version bump upgrades the whole stack |
-| Test setup (containers, mocks, security) rebuilt in each repo | Shared test support with Testcontainers ready to use |
+| **Too many choices** | Which HTTP client? Which log format? Which tracing exporter? Which of the many Spring modules? |
+| **Configuration is hard to remember** | Bean definitions, property names and auto-configuration rules are easy to get wrong. Developers search the web or ask an AI assistant, and still miss a timeout or a security setting. |
+| **Services drift apart** | Each team wires logging, trace headers, error responses and client timeouts its own way. Operating, debugging and securing the platform gets harder with every service. |
+| **Upgrades are repeated everywhere** | Every service researches and performs the same Spring Boot and library upgrades on its own. |
+| **Test setup is rebuilt in each repo** | Each team re-creates database containers, HTTP stubs and security test helpers. |
 
-Teams focus on business logic. Stratum takes care of the components that
-would otherwise be replicated across every service.
+Stratum answers these questions **once**, centrally. Business teams extend Stratum and spend their
+time on the business problem.
 
-## Design principles
+## How it works
 
-1. **Convention over configuration.** A module works with zero configuration
-   and safe, production-ready defaults.
-2. **Opt-in and modular.** Services include only the modules they need. A
-   service that does not call other services does not pull in an HTTP client.
-3. **Overridable, never locked in.** Every bean Stratum creates backs off
-   (`@ConditionalOnMissingBean`) when a service defines its own, and every
-   default is a property under the `stratum.*` namespace.
-4. **Secure by default.** Secrets, tokens and personal data are never logged;
-   timeouts are always set on remote calls.
-5. **Standard Spring underneath.** Stratum builds on Spring Boot's own
-   auto-configuration and starters. Anything you know about Spring Boot still
-   applies, and nothing is hidden behind a proprietary API.
-6. **No business logic.** Stratum holds cross-cutting concerns only. Domain
-   code belongs in the services.
+Stratum is a set of **starters**. A starter is one Maven dependency that brings the libraries for one
+concern together with their configuration. When your service starts, Spring Boot's
+**auto-configuration** (the mechanism that creates beans for you based on what is on the classpath)
+finds each Stratum starter and sets it up.
 
-## Technology baseline
+```mermaid
+flowchart LR
+    A["Your service<br/>pom.xml"] -->|"adds"| B["stratum-starter-*"]
+    B -->|"brings"| C["Curated libraries<br/>(versions managed by Stratum)"]
+    B -->|"registers"| D["Auto-configuration"]
+    D -->|"reads"| E["application.yml or<br/>application.properties<br/>(stratum.* keys)"]
+    D -->|"creates"| F["Ready-to-use beans<br/>with safe defaults"]
+    F -->|"used by"| G["Your business code"]
+```
 
-| Component | Version |
-| --- | --- |
-| Java | 25 |
-| Spring Boot | 4.1.2 (latest GA as of October 2026; 4.2.0 is at RC1) |
-| Spring Framework | 7.x (managed by Spring Boot) |
-| Build | Maven, multi-module |
+Four rules shape every module:
 
-Spring Boot manages most third-party versions. Stratum's BOM pins everything
-else, so services never declare library versions themselves.
+1. **Works with zero configuration.** Each starter has safe, production-ready defaults. You set only
+   what is specific to your service, such as the URL of a service you call.
+2. **Opt-in.** You add only the starters you need. A service that never calls another service does
+   not carry an HTTP client.
+3. **Never locked in.** Every bean Stratum creates steps aside when you define your own, and every
+   default is a property you can change. See [Overriding defaults](docs/configuration/overriding-defaults.md).
+4. **Plain Spring underneath.** Anything you know about Spring Boot still applies. Stratum builds on
+   Spring's own extension points and adds no proprietary programming model.
 
-## Planned modules
+New to these terms? Read [Core concepts](docs/getting-started/concepts.md) first. It explains starters,
+beans, auto-configuration, properties and profiles from the beginning.
 
-Module names follow the `stratum-*` pattern. The list below is the initial
-plan and will grow as services need more.
+## What you get
 
-### Build and platform
+| Concern | Without Stratum | With Stratum |
+| --- | --- | --- |
+| Logging | Each service picks a format | Structured JSON logs with trace and correlation IDs, secrets redacted |
+| Tracing | Trace headers lost between services | Traces follow every request across HTTP calls and Kafka messages |
+| Metrics and health | Hand-picked endpoints and tags | Standard metrics, tags, health and Kubernetes probes |
+| Errors | Different error bodies per service | One error format (RFC 9457 Problem Details) everywhere |
+| Security | Copied `SecurityFilterChain` code | JWT validation and secure defaults from a few properties |
+| Calling other services | Clients without timeouts | HTTP clients with timeouts, retries, tracing and tokens |
+| Resilience | Retry loops written by hand | Named retry, circuit breaker and bulkhead policies |
+| Data and cache | Pool and cache settings guessed | Tuned connection pool, migrations, auditing, caches with TTLs |
+| Messaging | Custom error handling per consumer | Kafka with retries, dead-letter topics and trace propagation |
+| Testing | Containers and stubs rebuilt per repo | Shared Testcontainers, HTTP stubs and security test helpers |
+| Upgrades | Every service upgrades alone | One Stratum version bump upgrades the whole stack |
 
-| Module | Purpose |
-| --- | --- |
-| `stratum-parent` | Parent POM for services: Java 25, plugin management, compiler settings and quality gates (formatting, Checkstyle, PMD, SpotBugs, unit and integration test separation, coverage). |
-| `stratum-bom` | Bill of materials that pins every Stratum module and third-party version. For services that cannot inherit the parent POM. |
-| `stratum-build-rules` | Shared Checkstyle, PMD and SpotBugs rule sets, packaged as a jar so every build uses the same rules. |
+## Quick start
 
-### Starters
+This is the short version. The [Quick start guide](docs/getting-started/quick-start.md) walks through
+every step and explains each line.
 
-Each starter is a single dependency that brings its libraries and their
-auto-configuration.
+**You need:** JDK 25 and Maven 3.9 or later.
 
-| Starter | What it sets up |
-| --- | --- |
-| `stratum-starter-web` | REST defaults: a standard error response envelope, request validation, correlation ID handling and consistent JSON settings. |
-| `stratum-starter-logging` | Structured JSON logging, MDC enrichment (trace ID, span ID, correlation ID) and redaction of secrets and personal data. |
-| `stratum-starter-observability` | Micrometer metrics, OpenTelemetry tracing and export, health and readiness probes, common metric tags. |
-| `stratum-starter-security` | OAuth2 resource server with JWT validation, standard authority mapping and secure endpoint defaults. |
-| `stratum-starter-oauth2-client` | OAuth2 client for service-to-service calls (client credentials), with token caching and refresh. |
-| `stratum-starter-http-client` | Pre-configured `RestClient` and HTTP interface clients with timeouts, trace propagation, logging and optional token relay. |
-| `stratum-starter-resilience` | Retries, circuit breakers, rate limiting and bulkheads with sensible defaults and metrics. |
-| `stratum-starter-data-jpa` | JPA and connection pool defaults, database migrations, auditing columns. |
-| `stratum-starter-cache` | Local and distributed caching with consistent key and TTL conventions. |
-| `stratum-starter-kafka` | Kafka producers and consumers with standard serialization, error handling, dead-letter topics and trace propagation. |
-| `stratum-starter-cloud-*` | Connectors for cloud services (for example storage, queues and secrets) per provider. |
-
-### Testing
-
-| Module | Purpose |
-| --- | --- |
-| `stratum-test` | JUnit 5, AssertJ and Mockito, plus Testcontainers definitions (PostgreSQL, Kafka, Redis and others) shared across services, HTTP stubbing for downstream calls, and helpers for testing secured endpoints with mock JWTs. |
-
-## Using Stratum in a service
-
-> The examples use `com.example.stratum` as a **placeholder** groupId and
-> `0.1.0-SNAPSHOT` as the version. Both will change once they are decided.
-
-### 1. Inherit the parent POM
+**1. Use Stratum as the parent of your service's `pom.xml`:**
 
 ```xml
 <parent>
-  <groupId>com.example.stratum</groupId>
+  <groupId>com.example.stratum</groupId>   <!-- placeholder -->
   <artifactId>stratum-parent</artifactId>
   <version>0.1.0-SNAPSHOT</version>
 </parent>
 ```
 
-If your service already has a parent, import the BOM instead:
+Your service already has a parent? Import the Stratum BOM instead. See
+[Installation](docs/getting-started/installation.md).
 
-```xml
-<dependencyManagement>
-  <dependencies>
-    <dependency>
-      <groupId>com.example.stratum</groupId>
-      <artifactId>stratum-bom</artifactId>
-      <version>0.1.0-SNAPSHOT</version>
-      <type>pom</type>
-      <scope>import</scope>
-    </dependency>
-  </dependencies>
-</dependencyManagement>
-```
-
-### 2. Add the starters you need
-
-No versions are needed; the parent or BOM manages them.
+**2. Add the starters you need.** No `<version>` tags: Stratum manages them.
 
 ```xml
 <dependencies>
@@ -164,119 +166,205 @@ No versions are needed; the parent or BOM manages them.
   </dependency>
   <dependency>
     <groupId>com.example.stratum</groupId>
-    <artifactId>stratum-starter-http-client</artifactId>
-  </dependency>
-
-  <dependency>
-    <groupId>com.example.stratum</groupId>
     <artifactId>stratum-test</artifactId>
     <scope>test</scope>
   </dependency>
 </dependencies>
 ```
 
-### 3. Configure only what is specific to your service
-
-Defaults cover the common case. You set what only your service knows, such as
-the URL of a downstream service:
+**3. Name your service** in `application.yml` (or `application.properties`):
 
 ```yaml
 spring:
   application:
     name: order-service
+```
 
+**4. Write a controller** and run `mvn spring-boot:run`:
+
+```java
+@RestController
+class HelloController {
+
+  @GetMapping("/hello")
+  String hello() {
+    return "Hello from Stratum";
+  }
+}
+```
+
+With only these lines your service already has JSON logs with trace IDs, metrics, health probes at
+`/actuator/health/liveness` and `/actuator/health/readiness`, correlation IDs on every request and
+standard error responses.
+
+## Modules
+
+All modules are **Planned**. Each links to its full page: what it sets up, every property with its
+default, examples in YAML and properties, how to override it and how to troubleshoot it.
+
+### Build and platform
+
+| Module | In one sentence |
+| --- | --- |
+| [`stratum-parent`](docs/modules/parent-and-bom.md) | Parent POM: Java 25, plugin versions and the quality gates every service build runs. |
+| [`stratum-bom`](docs/modules/parent-and-bom.md#the-bom) | Bill of materials (BOM): one list of tested versions, for services that keep their own parent. |
+
+### Starters
+
+| Starter | In one sentence | Property prefix |
+| --- | --- | --- |
+| [`stratum-starter-web`](docs/modules/web.md) | REST defaults: error format, correlation IDs, request logging, JSON settings. | `stratum.web` |
+| [`stratum-starter-logging`](docs/modules/logging.md) | Structured JSON logs with trace context and secret redaction. | `stratum.logging` |
+| [`stratum-starter-observability`](docs/modules/observability.md) | Metrics, OpenTelemetry tracing, health and Kubernetes probes. | `stratum.observability` |
+| [`stratum-starter-security`](docs/modules/security.md) | OAuth2 resource server: JWT validation, roles, public paths, CORS. | `stratum.security` |
+| [`stratum-starter-oauth2-client`](docs/modules/oauth2-client.md) | Gets and refreshes tokens for calls to other services. | `stratum.oauth2-client` |
+| [`stratum-starter-http-client`](docs/modules/http-client.md) | Declarative HTTP clients with timeouts, tracing, tokens and retries. | `stratum.http-client` |
+| [`stratum-starter-resilience`](docs/modules/resilience.md) | Named retry, circuit breaker, bulkhead and time limit policies. | `stratum.resilience` |
+| [`stratum-starter-data-jpa`](docs/modules/data-jpa.md) | Connection pool, JPA defaults, Flyway migrations, auditing. | `stratum.data` |
+| [`stratum-starter-cache`](docs/modules/cache.md) | Caffeine or Redis caching with per-cache TTL and size. | `stratum.cache` |
+| [`stratum-starter-kafka`](docs/modules/kafka.md) | Kafka producers and consumers with retries and dead-letter topics. | `stratum.kafka` |
+| [`stratum-starter-cloud-*`](docs/modules/cloud.md) | Cloud services such as storage, queues and secrets, per provider. | `stratum.cloud` |
+
+### Testing
+
+| Module | In one sentence |
+| --- | --- |
+| [`stratum-test`](docs/modules/test.md) | JUnit 5, AssertJ, Mockito, Testcontainers, HTTP stubs and JWT helpers, ready to use. |
+
+## Configuration: YAML or properties
+
+Stratum works with **both** `application.yml` and `application.properties`, and with every other
+source Spring Boot supports: profile files, environment variables, command-line arguments and config
+servers. Use the format your team prefers. Every example in the documentation shows both.
+
+The same setting, three ways:
+
+```yaml
+# application.yml
 stratum:
   http-client:
     clients:
       inventory:
         base-url: https://inventory.internal
+        read-timeout: 3s
 ```
 
-### 4. Write business code
+```properties
+# application.properties
+stratum.http-client.clients.inventory.base-url=https://inventory.internal
+stratum.http-client.clients.inventory.read-timeout=3s
+```
+
+```bash
+# Environment variables (for example in Kubernetes)
+STRATUM_HTTPCLIENT_CLIENTS_INVENTORY_BASEURL=https://inventory.internal
+STRATUM_HTTPCLIENT_CLIENTS_INVENTORY_READTIMEOUT=3s
+```
+
+Things worth knowing from day one:
+
+- **All Stratum settings start with `stratum.`** followed by the module name, for example
+  `stratum.logging.format`. Your IDE completes them, because each module ships configuration metadata.
+- **A wrong value fails at startup**, with a message naming the property, not at the first request.
+- **What you set always wins** over Stratum's defaults. Stratum's defaults have the lowest priority.
+- **Spring Boot's own properties still work.** For example `logging.level.*` and `server.port`.
+- **Secrets never go in these files.** Use environment variables or a secret store.
+
+Read more:
+[Configuration basics](docs/configuration/basics.md) ·
+[Profiles and environments](docs/configuration/profiles-and-environments.md) ·
+[All `stratum.*` properties](docs/configuration/reference.md)
+
+## Changing or switching off a default
+
+You stay in control at three levels, from lightest to strongest:
+
+| You want to | Do this | Example |
+| --- | --- | --- |
+| Change a value | Set a property | `stratum.http-client.defaults.read-timeout=10s` |
+| Adjust a bean Stratum created | Declare a customizer bean | A `RestClientCustomizer` that adds a header |
+| Replace a bean entirely | Declare your own bean of the same type | Your own `SecurityFilterChain` |
+| Switch a whole module off | Set `enabled` to `false` | `stratum.cache.enabled=false` |
+
+Details and examples: [Overriding defaults](docs/configuration/overriding-defaults.md).
+
+## Testing your service
+
+`stratum-test` gives you everything you need for unit, mock and integration tests in one test
+dependency:
+
+- **Unit tests** (`*Test.java`) with JUnit 5, AssertJ and Mockito.
+- **Integration tests** (`*IT.java`) that start a real PostgreSQL, Kafka or Redis in Docker with
+  Testcontainers. Image versions are pinned centrally, so every service tests against the same ones.
+- **HTTP stubs** for the services you call, so tests never depend on a real downstream service.
+- **Security helpers** to call secured endpoints with a test JWT.
 
 ```java
-@RestController
-@RequiredArgsConstructor
-class OrderController {
+@StratumIntegrationTest
+class OrderApiIT {
 
-  private final InventoryClient inventory; // configured by Stratum
-
-  @GetMapping("/orders/{id}")
-  OrderView get(@PathVariable String id) {
-    // Logging, tracing, metrics, timeouts and error mapping are already in place.
-    return OrderView.from(id, inventory.stockFor(id));
+  @Test
+  void createsAnOrder(@Autowired MockMvcTester mvc) {
+    assertThat(mvc.post().uri("/orders").with(stratumJwt("orders:write"))
+            .contentType(APPLICATION_JSON).content("{\"sku\":\"A-1\",\"quantity\":2}"))
+        .hasStatus(HttpStatus.CREATED);
   }
 }
 ```
 
-### Overriding a default
+Full guide: [Testing with stratum-test](docs/modules/test.md).
 
-Define your own bean and Stratum's version steps aside:
+## Upgrades and versions
 
-```java
-@Bean
-RestClientCustomizer myCustomizer() {
-  return builder -> builder.defaultHeader("X-Client", "order-service");
-}
-```
+| Component | Version in Stratum 0.1 (planned) |
+| --- | --- |
+| Java | 25 |
+| Spring Boot | 4.1.2, the latest stable release on 27 October 2026 |
+| Spring Framework | 7.x, managed by Spring Boot |
+| Maven | 3.9 or later |
 
-The `stratum.*` property reference for each module will live in that module's
-own README.
+- Stratum follows [semantic versioning](https://semver.org): a patch release never breaks you; a major
+  release may, and its release notes list the exact migration steps.
+- Each Stratum release is tested against one Spring Boot release. Upgrading Stratum upgrades Spring
+  Boot and every managed library together.
 
-## Testing with Stratum
+Details: [Versioning and upgrades](docs/guides/upgrading.md).
 
-`stratum-test` aims to make unit, mock and integration tests quick to write:
+## Documentation map
 
-- **Unit tests** (`*Test.java`, run by Surefire) with JUnit 5, AssertJ and
-  Mockito already on the classpath.
-- **Integration tests** (`*IT.java`, run by Failsafe) that start real
-  dependencies with Testcontainers, using images and versions pinned centrally.
-- **Downstream stubs** for HTTP dependencies, so services can test client
-  behaviour without the real service.
-- **Security helpers** to call secured endpoints with test JWTs.
+The full documentation lives in [`docs/`](docs/README.md). Start with the page that matches you:
 
-## Upgrades and versioning
+| I am... | Start here |
+| --- | --- |
+| New to Spring Boot | [Core concepts](docs/getting-started/concepts.md), then [Quick start](docs/getting-started/quick-start.md) |
+| Starting a new service | [Quick start](docs/getting-started/quick-start.md) |
+| Moving an existing service to Stratum | [Installation](docs/getting-started/installation.md) and [Migrating a service](docs/guides/migrating-a-service.md) |
+| Looking for a property | [Configuration reference](docs/configuration/reference.md) |
+| Using one component | Its page under [Modules](#modules) |
+| Debugging a startup or config problem | [Troubleshooting](docs/guides/troubleshooting.md) |
+| Curious how Stratum is built | [Architecture](docs/guides/architecture.md) |
+| Contributing to Stratum | [Contributing guide](docs/contributing.md) |
 
-- Stratum follows semantic versioning.
-- Each Stratum release is tested against one Spring Boot version. Upgrading
-  Stratum upgrades Spring Boot and every managed library together.
-- Breaking changes and migration steps are listed in the release notes, so
-  each service does not have to research them on its own.
+## Building Stratum
 
-## Repository layout (planned)
-
-```
-stratum/
-├── pom.xml                  # reactor: builds every module
-├── stratum-parent/
-├── stratum-bom/
-├── stratum-build-rules/
-├── starters/
-│   ├── stratum-starter-web/
-│   ├── stratum-starter-logging/
-│   └── ...
-├── stratum-test/
-└── samples/                 # example services that use Stratum
-```
-
-## Building
-
-Requires JDK 25 and Maven 3.9+.
+You need JDK 25 and Maven 3.9 or later.
 
 ```bash
+git clone https://github.com/exepex/stratum.git
+cd stratum
 mvn verify
 ```
 
+`mvn verify` formats and checks the code, runs unit tests, and runs integration tests (Docker is
+needed for those). The planned repository layout is described in
+[Architecture](docs/guides/architecture.md#repository-layout).
+
 ## Contributing
 
-A new starter is welcome when a concern is needed by more than one service.
-Each starter should:
-
-- work with no configuration and secure defaults;
-- expose its settings as `@ConfigurationProperties` under `stratum.<module>`;
-- let services override every bean;
-- include tests for its auto-configuration and a short README.
+Contributions are welcome. Read the [contributing guide](docs/contributing.md) before you start. It
+explains when a new starter makes sense and what every starter must include. Agents and humans
+follow the same rules in [`AGENTS.md`](AGENTS.md).
 
 ## License
 
-Apache License 2.0. See [LICENSE](LICENSE).
+Stratum is licensed under the [Apache License 2.0](LICENSE).
