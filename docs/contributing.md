@@ -66,6 +66,10 @@ an API key. The run stops with an error naming the missing key until the reposit
 then add it under **Settings → Secrets and variables → Actions** in the repository. Never write the
 key in a file.
 
+GitHub gives no repository secrets to a pull request from a fork, so such a pull request is built
+and gets its SBOM, but skips the scan; the run shows a warning that says so. The scan runs on `main`
+when the pull request merges.
+
 ## Rules for a new starter
 
 A new starter meets every rule in [engineering](agents/engineering.md), [testing](agents/testing.md),

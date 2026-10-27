@@ -1,6 +1,7 @@
 # Builds Stratum on Java 25 for every pull request and every push to main.
 # One run does three things: mvn verify (every build check and test), the dependency vulnerability
 # scan (the security profile) and an SBOM, a CycloneDX list of every library the build includes.
+# Pull requests from forks skip the scan, because GitHub gives them no secrets.
 # Pushes to main also keep the Maven and vulnerability-database cache warm for pull requests.
 name: Build
 
@@ -48,23 +49,24 @@ jobs:
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      # Dependency-Check rejects an empty key with an unclear "Invalid API Key" error, so name the fix here.
-      - name: Check that the NVD API key is set
-        env:
-          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-        run: |
-          if [[ -z "$NVD_API_KEY" ]]; then
-            echo "::error::The NVD_API_KEY repository secret is missing. See docs/contributing.md#checks-on-every-pull-request."
-            exit 1
-          fi
-
+      # GitHub gives no secrets to pull requests from forks, so those skip the scan; main scans after merge.
       - name: Build, test, scan dependencies and write the SBOM
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
           CYCLONEDX_VERSION: ${{ steps.sbom-plugin.outputs.version }}
-        run: >-
-          mvn -B --no-transfer-progress verify -Psecurity
-          "org.cyclonedx:cyclonedx-maven-plugin:${CYCLONEDX_VERSION}:makeAggregateBom"
+          FROM_FORK: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
+        run: |
+          scan=(-Psecurity)
+          if [[ "$GITHUB_EVENT_NAME" == pull_request && "$FROM_FORK" == true ]]; then
+            echo "::warning::Pull request from a fork: no NVD_API_KEY, so the scan runs on main after merge."
+            scan=()
+          elif [[ -z "$NVD_API_KEY" ]]; then
+            # Dependency-Check rejects an empty key with an unclear "Invalid API Key" error.
+            echo "::error::The NVD_API_KEY repository secret is missing. See docs/contributing.md#checks-on-every-pull-request."
+            exit 1
+          fi
+          mvn -B --no-transfer-progress verify "${scan[@]}" \
+            "org.cyclonedx:cyclonedx-maven-plugin:${CYCLONEDX_VERSION}:makeAggregateBom"
 
       - name: Upload the SBOM
         if: success()
