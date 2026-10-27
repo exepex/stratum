@@ -22,7 +22,7 @@ code, and uses the same metric names, tags and endpoints in every service.
 
 ```xml
 <dependency>
-  <groupId>com.example.stratum</groupId>
+  <groupId>com.exepex.stratum</groupId>
   <artifactId>stratum-starter-observability</artifactId>
 </dependency>
 ```

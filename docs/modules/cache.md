@@ -20,7 +20,7 @@ read each other's entries, and publishes hit and miss metrics.
 
 ```xml
 <dependency>
-  <groupId>com.example.stratum</groupId>
+  <groupId>com.exepex.stratum</groupId>
   <artifactId>stratum-starter-cache</artifactId>
 </dependency>
 ```

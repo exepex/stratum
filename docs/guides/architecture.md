@@ -1,7 +1,8 @@
 # Architecture
 
-**Status: Planned.** How Stratum is built inside. Useful if you contribute to Stratum, or want to
-understand exactly what happens when your service starts.
+**Status: Planned, except the repository layout and the build, which exist.** How Stratum is built
+inside. Useful if you contribute to Stratum, or want to understand exactly what happens when your
+service starts.
 
 [← Documentation home](../README.md)
 
@@ -20,29 +21,66 @@ understand exactly what happens when your service starts.
 
 ## Repository layout
 
+The build skeleton exists; the modules in it hold no code yet. The repository keeps three groups
+apart: the platform (versions, build rules and parent POMs), the shared libraries, and the starters.
+
 ```text
 stratum/
-├── pom.xml                         # reactor: builds every module in order
-├── stratum-bom/                    # versions only
-├── stratum-parent/                 # parent POM for services (imports the BOM)
-├── stratum-build-rules/            # Checkstyle, PMD and SpotBugs rules, packaged as a jar
-├── stratum-core/                   # shared internals: property defaults, constants, utilities
+├── pom.xml                         # reactor: lists every module, builds them in order; nothing inherits it
+├── platform/
+│   ├── stratum-bom/                # versions of Stratum's modules and the extra libraries it uses
+│   ├── stratum-build-rules/        # Checkstyle, PMD and Enforcer rules, packaged as a jar
+│   ├── stratum-parent/             # parent POM for services: imports the BOM, sets every plugin version
+│   └── stratum-library-parent/     # parent of the libraries and starters below
+├── libs/
+│   ├── stratum-core/               # shared internals: constants, property defaults, version check
+│   └── stratum-test/               # test support for services
 ├── starters/
-│   ├── stratum-starter-web/
-│   ├── stratum-starter-logging/
-│   ├── stratum-starter-observability/
-│   ├── stratum-starter-security/
-│   ├── stratum-starter-oauth2-client/
-│   ├── stratum-starter-http-client/
-│   ├── stratum-starter-resilience/
-│   ├── stratum-starter-data-jpa/
 │   ├── stratum-starter-cache/
+│   ├── stratum-starter-data-jpa/
+│   ├── stratum-starter-http-client/
 │   ├── stratum-starter-kafka/
-│   └── stratum-starter-cloud-<provider>/
-├── stratum-test/                   # test support for services
-├── samples/                        # small example services, built and tested with Stratum
+│   ├── stratum-starter-logging/
+│   ├── stratum-starter-oauth2-client/
+│   ├── stratum-starter-observability/
+│   ├── stratum-starter-resilience/
+│   ├── stratum-starter-security/
+│   └── stratum-starter-web/
 └── docs/                           # this documentation
 ```
+
+Planned, not in the repository yet: `starters/stratum-starter-cloud-<provider>/`, once the first
+cloud provider is chosen, and `samples/`, small example services built and tested with Stratum.
+
+### Where each version is set
+
+| What | Set in | Rule |
+| --- | --- | --- |
+| Spring Boot and every library and plugin it manages | `spring-boot-starter-parent`, the parent of `stratum-parent` | Stratum never overrides these versions ([ADR 0001](../adr/0001-coexistence-with-company-frameworks.md)) |
+| Stratum's modules and libraries Spring Boot does not manage | `platform/stratum-bom` | One `<dependencyManagement>` list, sorted by name |
+| Plugins Spring Boot does not manage | `platform/stratum-parent`, in `<properties>` | One `*.version` property per plugin, sorted by name |
+
+A module POM never writes a version for a dependency or a plugin.
+
+### How the parents fit together
+
+```mermaid
+flowchart TD
+    SB[spring-boot-starter-parent] -->|parent of| SP[stratum-parent]
+    BOM[stratum-bom] -->|imported by| SP
+    BR[stratum-build-rules] -->|rules loaded by| SP
+    SP -->|parent of| SVC[a service]
+    SP -->|parent of| LP[stratum-library-parent]
+    LP -->|parent of| LIBS[libs and starters]
+```
+
+- `stratum-parent` is the parent services use. Every check it runs on a service also runs on
+  Stratum's own code, so Stratum is held to the rules it gives its users.
+- `stratum-library-parent` turns off what only applies to a service: the executable jar,
+  `build-info.properties` and `git.properties`. A library jar that carried those two files would hide
+  the service's own files from `/actuator/info`.
+- `stratum-bom` and `stratum-build-rules` have no parent. The BOM must not inherit Spring Boot's
+  versions, and `stratum-parent` loads the build rules, so the rules cannot inherit from it.
 
 ## Inside a starter
 
@@ -53,7 +91,7 @@ stratum-starter-http-client/
 ├── pom.xml
 └── src/
     ├── main/
-    │   ├── java/com/example/stratum/httpclient/
+    │   ├── java/com/exepex/stratum/httpclient/
     │   │   ├── autoconfigure/                       # wiring only: @AutoConfiguration classes
     │   │   │   └── StratumHttpClientAutoConfiguration.java
     │   │   ├── StratumHttpClientProperties.java     # @ConfigurationProperties("stratum.http-client")
@@ -123,7 +161,7 @@ planned next:
 | Topic | Status |
 | --- | --- |
 | [0001: Stratum next to a company framework](../adr/0001-coexistence-with-company-frameworks.md) | Accepted |
-| Maven `groupId` and Java package names | Open |
+| Maven `groupId` and Java package names | Decided by the owner: `com.exepex.stratum`, and packages under `com.exepex.stratum` |
 | Problem Details (RFC 9457) as the error format | Proposed |
 | Resilience4j as the resilience engine | Proposed |
 | First cloud provider | Open |

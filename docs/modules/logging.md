@@ -28,7 +28,7 @@ class OrderService {
 
 ```xml
 <dependency>
-  <groupId>com.example.stratum</groupId>
+  <groupId>com.exepex.stratum</groupId>
   <artifactId>stratum-starter-logging</artifactId>
 </dependency>
 ```

@@ -15,7 +15,7 @@ by hand, and slow queries nobody notices. This starter sets these the safe way i
 
 ```xml
 <dependency>
-  <groupId>com.example.stratum</groupId>
+  <groupId>com.exepex.stratum</groupId>
   <artifactId>stratum-starter-data-jpa</artifactId>
 </dependency>
 <!-- plus the JDBC driver for your database; Stratum manages its version -->

@@ -137,11 +137,11 @@ auto-configuration:
 spring:
   autoconfigure:
     exclude:
-      - com.example.stratum.web.autoconfigure.StratumCorrelationAutoConfiguration
+      - com.exepex.stratum.web.autoconfigure.StratumCorrelationAutoConfiguration
 ```
 
 ```properties
-spring.autoconfigure.exclude=com.example.stratum.web.autoconfigure.StratumCorrelationAutoConfiguration
+spring.autoconfigure.exclude=com.exepex.stratum.web.autoconfigure.StratumCorrelationAutoConfiguration
 ```
 
 Class names are internal and may change between minor versions. Prefer the `enabled` switches,

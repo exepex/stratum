@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Stratum's PMD rules: the PMD categories that find bugs, unsafe code and wasted work. Each rule
+  excluded below conflicts with a Stratum convention; the comment says which.
+-->
+<ruleset name="Stratum"
+    xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+  <description>Rules every Stratum module and every service built on stratum-parent is checked against.</description>
+
+  <rule ref="category/java/bestpractices.xml">
+    <!-- AssertJ chains several assertions about one result; a message per assertion adds nothing. -->
+    <exclude name="UnitTestAssertionsShouldIncludeMessage"/>
+    <exclude name="UnitTestContainsTooManyAsserts"/>
+  </rule>
+  <rule ref="category/java/errorprone.xml"/>
+  <rule ref="category/java/multithreading.xml">
+    <!-- A Java EE rule: Stratum manages threads through Spring's bounded executors (ST-ENG-52). -->
+    <exclude name="DoNotUseThreads"/>
+  </rule>
+  <rule ref="category/java/performance.xml"/>
+  <rule ref="category/java/security.xml"/>
+</ruleset>

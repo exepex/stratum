@@ -9,7 +9,7 @@ integration tests: JUnit 5, AssertJ, Mockito, Testcontainers, HTTP stubs and sec
 
 ```xml
 <dependency>
-  <groupId>com.example.stratum</groupId>
+  <groupId>com.exepex.stratum</groupId>
   <artifactId>stratum-test</artifactId>
   <scope>test</scope>
 </dependency>

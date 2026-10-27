@@ -1,6 +1,8 @@
 # Parent POM and BOM: `stratum-parent` and `stratum-bom`
 
-**Status: Planned.** How your service gets Stratum's tested versions, Java settings and build checks.
+**Status: Built, not released.** `stratum-parent` and `stratum-bom` exist in the repository and pass
+`mvn verify`, but no version is published yet. The startup check of the Spring Boot version is planned.
+This page explains how your service gets Stratum's tested versions, Java settings and build checks.
 
 [← Documentation home](../README.md) · How to choose between them: [Installation](../getting-started/installation.md)
 
@@ -40,6 +42,9 @@ The BOM manages versions of:
 - the extra libraries Stratum uses or recommends that Spring Boot does not manage (Resilience4j,
   cloud SDKs, and so on),
 - the container images used in tests (as Maven properties).
+
+Today it lists Stratum's own modules only. Each extra library is added together with the first
+starter that uses it.
 
 It does **not** import Spring Boot's BOM (`spring-boot-dependencies`). If your parent does not
 manage Spring Boot's versions, import `spring-boot-dependencies` yourself, at the version in the
@@ -81,7 +86,7 @@ one. With a BOM import, put it above the import to make that clear to readers:
       <version>X.Y.Z</version> <!-- the patched version -->
     </dependency>
     <dependency>
-      <groupId>com.example.stratum</groupId>
+      <groupId>com.exepex.stratum</groupId>
       <artifactId>stratum-bom</artifactId>
       <version>0.1.0-SNAPSHOT</version>
       <type>pom</type>
@@ -107,14 +112,23 @@ On top of Spring Boot's parent and the BOM, `stratum-parent` sets:
 
 | Area | Setting |
 | --- | --- |
-| Java | `maven.compiler.release=25`, `-parameters`, UTF-8 everywhere |
-| Plugin versions | Compiler, Surefire, Failsafe, JaCoCo, Spotless, Checkstyle, PMD, SpotBugs, Enforcer, Spring Boot plugin |
+| Java | `java.version=25`, which Spring Boot's parent turns into `maven.compiler.release`; `-parameters`; UTF-8 everywhere |
+| Plugin versions | Spring Boot's parent sets the versions of the plugins it manages, such as Compiler, Surefire, Failsafe, Enforcer and the Spring Boot plugin. `stratum-parent` sets the rest: JaCoCo, Spotless, Checkstyle, PMD, SpotBugs, FindSecBugs and OWASP Dependency-Check, one property each in `<properties>` |
 | Tests | `*Test.java` run by Surefire in `mvn test`; `*IT.java` run by Failsafe in `mvn verify` |
 | Formatting | Spotless checks Google Java Format; `mvn spotless:apply` fixes it |
-| Static analysis | Checkstyle, PMD and SpotBugs with Stratum's shared rule sets |
-| Enforcer | Requires JDK 25 and Maven 3.9+, bans duplicate classes and known-bad dependencies |
-| Build info | `/actuator/info` shows the build version, time and Git commit |
+| Static analysis | Checkstyle, PMD and SpotBugs with the FindSecBugs security rules. The Checkstyle, PMD and Enforcer rule files come from `stratum-build-rules` |
+| Enforcer | Requires JDK 25 and Maven 3.9+; bans duplicate classes, version ranges and `LATEST`/`RELEASE`, a dependency declared twice, plugins without a version, and library versions with known remote code execution flaws (Log4j 1.x, Log4j 2 before 2.17.1, Commons Collections before 3.2.2, Commons Text before 1.10.0, SnakeYAML before 2.0) |
+| Build info | `/actuator/info` shows the build version and time (`build-info.properties`) and the Git commit (`git.properties`) |
 | Packaging | `spring-boot-maven-plugin` builds an executable jar; `mvn spring-boot:build-image` builds a container image |
+
+Every execution that `stratum-parent` adds has an id starting with `stratum-`, such as
+`stratum-checkstyle-check`, so it never merges with an execution of a company parent.
+
+The Checkstyle rules ask for Javadoc on every type and method (test methods use `@DisplayName`
+instead), check names and imports, and reject magic numbers, console output and `Thread.sleep`.
+Layout is left to Google Java Format. The PMD rules are PMD's best-practice, error-prone,
+multithreading, performance and security categories, without the few rules that conflict with
+Stratum's conventions; each exclusion is explained in the rule file.
 
 ### Build checks your service gets
 
@@ -129,7 +143,7 @@ On top of Spring Boot's parent and the BOM, `stratum-parent` sets:
 | Profile | Command | Adds |
 | --- | --- | --- |
 | `coverage-gate` | `mvn verify -Pcoverage-gate` | Fails the build below the coverage threshold |
-| `security` | `mvn verify -Psecurity` | Scans dependencies for known vulnerabilities |
+| `security` | `mvn verify -Psecurity` | Scans dependencies with OWASP Dependency-Check and fails on a vulnerability scored 7.0 or higher. It reads an NVD API key from the `NVD_API_KEY` environment variable |
 
 ### Tuning the checks
 

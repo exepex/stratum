@@ -25,8 +25,8 @@ Add a starter. Set a few properties. Write only business code.
 > [!IMPORTANT]
 > **Stratum is in the design stage.** This README and the [documentation](docs/README.md) describe what
 > Stratum will do once it is built. No module is released yet. Everything marked **Planned** is the
-> design target and may change. The Maven `groupId` (`com.example.stratum`) and version
-> (`0.1.0-SNAPSHOT`) in the examples are **placeholders** until they are decided.
+> design target and may change. The Maven `groupId` is `com.exepex.stratum`; the version
+> `0.1.0-SNAPSHOT` in the examples is a **placeholder** until the first release.
 
 ## Table of contents
 
@@ -144,7 +144,7 @@ every step and explains each line.
 
 ```xml
 <parent>
-  <groupId>com.example.stratum</groupId>   <!-- placeholder -->
+  <groupId>com.exepex.stratum</groupId>
   <artifactId>stratum-parent</artifactId>
   <version>0.1.0-SNAPSHOT</version>
 </parent>
@@ -158,15 +158,15 @@ Your service already has a parent, such as your company's? Import the Stratum BO
 ```xml
 <dependencies>
   <dependency>
-    <groupId>com.example.stratum</groupId>
+    <groupId>com.exepex.stratum</groupId>
     <artifactId>stratum-starter-web</artifactId>
   </dependency>
   <dependency>
-    <groupId>com.example.stratum</groupId>
+    <groupId>com.exepex.stratum</groupId>
     <artifactId>stratum-starter-observability</artifactId>
   </dependency>
   <dependency>
-    <groupId>com.example.stratum</groupId>
+    <groupId>com.exepex.stratum</groupId>
     <artifactId>stratum-test</artifactId>
     <scope>test</scope>
   </dependency>
@@ -386,8 +386,10 @@ cd stratum
 mvn verify
 ```
 
-`mvn verify` formats and checks the code, runs unit tests, and runs integration tests (Docker is
-needed for those). The planned repository layout is described in
+`mvn verify` checks formatting, runs Checkstyle, PMD, SpotBugs and the Maven Enforcer, runs unit
+and integration tests (Docker will be needed once integration tests use containers) and writes a
+JaCoCo coverage report. The modules are grouped into `platform/` (BOM, parent POMs and build
+rules), `libs/` (shared libraries) and `starters/`; see
 [Architecture](docs/guides/architecture.md#repository-layout).
 
 ## Contributing
