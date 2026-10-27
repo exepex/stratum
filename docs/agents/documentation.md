@@ -1,45 +1,53 @@
-# Keeping the documentation current
+# Documentation rules
 
-Stratum is only useful if a developer can find out what it does, how to configure it and how to use it without
-reading its source. Documentation is part of every change and is reviewed like code. Index:
-[AGENTS.md](../../AGENTS.md).
+Part of the agent rules in [AGENTS.md](../../AGENTS.md); every agent follows them. Each rule has an ID so that reviews
+and judge verdicts can cite it.
 
-## What is documented where
+Stratum is useful only if a developer can learn what it does, how to configure it and how to use it without reading
+its source. Readers range from junior developers using Spring Boot for the first time to experienced engineers, and
+the documentation must work for both. Documentation is part of every change and is judged like code.
 
-| Document | Owns |
+## Where things are documented
+
+| Document | What it covers |
 |---|---|
-| `README.md` | What Stratum is, why it exists, the module list, a quick start, how to build. A summary that links out. |
-| `<module>/README.md` (each starter, `stratum-test`, `stratum-parent`, `stratum-bom`) | What the module sets up, every `stratum.<module>.*` property with its type, default and meaning, how to override each bean, a short usage example. |
-| `docs/` guides | Topics that span modules: getting started, upgrading, testing a service, architecture. |
-| `docs/adr/NNNN-<title>.md` | Architecture decisions: context, decision, consequences, alternatives considered. Never edited after acceptance; a new ADR supersedes an old one. |
-| `CHANGELOG.md` or release notes | What changed in each release, breaking changes and migration steps. |
-| `AGENTS.md` and `docs/agents/` | Rules for agents. |
+| `README.md` | What Stratum is and why it exists, its modules, a quick start and how to build. A clear overview that links to `docs/` for detail. |
+| `docs/README.md` | The index of all documentation. Every page in `docs/` is linked from it. |
+| `docs/getting-started/` | Installing Stratum, the core concepts and a first service, step by step. |
+| `docs/configuration/` | How configuration works, overriding defaults, profiles, and `reference.md`: every `stratum.*` property in one table. |
+| `docs/modules/<module>.md` | One page per module: what it sets up, each of its properties (type, default, meaning), how to replace each bean, and usage examples. |
+| `docs/guides/` | Topics that span modules: architecture, migrating a service, upgrading, troubleshooting, FAQ. |
+| Release notes | What changed in each release, breaking changes and the steps to migrate. |
+| `AGENTS.md` and `docs/agents/` | The rules for agents. |
 
 ## Rules
 
 - **ST-DOC-01 Same pull request.** A change to behaviour, a default, a property, a bean, a public API or a dependency
-  version updates the owning document in the same pull request. A pull request that leaves a document describing the
-  old behaviour is not done, and the judge fails it.
-- **ST-DOC-02 One functionality, one owning document.** Describe each thing in exactly one place. Everywhere else,
-  give one line and a link. Never a second description that can drift.
-- **ST-DOC-03 Update in place.** Change the owning document. Never add a dated summary, handover note or "update"
-  file as the place where current behaviour is described.
-- **ST-DOC-04 Every property is documented.** Each `stratum.*` property appears in its module README with type,
-  default and meaning. The Javadoc on the `@ConfigurationProperties` field says the same, since it feeds IDE
-  completion.
-- **ST-DOC-05 Examples work.** Code and YAML examples compile and run against the current version. Prefer examples
-  taken from a sample or a test so they cannot rot silently.
-- **ST-DOC-06 Mark what is planned.** Anything not built yet is clearly labelled as planned. Never describe planned
-  behaviour as if it exists.
-- **ST-DOC-07 Size.** No text-only file over 500 lines. Split a long document by topic into several files with an
-  index that links them.
-- **ST-DOC-08 Plain language.** Short sentences, plain words, real names and numbers. Explain any term a Spring Boot
-  developer may not know.
-- **ST-DOC-09 Breaking changes.** A breaking change gets a migration note in the release notes: what changed, who is
-  affected and the exact steps.
+  version updates every document that describes it in the same pull request. A pull request that leaves a document
+  describing the old behaviour is not finished, and the judge fails it.
+- **ST-DOC-02 One place per topic.** Each topic is described fully in one document. Other documents link to it with
+  one line instead of describing it again. The one exception is `docs/configuration/reference.md`, which lists every
+  property with a link to its module page; the two must agree.
+- **ST-DOC-03 Edit in place.** Update the document that owns the topic. Do not add dated summaries, handover notes or
+  "update" files.
+- **ST-DOC-04 Every property documented.** Each `stratum.*` property appears on its module page and in the reference
+  table, with type, default and meaning. The Javadoc on its `@ConfigurationProperties` field says the same, because
+  IDEs show it.
+- **ST-DOC-05 Both configuration formats.** Every configuration example is shown in both `application.properties` and
+  `application.yml`, side by side or in two consecutive blocks, with the same values.
+- **ST-DOC-06 Examples that work.** Code and configuration examples compile and run against the current version.
+  Where possible, take them from a sample or a test so they cannot drift from the code.
+- **ST-DOC-07 Written for every reader.** Short sentences and plain words. Explain each term a developer new to Spring
+  Boot may not know, the first time it appears on a page. Show complete steps, not fragments that assume knowledge.
+- **ST-DOC-08 Planned is labelled.** Anything not built yet is marked as planned. Never describe planned behaviour as
+  if it exists.
+- **ST-DOC-09 Size.** No document over 500 lines. Split a long document by topic and link the parts from
+  `docs/README.md` or a section index.
+- **ST-DOC-10 Breaking changes.** Every breaking change has a migration note in the release notes: what changed, who
+  is affected and the exact steps.
 
-## Reviewing documentation
+## How documentation is checked
 
-The judge reads the changed documents against the code: every property, default and example must match what the
-code does at the pull request's head commit. Planted faults include "change a default in code; does a test or a
-document check catch it?"
+The judge and the documentation role read each changed document against the code at the pull request's head commit.
+Every property name, default, bean name and example must match what the code does. A link that leads nowhere, a
+page missing from `docs/README.md`, or a configuration example shown in only one format is a finding.

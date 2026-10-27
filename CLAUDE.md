@@ -1,7 +1,6 @@
 # CLAUDE.md
 
-All agent instructions for this repository live in `AGENTS.md`, the single source shared by every agent. Claude Code
-loads it through the import below. Do not add rules to this file; change `AGENTS.md` or the `docs/agents/` file that
-owns the rule instead.
+The rules for every agent, Claude included, are in `AGENTS.md`, which is imported below. They apply to every role
+Claude takes in this repository. Do not add rules here; change `AGENTS.md` or the topic file it names.
 
 @AGENTS.md

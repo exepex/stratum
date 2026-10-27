@@ -1,90 +1,105 @@
 # Judge review
 
-Agents sometimes report work as finished when it is not: a test that was never run, a criterion half met, a file
-left out. The judge exists to catch that. It is an **independent, honest reviewer** that trusts nothing it has not
-checked itself. Adapted from the judge process in the Omenix F&O repository. Index: [AGENTS.md](../../AGENTS.md).
+Part of the agent rules in [AGENTS.md](../../AGENTS.md); every agent follows them. Adapted from the judge process of
+the Omenix F&O repository (`exepex/trading`, `docs/JUDGE.md`).
+
+An agent can report work as finished when part of it is missing, untested or wrong. The judge exists to catch this
+before merge. It is an independent agent that checks the work itself and accepts nothing it has not verified.
 
 ## Which changes need a judge
 
-| Lane | Covers | Review before merge |
-|---|---|---|
-| 1 | Any Java code, POM, build, CI or dependency change; auto-configuration, defaults and `stratum.*` properties; security, secrets, logging and personal data; public API; a change that deletes, skips or loosens a test or a gate; a rule document change that loosens a rule or a hard line | A judge PASS |
-| 2 | Documentation and rule documents that describe existing behaviour without changing it, samples, comments | A judge PASS, judged by reading only (no build) |
-| 3 | Judge verdict files, typo fixes that change no meaning | None |
+Every pull request needs a judge PASS before it merges. The only exception is a pull request that adds nothing but
+a judge verdict file.
 
-When unsure, it is lane 1. The builder states the lane in the pull request; the judge may move it up.
+How the judge checks depends on the change:
 
-## Who the judge is
+- **Code, build or configuration** (Java, POMs, YAML and `.properties` files, CI, dependencies, samples): the judge
+  builds the change, runs its tests and plants faults.
+- **Text only** (Markdown, plain text, AsciiDoc): the judge reads every changed document against the code and the
+  request. No build is needed.
 
-- A **separate session or agent** that did not build the change and shares no context with the builder. The builder
-  never judges its own work, and a second session of the builder that read the build conversation is not
-  independent.
-- The judge **never writes or edits code, tests or documents** in the change. The only file it writes is its verdict.
-- The judge does not merge. It gives PASS or FAIL with evidence.
+## Who starts the judge, and when
 
-To start a judge, open a fresh session on the pull request branch with this prompt:
+1. The implementer finishes the work, pushes it, and completes the Claims in the pull request description at that
+   head commit.
+2. The implementer asks the coordinator to start the judge, or the owner when there is no coordinator. Until a PASS
+   arrives, the implementer reports the work as "waiting for judge", never as done.
+3. The coordinator (or the owner) starts the judge as a new agent session with no access to the implementer's
+   conversation, using this prompt:
 
-> You are the independent judge for pull request #N in this repository. Follow `docs/agents/judge.md` exactly.
-> Verify every claim yourself; unverified is NOT MET. Write only your verdict file.
+   > You are the independent judge for pull request #N in exepex/stratum. Follow `AGENTS.md` and
+   > `docs/agents/judge.md` exactly. Verify every claim yourself; a claim you have not verified is NOT MET.
+   > Write only your verdict file.
 
-## What the builder provides
+The implementer never starts its own judge and never judges its own work. An agent that took part in building the
+change, or read the conversation in which it was built, cannot be its judge.
 
-The pull request description has a **Claims** section, updated each round:
+## The Claims
 
-- the lane, and the base and head commits the claims refer to;
-- each acceptance criterion, with the code (`file:line`) and the test that proves it, and the command that was run
-  with its result (for example `mvn -pl starters/stratum-starter-web -am verify`: `BUILD SUCCESS`, `Tests run: 42`);
-- what the builder did **not** do or could not verify, stated plainly;
-- for each criterion, which fault would make its test fail (the builder's own broken-code proof);
-- a real output sample where it helps (a log line, an error response, generated metadata), with no secrets or
-  personal data.
+The pull request description contains a **Claims** section, written by the implementer and updated each round:
+
+1. **The request.** The owner's request, quoted or linked.
+2. **Requirements.** Every requirement in the request, one per line. Each is either **met**, with its evidence, or
+   **out of scope**, with the reason and the owner's agreement if the owner decided it. Evidence is a `file:line`
+   for the code, the test that proves it, and the command that was run with its result, for example
+   `mvn -pl starters/stratum-starter-web -am verify` → `BUILD SUCCESS, Tests run: 42, Failures: 0`.
+3. **Broken-code proof.** For each requirement with code, the fault the implementer planted and the test that
+   caught it.
+4. **Not done or not verified.** Anything left open, stated plainly.
+5. **Files read.** The rule files the implementer read before starting.
+6. **Line counts.** Each changed file with its line count.
 
 A claim without evidence counts as not made.
 
 ## What the judge does
 
-1. Read the pull request, its Claims section and the issue or request behind it.
-2. Read the whole diff (`git diff <base>..<head>`) and every changed file in full where needed, plus the callers,
-   tests and documents the change affects.
-3. For each claim and each acceptance criterion, find the code and the test, and **run what can be run yourself**:
-   the build, the tests, the file-size check, small scripts. A criterion is MET only with your own evidence
-   (`file:line`, command output). Unverified is NOT MET.
-4. **Hunt for what was not claimed:** bugs, edge cases (empty input, missing property, missing optional library,
-   timeouts, concurrency, a service overriding the bean), missing tests, tests that pass without testing the claim,
-   secrets or personal data in logs, missing documentation updates, dead code.
-5. **Plant faults.** Break the code behind each important criterion on purpose (invert a condition, remove a bean,
-   change a default) and check that a test fails. Restore it afterwards. Record how many plants the tests caught.
-6. Check the rules: [engineering](engineering.md), [testing](testing.md), [security](security.md),
-   [documentation](documentation.md) and the file-size limits in AGENTS.md.
-7. Give the verdict: **PASS**, or **FAIL** with numbered findings, each marked **blocking**, **should fix** or
-   **minor**, with its evidence and the fix expected. A change passes only with no blocking and no should-fix
-   findings left.
+1. **Build the gap list first.** Read the owner's request and write your own list of every requirement in it,
+   before reading the implementer's list. Then compare. A requirement that is neither met nor declared out of
+   scope is a **blocking** finding. Something built that the request did not ask for is a **should fix** finding.
+2. Read the whole diff (`git diff <base>..<head>`), each changed file in full where needed, and the callers, tests
+   and documents the change affects.
+3. Check each requirement yourself. For code, run the build and the tests, and any small check you need. A
+   requirement is MET only with your own evidence (`file:line`, command output). If you could not verify it, it is
+   NOT MET.
+4. Look for what the Claims do not mention: bugs, edge cases (empty input, a property unset, an optional library
+   missing, a timeout, concurrent calls, a service replacing the bean), missing or hollow tests, secrets or personal
+   data in logs, documentation left out of date, dead code, files the request did not ask for.
+5. **Plant faults.** For each important requirement, break the code on purpose (invert a condition, remove a bean,
+   change a default) and check that a test fails. Restore the code afterwards. Record how many faults you planted
+   and how many the tests caught.
+6. Check the change against every rule: [AGENTS.md](../../AGENTS.md), [engineering](engineering.md),
+   [testing](testing.md), [security](security.md), [documentation](documentation.md) and [review](review.md).
+   Check the line count of every changed file against the limits in AGENTS.md.
+7. Give the verdict: **PASS**, or **FAIL** with numbered findings, each **blocking**, **should fix** or **minor**
+   (as defined in [review](review.md)), with evidence and the fix expected. A change passes only when no blocking
+   or should-fix finding remains.
 
-Be honest in both directions: do not invent findings to look thorough, and do not pass work to be agreeable.
+Judge honestly in both directions. Do not invent findings to look thorough, and do not pass work to be agreeable.
 
 ## The verdict file
 
-Written to `reviews/judge/PR-<number>-<short-name>.md` and committed to the pull request branch (the judge's only
-commit). If the judge can comment on the pull request, it also posts the verdict line and a link to the file.
-Fixed template, at most about 60 lines:
+The judge writes `reviews/judge/PR-<number>-<short-name>.md` and commits it to the pull request branch. This is the
+judge's only change to the repository. If the judge can comment on the pull request, it also posts the verdict line
+with a link to the file. The file follows this template and stays under about 60 lines:
 
-1. Title: pull request, branch, head commit. One line: **PASS** or **FAIL**, lane.
-2. Criteria table: one row per criterion: MET / PARTLY / NOT MET, with the judge's evidence in a few words.
-3. Findings (FAIL only): numbered, severity, evidence, fix expected.
-4. Plants: how many planted, how many caught, and any survivor.
-5. Notes that are not findings, if any.
+1. **Title:** pull request number, branch, head commit. Then one line: PASS or FAIL.
+2. **Gap list:** each requirement from the request, MET, PARTLY or NOT MET, with the judge's evidence in a few words.
+3. **Findings** (FAIL only): numbered, with severity, evidence and the fix expected.
+4. **Planted faults:** how many were planted, how many were caught, and which survived.
+5. **Notes** that are not findings, if any.
 
-Quote a builder claim only when it is wrong. No praise and no restating the change.
+Quote the implementer only where a claim is wrong. No praise and no summary of the change.
 
-## Rounds: at most two
+## Rounds
 
-1. On a FAIL, the builder fixes each finding with its proof (commit, test, command output), or pushes back with
-   evidence that the criterion is already met. "I disagree" without evidence is not a pushback.
-2. The judge re-judges once, in a `## Round 2` section of the same file, at the new head commit. Each fix or pushback
-   is accepted or rejected with the judge's own evidence. A pushback is accepted only when the judge reproduces it.
-3. **After two rounds the owner decides.** Both sides' evidence goes to the owner; there is no third round.
+1. After a FAIL, the implementer fixes each finding and shows the proof (commit, test, command output), or answers it
+   with evidence that the requirement is already met. Disagreement without evidence is not an answer.
+2. The judge reviews once more, in a `## Round 2` section of the same file, at the new head commit. It accepts or
+   rejects each fix and each answer with its own evidence. An answer is accepted only when the judge reproduces it.
+3. If findings remain after two rounds, the owner decides. Both sides' evidence goes to the owner; there is no third
+   round.
 
 ## Merging
 
-A lane 1 or 2 pull request merges only when the judge's PASS is at the current head commit and the build is green.
-Any new commit after the PASS, other than the verdict file itself, needs the judge to confirm the PASS still holds.
+A pull request merges only when the judge's PASS is for its current head commit. Any later commit other than the
+verdict file needs the judge to confirm that the PASS still holds.
