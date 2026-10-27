@@ -87,10 +87,10 @@ What this means in practice:
 
 One exception to the late order: a Stratum auto-configuration that must run before one of Spring
 Boot's own, to replace a bean Boot would otherwise create, is moved before it. The security starter
-is the expected case, because its `SecurityFilterChain` replaces Spring Boot's default one. Such a Stratum
-auto-configuration can also run before an unordered company auto-configuration, and its module page
-says so. In that case the company orders its auto-configuration before Stratum's with `beforeName`,
-as shown below, or the service turns the Stratum module off.
+is the expected case, because its `SecurityFilterChain` replaces Spring Boot's default one. Such a
+Stratum auto-configuration can also run before an unordered company auto-configuration, and its
+module page says so. In that case the company orders its auto-configuration before Stratum's with
+`beforeName`, as shown below, or the service turns the Stratum module off.
 
 A company auto-configuration that sets its own late order can still run before Stratum's by naming
 it, for example
