@@ -378,15 +378,16 @@ The full documentation lives in [`docs/`](docs/README.md). Start with the page t
 
 ## Building Stratum
 
-You need JDK 25 and Maven 3.9 or later.
+You need JDK 25. The Maven Wrapper (`./mvnw`, or `mvnw.cmd` on Windows) downloads the Maven
+version the build is tested with.
 
 ```bash
 git clone https://github.com/exepex/stratum.git
 cd stratum
-mvn verify
+./mvnw verify
 ```
 
-`mvn verify` checks formatting, runs Checkstyle, PMD, SpotBugs and the Maven Enforcer, runs unit
+`./mvnw verify` checks formatting, runs Checkstyle, PMD, SpotBugs and the Maven Enforcer, runs unit
 and integration tests (Docker will be needed once integration tests use containers) and writes a
 JaCoCo coverage report. The modules are grouped into `platform/` (BOM, parent POMs and build
 rules), `libs/` (shared libraries) and `starters/`; see

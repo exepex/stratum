@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Builds every Stratum module in one run. This POM only lists the modules; no module inherits it.
-  Dependency versions live in platform/stratum-bom, plugin versions in platform/stratum-parent.
+  Builds every Stratum module in one run. It is also the parent of stratum-bom and stratum-build-rules,
+  which cannot inherit stratum-build-parent, so that their POMs are flattened too.
+  Stratum's version is set once, as revision in .mvn/maven.config. Dependency versions live in
+  platform/stratum-bom, plugin versions in platform/stratum-build-parent.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -10,7 +12,7 @@
 
   <groupId>com.exepex.stratum</groupId>
   <artifactId>stratum</artifactId>
-  <version>0.1.0-SNAPSHOT</version>
+  <version>${revision}</version>
   <packaging>pom</packaging>
 
   <name>Stratum</name>
@@ -19,8 +21,8 @@
   <modules>
     <!-- Platform: versions, build rules and parent POMs -->
     <module>platform/stratum-bom</module>
+    <module>platform/stratum-build-parent</module>
     <module>platform/stratum-build-rules</module>
-    <module>platform/stratum-library-parent</module>
     <module>platform/stratum-parent</module>
 
     <!-- Shared libraries -->
@@ -39,4 +41,35 @@
     <module>starters/stratum-starter-security</module>
     <module>starters/stratum-starter-web</module>
   </modules>
+
+  <build>
+    <plugins>
+      <!-- The same plugin and settings as in stratum-build-parent, which this POM cannot share. -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>flatten-maven-plugin</artifactId>
+        <version>1.8.0</version>
+        <configuration>
+          <flattenMode>resolveCiFriendliesOnly</flattenMode>
+          <updatePomFile>true</updatePomFile>
+        </configuration>
+        <executions>
+          <execution>
+            <id>stratum-flatten</id>
+            <phase>process-resources</phase>
+            <goals>
+              <goal>flatten</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>stratum-flatten-clean</id>
+            <phase>clean</phase>
+            <goals>
+              <goal>clean</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 </project>

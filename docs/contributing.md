@@ -25,14 +25,17 @@ default. Describe the problem, which services need it, and the proposed behaviou
 
 ```bash
 git checkout -b <short-description>
-mvn spotless:apply   # format the code
-mvn verify           # formatting, static analysis, unit and integration tests
+./mvnw spotless:apply   # format the code
+./mvnw verify           # formatting, static analysis, unit and integration tests
 ```
 
-Run whole phases up to at least `package` from the repository root, such as `mvn verify`. The
-Checkstyle, PMD and Enforcer rules are read from the `stratum-build-rules` jar, which a shorter run,
-such as `mvn validate`, does not build. To build one module and the modules it needs, use
-`mvn -pl starters/stratum-starter-web -am verify`.
+Use the Maven Wrapper (`./mvnw`, or `mvnw.cmd` on Windows): it runs the Maven version the build is
+tested with. Run whole phases up to at least `package` from the repository root, such as
+`./mvnw verify`. The Checkstyle, PMD and Enforcer rules are read from the `stratum-build-rules` jar,
+which a shorter run, such as `./mvnw validate`, does not build. To build one module and the modules
+it needs, use `./mvnw -pl starters/stratum-starter-web -am verify`.
+
+Stratum's version is set once, as `revision` in `.mvn/maven.config`. To change it, edit that line.
 
 Then open a pull request. Its description and review follow
 [`AGENTS.md`](../AGENTS.md#git-and-pull-requests).
