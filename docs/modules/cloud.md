@@ -89,6 +89,11 @@ stratum.cloud.storage.buckets.invoices=acme-prod-invoices
 stratum.cloud.secrets.enabled=true
 ```
 
+## Configure in Java
+
+**Planned.** You will also be able to set every property on this page in Java code, through this module's
+customizer or builder, with the same names and defaults. This section will show how once that API is designed.
+
 ## Testing
 
 `stratum-test` will include containers that emulate cloud services (LocalStack for AWS, Azurite for

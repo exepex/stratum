@@ -35,9 +35,9 @@ the documentation must work for both. Documentation is part of every change and 
   table, with type, default and meaning. The Javadoc on its `@ConfigurationProperties` field says the same, because
   IDEs show it.
 - **ST-DOC-05 Every way to configure.** Every configuration example is shown in both `application.properties` and
-  `application.yml`, with the same values. Each module page also has a "Configure in Java" section showing the same
-  settings through the module's customizer or builder (ST-ENG-34). Until a module's Java API is designed, that
-  section is marked as planned (ST-DOC-08) rather than inventing an API.
+  `application.yml`, with the same values. Each module page with `stratum.*` properties also has a "Configure in Java"
+  section showing the same settings through the module's customizer or builder (ST-ENG-34). Until a module's Java API
+  is designed, that section is marked as planned (ST-DOC-08) rather than inventing an API.
 - **ST-DOC-06 Examples that work.** Code and configuration examples compile and run against the current version.
   Where possible, take them from a sample or a test so they cannot drift from the code.
 - **ST-DOC-07 Written for every reader.** Short sentences and plain words. Explain each term a developer new to Spring

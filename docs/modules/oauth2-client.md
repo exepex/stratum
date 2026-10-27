@@ -132,6 +132,11 @@ On the HTTP client side (documented on the [HTTP client page](http-client.md#pro
 
 Set only one of the two per client. Setting both stops the startup with an error.
 
+## Configure in Java
+
+**Planned.** You will also be able to set every property on this page in Java code, through this module's
+customizer or builder, with the same names and defaults. This section will show how once that API is designed.
+
 ## Customize
 
 - **Different grant type** (for example JWT bearer or token exchange): declare your own

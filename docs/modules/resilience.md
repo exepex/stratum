@@ -157,6 +157,11 @@ Each policy publishes metrics (`resilience4j.circuitbreaker.state`, `resilience4
 others) tagged with the policy name, and logs every circuit breaker state change at `WARN`. Add the
 circuit breaker state to your service dashboard: an Open breaker is an early warning.
 
+## Configure in Java
+
+**Planned.** You will also be able to set every property on this page in Java code, through this module's
+customizer or builder, with the same names and defaults. This section will show how once that API is designed.
+
 ## Customize
 
 - **Different failure rules:** declare a `CircuitBreakerConfigCustomizer` or `RetryConfigCustomizer`

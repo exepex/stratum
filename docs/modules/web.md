@@ -151,6 +151,11 @@ class OutOfStockException extends ErrorResponseException {
 }
 ```
 
+## Configure in Java
+
+**Planned.** You will also be able to set every property on this page in Java code, through this module's
+customizer or builder, with the same names and defaults. This section will show how once that API is designed.
+
 ## Customize
 
 - **Add a field to every error body:** declare a `StratumErrorResponseCustomizer` bean.

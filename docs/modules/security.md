@@ -145,6 +145,11 @@ stratum.security.cors.allowed-origins=https://shop.acme.com
 > Changing `public-paths` replaces the whole default list. Keep the health paths in it, or
 > Kubernetes probes start failing with `401`.
 
+## Configure in Java
+
+**Planned.** You will also be able to set every property on this page in Java code, through this module's
+customizer or builder, with the same names and defaults. This section will show how once that API is designed.
+
 ## Customize
 
 - **Add rules without losing Stratum's:** declare a `StratumSecurityCustomizer`. It receives
