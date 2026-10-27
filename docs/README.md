@@ -77,5 +77,8 @@ Each module page follows the same layout so you always know where to look:
 - **Planned** marks behaviour that is designed but not built yet.
 - Every configuration example is shown in **YAML** (`application.yml`) and **properties**
   (`application.properties`). Use whichever your service uses; they are equivalent.
+- Every setting can also be set in Java code, through the module's customizer or builder, for services whose
+  configuration files would grow too large. **Planned:** each module page will show this once the module's Java
+  API is designed.
 - Durations are written like `5s`, `200ms` or `10m`. Sizes are written like `10MB`.
 - `<name>` in a property key means "a name you choose", for example the name of a downstream service.

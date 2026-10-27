@@ -52,7 +52,8 @@ for the service, not how it is built.
   `process()`. Avoid `Manager`, `Helper`, `Util` and `Impl` unless the name still says what the class does.
 - **ST-ENG-14 Javadoc on everything.** Every class, interface, enum, record, method (public, protected, package-private
   and private) and every configuration property field has Javadoc. Lombok-generated members are documented on the
-  field they come from.
+  field they come from. In test code, the `@DisplayName` on a test class, `@Nested` class or test method replaces
+  Javadoc (ST-TEST-12); test support classes such as `<Domain>TestData` still have Javadoc.
 - **ST-ENG-15 Functional Javadoc.** Javadoc explains what the element does for the service and when to use it, in
   plain words a developer new to Spring Boot can follow. It names units and defaults, for example: "How long to wait
   for a downstream service to accept the connection before giving up. Defaults to 2 seconds." It does not restate the
@@ -79,7 +80,9 @@ Every starter follows these rules:
   resources bounded. A service needs no configuration to be safe.
 - **ST-ENG-26** Dependencies are injected through constructors (in auto-configuration, through `@Bean` method
   parameters). Never field injection (`@Autowired` on a field) or setter injection. Constructor injection makes
-  dependencies explicit, keeps fields `final` and makes Spring report circular dependencies at startup.
+  dependencies explicit, keeps fields `final` and makes Spring report circular dependencies at startup. Test
+  classes are exempt: a Spring test may inject into a field or a test-method parameter, because a test class is not
+  a bean that other beans depend on.
 
 ## Configuration
 

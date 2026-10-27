@@ -35,7 +35,7 @@ Two facts shape every rule below:
 Every agent, whatever its role, reads this file and all six topic files in full before it starts:
 [engineering](docs/agents/engineering.md), [testing](docs/agents/testing.md), [security](docs/agents/security.md),
 [documentation](docs/agents/documentation.md), [review](docs/agents/review.md) and [judge](docs/agents/judge.md).
-Together they are about 490 lines. An agent states in its report that it has read them.
+The six topic files add about 500 lines to this one. An agent states in its report that it has read them.
 
 Each role then has these duties:
 
