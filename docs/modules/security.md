@@ -20,7 +20,7 @@ properties, the same way in every service.
 
 ```xml
 <dependency>
-  <groupId>com.example.stratum</groupId>
+  <groupId>com.exepex.stratum</groupId>
   <artifactId>stratum-starter-security</artifactId>
 </dependency>
 ```

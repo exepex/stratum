@@ -10,7 +10,7 @@
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>com.example.stratum</groupId>
+  <groupId>com.exepex.stratum</groupId>
   <artifactId>stratum-bom</artifactId>
   <version>0.1.0-SNAPSHOT</version>
   <packaging>pom</packaging>
@@ -21,62 +21,62 @@
   <dependencyManagement>
     <dependencies>
       <dependency>
-        <groupId>com.example.stratum</groupId>
+        <groupId>com.exepex.stratum</groupId>
         <artifactId>stratum-core</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.example.stratum</groupId>
+        <groupId>com.exepex.stratum</groupId>
         <artifactId>stratum-starter-cache</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.example.stratum</groupId>
+        <groupId>com.exepex.stratum</groupId>
         <artifactId>stratum-starter-data-jpa</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.example.stratum</groupId>
+        <groupId>com.exepex.stratum</groupId>
         <artifactId>stratum-starter-http-client</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.example.stratum</groupId>
+        <groupId>com.exepex.stratum</groupId>
         <artifactId>stratum-starter-kafka</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.example.stratum</groupId>
+        <groupId>com.exepex.stratum</groupId>
         <artifactId>stratum-starter-logging</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.example.stratum</groupId>
+        <groupId>com.exepex.stratum</groupId>
         <artifactId>stratum-starter-oauth2-client</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.example.stratum</groupId>
+        <groupId>com.exepex.stratum</groupId>
         <artifactId>stratum-starter-observability</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.example.stratum</groupId>
+        <groupId>com.exepex.stratum</groupId>
         <artifactId>stratum-starter-resilience</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.example.stratum</groupId>
+        <groupId>com.exepex.stratum</groupId>
         <artifactId>stratum-starter-security</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.example.stratum</groupId>
+        <groupId>com.exepex.stratum</groupId>
         <artifactId>stratum-starter-web</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.example.stratum</groupId>
+        <groupId>com.exepex.stratum</groupId>
         <artifactId>stratum-test</artifactId>
         <version>${project.version}</version>
       </dependency>

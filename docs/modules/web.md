@@ -15,7 +15,7 @@ With it, every service answers the same way.
 
 ```xml
 <dependency>
-  <groupId>com.example.stratum</groupId>
+  <groupId>com.exepex.stratum</groupId>
   <artifactId>stratum-starter-web</artifactId>
 </dependency>
 ```

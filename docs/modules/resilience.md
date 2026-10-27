@@ -34,7 +34,7 @@ lets a few test calls through.*
 
 ```xml
 <dependency>
-  <groupId>com.example.stratum</groupId>
+  <groupId>com.exepex.stratum</groupId>
   <artifactId>stratum-starter-resilience</artifactId>
 </dependency>
 ```

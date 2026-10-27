@@ -78,7 +78,7 @@ Adding a starter is usually the only step needed to use a feature:
 
 ```xml
 <dependency>
-  <groupId>com.example.stratum</groupId>
+  <groupId>com.exepex.stratum</groupId>
   <artifactId>stratum-starter-logging</artifactId>
 </dependency>
 ```

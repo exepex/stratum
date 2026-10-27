@@ -13,8 +13,7 @@
 | Docker | Any recent version (only for integration tests) | `docker info` |
 
 > [!NOTE]
-> `com.example.stratum` and `0.1.0-SNAPSHOT` below are placeholders for the real `groupId` and
-> version.
+> `0.1.0-SNAPSHOT` below is a placeholder for the first released version.
 
 ## Step 1: choose how your service gets Stratum's versions
 
@@ -36,7 +35,7 @@ There are two options. Both give you the same tested versions; they differ in wh
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.example.stratum</groupId>
+    <groupId>com.exepex.stratum</groupId>
     <artifactId>stratum-parent</artifactId>
     <version>0.1.0-SNAPSHOT</version>
     <relativePath/> <!-- look the parent up in the repository, not on disk -->
@@ -57,7 +56,7 @@ There are two options. Both give you the same tested versions; they differ in wh
 <dependencyManagement>
   <dependencies>
     <dependency>
-      <groupId>com.example.stratum</groupId>
+      <groupId>com.exepex.stratum</groupId>
       <artifactId>stratum-bom</artifactId>
       <version>0.1.0-SNAPSHOT</version>
       <type>pom</type>
@@ -108,28 +107,28 @@ A typical REST service that calls one other service:
 ```xml
 <dependencies>
   <dependency>
-    <groupId>com.example.stratum</groupId>
+    <groupId>com.exepex.stratum</groupId>
     <artifactId>stratum-starter-web</artifactId>
   </dependency>
   <dependency>
-    <groupId>com.example.stratum</groupId>
+    <groupId>com.exepex.stratum</groupId>
     <artifactId>stratum-starter-logging</artifactId>
   </dependency>
   <dependency>
-    <groupId>com.example.stratum</groupId>
+    <groupId>com.exepex.stratum</groupId>
     <artifactId>stratum-starter-observability</artifactId>
   </dependency>
   <dependency>
-    <groupId>com.example.stratum</groupId>
+    <groupId>com.exepex.stratum</groupId>
     <artifactId>stratum-starter-security</artifactId>
   </dependency>
   <dependency>
-    <groupId>com.example.stratum</groupId>
+    <groupId>com.exepex.stratum</groupId>
     <artifactId>stratum-starter-http-client</artifactId>
   </dependency>
 
   <dependency>
-    <groupId>com.example.stratum</groupId>
+    <groupId>com.exepex.stratum</groupId>
     <artifactId>stratum-test</artifactId>
     <scope>test</scope>
   </dependency>

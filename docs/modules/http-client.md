@@ -19,7 +19,7 @@ groups, backed by `RestClient`.
 
 ```xml
 <dependency>
-  <groupId>com.example.stratum</groupId>
+  <groupId>com.exepex.stratum</groupId>
   <artifactId>stratum-starter-http-client</artifactId>
 </dependency>
 ```

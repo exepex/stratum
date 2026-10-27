@@ -91,7 +91,7 @@ stratum-starter-http-client/
 ├── pom.xml
 └── src/
     ├── main/
-    │   ├── java/com/example/stratum/httpclient/
+    │   ├── java/com/exepex/stratum/httpclient/
     │   │   ├── autoconfigure/                       # wiring only: @AutoConfiguration classes
     │   │   │   └── StratumHttpClientAutoConfiguration.java
     │   │   ├── StratumHttpClientProperties.java     # @ConfigurationProperties("stratum.http-client")
@@ -161,7 +161,7 @@ planned next:
 | Topic | Status |
 | --- | --- |
 | [0001: Stratum next to a company framework](../adr/0001-coexistence-with-company-frameworks.md) | Accepted |
-| Maven `groupId` and Java package names | Open |
+| Maven `groupId` and Java package names | Decided by the owner: `com.exepex.stratum`, and packages under `com.exepex.stratum` |
 | Problem Details (RFC 9457) as the error format | Proposed |
 | Resilience4j as the resilience engine | Proposed |
 | First cloud provider | Open |

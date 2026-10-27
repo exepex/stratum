@@ -86,7 +86,7 @@ one. With a BOM import, put it above the import to make that clear to readers:
       <version>X.Y.Z</version> <!-- the patched version -->
     </dependency>
     <dependency>
-      <groupId>com.example.stratum</groupId>
+      <groupId>com.exepex.stratum</groupId>
       <artifactId>stratum-bom</artifactId>
       <version>0.1.0-SNAPSHOT</version>
       <type>pom</type>

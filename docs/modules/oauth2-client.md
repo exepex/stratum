@@ -23,7 +23,7 @@ no extra setup.
 
 ```xml
 <dependency>
-  <groupId>com.example.stratum</groupId>
+  <groupId>com.exepex.stratum</groupId>
   <artifactId>stratum-starter-oauth2-client</artifactId>
 </dependency>
 ```

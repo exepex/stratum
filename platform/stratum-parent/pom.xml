@@ -21,7 +21,7 @@
     <relativePath/>
   </parent>
 
-  <groupId>com.example.stratum</groupId>
+  <groupId>com.exepex.stratum</groupId>
   <artifactId>stratum-parent</artifactId>
   <version>0.1.0-SNAPSHOT</version>
   <packaging>pom</packaging>
@@ -52,7 +52,7 @@
   <dependencyManagement>
     <dependencies>
       <dependency>
-        <groupId>com.example.stratum</groupId>
+        <groupId>com.exepex.stratum</groupId>
         <artifactId>stratum-bom</artifactId>
         <version>${stratum.version}</version>
         <type>pom</type>
@@ -105,7 +105,7 @@
           </configuration>
           <dependencies>
             <dependency>
-              <groupId>com.example.stratum</groupId>
+              <groupId>com.exepex.stratum</groupId>
               <artifactId>stratum-build-rules</artifactId>
               <version>${stratum.version}</version>
             </dependency>
@@ -141,7 +141,7 @@
           </configuration>
           <dependencies>
             <dependency>
-              <groupId>com.example.stratum</groupId>
+              <groupId>com.exepex.stratum</groupId>
               <artifactId>stratum-build-rules</artifactId>
               <version>${stratum.version}</version>
             </dependency>
@@ -249,7 +249,7 @@
         <artifactId>maven-enforcer-plugin</artifactId>
         <dependencies>
           <dependency>
-            <groupId>com.example.stratum</groupId>
+            <groupId>com.exepex.stratum</groupId>
             <artifactId>stratum-build-rules</artifactId>
             <version>${stratum.version}</version>
           </dependency>

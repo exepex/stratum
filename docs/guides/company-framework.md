@@ -94,7 +94,7 @@ module page says so. In that case the company orders its auto-configuration befo
 
 A company auto-configuration that sets its own late order can still run before Stratum's by naming
 it, for example
-`@AutoConfiguration(beforeName = "com.example.stratum.web.autoconfigure.StratumCorrelationAutoConfiguration")`.
+`@AutoConfiguration(beforeName = "com.exepex.stratum.web.autoconfigure.StratumCorrelationAutoConfiguration")`.
 Using `beforeName` avoids a compile-time dependency on Stratum. Stratum's auto-configuration class
 names may change between minor versions, and the release notes list every rename.
 
@@ -160,7 +160,7 @@ uses Stratum's starters through the BOM.
   <dependencyManagement>
     <dependencies>
       <dependency>
-        <groupId>com.example.stratum</groupId>
+        <groupId>com.exepex.stratum</groupId>
         <artifactId>stratum-bom</artifactId>
         <version>0.1.0-SNAPSHOT</version>
         <type>pom</type>

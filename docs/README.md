@@ -6,8 +6,8 @@ how to use it day to day.
 
 > [!NOTE]
 > Stratum is in the design stage. Every page describes the **planned** behaviour, which is the
-> design target and may change before the first release. `com.example.stratum` and
-> `0.1.0-SNAPSHOT` are placeholders for the real `groupId` and version.
+> design target and may change before the first release. The `groupId` is
+> `com.exepex.stratum`; `0.1.0-SNAPSHOT` is a placeholder for the first released version.
 
 ## Where to start
 
