@@ -166,6 +166,12 @@ customizer or builder, with the same names and defaults. This section will show 
 - **Different claim mapping:** declare your own `JwtAuthenticationConverter` bean.
 - **Full control:** declare your own `SecurityFilterChain`. Stratum's chain then steps aside (see
   [Overriding defaults](../configuration/overriding-defaults.md#level-3-replace-a-bean)).
+- **A chain from your company's framework:** Stratum's chain is set up before Spring Boot's default
+  one, so it can also come before a company auto-configuration that declares no order. The company's
+  auto-configuration must then declare that it runs before Stratum's security auto-configuration
+  (`beforeName`), or the service sets `stratum.security.enabled=false`. A chain defined in your own
+  service code is not affected. See
+  [Rule 2 of the company framework guide](../guides/company-framework.md#rule-2-the-companys-bean-wins).
 
 ## Switch it off
 

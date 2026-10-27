@@ -72,7 +72,9 @@ When several customizers of the same type exist, Spring applies them in `@Order`
 ## Level 3: replace a bean
 
 Every bean Stratum creates is marked `@ConditionalOnMissingBean`. If your application defines a bean
-of the same type, Stratum's version is not created and yours is used.
+of the same type, Stratum's version is not created and yours is used. The same holds for a bean from
+your company's framework; see
+[Using Stratum with a company framework](../guides/company-framework.md#rule-2-the-companys-bean-wins).
 
 Example: a service with very specific security rules defines its own filter chain:
 

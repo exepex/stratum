@@ -154,7 +154,7 @@ everyone. Stratum makes those decisions once, using the same mechanism:
 | Offers several log formats; you pick and configure one | Picks the standard format and adds trace and correlation IDs |
 | Offers `RestClient`; you set timeouts, tracing and tokens yourself | Gives you a client with all of that already set |
 | Offers a resource server; you write the `SecurityFilterChain` | Builds the chain from a few `stratum.security.*` properties |
-| Leaves versions of extra libraries to you | Pins and tests every version in one BOM |
+| Leaves versions of extra libraries to you | Pins and tests their versions in one BOM, on top of Spring Boot's |
 
 Your service still is a normal Spring Boot application. You can read any Spring Boot guide and it
 still applies.

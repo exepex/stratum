@@ -69,7 +69,9 @@ stratum-starter-http-client/
 - **Properties** are a typed `@ConfigurationProperties` class with validation and Javadoc on every
   field; the Javadoc becomes the description your IDE shows.
 - Auto-configurations are registered in the `AutoConfiguration.imports` file (never by component
-  scanning), with explicit ordering against Spring Boot's own.
+  scanning), with explicit ordering against Spring Boot's own. They sort after auto-configurations
+  that declare no order, so a company framework's beans are created first and Stratum's back off
+  (see [ADR 0001](../adr/0001-coexistence-with-company-frameworks.md)).
 
 ## What happens at startup
 
@@ -115,10 +117,12 @@ module uses the same spelling.
 ## Architecture decisions
 
 Significant decisions are recorded as ADRs (architecture decision records) in `docs/adr/`, numbered
-in order. An accepted ADR is never edited; a new one replaces it. Planned first decisions:
+in order. An accepted ADR is never edited; a new one replaces it. Decisions so far, and the ones
+planned next:
 
 | Topic | Status |
 | --- | --- |
+| [0001: Stratum next to a company framework](../adr/0001-coexistence-with-company-frameworks.md) | Accepted |
 | Maven `groupId` and Java package names | Open |
 | Problem Details (RFC 9457) as the error format | Proposed |
 | Resilience4j as the resilience engine | Proposed |

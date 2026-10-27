@@ -16,6 +16,7 @@ how to use it day to day.
 | New to Spring Boot or to microservices | [Core concepts](getting-started/concepts.md) → [Quick start](getting-started/quick-start.md) → [Configuration basics](configuration/basics.md) |
 | An experienced Spring developer | [Quick start](getting-started/quick-start.md) → [Overriding defaults](configuration/overriding-defaults.md) → the module pages you need |
 | Moving an existing service to Stratum | [Installation](getting-started/installation.md) → [Migrating a service](guides/migrating-a-service.md) |
+| Already using your company's framework | [Installation](getting-started/installation.md) → [Using Stratum with a company framework](guides/company-framework.md) |
 | Looking up one property | [Configuration reference](configuration/reference.md) |
 
 ## Getting started
@@ -62,9 +63,16 @@ Each module page follows the same layout so you always know where to look:
 | --- | --- |
 | [Migrating a service](guides/migrating-a-service.md) | Moving an existing Spring Boot service onto Stratum, one concern at a time. |
 | [Versioning and upgrades](guides/upgrading.md) | How Stratum versions work, what an upgrade involves, the compatibility table. |
+| [Using Stratum with a company framework](guides/company-framework.md) | Keeping your company's parent and framework, which bean wins, turning off overlapping modules, forking Stratum under the company parent. |
 | [Architecture](guides/architecture.md) | How Stratum is built inside: repository layout, how defaults are applied, module rules. |
 | [Troubleshooting](guides/troubleshooting.md) | Finding out what Stratum configured, and fixes for common problems. |
 | [FAQ](guides/faq.md) | Short answers to common questions. |
+
+## Architecture decisions
+
+| Record | What it decides |
+| --- | --- |
+| [ADR 0001: Stratum next to a company framework](adr/0001-coexistence-with-company-frameworks.md) | The parent sets the Spring Boot version, a company's bean wins over Stratum's, and a fork under the company parent is supported but not recommended. |
 
 ## Contributing
 

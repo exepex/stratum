@@ -38,6 +38,7 @@ Add a starter. Set a few properties. Write only business code.
 - [Modules](#modules)
 - [Configuration: YAML or properties](#configuration-yaml-or-properties)
 - [Changing or switching off a default](#changing-or-switching-off-a-default)
+- [Using Stratum with your company's framework](#using-stratum-with-your-companys-framework)
 - [Testing your service](#testing-your-service)
 - [Upgrades and versions](#upgrades-and-versions)
 - [Documentation map](#documentation-map)
@@ -149,7 +150,7 @@ every step and explains each line.
 </parent>
 ```
 
-Your service already has a parent? Import the Stratum BOM instead. See
+Your service already has a parent, such as your company's? Import the Stratum BOM instead. See
 [Installation](docs/getting-started/installation.md).
 
 **2. Add the starters you need.** No `<version>` tags: Stratum manages them.
@@ -288,6 +289,33 @@ You stay in control at three levels, from lightest to strongest:
 
 Details and examples: [Overriding defaults](docs/configuration/overriding-defaults.md).
 
+## Using Stratum with your company's framework
+
+Your company may already have its own framework on Spring Boot: a parent POM that every service
+inherits, and starters with the company's own beans. Stratum is designed to work next to it, not
+against it. There are three setups:
+
+| Setup | Parent chain | When to use it |
+| --- | --- | --- |
+| A: Stratum as parent | Spring Boot → `stratum-parent` → service | There is no company framework |
+| B: company parent, Stratum BOM | Spring Boot → company parent → service, importing `stratum-bom` | **Recommended** when a company framework exists |
+| C: team fork of Stratum | Spring Boot → company parent → forked `stratum-parent` → service | Supported, when a team wants one parent and accepts merging every Stratum release into its fork |
+
+In setups B and C three rules keep the two frameworks from conflicting:
+
+- **One Spring Boot version, set by the parent.** `stratum-bom` does not set Spring Boot's versions,
+  and Stratum stops at startup if the running Spring Boot version is outside the line it supports.
+- **The company's bean wins.** Stratum's beans are created only when no bean of the same type exists,
+  and Stratum's auto-configurations usually run after the company's. The exceptions, and what to do
+  about them, are in
+  [Rule 2 of the guide](docs/guides/company-framework.md#rule-2-the-companys-bean-wins).
+- **Overlapping setups are turned off.** Where both frameworks set up a whole concern, such as a
+  security filter chain or the log format, the service keeps one and turns Stratum's off, for example
+  with `stratum.security.enabled=false`.
+
+Step-by-step setup and configuration: [Using Stratum with a company framework](docs/guides/company-framework.md).
+The decision behind it: [ADR 0001](docs/adr/0001-coexistence-with-company-frameworks.md).
+
 ## Testing your service
 
 `stratum-test` gives you everything you need for unit, mock and integration tests in one test
@@ -325,8 +353,10 @@ Full guide: [Testing with stratum-test](docs/modules/test.md).
 
 - Stratum follows [semantic versioning](https://semver.org): a patch release never breaks you; a major
   release may, and its release notes list the exact migration steps.
-- Each Stratum release is tested against one Spring Boot release. Upgrading Stratum upgrades Spring
-  Boot and every managed library together.
+- Each Stratum release supports one Spring Boot line, such as `4.1.x`, and is tested with one release
+  in it. With `stratum-parent`, upgrading Stratum upgrades Spring Boot and every managed library
+  together. Under a company parent, the company parent sets the Spring Boot version, and Stratum
+  checks at startup that it supports it.
 
 Details: [Versioning and upgrades](docs/guides/upgrading.md).
 
@@ -339,6 +369,7 @@ The full documentation lives in [`docs/`](docs/README.md). Start with the page t
 | New to Spring Boot | [Core concepts](docs/getting-started/concepts.md), then [Quick start](docs/getting-started/quick-start.md) |
 | Starting a new service | [Quick start](docs/getting-started/quick-start.md) |
 | Moving an existing service to Stratum | [Installation](docs/getting-started/installation.md) and [Migrating a service](docs/guides/migrating-a-service.md) |
+| Keeping my company's framework | [Using Stratum with a company framework](docs/guides/company-framework.md) |
 | Looking for a property | [Configuration reference](docs/configuration/reference.md) |
 | Using one component | Its page under [Modules](#modules) |
 | Debugging a startup or config problem | [Troubleshooting](docs/guides/troubleshooting.md) |
