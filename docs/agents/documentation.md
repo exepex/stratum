@@ -34,8 +34,8 @@ the documentation must work for both. Documentation is part of every change and 
 - **ST-DOC-04 Every property documented.** Each `stratum.*` property appears on its module page and in the reference
   table, with type, default and meaning. The Javadoc on its `@ConfigurationProperties` field says the same, because
   IDEs show it.
-- **ST-DOC-05 Both configuration formats.** Every configuration example is shown in both `application.properties` and
-  `application.yml`, side by side or in two consecutive blocks, with the same values.
+- **ST-DOC-05 Every way to configure.** Every configuration example is shown in `application.properties`, in
+  `application.yml` and in Java (the module's customizer or builder, ST-ENG-34), with the same values.
 - **ST-DOC-06 Examples that work.** Code and configuration examples compile and run against the current version.
   Where possible, take them from a sample or a test so they cannot drift from the code.
 - **ST-DOC-07 Written for every reader.** Short sentences and plain words. Explain each term a developer new to Spring
@@ -52,4 +52,4 @@ the documentation must work for both. Documentation is part of every change and 
 The judge and the documentation role read each changed document against the code at the pull request's head commit.
 Every property name, default, bean name and example must match what the code does. Each of these is a finding: a
 link that leads nowhere, a user documentation page missing from `docs/README.md`, an agent rule file missing from
-`AGENTS.md`, and a configuration example shown in only one format.
+`AGENTS.md`, and a configuration example missing one of the three forms.

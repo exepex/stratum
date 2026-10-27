@@ -24,9 +24,9 @@ cite it.
 - **ST-ENG-07 Patterns where they remove complexity.** Strategy for behaviour that varies by type, Factory for
   conditional construction, Template Method for a shared sequence with varying steps, Facade for a subsystem,
   Builder for objects with several fields. Use one only when it removes branching or coupling.
-- **ST-ENG-08 Clean code.** Names say what a thing does. A method does one thing. Avoid deep nesting, long parameter
-  lists and boolean parameters that switch behaviour. Remove dead and commented-out code. Comments explain a reason
-  or constraint, never what the next line does. Public API has Javadoc.
+- **ST-ENG-08 Clean code.** A method does one thing. Avoid deep nesting, long parameter lists and boolean
+  parameters that switch behaviour. Remove dead and commented-out code. Comments inside a method explain a reason or
+  constraint, never what the next line does. Names and Javadoc follow ST-ENG-13 to ST-ENG-15.
 - **ST-ENG-09 Formatting.** Java is formatted with google-java-format through Spotless and checked by Checkstyle.
   Do not hand-format around the formatter, add `spotless:off` or add Checkstyle suppressions.
 
@@ -41,7 +41,25 @@ cite it.
 - **ST-ENG-12 Defined once.** The log format, correlation and trace headers, metric names and tags, and the error
   response format are each defined in one place and used by every module.
 
-## Auto-configuration
+## Names and Javadoc
+
+Stratum is an SDK: its names and Javadoc are what service developers read first, so they describe what a thing does
+for the service, not how it is built.
+
+- **ST-ENG-13 Functional names.** Every class, interface, method, parameter, local variable, field, constant and
+  property is named for its purpose in the domain of the SDK. Write `InventoryClient`, `connectTimeout`,
+  `retryAttempts` and `redactSensitiveHeaders()`, not `RestClientWrapper`, `t1`, `cfg`, `data`, `handle()` or
+  `process()`. Avoid `Manager`, `Helper`, `Util` and `Impl` unless the name still says what the class does.
+- **ST-ENG-14 Javadoc on everything.** Every class, interface, enum, record, method (public, protected, package-private
+  and private) and every configuration property field has Javadoc. Lombok-generated members are documented on the
+  field they come from.
+- **ST-ENG-15 Functional Javadoc.** Javadoc explains what the element does for the service and when to use it, in
+  plain words a developer new to Spring Boot can follow. It names units and defaults, for example: "How long to wait
+  for a downstream service to accept the connection before giving up. Defaults to 2 seconds." It does not restate the
+  signature ("Sets the connect timeout field") or describe internal mechanics. Technical detail goes in a short
+  `@implNote` only when a caller needs it.
+
+## Auto-configuration and beans
 
 Every starter follows these rules:
 
@@ -59,6 +77,9 @@ Every starter follows these rules:
   Stratum's own `*Customizer` interfaces) instead of replacing whole beans.
 - **ST-ENG-25** The defaults are safe for production: timeouts set, sensitive values redacted, endpoints secured,
   resources bounded. A service needs no configuration to be safe.
+- **ST-ENG-26** Dependencies are injected through constructors (in auto-configuration, through `@Bean` method
+  parameters). Never field injection (`@Autowired` on a field) or setter injection. Constructor injection makes
+  dependencies explicit, keeps fields `final` and makes Spring report circular dependencies at startup.
 
 ## Configuration
 
@@ -71,18 +92,26 @@ Every starter follows these rules:
 - **ST-ENG-32** Every property works the same from `application.properties` and `application.yml`. Property names use
   kebab-case, Spring Boot's canonical form. Tests for property binding cover both formats.
 - **ST-ENG-33** Every tunable value (pool size, timeout, limit, TTL, retry count) is a property. None is hardcoded.
+- **ST-ENG-34** Every setting can also be set in Java, for services whose configuration files would grow too large.
+  Each module offers a customizer bean or a builder on its public API that sets the same options, with the same
+  names and defaults as the properties. When a setting is given in both places, the Java configuration wins, and
+  the module's documentation says so.
 
 ## Java 25 and Spring Boot 4
 
+- **ST-ENG-39** Use what the JDK already provides before writing code: the functional interfaces in
+  `java.util.function` (`Supplier`, `Function`, `Predicate`, `Consumer`) instead of custom single-method interfaces,
+  streams, `Optional` for return values that may be absent (never for fields or parameters), immutable and sequenced
+  collections (`List.of`, `Stream.toList()`, `SequencedCollection`), and `java.time` for dates and durations.
 - **ST-ENG-40** Use current Java: records for immutable values, sealed types for closed hierarchies, pattern matching
   in `switch` and `instanceof`, text blocks, and `var` for local variables whose type is clear from the right-hand
   side.
 - **ST-ENG-41** Every package has a `package-info.java` annotated `@NullMarked` (JSpecify). Values that may be null are
   annotated `@Nullable`.
-- **ST-ENG-42** Use Lombok instead of hand-written boilerplate: `@Slf4j` for loggers, `@RequiredArgsConstructor` and
-  `@AllArgsConstructor` for constructors, `@Getter` and `@Setter` for accessors, `@Builder` for builders and
-  `@UtilityClass` for classes of static helpers. Prefer a record over a Lombok value class. Never put `@Data` or
-  `@ToString` on a type that holds a secret or personal data.
+- **ST-ENG-42** Do not hand-write code that a library can generate. Use Lombok for loggers (`@Slf4j`), constructors
+  (`@RequiredArgsConstructor`, `@AllArgsConstructor`), accessors (`@Getter`, `@Setter`), builders (`@Builder`) and
+  classes of static helpers (`@UtilityClass`). Use MapStruct for mapping one type to another. Prefer a record over a
+  Lombok value class. Never put `@Data` or `@ToString` on a type that holds a secret or personal data.
 - **ST-ENG-43** When a type has a builder, construct it with the builder, not with `new`. Records without a builder,
   exceptions, collections and framework types designed for constructors may use `new`.
 - **ST-ENG-44** A fixed set of values is an `enum`, not a set of strings. Error codes are the exception: they stay
@@ -122,3 +151,9 @@ Every starter follows these rules:
 - **ST-ENG-61** Spring Boot manages most library versions. Override one only with a comment in the POM saying why.
 - **ST-ENG-62** A new third-party dependency needs a reason in the pull request: what it provides that Spring Boot or
   an existing dependency does not.
+- **ST-ENG-63** Do not write a utility that an established library already provides. Look first in the JDK, then
+  Spring, then a widely used, maintained library such as Apache Commons or Guava, and use it instead of your own
+  version.
+- **ST-ENG-64** Every dependency and Maven plugin comes from Maven Central. No other repository in any POM, no
+  JitPack, no jars downloaded from GitHub and no source copied from another project. The library must be actively
+  maintained and its licence compatible with Apache 2.0.

@@ -35,7 +35,9 @@ conventions. Each rule has an ID so that reviews and judge verdicts can cite it.
   - each bean backing off when the service defines its own;
   - the module turned off with `stratum.<module>.enabled=false`;
   - an optional library missing from the classpath (`FilteredClassLoader`);
-  - property binding from both `.properties` and `.yml`, including a bad value stopping startup.
+  - property binding from both `.properties` and `.yml`, including a bad value stopping startup;
+  - the same settings applied through the Java configuration (ST-ENG-34), and the Java value winning when both are
+    set.
 - **ST-TEST-21** ArchUnit tests (`*ArchTest`) check that the `autoconfigure` package only wires beans, that no
   starter uses another starter's internal classes, and that packages have no cycles.
 

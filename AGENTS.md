@@ -35,7 +35,7 @@ Two facts shape every rule below:
 Every agent, whatever its role, reads this file and all six topic files in full before it starts:
 [engineering](docs/agents/engineering.md), [testing](docs/agents/testing.md), [security](docs/agents/security.md),
 [documentation](docs/agents/documentation.md), [review](docs/agents/review.md) and [judge](docs/agents/judge.md).
-Together they are about 450 lines. An agent states in its report that it has read them.
+Together they are about 490 lines. An agent states in its report that it has read them.
 
 Each role then has these duties:
 
@@ -108,7 +108,11 @@ topic file wins.
 - Each starter owns one cross-cutting concern and is optional. Code depends on interfaces, and every external
   system sits behind one. Before writing something new, use the Stratum module that already does it.
 - A service can replace every bean Stratum defines (`@ConditionalOnMissingBean`) and change every default through a
-  typed `stratum.<module>.*` property. Properties work from both `application.properties` and `application.yml`.
+  typed `stratum.<module>.*` property, set in `application.properties`, in `application.yml` or in Java.
+- Names and Javadoc describe what things do for the service, in plain words. Every class, method and configuration
+  property has Javadoc. Dependencies are injected through constructors only.
+- Generate boilerplate with Lombok and MapStruct. Use the JDK, Spring or an established library from Maven Central
+  before writing your own utility.
 - Built for high volume: timeouts on every remote call; bounded pools, queues and caches; no blocking on hot paths;
   retries only for idempotent operations on transient failures.
 - Use Java 25 and Spring Boot 4 as they are now. Check the Spring Boot 4 migration notes before reusing an example
