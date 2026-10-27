@@ -81,8 +81,9 @@ Every starter follows these rules:
 - **ST-ENG-26** Dependencies are injected through constructors (in auto-configuration, through `@Bean` method
   parameters). Never field injection (`@Autowired` on a field) or setter injection. Constructor injection makes
   dependencies explicit, keeps fields `final` and makes Spring report circular dependencies at startup. In test
-  classes, field injection and test-method parameters are allowed, because a test class is not a bean that other beans depend
-  on. Prefer constructor injection where it is practical, and always use it in test-support classes that are beans.
+  classes, field injection and test-method parameters are allowed, because a test class is not a bean that other beans
+  depend on. Prefer constructor injection where it is practical, and always use it in test-support classes that are
+  beans.
 
 ## Configuration
 
