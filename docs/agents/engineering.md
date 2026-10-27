@@ -1,0 +1,163 @@
+# Engineering rules
+
+Part of the agent rules in [AGENTS.md](../../AGENTS.md); every agent follows them. Where the summary in AGENTS.md
+and this file differ, this file wins. They are adapted from the
+CodeGuard AI conventions (`CG-CONV-01` to `CG-CONV-21`). Each rule has an ID so that reviews and judge verdicts can
+cite it.
+
+## Design
+
+- **ST-ENG-01 One responsibility.** A class does one job and a starter owns one cross-cutting concern. Split a class
+  that does several jobs, and do not let a starter take over another starter's concern.
+- **ST-ENG-02 Extend, don't modify.** Add new behaviour as a new class behind an existing interface (a strategy, a
+  customizer, a contributor). Do not grow an `if` or `switch` in an existing class. An exhaustive `switch` over a
+  sealed type is allowed, because the compiler forces every case to be handled.
+- **ST-ENG-03 Small interfaces.** Keep interfaces focused. An implementation must support everything its interface
+  declares; throwing "unsupported" for part of it means the interface is too wide.
+- **ST-ENG-04 Depend on interfaces.** Every external system (HTTP service, database, broker, cloud service, identity
+  provider) sits behind an interface, so replacing it takes one new class and its wiring.
+- **ST-ENG-05 Keep it simple.** Choose the simplest design that meets the requirement and scales. Do not add a
+  pattern or abstraction until there is a second real use for it. This does not apply to tunable values, which
+  are always properties (ST-ENG-33).
+- **ST-ENG-06 No duplication.** Do not copy logic. Before writing cross-cutting behaviour (headers, HTTP clients,
+  error responses, retries, logging, test containers), find the Stratum module that already provides it and use it.
+- **ST-ENG-07 Patterns where they remove complexity.** Strategy for behaviour that varies by type, Factory for
+  conditional construction, Template Method for a shared sequence with varying steps, Facade for a subsystem,
+  Builder for objects with several fields. Use one only when it removes branching or coupling.
+- **ST-ENG-08 Clean code.** A method does one thing. Avoid deep nesting, long parameter lists and boolean
+  parameters that switch behaviour. Remove dead and commented-out code. Comments inside a method explain a reason or
+  constraint, never what the next line does. Names and Javadoc follow ST-ENG-13 to ST-ENG-15.
+- **ST-ENG-09 Formatting.** Java is formatted with google-java-format through Spotless and checked by Checkstyle.
+  Do not hand-format around the formatter, add `spotless:off` or add Checkstyle suppressions.
+
+## Cross-cutting concerns
+
+- **ST-ENG-10 One concern per starter.** Logging, observability, security, HTTP clients, resilience, data access,
+  caching and messaging each have their own `stratum-starter-*`. A service only gets what it adds.
+- **ST-ENG-11 Starters meet through Spring.** When one starter needs another's behaviour, it uses the public extension
+  points of Spring and Micrometer, which the other starter configures. It never imports another starter's internal
+  classes. Example: the HTTP client starter propagates traces through Micrometer's observation API, not through
+  classes of the observability starter.
+- **ST-ENG-12 Defined once.** The log format, correlation and trace headers, metric names and tags, and the error
+  response format are each defined in one place and used by every module.
+
+## Names and Javadoc
+
+Stratum is an SDK: its names and Javadoc are what service developers read first, so they describe what a thing does
+for the service, not how it is built.
+
+- **ST-ENG-13 Functional names.** Every class, interface, method, parameter, local variable, field, constant and
+  property is named for its purpose in the domain of the SDK. Write `InventoryClient`, `connectTimeout`,
+  `retryAttempts` and `redactSensitiveHeaders()`, not `RestClientWrapper`, `t1`, `cfg`, `data`, `handle()` or
+  `process()`. Avoid `Manager`, `Helper`, `Util` and `Impl` unless the name still says what the class does.
+- **ST-ENG-14 Javadoc on everything.** Every class, interface, enum, record, method (public, protected, package-private
+  and private) and every configuration property field has Javadoc. Lombok-generated members are documented on the
+  field they come from. In test code, the `@DisplayName` on a test class, `@Nested` class or test method replaces
+  Javadoc (ST-TEST-12); test support classes such as `<Domain>TestData` still have Javadoc.
+- **ST-ENG-15 Functional Javadoc.** Javadoc explains what the element does for the service and when to use it, in
+  plain words a developer new to Spring Boot can follow. It names units and defaults, for example: "How long to wait
+  for a downstream service to accept the connection before giving up. Defaults to 2 seconds." It does not restate the
+  signature ("Sets the connect timeout field") or describe internal mechanics. Technical detail goes in a short
+  `@implNote` only when a caller needs it.
+
+## Auto-configuration and beans
+
+Every starter follows these rules:
+
+- **ST-ENG-20** Auto-configuration classes are annotated `@AutoConfiguration` and listed in
+  `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`. Starters do not use component
+  scanning.
+- **ST-ENG-21** Every bean has conditions: `@ConditionalOnMissingBean` so a service can supply its own,
+  `@ConditionalOnClass` when it needs an optional library, and `@ConditionalOnProperty(prefix = "stratum.<module>",
+  name = "enabled", matchIfMissing = true)` so the whole module can be turned off.
+- **ST-ENG-22** Ordering between auto-configurations is declared with `before` and `after` on `@AutoConfiguration`,
+  never left to classpath order.
+- **ST-ENG-23** The `autoconfigure` package only creates and wires beans. Behaviour lives in ordinary classes that can
+  be unit tested without Spring.
+- **ST-ENG-24** Services adjust behaviour through customizer beans (Spring's, such as `RestClientCustomizer`, or
+  Stratum's own `*Customizer` interfaces) instead of replacing whole beans.
+- **ST-ENG-25** The defaults are safe for production: timeouts set, sensitive values redacted, endpoints secured,
+  resources bounded. A service needs no configuration to be safe.
+- **ST-ENG-26** Dependencies are injected through constructors (in auto-configuration, through `@Bean` method
+  parameters). Never field injection (`@Autowired` on a field) or setter injection. Constructor injection makes
+  dependencies explicit, keeps fields `final` and makes Spring report circular dependencies at startup. In test
+  classes, field injection and test-method parameters are allowed, because a test class is not a bean that other beans
+  depend on. Prefer constructor injection where it is practical, and always use it in test-support classes that are
+  beans.
+
+## Configuration
+
+- **ST-ENG-30** Each module's settings are one `@ConfigurationProperties(prefix = "stratum.<module>")` type,
+  preferably a record, with Javadoc on every field and defaults in code. Do not read settings with scattered
+  `@Value` annotations.
+- **ST-ENG-31** `spring-boot-configuration-processor` generates metadata for every property so IDEs can complete
+  `stratum.*` keys. Properties are validated with Bean Validation (`@Validated`), so a bad value stops the
+  application at startup rather than failing on the first request.
+- **ST-ENG-32** Every property works the same from `application.properties` and `application.yml`. Property names use
+  kebab-case, Spring Boot's canonical form. Tests for property binding cover both formats.
+- **ST-ENG-33** Every tunable value (pool size, timeout, limit, TTL, retry count) is a property. None is hardcoded.
+- **ST-ENG-34** Every setting can also be set in Java, for services whose configuration files would grow too large.
+  Each module offers a customizer bean or a builder on its public API that sets the same options, with the same
+  names and defaults as the properties. When a setting is given in both places, the Java configuration wins, and
+  the module's documentation says so.
+
+## Java 25 and Spring Boot 4
+
+- **ST-ENG-39** Use what the JDK already provides before writing code: the functional interfaces in
+  `java.util.function` (`Supplier`, `Function`, `Predicate`, `Consumer`) instead of custom single-method interfaces,
+  streams, `Optional` for return values that may be absent (never for fields or parameters), immutable and sequenced
+  collections (`List.of`, `Stream.toList()`, `SequencedCollection`), and `java.time` for dates and durations.
+- **ST-ENG-40** Use current Java: records for immutable values, sealed types for closed hierarchies, pattern matching
+  in `switch` and `instanceof`, text blocks, and `var` for local variables whose type is clear from the right-hand
+  side.
+- **ST-ENG-41** Every package has a `package-info.java` annotated `@NullMarked` (JSpecify). Values that may be null are
+  annotated `@Nullable`.
+- **ST-ENG-42** Do not hand-write code that a library can generate. Use Lombok for loggers (`@Slf4j`), constructors
+  (`@RequiredArgsConstructor`, `@AllArgsConstructor`), accessors (`@Getter`, `@Setter`), builders (`@Builder`) and
+  classes of static helpers (`@UtilityClass`). Use MapStruct for mapping one type to another. Prefer a record over a
+  Lombok value class. Never put `@Data` or `@ToString` on a type that holds a secret or personal data.
+- **ST-ENG-43** When a type has a builder, construct it with the builder, not with `new`. Records without a builder,
+  exceptions, collections and framework types designed for constructors may use `new`.
+- **ST-ENG-44** A fixed set of values is an `enum`, not a set of strings. Error codes are the exception: they stay
+  `String` so new codes do not break clients.
+- **ST-ENG-45** No magic strings or numbers. Property keys, header names, metric names and any literal used more than
+  once live in a `<Area>Constants` utility class, built from a prefix (`PREFIX = "stratum.web"`,
+  `ENABLED = PREFIX + ".enabled"`).
+- **ST-ENG-46** A lambda is a single expression or a method reference. When it needs more than one statement, extract
+  a named method and reference it.
+- **ST-ENG-47** Logic and state belong in injected beans, not static methods. Static methods are only for pure helpers
+  and constants.
+- **ST-ENG-48** Every `AutoCloseable` that a method opens is closed with try-with-resources. Do not close resources
+  owned by the caller or managed by Spring.
+- **ST-ENG-49** Use the Spring Boot 4 and Spring Framework 7 APIs, such as Jackson 3, `RestClient` and HTTP interface
+  clients. Do not reuse a Spring Boot 2 or 3 example without checking the Spring Boot 4 migration notes.
+
+## Performance, scale and resilience
+
+- **ST-ENG-50 Timeouts on every remote call.** Every HTTP, database, broker and cloud call has connect and read
+  timeouts. Stratum sets the defaults; a service can change them per client.
+- **ST-ENG-51 Retry only when safe.** Retry only idempotent operations, only on transient failures (timeouts, HTTP
+  503, connection resets), with a limit on attempts and backoff with jitter. Retrying a non-idempotent write is a
+  bug. Use a circuit breaker for a dependency that can fail.
+- **ST-ENG-52 Bound everything.** Pools, queues, caches, batch sizes, request bodies and page sizes all have limits.
+  Never build an unbounded collection from external input.
+- **ST-ENG-53 Work with virtual threads.** Do not block event-loop threads. Do not cache in `ThreadLocal`s that grow
+  with each virtual thread. When work moves to another thread, pass the logging and tracing context explicitly.
+- **ST-ENG-54 Keep request paths cheap.** No reflection, regex compilation, large allocations or quadratic loops per
+  request. Build expensive objects once, at startup.
+- **ST-ENG-55 Make it observable.** Important operations record metrics and spans with low-cardinality tags. A
+  failure is logged once, with the correlation ID, by the layer that handles it.
+
+## Dependencies
+
+- **ST-ENG-60** All versions are set in `stratum-bom`, which `stratum-parent` imports. A module POM never sets the
+  version of a managed dependency. No version ranges and no `LATEST`.
+- **ST-ENG-61** Spring Boot manages most library versions. Override one only with a comment in the POM saying why.
+- **ST-ENG-62** A new third-party dependency needs a reason in the pull request: what it provides that Spring Boot or
+  an existing dependency does not.
+- **ST-ENG-63** Do not write a utility that an established library already provides. Look first in the JDK, then
+  Spring, then a widely used, maintained library such as Apache Commons or Guava, and use it instead of your own
+  version.
+- **ST-ENG-64** Every dependency and Maven plugin comes from Maven Central. No other repository in any POM, no
+  JitPack, no jars downloaded from GitHub and no source copied from another project. The library must be actively
+  maintained and its licence compatible with Apache 2.0.
