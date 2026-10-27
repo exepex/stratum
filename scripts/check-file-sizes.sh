@@ -8,8 +8,7 @@ TEXT_LIMIT=500
 
 cd "$(git rev-parse --show-toplevel)"
 
-failed=0
-for file in $(git ls-files); do
+over=$(git -c core.quotePath=false ls-files | while IFS= read -r file; do
   case "$file" in
     LICENSE | */LICENSE | mvnw | mvnw.cmd | .mvn/*) continue ;;
     *.md | *.txt | *.adoc) limit=$TEXT_LIMIT ;;
@@ -19,11 +18,11 @@ for file in $(git ls-files); do
   lines=$(wc -l < "$file")
   if [ "$lines" -gt "$limit" ]; then
     echo "$file: $lines lines (limit $limit)"
-    failed=1
   fi
-done
+done)
 
-if [ "$failed" -ne 0 ]; then
+if [ -n "$over" ]; then
+  echo "$over"
   echo "Split the files above into smaller single-purpose files."
   exit 1
 fi
