@@ -36,8 +36,8 @@ of defence.
 - **ST-SEC-11 Cryptography (A02).** Tokens and identifiers use `SecureRandom`, never `Random` or `Math.random`. MD5,
   SHA-1, DES, RC4 and ECB mode are not used. TLS certificate and hostname verification are never turned off.
 - **ST-SEC-12 Insecure design (A04).** Request bodies are validated at the boundary with `@Valid` and constraints. The
-  size of bodies, uploads, pages and in-memory collections is limited. Expensive or public endpoints can be
-  rate-limited through the resilience starter.
+  size of bodies, uploads, pages and in-memory collections is limited. Public and expensive endpoints have a rate
+  limit, configured through the resilience starter.
 - **ST-SEC-13 Misconfiguration (A05).** CORS never combines `*` with credentials. The default configuration does not
   turn on debug logging or extra actuator endpoints.
 - **ST-SEC-14 Vulnerable components (A06).** Dependency versions come from the BOM. Once the build includes a

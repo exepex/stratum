@@ -32,44 +32,51 @@ Two facts shape every rule below:
 
 ## Roles
 
-Before starting, read this file in full and the topic files for your role. List the files you read in your report;
-the judge checks this.
+Every agent, whatever its role, reads this file and all six topic files in full before it starts:
+[engineering](docs/agents/engineering.md), [testing](docs/agents/testing.md), [security](docs/agents/security.md),
+[documentation](docs/agents/documentation.md), [review](docs/agents/review.md) and [judge](docs/agents/judge.md).
+Together they are about 450 lines. An agent states in its report that it has read them.
 
-| Role | Must also read | Duties |
-|---|---|---|
-| Implementer | [engineering](docs/agents/engineering.md), [testing](docs/agents/testing.md), [security](docs/agents/security.md), [documentation](docs/agents/documentation.md), [judge](docs/agents/judge.md) | Builds the change, its tests and its documentation; writes the Claims; asks for the judge |
-| Tester | [testing](docs/agents/testing.md), [engineering](docs/agents/engineering.md) | Writes or reviews tests; proves each test fails when the code it covers is broken |
-| Documentation | [documentation](docs/agents/documentation.md) | Keeps the documents true to the code at every commit |
-| Security | [security](docs/agents/security.md), [engineering](docs/agents/engineering.md), [review](docs/agents/review.md) | Reviews the change against every security rule |
-| Reviewer | [review](docs/agents/review.md) and the rule files for what the change touches | Reviews a change; does not edit it |
-| Judge | [judge](docs/agents/judge.md) and every other topic file | Independently verifies a finished change; writes only its verdict |
-| Coordinator | [judge](docs/agents/judge.md) | Assigns work and starts the judge for each finished change |
+Each role then has these duties:
 
-One agent can hold several roles in one task, such as implementer and tester. It then follows the duties of each.
-The judge role can never be combined with any role on the same change.
+| Role | Duties |
+|---|---|
+| Implementer | Builds the change, its tests and its documentation; writes the Claims; asks for the judge |
+| Tester | Writes or reviews tests; proves each test fails when the code it covers is broken |
+| Documentation | Keeps the documents true to the code at every commit |
+| Security | Reviews the change against every security rule |
+| Reviewer | Reviews a change and reports findings; does not edit it |
+| Judge | Independently verifies a finished change; writes only its verdict |
+| Coordinator | Assigns work and starts the judge for each finished change |
+
+One agent can hold several roles in one task, such as implementer and tester. It then has the duties of each. The
+judge role can never be combined with any other role on the same change.
 
 ## Working rules
 
-1. **Report only what you verified.** For every statement about the code, know how you know it: a command you ran
-   and its output, a test, or a `file:line` you read. Say plainly what you did not verify. Never present a guess as
-   a fact.
-2. **Done means proven.** Do not call a task done, finished or complete until each part of the request is met and
-   backed by evidence you produced. If a part is not done, name it. Work in a pull request is not done until
-   the judge has passed it.
-3. **Find the root cause.** Reproduce a problem with a test, fix the cause, and confirm the test now passes. Do not
-   paper over a symptom. When the same component keeps breaking, question its design.
-4. **Check every review comment.** Whether it comes from the owner, a reviewer or the judge, check it against the
-   code, and run it where you can. Accept it when the check confirms it; push back with your evidence when it does
-   not. Say which parts you accept and which you reject.
-5. **Do not stop silently.** When something blocks you, look for another legitimate route or ask the owner one clear
-   question. If the task cannot be done, say so and why.
-6. **Do only what was asked.** Do not add files, tools, scripts, dependencies or features the request did not call
-   for. If you think something extra is needed, propose it to the owner instead of building it.
-7. **Never weaken a safeguard.** Do not delete, skip or loosen a test, a build check or a rule to make work pass.
-8. **Keep secrets and personal data out.** Passwords, tokens, keys and personal data never appear in code,
-   configuration, tests, logs, commits, pull requests or messages.
+Each rule has an ID so that reviews and judge verdicts can cite it.
 
-## File size limits
+- **ST-AG-01 Report only what you verified.** For every statement about the code, know how you know it: a command you
+  ran and its output, a test, or a `file:line` you read. Say plainly what you did not verify. Never present a guess as
+  a fact.
+- **ST-AG-02 Done means proven.** Do not call a task done, finished or complete until each part of the request is met
+  and backed by evidence you produced. If a part is not done, name it. Work in a pull request is not done until the
+  judge has passed it.
+- **ST-AG-03 Find the root cause.** Reproduce a problem with a test, fix the cause, and confirm the test now passes.
+  Do not paper over a symptom. When the same component keeps breaking, question its design.
+- **ST-AG-04 Check every review comment.** Whether it comes from the owner, a reviewer or the judge, check it against
+  the code, and run it where you can. Accept it when the check confirms it; push back with your evidence when it does
+  not. Say which parts you accept and which you reject.
+- **ST-AG-05 Do not stop silently.** When something blocks you, look for another legitimate route or ask the owner one
+  clear question. If the task cannot be done, say so and why.
+- **ST-AG-06 Do only what was asked.** Do not add files, tools, scripts, dependencies or features the request did not
+  call for. If you think something extra is needed, propose it to the owner instead of building it.
+- **ST-AG-07 Never weaken a safeguard.** Do not delete, skip or loosen a test, a build check or a rule to make work
+  pass.
+- **ST-AG-08 Keep secrets and personal data out.** Passwords, tokens, keys and personal data never appear in code,
+  configuration, tests, logs, commits, pull requests or messages.
+
+## File size limits (ST-AG-10)
 
 Small files are easier to review, so every file in the repository has a maximum length:
 
@@ -80,6 +87,7 @@ Small files are easier to review, so every file in the repository has a maximum 
 
 How the limits apply:
 
+- A file's line count is the number of its last line, as an editor shows it. Every file ends with a newline.
 - Check the line count of every file you create or change, before you commit. List each changed file with its line
   count in your Claims. The judge checks the counts.
 - When a file would go over its limit, split it into smaller files, each with one purpose. A class approaching 400
@@ -92,7 +100,8 @@ How the limits apply:
 
 ## Engineering rules
 
-The details are in the topic files. These points apply to every change:
+These points summarise the topic files and apply to every change. Where this summary and a topic file differ, the
+topic file wins.
 
 - SOLID, KISS, DRY and clean code: clear names, small classes and methods with one purpose, no duplication, no dead
   code, no abstraction without a second use. Comments explain why, not what.

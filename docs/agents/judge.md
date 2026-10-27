@@ -46,7 +46,7 @@ The pull request description contains a **Claims** section, written by the imple
 3. **Broken-code proof.** For each requirement with code, the fault the implementer planted and the test that
    caught it.
 4. **Not done or not verified.** Anything left open, stated plainly.
-5. **Files read.** The rule files the implementer read before starting.
+5. **Files read.** Confirmation that the implementer read `AGENTS.md` and all six topic files before starting.
 6. **Line counts.** Each changed file with its line count.
 
 A claim without evidence counts as not made.
@@ -80,7 +80,7 @@ Judge honestly in both directions. Do not invent findings to look thorough, and 
 
 The judge writes `reviews/judge/PR-<number>-<short-name>.md` and commits it to the pull request branch. This is the
 judge's only change to the repository. If the judge can comment on the pull request, it also posts the verdict line
-with a link to the file. The file follows this template and stays under about 60 lines:
+with a link to the file. The file follows this template and is at most 60 lines long:
 
 1. **Title:** pull request number, branch, head commit. Then one line: PASS or FAIL.
 2. **Gap list:** each requirement from the request, MET, PARTLY or NOT MET, with the judge's evidence in a few words.

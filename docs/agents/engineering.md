@@ -1,6 +1,7 @@
 # Engineering rules
 
-Part of the agent rules in [AGENTS.md](../../AGENTS.md); every agent follows them. They are adapted from the
+Part of the agent rules in [AGENTS.md](../../AGENTS.md); every agent follows them. Where the summary in AGENTS.md
+and this file differ, this file wins. They are adapted from the
 CodeGuard AI conventions (`CG-CONV-01` to `CG-CONV-21`). Each rule has an ID so that reviews and judge verdicts can
 cite it.
 
@@ -9,13 +10,15 @@ cite it.
 - **ST-ENG-01 One responsibility.** A class does one job and a starter owns one cross-cutting concern. Split a class
   that does several jobs, and do not let a starter take over another starter's concern.
 - **ST-ENG-02 Extend, don't modify.** Add new behaviour as a new class behind an existing interface (a strategy, a
-  customizer, a contributor). Do not grow an `if` or `switch` in an existing class.
+  customizer, a contributor). Do not grow an `if` or `switch` in an existing class. An exhaustive `switch` over a
+  sealed type is allowed, because the compiler forces every case to be handled.
 - **ST-ENG-03 Small interfaces.** Keep interfaces focused. An implementation must support everything its interface
   declares; throwing "unsupported" for part of it means the interface is too wide.
 - **ST-ENG-04 Depend on interfaces.** Every external system (HTTP service, database, broker, cloud service, identity
   provider) sits behind an interface, so replacing it takes one new class and its wiring.
 - **ST-ENG-05 Keep it simple.** Choose the simplest design that meets the requirement and scales. Do not add a
-  pattern, abstraction or setting until there is a second real use for it.
+  pattern or abstraction until there is a second real use for it. This does not apply to tunable values, which
+  are always properties (ST-ENG-33).
 - **ST-ENG-06 No duplication.** Do not copy logic. Before writing cross-cutting behaviour (headers, HTTP clients,
   error responses, retries, logging, test containers), find the Stratum module that already provides it and use it.
 - **ST-ENG-07 Patterns where they remove complexity.** Strategy for behaviour that varies by type, Factory for

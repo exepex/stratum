@@ -16,6 +16,7 @@ the documentation must work for both. Documentation is part of every change and 
 | `docs/getting-started/` | Installing Stratum, the core concepts and a first service, step by step. |
 | `docs/configuration/` | How configuration works, overriding defaults, profiles, and `reference.md`: every `stratum.*` property in one table. |
 | `docs/modules/<module>.md` | One page per module: what it sets up, each of its properties (type, default, meaning), how to replace each bean, and usage examples. |
+| `docs/contributing.md` | How a person proposes a change: issues, branches, build commands. It links to `AGENTS.md` for the rules and repeats none of them. |
 | `docs/guides/` | Topics that span modules: architecture, migrating a service, upgrading, troubleshooting, FAQ. |
 | Release notes | What changed in each release, breaking changes and the steps to migrate. |
 | `AGENTS.md` and `docs/agents/` | The rules for agents. `AGENTS.md` links every file in `docs/agents/`. |
