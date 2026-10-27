@@ -66,5 +66,5 @@ configuration metadata shipped with each starter.
 
 Security fixes in Stratum or in a managed library are released as patch versions as quickly as
 possible, and announced with the affected versions. If you cannot upgrade Stratum right away, the
-release notes show the one Maven property to override as a temporary fix (see
+release notes show which version to override as a temporary fix (see
 [Parent POM and BOM](../modules/parent-and-bom.md#the-bom)).

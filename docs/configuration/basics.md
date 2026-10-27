@@ -184,9 +184,11 @@ from Spring Boot's full order):
 
 1. Command-line arguments (`--key=value`)
 2. Environment variables
-3. Profile-specific files outside the jar, then inside the jar (`application-prod.yml`)
-4. `application.properties` / `application.yml` outside the jar, then inside the jar
-5. **Stratum's built-in defaults** (always last, so anything you set wins)
+3. Profile-specific files outside the jar (`config/application-prod.yml` next to the jar)
+4. `application.properties` / `application.yml` outside the jar
+5. Profile-specific files inside the jar (`src/main/resources/application-prod.yml`)
+6. `application.properties` / `application.yml` inside the jar
+7. **Stratum's built-in defaults** (always last, so anything you set wins)
 
 For profiles and per-environment setups, see
 [Profiles and environments](profiles-and-environments.md).
