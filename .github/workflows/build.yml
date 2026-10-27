@@ -48,6 +48,16 @@ jobs:
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
+      # Dependency-Check rejects an empty key with an unclear "Invalid API Key" error, so name the fix here.
+      - name: Check that the NVD API key is set
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: |
+          if [[ -z "$NVD_API_KEY" ]]; then
+            echo "::error::The NVD_API_KEY repository secret is missing. See docs/contributing.md#checks-on-every-pull-request."
+            exit 1
+          fi
+
       - name: Build, test, scan dependencies and write the SBOM
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}

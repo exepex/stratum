@@ -60,8 +60,8 @@ the run's summary page. The SBOM is written only when the build and the scan pas
 plugin's version is not written in the workflow: it is the version Spring Boot's parent manages,
 which the workflow reads from `stratum-parent` before the build.
 
-The scan downloads vulnerability data from the US National Vulnerability Database (NVD). Without an
-API key that download is slow and often rate-limited, so the repository needs a secret named
+The scan downloads vulnerability data from the US National Vulnerability Database (NVD), which needs
+an API key. The run stops with an error naming the missing key until the repository has a secret named
 `NVD_API_KEY`. Request a free key from the [NVD](https://nvd.nist.gov/developers/request-an-api-key),
 then add it under **Settings → Secrets and variables → Actions** in the repository. Never write the
 key in a file.
