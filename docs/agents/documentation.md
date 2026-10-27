@@ -12,13 +12,13 @@ the documentation must work for both. Documentation is part of every change and 
 | Document | What it covers |
 |---|---|
 | `README.md` | What Stratum is and why it exists, its modules, a quick start and how to build. A clear overview that links to `docs/` for detail. |
-| `docs/README.md` | The index of all documentation. Every page in `docs/` is linked from it. |
+| `docs/README.md` | The index of the user documentation. Every page in `docs/` is linked from it, except the agent rules in `docs/agents/`, which `AGENTS.md` indexes. |
 | `docs/getting-started/` | Installing Stratum, the core concepts and a first service, step by step. |
 | `docs/configuration/` | How configuration works, overriding defaults, profiles, and `reference.md`: every `stratum.*` property in one table. |
 | `docs/modules/<module>.md` | One page per module: what it sets up, each of its properties (type, default, meaning), how to replace each bean, and usage examples. |
 | `docs/guides/` | Topics that span modules: architecture, migrating a service, upgrading, troubleshooting, FAQ. |
 | Release notes | What changed in each release, breaking changes and the steps to migrate. |
-| `AGENTS.md` and `docs/agents/` | The rules for agents. |
+| `AGENTS.md` and `docs/agents/` | The rules for agents. `AGENTS.md` links every file in `docs/agents/`. |
 
 ## Rules
 
@@ -49,5 +49,6 @@ the documentation must work for both. Documentation is part of every change and 
 ## How documentation is checked
 
 The judge and the documentation role read each changed document against the code at the pull request's head commit.
-Every property name, default, bean name and example must match what the code does. A link that leads nowhere, a
-page missing from `docs/README.md`, or a configuration example shown in only one format is a finding.
+Every property name, default, bean name and example must match what the code does. Each of these is a finding: a
+link that leads nowhere, a user documentation page missing from `docs/README.md`, an agent rule file missing from
+`AGENTS.md`, and a configuration example shown in only one format.
