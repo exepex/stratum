@@ -1,0 +1,81 @@
+# Stratum documentation
+
+Welcome. This is the home of the Stratum documentation. The [project README](../README.md) gives the
+overview; these pages give the detail: how to set Stratum up, how to configure each part of it, and
+how to use it day to day.
+
+> [!NOTE]
+> Stratum is in the design stage. Every page describes the **planned** behaviour, which is the
+> design target and may change before the first release. `com.example.stratum` and
+> `0.1.0-SNAPSHOT` are placeholders for the real `groupId` and version.
+
+## Where to start
+
+| If you are... | Read, in this order |
+| --- | --- |
+| New to Spring Boot or to microservices | [Core concepts](getting-started/concepts.md) → [Quick start](getting-started/quick-start.md) → [Configuration basics](configuration/basics.md) |
+| An experienced Spring developer | [Quick start](getting-started/quick-start.md) → [Overriding defaults](configuration/overriding-defaults.md) → the module pages you need |
+| Moving an existing service to Stratum | [Installation](getting-started/installation.md) → [Migrating a service](guides/migrating-a-service.md) |
+| Looking up one property | [Configuration reference](configuration/reference.md) |
+
+## Getting started
+
+| Page | What it covers |
+| --- | --- |
+| [Core concepts](getting-started/concepts.md) | Starters, beans, auto-configuration, properties and profiles, explained from the beginning, plus a glossary. |
+| [Installation](getting-started/installation.md) | Adding Stratum to a service: parent POM or BOM, choosing starters, checking that it works. |
+| [Quick start](getting-started/quick-start.md) | Build a small but complete service step by step: REST API, logs, tracing, a downstream call, tests. |
+
+## Configuration
+
+| Page | What it covers |
+| --- | --- |
+| [Configuration basics](configuration/basics.md) | YAML and properties side by side, property names, types (durations, sizes, lists, maps), environment variables, validation, IDE completion. |
+| [Profiles and environments](configuration/profiles-and-environments.md) | Per-environment settings, which source wins, keeping secrets out of files. |
+| [Overriding defaults](configuration/overriding-defaults.md) | Changing values, customizers, replacing beans, switching modules off. |
+| [Configuration reference](configuration/reference.md) | Every `stratum.*` prefix with a link to its full property table. |
+
+## Modules
+
+Each module page follows the same layout so you always know where to look:
+**what it does → add it → what you get → properties → examples → customize → switch off → troubleshoot.**
+
+| Module | Page |
+| --- | --- |
+| Parent POM and BOM | [parent-and-bom.md](modules/parent-and-bom.md) |
+| Web (REST defaults, errors, correlation IDs) | [web.md](modules/web.md) |
+| Logging | [logging.md](modules/logging.md) |
+| Observability (metrics, tracing, health) | [observability.md](modules/observability.md) |
+| Security (resource server, JWT) | [security.md](modules/security.md) |
+| OAuth2 client (service-to-service tokens) | [oauth2-client.md](modules/oauth2-client.md) |
+| HTTP client | [http-client.md](modules/http-client.md) |
+| Resilience | [resilience.md](modules/resilience.md) |
+| Data (JPA, connection pool, migrations) | [data-jpa.md](modules/data-jpa.md) |
+| Cache | [cache.md](modules/cache.md) |
+| Kafka | [kafka.md](modules/kafka.md) |
+| Cloud connectors | [cloud.md](modules/cloud.md) |
+| Testing (`stratum-test`) | [test.md](modules/test.md) |
+
+## Guides
+
+| Page | What it covers |
+| --- | --- |
+| [Migrating a service](guides/migrating-a-service.md) | Moving an existing Spring Boot service onto Stratum, one concern at a time. |
+| [Versioning and upgrades](guides/upgrading.md) | How Stratum versions work, what an upgrade involves, the compatibility table. |
+| [Architecture](guides/architecture.md) | How Stratum is built inside: repository layout, how defaults are applied, module rules. |
+| [Troubleshooting](guides/troubleshooting.md) | Finding out what Stratum configured, and fixes for common problems. |
+| [FAQ](guides/faq.md) | Short answers to common questions. |
+
+## Contributing
+
+| Page | What it covers |
+| --- | --- |
+| [Contributing guide](contributing.md) | How to propose a change, when a new starter makes sense, the checklist every starter must meet. |
+
+## Conventions used in these pages
+
+- **Planned** marks behaviour that is designed but not built yet.
+- Every configuration example is shown in **YAML** (`application.yml`) and **properties**
+  (`application.properties`). Use whichever your service uses; they are equivalent.
+- Durations are written like `5s`, `200ms` or `10m`. Sizes are written like `10MB`.
+- `<name>` in a property key means "a name you choose", for example the name of a downstream service.
