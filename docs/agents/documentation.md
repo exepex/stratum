@@ -54,5 +54,5 @@ the documentation must work for both. Documentation is part of every change and 
 The judge and the documentation role read each changed document against the code at the pull request's head commit.
 Every property name, default, bean name and example must match what the code does. Each of these is a finding: a
 link that leads nowhere, a user documentation page missing from `docs/README.md`, an agent rule file missing from
-`AGENTS.md`, a configuration example missing one of the two file
-formats, and a module page with no "Configure in Java" section.
+`AGENTS.md`, a configuration example missing one of the two file formats, and a module page with `stratum.*`
+properties but no "Configure in Java" section.
