@@ -130,13 +130,59 @@ Every execution that Stratum's parent POMs add has an id starting with `stratum-
 The Checkstyle rules check names and imports, and reject magic numbers, console output and
 `Thread.sleep`. They do not ask your service for Javadoc: whether to write it is your team's choice.
 Stratum's own libraries and starters are also checked for Javadoc on every type and method, by a
-second set of rules that only `stratum-library-parent` runs. That parent also runs Lombok, MapStruct
-and `spring-boot-configuration-processor` as annotation processors for Stratum's own code. Your
-service does not get them from `stratum-parent`: add the processors your team uses to your own
-`maven-compiler-plugin` configuration. The BOM manages MapStruct's version for you.
+second set of rules that only `stratum-library-parent` runs.
 Layout is left to Google Java Format. The PMD rules are PMD's best-practice, error-prone,
 multithreading, performance and security categories, without the few rules that conflict with
 Stratum's conventions; each exclusion is explained in the rule file.
+
+### Using Lombok or MapStruct in your service
+
+`stratum-library-parent` runs Lombok, MapStruct and `spring-boot-configuration-processor` as
+annotation processors for Stratum's own code. Your service does not get them from `stratum-parent`:
+whether to use them is your team's choice. The BOM manages MapStruct's version for you.
+
+To use one, add the library as a dependency and list its processor in your own `pom.xml`. On JDK
+25 the compiler no longer runs a processor it only finds on the classpath. Without the block below,
+a service that adds Lombok fails to compile with errors such as `constructor OrderService in class
+OrderService cannot be applied to given types`, or `variable ... not initialized in the default
+constructor`, which do not mention Lombok.
+
+```xml
+<dependencies>
+  <dependency>
+    <groupId>org.projectlombok</groupId>
+    <artifactId>lombok</artifactId>
+    <scope>provided</scope>
+  </dependency>
+</dependencies>
+
+<build>
+  <plugins>
+    <plugin>
+      <groupId>org.apache.maven.plugins</groupId>
+      <artifactId>maven-compiler-plugin</artifactId>
+      <configuration>
+        <!-- Take the processors' versions from Spring Boot and stratum-bom. -->
+        <annotationProcessorPathsUseDepMgmt>true</annotationProcessorPathsUseDepMgmt>
+        <annotationProcessorPaths>
+          <path>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+          </path>
+          <path>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+          </path>
+        </annotationProcessorPaths>
+      </configuration>
+    </plugin>
+  </plugins>
+</build>
+```
+
+For MapStruct, also add the `org.mapstruct:mapstruct` dependency and two more paths after Lombok's:
+`org.projectlombok:lombok-mapstruct-binding` and `org.mapstruct:mapstruct-processor`. Keep Lombok
+first, so that MapStruct sees the code Lombok generates.
 
 ### Build checks your service gets
 

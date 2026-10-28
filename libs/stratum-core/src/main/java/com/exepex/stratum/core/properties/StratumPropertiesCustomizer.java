@@ -11,6 +11,9 @@ package com.exepex.stratum.core.properties;
  * they run in {@link org.springframework.core.annotation.Order @Order} order, each receiving the
  * result of the one before.
  *
+ * <p>It is a named type rather than {@code UnaryOperator<P>} so that Spring can tell these beans
+ * apart from any other {@code UnaryOperator} bean in the application.
+ *
  * @param <P> the module's settings type, such as the record bound to {@code stratum.<module>.*}
  */
 @FunctionalInterface

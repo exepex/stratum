@@ -97,7 +97,6 @@ Rules that apply to every module:
 - Values set in Java are validated like values in files. A bad value, such as a blank message or a
   missing timeout, stops the application at startup. The message names the setting and the rule it
   breaks, never the value, which might be a secret.
-
 - Declare the customizer with its settings type, as the return type of a `@Bean` method like the
   examples above. Spring uses that type to give each customizer to its own module. A customizer
   registered without it, for example with `registerBean(StratumPropertiesCustomizer.class, ...)`,
@@ -110,7 +109,8 @@ Rules that apply to every module:
 
 This is a different kind of customizer from the `StratumPropertiesCustomizer` of level 1, which
 changes a module's settings before any bean is built. A **customizer** at this level is a small bean
-that receives a builder or a bean Stratum created and changes part of it. Stratum keeps building the bean; your customizer runs on top. You keep every other default.
+that receives a builder or a bean Stratum created and changes part of it. Stratum keeps building the
+bean; your customizer runs on top. You keep every other default.
 
 Add a header to every outgoing HTTP call:
 
