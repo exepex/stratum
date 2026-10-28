@@ -25,7 +25,8 @@ import org.jspecify.annotations.Nullable;
 final class SensitiveFieldNames {
 
   /** Short credential names, masked in full only when the whole name matches. */
-  private static final Set<String> SECRETS = Set.of("pwd", "auth", "pin", "otp", "cvv", "cvc");
+  private static final Set<String> SECRETS =
+      Set.of("pwd", "pass", "auth", "pin", "otp", "cvv", "cvc");
 
   /** Payment cards and national IDs, always masked; the last four characters stay visible. */
   private static final Set<String> SECRET_IDENTIFIERS =

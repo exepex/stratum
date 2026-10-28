@@ -9,6 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.exepex.stratum.logging.testsupport.LoggingTestData;
 import java.net.URI;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -17,6 +18,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 @DisplayName("Secrets, cards and national IDs are always masked")
 class SecretRedactionTest {
+
+  /** A field name that is always masked. */
+  private static final String SECRET_FIELD = "password";
 
   private final Redactor redactor = Redactor.from(LoggingTestData.defaults().build());
 
@@ -33,6 +37,7 @@ class SecretRedactionTest {
     @ValueSource(
         strings = {
           "pwd",
+          "pass",
           "auth",
           "pin",
           "otp",
@@ -107,6 +112,14 @@ class SecretRedactionTest {
     }
 
     @Test
+    @DisplayName("an array, list or map under a secret name is masked in full")
+    void containerUnderSecretNameIsMasked() {
+      assertThat(redactor.redact(SECRET_FIELD, new Object[] {PASSWORD})).isEqualTo(Redactor.MASK);
+      assertThat(redactor.redact(SECRET_FIELD, List.of(PASSWORD))).isEqualTo(Redactor.MASK);
+      assertThat(redactor.redact(SECRET_FIELD, Map.of("value", PASSWORD))).isEqualTo(Redactor.MASK);
+    }
+
+    @Test
     @DisplayName("an ordinary field and value are left as they are")
     void ordinaryFieldIsKept() {
       var orderId = Long.valueOf("42");
@@ -157,6 +170,7 @@ class SecretRedactionTest {
     @ValueSource(
         strings = {
           "dbPassword=" + PASSWORD,
+          "pass=" + PASSWORD,
           "{\\\"password\\\":\\\"" + PASSWORD + "\\\"}",
           "{'password': '" + PASSWORD + "'}",
           "GET /login?password%3D" + PASSWORD,
@@ -244,6 +258,13 @@ class SecretRedactionTest {
     }
 
     @Test
+    @DisplayName("every card in a run of digit groups is masked, not only the first")
+    void everyCardInRunIsMasked() {
+      assertThat(text("cards 4111 1111 1111 1111 4111 1111 1111 1111 done"))
+          .isEqualTo("cards ****1111 ****1111 done");
+    }
+
+    @Test
     @DisplayName("a long number that fails the Luhn check is kept")
     void numberFailingLuhnIsKept() {
       assertThat(text("order 4111111111111112")).isEqualTo("order 4111111111111112");
@@ -279,7 +300,7 @@ class SecretRedactionTest {
     @Test
     @DisplayName("the built-in rules still apply")
     void builtInRulesStillApply() {
-      assertThat(withRules.redact("password", "x")).isEqualTo(Redactor.MASK);
+      assertThat(withRules.redact(SECRET_FIELD, "x")).isEqualTo(Redactor.MASK);
     }
   }
 }

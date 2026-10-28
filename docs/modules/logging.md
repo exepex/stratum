@@ -99,7 +99,7 @@ is masked element by element. It cannot be switched off.
 
 | What | Found by | Written as |
 | --- | --- | --- |
-| Credentials: any name that contains `password`, `passwd`, `passphrase`, `secret`, `token`, `apikey`, `credential`, `privatekey`, `sessionid`, `cookie` or `authorization`, such as `dbPassword`, `aws_secret_access_key`, `X-CSRF-Token` or `JSESSIONID`; and the whole names `pwd`, `auth`, `pin`, `otp`, `cvv` and `cvc` | Field or key name | `****` |
+| Credentials: any name that contains `password`, `passwd`, `passphrase`, `secret`, `token`, `apikey`, `credential`, `privatekey`, `sessionid`, `cookie` or `authorization`, such as `dbPassword`, `aws_secret_access_key`, `X-CSRF-Token` or `JSESSIONID`; and the whole names `pwd`, `pass`, `auth`, `pin`, `otp`, `cvv` and `cvc` | Field or key name | `****` |
 | Payment cards and national IDs: `card_number`, `pan`, `ssn`, `national_id`, `tax_id`, `passport` | Field or key name | `****1234` (last four kept) |
 | Card numbers in text | 13 to 19 digits that pass the Luhn check | `****1111` |
 | US social security numbers in text | `123-45-6789` | `****6789` |

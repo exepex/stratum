@@ -2,6 +2,7 @@ package com.exepex.stratum.logging.redaction;
 
 import com.google.i18n.phonenumbers.PhoneNumberUtil;
 import com.google.i18n.phonenumbers.PhoneNumberUtil.Leniency;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -16,9 +17,9 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import lombok.experimental.UtilityClass;
-import org.apache.commons.validator.routines.CreditCardValidator;
 import org.apache.commons.validator.routines.EmailValidator;
 import org.apache.commons.validator.routines.IBANValidator;
+import org.apache.commons.validator.routines.checkdigit.LuhnCheckDigit;
 
 /**
  * The rules that mask secrets and personal data by what the text looks like. A pattern only finds
@@ -43,7 +44,7 @@ class ContentRules {
   private static final Pattern AUTH_SCHEME =
       Pattern.compile(
           "(?i)\\b(basic|bearer|digest|negotiate)\\s+"
-              + "(?:[A-Za-z]++=[^\\r\\n]++|[A-Za-z0-9+/._=~-]{4,})");
+              + "(?:[a-z]++=[^\\r\\n]++|[a-z0-9+/._=~-]{4,})");
 
   /** A user name and password in a URL, such as {@code https://user:secret@host}. */
   private static final Pattern URL_CREDENTIALS =
@@ -64,10 +65,6 @@ class ContentRules {
 
   /** The most digits in a card number. */
   private static final int MAX_CARD_DIGITS = 19;
-
-  /** Checks a card number's length and Luhn check digit, for any card brand. */
-  private static final CreditCardValidator CARD =
-      CreditCardValidator.genericCreditCardValidator(MIN_CARD_DIGITS, MAX_CARD_DIGITS);
 
   /** A US social security number. */
   private static final Pattern SSN = Pattern.compile("\\b\\d{3}-\\d{2}-\\d{4}\\b");
@@ -137,12 +134,12 @@ class ContentRules {
    * that starts at each group is looked for, and the search goes on after the card it finds.
    */
   private static String maskCards(String run) {
-    var groups = DIGIT_GROUP.matcher(run).results().toList();
+    var digitGroups = DigitGroups.of(run);
     var cards =
         Stream.iterate(
-                nextCard(groups, 0),
+                digitGroups.nextCard(0),
                 Optional::isPresent,
-                previousCard -> nextCard(groups, previousCard.orElseThrow().lastGroup() + 1))
+                previousCard -> digitGroups.nextCard(previousCard.orElseThrow().lastGroup() + 1))
             .map(Optional::orElseThrow)
             .map(
                 card ->
@@ -150,36 +147,6 @@ class ContentRules {
                         card.start(), card.end(), Redactor.keepingLastFour(card.digits())))
             .toList();
     return replace(run, cards);
-  }
-
-  /** Returns the first valid card that starts at or after the group, if there is one. */
-  private static Optional<CardSpan> nextCard(List<MatchResult> groups, int fromGroup) {
-    return IntStream.range(fromGroup, groups.size())
-        .mapToObj(firstGroup -> longestCard(groups, firstGroup))
-        .flatMap(Optional::stream)
-        .findFirst();
-  }
-
-  /** Returns the longest valid card that starts at the first group, if there is one. */
-  private static Optional<CardSpan> longestCard(List<MatchResult> groups, int firstGroup) {
-    var start = groups.get(firstGroup).start();
-    return IntStream.range(firstGroup, groups.size())
-        .mapToObj(
-            lastGroup ->
-                new CardSpan(
-                    start,
-                    groups.get(lastGroup).end(),
-                    lastGroup,
-                    digitsOf(groups.subList(firstGroup, lastGroup + 1))))
-        .takeWhile(candidate -> candidate.digits().length() <= MAX_CARD_DIGITS)
-        .filter(candidate -> candidate.digits().length() >= MIN_CARD_DIGITS)
-        .filter(candidate -> CARD.isValid(candidate.digits()))
-        .reduce((shorter, longer) -> longer);
-  }
-
-  /** Returns the digits of the groups, without the spaces or dashes between them. */
-  private static String digitsOf(List<MatchResult> groups) {
-    return groups.stream().map(MatchResult::group).collect(Collectors.joining());
   }
 
   /** Masks a valid email address, keeping its last four characters. */
@@ -263,6 +230,62 @@ class ContentRules {
    * @param digits its digits, without spaces or dashes
    */
   private record CardSpan(int start, int end, int lastGroup, String digits) {}
+
+  /**
+   * The digit groups of a run and all their digits joined, so that each possible card's digits are
+   * cut from one string, not joined again.
+   *
+   * @param groups the digit groups, in order
+   * @param digits all the digits of the run
+   * @param offsets where each group's digits start in {@code digits}, then the total length
+   */
+  private record DigitGroups(List<MatchResult> groups, String digits, List<Integer> offsets) {
+
+    /** Finds the digit groups of a run. */
+    private static DigitGroups of(String run) {
+      var groups = DIGIT_GROUP.matcher(run).results().toList();
+      var offsets =
+          IntStream.concat(
+                  IntStream.of(0), groups.stream().mapToInt(group -> group.end() - group.start()))
+              .toArray();
+      Arrays.parallelPrefix(offsets, Integer::sum);
+      return new DigitGroups(
+          groups,
+          groups.stream().map(MatchResult::group).collect(Collectors.joining()),
+          Arrays.stream(offsets).boxed().toList());
+    }
+
+    /** Returns the first valid card at or after the group. No card number starts with 0. */
+    private Optional<CardSpan> nextCard(int fromGroup) {
+      return IntStream.range(fromGroup, groups.size())
+          .filter(firstGroup -> digits.charAt(offsets.get(firstGroup)) != '0')
+          .mapToObj(this::longestCard)
+          .flatMap(Optional::stream)
+          .findFirst();
+    }
+
+    /** Returns the longest valid card that starts at the group, if there is one. */
+    private Optional<CardSpan> longestCard(int firstGroup) {
+      var start = groups.get(firstGroup).start();
+      return IntStream.range(firstGroup, groups.size())
+          .takeWhile(lastGroup -> digitCount(firstGroup, lastGroup) <= MAX_CARD_DIGITS)
+          .filter(lastGroup -> digitCount(firstGroup, lastGroup) >= MIN_CARD_DIGITS)
+          .mapToObj(
+              lastGroup ->
+                  new CardSpan(
+                      start,
+                      groups.get(lastGroup).end(),
+                      lastGroup,
+                      digits.substring(offsets.get(firstGroup), offsets.get(lastGroup + 1))))
+          .filter(candidate -> LuhnCheckDigit.LUHN_CHECK_DIGIT.isValid(candidate.digits()))
+          .reduce((shorter, longer) -> longer);
+    }
+
+    /** Returns how many digits the groups from first to last hold. */
+    private int digitCount(int firstGroup, int lastGroup) {
+      return offsets.get(lastGroup + 1) - offsets.get(firstGroup);
+    }
+  }
 
   /**
    * A part of a text and what is written in its place.

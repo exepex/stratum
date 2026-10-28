@@ -95,12 +95,10 @@ class RedactorTest {
       var beforeCard = "y".repeat(SMALLEST_LIMIT - "4111 1111 1".length()) + " ";
       var beforeToken = "z".repeat(SMALLEST_LIMIT - "opaque".length()) + " ";
 
-      assertThat((String) redactor.redact(MESSAGE, beforeCard + "4111 1111 1111 1111"))
-          .doesNotContain("4111")
-          .endsWith(Redactor.TRUNCATED);
-      assertThat((String) redactor.redact(MESSAGE, beforeToken + "opaque-token-value"))
-          .doesNotContain("opaque")
-          .endsWith(Redactor.TRUNCATED);
+      assertThat(redactor.redact(MESSAGE, beforeCard + "4111 1111 1111 1111"))
+          .isEqualTo(beforeCard.strip() + Redactor.TRUNCATED);
+      assertThat(redactor.redact(MESSAGE, beforeToken + "opaque-token-value"))
+          .isEqualTo(beforeToken.strip() + Redactor.TRUNCATED);
     }
 
     @Test

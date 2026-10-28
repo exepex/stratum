@@ -156,61 +156,64 @@ final class KeyValuePairs implements UnaryOperator<String> {
     private String wrap(String mask) {
       return quote + mask + (end > contentEnd ? quote : "");
     }
-  }
 
-  /**
-   * Returns the position of the closing quote, or -1 if there is none. A quote closes the value
-   * when the number of backslashes before it passes the test; any other quote is part of the value.
-   */
-  private static int closingQuote(String text, int from, char quote, IntPredicate closes) {
-    return IntStream.range(from, text.length())
-        .filter(
-            position ->
-                text.charAt(position) == quote
-                    && closes.test(backslashesBefore(text, from, position)))
-        .findFirst()
-        .orElse(-1);
-  }
+    /**
+     * Returns the position of the closing quote, or -1 if there is none. A quote closes the value
+     * when the number of backslashes before it passes the test; any other quote is part of the
+     * value.
+     */
+    private static int closingQuote(String text, int from, char quote, IntPredicate closes) {
+      return IntStream.range(from, text.length())
+          .filter(
+              position ->
+                  text.charAt(position) == quote
+                      && closes.test(backslashesBefore(text, from, position)))
+          .findFirst()
+          .orElse(-1);
+    }
 
-  /** Returns how many backslashes come just before the position, counting back to {@code from}. */
-  private static int backslashesBefore(String text, int from, int position) {
-    return (int)
-        IntStream.iterate(
-                position - 1,
-                previous -> previous >= from && text.charAt(previous) == '\\',
-                previous -> previous - 1)
-            .count();
-  }
+    /**
+     * Returns how many backslashes come just before the position, counting back to {@code from}.
+     */
+    private static int backslashesBefore(String text, int from, int position) {
+      return (int)
+          IntStream.iterate(
+                  position - 1,
+                  previous -> previous >= from && text.charAt(previous) == '\\',
+                  previous -> previous - 1)
+              .count();
+    }
 
-  /** Returns the end of the line, without trailing spaces. */
-  private static int lineEnd(String text, int from) {
-    var lineBreak =
-        IntStream.range(from, text.length())
-            .filter(position -> text.charAt(position) == '\r' || text.charAt(position) == '\n')
-            .findFirst()
-            .orElse(text.length());
-    return from + text.substring(from, lineBreak).stripTrailing().length();
-  }
+    /** Returns the end of the line, without trailing spaces. */
+    private static int lineEnd(String text, int from) {
+      var lineBreak =
+          IntStream.range(from, text.length())
+              .filter(position -> text.charAt(position) == '\r' || text.charAt(position) == '\n')
+              .findFirst()
+              .orElse(text.length());
+      return from + text.substring(from, lineBreak).stripTrailing().length();
+    }
 
-  /** Returns the end of an unquoted value, without trailing spaces. */
-  private static int plainEnd(String text, int from) {
-    var nextKey = NEXT_KEY.matcher(text);
-    var stop =
-        IntStream.range(from, text.length())
-            .filter(
-                position ->
-                    VALUE_ENDS.indexOf(text.charAt(position)) >= 0
-                        || startsNextKey(nextKey, text, from, position))
-            .findFirst()
-            .orElse(text.length());
-    return from + text.substring(from, stop).stripTrailing().length();
-  }
+    /** Returns the end of an unquoted value, without trailing spaces. */
+    private static int plainEnd(String text, int from) {
+      var nextKey = NEXT_KEY.matcher(text);
+      var stop =
+          IntStream.range(from, text.length())
+              .filter(
+                  position ->
+                      VALUE_ENDS.indexOf(text.charAt(position)) >= 0
+                          || startsNextKey(nextKey, text, from, position))
+              .findFirst()
+              .orElse(text.length());
+      return from + text.substring(from, stop).stripTrailing().length();
+    }
 
-  /** Returns whether the spaces that start at the position are followed by another key. */
-  private static boolean startsNextKey(Matcher nextKey, String text, int from, int position) {
-    return position > from
-        && Character.isWhitespace(text.charAt(position))
-        && !Character.isWhitespace(text.charAt(position - 1))
-        && nextKey.region(position, text.length()).lookingAt();
+    /** Returns whether the spaces that start at the position are followed by another key. */
+    private static boolean startsNextKey(Matcher nextKey, String text, int from, int position) {
+      return position > from
+          && Character.isWhitespace(text.charAt(position))
+          && !Character.isWhitespace(text.charAt(position - 1))
+          && nextKey.region(position, text.length()).lookingAt();
+    }
   }
 }
