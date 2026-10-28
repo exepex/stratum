@@ -1,7 +1,9 @@
 # Testing: `stratum-test`
 
-**Status: Planned.** One test dependency with everything a Stratum service needs for unit, mock and
-integration tests: JUnit 5, AssertJ, Mockito, Testcontainers, HTTP stubs and security helpers.
+**Status: Partly built, not released.** The base module exists and passes `mvn verify`: it brings
+Spring Boot's test starter and the two helpers under [What is built](#what-is-built). Everything else
+on this page is planned: containers, HTTP stubs, security helpers, `@StratumIntegrationTest`,
+`@ImportStratumWebTest` and the `stratum.test.*` properties.
 
 [← Documentation home](../README.md) · Property prefix: `stratum.test`
 
@@ -15,9 +17,74 @@ integration tests: JUnit 5, AssertJ, Mockito, Testcontainers, HTTP stubs and sec
 </dependency>
 ```
 
-It brings `spring-boot-starter-test` (JUnit 5, AssertJ, Mockito, Spring test support), Testcontainers
-with the modules Stratum supports, an HTTP stub server and Spring Security's test support. Versions
-and container images are pinned in the BOM.
+It brings `spring-boot-starter-test` (JUnit 5, AssertJ, Mockito and Spring's test support), at the
+version your Spring Boot parent sets. It does not depend on any other Stratum module.
+
+Heavier test tools come as separate test modules, so a service adds only what its tests use. Both
+are **planned**: `stratum-test-mock` for HTTP stubs of the services you call, and
+`stratum-test-containers` for Testcontainers in integration tests. Their versions and container
+images will be pinned in the BOM.
+
+## What is built
+
+Two helpers, in the package `com.exepex.stratum.test`.
+
+### `ConfigFile`: a configuration file in a context test
+
+An `ApplicationContextRunner` is Spring Boot's tool for testing auto-configuration: it starts a small
+application context with only the configuration you give it. `ConfigFile.load` adds an
+`application.properties` or `application.yml` file from your test resources to that context, read by
+Spring Boot's own loaders, so you can check that a setting binds from both formats.
+
+```java
+class GreetingAutoConfigurationTest {
+
+  private final ApplicationContextRunner contextRunner =
+      new ApplicationContextRunner()
+          .withConfiguration(
+              AutoConfigurations.of(
+                  ValidationAutoConfiguration.class, GreetingAutoConfiguration.class));
+
+  @ParameterizedTest
+  @ValueSource(strings = {"greeting/application.properties", "greeting/application.yml"})
+  void bindsTheMessageFromTheFile(String file) {
+    contextRunner
+        .withInitializer(ConfigFile.load(file))
+        .run(context ->
+            assertThat(context.getBean(Greeter.class).settings().message())
+                .isEqualTo("Hi from a file"));
+  }
+}
+```
+
+| Behaviour | Detail |
+| --- | --- |
+| File types | Ends in `.properties`, `.xml`, `.yml` or `.yaml`. Any other ending is refused with an `IllegalArgumentException` when `load` is called. |
+| Missing file | Refused with an `IllegalArgumentException` that names the file, when `load` is called. |
+| Which value wins | The file's values win over every other value in the runner, including `withPropertyValues`. Of two files, the one loaded last wins. In a YAML file with several documents (`---`), a later document wins. |
+
+### `LoggingContextIds`: sample trace, span and correlation IDs
+
+Tracing and Stratum keep the current request's trace, span and correlation IDs in the logging context
+(SLF4J's MDC), and Stratum's error reports read them from there. `LoggingContextIds` has a sample of
+each ID, the key it is stored under (`traceId`, `spanId`, `correlationId`), and
+`putInLoggingContext()`, which stores all three for the current thread. Clear the context after each
+test, so the next one starts without IDs.
+
+```java
+@AfterEach
+void clearLoggingContext() {
+  MDC.clear();
+}
+
+@Test
+void recordsTheTraceId() {
+  LoggingContextIds.putInLoggingContext();
+
+  assertThat(ErrorReport.of(OrderErrorCode.OUT_OF_STOCK).getExternal().traceId())
+      .isEqualTo(LoggingContextIds.TRACE_ID);
+}
+```
 
 ## Three kinds of tests
 

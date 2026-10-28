@@ -269,7 +269,7 @@ Every starter is off until its `stratum.<module>.enabled` property is `true`.
 
 | Module | In one sentence |
 | --- | --- |
-| [`stratum-test`](docs/modules/test.md) | JUnit 5, AssertJ, Mockito, Testcontainers, HTTP stubs and JWT helpers, ready to use. |
+| [`stratum-test`](docs/modules/test.md) | JUnit 5, AssertJ and Mockito, plus helpers for configuration tests. Containers, HTTP stubs and JWT helpers are planned. |
 
 ## Configuration: YAML or properties
 
@@ -358,14 +358,18 @@ The decision behind it: [ADR 0001](docs/adr/0001-coexistence-with-company-framew
 
 ## Testing your service
 
-`stratum-test` gives you everything you need for unit, mock and integration tests in one test
-dependency:
+`stratum-test` is the test dependency every service adds. Today it brings JUnit 5, AssertJ and
+Mockito through Spring Boot's test starter, plus two small helpers. The rest is planned. HTTP stubs
+and containers will come in two separate test modules, `stratum-test-mock` and
+`stratum-test-containers`, so a service adds only what its tests use:
 
 - **Unit tests** (`*Test.java`) with JUnit 5, AssertJ and Mockito.
-- **Integration tests** (`*IT.java`) that start a real PostgreSQL, Kafka or Redis in Docker with
-  Testcontainers. Image versions are pinned centrally, so every service tests against the same ones.
-- **HTTP stubs** for the services you call, so tests never depend on a real downstream service.
-- **Security helpers** to call secured endpoints with a test JWT.
+- **Integration tests** (`*IT.java`, planned) that start a real PostgreSQL, Kafka or Redis in
+  Docker with Testcontainers. Image versions are pinned centrally, so every service tests against
+  the same ones.
+- **HTTP stubs** (planned) for the services you call, so tests never depend on a real downstream
+  service.
+- **Security helpers** (planned) to call secured endpoints with a test JWT.
 
 ```java
 @StratumIntegrationTest
