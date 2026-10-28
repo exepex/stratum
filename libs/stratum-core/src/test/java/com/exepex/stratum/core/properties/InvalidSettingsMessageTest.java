@@ -26,8 +26,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-@DisplayName("ConstraintViolationMessages names broken settings by property key and rule")
-class ConstraintViolationMessagesTest {
+@DisplayName("StratumPropertiesResolver names broken settings by property key and rule")
+class InvalidSettingsMessageTest {
 
   /** Settings that keep every constraint; each test breaks only the settings it is about. */
   private static final ClientSettings VALID =
@@ -65,11 +65,11 @@ class ConstraintViolationMessagesTest {
   }
 
   @Test
-  @DisplayName("a rule is named with the limits set on it, but not its message")
+  @DisplayName("a rule is named with the limits set on it, in name order, but not its message")
   void namesTheRuleWithItsLimits() {
     var settings = VALID.toBuilder().name("a-name-that-is-too-long").build();
 
-    assertThat(describe(settings)).isEqualTo("stratum.client.name breaks @Size(max=10)");
+    assertThat(describe(settings)).isEqualTo("stratum.client.name breaks @Size(max=10, min=2)");
   }
 
   @Test
@@ -126,12 +126,12 @@ class ConstraintViolationMessagesTest {
             .build();
     var reverseKeyOrder =
         validator.validate(settings).stream()
-            .sorted(Comparator.comparing(ConstraintViolationMessagesTest::path).reversed())
+            .sorted(Comparator.comparing(InvalidSettingsMessageTest::path).reversed())
             .collect(Collectors.toCollection(LinkedHashSet::new));
 
-    assertThat(ConstraintViolationMessages.describe(settings, reverseKeyOrder))
+    assertThat(StratumPropertiesResolver.describe(settings, reverseKeyOrder))
         .isEqualTo(
-            "stratum.client.name breaks @Size(max=10);"
+            "stratum.client.name breaks @Size(max=10, min=2);"
                 + " stratum.client.pool.max-size breaks @Positive;"
                 + " stratum.client.read-timeout breaks @NotNull");
   }
@@ -144,7 +144,7 @@ class ConstraintViolationMessagesTest {
 
   /** Validates the settings and returns the message the resolver would throw. */
   private static <P> String describe(P settings) {
-    return ConstraintViolationMessages.describe(settings, validator.validate(settings));
+    return StratumPropertiesResolver.describe(settings, validator.validate(settings));
   }
 
   /** Returns the path of a broken constraint as text. */
@@ -165,7 +165,7 @@ class ConstraintViolationMessagesTest {
   @ConfigurationProperties("stratum.client")
   private record ClientSettings(
       @NotNull Integer readTimeout,
-      @Size(max = 10) String name,
+      @Size(min = 2, max = 10) String name,
       Map<String, @Pattern(regexp = "\\d+", message = "${validatedValue} is not all digits") String>
           tokens,
       List<@NotBlank String> hosts,

@@ -56,6 +56,8 @@ for the service, not how it is built.
   property is named for its purpose in the domain of the SDK. Write `InventoryClient`, `connectTimeout`,
   `retryAttempts` and `redactSensitiveHeaders()`, not `RestClientWrapper`, `t1`, `cfg`, `data`, `handle()` or
   `process()`. Avoid `Manager`, `Helper`, `Util` and `Impl` unless the name still says what the class does.
+  The rule covers loop variables, lambda parameters and caught exceptions: no `i`, `j`, `k`, `x` or `e`. Only generic
+  type parameters such as `<T>` keep one letter, as Java convention and Google's Checkstyle require.
 - **ST-ENG-14 Javadoc on everything.** Every class, interface, enum, record, method (public, protected, package-private
   and private) and every configuration property field has Javadoc. Lombok-generated members are documented on the
   field they come from. A private method needs only a short summary; `@param` and `@return` are required on
@@ -139,6 +141,8 @@ Every starter follows these rules:
   `java.util.function` (`Supplier`, `Function`, `Predicate`, `Consumer`) instead of custom single-method interfaces,
   streams, `Optional` for return values that may be absent (never for fields or parameters), immutable and sequenced
   collections (`List.of`, `Stream.toList()`, `SequencedCollection`), and `java.time` for dates and durations.
+  Use streams instead of `for` and `while` loops. Keep a loop only where a stream would be harder to read, and say
+  why in a comment.
 - **ST-ENG-40** Use current Java: records for immutable values, sealed types for closed hierarchies, pattern matching
   in `switch` and `instanceof`, text blocks, and `var` for local variables whose type is clear from the right-hand
   side.

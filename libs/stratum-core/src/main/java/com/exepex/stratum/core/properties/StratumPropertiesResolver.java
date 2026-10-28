@@ -5,10 +5,26 @@ import com.exepex.stratum.core.error.ErrorReport;
 import com.exepex.stratum.core.error.StratumException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.ElementKind;
+import jakarta.validation.Path;
 import jakarta.validation.Validator;
+import jakarta.validation.metadata.ConstraintDescriptor;
+import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Gatherers;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.DataObjectPropertyName;
+import org.springframework.core.annotation.MergedAnnotations;
+import org.springframework.util.ObjectUtils;
+import org.springframework.util.StringUtils;
 
 /**
  * Works out the settings a Stratum module uses: the values bound from properties, changed by the
@@ -21,6 +37,12 @@ import lombok.RequiredArgsConstructor;
  */
 @RequiredArgsConstructor
 public final class StratumPropertiesResolver {
+
+  /** Attributes every constraint has, which say nothing about its limits. */
+  private static final Set<String> NON_LIMIT_ATTRIBUTES = Set.of("message", "groups", "payload");
+
+  /** Shown in place of a map key or list index. */
+  private static final String ANY_ELEMENT = "[*]";
 
   /** Checks the Bean Validation constraints declared on the module's settings type. */
   private final Validator validator;
@@ -38,13 +60,32 @@ public final class StratumPropertiesResolver {
    *     constraint
    */
   public <P> P resolve(P bound, Stream<? extends StratumPropertiesCustomizer<P>> customizers) {
-    var remaining = customizers.iterator();
-    var effective = bound;
-    while (remaining.hasNext()) {
-      effective = customize(effective, remaining.next());
-    }
+    var effective =
+        customizers
+            .gather(Gatherers.fold(() -> bound, StratumPropertiesResolver::customize))
+            .findFirst()
+            .orElseThrow();
     validate(effective);
     return effective;
+  }
+
+  /**
+   * Describes the violations in one sorted line, so that the message is the same on every run. It
+   * names each property key and rule, such as {@code @Size(max=10)}, but never a value, map key,
+   * list index or constraint message, because any of them can be a secret.
+   *
+   * @param properties the settings that were validated
+   * @param violations the constraints they break
+   * @param <P> the module's settings type
+   * @return the broken rules, such as {@code "stratum.example.name breaks @NotBlank;
+   *     stratum.example.timeout breaks @NotNull"}
+   */
+  static <P> String describe(P properties, Set<ConstraintViolation<P>> violations) {
+    var prefix = prefixOf(properties.getClass());
+    return violations.stream()
+        .map(violation -> describeViolation(prefix, violation))
+        .sorted()
+        .collect(Collectors.joining("; "));
   }
 
   /**
@@ -56,7 +97,7 @@ public final class StratumPropertiesResolver {
     P customized;
     try {
       customized = customizer.customize(properties);
-    } catch (ClassCastException e) {
+    } catch (ClassCastException castFailure) {
       // Java erases generic types, so the customizer may be for other settings.
       throw new StratumException(
           CoreErrorCode.CUSTOMIZER_BROKEN,
@@ -66,7 +107,7 @@ public final class StratumPropertiesResolver {
               + ". If it is for other settings, "
               + declareWithType(settingsType)
               + " Otherwise see the cause.",
-          e);
+          castFailure);
     }
     if (!properties.getClass().isInstance(customized)) {
       throw new StratumException(
@@ -96,11 +137,74 @@ public final class StratumPropertiesResolver {
     Set<ConstraintViolation<P>> violations = validator.validate(properties);
     if (!violations.isEmpty()) {
       throw new ConstraintViolationException(
-          ErrorReport.of(
-                  CoreErrorCode.INVALID_SETTINGS,
-                  ConstraintViolationMessages.describe(properties, violations))
+          ErrorReport.of(CoreErrorCode.INVALID_SETTINGS, describe(properties, violations))
               .getCodeAndMessage(),
           violations);
     }
+  }
+
+  /**
+   * Names one broken constraint by its property key and its rule.
+   *
+   * <p>A constraint on the settings type itself has an empty path and is named by the prefix alone.
+   */
+  private static String describeViolation(String prefix, ConstraintViolation<?> violation) {
+    var key = propertyKey(violation.getPropertyPath());
+    return (key.isEmpty() ? prefix : prefix + "." + key)
+        + " breaks "
+        + rule(violation.getConstraintDescriptor());
+  }
+
+  /** Returns the prefix that {@code @ConfigurationProperties} gives the settings type. */
+  private static String prefixOf(Class<?> type) {
+    return MergedAnnotations.from(type).get(ConfigurationProperties.class).getString("prefix");
+  }
+
+  /**
+   * Builds the property key from the names along the path, in kebab-case, with {@code [*]} for
+   * every map key and list index.
+   */
+  private static String propertyKey(Path path) {
+    var key =
+        StreamSupport.stream(path.spliterator(), false)
+            .map(StratumPropertiesResolver::keyPart)
+            .collect(Collectors.joining());
+    return StringUtils.trimLeadingCharacter(key, '.');
+  }
+
+  /** Returns one node's part of the key: {@code [*]} if it is an element, then {@code .name}. */
+  private static String keyPart(Path.Node node) {
+    var element = node.isInIterable() ? ANY_ELEMENT : "";
+    var name = node.getName();
+    return node.getKind() == ElementKind.CONTAINER_ELEMENT || name == null
+        ? element
+        : element + "." + DataObjectPropertyName.toDashedForm(name);
+  }
+
+  /**
+   * Names a rule by its annotation and the limits set on it, leaving out attributes at their
+   * default.
+   */
+  private static String rule(ConstraintDescriptor<?> constraint) {
+    var type = constraint.getAnnotation().annotationType();
+    var values = constraint.getAttributes();
+    var limits =
+        Arrays.stream(type.getDeclaredMethods())
+            .filter(attribute -> isLimit(attribute, values))
+            .sorted(Comparator.comparing(Method::getName))
+            .map(
+                attribute ->
+                    attribute.getName()
+                        + "="
+                        + ObjectUtils.nullSafeToString(values.get(attribute.getName())))
+            .collect(Collectors.joining(", "));
+    var name = "@" + type.getSimpleName();
+    return limits.isEmpty() ? name : name + "(" + limits + ")";
+  }
+
+  /** Returns whether an attribute is a limit set away from its default, such as {@code max}. */
+  private static boolean isLimit(Method attribute, Map<String, Object> values) {
+    return !NON_LIMIT_ATTRIBUTES.contains(attribute.getName())
+        && !Objects.deepEquals(values.get(attribute.getName()), attribute.getDefaultValue());
   }
 }

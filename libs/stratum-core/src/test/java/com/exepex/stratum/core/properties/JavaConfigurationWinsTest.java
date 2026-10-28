@@ -3,9 +3,9 @@ package com.exepex.stratum.core.properties;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.error.StratumException;
-import com.exepex.stratum.core.properties.fixture.Greeter;
 import com.exepex.stratum.core.properties.fixture.GreetingAutoConfiguration;
-import com.exepex.stratum.core.properties.fixture.GreetingProperties;
+import com.exepex.stratum.core.properties.fixture.GreetingAutoConfiguration.Greeter;
+import com.exepex.stratum.core.properties.fixture.GreetingAutoConfiguration.GreetingProperties;
 import com.exepex.stratum.core.properties.testsupport.GreetingTestData;
 import jakarta.validation.ConstraintViolationException;
 import org.junit.jupiter.api.DisplayName;

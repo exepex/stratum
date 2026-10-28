@@ -1,7 +1,7 @@
 package com.exepex.stratum.core.properties.testsupport;
 
 import com.exepex.stratum.core.properties.StratumPropertiesCustomizer;
-import com.exepex.stratum.core.properties.fixture.GreetingProperties;
+import com.exepex.stratum.core.properties.fixture.GreetingAutoConfiguration.GreetingProperties;
 import java.time.Duration;
 import lombok.experimental.UtilityClass;
 
