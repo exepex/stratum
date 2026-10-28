@@ -19,7 +19,7 @@ together and publishes it in two forms:
 
 ```mermaid
 flowchart TD
-    SB[spring-boot-starter-parent] -->|parent of| SP[stratum-parent]
+    SB[spring-boot-starter-parent] -->|parent of, through stratum-build-parent| SP[stratum-parent]
     SB -->|parent of| CP[company parent]
     BOM[stratum-bom] -->|imported by| SP
     SP -->|parent of| S1[order-service]
@@ -108,12 +108,14 @@ one. With a BOM import, put it above the import to make that clear to readers:
 
 ## The parent POM
 
-On top of Spring Boot's parent and the BOM, `stratum-parent` sets:
+On top of Spring Boot's parent and the BOM, `stratum-parent` sets the following. Everything except
+the build info and packaging rows comes from `stratum-build-parent`, its own parent, which Stratum's
+libraries and starters also inherit.
 
 | Area | Setting |
 | --- | --- |
 | Java | `java.version=25`, which Spring Boot's parent turns into `maven.compiler.release`; `-parameters`; UTF-8 everywhere |
-| Plugin versions | Spring Boot's parent sets the versions of the plugins it manages, such as Compiler, Surefire, Failsafe, Enforcer and the Spring Boot plugin. `stratum-parent` sets the rest: JaCoCo, Spotless, Checkstyle, PMD, SpotBugs, FindSecBugs and OWASP Dependency-Check, one property each in `<properties>` |
+| Plugin versions | Spring Boot's parent sets the versions of the plugins it manages, such as Compiler, Surefire, Failsafe, Enforcer and the Spring Boot plugin. `stratum-build-parent` sets the rest: JaCoCo, Spotless, Checkstyle, PMD, SpotBugs, FindSecBugs and OWASP Dependency-Check, one property each in `<properties>` |
 | Tests | `*Test.java` run by Surefire in `mvn test`; `*IT.java` run by Failsafe in `mvn verify` |
 | Formatting | Spotless checks Google Java Format; `mvn spotless:apply` fixes it |
 | Static analysis | Checkstyle, PMD and SpotBugs with the FindSecBugs security rules. The Checkstyle, PMD and Enforcer rule files come from `stratum-build-rules` |
@@ -121,7 +123,7 @@ On top of Spring Boot's parent and the BOM, `stratum-parent` sets:
 | Build info | `/actuator/info` shows the build version and time (`build-info.properties`) and the Git commit (`git.properties`) |
 | Packaging | `spring-boot-maven-plugin` builds an executable jar; `mvn spring-boot:build-image` builds a container image |
 
-Every execution that `stratum-parent` adds has an id starting with `stratum-`, such as
+Every execution that Stratum's parent POMs add has an id starting with `stratum-`, such as
 `stratum-checkstyle-check`, so it never merges with an execution of a company parent.
 
 The Checkstyle rules ask for Javadoc on every type and method (test methods use `@DisplayName`

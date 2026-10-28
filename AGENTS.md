@@ -120,7 +120,8 @@ topic file wins.
 
 ## Build
 
-- JDK 25 and Maven 3.9 or later.
+- JDK 25. Build with the Maven Wrapper (`./mvnw`), which pins the Maven version; the commands below
+  work the same with `./mvnw` in place of `mvn`.
 - `mvn verify` must pass before every push. It runs formatting (Spotless with google-java-format),
   Checkstyle, PMD, SpotBugs, the Maven Enforcer, unit tests (`*Test.java`, Surefire), integration tests
   (`*IT.java`, Failsafe) and JaCoCo coverage. Each one fails the build.

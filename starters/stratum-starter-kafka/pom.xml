@@ -6,9 +6,9 @@
 
   <parent>
     <groupId>com.exepex.stratum</groupId>
-    <artifactId>stratum-library-parent</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
-    <relativePath>../../platform/stratum-library-parent/pom.xml</relativePath>
+    <artifactId>stratum-build-parent</artifactId>
+    <version>${revision}</version>
+    <relativePath>../../platform/stratum-build-parent/pom.xml</relativePath>
   </parent>
 
   <artifactId>stratum-starter-kafka</artifactId>

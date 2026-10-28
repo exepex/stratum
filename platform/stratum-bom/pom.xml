@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   Stratum's bill of materials: the versions of Stratum's modules and of the libraries Stratum uses that
-  Spring Boot does not manage. It has no parent and never imports spring-boot-dependencies, so a service
-  under a company parent gets Spring Boot's versions from that parent only (ADR 0001, ST-ENG-60).
+  Spring Boot does not manage. Its parent is the reactor POM, which manages no dependency, and it never
+  imports spring-boot-dependencies, so a service under a company parent gets Spring Boot's versions
+  from that parent only (ADR 0001, ST-ENG-60).
   Keep <properties> and <dependencyManagement> sorted by name.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
@@ -10,9 +11,14 @@
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>com.exepex.stratum</groupId>
+  <parent>
+    <groupId>com.exepex.stratum</groupId>
+    <artifactId>stratum</artifactId>
+    <version>${revision}</version>
+    <relativePath>../../pom.xml</relativePath>
+  </parent>
+
   <artifactId>stratum-bom</artifactId>
-  <version>0.1.0-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <name>Stratum BOM</name>

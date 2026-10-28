@@ -198,21 +198,22 @@ not apply in this setup; the company parent's apply instead.
 ## Setup C: fork Stratum under the company parent
 
 A team can fork Stratum, which is open source, and make the company parent the parent of
-`stratum-parent`. The chain is then Spring Boot → company parent → forked `stratum-parent` →
-service, and services get the company's and Stratum's build settings from one parent.
+Stratum's build parent. The chain is then Spring Boot → company parent → forked
+`stratum-build-parent` → `stratum-parent` → service, and services get the company's and Stratum's
+build settings from one parent chain.
 
 **What the fork changes:**
 
-1. In `stratum-parent/pom.xml`, replace the `<parent>` (`spring-boot-starter-parent`) with the
-   company parent.
+1. In `platform/stratum-build-parent/pom.xml`, replace the `<parent>`
+   (`spring-boot-starter-parent`) with the company parent.
 2. Give the fork its own `groupId` or a version suffix, such as `0.1.0-acme.1`, so its artifacts
    never mix with Stratum's own in a shared Maven repository.
-3. Build the whole fork with `mvn verify`, and publish it to the company's repository.
+3. Build the whole fork with `./mvnw verify`, and publish it to the company's repository.
 
 **What the company parent must provide:**
 
 - It extends `spring-boot-starter-parent` at a version in Stratum's supported line.
-- It supports Java 25. `stratum-parent` sets `maven.compiler.release` to 25, which overrides the
+- It supports Java 25. `stratum-build-parent` sets `maven.compiler.release` to 25, which overrides the
   company parent's Java setting for every service below it.
 
 **How build settings combine:** Maven merges the plugin settings of both parents, plugin by plugin

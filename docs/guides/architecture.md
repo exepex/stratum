@@ -26,12 +26,14 @@ apart: the platform (versions, build rules and parent POMs), the shared librarie
 
 ```text
 stratum/
-├── pom.xml                         # reactor: lists every module, builds them in order; nothing inherits it
+├── pom.xml                         # reactor: lists every module and builds them in order
+├── mvnw, mvnw.cmd                  # Maven Wrapper: downloads and runs the pinned Maven version
+├── .mvn/maven.config               # Stratum's version (revision) and the jar timestamp, set once
 ├── platform/
 │   ├── stratum-bom/                # versions of Stratum's modules and the extra libraries it uses
+│   ├── stratum-build-parent/       # Java 25, the BOM, every plugin version and the build checks
 │   ├── stratum-build-rules/        # Checkstyle, PMD and Enforcer rules, packaged as a jar
-│   ├── stratum-parent/             # parent POM for services: imports the BOM, sets every plugin version
-│   └── stratum-library-parent/     # parent of the libraries and starters below
+│   └── stratum-parent/             # parent POM for services: adds the executable jar and build info
 ├── libs/
 │   ├── stratum-core/               # shared internals: constants, property defaults, version check
 │   └── stratum-test/               # test support for services
@@ -56,31 +58,45 @@ cloud provider is chosen, and `samples/`, small example services built and teste
 
 | What | Set in | Rule |
 | --- | --- | --- |
-| Spring Boot and every library and plugin it manages | `spring-boot-starter-parent`, the parent of `stratum-parent` | Stratum never overrides these versions ([ADR 0001](../adr/0001-coexistence-with-company-frameworks.md)) |
+| Stratum's own version | `.mvn/maven.config`, as `-Drevision=...` | Every POM says `${revision}`; `flatten-maven-plugin` writes the real version into each POM it installs |
+| Spring Boot and every library and plugin it manages | `spring-boot-starter-parent`, the parent of `stratum-build-parent` | Stratum never overrides these versions ([ADR 0001](../adr/0001-coexistence-with-company-frameworks.md)) |
 | Stratum's modules and libraries Spring Boot does not manage | `platform/stratum-bom` | One `<dependencyManagement>` list, sorted by name |
-| Plugins Spring Boot does not manage | `platform/stratum-parent`, in `<properties>` | One `*.version` property per plugin, sorted by name |
+| Plugins Spring Boot does not manage | `platform/stratum-build-parent`, in `<properties>` | One `*.version` property per plugin, sorted by name |
+| Plugins that `stratum-bom` and `stratum-build-rules` run | The root `pom.xml`, in `<properties>` | The same versions as `stratum-build-parent` gets from Spring Boot; Enforcer's `requirePluginVersions` fails the build if one is missing |
+| Maven itself | `.mvn/wrapper/maven-wrapper.properties` | `./mvnw` downloads that version and checks its SHA-256 |
 
-A module POM never writes a version for a dependency or a plugin.
+A module POM never writes a version for a dependency or a plugin. The one exception is the root
+`pom.xml`: it cannot inherit `stratum-build-parent`, so it repeats the versions of the plugins its two
+children run. When the Spring Boot version or `flatten-maven-plugin`'s version changes, update the
+root `pom.xml` in the same commit, so that every module builds with the same plugins.
+
+Stratum's own jars are reproducible: `.mvn/maven.config` sets `project.build.outputTimestamp`, so two
+builds of the same commit give byte-identical jars. Services are not affected, so their
+`/actuator/info` still shows the real build time.
 
 ### How the parents fit together
 
 ```mermaid
 flowchart TD
-    SB[spring-boot-starter-parent] -->|parent of| SP[stratum-parent]
-    BOM[stratum-bom] -->|imported by| SP
-    BR[stratum-build-rules] -->|rules loaded by| SP
+    SB[spring-boot-starter-parent] -->|parent of| BP[stratum-build-parent]
+    BOM[stratum-bom] -->|imported by| BP
+    BR[stratum-build-rules] -->|rules loaded by| BP
+    BP -->|parent of| SP[stratum-parent]
+    BP -->|parent of| LIBS[libs and starters]
     SP -->|parent of| SVC[a service]
-    SP -->|parent of| LP[stratum-library-parent]
-    LP -->|parent of| LIBS[libs and starters]
+    ROOT[root pom.xml] -->|parent of| BOM
+    ROOT -->|parent of| BR
 ```
 
-- `stratum-parent` is the parent services use. Every check it runs on a service also runs on
-  Stratum's own code, so Stratum is held to the rules it gives its users.
-- `stratum-library-parent` turns off what only applies to a service: the executable jar,
-  `build-info.properties` and `git.properties`. A library jar that carried those two files would hide
-  the service's own files from `/actuator/info`.
-- `stratum-bom` and `stratum-build-rules` have no parent. The BOM must not inherit Spring Boot's
-  versions, and `stratum-parent` loads the build rules, so the rules cannot inherit from it.
+- `stratum-build-parent` holds the versions and every build check. Services get it through
+  `stratum-parent`, and Stratum's libraries and starters inherit it directly, so Stratum's own code
+  is held to the rules it gives its users.
+- `stratum-parent` adds what only a service needs: the executable jar, `build-info.properties` and
+  `git.properties`. Libraries do not inherit it, because a library jar that carried those two files
+  would hide the service's own files from `/actuator/info`.
+- The root `pom.xml` is the parent of `stratum-bom` and `stratum-build-rules`. It flattens their
+  POMs and pins the plugins they run. The BOM must not inherit Spring Boot's versions, and `stratum-build-parent` loads the
+  build rules, so neither can inherit `stratum-build-parent`.
 
 ## Inside a starter
 

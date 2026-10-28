@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Maven Enforcer rule that the coverage-gate profile of stratum-build-parent checks: a service may raise
+  stratum.coverage.minimum, never lower it below Stratum's 0.80.
+-->
+<enforcer>
+  <rules>
+    <requireProperty>
+      <property>stratum.coverage.minimum</property>
+      <regex>^(0\.[89]\d*|1(\.0+)?)$</regex>
+      <regexMessage>stratum.coverage.minimum must be between 0.80 and 1.0.</regexMessage>
+    </requireProperty>
+  </rules>
+</enforcer>
