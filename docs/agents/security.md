@@ -40,9 +40,9 @@ of defence.
   limit, configured through the resilience starter.
 - **ST-SEC-13 Misconfiguration (A05).** CORS never combines `*` with credentials. The default configuration does not
   turn on debug logging or extra actuator endpoints.
-- **ST-SEC-14 Vulnerable components (A06).** Dependency versions come from the BOM. The dependency scan
-  (`mvn verify -Psecurity`) fails on a known vulnerability with a CVSS score of 7.0 or higher. CI does not run
-  this scan at present, so run it yourself, with an NVD API key, on any change that adds or upgrades a dependency.
+- **ST-SEC-14 Vulnerable components (A06).** Dependency versions come from the BOM. CI scans the SBOM of every
+  pull request with OSV-Scanner and fails on any known vulnerability
+  ([Checks on every pull request](../contributing.md#checks-on-every-pull-request)).
 - **ST-SEC-15 Integrity (A08).** No Java native deserialization of untrusted data. XML and YAML parsers that read
   untrusted input have external entities and unsafe types turned off.
 - **ST-SEC-16 Security events (A09).** Authentication failures and access denials are logged, without the token, and
