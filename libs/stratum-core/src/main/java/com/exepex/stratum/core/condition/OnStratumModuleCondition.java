@@ -28,7 +28,7 @@ class OnStratumModuleCondition extends SpringBootCondition {
    * @param context the context whose environment holds the property
    * @param metadata the annotated class or method
    * @return a match when the module is on, with the reason
-   * @throws IllegalStateException if the module name is not a canonical property name
+   * @throws IllegalStateException if the module name is not in kebab-case
    */
   @Override
   public ConditionOutcome getMatchOutcome(
@@ -46,7 +46,7 @@ class OnStratumModuleCondition extends SpringBootCondition {
   }
 
   /**
-   * Returns the module name from the annotation and rejects one that cannot form a property name.
+   * Returns the module name from the annotation and rejects one that is not in kebab-case.
    *
    * @param metadata the annotated class or method
    * @return the module name
@@ -57,7 +57,7 @@ class OnStratumModuleCondition extends SpringBootCondition {
             .getAnnotations()
             .get(ConditionalOnStratumModule.class)
             .getString(MergedAnnotation.VALUE);
-    if (module.isEmpty() || !ConfigurationPropertyName.isValid(module)) {
+    if (!isKebabCase(module)) {
       throw new IllegalStateException(
           "@ConditionalOnStratumModule needs a lower-case, kebab-case module name"
               + " such as \"http-client\", but got \""
@@ -65,5 +65,23 @@ class OnStratumModuleCondition extends SpringBootCondition {
               + "\".");
     }
     return module;
+  }
+
+  /**
+   * Returns whether a module name is one kebab-case word, such as {@code http-client}. Spring
+   * Boot's property name rules check the characters; a name with a dot or an index has more than
+   * one element or an indexed one, and would turn the switch into a nested or list property.
+   *
+   * @param module the module name
+   * @return whether the name can be the middle part of {@code stratum.<module>.enabled}
+   */
+  private static boolean isKebabCase(String module) {
+    if (!ConfigurationPropertyName.isValid(module)
+        || module.endsWith("-")
+        || module.contains("--")) {
+      return false;
+    }
+    var name = ConfigurationPropertyName.of(module);
+    return name.getNumberOfElements() == 1 && !name.isLastElementIndexed();
   }
 }

@@ -162,7 +162,7 @@ class JavaConfigurationWinsTest {
                               + ": "
                               + GreetingTestData.class.getName())
                       .hasStackTraceContaining(
-                          "Declare it as StratumPropertiesCustomizer<GreetingProperties>"));
+                          "declare it as StratumPropertiesCustomizer<GreetingProperties>"));
     }
   }
 

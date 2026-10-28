@@ -3,6 +3,8 @@ package com.exepex.stratum.core.properties;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.properties.servicecode.CodedSettings;
+import com.exepex.stratum.core.properties.servicecode.RangeSettings;
+import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Valid;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -12,8 +14,12 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
+import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import lombok.Builder;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -23,11 +29,15 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @DisplayName("ConstraintViolationMessages names broken settings by property key and rule")
 class ConstraintViolationMessagesTest {
 
-  /** A client name that keeps every constraint, for tests about other settings. */
-  private static final String NAME = "orders";
-
-  /** A pool that keeps every constraint, for tests about other settings. */
-  private static final Pool VALID_POOL = new Pool(1);
+  /** Settings that keep every constraint; each test breaks only the settings it is about. */
+  private static final ClientSettings VALID =
+      ClientSettings.builder()
+          .readTimeout(1)
+          .name("orders")
+          .tokens(Map.of())
+          .hosts(List.of())
+          .pool(new Pool(1))
+          .build();
 
   private static ValidatorFactory validatorFactory;
 
@@ -49,7 +59,7 @@ class ConstraintViolationMessagesTest {
   @Test
   @DisplayName("a property is named by the kebab-case key a service sets")
   void namesThePropertyKey() {
-    var settings = new ClientSettings(null, NAME, Map.of(), List.of(), VALID_POOL);
+    var settings = VALID.toBuilder().readTimeout(null).build();
 
     assertThat(describe(settings))
         .isEqualTo("Invalid ClientSettings: stratum.client.read-timeout breaks @NotNull");
@@ -58,8 +68,7 @@ class ConstraintViolationMessagesTest {
   @Test
   @DisplayName("a rule is named with the limits set on it, but not its message")
   void namesTheRuleWithItsLimits() {
-    var settings =
-        new ClientSettings(1, "a-name-that-is-too-long", Map.of(), List.of(), VALID_POOL);
+    var settings = VALID.toBuilder().name("a-name-that-is-too-long").build();
 
     assertThat(describe(settings))
         .isEqualTo("Invalid ClientSettings: stratum.client.name breaks @Size(max=10)");
@@ -68,7 +77,7 @@ class ConstraintViolationMessagesTest {
   @Test
   @DisplayName("a constraint message that quotes the value never reaches the error")
   void neverQuotesTheRejectedValue() {
-    var settings = new ClientSettings(1, NAME, Map.of("orders", "hunter2"), List.of(), VALID_POOL);
+    var settings = VALID.toBuilder().tokens(Map.of("orders", "hunter2")).build();
 
     assertThat(describe(settings))
         .isEqualTo("Invalid ClientSettings: stratum.client.tokens[*] breaks @Pattern(regexp=\\d+)")
@@ -78,8 +87,7 @@ class ConstraintViolationMessagesTest {
   @Test
   @DisplayName("a map key, which may be a credential or a person's identifier, never reaches it")
   void neverQuotesMapKeys() {
-    var settings =
-        new ClientSettings(1, NAME, Map.of("alice@example.com", ""), List.of(), VALID_POOL);
+    var settings = VALID.toBuilder().tokens(Map.of("alice@example.com", "")).build();
 
     assertThat(describe(settings))
         .contains("stratum.client.tokens[*] breaks @Pattern")
@@ -89,7 +97,7 @@ class ConstraintViolationMessagesTest {
   @Test
   @DisplayName("a list index is shown as [*]")
   void hidesListIndexes() {
-    var settings = new ClientSettings(1, NAME, Map.of(), List.of("ok", ""), VALID_POOL);
+    var settings = VALID.toBuilder().hosts(List.of("ok", "")).build();
 
     assertThat(describe(settings))
         .isEqualTo("Invalid ClientSettings: stratum.client.hosts[*] breaks @NotBlank");
@@ -98,7 +106,7 @@ class ConstraintViolationMessagesTest {
   @Test
   @DisplayName("nested settings marked @Valid are checked and named by their full key")
   void checksNestedSettingsMarkedValid() {
-    var settings = new ClientSettings(1, NAME, Map.of(), List.of(), new Pool(0));
+    var settings = VALID.toBuilder().pool(new Pool(0)).build();
 
     assertThat(describe(settings))
         .isEqualTo("Invalid ClientSettings: stratum.client.pool.max-size breaks @Positive");
@@ -120,6 +128,34 @@ class ConstraintViolationMessagesTest {
                 + " breaks @ShortCode(format=String, region=us)");
   }
 
+  @Test
+  @DisplayName("the broken settings are listed in key order, whatever order they arrive in")
+  void sortsByKey() {
+    var settings =
+        VALID.toBuilder()
+            .readTimeout(null)
+            .name("a-name-that-is-too-long")
+            .pool(new Pool(0))
+            .build();
+    var reverseKeyOrder =
+        validator.validate(settings).stream()
+            .sorted(Comparator.comparing(ConstraintViolationMessagesTest::path).reversed())
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+
+    assertThat(ConstraintViolationMessages.describe(settings, reverseKeyOrder))
+        .isEqualTo(
+            "Invalid ClientSettings: stratum.client.name breaks @Size(max=10);"
+                + " stratum.client.pool.max-size breaks @Positive;"
+                + " stratum.client.read-timeout breaks @NotNull");
+  }
+
+  @Test
+  @DisplayName("a rule on the settings type itself is named by the prefix alone")
+  void namesTypeLevelRulesByPrefix() {
+    assertThat(describe(new RangeSettings(2, 1)))
+        .isEqualTo("Invalid RangeSettings: stratum.range breaks @MinBelowMax");
+  }
+
   /**
    * Validates the settings and returns the message the resolver would throw.
    *
@@ -132,6 +168,16 @@ class ConstraintViolationMessagesTest {
   }
 
   /**
+   * Returns the path of a broken constraint as text.
+   *
+   * @param violation the broken constraint
+   * @return the path, such as {@code pool.maxSize}
+   */
+  private static String path(ConstraintViolation<?> violation) {
+    return violation.getPropertyPath().toString();
+  }
+
+  /**
    * Settings of an example HTTP client, with one constraint of each kind the messages handle.
    *
    * @param readTimeout seconds to wait for a response
@@ -140,6 +186,7 @@ class ConstraintViolationMessagesTest {
    * @param hosts the hosts to call, none blank
    * @param pool the connection pool
    */
+  @Builder(toBuilder = true)
   @ConfigurationProperties("stratum.client")
   private record ClientSettings(
       @NotNull Integer readTimeout,

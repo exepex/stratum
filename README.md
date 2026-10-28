@@ -428,8 +428,8 @@ cd stratum
 ```
 
 `./mvnw verify` checks formatting, runs Checkstyle, PMD, SpotBugs and the Maven Enforcer, runs unit
-and integration tests (Docker will be needed once integration tests use containers) and writes a
-JaCoCo coverage report. The modules are grouped into `platform/` (BOM, parent POMs and build
+and integration tests (Docker will be needed once integration tests use containers) and fails if
+line coverage drops below 80%. The modules are grouped into `platform/` (BOM, parent POMs and build
 rules), `libs/` (shared libraries) and `starters/`; see
 [Architecture](docs/guides/architecture.md#repository-layout).
 

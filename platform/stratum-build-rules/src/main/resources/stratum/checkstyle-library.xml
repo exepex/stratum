@@ -31,6 +31,11 @@
           value="Override, Test, ParameterizedTest, RepeatedTest, TestFactory, TestTemplate"/>
       <property name="tokens" value="METHOD_DEF, CTOR_DEF, ANNOTATION_FIELD_DEF, COMPACT_CTOR_DEF"/>
     </module>
+    <!-- An @param for every record component and type parameter: a settings record's @param text is
+         the property description IDEs show (ST-DOC-04). -->
+    <module name="JavadocType">
+      <property name="scope" value="private"/>
+    </module>
     <module name="InvalidJavadocPosition"/>
     <module name="JavadocMethod">
       <property name="accessModifiers" value="public, protected, package, private"/>

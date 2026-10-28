@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Stratum's Checkstyle, PMD and Maven Enforcer rules, packaged as a jar so that stratum-parent can
-  load them from the classpath in every build. Its parent is the reactor POM: stratum-build-parent
+  Stratum's Checkstyle, PMD and Maven Enforcer rules, packaged as a jar so that stratum-build-parent
+  can load them from the classpath in every build. Its parent is the reactor POM: stratum-build-parent
   depends on it, so it cannot inherit stratum-build-parent.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
@@ -23,8 +23,9 @@
   <description>Checkstyle, PMD and Maven Enforcer rules that every Stratum and service build is checked against.</description>
 
   <properties>
-    <!-- Must match the versions stratum-build-parent runs: this module cannot inherit that parent. -->
-    <junit-jupiter.version>6.1.3</junit-jupiter.version>
+    <!-- The JUnit version Spring Boot manages and the PMD version stratum-build-parent runs. This module
+         cannot inherit that parent, so update these when that parent's versions change. -->
+    <junit-jupiter.version>6.0.3</junit-jupiter.version>
     <maven.compiler.release>25</maven.compiler.release>
     <pmd.version>7.28.0</pmd.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

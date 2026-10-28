@@ -10,6 +10,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -55,13 +56,15 @@ class ConstraintViolationMessages {
   /**
    * Names one broken constraint by its property key and its rule.
    *
+   * <p>A constraint on the settings type itself has an empty path and is named by the prefix alone.
+   *
    * @param prefix the settings type's property prefix, or an empty string if it has none
    * @param violation the broken constraint
    * @return the key and the rule, such as {@code "stratum.example.timeout breaks @NotNull"}
    */
   private static String describe(String prefix, ConstraintViolation<?> violation) {
     var key = propertyKey(violation.getPropertyPath());
-    return (prefix.isEmpty() ? key : prefix + "." + key)
+    return Stream.of(prefix, key).filter(part -> !part.isEmpty()).collect(Collectors.joining("."))
         + " breaks "
         + rule(violation.getConstraintDescriptor());
   }

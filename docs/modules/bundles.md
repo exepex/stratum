@@ -60,10 +60,11 @@ stratum:
 Modules you leave unset stay off and set nothing up.
 
 > [!WARNING]
-> The microservice and web-ui bundles bring `stratum-starter-security`, and with it Spring Security.
-> While `stratum.security.enabled` is unset, Spring Boot's default applies and every endpoint asks
-> for a login. Switch security on and set its issuer, as [Security](security.md) shows, or exclude
-> the starter as in [Leave a starter out](#leave-a-starter-out).
+> Once the security starter is built (it is planned), the microservice and web-ui bundles will bring
+> Spring Security with it. While `stratum.security.enabled` is unset, Spring Boot's default will
+> apply and every endpoint will ask for a login. Switch security on and set its issuer, as
+> [Security](security.md) shows, or exclude the starter as in
+> [Leave a starter out](#leave-a-starter-out).
 
 ## Add more starters
 

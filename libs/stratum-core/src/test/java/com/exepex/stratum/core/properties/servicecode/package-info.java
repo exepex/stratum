@@ -1,6 +1,7 @@
 /**
- * Settings checked by a constraint a service declares itself, outside Stratum's packages and
- * without public access, as a starter or a service often does next to its settings.
+ * Settings checked by constraints a service declares itself, outside Stratum's packages, as a
+ * starter or a service often does next to its settings: one without public access, and one on a
+ * whole settings type.
  */
 @NullMarked
 package com.exepex.stratum.core.properties.servicecode;
