@@ -49,9 +49,10 @@ stratum.environment=prod
 
 ## On/off switches
 
-Every module can be switched off with one property. All default to `true`.
+Every module is off until you switch it on with one property. All default to `false`, so adding a
+starter, or a [bundle](../modules/bundles.md), sets nothing up by itself.
 
-| Property | Turns off |
+| Property | Switches on |
 | --- | --- |
 | `stratum.web.enabled` | Error format, correlation IDs, request logging, JSON settings |
 | `stratum.logging.enabled` | Structured format and redaction |
@@ -100,15 +101,18 @@ spring:
 stratum:
   environment: prod
   security:
+    enabled: true
     resource-server:
       issuer-uri: https://idp.acme.com/realms/acme
       audiences: [order-service]
   observability:
+    enabled: true
     tracing:
       sampling-probability: 0.05
       export:
         endpoint: http://otel-collector:4318/v1/traces
   http-client:
+    enabled: true
     clients:
       inventory:
         base-url: http://inventory-service
@@ -118,6 +122,7 @@ stratum:
         read-timeout: 10s
         resilience-policy: payments
   resilience:
+    enabled: true
     policies:
       payments:
         retry:
@@ -131,6 +136,10 @@ spring.datasource.username=orders
 spring.datasource.password=${ORDERS_DB_PASSWORD}
 
 stratum.environment=prod
+stratum.security.enabled=true
+stratum.observability.enabled=true
+stratum.http-client.enabled=true
+stratum.resilience.enabled=true
 stratum.security.resource-server.issuer-uri=https://idp.acme.com/realms/acme
 stratum.security.resource-server.audiences=order-service
 stratum.observability.tracing.sampling-probability=0.05

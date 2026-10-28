@@ -11,7 +11,7 @@ shows the four ways to change what Stratum does, from the lightest touch to the 
 | 1 | Change a value | Set a property, or the same value in Java | One line, or a small bean |
 | 2 | Adjust a bean Stratum built | Declare a customizer bean | A few lines |
 | 3 | Replace a bean entirely | Declare your own bean of the same type | You own that bean from now on |
-| 4 | Turn a module off | `stratum.<module>.enabled=false` | One line |
+| 4 | Turn a module on or off | `stratum.<module>.enabled=true` or `false` | One line |
 
 Always use the **lowest level that solves your problem**. Each level up means more code that your
 team maintains instead of Stratum.
@@ -173,23 +173,29 @@ class SecurityConfig {
 Each module page lists the beans it creates under **What you get**, with their types, so you know
 exactly what you would be replacing.
 
-## Level 4: turn a module off
+## Level 4: turn a module on or off
 
-Every starter has a switch. Turning it off removes all of its beans and defaults, as if the starter
-were not there, while keeping its libraries on the classpath:
+Every starter has a switch, and every module is **off until you switch it on**. Adding a starter, or
+a [bundle](../modules/bundles.md), puts its libraries on the classpath; the switch decides whether
+Stratum sets anything up. Switch on the modules your service uses:
 
 ```yaml
 stratum:
   cache:
-    enabled: false
+    enabled: true
 ```
 
 ```properties
-stratum.cache.enabled=false
+stratum.cache.enabled=true
 ```
 
-Useful for a test profile, or while you migrate one concern at a time. If you never want the module,
-remove the starter from your `pom.xml` instead.
+Leaving the property unset, or setting it to `false`, removes all of the module's beans and defaults,
+as if the starter were not there, while keeping its libraries. That is useful for a test profile, or
+while you migrate one concern at a time. If you never want the module, remove the starter from your
+`pom.xml`, or exclude it from the bundle, instead.
+
+The switch is read from properties only, not from a `StratumPropertiesCustomizer`: Spring decides
+which beans to create before any customizer runs.
 
 Some modules also let you switch off one part:
 

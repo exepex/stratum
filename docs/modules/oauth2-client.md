@@ -28,6 +28,20 @@ no extra setup.
 </dependency>
 ```
 
+The starter does nothing until you switch it on, in `application.properties`:
+
+```properties
+stratum.oauth2-client.enabled=true
+```
+
+or in `application.yml`:
+
+```yaml
+stratum:
+  oauth2-client:
+    enabled: true
+```
+
 ## How it is configured
 
 Client registrations use **Spring Security's standard properties**
@@ -117,7 +131,7 @@ Stratum's own properties tune the token handling. Registrations themselves use
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.oauth2-client.enabled` | boolean | `true` | Switches the whole starter on or off. |
+| `stratum.oauth2-client.enabled` | boolean | `false` | Switches the whole starter on. Until it is `true`, the starter sets up nothing. |
 | `stratum.oauth2-client.refresh-before-expiry` | duration | `60s` | Fetch a new token this long before the old one expires. |
 | `stratum.oauth2-client.token-request.connect-timeout` | duration | `2s` | Connect timeout towards the identity provider. |
 | `stratum.oauth2-client.token-request.read-timeout` | duration | `5s` | Read timeout towards the identity provider. |
@@ -144,9 +158,12 @@ customizer or builder, with the same names and defaults. This section will show 
 - **Different token storage** (for example shared across instances): declare your own
   `OAuth2AuthorizedClientService` bean.
 
-## Switch it off
+## Switch it on or off
 
-`stratum.oauth2-client.enabled=false`. HTTP clients that reference a registration then fail at
+`stratum.oauth2-client.enabled=true` switches the starter on.
+Leaving it unset is the same as `false`.
+
+When it is off: HTTP clients that reference a registration then fail at
 startup, so the problem is visible immediately.
 
 ## Troubleshooting

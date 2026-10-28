@@ -26,6 +26,20 @@ by hand, and slow queries nobody notices. This starter sets these the safe way i
 </dependency>
 ```
 
+The starter does nothing until you switch it on, in `application.properties`:
+
+```properties
+stratum.data.enabled=true
+```
+
+or in `application.yml`:
+
+```yaml
+stratum:
+  data:
+    enabled: true
+```
+
 **Required:** the standard Spring Boot connection settings:
 
 ```yaml
@@ -87,7 +101,7 @@ security starter is present, and from `stratum.data.auditing.system-user` otherw
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.data.enabled` | boolean | `true` | Switches the whole starter on or off. |
+| `stratum.data.enabled` | boolean | `false` | Switches the whole starter on. Until it is `true`, the starter sets up nothing. |
 | `stratum.data.pool.max-size` | int | `10` | Maximum connections. More is rarely faster; see the tip below. |
 | `stratum.data.pool.min-idle` | int | `2` | Connections kept open when idle. |
 | `stratum.data.pool.connection-timeout` | duration | `3s` | Wait for a free connection before failing. |
@@ -145,7 +159,10 @@ customizer or builder, with the same names and defaults. This section will show 
 - Your own `DataSource` bean replaces Stratum's pool settings completely.
 - Your own `AuditorAware<String>` bean decides who `createdBy` is.
 
-## Switch it off
+## Switch it on or off
+
+`stratum.data.enabled=true` switches the starter on.
+Leaving it unset is the same as `false`.
 
 `stratum.data.enabled=false` leaves Spring Boot's own JPA defaults (including `open-in-view=true`).
 

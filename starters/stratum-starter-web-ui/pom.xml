@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  A bundle starter: it contains no code and only lists the single starters that a server-rendered web application needs, so that
+  a service adds one dependency instead of several (ADR 0003). A service adds any other starter
+  next to it, and excludes one it does not want. A bundle never lists a starter that this kind of
+  application does not need.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.exepex.stratum</groupId>
+    <artifactId>stratum-library-parent</artifactId>
+    <version>${revision}</version>
+    <relativePath>../../platform/stratum-library-parent/pom.xml</relativePath>
+  </parent>
+
+  <artifactId>stratum-starter-web-ui</artifactId>
+
+  <name>Stratum bundle: web-ui</name>
+  <description>Bundle for a server-rendered web application: web, logging, observability and security.</description>
+
+  <!-- Keep the starters sorted by name. -->
+  <dependencies>
+    <dependency>
+      <groupId>com.exepex.stratum</groupId>
+      <artifactId>stratum-starter-logging</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.exepex.stratum</groupId>
+      <artifactId>stratum-starter-observability</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.exepex.stratum</groupId>
+      <artifactId>stratum-starter-security</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.exepex.stratum</groupId>
+      <artifactId>stratum-starter-web</artifactId>
+    </dependency>
+  </dependencies>
+</project>

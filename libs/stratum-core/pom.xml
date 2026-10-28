@@ -14,12 +14,16 @@
   <artifactId>stratum-core</artifactId>
 
   <name>Stratum core</name>
-  <description>Shared internals of Stratum's starters: how a module's settings combine properties and Java configuration.</description>
+  <description>Shared internals of Stratum's starters: the switch that turns each module on or off, and how a module's settings combine properties and Java configuration.</description>
 
   <dependencies>
     <dependency>
       <groupId>jakarta.validation</groupId>
       <artifactId>jakarta.validation-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-autoconfigure</artifactId>
     </dependency>
     <dependency>
       <groupId>org.jspecify</groupId>

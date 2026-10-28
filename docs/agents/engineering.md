@@ -33,7 +33,9 @@ cite it.
 ## Cross-cutting concerns
 
 - **ST-ENG-10 One concern per starter.** Logging, observability, security, HTTP clients, resilience, data access,
-  caching and messaging each have their own `stratum-starter-*`. A service only gets what it adds.
+  caching and messaging each have their own `stratum-starter-*`. A service only gets what it adds. Bundle starters,
+  such as `stratum-starter-microservice`, contain no code and only list the single starters one kind of application
+  needs; no starter depends on a starter its concern does not need (ADR 0003).
 - **ST-ENG-11 Starters meet through Spring.** When one starter needs another's behaviour, it uses the public extension
   points of Spring and Micrometer, which the other starter configures. It never imports another starter's internal
   classes. Example: the HTTP client starter propagates traces through Micrometer's observation API, not through
@@ -70,9 +72,9 @@ Every starter follows these rules:
   `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`. Starters do not use component
   scanning.
 - **ST-ENG-21** Every bean has conditions: `@ConditionalOnMissingBean` so a service or another framework can supply
-  its own, `@ConditionalOnClass` when it needs an optional library, and `@ConditionalOnProperty(prefix =
-  "stratum.<module>", name = "enabled", matchIfMissing = true)` so the whole module can be turned off. The missing-bean
-  condition checks the type that services inject, such as Resilience4j's `CircuitBreakerRegistry`, not a Stratum
+  its own, `@ConditionalOnClass` when it needs an optional library, and every auto-configuration of a module
+  carries `@ConditionalOnStratumModule("<module>")` from `stratum-core`, so the whole module stays off until the
+  service sets `stratum.<module>.enabled=true` (ADR 0003). The missing-bean condition checks the type that services inject, such as Resilience4j's `CircuitBreakerRegistry`, not a Stratum
   class. Every bean is also marked `@Fallback`, so that when another framework's bean of the same type exists, Spring
   injects that one ([ADR 0001](../adr/0001-coexistence-with-company-frameworks.md)). For a type that Spring Boot
   already auto-configures, such as `RestClient.Builder`, Stratum does not define its own bean: it adjusts Boot's bean
