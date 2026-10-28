@@ -7,6 +7,7 @@ import static com.exepex.stratum.logging.testsupport.LoggingTestData.SSN;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.logging.testsupport.LoggingTestData;
+import java.net.URI;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -70,7 +71,7 @@ class SecretRedactionTest {
         })
     @DisplayName("a secret field, or one whose name holds a secret word, is masked in full")
     void secretFieldIsMaskedInFull(String name) {
-      assertThat(redactor.redact(name, "plain value")).isEqualTo(Masks.MASK);
+      assertThat(redactor.redact(name, "plain value")).isEqualTo(Redactor.MASK);
     }
 
     @ParameterizedTest
@@ -94,7 +95,15 @@ class SecretRedactionTest {
     @Test
     @DisplayName("a value that is not text, such as a numeric PIN, is masked by its name")
     void nonTextValueIsMaskedByName() {
-      assertThat(redactor.redact("pin", Integer.valueOf("1234"))).isEqualTo(Masks.MASK);
+      assertThat(redactor.redact("pin", Integer.valueOf("1234"))).isEqualTo(Redactor.MASK);
+    }
+
+    @Test
+    @DisplayName("a value that is written as its text, such as a URI, is masked by its content")
+    void objectTextIsMasked() {
+      var destination = URI.create("https://app:" + PASSWORD + "@host/orders");
+
+      assertThat(redactor.redact("destination", destination)).isEqualTo("https://****@host/orders");
     }
 
     @Test
@@ -125,6 +134,13 @@ class SecretRedactionTest {
     }
 
     @Test
+    @DisplayName("Digest credentials, a list of parameters, are masked to the end of the line")
+    void digestParametersAreMasked() {
+      assertThat(text("sent Digest username=\"fake-user\", response=\"fake-response\"\nnext"))
+          .isEqualTo("sent Digest ****\nnext");
+    }
+
+    @Test
     @DisplayName("an Authorization header written as text is masked")
     void authorizationHeaderIsMasked() {
       assertThat(text("Authorization: Bearer abc.def.ghi")).doesNotContain("abc.def.ghi");
@@ -150,7 +166,7 @@ class SecretRedactionTest {
     @DisplayName(
         "a secret is masked in escaped JSON, single quotes, URL encoding and compound keys")
     void secretInOtherFormsIsMasked(String line) {
-      assertThat(text(line)).doesNotContain(PASSWORD).contains(Masks.MASK);
+      assertThat(text(line)).doesNotContain(PASSWORD).contains(Redactor.MASK);
     }
 
     @Test
@@ -158,7 +174,7 @@ class SecretRedactionTest {
     void cutJwtIsMasked() {
       var cut = JWT.substring(0, JWT.lastIndexOf('.'));
 
-      assertThat(text("token " + cut)).isEqualTo("token " + Masks.MASK);
+      assertThat(text("token " + cut)).isEqualTo("token " + Redactor.MASK);
     }
 
     @Test
@@ -242,7 +258,7 @@ class SecretRedactionTest {
     @Test
     @DisplayName("an extra key is masked as a field and in a key-value pair, up to the next key")
     void extraKeyIsMasked() {
-      assertThat(withRules.redact("badge-no", "B-77")).isEqualTo(Masks.MASK);
+      assertThat(withRules.redact("badge-no", "B-77")).isEqualTo(Redactor.MASK);
       assertThat(withRules.redact(null, "badgeNo=B 77 gate=4")).isEqualTo("badgeNo=**** gate=4");
     }
 
@@ -255,7 +271,7 @@ class SecretRedactionTest {
     @Test
     @DisplayName("the built-in rules still apply")
     void builtInRulesStillApply() {
-      assertThat(withRules.redact("password", "x")).isEqualTo(Masks.MASK);
+      assertThat(withRules.redact("password", "x")).isEqualTo(Redactor.MASK);
     }
   }
 }

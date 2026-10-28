@@ -78,6 +78,7 @@ always wins. Details are on each module page.
 | `server.error.include-stacktrace` | `never` | web |
 | `server.shutdown` | `graceful` | web |
 | `logging.structured.format.console` | `ecs` | logging |
+| `logging.structured.format.file` | `ecs` | logging |
 | `logging.structured.ecs.service.environment` | `${stratum.environment}` | logging |
 | `logging.structured.json.stacktrace.max-length` | `16384` (from `stratum.logging.max-field-length`) | logging |
 | `logging.structured.json.stacktrace.root` | `first` | logging |

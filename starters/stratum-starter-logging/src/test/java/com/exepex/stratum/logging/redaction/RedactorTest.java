@@ -19,6 +19,9 @@ class RedactorTest {
   /** The smallest allowed limit, 1KB, in characters. */
   private static final int SMALLEST_LIMIT = 1024;
 
+  /** The field that holds a log line's message. */
+  private static final String MESSAGE = "message";
+
   /** The largest allowed limit, 1MB, in bytes. */
   private static final long LARGEST_LIMIT = 1_048_576;
 
@@ -78,10 +81,25 @@ class RedactorTest {
     @Test
     @DisplayName("a value even one character longer than the limit is cut and marked")
     void longValueIsCut() {
-      var cut = (String) redactor.redact("message", "x".repeat(SMALLEST_LIMIT + 1));
+      var words = "word ".repeat(SMALLEST_LIMIT / "word ".length() + 1);
+      var cut = (String) redactor.redact(MESSAGE, words.substring(0, SMALLEST_LIMIT + 1));
 
       assertThat(cut)
           .hasSize(SMALLEST_LIMIT + Redactor.TRUNCATED.length())
+          .endsWith(Redactor.TRUNCATED);
+    }
+
+    @Test
+    @DisplayName("a card or token that crosses the limit is dropped, not left half visible")
+    void secretAcrossTheLimitIsDropped() {
+      var beforeCard = "y".repeat(SMALLEST_LIMIT - "4111 1111 1".length()) + " ";
+      var beforeToken = "z".repeat(SMALLEST_LIMIT - "opaque".length()) + " ";
+
+      assertThat((String) redactor.redact(MESSAGE, beforeCard + "4111 1111 1111 1111"))
+          .doesNotContain("4111")
+          .endsWith(Redactor.TRUNCATED);
+      assertThat((String) redactor.redact(MESSAGE, beforeToken + "opaque-token-value"))
+          .doesNotContain("opaque")
           .endsWith(Redactor.TRUNCATED);
     }
 
@@ -90,7 +108,7 @@ class RedactorTest {
     void valueAtTheLimitIsKept() {
       var value = "x".repeat(SMALLEST_LIMIT);
 
-      assertThat(redactor.redact("message", value)).isEqualTo(value);
+      assertThat(redactor.redact(MESSAGE, value)).isEqualTo(value);
     }
 
     @Test

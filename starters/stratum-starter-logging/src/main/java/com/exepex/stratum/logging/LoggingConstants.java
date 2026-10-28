@@ -26,6 +26,9 @@ public class LoggingConstants {
   /** Spring Boot's structured format for console logs. */
   public static final String CONSOLE_FORMAT = "logging.structured.format.console";
 
+  /** Spring Boot's structured format for the log file, when {@code logging.file.name} is set. */
+  public static final String FILE_FORMAT = "logging.structured.format.file";
+
   /** Spring Boot's ECS field {@code service.environment}. */
   public static final String ECS_ENVIRONMENT = "logging.structured.ecs.service.environment";
 

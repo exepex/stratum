@@ -4,10 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.core.error.StratumException;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.WebApplicationType;
@@ -63,5 +67,22 @@ class LoggingStartupIntegrationTest {
         .contains("\"message\":\"badge checked\"")
         .contains("\"environment\":\"staging\"")
         .contains("\"badge_no\":\"****\"");
+  }
+
+  @Test
+  @DisplayName("a log file gets the same masked JSON lines as the console")
+  void logFileIsMaskedJson(@TempDir Path folder) throws IOException {
+    var file = folder.resolve("orders.log");
+    try (var _ =
+        start(
+            "--spring.application.name=orders",
+            "--stratum.logging.enabled=true",
+            "--logging.file.name=" + file)) {
+      log.info("file line password=fake-unmasked");
+    }
+
+    assertThat(Files.readString(file))
+        .contains("\"message\":\"file line password=****\"")
+        .doesNotContain("fake-unmasked");
   }
 }

@@ -1,6 +1,7 @@
 package com.exepex.stratum.logging;
 
 import com.exepex.stratum.core.error.StratumException;
+import com.exepex.stratum.logging.LoggingProperties.LogFormat;
 import com.exepex.stratum.logging.redaction.Redactor;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -51,13 +52,13 @@ public class LoggingEnvironmentPostProcessor implements EnvironmentPostProcessor
   @Override
   public void postProcessEnvironment(
       ConfigurableEnvironment environment, SpringApplication application) {
-    if (!LoggingSettings.isEnabled(environment)) {
+    if (!LoggingProperties.isEnabled(environment)) {
       return;
     }
     if (!StringUtils.hasText(environment.getProperty(LoggingConstants.APPLICATION_NAME))) {
       throw new StratumException(LoggingErrorCode.APPLICATION_NAME_MISSING);
     }
-    var settings = LoggingSettings.bind(environment);
+    var settings = LoggingProperties.bind(environment);
     Redactor.from(settings);
     environment
         .getPropertySources()
@@ -77,7 +78,9 @@ public class LoggingEnvironmentPostProcessor implements EnvironmentPostProcessor
     var defaults = new HashMap<String, Object>();
     var structuredFormat = settings.format().getStructuredFormat();
     if (structuredFormat != null) {
+      // The file too: a plain-text file would hold every value unredacted.
       defaults.put(LoggingConstants.CONSOLE_FORMAT, structuredFormat);
+      defaults.put(LoggingConstants.FILE_FORMAT, structuredFormat);
     }
     var serviceEnvironment = environment.getProperty(LoggingConstants.ENVIRONMENT);
     if (StringUtils.hasText(serviceEnvironment)) {

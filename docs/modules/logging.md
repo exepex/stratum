@@ -104,7 +104,7 @@ is masked element by element. It cannot be switched off.
 | Card numbers in text | 13 to 19 digits that pass the Luhn check | `****1111` |
 | US social security numbers in text | `123-45-6789` | `****6789` |
 | JSON Web Tokens | `eyJ…` with two or three parts | `****` |
-| `Basic`, `Bearer`, `Digest` and `Negotiate` credentials | The scheme name | `Bearer ****` |
+| `Basic`, `Bearer`, `Digest` and `Negotiate` credentials; Digest's `name="value"` list runs to the end of the line | The scheme name | `Bearer ****` |
 | A user and password in a URL | `https://user:pass@host` | `https://****@host` |
 | Names, dates of birth and addresses: `first_name`, `last_name`, `full_name`, `username`, `date_of_birth`, `address` and similar | Field or key name | `****` |
 | Email, phone and IBAN fields | Field or key name | `****` plus last four |
@@ -122,7 +122,8 @@ end of the line, so every cookie in the header is masked. A card number next to 
 in `4111 1111 1111 1111 43`, is still found.
 
 Every value is also cut to `stratum.logging.max-field-length` (16KB by default) and ends with
-`...[truncated]` when it was longer. If masking a value fails, `[REDACTION_FAILED]` is written
+`...[truncated]` when it was longer. The cut drops the word it falls in and any digits just before
+it, so a token or card number that crosses the limit is never left half visible. If masking a value fails, `[REDACTION_FAILED]` is written
 instead; the value is never written as it was.
 
 > [!IMPORTANT]
@@ -133,9 +134,8 @@ instead; the value is never written as it was.
 The `text` format writes plain lines that are **not** redacted. It is meant for your laptop. Unless
 every active profile is `local` or `test`, the `text` format logs a warning at startup.
 
-Plain-text log files are not redacted either. If you write a log file with `logging.file.name`, also
-set `logging.structured.format.file`, for example to `ecs`, so the file gets the same JSON lines and
-the same redaction.
+A log file, written when you set `logging.file.name`, gets the same format and the same redaction
+as the console.
 
 ## Properties
 
@@ -155,6 +155,7 @@ Spring Boot properties this starter sets by default (your values win):
 | Spring Boot property | Stratum default |
 | --- | --- |
 | `logging.structured.format.console` | value of `stratum.logging.format` (unset when `text`) |
+| `logging.structured.format.file` | value of `stratum.logging.format` (unset when `text`) |
 | `logging.structured.ecs.service.environment` | value of `stratum.environment` |
 | `logging.structured.json.stacktrace.max-length` | value of `stratum.logging.max-field-length`, in bytes |
 | `logging.structured.json.stacktrace.root` | `first` |
@@ -253,9 +254,25 @@ A Stratum endpoint that switches DEBUG on for a limited time, and back off by it
 - **Different JSON fields:** Spring Boot's `StructuredLogFormatter` lets you write your own format;
   set `logging.structured.format.console` to its class name. Prefer the standard format so logs
   stay searchable across services.
-- **Your own Logback file:** a `logback-spring.xml` replaces Spring Boot's setup. Redaction still
-  applies to an appender that uses Spring Boot's `StructuredLogEncoder`; a pattern encoder writes
-  plain, unredacted text. Avoid your own file unless you have a strong reason.
+- **Your own Logback file:** Stratum ships no Logback XML, so it never clashes with yours. Most
+  needs, such as levels, a log file or the format, are met with `logging.*` properties. If you need
+  a `logback-spring.xml`, for example for an extra appender, start from Spring Boot's structured
+  appender so that every line is still JSON and still redacted:
+
+  ```xml
+  <configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/structured-console-appender.xml"/>
+    <root level="INFO">
+      <appender-ref ref="CONSOLE"/>
+    </root>
+    <logger name="com.acme.orders" level="DEBUG"/>
+  </configuration>
+  ```
+
+  For a log file, also include `structured-file-appender.xml` and add `<appender-ref ref="FILE"/>`.
+  Redaction applies to any appender that uses Spring Boot's `StructuredLogEncoder`; an appender
+  with a pattern encoder writes plain, unredacted text.
 
 ## Switch it on or off
 

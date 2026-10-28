@@ -62,7 +62,7 @@ final class KeyValuePairs implements UnaryOperator<String> {
         from = Math.max(keys.end(), keys.start() + 1);
         continue;
       }
-      var mask = fieldNames.mask(key, () -> value.content(text)).orElse(Masks.MASK);
+      var mask = fieldNames.mask(key, () -> value.content(text)).orElse(Redactor.MASK);
       masked.append(text, copied, value.start()).append(value.wrap(mask));
       copied = value.end();
       from = value.end();

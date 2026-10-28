@@ -1,7 +1,7 @@
 package com.exepex.stratum.logging.testsupport;
 
-import com.exepex.stratum.logging.LogFormat;
 import com.exepex.stratum.logging.LoggingProperties;
+import com.exepex.stratum.logging.LoggingProperties.LogFormat;
 import java.util.List;
 import lombok.experimental.UtilityClass;
 import org.springframework.util.unit.DataSize;

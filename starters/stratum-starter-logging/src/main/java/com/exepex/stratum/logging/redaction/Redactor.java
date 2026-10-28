@@ -7,6 +7,7 @@ import com.exepex.stratum.logging.LoggingProperties;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.IntPredicate;
 import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -28,11 +29,24 @@ import org.springframework.util.unit.DataSize;
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 public final class Redactor {
 
+  /** Replaces a masked value, or the part of it that is hidden. */
+  static final String MASK = "****";
+
   /** Written instead of a value that could not be masked. */
   static final String FAILED = "[REDACTION_FAILED]";
 
   /** Added to the end of a value that was cut. */
   static final String TRUNCATED = "...[truncated]";
+
+  /** How many characters an identifier such as a card number keeps visible at its end. */
+  private static final int VISIBLE_END = 4;
+
+  /** A character of a word, which a cut must not split. */
+  private static final IntPredicate IS_WORD = character -> !Character.isWhitespace(character);
+
+  /** A character of a number written in groups, such as {@code 4111 1111}. */
+  private static final IntPredicate IS_NUMBER =
+      character -> Character.isDigit(character) || character == ' ' || character == '-';
 
   /** The shortest allowed {@code max-field-length}. */
   private static final DataSize MIN_FIELD_LENGTH = DataSize.ofKilobytes(1);
@@ -116,9 +130,43 @@ public final class Redactor {
     return fieldNames.mask(fieldName, () -> text).orElseGet(() -> contentRules.apply(text));
   }
 
-  /** Cuts text longer than the maximum length. */
+  /**
+   * Cuts text longer than the maximum length. A secret that crosses the limit would lose the shape
+   * the rules look for, so the cut also drops the word it falls in and any digits just before it,
+   * such as the first groups of a card number.
+   */
   private String cut(String text) {
-    return text.length() > maxFieldLength ? text.substring(0, maxFieldLength) + TRUNCATED : text;
+    if (text.length() <= maxFieldLength) {
+      return text;
+    }
+    var kept = text.substring(0, maxFieldLength);
+    var cutsWord = !Character.isWhitespace(text.charAt(maxFieldLength));
+    var wordEnd = cutsWord ? kept.length() - trailing(kept, IS_WORD) : kept.length();
+    var end = wordEnd - trailing(kept.substring(0, wordEnd), IS_NUMBER);
+    return kept.substring(0, end) + TRUNCATED;
+  }
+
+  /** Returns how many characters at the end of the text match the test. */
+  private static int trailing(String text, IntPredicate test) {
+    return (int)
+        IntStream.iterate(
+                text.length() - 1,
+                position -> position >= 0 && test.test(text.charAt(position)),
+                position -> position - 1)
+            .count();
+  }
+
+  /**
+   * Masks a value but keeps its last four characters, such as {@code ****1111} for a card; a value
+   * of four characters or fewer is masked in full.
+   *
+   * @param value the value to mask
+   * @return the masked value
+   */
+  static String keepingLastFour(String value) {
+    return value.length() <= VISIBLE_END
+        ? MASK
+        : MASK + value.substring(value.length() - VISIBLE_END);
   }
 
   /** Compiles the service's patterns, stopping startup at the first invalid one. */

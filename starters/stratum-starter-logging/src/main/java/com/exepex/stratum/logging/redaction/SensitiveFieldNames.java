@@ -114,9 +114,9 @@ final class SensitiveFieldNames {
     }
     var key = normalize(name);
     if (maskedKeepingLastFour.contains(key)) {
-      return Optional.of(Masks.keepingLastFour(value.get()));
+      return Optional.of(Redactor.keepingLastFour(value.get()));
     }
-    return isSecret(key) ? Optional.of(Masks.MASK) : Optional.empty();
+    return isSecret(key) ? Optional.of(Redactor.MASK) : Optional.empty();
   }
 
   /**

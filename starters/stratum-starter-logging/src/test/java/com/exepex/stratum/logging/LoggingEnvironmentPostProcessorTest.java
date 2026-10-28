@@ -72,11 +72,13 @@ class LoggingEnvironmentPostProcessorTest {
   class On {
 
     @Test
-    @DisplayName("ECS JSON is the default, with root-first stack traces cut at 16KB")
+    @DisplayName(
+        "ECS JSON is the default for console and file; stack traces are root first, cut at 16KB")
     void setsDefaults() {
       var environment = process(enabled());
 
       assertThat(environment.getProperty(LoggingConstants.CONSOLE_FORMAT)).isEqualTo("ecs");
+      assertThat(environment.getProperty(LoggingConstants.FILE_FORMAT)).isEqualTo("ecs");
       assertThat(environment.getProperty(LoggingConstants.STACK_TRACE_MAX_LENGTH))
           .isEqualTo("16384");
       assertThat(environment.getProperty(LoggingConstants.STACK_TRACE_ROOT)).isEqualTo("first");
@@ -97,6 +99,7 @@ class LoggingEnvironmentPostProcessorTest {
       var environment = process(enabled().withProperty(FORMAT, "logstash"));
 
       assertThat(environment.getProperty(LoggingConstants.CONSOLE_FORMAT)).isEqualTo("logstash");
+      assertThat(environment.getProperty(LoggingConstants.FILE_FORMAT)).isEqualTo("logstash");
     }
 
     @Test

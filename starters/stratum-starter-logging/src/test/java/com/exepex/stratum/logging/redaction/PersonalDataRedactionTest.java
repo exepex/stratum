@@ -45,7 +45,7 @@ class PersonalDataRedactionTest {
         })
     @DisplayName("a name, birth date or address field is masked in full")
     void personalFieldIsMaskedInFull(String name) {
-      assertThat(redactor.redact(name, "Jane")).isEqualTo(Masks.MASK);
+      assertThat(redactor.redact(name, "Jane")).isEqualTo(Redactor.MASK);
     }
 
     @ParameterizedTest(name = "{0}")
