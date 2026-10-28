@@ -37,6 +37,16 @@ jobs:
           java-version: '25'
           cache: maven
 
+      # The vulnerability database has its own cache, saved after every passing run, so a run only
+      # fetches the NVD changes since the last one. The Maven cache above is saved only when a POM
+      # changes, so on its own it would make every POM change download the whole database again.
+      - name: Restore the vulnerability database
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: dependency-check-data-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: dependency-check-data-
+
       # The SBOM plugin version comes from Spring Boot's parent, so this file sets no plugin version.
       - name: Read the SBOM plugin version
         id: sbom-plugin
@@ -67,6 +77,14 @@ jobs:
           fi
           ./mvnw -B --no-transfer-progress verify "${scan[@]}" \
             "org.cyclonedx:cyclonedx-maven-plugin:${CYCLONEDX_VERSION}:makeAggregateBom"
+
+      # Only after a passing run, so a database left half-updated by an NVD outage is never kept.
+      - name: Save the vulnerability database
+        if: success()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: dependency-check-data-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Upload the SBOM
         if: success()
