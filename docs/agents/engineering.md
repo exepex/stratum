@@ -56,7 +56,7 @@ for the service, not how it is built.
   property is named for its purpose in the domain of the SDK. Write `InventoryClient`, `connectTimeout`,
   `retryAttempts` and `redactSensitiveHeaders()`, not `RestClientWrapper`, `t1`, `cfg`, `data`, `handle()` or
   `process()`. Avoid `Manager`, `Helper`, `Util` and `Impl` unless the name still says what the class does.
-  The rule covers loop variables, lambda parameters and caught exceptions: no `i`, `j`, `k`, `x` or `e`. Only generic
+  This includes loop variables, lambda parameters and caught exceptions: no `i`, `j`, `k`, `x` or `e`. Only generic
   type parameters such as `<T>` keep one letter, as Java convention and Google's Checkstyle require.
 - **ST-ENG-14 Javadoc on everything.** Every class, interface, enum, record, method (public, protected, package-private
   and private) and every configuration property field has Javadoc. Lombok-generated members are documented on the

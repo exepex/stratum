@@ -24,7 +24,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DataObjectPropertyName;
 import org.springframework.core.annotation.MergedAnnotations;
 import org.springframework.util.ObjectUtils;
-import org.springframework.util.StringUtils;
 
 /**
  * Works out the settings a Stratum module uses: the values bound from properties, changed by the
@@ -169,7 +168,7 @@ public final class StratumPropertiesResolver {
         StreamSupport.stream(path.spliterator(), false)
             .map(StratumPropertiesResolver::keyPart)
             .collect(Collectors.joining());
-    return StringUtils.trimLeadingCharacter(key, '.');
+    return key.startsWith(".") ? key.substring(1) : key;
   }
 
   /** Returns one node's part of the key: {@code [*]} if it is an element, then {@code .name}. */
