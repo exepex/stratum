@@ -1,11 +1,52 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
-# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
-
+# Opens pull requests that upgrade Stratum's Maven dependencies and plugins and its GitHub Actions.
+# Every such pull request runs the full build in build.yml, and the owner merges it; nothing merges
+# automatically. The reasons and the review steps are in docs/adr/0004-dependency-updates.md.
 version: 2
 updates:
-  - package-ecosystem: "" # See documentation for possible values
-    directory: "/" # Location of package manifests
+  - package-ecosystem: maven
+    directory: /
     schedule:
-      interval: "weekly"
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Etc/UTC
+    # Offers a release only once it is 7 days old. Security updates do not wait.
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    groups:
+      # The Spring Boot parent and any other Spring library, upgraded together in one pull request.
+      spring:
+        patterns:
+          - "org.springframework*"
+      maven:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "org.springframework*"
+    # The root pom.xml copies these plugin versions from spring-boot-starter-parent. They change only
+    # with a Spring Boot upgrade, when the reviewer copies the new versions (ADR 0004).
+    ignore:
+      - dependency-name: "org.apache.maven.plugins:maven-clean-plugin"
+      - dependency-name: "org.apache.maven.plugins:maven-compiler-plugin"
+      - dependency-name: "org.apache.maven.plugins:maven-deploy-plugin"
+      - dependency-name: "org.apache.maven.plugins:maven-enforcer-plugin"
+      - dependency-name: "org.apache.maven.plugins:maven-install-plugin"
+      - dependency-name: "org.apache.maven.plugins:maven-jar-plugin"
+      - dependency-name: "org.apache.maven.plugins:maven-resources-plugin"
+      - dependency-name: "org.apache.maven.plugins:maven-surefire-plugin"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Etc/UTC
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    groups:
+      actions:
+        patterns:
+          - "*"

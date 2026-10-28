@@ -73,6 +73,10 @@ library is already on `main`. GitHub reads the dependency graph and opens an ale
 repository's **Security** tab. Alerts are a repository setting, not a file in the repository, and
 they never block a pull request.
 
+Dependabot also opens pull requests that upgrade dependencies every week. They run these same
+checks; how they are grouped and reviewed is in
+[ADR 0004](adr/0004-dependency-updates.md).
+
 The `security` profile (OWASP Dependency-Check) still works when you run it yourself with an NVD
 API key; see [Optional profiles](modules/parent-and-bom.md#optional-profiles). CI does not run it,
 because its download from the US National Vulnerability Database (NVD) took from 24 minutes to over
