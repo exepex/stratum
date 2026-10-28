@@ -22,8 +22,9 @@ jobs:
   build:
     name: Verify, scan and SBOM
     runs-on: ubuntu-24.04
-    # The first scan downloads the whole NVD database; later runs restore it from the cache.
-    timeout-minutes: 60
+    # A scan with no cached database downloads the whole NVD database, which has taken 24 minutes and,
+    # when the NVD was slow, over an hour. Later runs restore it from the cache and take about a minute.
+    timeout-minutes: 150
     steps:
       - name: Check out the code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

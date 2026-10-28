@@ -66,7 +66,8 @@ an API key. The run stops with an error naming the missing key until the reposit
 then add it under **Settings → Secrets and variables → Actions** in the repository. Never write the
 key in a file.
 
-The first scan downloads the whole NVD database, which takes 20 to 30 minutes. Each passing build of
+The first scan downloads the whole NVD database. That has taken from 24 minutes to over an hour,
+depending on how fast the NVD answers, so the job may run for up to 150 minutes. Each passing build of
 `main` saves the database, and every run starts from that copy, so it fetches only the changes.
 When the NVD service is down, the scan stops with `NVD Returned Status Code: 503`. That is not a
 problem in your change: re-run the job when the NVD is back. The scan uses the NVD data only:
