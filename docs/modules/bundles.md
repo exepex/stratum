@@ -59,6 +59,12 @@ stratum:
 
 Modules you leave unset stay off and set nothing up.
 
+> [!WARNING]
+> The microservice and web-ui bundles bring `stratum-starter-security`, and with it Spring Security.
+> While `stratum.security.enabled` is unset, Spring Boot's default applies and every endpoint asks
+> for a login. Switch security on and set its issuer, as [Security](security.md) shows, or exclude
+> the starter as in [Leave a starter out](#leave-a-starter-out).
+
 ## Add more starters
 
 A bundle is a starting point. Add any single starter next to it, for example caching:
