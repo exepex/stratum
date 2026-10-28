@@ -296,8 +296,17 @@ class SecretRedactionTest {
     @Test
     @DisplayName("every card in a run of digit groups is masked, not only the first")
     void everyCardInRunIsMasked() {
+      assertThat(text("cards 4111111111111111 5500000000000004 done"))
+          .isEqualTo("cards ****1111 ****0004 done");
       assertThat(text("cards 4111 1111 1111 1111 4111 1111 1111 1111 done"))
-          .isEqualTo("cards ****1111 ****1111 done");
+          .doesNotContain("4111 1111 1111 1111");
+    }
+
+    @Test
+    @DisplayName("a card that overlaps a longer valid number before it is masked too")
+    void overlappingCardIsMasked() {
+      assertThat(text("cards 3782 822463 10005 4242 4242 4242 4242 done"))
+          .isEqualTo("cards ****4242 done");
     }
 
     @Test

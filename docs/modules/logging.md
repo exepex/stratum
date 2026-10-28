@@ -243,6 +243,16 @@ management.server.port=8081
 management.endpoints.web.exposure.include=health,loggers
 ```
 
+```yaml
+management:
+  server:
+    port: 8081
+  endpoints:
+    web:
+      exposure:
+        include: health,loggers
+```
+
 ```bash
 curl -X POST -H 'Content-Type: application/json' -d '{"configuredLevel":"DEBUG"}' \
   http://localhost:8081/actuator/loggers/com.acme.orders

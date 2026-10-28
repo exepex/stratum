@@ -2,7 +2,6 @@ package com.exepex.stratum.logging.redaction;
 
 import com.google.i18n.phonenumbers.PhoneNumberUtil;
 import com.google.i18n.phonenumbers.PhoneNumberUtil.Leniency;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -20,7 +19,6 @@ import lombok.Builder;
 import lombok.experimental.UtilityClass;
 import org.apache.commons.validator.routines.EmailValidator;
 import org.apache.commons.validator.routines.IBANValidator;
-import org.apache.commons.validator.routines.checkdigit.LuhnCheckDigit;
 
 /**
  * The rules that mask secrets and personal data by what the text looks like. A pattern only finds
@@ -54,23 +52,6 @@ class ContentRules {
   private static final Pattern URL_CREDENTIALS =
       Pattern.compile("(?i)(?<![a-z0-9+.-])([a-z][a-z0-9+.-]*+://)[^\\s/:@]*+:[^\\s/@]++@");
 
-  /**
-   * Digit groups separated by single spaces or dashes, with at least 13 digits in all, wherever
-   * they start, even right after a word such as {@code order123}. The run is matched possessively
-   * and needs nothing after it, so a failed start scans at most 13 digits and matching stays
-   * linear.
-   */
-  private static final Pattern CARD_GROUPS = Pattern.compile("\\d(?:[ -]?\\d){12,}+");
-
-  /** One group of digits. */
-  private static final Pattern DIGIT_GROUP = Pattern.compile("\\d+");
-
-  /** The fewest digits in a card number. */
-  private static final int MIN_CARD_DIGITS = 13;
-
-  /** The most digits in a card number. */
-  private static final int MAX_CARD_DIGITS = 19;
-
   /** A US social security number. */
   private static final Pattern SSN = Pattern.compile("\\b\\d{3}-\\d{2}-\\d{4}\\b");
 
@@ -99,7 +80,10 @@ class ContentRules {
             rule(text -> text.contains(" "), AUTH_SCHEME, ContentRules::maskAuthScheme),
             rule(text -> text.contains("://"), URL_CREDENTIALS, ContentRules::maskUrlCredentials),
             new KeyValuePairs(fieldNames),
-            rule(ContentRules::hasDigit, CARD_GROUPS, match -> maskCards(match.group())),
+            rule(
+                ContentRules::hasDigit,
+                CardNumbers.CARD_GROUPS,
+                match -> CardNumbers.mask(match.group())),
             rule(text -> text.contains("-"), SSN, match -> Redactor.keepingLastFour(match.group())),
             rule(text -> text.contains("@"), EMAIL, ContentRules::maskEmail),
             text -> hasDigit(text) ? maskIbans(text) : text,
@@ -131,30 +115,6 @@ class ContentRules {
   /** Masks the user name and password of a URL, keeping its scheme. */
   private static String maskUrlCredentials(MatchResult match) {
     return match.group(1) + Redactor.MASK + "@";
-  }
-
-  /**
-   * Masks the card numbers in a run of digit groups, keeping the last four digits. A run such as
-   * {@code 4111 1111 1111 1111 43} can hold a card next to other numbers, so the longest valid card
-   * that starts at each group is looked for, and the search goes on after the card it finds.
-   */
-  private static String maskCards(String run) {
-    var digitGroups = DigitGroups.of(run);
-    var cards =
-        Stream.iterate(
-                digitGroups.nextCard(0),
-                Optional::isPresent,
-                previousCard -> digitGroups.nextCard(previousCard.orElseThrow().lastGroup() + 1))
-            .map(Optional::orElseThrow)
-            .map(
-                card ->
-                    Replacement.builder()
-                        .start(card.start())
-                        .end(card.end())
-                        .text(Redactor.keepingLastFour(card.digits()))
-                        .build())
-            .toList();
-    return replace(run, cards);
   }
 
   /** Masks a valid email address, keeping its last four characters. */
@@ -214,15 +174,21 @@ class ContentRules {
 
   /**
    * Returns the masked IBAN at the start of a candidate. Words are dropped from the candidate's end
-   * until what is left is a valid IBAN.
+   * until what is left is a valid IBAN. Only the words that give its country's IBAN length are
+   * checked, and a candidate whose first letters are no IBAN country is rejected at once.
    */
   private static Optional<Replacement> validIban(MatchResult candidate) {
-    return Stream.iterate(
-            candidate.group(),
-            words -> !words.isEmpty(),
-            words -> words.substring(0, Math.max(words.lastIndexOf(' '), 0)))
-        .filter(words -> IBANValidator.getInstance().isValid(compact(words)))
-        .findFirst()
+    var ibans = IBANValidator.getInstance();
+    return Optional.ofNullable(ibans.getValidator(compact(candidate.group())))
+        .flatMap(
+            country ->
+                Stream.iterate(
+                        candidate.group(),
+                        words -> !words.isEmpty(),
+                        words -> words.substring(0, Math.max(words.lastIndexOf(' '), 0)))
+                    .filter(words -> compact(words).length() == country.getIbanLength())
+                    .filter(words -> ibans.isValid(compact(words)))
+                    .findFirst())
         .map(
             iban ->
                 Replacement.builder()
@@ -282,76 +248,6 @@ class ContentRules {
   /** Returns whether the text holds a digit. */
   private static boolean hasDigit(String text) {
     return text.chars().anyMatch(Character::isDigit);
-  }
-
-  /**
-   * Where a possible card is in a run of digit groups.
-   *
-   * @param start where its first group starts
-   * @param end where its last group ends
-   * @param lastGroup the position of its last group in the run
-   * @param digits its digits, without spaces or dashes
-   */
-  @Builder
-  private record CardSpan(int start, int end, int lastGroup, String digits) {}
-
-  /**
-   * The digit groups of a run and all their digits joined, so that each possible card's digits are
-   * cut from one string, not joined again.
-   *
-   * @param groups the digit groups, in order
-   * @param digits all the digits of the run
-   * @param offsets where each group's digits start in {@code digits}, then the total length
-   */
-  @Builder
-  private record DigitGroups(List<MatchResult> groups, String digits, List<Integer> offsets) {
-
-    /** Finds the digit groups of a run. */
-    private static DigitGroups of(String run) {
-      var groups = DIGIT_GROUP.matcher(run).results().toList();
-      var offsets =
-          IntStream.concat(
-                  IntStream.of(0), groups.stream().mapToInt(group -> group.end() - group.start()))
-              .toArray();
-      Arrays.parallelPrefix(offsets, Integer::sum);
-      return DigitGroups.builder()
-          .groups(groups)
-          .digits(groups.stream().map(MatchResult::group).collect(Collectors.joining()))
-          .offsets(Arrays.stream(offsets).boxed().toList())
-          .build();
-    }
-
-    /** Returns the first valid card at or after the group. No card number starts with 0. */
-    private Optional<CardSpan> nextCard(int fromGroup) {
-      return IntStream.range(fromGroup, groups.size())
-          .filter(firstGroup -> digits.charAt(offsets.get(firstGroup)) != '0')
-          .mapToObj(this::longestCard)
-          .flatMap(Optional::stream)
-          .findFirst();
-    }
-
-    /** Returns the longest valid card that starts at the group, if there is one. */
-    private Optional<CardSpan> longestCard(int firstGroup) {
-      var start = groups.get(firstGroup).start();
-      return IntStream.range(firstGroup, groups.size())
-          .takeWhile(lastGroup -> digitCount(firstGroup, lastGroup) <= MAX_CARD_DIGITS)
-          .filter(lastGroup -> digitCount(firstGroup, lastGroup) >= MIN_CARD_DIGITS)
-          .mapToObj(
-              lastGroup ->
-                  CardSpan.builder()
-                      .start(start)
-                      .end(groups.get(lastGroup).end())
-                      .lastGroup(lastGroup)
-                      .digits(digits.substring(offsets.get(firstGroup), offsets.get(lastGroup + 1)))
-                      .build())
-          .filter(candidate -> LuhnCheckDigit.LUHN_CHECK_DIGIT.isValid(candidate.digits()))
-          .reduce((shorter, longer) -> longer);
-    }
-
-    /** Returns how many digits the groups from first to last hold. */
-    private int digitCount(int firstGroup, int lastGroup) {
-      return offsets.get(lastGroup + 1) - offsets.get(firstGroup);
-    }
   }
 
   /**

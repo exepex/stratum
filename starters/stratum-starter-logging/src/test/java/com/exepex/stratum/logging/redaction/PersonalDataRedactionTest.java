@@ -99,6 +99,8 @@ class PersonalDataRedactionTest {
     void ibanAfterIbanShapedWordIsMasked() {
       assertThat(text("ref DE12 DE89370400440532013000")).isEqualTo("ref DE12 ****3000");
       assertThat(text("AB12CD DE89 3704 0044 0532 0130 00")).isEqualTo("AB12CD ****3000");
+      assertThat(text("ref US12 GB82 WEST 1234 5698 7654 32 done"))
+          .isEqualTo("ref US12 ****5432 done");
     }
 
     @Test

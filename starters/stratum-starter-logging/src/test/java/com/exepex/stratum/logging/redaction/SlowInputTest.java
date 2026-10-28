@@ -25,8 +25,11 @@ class SlowInputTest {
    */
   private static final Duration DEFAULT_LIMIT = Duration.ofSeconds(1);
 
-  /** Linear work on 1MB takes well under this; work that grows with the square takes minutes. */
-  private static final Duration LARGEST_LIMIT = Duration.ofSeconds(5);
+  /**
+   * Linear work on 1MB takes a few seconds at most, even on a slow build machine with coverage on;
+   * work that grows with the square took about 29 seconds.
+   */
+  private static final Duration LARGEST_LIMIT = Duration.ofSeconds(15);
 
   private final Redactor redactor = Redactor.from(LoggingTestData.defaults().build());
 
