@@ -26,7 +26,7 @@ class Person {
   </test-code>
 
   <test-code>
-    <description>a builder implementing an interface, or without build(), is not reported</description>
+    <description>a builder implementing an interface, without build(), or customizing a Lombok builder is not reported</description>
     <expected-problems>0</expected-problems>
     <code><![CDATA[
 import java.util.function.Supplier;
@@ -43,6 +43,30 @@ class Person {
   static final class QueryBuilder {
     String create() {
       return "x";
+    }
+  }
+}
+@lombok.Builder
+class Request {
+  private final String path;
+  static final class RequestBuilder {
+    Request build() {
+      return new Request(path == null ? "/" : path);
+    }
+  }
+  Request(String path) {
+    this.path = path.trim();
+  }
+}
+class Response {
+  private final int status;
+  @lombok.Builder
+  Response(int status) {
+    this.status = status + 0;
+  }
+  static final class ResponseBuilder {
+    Response build() {
+      return new Response(200);
     }
   }
 }

@@ -134,7 +134,8 @@
       class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
     <description>
       A class named *Builder with a build() method, which neither extends nor implements another type.
-      A class that implements a library's builder interface is not reported.
+      A class that implements a library's builder interface is not reported, nor a builder class that
+      customizes the one Lombok generates for its enclosing type, such as a build() that validates.
     </description>
     <priority>3</priority>
     <properties>
@@ -144,6 +145,7 @@
   [@Interface = false()]
   [ends-with(@SimpleName, 'Builder')]
   [not(ExtendsList or ImplementsList)]
+  [not(../..//Annotation[@SimpleName = ('Builder', 'SuperBuilder')])]
   [ClassBody/MethodDeclaration[@Name = 'build'][FormalParameters/@Size = 0]]
 ]]></value>
       </property>
