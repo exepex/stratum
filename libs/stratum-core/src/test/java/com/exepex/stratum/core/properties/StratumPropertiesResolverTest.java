@@ -122,6 +122,19 @@ class StratumPropertiesResolverTest {
     }
 
     @Test
+    @DisplayName("a bad cast in a customizer's own code is not blamed only on its type")
+    void pointsAtCastInCustomizerCode() {
+      Object text = "x";
+      StratumPropertiesCustomizer<GreetingProperties> buggy =
+          properties -> properties.toBuilder().message(((Integer) text).toString()).build();
+
+      assertThatIllegalStateException()
+          .isThrownBy(() -> resolver.resolve(GreetingTestData.defaults(), Stream.of(buggy)))
+          .withMessageContaining("the cast that failed is in the customizer's own code")
+          .withCauseInstanceOf(ClassCastException.class);
+    }
+
+    @Test
     @DisplayName("a customizer that returns settings of another type stops startup")
     void rejectsResultOfAnotherType() {
       StratumPropertiesCustomizer<Object> wrongResult = properties -> "not the settings";

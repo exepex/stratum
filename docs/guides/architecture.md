@@ -28,7 +28,7 @@ apart: the platform (versions, build rules and parent POMs), the shared librarie
 stratum/
 ├── pom.xml                         # reactor: lists every module and builds them in order
 ├── mvnw, mvnw.cmd                  # Maven Wrapper: downloads and runs the pinned Maven version
-├── .mvn/maven.config               # Stratum's version (revision) and the jar timestamp, set once
+├── .mvn/maven.config               # Stratum's version (revision), the jar timestamp and the coverage gate
 ├── platform/
 │   ├── stratum-bom/                # versions of Stratum's modules and the extra libraries it uses
 │   ├── stratum-build-parent/       # Java 25, the BOM, every plugin version and the build checks

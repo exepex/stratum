@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Stratum's Maven Enforcer rules, which stratum-parent checks in the validate phase of every build.
+  Stratum's Maven Enforcer rules, which stratum-build-parent checks in the validate phase of every build.
   Keep the rules sorted by name.
 -->
 <enforcer>

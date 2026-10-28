@@ -6,7 +6,6 @@ import jakarta.validation.Validator;
 import java.util.Set;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Works out the settings a Stratum module uses: the values bound from properties, changed by the
@@ -55,15 +54,15 @@ public final class StratumPropertiesResolver {
    * @param customizer the customizer to run
    * @param <P> the module's settings type
    * @return the settings the customizer returned
-   * @throws IllegalStateException if the customizer returns {@code null}, or is meant for another
-   *     settings type
+   * @throws IllegalStateException if the customizer returns {@code null} or settings of another
+   *     type, or fails with a {@code ClassCastException}
    */
   private static <P> P customize(P properties, StratumPropertiesCustomizer<P> customizer) {
     P customized;
     try {
       customized = customizer.customize(properties);
     } catch (ClassCastException e) {
-      throw wrongType(properties, customizer, e);
+      throw castFailed(properties, customizer, e);
     }
     if (customized == null) {
       throw new IllegalStateException(
@@ -71,35 +70,69 @@ public final class StratumPropertiesResolver {
               + " returned null. Return the settings it received to leave them unchanged.");
     }
     if (!properties.getClass().isInstance(customized)) {
-      throw wrongType(properties, customizer, null);
+      throw wrongType(properties, customizer);
     }
     return customized;
   }
 
   /**
-   * Explains that a customizer reached settings it was not written for. Spring matches a customizer
-   * to a module by its generic type, so this happens when the customizer is for another module, or
-   * was registered without its type, for example with {@code
+   * Explains that a customizer returned settings of another type. Spring matches a customizer to a
+   * module by its generic type, so this happens when the customizer is for another module, or was
+   * registered without its type, for example with {@code
    * registerBean(StratumPropertiesCustomizer.class, ...)}.
    *
    * @param properties the settings the customizer was given
    * @param customizer the customizer at fault
-   * @param cause the failure inside the customizer, or {@code null} if it returned the wrong type
    * @param <P> the module's settings type
    * @return the exception to throw
    */
   private static <P> IllegalStateException wrongType(
-      P properties, StratumPropertiesCustomizer<P> customizer, @Nullable ClassCastException cause) {
+      P properties, StratumPropertiesCustomizer<P> customizer) {
     var settingsType = properties.getClass().getSimpleName();
     return new IllegalStateException(
         customizer.getClass().getName()
             + " cannot change "
             + settingsType
             + ": it is a customizer for other settings, or it was registered without its type."
-            + " Declare it as StratumPropertiesCustomizer<"
+            + " To fix it, "
+            + declareWithType(settingsType));
+  }
+
+  /**
+   * Explains a {@code ClassCastException} from inside a customizer. Java erases generic types, so
+   * this happens both when a customizer for other settings is given these settings and when the
+   * customizer's own code has a bad cast. The message covers both cases, and the cause shows which
+   * one it was.
+   *
+   * @param properties the settings the customizer was given
+   * @param customizer the customizer at fault
+   * @param cause the failure inside the customizer
+   * @param <P> the module's settings type
+   * @return the exception to throw
+   */
+  private static <P> IllegalStateException castFailed(
+      P properties, StratumPropertiesCustomizer<P> customizer, ClassCastException cause) {
+    var settingsType = properties.getClass().getSimpleName();
+    return new IllegalStateException(
+        customizer.getClass().getName()
+            + " failed with a ClassCastException while changing "
             + settingsType
-            + ">, for example as the return type of a @Bean method.",
+            + ". If it is a customizer for other settings, or was registered without its type, "
+            + declareWithType(settingsType)
+            + " Otherwise the cast that failed is in the customizer's own code; see the cause.",
         cause);
+  }
+
+  /**
+   * Tells the developer how to declare a customizer so that Spring gives it to the right module.
+   *
+   * @param settingsType the simple name of the module's settings type
+   * @return the advice, as the end of a sentence
+   */
+  private static String declareWithType(String settingsType) {
+    return "declare it as StratumPropertiesCustomizer<"
+        + settingsType
+        + ">, for example as the return type of a @Bean method.";
   }
 
   /**

@@ -105,7 +105,9 @@ Every starter follows these rules:
 - **ST-ENG-30** Each module's settings are one `@ConfigurationProperties(prefix = "stratum.<module>")` type,
   preferably a record annotated with Lombok's `@Builder(toBuilder = true)`, with Javadoc on every field and
   defaults in code. The builder is what a service's Java configuration uses to change one value and keep the rest
-  (ST-ENG-34). Do not read settings with scattered `@Value` annotations.
+  (ST-ENG-34). Do not read settings with scattered `@Value` annotations. A component's name, in kebab-case, is its
+  property key, so components are not renamed with Spring Boot's `@Name`: the startup error of ST-ENG-31 names
+  each property from its component name.
 - **ST-ENG-31** `spring-boot-configuration-processor` generates metadata for every property so IDEs can complete
   `stratum.*` keys. Properties carry Bean Validation constraints, so a bad value stops the application at startup
   rather than failing on the first request. The settings record is not `@Validated`: `StratumPropertiesResolver`

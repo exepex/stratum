@@ -26,7 +26,7 @@ default. Describe the problem, which services need it, and the proposed behaviou
 ```bash
 git checkout -b <short-description>
 ./mvnw spotless:apply   # format the code
-./mvnw verify           # formatting, static analysis, unit and integration tests
+./mvnw verify           # formatting, static analysis, tests and the 80% coverage gate
 ```
 
 Use the Maven Wrapper (`./mvnw`, or `mvnw.cmd` on Windows): it runs the Maven version the build is
