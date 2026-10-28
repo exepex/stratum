@@ -37,8 +37,8 @@ jobs:
           java-version: '25'
           cache: maven
 
-      # The vulnerability database has its own cache, saved after every passing run, so a run only
-      # fetches the NVD changes since the last one. The Maven cache above is saved only when a POM
+      # The vulnerability database has its own cache, saved by every passing build of main, so a run
+      # only fetches the NVD changes since then. The Maven cache above is saved only when a POM
       # changes, so on its own it would make every POM change download the whole database again.
       - name: Restore the vulnerability database
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -78,9 +78,10 @@ jobs:
           ./mvnw -B --no-transfer-progress verify "${scan[@]}" \
             "org.cyclonedx:cyclonedx-maven-plugin:${CYCLONEDX_VERSION}:makeAggregateBom"
 
-      # Only after a passing run, so a database left half-updated by an NVD outage is never kept.
+      # Only main saves: pull requests can read main's caches but not each other's. Only after a
+      # passing run, so a database left half-updated by an NVD outage is never kept.
       - name: Save the vulnerability database
-        if: success()
+        if: success() && github.event_name == 'push'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.m2/repository/org/owasp/dependency-check-data

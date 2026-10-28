@@ -66,10 +66,11 @@ an API key. The run stops with an error naming the missing key until the reposit
 then add it under **Settings → Secrets and variables → Actions** in the repository. Never write the
 key in a file.
 
-The first scan downloads the whole NVD database, which takes about ten minutes. Each passing run
-saves the database, so later runs fetch only the changes. When the NVD service is down, the scan
-stops with `NVD Returned Status Code: 503`. That is not a problem in your change: re-run the job
-when the NVD is back.
+The first scan downloads the whole NVD database, which takes 20 to 30 minutes. Each passing build of
+`main` saves the database, and every run starts from that copy, so it fetches only the changes.
+When the NVD service is down, the scan stops with `NVD Returned Status Code: 503`. That is not a
+problem in your change: re-run the job when the NVD is back. The scan uses the NVD data only:
+Dependency-Check's Sonatype OSS Index analyzer is off, because it needs a separate account token.
 
 GitHub gives no repository secrets to a pull request from a fork, so such a pull request is built
 and gets its SBOM, but skips the scan; the run shows a warning that says so. The scan runs on `main`
