@@ -70,7 +70,7 @@ to it. See
 ## Testing
 
 **Do I need Docker?**
-Only for integration tests (`*IT.java`). Unit and slice tests (`mvn test`) run without it.
+Only for integration tests (`*IntegrationTest.java`). Unit and slice tests (`mvn test`) run without it.
 
 **Do I need a real identity provider in tests?**
 No. `stratumJwt(...)` creates test tokens. See [Testing secured endpoints](../modules/test.md#testing-secured-endpoints).

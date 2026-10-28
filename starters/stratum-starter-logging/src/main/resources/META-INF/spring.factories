@@ -1,0 +1,4 @@
+org.springframework.boot.EnvironmentPostProcessor=\
+com.exepex.stratum.logging.LoggingEnvironmentPostProcessor
+org.springframework.boot.logging.structured.StructuredLoggingJsonMembersCustomizer=\
+com.exepex.stratum.logging.redaction.RedactingJsonMembersCustomizer

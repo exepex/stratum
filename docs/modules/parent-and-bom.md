@@ -120,7 +120,7 @@ libraries and starters also inherit, through `stratum-library-parent`. Every ver
 | --- | --- |
 | Java | `java.version=25`, which Spring Boot's parent turns into `maven.compiler.release`; `-parameters`; UTF-8 everywhere |
 | Plugin versions | Spring Boot's parent sets the versions of the plugins it manages, such as Compiler, Surefire, Failsafe, Enforcer and the Spring Boot plugin. `stratum` sets the rest: JaCoCo, Spotless, Checkstyle, PMD, SpotBugs, FindSecBugs and OWASP Dependency-Check, one property each in `<properties>` |
-| Tests | `*Test.java` run by Surefire in `mvn test`; `*IT.java` run by Failsafe in `mvn verify` |
+| Tests | `*Test.java` run by Surefire in `mvn test`, except `*IntegrationTest.java`, which Failsafe runs in `mvn verify` |
 | Formatting | Spotless checks Google Java Format; `mvn spotless:apply` fixes it |
 | Static analysis | Checkstyle, PMD and SpotBugs with the FindSecBugs security rules. The Checkstyle, PMD and Enforcer rule files come from `stratum-build-rules` |
 | Enforcer | Requires JDK 25 and Maven 3.9+; bans duplicate classes, version ranges and `LATEST`/`RELEASE`, a dependency declared twice, plugins without a version, and library versions with known remote code execution flaws (Log4j 1.x, Log4j 2 before 2.17.1, Commons Collections before 3.2.2, Commons Text before 1.10.0, SnakeYAML before 2.0) |

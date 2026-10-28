@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: orders-yaml
+stratum:
+  environment: staging
+  logging:
+    enabled: true
+    redaction:
+      extra-keys:
+        - badge-no
