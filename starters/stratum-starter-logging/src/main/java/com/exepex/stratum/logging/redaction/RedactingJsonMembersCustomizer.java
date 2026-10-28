@@ -38,10 +38,10 @@ public final class RedactingJsonMembersCustomizer
    */
   @Override
   public void customize(Members<Object> members) {
-    var active = redactor;
-    if (active != null) {
+    var enabledRedactor = redactor;
+    if (enabledRedactor != null) {
       members.applyingValueProcessor(
-          (ValueProcessor<Object>) (path, value) -> active.redact(path.name(), value));
+          (ValueProcessor<Object>) (path, value) -> enabledRedactor.redact(path.name(), value));
     }
   }
 }

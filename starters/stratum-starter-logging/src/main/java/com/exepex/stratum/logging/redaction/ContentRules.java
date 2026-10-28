@@ -11,6 +11,7 @@ import java.util.function.UnaryOperator;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -137,39 +138,48 @@ class ContentRules {
    */
   private static String maskCards(String run) {
     var groups = DIGIT_GROUP.matcher(run).results().toList();
-    var masked = new StringBuilder(run.length());
-    var copied = 0;
-    var first = 0;
-    // A loop, not a stream: where the next search starts depends on the card just found.
-    while (first < groups.size()) {
-      var card = longestCard(run, groups, first);
-      if (card.isEmpty()) {
-        first++;
-        continue;
-      }
-      var found = card.get();
-      masked
-          .append(run, copied, found.start())
-          .append(Redactor.keepingLastFour(digits(run, found)));
-      copied = found.end();
-      first = found.lastGroup() + 1;
-    }
-    return masked.append(run, copied, run.length()).toString();
+    var cards =
+        Stream.iterate(
+                nextCard(groups, 0),
+                Optional::isPresent,
+                previousCard -> nextCard(groups, previousCard.orElseThrow().lastGroup() + 1))
+            .map(Optional::orElseThrow)
+            .map(
+                card ->
+                    new Replacement(
+                        card.start(), card.end(), Redactor.keepingLastFour(card.digits())))
+            .toList();
+    return replace(run, cards);
+  }
+
+  /** Returns the first valid card that starts at or after the group, if there is one. */
+  private static Optional<CardSpan> nextCard(List<MatchResult> groups, int fromGroup) {
+    return IntStream.range(fromGroup, groups.size())
+        .mapToObj(firstGroup -> longestCard(groups, firstGroup))
+        .flatMap(Optional::stream)
+        .findFirst();
   }
 
   /** Returns the longest valid card that starts at the first group, if there is one. */
-  private static Optional<CardSpan> longestCard(String run, List<MatchResult> groups, int first) {
-    var start = groups.get(first).start();
-    return IntStream.range(first, groups.size())
-        .mapToObj(last -> new CardSpan(start, groups.get(last).end(), last))
-        .takeWhile(candidate -> digits(run, candidate).length() <= MAX_CARD_DIGITS)
-        .filter(candidate -> CARD.isValid(digits(run, candidate)))
+  private static Optional<CardSpan> longestCard(List<MatchResult> groups, int firstGroup) {
+    var start = groups.get(firstGroup).start();
+    return IntStream.range(firstGroup, groups.size())
+        .mapToObj(
+            lastGroup ->
+                new CardSpan(
+                    start,
+                    groups.get(lastGroup).end(),
+                    lastGroup,
+                    digitsOf(groups.subList(firstGroup, lastGroup + 1))))
+        .takeWhile(candidate -> candidate.digits().length() <= MAX_CARD_DIGITS)
+        .filter(candidate -> candidate.digits().length() >= MIN_CARD_DIGITS)
+        .filter(candidate -> CARD.isValid(candidate.digits()))
         .reduce((shorter, longer) -> longer);
   }
 
-  /** Returns the digits of a possible card, without its spaces or dashes. */
-  private static String digits(String run, CardSpan candidate) {
-    return run.substring(candidate.start(), candidate.end()).replaceAll("\\D", "");
+  /** Returns the digits of the groups, without the spaces or dashes between them. */
+  private static String digitsOf(List<MatchResult> groups) {
+    return groups.stream().map(MatchResult::group).collect(Collectors.joining());
   }
 
   /** Masks a valid email address, keeping its last four characters. */
@@ -210,16 +220,33 @@ class ContentRules {
       return text;
     }
     var numbers = PHONE_NUMBERS.findNumbers(text, null, Leniency.VALID, Long.MAX_VALUE);
-    var masked = new StringBuilder(text);
-    // From the last number to the first, so that the earlier positions stay correct.
-    StreamSupport.stream(numbers.spliterator(), false)
-        .toList()
-        .reversed()
-        .forEach(
-            number ->
-                masked.replace(
-                    number.start(), number.end(), Redactor.keepingLastFour(number.rawString())));
-    return masked.toString();
+    var replacements =
+        StreamSupport.stream(numbers.spliterator(), false)
+            .map(
+                number ->
+                    new Replacement(
+                        number.start(), number.end(), Redactor.keepingLastFour(number.rawString())))
+            .toList();
+    return replace(text, replacements);
+  }
+
+  /**
+   * Returns the text with each replacement written in place of the part it covers.
+   *
+   * @param text the text
+   * @param replacements the parts to replace, in order and not overlapping
+   * @return the text with the parts replaced
+   */
+  static String replace(String text, List<Replacement> replacements) {
+    var tail = text.substring(replacements.isEmpty() ? 0 : replacements.getLast().end());
+    return IntStream.range(0, replacements.size())
+        .mapToObj(
+            position ->
+                text.substring(
+                        position == 0 ? 0 : replacements.get(position - 1).end(),
+                        replacements.get(position).start())
+                    + replacements.get(position).text())
+        .collect(Collectors.joining("", "", tail));
   }
 
   /** Returns whether the text holds a digit. */
@@ -233,6 +260,16 @@ class ContentRules {
    * @param start where its first group starts
    * @param end where its last group ends
    * @param lastGroup the position of its last group in the run
+   * @param digits its digits, without spaces or dashes
    */
-  private record CardSpan(int start, int end, int lastGroup) {}
+  private record CardSpan(int start, int end, int lastGroup, String digits) {}
+
+  /**
+   * A part of a text and what is written in its place.
+   *
+   * @param start where the part starts
+   * @param end where the part ends
+   * @param text what is written instead
+   */
+  record Replacement(int start, int end, String text) {}
 }

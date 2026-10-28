@@ -1,11 +1,15 @@
 package com.exepex.stratum.logging.redaction;
 
+import com.exepex.stratum.logging.redaction.ContentRules.Replacement;
+import java.util.Optional;
 import java.util.function.IntPredicate;
 import java.util.function.UnaryOperator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Masks the value of each sensitive key in text, as in {@code password=x}, {@code "token":"x"},
@@ -57,24 +61,49 @@ final class KeyValuePairs implements UnaryOperator<String> {
     if (text.indexOf('=') < 0 && text.indexOf(':') < 0 && !text.contains("%3")) {
       return text;
     }
-    var masked = new StringBuilder(text.length());
     var keys = KEY.matcher(text);
-    var copied = 0;
-    var from = 0;
-    while (from < text.length() && keys.find(from)) {
-      var key = keys.group(1);
-      var value = fieldNames.isSensitive(key) ? Value.at(text, key, keys.end()) : null;
-      if (value == null || value.isEmpty()) {
-        // A value that is not masked may itself hold pairs, as in a JSON message string.
-        from = Math.max(keys.end(), keys.start() + 1);
-        continue;
-      }
-      var mask = fieldNames.mask(key, () -> value.content(text)).orElse(Redactor.MASK);
-      masked.append(text, copied, value.start()).append(value.wrap(mask));
-      copied = value.end();
-      from = value.end();
+    var replacements =
+        Stream.iterate(
+                nextPair(text, keys, 0),
+                Optional::isPresent,
+                previousPair -> nextPair(text, keys, previousPair.orElseThrow().searchFrom()))
+            .map(Optional::orElseThrow)
+            .map(Pair::replacement)
+            .flatMap(Optional::stream)
+            .toList();
+    return ContentRules.replace(text, replacements);
+  }
+
+  /**
+   * Finds the next key from the position, and the masked form of its value if the key is sensitive.
+   */
+  private Optional<Pair> nextPair(String text, Matcher keys, int from) {
+    if (from >= text.length() || !keys.find(from)) {
+      return Optional.empty();
     }
-    return masked.append(text, copied, text.length()).toString();
+    var key = keys.group(1);
+    var value = fieldNames.isSensitive(key) ? Value.at(text, key, keys.end()) : null;
+    if (value == null || value.isEmpty()) {
+      // A value that is not masked may itself hold pairs, as in a JSON message string.
+      return Optional.of(new Pair(Math.max(keys.end(), keys.start() + 1), null));
+    }
+    var mask = fieldNames.mask(key, () -> value.content(text)).orElse(Redactor.MASK);
+    return Optional.of(
+        new Pair(value.end(), new Replacement(value.start(), value.end(), value.wrap(mask))));
+  }
+
+  /**
+   * A key found in the text.
+   *
+   * @param searchFrom where the search for the next key starts
+   * @param maskedValue the masked form of its value; {@code null} when it is not masked
+   */
+  private record Pair(int searchFrom, @Nullable Replacement maskedValue) {
+
+    /** Returns the masked form of the value, if it is masked. */
+    private Optional<Replacement> replacement() {
+      return Optional.ofNullable(maskedValue);
+    }
   }
 
   /**
@@ -91,22 +120,22 @@ final class KeyValuePairs implements UnaryOperator<String> {
     private static Value at(String text, String key, int start) {
       if (text.startsWith(ESCAPED_QUOTE, start)) {
         // Inside escaped JSON, a quote in the value is written \\\" and the closing one \".
-        var close =
+        var closing =
             closingQuote(
                 text,
                 start + ESCAPED_QUOTE.length(),
                 '"',
                 backslashes -> backslashes % ESCAPED_JSON_CYCLE == 1);
-        return close < 0
+        return closing < 0
             ? new Value(ESCAPED_QUOTE, start, text.length(), text.length())
-            : new Value(ESCAPED_QUOTE, start, close - 1, close + 1);
+            : new Value(ESCAPED_QUOTE, start, closing - 1, closing + 1);
       }
-      var first = start < text.length() ? text.charAt(start) : ' ';
-      if (first == '"' || first == '\'') {
-        var close = closingQuote(text, start + 1, first, backslashes -> backslashes % 2 == 0);
-        return close < 0
-            ? new Value(String.valueOf(first), start, text.length(), text.length())
-            : new Value(String.valueOf(first), start, close, close + 1);
+      var opening = start < text.length() ? text.charAt(start) : ' ';
+      if (opening == '"' || opening == '\'') {
+        var closing = closingQuote(text, start + 1, opening, backslashes -> backslashes % 2 == 0);
+        return closing < 0
+            ? new Value(String.valueOf(opening), start, text.length(), text.length())
+            : new Value(String.valueOf(opening), start, closing, closing + 1);
       }
       var end =
           SensitiveFieldNames.isHeaderList(key) ? lineEnd(text, start) : plainEnd(text, start);
