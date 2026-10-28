@@ -78,6 +78,7 @@ Each module page follows the same layout so you always know where to look:
 | [ADR 0002: No startup check of the Spring Boot version](adr/0002-no-startup-version-check.md) | Replaces the startup version check of ADR 0001: the parent POM alone decides the Spring Boot version. |
 | [ADR 0003: Bundle starters and module switches](adr/0003-bundle-starters-and-module-switches.md) | One bundle starter per kind of application instead of parents, and every module off until `stratum.<module>.enabled=true`. |
 | [ADR 0004: Weekly dependency updates with Dependabot](adr/0004-dependency-updates.md) | Dependabot opens grouped upgrade pull requests every week, Spring upgrades together, each one runs the full build and the owner merges it. |
+| [ADR 0005: Every version in the root POM](adr/0005-versions-in-the-root-pom.md) | Replaces two parts of ADR 0004: the root `pom.xml` inherits Spring Boot's parent and sets every version Stratum chooses, so no version is copied by hand. |
 
 ## Contributing
 

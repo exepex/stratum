@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   Stratum's Maven Enforcer rules, which stratum-build-parent checks in the validate phase of every build.
+  The rule that every plugin has a version is in the root pom.xml, so that the modules which cannot
+  load this file are checked too.
   Keep the rules sorted by name.
 -->
 <enforcer>
@@ -30,6 +32,5 @@
     <requireMavenVersion>
       <version>[3.9,)</version>
     </requireMavenVersion>
-    <requirePluginVersions/>
   </rules>
 </enforcer>

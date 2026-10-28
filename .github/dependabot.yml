@@ -1,6 +1,7 @@
 # Opens pull requests that upgrade Stratum's Maven dependencies and plugins and its GitHub Actions.
 # Every such pull request runs the full build in build.yml, and the owner merges it; nothing merges
 # automatically. The reasons and the review steps are in docs/adr/0004-dependency-updates.md.
+# Every Maven version Stratum sets is in the root pom.xml (docs/adr/0005-versions-in-the-root-pom.md).
 version: 2
 updates:
   - package-ecosystem: maven
@@ -15,7 +16,8 @@ updates:
       default-days: 7
     open-pull-requests-limit: 5
     groups:
-      # The Spring Boot parent and any other Spring library, upgraded together in one pull request.
+      # The Spring Boot parent of the root pom.xml and any other Spring library, upgraded together in
+      # one pull request.
       spring:
         patterns:
           - "org.springframework*"
@@ -24,17 +26,6 @@ updates:
           - "*"
         exclude-patterns:
           - "org.springframework*"
-    # The root pom.xml copies these plugin versions from spring-boot-starter-parent. They change only
-    # with a Spring Boot upgrade, when the reviewer copies the new versions (ADR 0004).
-    ignore:
-      - dependency-name: "org.apache.maven.plugins:maven-clean-plugin"
-      - dependency-name: "org.apache.maven.plugins:maven-compiler-plugin"
-      - dependency-name: "org.apache.maven.plugins:maven-deploy-plugin"
-      - dependency-name: "org.apache.maven.plugins:maven-enforcer-plugin"
-      - dependency-name: "org.apache.maven.plugins:maven-install-plugin"
-      - dependency-name: "org.apache.maven.plugins:maven-jar-plugin"
-      - dependency-name: "org.apache.maven.plugins:maven-resources-plugin"
-      - dependency-name: "org.apache.maven.plugins:maven-surefire-plugin"
 
   - package-ecosystem: github-actions
     directory: /
