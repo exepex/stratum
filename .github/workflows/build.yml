@@ -1,7 +1,8 @@
 # Builds Stratum on Java 25 for every pull request and every push to main.
-# One run does two things: ./mvnw verify (every build check and test) and an SBOM, a CycloneDX list
-# of every library the build includes. The dependency vulnerability scan (the security profile) is
-# not run here, because its NVD download made runs take from 24 minutes to over an hour.
+# One run does three things: ./mvnw verify (every build check and test), an SBOM (a CycloneDX list
+# of every library the build includes) and an OSV-Scanner check of that SBOM for known
+# vulnerabilities. The security profile's NVD scan is not run here, because its NVD download made
+# runs take from 24 minutes to over an hour; OSV-Scanner queries only the libraries in the SBOM.
 name: Build
 
 on:
@@ -62,3 +63,10 @@ jobs:
             target/bom.json
             target/bom.xml
           if-no-files-found: error
+
+      # Runs after the upload, so the SBOM is kept when this step finds a vulnerability.
+      - name: Scan the SBOM for known vulnerabilities
+        uses: google/osv-scanner-action/osv-scanner-action@b1d267aea5211fa648d9d442fa64b90dbdcbdd36 # v2.7.0
+        with:
+          scan-args: |-
+            --lockfile=target/bom.json

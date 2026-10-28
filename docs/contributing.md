@@ -43,7 +43,8 @@ Then open a pull request. Its description and review follow
 ## Checks on every pull request
 
 GitHub Actions builds every pull request, and every push to `main`, with
-[`.github/workflows/build.yml`](../.github/workflows/build.yml). It runs one command on JDK 25:
+[`.github/workflows/build.yml`](../.github/workflows/build.yml). It runs one Maven command on
+JDK 25, then scans the result:
 
 ```bash
 ./mvnw verify org.cyclonedx:cyclonedx-maven-plugin:<version>:makeAggregateBom
@@ -53,16 +54,29 @@ GitHub Actions builds every pull request, and every push to `main`, with
 | --- | --- | --- |
 | `verify` | Every check that `./mvnw verify` runs on your machine | The run's log |
 | `makeAggregateBom` | Writes an SBOM (software bill of materials): a CycloneDX list of every library the build includes | The `sbom` artifact, as `bom.json` and `bom.xml` |
+| OSV-Scanner | Looks up every library in `bom.json` in the [OSV.dev](https://osv.dev) vulnerability database and fails the run if any has a known vulnerability | The log of the step "Scan the SBOM for known vulnerabilities" |
 
 An artifact is a file that a run keeps; open the run in the **Actions** tab and download it from
-the run's summary page. The SBOM is written only when the build passes. The SBOM plugin's version
-is not written in the workflow: it is the version Spring Boot's parent manages, which the workflow
-reads from `stratum-parent` before the build.
+the run's summary page. The SBOM is written only when the build passes, and it is uploaded before
+the scan, so it is kept when the scan fails. The SBOM plugin's version is not written in the
+workflow: it is the version Spring Boot's parent manages, which the workflow reads from
+`stratum-parent` before the build.
 
-CI does not scan dependencies for known vulnerabilities. The `security` profile still does, when
-you run it yourself with an NVD API key; see
-[Optional profiles](modules/parent-and-bom.md#optional-profiles). CI stopped running it because the
-download from the US National Vulnerability Database (NVD) took from 24 minutes to over an hour.
+OSV-Scanner sends only the names and versions of the libraries to OSV.dev, and needs no account or
+key. It fails on any known vulnerability, whatever its score, because OSV-Scanner has no score
+threshold. When a scan fails, upgrade the library. A library whose version Spring Boot manages is
+fixed by a Spring Boot upgrade, not by an override in Stratum
+([ST-ENG-61](agents/engineering.md#dependencies)).
+
+GitHub's Dependabot alerts cover what a pull request scan cannot: a vulnerability published after a
+library is already on `main`. GitHub reads the dependency graph and opens an alert in the
+repository's **Security** tab. Alerts are a repository setting, not a file in the repository, and
+they never block a pull request.
+
+The `security` profile (OWASP Dependency-Check) still works when you run it yourself with an NVD
+API key; see [Optional profiles](modules/parent-and-bom.md#optional-profiles). CI does not run it,
+because its download from the US National Vulnerability Database (NVD) took from 24 minutes to over
+an hour.
 
 ## Rules for a new starter
 
