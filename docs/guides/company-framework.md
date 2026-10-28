@@ -99,37 +99,45 @@ it, for example
 Using `beforeName` avoids a compile-time dependency on Stratum. Stratum's auto-configuration class
 names may change between minor versions, and the release notes list every rename.
 
-## Rule 3: when whole setups overlap, turn Stratum's part off
+## Rule 3: when whole setups overlap, leave Stratum's part off
 
 Some concerns are not one bean but a whole setup, such as a security filter chain, a log format or a
 request filter. Running two of them gives wrong results: two filter chains, logs in two formats or
-two correlation IDs per request. Choose one framework for each such concern, and turn Stratum's off
-with its switch:
+two correlation IDs per request. Choose one framework for each such concern.
 
-| Overlap | Symptom when both run | Turn Stratum's off |
+Every Stratum module is **off until the service switches it on** with
+`stratum.<module>.enabled=true` ([ADR 0003](../adr/0003-bundle-starters-and-module-switches.md)).
+So Stratum's version of a concern stays off unless your team enables it, even when a
+[bundle](../modules/bundles.md) put its starter on the classpath. Where the company framework covers a
+concern, leave Stratum's switch unset, or exclude that starter from the bundle:
+
+| Overlap | Symptom when both run | Keep Stratum's off |
 | --- | --- | --- |
-| Security filter chain | Requests pass one chain and fail the other | `stratum.security.enabled=false` |
-| Log format and redaction | Log lines in two formats, or the company's format without Stratum's redaction | `stratum.logging.enabled=false` |
-| Correlation ID filter | Two IDs per request, under two header names | `stratum.web.correlation.enabled=false` |
-| Metrics and tracing setup | Duplicate metric tags, or traces that do not connect | `stratum.observability.enabled=false` |
-| HTTP client defaults | Two sets of timeouts or interceptors on the same client | `stratum.http-client.enabled=false` |
+| Security filter chain | Requests pass one chain and fail the other | Leave `stratum.security.enabled` unset |
+| Log format and redaction | Log lines in two formats, or the company's format without Stratum's redaction | Leave `stratum.logging.enabled` unset |
+| Correlation ID filter | Two IDs per request, under two header names | `stratum.web.correlation.enabled=false` when `stratum.web` is on |
+| Metrics and tracing setup | Duplicate metric tags, or traces that do not connect | Leave `stratum.observability.enabled` unset |
+| HTTP client defaults | Two sets of timeouts or interceptors on the same client | Leave `stratum.http-client.enabled` unset |
 
-For example, a service that keeps the company's security and logging but uses Stratum for
-everything else:
+For example, a service that keeps the company's security and logging, and switches on Stratum's web,
+observability and HTTP client modules:
 
 ```yaml
 # src/main/resources/application.yml
 stratum:
-  security:
-    enabled: false
-  logging:
-    enabled: false
+  web:
+    enabled: true
+  observability:
+    enabled: true
+  http-client:
+    enabled: true
 ```
 
 ```properties
 # src/main/resources/application.properties
-stratum.security.enabled=false
-stratum.logging.enabled=false
+stratum.web.enabled=true
+stratum.observability.enabled=true
+stratum.http-client.enabled=true
 ```
 
 Each module page lists the beans the module creates under **What you get**, so you can compare them

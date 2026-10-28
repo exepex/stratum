@@ -111,7 +111,14 @@ spring:
     name: order-service
 
 stratum:
+  web:
+    enabled: true
+  logging:
+    enabled: true
+  observability:
+    enabled: true
   http-client:
+    enabled: true
     clients:
       inventory:
         base-url: http://localhost:8081
@@ -122,11 +129,16 @@ The same in `src/main/resources/application.properties` (use one file, not both)
 
 ```properties
 spring.application.name=order-service
+stratum.web.enabled=true
+stratum.logging.enabled=true
+stratum.observability.enabled=true
+stratum.http-client.enabled=true
 stratum.http-client.clients.inventory.base-url=http://localhost:8081
 stratum.http-client.clients.inventory.read-timeout=2s
 ```
 
-**What Stratum did:** it registered an HTTP client group named `inventory`. Everything you did not
+**What Stratum did:** it switched on the four modules (each is off until its `enabled` property
+is `true`) and registered an HTTP client group named `inventory`. Everything you did not
 set (connect timeout, trace propagation, correlation header, logging) uses Stratum's defaults. See
 [HTTP client](../modules/http-client.md#properties).
 

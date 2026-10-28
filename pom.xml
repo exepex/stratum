@@ -35,16 +35,20 @@
     <module>libs/stratum-test</module>
 
     <!-- Starters -->
+    <module>starters/stratum-starter-batch</module>
     <module>starters/stratum-starter-cache</module>
+    <module>starters/stratum-starter-cli</module>
     <module>starters/stratum-starter-data-jpa</module>
     <module>starters/stratum-starter-http-client</module>
     <module>starters/stratum-starter-kafka</module>
     <module>starters/stratum-starter-logging</module>
+    <module>starters/stratum-starter-microservice</module>
     <module>starters/stratum-starter-oauth2-client</module>
     <module>starters/stratum-starter-observability</module>
     <module>starters/stratum-starter-resilience</module>
     <module>starters/stratum-starter-security</module>
     <module>starters/stratum-starter-web</module>
+    <module>starters/stratum-starter-web-ui</module>
   </modules>
 
   <properties>

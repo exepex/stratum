@@ -44,6 +44,7 @@ Each module page follows the same layout so you always know where to look:
 | Module | Page |
 | --- | --- |
 | Parent POM and BOM | [parent-and-bom.md](modules/parent-and-bom.md) |
+| Bundle starters (one dependency per kind of application) | [bundles.md](modules/bundles.md) |
 | Web (REST defaults, errors, correlation IDs) | [web.md](modules/web.md) |
 | Logging | [logging.md](modules/logging.md) |
 | Observability (metrics, tracing, health) | [observability.md](modules/observability.md) |
@@ -74,6 +75,7 @@ Each module page follows the same layout so you always know where to look:
 | --- | --- |
 | [ADR 0001: Stratum next to a company framework](adr/0001-coexistence-with-company-frameworks.md) | The parent sets the Spring Boot version, a company's bean wins over Stratum's, and a fork under the company parent is supported but not recommended. |
 | [ADR 0002: No startup check of the Spring Boot version](adr/0002-no-startup-version-check.md) | Replaces the startup version check of ADR 0001: the parent POM alone decides the Spring Boot version. |
+| [ADR 0003: Bundle starters and module switches](adr/0003-bundle-starters-and-module-switches.md) | One bundle starter per kind of application instead of parents, and every module off until `stratum.<module>.enabled=true`. |
 
 ## Contributing
 

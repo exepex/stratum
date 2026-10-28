@@ -20,6 +20,20 @@ With it, every service answers the same way.
 </dependency>
 ```
 
+The starter does nothing until you switch it on, in `application.properties`:
+
+```properties
+stratum.web.enabled=true
+```
+
+or in `application.yml`:
+
+```yaml
+stratum:
+  web:
+    enabled: true
+```
+
 It brings Spring MVC (servlet stack, embedded Tomcat) and Jakarta Bean Validation. Do not add
 `spring-boot-starter-web` or `spring-boot-starter-webmvc` as well.
 
@@ -84,7 +98,7 @@ system (a partner, a mobile app) and still be found in every log line.
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.web.enabled` | boolean | `true` | Switches the whole starter on or off. |
+| `stratum.web.enabled` | boolean | `false` | Switches the whole starter on. Until it is `true`, the starter sets up nothing. |
 | `stratum.web.correlation.enabled` | boolean | `true` | Handles correlation IDs. |
 | `stratum.web.correlation.header` | string | `X-Correlation-Id` | Header that carries the ID in and out. |
 | `stratum.web.correlation.generate-if-missing` | boolean | `true` | Creates an ID when the request has none. |
@@ -166,7 +180,10 @@ customizer or builder, with the same names and defaults. This section will show 
 
 See [Overriding defaults](../configuration/overriding-defaults.md).
 
-## Switch it off
+## Switch it on or off
+
+`stratum.web.enabled=true` switches the starter on.
+Leaving it unset is the same as `false`.
 
 `stratum.web.enabled=false` removes Stratum's handler, filters and JSON settings. Spring MVC itself
 stays.

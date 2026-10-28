@@ -153,13 +153,19 @@ every step and explains each line.
 Your service already has a parent, such as your company's? Import the Stratum BOM instead. See
 [Installation](docs/getting-started/installation.md).
 
-**2. Add the starters you need.** No `<version>` tags: Stratum manages them.
+**2. Add the starters you need.** No `<version>` tags: Stratum manages them. This example uses
+three single starters. For a whole application, add a [bundle](#bundles) instead, and switch on
+each module it brings.
 
 ```xml
 <dependencies>
   <dependency>
     <groupId>com.exepex.stratum</groupId>
     <artifactId>stratum-starter-web</artifactId>
+  </dependency>
+  <dependency>
+    <groupId>com.exepex.stratum</groupId>
+    <artifactId>stratum-starter-logging</artifactId>
   </dependency>
   <dependency>
     <groupId>com.exepex.stratum</groupId>
@@ -173,12 +179,27 @@ Your service already has a parent, such as your company's? Import the Stratum BO
 </dependencies>
 ```
 
-**3. Name your service** in `application.yml` (or `application.properties`):
+**3. Name your service and switch on the modules you use** in `application.yml` (or
+`application.properties`). Every module is off until you switch it on:
 
 ```yaml
 spring:
   application:
     name: order-service
+stratum:
+  web:
+    enabled: true
+  logging:
+    enabled: true
+  observability:
+    enabled: true
+```
+
+```properties
+spring.application.name=order-service
+stratum.web.enabled=true
+stratum.logging.enabled=true
+stratum.observability.enabled=true
 ```
 
 **4. Write a controller** and run `mvn spring-boot:run`:
@@ -210,7 +231,25 @@ default, examples in YAML and properties, how to override it and how to troubles
 | [`stratum-parent`](docs/modules/parent-and-bom.md) | Parent POM: Java 25, plugin versions and the quality gates every service build runs. |
 | [`stratum-bom`](docs/modules/parent-and-bom.md#the-bom) | Bill of materials (BOM): one list of tested versions, for services that keep their own parent. |
 
+### Bundles
+
+One dependency per kind of application; each lists only the single starters that kind needs. See
+[Bundle starters](docs/modules/bundles.md).
+
+A bundle with `security` puts Spring Security on the classpath. Until you switch on
+`stratum.security.enabled` and set its issuer, Spring Boot's default applies and every endpoint
+asks for a login. See [Security](docs/modules/security.md).
+
+| Bundle | Single starters it adds |
+| --- | --- |
+| `stratum-starter-microservice` | web, logging, observability, http-client, resilience, security |
+| `stratum-starter-web-ui` | web, logging, observability, security |
+| `stratum-starter-batch` | data-jpa, logging, observability |
+| `stratum-starter-cli` | logging |
+
 ### Starters
+
+Every starter is off until its `stratum.<module>.enabled` property is `true`.
 
 | Starter | In one sentence | Property prefix |
 | --- | --- | --- |
@@ -285,7 +324,7 @@ You stay in control at three levels, from lightest to strongest:
 | Change a value | Set a property | `stratum.http-client.defaults.read-timeout=10s` |
 | Adjust a bean Stratum created | Declare a customizer bean | A `RestClientCustomizer` that adds a header |
 | Replace a bean entirely | Declare your own bean of the same type | Your own `SecurityFilterChain` |
-| Switch a whole module off | Set `enabled` to `false` | `stratum.cache.enabled=false` |
+| Switch a whole module on or off | Set `enabled`; every module is off until set to `true` | `stratum.cache.enabled=true` |
 
 Details and examples: [Overriding defaults](docs/configuration/overriding-defaults.md).
 
@@ -310,9 +349,9 @@ In setups B and C three rules keep the two frameworks from conflicting:
   and Stratum's auto-configurations usually run after the company's. The exceptions, and what to do
   about them, are in
   [Rule 2 of the guide](docs/guides/company-framework.md#rule-2-the-companys-bean-wins).
-- **Overlapping setups are turned off.** Where both frameworks set up a whole concern, such as a
-  security filter chain or the log format, the service keeps one and turns Stratum's off, for example
-  with `stratum.security.enabled=false`.
+- **Overlapping setups stay off.** Every Stratum module is off until the service switches it on.
+  Where both frameworks set up a whole concern, such as a security filter chain or the log format,
+  the service keeps the company's and leaves Stratum's off, or excludes that starter.
 
 Step-by-step setup and configuration: [Using Stratum with a company framework](docs/guides/company-framework.md).
 The decision behind it: [ADR 0001](docs/adr/0001-coexistence-with-company-frameworks.md).

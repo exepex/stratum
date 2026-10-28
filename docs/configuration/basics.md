@@ -91,7 +91,7 @@ Names are written in **kebab-case** (lower case, words joined by `-`). Spring Bo
 binding** also accepts `readTimeout` or `read_timeout`, but kebab-case is the standard; use it so
 everyone can search for one spelling.
 
-Every module has an on/off switch: `stratum.<module>.enabled` (default `true`).
+Every module has an on/off switch, `stratum.<module>.enabled`, and is off until you set it to `true`.
 
 ## Writing values: types and formats
 

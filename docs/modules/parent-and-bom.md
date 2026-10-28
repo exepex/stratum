@@ -38,7 +38,7 @@ used next to a company framework. The reasons are in
 
 The BOM manages versions of:
 
-- every Stratum module,
+- every Stratum module, including the [bundle starters](bundles.md),
 - the extra libraries Stratum uses or recommends that Spring Boot does not manage (Resilience4j,
   cloud SDKs, and so on),
 - the container images used in tests (as Maven properties).

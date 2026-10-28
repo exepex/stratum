@@ -27,6 +27,20 @@ code, and uses the same metric names, tags and endpoints in every service.
 </dependency>
 ```
 
+The starter does nothing until you switch it on, in `application.properties`:
+
+```properties
+stratum.observability.enabled=true
+```
+
+or in `application.yml`:
+
+```yaml
+stratum:
+  observability:
+    enabled: true
+```
+
 ## What you get
 
 | Feature | Behaviour |
@@ -92,7 +106,7 @@ class OrderMetrics {
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.observability.enabled` | boolean | `true` | Switches the whole starter on or off. |
+| `stratum.observability.enabled` | boolean | `false` | Switches the whole starter on. Until it is `true`, the starter sets up nothing. |
 | `stratum.observability.metrics.enabled` | boolean | `true` | Collects and exposes metrics. |
 | `stratum.observability.metrics.common-tags` | map | *(empty)* | Extra tags on every metric, added to `application` and `environment`. |
 | `stratum.observability.metrics.percentiles-histogram` | boolean | `true` | Publishes histograms for HTTP latency, so percentiles can be computed across instances. |
@@ -171,7 +185,10 @@ customizer or builder, with the same names and defaults. This section will show 
 - **Custom health check:** implement `HealthIndicator`; add it to the readiness group with
   `management.endpoint.health.group.readiness.include`.
 
-## Switch it off
+## Switch it on or off
+
+`stratum.observability.enabled=true` switches the starter on.
+Leaving it unset is the same as `false`.
 
 `stratum.observability.enabled=false` removes Stratum's settings. Actuator stays on the classpath
 with Spring Boot's own defaults. To keep metrics but drop tracing, set
