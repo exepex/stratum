@@ -6,12 +6,14 @@ import com.exepex.stratum.logging.LoggingErrorCode;
 import com.exepex.stratum.logging.LoggingProperties;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
+import org.springframework.boot.json.WritableJson;
 import org.springframework.util.unit.DataSize;
 
 /**
@@ -69,8 +71,8 @@ public final class Redactor {
   }
 
   /**
-   * Returns the value as it may be written. Text is cut to the maximum length and masked; any other
-   * value is masked only when its field name is sensitive.
+   * Returns the value as it may be written. Text is cut to the maximum length and masked. Any other
+   * value, such as a number or an object, is masked by its name or its {@code toString()}.
    *
    * @param fieldName the value's field name; {@code null} when it has none
    * @param value the value
@@ -81,13 +83,31 @@ public final class Redactor {
       return switch (value) {
         case null -> null;
         case String text -> redactText(fieldName, cut(text));
-        default ->
-            fieldNames.mask(fieldName, value::toString).map(Object.class::cast).orElse(value);
+        case WritableJson _, Map<?, ?> _, Iterable<?> _, Object[] _ -> maskByName(fieldName, value);
+        default -> redactOther(fieldName, value);
       };
     } catch (IllegalArgumentException | IllegalStateException | IndexOutOfBoundsException e) {
       // Fail closed: a value that could not be masked must never be written as it was.
       return FAILED;
     }
+  }
+
+  /**
+   * Masks a value such as a number or an object by its text, which may hold a card number or a
+   * {@code toString()} with secrets. The value is kept as it is when its text needs no masking.
+   */
+  private Object redactOther(@Nullable String fieldName, Object value) {
+    var text = value.toString();
+    var redacted = redactText(fieldName, cut(text));
+    return redacted.equals(text) ? value : redacted;
+  }
+
+  /**
+   * Masks a nested JSON object or a collection by its field name only: Spring Boot passes the
+   * values inside it on one by one.
+   */
+  private Object maskByName(@Nullable String fieldName, Object value) {
+    return fieldNames.mask(fieldName, value::toString).map(Object.class::cast).orElse(value);
   }
 
   /** Masks text by its field name, or else by its content. */

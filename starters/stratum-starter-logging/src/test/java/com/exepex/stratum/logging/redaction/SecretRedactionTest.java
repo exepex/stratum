@@ -28,25 +28,67 @@ class SecretRedactionTest {
   @DisplayName("by field name")
   class ByFieldName {
 
-    @ParameterizedTest(name = "{0}")
+    @ParameterizedTest
     @ValueSource(
         strings = {
+          "pwd",
+          "auth",
+          "pin",
+          "otp",
+          "cvv",
+          "cvc",
           "password",
-          "X-Api-Key",
-          "Authorization",
-          "set-cookie",
+          "passwd",
+          "passphrase",
+          "secret",
           "client_secret",
-          "spring.datasource.password"
+          "token",
+          "access_token",
+          "refresh_token",
+          "id_token",
+          "X-Auth-Token",
+          "X-CSRF-Token",
+          "apiKey",
+          "X-Api-Key",
+          "credential",
+          "credentials",
+          "private_key",
+          "session_id",
+          "JSESSIONID",
+          "cookie",
+          "set-cookie",
+          "Authorization",
+          "Proxy-Authorization",
+          "spring.datasource.password",
+          "dbPassword",
+          "userPassword",
+          "newPassword",
+          "secretKey",
+          "apiToken",
+          "authToken",
+          "aws_secret_access_key"
         })
-    @DisplayName("a secret field is masked in full, whatever its value looks like")
+    @DisplayName("a secret field, or one whose name holds a secret word, is masked in full")
     void secretFieldIsMaskedInFull(String name) {
       assertThat(redactor.redact(name, "plain value")).isEqualTo(Masks.MASK);
     }
 
-    @Test
-    @DisplayName("a card field keeps only its last four characters")
-    void cardFieldKeepsLastFour() {
-      assertThat(redactor.redact("cardNumber", "any-card-1234")).isEqualTo("****1234");
+    @ParameterizedTest
+    @ValueSource(
+        strings = {
+          "card",
+          "cardNumber",
+          "credit_card",
+          "pan",
+          "ssn",
+          "national_id",
+          "tax_id",
+          "passport",
+          "passport_number"
+        })
+    @DisplayName("a card or national ID field keeps only its last four characters")
+    void cardFieldKeepsLastFour(String name) {
+      assertThat(redactor.redact(name, "any-card-1234")).isEqualTo("****1234");
     }
 
     @Test
@@ -74,7 +116,7 @@ class SecretRedactionTest {
       assertThat(text("token " + JWT + " used")).isEqualTo("token **** used");
     }
 
-    @ParameterizedTest(name = "{0}")
+    @ParameterizedTest
     @ValueSource(strings = {"Bearer", "Basic", "Digest", "Negotiate"})
     @DisplayName("credentials after an authorization scheme are masked")
     void authorizationSchemeIsMasked(String scheme) {
@@ -93,6 +135,30 @@ class SecretRedactionTest {
     void wholeCookieHeaderIsMasked() {
       assertThat(text("Cookie: sid=fake-session; opaque=fake-cookie\nnext line"))
           .isEqualTo("Cookie: ****\nnext line");
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+        strings = {
+          "dbPassword=" + PASSWORD,
+          "{\\\"password\\\":\\\"" + PASSWORD + "\\\"}",
+          "{'password': '" + PASSWORD + "'}",
+          "GET /login?password%3D" + PASSWORD,
+          "X-CSRF-Token: " + PASSWORD,
+          "Customer[name=Jane, dbPassword=" + PASSWORD + "]"
+        })
+    @DisplayName(
+        "a secret is masked in escaped JSON, single quotes, URL encoding and compound keys")
+    void secretInOtherFormsIsMasked(String line) {
+      assertThat(text(line)).doesNotContain(PASSWORD).contains(Masks.MASK);
+    }
+
+    @Test
+    @DisplayName("a JSON Web Token cut after its second part is still masked")
+    void cutJwtIsMasked() {
+      var cut = JWT.substring(0, JWT.lastIndexOf('.'));
+
+      assertThat(text("token " + cut)).isEqualTo("token " + Masks.MASK);
     }
 
     @Test

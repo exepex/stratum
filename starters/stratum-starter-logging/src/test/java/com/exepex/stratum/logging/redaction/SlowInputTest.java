@@ -25,6 +25,9 @@ class SlowInputTest {
   private static Stream<String> hostileInputs() {
     return Stream.of(
         "a".repeat(LENGTH) + "@",
+        filled("a").substring(LENGTH / 2) + "@" + filled("a.").substring(LENGTH / 2),
+        filled("a.").substring(LENGTH / 2) + "@" + filled("b-").substring(LENGTH / 2),
+        filled("a="),
         filled("eyJ"),
         "password=" + filled("word "),
         filled("+1 "),

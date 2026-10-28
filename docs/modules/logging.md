@@ -92,16 +92,18 @@ another layout, set `stratum.logging.format` to `logstash` or `gelf`.
 
 ## Redaction
 
-Redaction runs on **every value** of a JSON line: the message, the exception's message and stack
-trace, MDC entries and key-value pairs. It cannot be switched off.
+Redaction runs on every value of a JSON line: the message, the exception's message and stack
+trace, MDC entries and key-value pairs. A key-value pair whose value is a number or an object, such
+as `addKeyValue("customer", customer)`, is masked through the value's `toString()`; a list or map
+is masked element by element. It cannot be switched off.
 
 | What | Found by | Written as |
 | --- | --- | --- |
-| Credentials: `password`, `secret`, `client_secret`, `api_key`, `X-Api-Key`, `token`, `access_token`, `refresh_token`, `id_token`, `authorization`, `cookie`, `set-cookie`, `session_id`, `private_key`, `pin`, `otp`, `cvv` and similar | Field or key name | `****` |
+| Credentials: any name that contains `password`, `passwd`, `passphrase`, `secret`, `token`, `apikey`, `credential`, `privatekey`, `sessionid`, `cookie` or `authorization`, such as `dbPassword`, `aws_secret_access_key`, `X-CSRF-Token` or `JSESSIONID`; and the whole names `pwd`, `auth`, `pin`, `otp`, `cvv` and `cvc` | Field or key name | `****` |
 | Payment cards and national IDs: `card_number`, `pan`, `ssn`, `national_id`, `tax_id`, `passport` | Field or key name | `****1234` (last four kept) |
 | Card numbers in text | 13 to 19 digits that pass the Luhn check | `****1111` |
 | US social security numbers in text | `123-45-6789` | `****6789` |
-| JSON Web Tokens | `eyJ…` in three parts | `****` |
+| JSON Web Tokens | `eyJ…` with two or three parts | `****` |
 | `Basic`, `Bearer`, `Digest` and `Negotiate` credentials | The scheme name | `Bearer ****` |
 | A user and password in a URL | `https://user:pass@host` | `https://****@host` |
 | Names, dates of birth and addresses: `first_name`, `last_name`, `full_name`, `username`, `date_of_birth`, `address` and similar | Field or key name | `****` |
@@ -113,8 +115,8 @@ trace, MDC entries and key-value pairs. It cannot be switched off.
 
 Names are compared without case, `_` or `-`, and only their last part counts, so `password`,
 `spring.datasource.password` and `PASSWORD` all match. A name is matched in a field, in an MDC
-entry, and in text such as `password=x`, `"token":"x"`, `?api_key=x&` or Lombok's
-`User(email=x, …)`. An unquoted value in text runs until the next key, a comma, `;`, `&`, a closing
+entry, and in text such as `password=x`, `"token":"x"`, `'token': 'x'`, escaped JSON
+(`\"token\":\"x\"`), `?api_key=x&`, `password%3Dx` or Lombok's `User(email=x, …)`. An unquoted value in text runs until the next key, a comma, `;`, `&`, a closing
 bracket or the end of the line. The values of `Cookie`, `Set-Cookie` and `Authorization` run to the
 end of the line, so every cookie in the header is masked. A card number next to another number, as
 in `4111 1111 1111 1111 43`, is still found.
@@ -130,6 +132,10 @@ instead; the value is never written as it was.
 
 The `text` format writes plain lines that are **not** redacted. It is meant for your laptop. Unless
 every active profile is `local` or `test`, the `text` format logs a warning at startup.
+
+Plain-text log files are not redacted either. If you write a log file with `logging.file.name`, also
+set `logging.structured.format.file`, for example to `ecs`, so the file gets the same JSON lines and
+the same redaction.
 
 ## Properties
 

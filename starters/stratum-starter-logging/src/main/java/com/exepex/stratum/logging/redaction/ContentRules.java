@@ -19,12 +19,12 @@ import org.apache.commons.validator.routines.IBANValidator;
 class ContentRules {
 
   /**
-   * A JSON Web Token: three Base64 parts, the first starting with {@code eyJ}. It must start a word
-   * and its parts are matched possessively, so that matching stays linear on long hostile text.
+   * A JSON Web Token: Base64 parts separated by dots, the first starting with {@code eyJ}. Two
+   * parts are enough, so that a token cut at the length limit is still masked. It must start a word
+   * and is matched possessively, so that matching stays linear on long hostile text.
    */
   private static final Pattern JWT =
-      Pattern.compile(
-          "(?<![A-Za-z0-9_-])eyJ[A-Za-z0-9_-]{5,}+\\.[A-Za-z0-9_-]{5,}+\\.[A-Za-z0-9_-]{5,}+");
+      Pattern.compile("(?<![A-Za-z0-9_-])eyJ[A-Za-z0-9_-]{5,}+\\.[A-Za-z0-9_.-]{5,}+");
 
   /** An HTTP authorization scheme and its credentials, such as {@code Bearer abc}. */
   private static final Pattern AUTH_SCHEME =

@@ -1,6 +1,7 @@
 package com.exepex.stratum.logging.redaction;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
@@ -23,35 +24,8 @@ import org.jspecify.annotations.Nullable;
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 final class SensitiveFieldNames {
 
-  /** Credentials, always masked in full. */
-  private static final Set<String> SECRETS =
-      Set.of(
-          "password",
-          "passwd",
-          "pwd",
-          "secret",
-          "clientsecret",
-          "apikey",
-          "xapikey",
-          "xauthtoken",
-          "xaccesstoken",
-          "accesstoken",
-          "refreshtoken",
-          "idtoken",
-          "token",
-          "authorization",
-          "proxyauthorization",
-          "auth",
-          "credential",
-          "credentials",
-          "privatekey",
-          "cookie",
-          "setcookie",
-          "sessionid",
-          "pin",
-          "otp",
-          "cvv",
-          "cvc");
+  /** Short credential names, masked in full only when the whole name matches. */
+  private static final Set<String> SECRETS = Set.of("pwd", "auth", "pin", "otp", "cvv", "cvc");
 
   /** Payment cards and national IDs, always masked; the last four characters stay visible. */
   private static final Set<String> SECRET_IDENTIFIERS =
@@ -87,6 +61,24 @@ final class SensitiveFieldNames {
   private static final Set<String> PERSONAL_IDENTIFIERS =
       Set.of("email", "phone", "mobile", "telephone", "fax", "cell", "msisdn", "iban");
 
+  /**
+   * Parts of a name that mark it as a secret wherever they appear, as in {@code dbPassword}, {@code
+   * apiToken} or {@code aws_secret_access_key}. Short names such as {@code pin} only match whole.
+   */
+  private static final List<String> SECRET_PARTS =
+      List.of(
+          "password",
+          "passwd",
+          "passphrase",
+          "secret",
+          "token",
+          "apikey",
+          "credential",
+          "privatekey",
+          "sessionid",
+          "cookie",
+          "authorization");
+
   /** Headers whose value is a list, such as {@code Cookie: a=1; b=2}, masked as a whole. */
   private static final Set<String> HEADER_LISTS =
       Set.of("cookie", "setcookie", "authorization", "proxyauthorization");
@@ -121,12 +113,26 @@ final class SensitiveFieldNames {
       return Optional.empty();
     }
     var key = normalize(name);
-    if (maskedInFull.contains(key)) {
-      return Optional.of(Masks.MASK);
+    if (maskedKeepingLastFour.contains(key)) {
+      return Optional.of(Masks.keepingLastFour(value.get()));
     }
-    return maskedKeepingLastFour.contains(key)
-        ? Optional.of(Masks.keepingLastFour(value.get()))
-        : Optional.empty();
+    return isSecret(key) ? Optional.of(Masks.MASK) : Optional.empty();
+  }
+
+  /**
+   * Returns whether values under the name are masked.
+   *
+   * @param name the field or key name
+   * @return whether the name is sensitive
+   */
+  boolean isSensitive(String name) {
+    var key = normalize(name);
+    return maskedKeepingLastFour.contains(key) || isSecret(key);
+  }
+
+  /** Returns whether a normalized name is masked in full. */
+  private boolean isSecret(String key) {
+    return maskedInFull.contains(key) || SECRET_PARTS.stream().anyMatch(key::contains);
   }
 
   /**

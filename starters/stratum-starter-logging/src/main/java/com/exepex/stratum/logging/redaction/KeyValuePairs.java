@@ -7,26 +7,30 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * Masks the value of each sensitive key in text, as in {@code password=x}, {@code "token":"x"},
- * {@code ?api_key=x&} or Lombok's {@code User(email=x, ...)}. A quoted value ends at its closing
- * quote. An unquoted value runs over spaces until the next key, or until one of {@code , ; & ) } ]
- * "} or a line break; the value of a header that holds a list, such as {@code Cookie: a=1; b=2},
- * runs to the end of the line.
+ * {@code 'token': 'x'}, escaped JSON such as {@code \"token\":\"x\"}, {@code ?api_key=x&}, {@code
+ * password%3Dx} or Lombok's {@code User(email=x, ...)}. A quoted value ends at its closing quote.
+ * An unquoted value runs over spaces until the next key, or until one of {@code , ; & ) } ] "} or a
+ * line break; the value of a header that holds a list, such as {@code Cookie: a=1; b=2}, runs to
+ * the end of the line.
  *
- * <p>Only the key is found with a regular expression; the value's end is found by scanning, so a
- * long or hostile value cannot make matching slow.
+ * <p>Only the key is found with a regular expression, and a value's end is looked for only after a
+ * sensitive key, by scanning, so a long or hostile text cannot make matching slow.
  */
 @RequiredArgsConstructor
 final class KeyValuePairs implements UnaryOperator<String> {
 
-  /** A key, in optional quotes, followed by {@code =} or {@code :}. */
+  /**
+   * A key, in optional plain, single or escaped quotes, followed by {@code =}, {@code :} or %3D.
+   */
   private static final Pattern KEY =
-      Pattern.compile("\"?([A-Za-z][A-Za-z0-9_.-]{0,63})\"?\\s*[=:]\\s*");
+      Pattern.compile(
+          "\\\\?[\"']?([A-Za-z][A-Za-z0-9_.-]{0,63}+)\\\\?[\"']?\\s*+(?:[=:]|%3[DdAa])\\s*+");
 
   /** The start of a following key, which ends an unquoted value. */
-  private static final Pattern NEXT_KEY = Pattern.compile("[A-Za-z0-9_.-]+\\s*[=:]");
+  private static final Pattern NEXT_KEY = Pattern.compile("[A-Za-z0-9_.-]++\\s*+[=:]");
 
-  /** Starts and ends a quoted value. */
-  private static final char QUOTE = '"';
+  /** Opens and closes an escaped quoted value inside a JSON string. */
+  private static final String ESCAPED_QUOTE = "\\\"";
 
   /** The characters that end an unquoted value. */
   private static final String VALUE_ENDS = ",;&)}]\"\r\n";
@@ -42,7 +46,7 @@ final class KeyValuePairs implements UnaryOperator<String> {
    */
   @Override
   public String apply(String text) {
-    if (text.indexOf('=') < 0 && text.indexOf(':') < 0) {
+    if (text.indexOf('=') < 0 && text.indexOf(':') < 0 && !text.contains("%3")) {
       return text;
     }
     var masked = new StringBuilder(text.length());
@@ -50,37 +54,79 @@ final class KeyValuePairs implements UnaryOperator<String> {
     var copied = 0;
     var from = 0;
     while (from < text.length() && keys.find(from)) {
-      var valueStart = keys.end();
-      var quoted = valueStart < text.length() && text.charAt(valueStart) == QUOTE;
-      var valueEnd = valueEnd(text, keys.group(1), valueStart, quoted);
-      var mask = fieldNames.mask(keys.group(1), () -> value(text, valueStart, valueEnd, quoted));
-      if (mask.isPresent() && valueEnd > valueStart) {
-        masked
-            .append(text, copied, valueStart)
-            .append(quoted ? "\"" + mask.get() + "\"" : mask.get());
-        copied = valueEnd;
-        from = valueEnd;
-      } else {
+      var key = keys.group(1);
+      var value = fieldNames.isSensitive(key) ? Value.at(text, key, keys.end()) : null;
+      if (value == null || value.isEmpty()) {
         // A value that is not masked may itself hold pairs, as in a JSON message string.
-        from = Math.max(valueStart, keys.start() + 1);
+        from = Math.max(keys.end(), keys.start() + 1);
+        continue;
       }
+      var mask = fieldNames.mask(key, () -> value.content(text)).orElse(Masks.MASK);
+      masked.append(text, copied, value.start()).append(value.wrap(mask));
+      copied = value.end();
+      from = value.end();
     }
     return masked.append(text, copied, text.length()).toString();
   }
 
-  /** Returns the value without its quotes. */
-  private static String value(String text, int start, int end, boolean quoted) {
-    return quoted
-        ? text.substring(start + 1, Math.max(start + 1, end - 1))
-        : text.substring(start, end);
+  /**
+   * Where a value is in the text.
+   *
+   * @param quote the quote around it, or an empty string when it has none
+   * @param start where it starts, with its opening quote
+   * @param contentEnd where its content ends, before any closing quote
+   * @param end where it ends, after any closing quote
+   */
+  private record Value(String quote, int start, int contentEnd, int end) {
+
+    /** Finds the value that starts at the index. */
+    private static Value at(String text, String key, int start) {
+      if (text.startsWith(ESCAPED_QUOTE, start)) {
+        var close = text.indexOf(ESCAPED_QUOTE, start + ESCAPED_QUOTE.length());
+        return close < 0
+            ? new Value(ESCAPED_QUOTE, start, text.length(), text.length())
+            : new Value(ESCAPED_QUOTE, start, close, close + ESCAPED_QUOTE.length());
+      }
+      var first = start < text.length() ? text.charAt(start) : ' ';
+      if (first == '"' || first == '\'') {
+        var close = closingQuote(text, start + 1, first);
+        return close < 0
+            ? new Value(String.valueOf(first), start, text.length(), text.length())
+            : new Value(String.valueOf(first), start, close, close + 1);
+      }
+      var end =
+          SensitiveFieldNames.isHeaderList(key) ? lineEnd(text, start) : plainEnd(text, start);
+      return new Value("", start, end, end);
+    }
+
+    /** Returns whether there is nothing to mask. */
+    private boolean isEmpty() {
+      return contentEnd <= start + quote.length();
+    }
+
+    /** Returns the value without its quotes. */
+    private String content(String text) {
+      return text.substring(start + quote.length(), contentEnd);
+    }
+
+    /** Returns the mask in the value's quotes, with a closing quote only if the value had one. */
+    private String wrap(String mask) {
+      return quote + mask + (end > contentEnd ? quote : "");
+    }
   }
 
-  /** Returns where the value that starts at the index ends. */
-  private static int valueEnd(String text, String key, int start, boolean quoted) {
-    if (quoted) {
-      return quotedEnd(text, start + 1);
+  /** Returns the index of the closing quote, skipping escaped ones, or -1 if there is none. */
+  private static int closingQuote(String text, int from, char quote) {
+    var i = from;
+    while (i < text.length()) {
+      var c = text.charAt(i);
+      if (c == quote) {
+        return i;
+      }
+      // A backslash escapes the character after it, which may be a quote.
+      i += c == '\\' ? 2 : 1;
     }
-    return SensitiveFieldNames.isHeaderList(key) ? lineEnd(text, start) : plainEnd(text, start);
+    return -1;
   }
 
   /** Returns the end of the line, without trailing spaces. */
@@ -92,20 +138,6 @@ final class KeyValuePairs implements UnaryOperator<String> {
       }
     }
     return end;
-  }
-
-  /** Returns the index after the closing quote, or the end of the text when there is none. */
-  private static int quotedEnd(String text, int from) {
-    var i = from;
-    while (i < text.length()) {
-      var c = text.charAt(i);
-      if (c == QUOTE) {
-        return i + 1;
-      }
-      // A backslash escapes the character after it, which may be a quote.
-      i += c == '\\' ? 2 : 1;
-    }
-    return text.length();
   }
 
   /** Returns the end of an unquoted value, without trailing spaces. */
