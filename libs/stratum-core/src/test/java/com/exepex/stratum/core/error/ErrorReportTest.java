@@ -61,7 +61,7 @@ class ErrorReportTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"", " ", "\n", "\u0000", "\u0085", "\u2028", "\u2029"})
+    @ValueSource(strings = {"", " ", "\n", "\u0000", "\u0085"})
     @DisplayName("with a detail that is blank or only control characters, the message has no colon")
     void leavesOutBlankDetail(String detail) {
       var report = ErrorReport.of(OrderErrorCode.OUT_OF_STOCK, detail);
@@ -104,10 +104,10 @@ class ErrorReportTest {
     @DisplayName("line breaks and other control characters in the detail become spaces")
     void replacesControlCharactersInDetail() {
       var report =
-          ErrorReport.of(OrderErrorCode.OUT_OF_STOCK, SKU + "\r\n2026-10-28 INFO forged\t");
+          ErrorReport.of(OrderErrorCode.OUT_OF_STOCK, SKU + "\r\n2026-10-28 INFO\u0085\u2028\u2029forged\t");
 
       assertThat(report.getExternal().message())
-          .isEqualTo("Not enough stock: SKU-1  2026-10-28 INFO forged ");
+          .isEqualTo("Not enough stock: SKU-1  2026-10-28 INFO   forged ");
     }
   }
 
