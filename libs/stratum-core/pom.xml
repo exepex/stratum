@@ -42,11 +42,9 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-validation</artifactId>
     </dependency>
-    <!-- Brings Spring Boot's test starter, plus the configuration-file loader and the sample IDs that
-         the tests use. -->
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
-      <artifactId>stratum-test</artifactId>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

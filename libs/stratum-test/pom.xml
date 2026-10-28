@@ -14,23 +14,5 @@
   <artifactId>stratum-test</artifactId>
 
   <name>Stratum test</name>
-  <description>The base test dependency for services and for Stratum's own modules: Spring Boot's test starter (JUnit, AssertJ, Mockito, Spring test support), a loader for configuration files in auto-configuration tests, and sample trace, span and correlation IDs.</description>
-
-  <!-- Add with <scope>test</scope>. It does not depend on stratum-core, so that stratum-core's own
-       tests can use it: Maven forbids a dependency cycle, even through test scope. -->
-  <dependencies>
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-test</artifactId>
-    </dependency>
-    <!-- SLF4J's logging context (MDC), where LoggingContextIds puts the sample IDs. -->
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-api</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.jspecify</groupId>
-      <artifactId>jspecify</artifactId>
-    </dependency>
-  </dependencies>
+  <description>Planned: Test support for services: JUnit 5, AssertJ, Mockito, Testcontainers, HTTP stubs and JWT helpers.</description>
 </project>

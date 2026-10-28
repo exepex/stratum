@@ -3,16 +3,16 @@ package com.exepex.stratum.core.error;
 import static com.exepex.stratum.core.error.testsupport.ErrorTestData.LONGEST_ID_LENGTH;
 import static com.exepex.stratum.core.error.testsupport.ErrorTestData.QUANTITY_PROBLEM;
 import static com.exepex.stratum.core.error.testsupport.ErrorTestData.SKU;
-import static com.exepex.stratum.test.LoggingContextIds.CORRELATION_ID;
-import static com.exepex.stratum.test.LoggingContextIds.CORRELATION_ID_KEY;
-import static com.exepex.stratum.test.LoggingContextIds.SPAN_ID;
-import static com.exepex.stratum.test.LoggingContextIds.TRACE_ID;
+import static com.exepex.stratum.core.testsupport.TracingTestData.CORRELATION_ID;
+import static com.exepex.stratum.core.testsupport.TracingTestData.CORRELATION_ID_KEY;
+import static com.exepex.stratum.core.testsupport.TracingTestData.SPAN_ID;
+import static com.exepex.stratum.core.testsupport.TracingTestData.TRACE_ID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 import com.example.orders.ImpostorErrorCode;
 import com.example.orders.OrderErrorCode;
-import com.exepex.stratum.test.LoggingContextIds;
+import com.exepex.stratum.core.testsupport.TracingTestData;
 import java.lang.reflect.RecordComponent;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -120,7 +120,7 @@ class ErrorReportTest {
     @Test
     @DisplayName("it takes them from the logging context")
     void readsIdsFromLoggingContext() {
-      LoggingContextIds.putInLoggingContext();
+      TracingTestData.putIdsInLoggingContext();
 
       var report = ErrorReport.of(OrderErrorCode.OUT_OF_STOCK, SKU);
 
@@ -211,7 +211,7 @@ class ErrorReportTest {
     @Test
     @DisplayName("it keeps the code, severity, message, details, trace and correlation IDs")
     void keepsWhatCallersMaySee() {
-      LoggingContextIds.putInLoggingContext();
+      TracingTestData.putIdsInLoggingContext();
 
       var external =
           ErrorReport.of(OrderErrorCode.OUT_OF_STOCK, SKU)
