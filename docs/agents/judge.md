@@ -70,7 +70,9 @@ A claim without evidence counts as not made.
 6. Check the change against every rule: [AGENTS.md](../../AGENTS.md), [engineering](engineering.md),
    [testing](testing.md), [security](security.md), [documentation](documentation.md) and [review](review.md).
    Check the line count of every changed file against the limits in AGENTS.md.
-7. Give the verdict: **PASS**, or **FAIL** with numbered findings, each **blocking**, **should fix** or **minor**
+7. Check simplicity: for each new type, method, option and branch, name its use today. One with no use, or Javadoc
+   that explains internals or restates the code, is a should-fix finding (ST-ENG-05, ST-ENG-15).
+8. Give the verdict: **PASS**, or **FAIL** with numbered findings, each **blocking**, **should fix** or **minor**
    (as defined in [review](review.md)), with evidence and the fix expected. A change passes only when no blocking
    or should-fix finding remains.
 
