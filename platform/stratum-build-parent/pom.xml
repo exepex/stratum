@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   Versions and build checks shared by services and Stratum's own modules. Services use stratum-parent,
-  which adds packaging; Stratum's libraries and starters use this POM directly.
+  which adds packaging; Stratum's libraries and starters use stratum-library-parent, which adds the
+  Javadoc rules.
 
   - Spring Boot's dependency and plugin versions come from spring-boot-starter-parent. Stratum never
     overrides a version Spring Boot manages (ST-ENG-61).

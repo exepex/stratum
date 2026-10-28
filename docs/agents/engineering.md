@@ -53,7 +53,9 @@ for the service, not how it is built.
 - **ST-ENG-14 Javadoc on everything.** Every class, interface, enum, record, method (public, protected, package-private
   and private) and every configuration property field has Javadoc. Lombok-generated members are documented on the
   field they come from. In test code, the `@DisplayName` on a test class, `@Nested` class or test method replaces
-  Javadoc (ST-TEST-12); test support classes such as `<Domain>TestData` still have Javadoc.
+  Javadoc (ST-TEST-12); test support classes such as `<Domain>TestData` still have Javadoc. The build checks this
+  for Stratum's libraries and starters through `stratum-library-parent`. Services built on Stratum are not
+  checked for Javadoc: that is their team's choice.
 - **ST-ENG-15 Functional Javadoc.** Javadoc explains what the element does for the service and when to use it, in
   plain words a developer new to Spring Boot can follow. It names units and defaults, for example: "How long to wait
   for a downstream service to accept the connection before giving up. Defaults to 2 seconds." It does not restate the

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The parent POM of Stratum's own libraries and starters. It adds one check to stratum-build-parent:
+  the Javadoc rules (ST-ENG-14, ST-ENG-15). Services use stratum-parent, which does not inherit this
+  POM, because whether a service writes Javadoc is its team's choice.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.exepex.stratum</groupId>
+    <artifactId>stratum-build-parent</artifactId>
+    <version>${revision}</version>
+    <relativePath>../stratum-build-parent/pom.xml</relativePath>
+  </parent>
+
+  <artifactId>stratum-library-parent</artifactId>
+  <packaging>pom</packaging>
+
+  <name>Stratum library parent</name>
+  <description>Parent POM for Stratum's libraries and starters: stratum-build-parent plus the Javadoc rules.</description>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <executions>
+          <!-- Its own result and cache files, so that it does not overwrite those of stratum-checkstyle-check. -->
+          <execution>
+            <id>stratum-checkstyle-javadoc</id>
+            <phase>validate</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <configuration>
+              <cacheFile>${project.build.directory}/checkstyle-javadoc-cachefile</cacheFile>
+              <configLocation>stratum/checkstyle-javadoc.xml</configLocation>
+              <outputFile>${project.build.directory}/checkstyle-javadoc-result.xml</outputFile>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

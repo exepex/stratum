@@ -27,6 +27,7 @@
     <module>platform/stratum-bom</module>
     <module>platform/stratum-build-parent</module>
     <module>platform/stratum-build-rules</module>
+    <module>platform/stratum-library-parent</module>
     <module>platform/stratum-parent</module>
 
     <!-- Shared libraries -->

@@ -110,7 +110,7 @@ one. With a BOM import, put it above the import to make that clear to readers:
 
 On top of Spring Boot's parent and the BOM, `stratum-parent` sets the following. Everything except
 the build info and packaging rows comes from `stratum-build-parent`, its own parent, which Stratum's
-libraries and starters also inherit.
+libraries and starters also inherit, through `stratum-library-parent`.
 
 | Area | Setting |
 | --- | --- |
@@ -126,8 +126,10 @@ libraries and starters also inherit.
 Every execution that Stratum's parent POMs add has an id starting with `stratum-`, such as
 `stratum-checkstyle-check`, so it never merges with an execution of a company parent.
 
-The Checkstyle rules ask for Javadoc on every type and method (test methods use `@DisplayName`
-instead), check names and imports, and reject magic numbers, console output and `Thread.sleep`.
+The Checkstyle rules check names and imports, and reject magic numbers, console output and
+`Thread.sleep`. They do not ask your service for Javadoc: whether to write it is your team's choice.
+Stratum's own libraries and starters are also checked for Javadoc on every type and method, by a
+second set of rules that only `stratum-library-parent` runs.
 Layout is left to Google Java Format. The PMD rules are PMD's best-practice, error-prone,
 multithreading, performance and security categories, without the few rules that conflict with
 Stratum's conventions; each exclusion is explained in the rule file.
