@@ -43,8 +43,9 @@ The BOM manages versions of:
   cloud SDKs, and so on),
 - the container images used in tests (as Maven properties).
 
-Today it lists Stratum's own modules only. Each extra library is added together with the first
-starter that uses it.
+Today it lists Stratum's own modules and MapStruct (`mapstruct`, `mapstruct-processor` and
+`lombok-mapstruct-binding`). Each other extra library is added together with the first starter that
+uses it.
 
 It does **not** import Spring Boot's BOM (`spring-boot-dependencies`). If your parent does not
 manage Spring Boot's versions, import `spring-boot-dependencies` yourself, at the version in the
@@ -115,6 +116,7 @@ libraries and starters also inherit, through `stratum-library-parent`.
 | Area | Setting |
 | --- | --- |
 | Java | `java.version=25`, which Spring Boot's parent turns into `maven.compiler.release`; `-parameters`; UTF-8 everywhere |
+| Annotation processors | Lombok, MapStruct (with `lombok-mapstruct-binding`) and `spring-boot-configuration-processor` run at compile time, at the versions Spring Boot and the BOM manage. A processor does nothing unless your code uses its annotations. To add your own, declare `<annotationProcessorPaths combine.children="append">` in your `maven-compiler-plugin` configuration, so the list is extended rather than replaced |
 | Plugin versions | Spring Boot's parent sets the versions of the plugins it manages, such as Compiler, Surefire, Failsafe, Enforcer and the Spring Boot plugin. `stratum-build-parent` sets the rest: JaCoCo, Spotless, Checkstyle, PMD, SpotBugs, FindSecBugs and OWASP Dependency-Check, one property each in `<properties>` |
 | Tests | `*Test.java` run by Surefire in `mvn test`; `*IT.java` run by Failsafe in `mvn verify` |
 | Formatting | Spotless checks Google Java Format; `mvn spotless:apply` fixes it |

@@ -6,6 +6,8 @@ import jakarta.validation.Validator;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Works out the settings a Stratum module uses: the values bound from properties, changed by the
@@ -16,20 +18,15 @@ import java.util.stream.Stream;
  * <p>A module's auto-configuration calls {@link #resolve} once, at startup, and builds its beans
  * from the result.
  */
+@RequiredArgsConstructor
 public final class StratumPropertiesResolver {
 
-  /** Checks the Bean Validation constraints declared on the module's settings type. */
-  private final Validator validator;
-
   /**
-   * Creates a resolver that validates settings with the given validator.
-   *
-   * @param validator the validator that checks the constraints on each module's settings type,
-   *     usually the application's {@code Validator} bean
+   * Checks the Bean Validation constraints declared on the module's settings type. A module passes
+   * the application's {@code Validator} bean, which Spring Boot creates because {@code
+   * stratum-core} brings Hibernate Validator.
    */
-  public StratumPropertiesResolver(Validator validator) {
-    this.validator = validator;
-  }
+  private final Validator validator;
 
   /**
    * Returns the settings a module uses: {@code bound}, changed by each customizer in turn.
@@ -53,21 +50,57 @@ public final class StratumPropertiesResolver {
   }
 
   /**
-   * Runs one customizer and rejects a {@code null} result, naming the customizer at fault.
+   * Runs one customizer and rejects a result the module cannot use, naming the customizer at fault.
    *
    * @param properties the settings so far
    * @param customizer the customizer to run
    * @param <P> the module's settings type
    * @return the settings the customizer returned
+   * @throws IllegalStateException if the customizer returns {@code null}, or is meant for another
+   *     settings type
    */
   private static <P> P customize(P properties, StratumPropertiesCustomizer<P> customizer) {
-    var customized = customizer.customize(properties);
+    P customized;
+    try {
+      customized = customizer.customize(properties);
+    } catch (ClassCastException e) {
+      throw wrongType(properties, customizer, e);
+    }
     if (customized == null) {
       throw new IllegalStateException(
           customizer.getClass().getName()
               + " returned null. Return the settings it received to leave them unchanged.");
     }
+    if (!properties.getClass().isInstance(customized)) {
+      throw wrongType(properties, customizer, null);
+    }
     return customized;
+  }
+
+  /**
+   * Explains that a customizer reached settings it was not written for. Spring matches a customizer
+   * to a module by its generic type, so this happens when the customizer is for another module, or
+   * was registered without its type, for example with {@code
+   * registerBean(StratumPropertiesCustomizer.class, ...)}.
+   *
+   * @param properties the settings the customizer was given
+   * @param customizer the customizer at fault
+   * @param cause the failure inside the customizer, or {@code null} if it returned the wrong type
+   * @param <P> the module's settings type
+   * @return the exception to throw
+   */
+  private static <P> IllegalStateException wrongType(
+      P properties, StratumPropertiesCustomizer<P> customizer, @Nullable ClassCastException cause) {
+    var settingsType = properties.getClass().getSimpleName();
+    return new IllegalStateException(
+        customizer.getClass().getName()
+            + " cannot change "
+            + settingsType
+            + ": it is a customizer for other settings, or it was registered without its type."
+            + " Declare it as StratumPropertiesCustomizer<"
+            + settingsType
+            + ">, for example as the return type of a @Bean method.",
+        cause);
   }
 
   /**

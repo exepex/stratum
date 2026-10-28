@@ -24,6 +24,11 @@
   <name>Stratum BOM</name>
   <description>Versions of Stratum's modules and of the extra libraries Stratum uses.</description>
 
+  <properties>
+    <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
+    <mapstruct.version>1.6.3</mapstruct.version>
+  </properties>
+
   <dependencyManagement>
     <dependencies>
       <dependency>
@@ -85,6 +90,21 @@
         <groupId>com.exepex.stratum</groupId>
         <artifactId>stratum-test</artifactId>
         <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.mapstruct</groupId>
+        <artifactId>mapstruct</artifactId>
+        <version>${mapstruct.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.mapstruct</groupId>
+        <artifactId>mapstruct-processor</artifactId>
+        <version>${mapstruct.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.projectlombok</groupId>
+        <artifactId>lombok-mapstruct-binding</artifactId>
+        <version>${lombok-mapstruct-binding.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

@@ -44,10 +44,11 @@ Every value you can set in a file you can also set in Java code. This suits a se
 configuration files would otherwise grow too large, or a value worked out in code. When a value is
 set in both places, **the Java value wins**.
 
-Each module binds its `stratum.<module>.*` properties to one settings type, a Java record. To set
-values in Java, declare a bean of type `StratumPropertiesCustomizer<the settings type>`. It receives
-the settings already read from your files, with Stratum's defaults for anything you did not set, and
-returns the settings the module should use. Change only what you need and copy the rest.
+Each module binds its `stratum.<module>.*` properties to one settings type, a Java record with a
+builder. To set values in Java, declare a bean of type `StratumPropertiesCustomizer<the settings
+type>`. It receives the settings already read from your files, with Stratum's defaults for anything
+you did not set, and returns the settings the module should use. Call `toBuilder()` on what it
+receives, change only what you need, and `build()`: every other value is kept.
 
 The settings types of the modules are planned; each module page will name its own. The example
 below uses a module called `example` with two settings, `message` and `timeout`. The same values,
@@ -71,18 +72,19 @@ class ExampleConfig {
 
   @Bean
   StratumPropertiesCustomizer<ExampleProperties> exampleSettings() {
-    return properties -> new ExampleProperties("Hello", Duration.ofSeconds(5));
+    return properties ->
+        properties.toBuilder().message("Hello").timeout(Duration.ofSeconds(5)).build();
   }
 }
 ```
 
 With all three in place, the module uses the values from the Java bean. To set only the timeout in
-Java and keep the message from your files, copy it across:
+Java and keep the message from your files, leave the message out:
 
 ```java
 @Bean
 StratumPropertiesCustomizer<ExampleProperties> exampleTimeout() {
-  return properties -> new ExampleProperties(properties.message(), Duration.ofSeconds(5));
+  return properties -> properties.toBuilder().timeout(Duration.ofSeconds(5)).build();
 }
 ```
 
@@ -96,13 +98,19 @@ Rules that apply to every module:
   missing timeout, stops the application at startup. The message names the setting and the rule it
   breaks, never the value, which might be a secret.
 
+- Declare the customizer with its settings type, as the return type of a `@Bean` method like the
+  examples above. Spring uses that type to give each customizer to its own module. A customizer
+  registered without it, for example with `registerBean(StratumPropertiesCustomizer.class, ...)`,
+  stops the application at startup with a message naming it.
+
 `StratumPropertiesCustomizer` is in `stratum-core`, in the package
-`com.exepex.stratum.core.properties`. Every starter brings it with it.
+`com.exepex.stratum.core.properties`. Every starter will bring it with it.
 
 ## Level 2: adjust a bean with a customizer
 
-A **customizer** is a small bean that receives a builder or a bean Stratum created and changes part
-of it. Stratum keeps building the bean; your customizer runs on top. You keep every other default.
+This is a different kind of customizer from the `StratumPropertiesCustomizer` of level 1, which
+changes a module's settings before any bean is built. A **customizer** at this level is a small bean
+that receives a builder or a bean Stratum created and changes part of it. Stratum keeps building the bean; your customizer runs on top. You keep every other default.
 
 Add a header to every outgoing HTTP call:
 

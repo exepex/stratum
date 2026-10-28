@@ -98,11 +98,14 @@ Every starter follows these rules:
 ## Configuration
 
 - **ST-ENG-30** Each module's settings are one `@ConfigurationProperties(prefix = "stratum.<module>")` type,
-  preferably a record, with Javadoc on every field and defaults in code. Do not read settings with scattered
-  `@Value` annotations.
+  preferably a record annotated with Lombok's `@Builder(toBuilder = true)`, with Javadoc on every field and
+  defaults in code. The builder is what a service's Java configuration uses to change one value and keep the rest
+  (ST-ENG-34). Do not read settings with scattered `@Value` annotations.
 - **ST-ENG-31** `spring-boot-configuration-processor` generates metadata for every property so IDEs can complete
   `stratum.*` keys. Properties are validated with Bean Validation (`@Validated`), so a bad value stops the
-  application at startup rather than failing on the first request.
+  application at startup rather than failing on the first request. `stratum-core` depends on
+  `spring-boot-starter-validation` for this, so every starter that depends on `stratum-core` brings Hibernate
+  Validator and Spring Boot's `Validator` bean; a starter does not declare it again.
 - **ST-ENG-32** Every property works the same from `application.properties` and `application.yml`. Property names use
   kebab-case, Spring Boot's canonical form. Tests for property binding cover both formats.
 - **ST-ENG-33** Every tunable value (pool size, timeout, limit, TTL, retry count) is a property. None is hardcoded.
@@ -112,7 +115,8 @@ Every starter follows these rules:
   the module's documentation says so. The shared mechanism is in `stratum-core`: a service declares
   `StratumPropertiesCustomizer<P>` beans for the module's settings record `P`, and the module's auto-configuration
   builds its beans only from `StratumPropertiesResolver.resolve(bound, customizers.orderedStream())`, never from the
-  bound record directly.
+  bound record directly. Spring matches a customizer to its module by the generic type, so tests and examples
+  register customizers with their full type, as the return type of a `@Bean` method.
 
 ## Java 25 and Spring Boot 4
 

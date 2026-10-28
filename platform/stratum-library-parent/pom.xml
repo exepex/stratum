@@ -22,6 +22,16 @@
   <name>Stratum library parent</name>
   <description>Parent POM for Stratum's libraries and starters: stratum-build-parent plus the Javadoc rules.</description>
 
+  <!-- Every library and starter generates its boilerplate with Lombok (ST-ENG-42). Lombok works only at
+       compile time, so it never reaches a service's classpath. -->
+  <dependencies>
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
+
   <build>
     <plugins>
       <plugin>

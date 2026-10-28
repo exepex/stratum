@@ -23,6 +23,7 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.validation.autoconfigure.ValidationAutoConfiguration;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.io.ClassPathResource;
 
@@ -58,7 +59,10 @@ class JavaConfigurationWinsTest {
               context ->
                   assertThat(context.getBean(Greeter.class).settings())
                       .isEqualTo(
-                          new GreetingProperties("Hi from a file", GreetingTestData.FILE_TIMEOUT)));
+                          GreetingProperties.builder()
+                              .message("Hi from a file")
+                              .timeout(GreetingTestData.FILE_TIMEOUT)
+                              .build()));
     }
 
     @ParameterizedTest(name = "{0}")
@@ -67,12 +71,15 @@ class JavaConfigurationWinsTest {
     void javaValueWinsOverFileValue(String file) {
       contextRunner
           .withInitializer(context -> load(context, file))
-          .withBean("javaTimeout", StratumPropertiesCustomizer.class, GreetingTestData::javaTimeout)
+          .withUserConfiguration(JavaTimeout.class)
           .run(
               context ->
                   assertThat(context.getBean(Greeter.class).settings())
                       .isEqualTo(
-                          new GreetingProperties("Hi from a file", GreetingTestData.JAVA_TIMEOUT)));
+                          GreetingProperties.builder()
+                              .message("Hi from a file")
+                              .timeout(GreetingTestData.JAVA_TIMEOUT)
+                              .build()));
     }
 
     @Test
@@ -108,16 +115,41 @@ class JavaConfigurationWinsTest {
     @DisplayName("a bad value set in Java stops startup")
     void badJavaValueStopsStartup() {
       contextRunner
-          .withBean(
-              "blankMessage",
-              StratumPropertiesCustomizer.class,
-              () -> GreetingTestData.javaMessage(""))
+          .withUserConfiguration(BlankMessage.class)
           .run(
               context ->
                   assertThat(context)
                       .getFailure()
                       .rootCause()
                       .isInstanceOf(ConstraintViolationException.class));
+    }
+
+    @Test
+    @DisplayName("a customizer for another module's settings is ignored")
+    void ignoresCustomizerForOtherSettings() {
+      contextRunner
+          .withUserConfiguration(OtherModule.class)
+          .run(
+              context ->
+                  assertThat(context.getBean(Greeter.class).settings())
+                      .isEqualTo(GreetingTestData.defaults()));
+    }
+
+    @Test
+    @DisplayName("a customizer registered without its settings type stops startup, naming it")
+    void untypedCustomizerStopsStartup() {
+      contextRunner
+          .withBean("untyped", StratumPropertiesCustomizer.class, GreetingTestData::otherModule)
+          .run(
+              context ->
+                  assertThat(context)
+                      .getFailure()
+                      .hasStackTraceContaining(
+                          IllegalStateException.class.getName()
+                              + ": "
+                              + GreetingTestData.class.getName())
+                      .hasStackTraceContaining(
+                          "Declare it as StratumPropertiesCustomizer<GreetingProperties>"));
     }
   }
 
@@ -141,7 +173,38 @@ class JavaConfigurationWinsTest {
     }
   }
 
+  /** Sets the timeout in Java. */
+  @Configuration(proxyBeanMethods = false)
+  static class JavaTimeout {
+
+    /**
+     * Sets the timeout to {@link GreetingTestData#JAVA_TIMEOUT}.
+     *
+     * @return the customizer
+     */
+    @Bean
+    StratumPropertiesCustomizer<GreetingProperties> javaTimeout() {
+      return GreetingTestData.javaTimeout();
+    }
+  }
+
+  /** Sets a blank message in Java, which breaks the module's constraints. */
+  @Configuration(proxyBeanMethods = false)
+  static class BlankMessage {
+
+    /**
+     * Sets the message to an empty string.
+     *
+     * @return the customizer
+     */
+    @Bean
+    StratumPropertiesCustomizer<GreetingProperties> blankMessage() {
+      return GreetingTestData.javaMessage("");
+    }
+  }
+
   /** Two customizers declared out of order, to show that {@code @Order} decides. */
+  @Configuration(proxyBeanMethods = false)
   static class OrderedCustomizers {
 
     /**
@@ -164,6 +227,21 @@ class JavaConfigurationWinsTest {
     @Order(1)
     StratumPropertiesCustomizer<GreetingProperties> first() {
       return GreetingTestData.javaMessage("first");
+    }
+  }
+
+  /** A customizer for another module's settings, which the test module must ignore. */
+  @Configuration(proxyBeanMethods = false)
+  static class OtherModule {
+
+    /**
+     * Changes settings of another type, here a plain {@code String}.
+     *
+     * @return the customizer
+     */
+    @Bean
+    StratumPropertiesCustomizer<String> otherModule() {
+      return GreetingTestData.otherModule();
     }
   }
 }

@@ -74,7 +74,12 @@ class StratumPropertiesResolverTest {
                   GreetingTestData.javaTimeout(),
                   GreetingTestData.javaMessage("last")));
 
-      assertThat(resolved).isEqualTo(new GreetingProperties("last", GreetingTestData.JAVA_TIMEOUT));
+      assertThat(resolved)
+          .isEqualTo(
+              GreetingProperties.builder()
+                  .message("last")
+                  .timeout(GreetingTestData.JAVA_TIMEOUT)
+                  .build());
     }
 
     @Test
@@ -103,6 +108,32 @@ class StratumPropertiesResolverTest {
     }
 
     @Test
+    @DisplayName(
+        "a customizer written for other settings stops startup and is named in the message")
+    void rejectsCustomizerForOtherSettings() {
+      StratumPropertiesCustomizer<Object> forStrings = settings -> ((String) settings).strip();
+
+      assertThatIllegalStateException()
+          .isThrownBy(
+              () -> resolver.resolve((Object) GreetingTestData.defaults(), Stream.of(forStrings)))
+          .withMessageContaining(StratumPropertiesResolverTest.class.getName())
+          .withMessageContaining("StratumPropertiesCustomizer<GreetingProperties>")
+          .withCauseInstanceOf(ClassCastException.class);
+    }
+
+    @Test
+    @DisplayName("a customizer that returns settings of another type stops startup")
+    void rejectsResultOfAnotherType() {
+      StratumPropertiesCustomizer<Object> wrongResult = properties -> "not the settings";
+
+      assertThatIllegalStateException()
+          .isThrownBy(
+              () -> resolver.resolve((Object) GreetingTestData.defaults(), Stream.of(wrongResult)))
+          .withMessageContaining("cannot change GreetingProperties")
+          .withNoCause();
+    }
+
+    @Test
     @DisplayName("a value set in Java that breaks a constraint stops startup")
     void rejectsInvalidValueSetInJava() {
       var blank = "   ";
@@ -120,7 +151,7 @@ class StratumPropertiesResolverTest {
     @DisplayName("every broken constraint is listed, in a stable order, without the values")
     void listsEveryViolationSortedWithoutValues() {
       StratumPropertiesCustomizer<GreetingProperties> noTimeout =
-          properties -> new GreetingProperties(properties.message(), null);
+          properties -> properties.toBuilder().timeout(null).build();
       StratumPropertiesCustomizer<GreetingProperties> blank = GreetingTestData.javaMessage("");
 
       assertThatExceptionOfType(ConstraintViolationException.class)

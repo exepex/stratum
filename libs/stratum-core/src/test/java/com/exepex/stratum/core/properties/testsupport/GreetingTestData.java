@@ -3,9 +3,11 @@ package com.exepex.stratum.core.properties.testsupport;
 import com.exepex.stratum.core.properties.StratumPropertiesCustomizer;
 import com.exepex.stratum.core.properties.fixture.GreetingProperties;
 import java.time.Duration;
+import lombok.experimental.UtilityClass;
 
 /** Settings and customizers of the test module, shared by the properties tests. */
-public final class GreetingTestData {
+@UtilityClass
+public class GreetingTestData {
 
   /** The test module's default timeout, as its properties type declares it. */
   public static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(2);
@@ -16,16 +18,13 @@ public final class GreetingTestData {
   /** The timeout that {@link #javaTimeout()} sets. */
   public static final Duration JAVA_TIMEOUT = Duration.ofSeconds(9);
 
-  /** Not instantiated: a holder of shared test data. */
-  private GreetingTestData() {}
-
   /**
    * Returns the test module's settings with every default.
    *
    * @return settings with message {@code Hello} and a 2-second timeout
    */
   public static GreetingProperties defaults() {
-    return new GreetingProperties("Hello", DEFAULT_TIMEOUT);
+    return GreetingProperties.builder().message("Hello").timeout(DEFAULT_TIMEOUT).build();
   }
 
   /**
@@ -35,7 +34,7 @@ public final class GreetingTestData {
    * @return the customizer
    */
   public static StratumPropertiesCustomizer<GreetingProperties> javaMessage(String message) {
-    return properties -> new GreetingProperties(message, properties.timeout());
+    return properties -> properties.toBuilder().message(message).build();
   }
 
   /**
@@ -44,6 +43,16 @@ public final class GreetingTestData {
    * @return the customizer
    */
   public static StratumPropertiesCustomizer<GreetingProperties> javaTimeout() {
-    return properties -> new GreetingProperties(properties.message(), JAVA_TIMEOUT);
+    return properties -> properties.toBuilder().timeout(JAVA_TIMEOUT).build();
+  }
+
+  /**
+   * Returns a customizer for another module, whose settings are a plain {@code String}. It casts
+   * what it receives, so it fails if it is ever given the test module's settings.
+   *
+   * @return the customizer
+   */
+  public static StratumPropertiesCustomizer<String> otherModule() {
+    return settings -> settings.strip();
   }
 }
