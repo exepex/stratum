@@ -2,6 +2,7 @@ package com.exepex.stratum.core.properties;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.core.properties.fixture.Greeter;
 import com.exepex.stratum.core.properties.fixture.GreetingAutoConfiguration;
 import com.exepex.stratum.core.properties.fixture.GreetingProperties;
@@ -93,7 +94,8 @@ class JavaConfigurationWinsTest {
                       .rootCause()
                       .isInstanceOf(ConstraintViolationException.class)
                       .hasMessage(
-                          "Invalid GreetingProperties: stratum.greeting.message breaks @NotBlank"));
+                          "SX-CORE-1005: Invalid GreetingProperties:"
+                              + " stratum.greeting.message breaks @NotBlank"));
     }
 
     @Test
@@ -158,8 +160,8 @@ class JavaConfigurationWinsTest {
                   assertThat(context)
                       .getFailure()
                       .hasStackTraceContaining(
-                          IllegalStateException.class.getName()
-                              + ": "
+                          StratumException.class.getName()
+                              + ": SX-CORE-1004: "
                               + GreetingTestData.class.getName())
                       .hasStackTraceContaining(
                           "declare it as StratumPropertiesCustomizer<GreetingProperties>"));

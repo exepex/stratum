@@ -78,6 +78,10 @@ Every error, whether thrown by your code, by validation or by Spring, looks like
 
 Internal details such as stack traces, SQL or class names are **never** sent to the caller.
 
+**Planned:** the body will also carry the fields of Stratum's external error object, which every
+kind of application shares: `code`, `severity`, `details` and `correlationId`. See
+[Error and warning codes](../guides/error-codes.md).
+
 ### How correlation IDs work
 
 ```mermaid

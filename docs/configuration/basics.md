@@ -207,10 +207,11 @@ Stratum validates every `stratum.*` property when the application starts, in two
    correct or supply a value the files leave unset. A value that breaks a rule stops the startup
    with a message that names the settings type, the key of each property and the rule it breaks
    with its limits. It never shows the value, or a map key or list position, which may be a
-   secret:
+   secret. The message starts with the error code `SX-CORE-1005`
+   ([Error and warning codes](../guides/error-codes.md)):
 
 ```text
-Invalid ExampleProperties: stratum.example.clients[*].name breaks @Size(max=10); stratum.example.timeout breaks @NotNull
+SX-CORE-1005: Invalid ExampleProperties: stratum.example.clients[*].name breaks @Size(max=10); stratum.example.timeout breaks @NotNull
 ```
 
 This is deliberate: a broken setting found at deploy time is far cheaper than one found by a

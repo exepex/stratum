@@ -2,6 +2,7 @@ package com.exepex.stratum.core.condition;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.exepex.stratum.core.error.StratumException;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
@@ -129,7 +130,8 @@ class ConditionalOnStratumModuleTest {
                   assertThat(context)
                       .getFailure()
                       .rootCause()
-                      .isInstanceOf(IllegalStateException.class)
+                      .isInstanceOf(StratumException.class)
+                      .hasMessageStartingWith("SX-CORE-1001: ")
                       .hasMessageContaining("\"" + name + "\""));
     }
 

@@ -1,5 +1,7 @@
 package com.exepex.stratum.core.condition;
 
+import com.exepex.stratum.core.error.CoreErrorCode;
+import com.exepex.stratum.core.error.StratumException;
 import org.springframework.boot.autoconfigure.condition.ConditionMessage;
 import org.springframework.boot.autoconfigure.condition.ConditionOutcome;
 import org.springframework.boot.autoconfigure.condition.SpringBootCondition;
@@ -28,7 +30,7 @@ class OnStratumModuleCondition extends SpringBootCondition {
    * @param context the context whose environment holds the property
    * @param metadata the annotated class or method
    * @return a match when the module is on, with the reason
-   * @throws IllegalStateException if the module name is not in kebab-case
+   * @throws StratumException {@code SX-CORE-1001} if the module name is not in kebab-case
    */
   @Override
   public ConditionOutcome getMatchOutcome(
@@ -58,11 +60,7 @@ class OnStratumModuleCondition extends SpringBootCondition {
             .get(ConditionalOnStratumModule.class)
             .getString(MergedAnnotation.VALUE);
     if (!isKebabCase(module)) {
-      throw new IllegalStateException(
-          "@ConditionalOnStratumModule needs a lower-case, kebab-case module name"
-              + " such as \"http-client\", but got \""
-              + module
-              + "\".");
+      throw new StratumException(CoreErrorCode.MODULE_NAME_NOT_KEBAB_CASE, module);
     }
     return module;
   }

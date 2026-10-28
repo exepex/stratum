@@ -2,8 +2,8 @@ package com.exepex.stratum.core.properties;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
+import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.core.properties.fixture.GreetingProperties;
 import com.exepex.stratum.core.properties.testsupport.GreetingTestData;
 import jakarta.validation.ConstraintViolationException;
@@ -101,9 +101,9 @@ class StratumPropertiesResolverTest {
     void rejectsNullFromCustomizer() {
       StratumPropertiesCustomizer<GreetingProperties> broken = new ReturnsNull();
 
-      assertThatIllegalStateException()
+      assertThatExceptionOfType(StratumException.class)
           .isThrownBy(() -> resolver.resolve(GreetingTestData.defaults(), Stream.of(broken)))
-          .withMessageContaining(ReturnsNull.class.getName())
+          .withMessageStartingWith("SX-CORE-1002: " + ReturnsNull.class.getName())
           .withMessageContaining("returned null");
     }
 
@@ -113,10 +113,10 @@ class StratumPropertiesResolverTest {
     void rejectsCustomizerForOtherSettings() {
       StratumPropertiesCustomizer<Object> forStrings = settings -> ((String) settings).strip();
 
-      assertThatIllegalStateException()
+      assertThatExceptionOfType(StratumException.class)
           .isThrownBy(
               () -> resolver.resolve((Object) GreetingTestData.defaults(), Stream.of(forStrings)))
-          .withMessageContaining(StratumPropertiesResolverTest.class.getName())
+          .withMessageStartingWith("SX-CORE-1004: " + StratumPropertiesResolverTest.class.getName())
           .withMessageContaining("StratumPropertiesCustomizer<GreetingProperties>")
           .withCauseInstanceOf(ClassCastException.class);
     }
@@ -128,8 +128,9 @@ class StratumPropertiesResolverTest {
       StratumPropertiesCustomizer<GreetingProperties> buggy =
           properties -> properties.toBuilder().message(((Integer) text).toString()).build();
 
-      assertThatIllegalStateException()
+      assertThatExceptionOfType(StratumException.class)
           .isThrownBy(() -> resolver.resolve(GreetingTestData.defaults(), Stream.of(buggy)))
+          .withMessageStartingWith("SX-CORE-1004: ")
           .withMessageContaining("the cast that failed is in the customizer's own code")
           .withCauseInstanceOf(ClassCastException.class);
     }
@@ -139,10 +140,12 @@ class StratumPropertiesResolverTest {
     void rejectsResultOfAnotherType() {
       StratumPropertiesCustomizer<Object> wrongResult = properties -> "not the settings";
 
-      assertThatIllegalStateException()
+      assertThatExceptionOfType(StratumException.class)
           .isThrownBy(
               () -> resolver.resolve((Object) GreetingTestData.defaults(), Stream.of(wrongResult)))
+          .withMessageStartingWith("SX-CORE-1003: ")
           .withMessageContaining("cannot change GreetingProperties")
+          .withMessageContaining("declare it as StratumPropertiesCustomizer<GreetingProperties>")
           .withNoCause();
     }
 
@@ -156,7 +159,8 @@ class StratumPropertiesResolverTest {
               () ->
                   resolver.resolve(
                       GreetingTestData.defaults(), Stream.of(GreetingTestData.javaMessage(blank))))
-          .withMessage("Invalid GreetingProperties: stratum.greeting.message breaks @NotBlank")
+          .withMessage(
+              "SX-CORE-1005: Invalid GreetingProperties: stratum.greeting.message breaks @NotBlank")
           .satisfies(failure -> assertThat(failure.getConstraintViolations()).hasSize(1));
     }
 
@@ -171,7 +175,7 @@ class StratumPropertiesResolverTest {
           .isThrownBy(
               () -> resolver.resolve(GreetingTestData.defaults(), Stream.of(noTimeout, blank)))
           .withMessage(
-              "Invalid GreetingProperties: stratum.greeting.message breaks @NotBlank;"
+              "SX-CORE-1005: Invalid GreetingProperties: stratum.greeting.message breaks @NotBlank;"
                   + " stratum.greeting.timeout breaks @NotNull");
     }
   }

@@ -1,5 +1,6 @@
 package com.exepex.stratum.core.properties;
 
+import com.exepex.stratum.core.error.CoreErrorCode;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ElementKind;
 import jakarta.validation.Path;
@@ -45,12 +46,12 @@ class ConstraintViolationMessages {
    */
   static <P> String describe(P properties, Set<ConstraintViolation<P>> violations) {
     var prefix = prefixOf(properties.getClass());
-    return violations.stream()
-        .map(violation -> describe(prefix, violation))
-        .sorted()
-        .collect(
-            Collectors.joining(
-                "; ", "Invalid " + properties.getClass().getSimpleName() + ": ", ""));
+    var broken =
+        violations.stream()
+            .map(violation -> describe(prefix, violation))
+            .sorted()
+            .collect(Collectors.joining("; "));
+    return CoreErrorCode.INVALID_SETTINGS.describe(properties.getClass().getSimpleName(), broken);
   }
 
   /**
