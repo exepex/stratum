@@ -114,7 +114,8 @@ log.warn(warning.getCodeAndMessage());
 ```
 
 The detail is optional: `new StratumException(code)` and `ErrorReport.of(code)` use the description
-alone, and `new StratumException(code, detail, cause)` adds the exception behind the failure.
+alone. So does a detail that is blank or only control characters, so the message never ends in
+a dangling colon. `new StratumException(code, detail, cause)` adds the exception behind the failure.
 
 The exception's message starts with the code, such as `ORD-0001: Not enough stock: SKU-1`, and
 `exception.getReport()` gives its `ErrorReport`. Log the exception itself, so the log shows its
