@@ -3,7 +3,7 @@ package com.exepex.stratum.core.properties;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ElementKind;
 import jakarta.validation.Path;
-import java.lang.annotation.Annotation;
+import jakarta.validation.metadata.ConstraintDescriptor;
 import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.Objects;
@@ -15,7 +15,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DataObjectPropertyName;
 import org.springframework.core.annotation.MergedAnnotations;
 import org.springframework.util.ObjectUtils;
-import org.springframework.util.ReflectionUtils;
 
 /**
  * Turns broken constraints into the one-line startup error a developer reads. It names each
@@ -63,7 +62,7 @@ class ConstraintViolationMessages {
     var key = propertyKey(violation.getPropertyPath());
     return (prefix.isEmpty() ? key : prefix + "." + key)
         + " breaks "
-        + rule(violation.getConstraintDescriptor().getAnnotation());
+        + rule(violation.getConstraintDescriptor());
   }
 
   /**
@@ -102,21 +101,24 @@ class ConstraintViolationMessages {
 
   /**
    * Names a rule by its annotation and the limits set on it, leaving out attributes at their
-   * default.
+   * default. The values come from the descriptor that the validator has already read, so a
+   * constraint declared without public access works too.
    *
-   * @param constraint the constraint annotation
+   * @param constraint the broken constraint
    * @return the rule, such as {@code @NotBlank} or {@code @Size(max=10, min=2)}
    */
-  private static String rule(Annotation constraint) {
+  private static String rule(ConstraintDescriptor<?> constraint) {
+    var type = constraint.getAnnotation().annotationType();
+    var values = constraint.getAttributes();
     var limits = new TreeMap<String, String>();
-    for (Method attribute : constraint.annotationType().getDeclaredMethods()) {
-      var value = ReflectionUtils.invokeMethod(attribute, constraint);
+    for (Method attribute : type.getDeclaredMethods()) {
+      var value = values.get(attribute.getName());
       if (!NON_LIMIT_ATTRIBUTES.contains(attribute.getName())
           && !Objects.deepEquals(value, attribute.getDefaultValue())) {
         limits.put(attribute.getName(), ObjectUtils.nullSafeToString(value));
       }
     }
-    var name = "@" + constraint.annotationType().getSimpleName();
+    var name = "@" + type.getSimpleName();
     return limits.isEmpty() ? name : name + "(" + join(limits) + ")";
   }
 
