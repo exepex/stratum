@@ -23,6 +23,32 @@
   <description>Checkstyle, PMD and Maven Enforcer rules that every Stratum and service build is checked against.</description>
 
   <properties>
+    <!-- Must match the versions stratum-build-parent runs: this module cannot inherit that parent. -->
+    <junit-jupiter.version>6.1.3</junit-jupiter.version>
+    <maven.compiler.release>25</maven.compiler.release>
+    <pmd.version>7.28.0</pmd.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
+
+  <!-- Tests for the PMD rules in stratum/pmd-lombok.xml, with PMD's own rule-test harness. -->
+  <dependencies>
+    <dependency>
+      <groupId>net.sourceforge.pmd</groupId>
+      <artifactId>pmd-java</artifactId>
+      <version>${pmd.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>net.sourceforge.pmd</groupId>
+      <artifactId>pmd-test</artifactId>
+      <version>${pmd.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
+      <version>${junit-jupiter.version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
 </project>

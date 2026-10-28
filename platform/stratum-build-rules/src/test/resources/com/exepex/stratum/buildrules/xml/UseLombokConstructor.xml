@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Cases for the UseLombokConstructor rule in stratum/pmd-lombok.xml: code it must report, then code it must not. -->
+<test-data
+    xmlns="http://pmd.sourceforge.net/rule-tests"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://pmd.sourceforge.net/rule-tests http://pmd.sourceforge.net/rule-tests_1_0_0.xsd">
+
+  <test-code>
+    <description>constructors that only assign their parameters to fields</description>
+    <expected-problems>2</expected-problems>
+    <expected-linenumbers>4,11</expected-linenumbers>
+    <code><![CDATA[
+class Person {
+  private final String name;
+  private final int age;
+  Person(String name, int age) {
+    this.name = name;
+    this.age = age;
+  }
+}
+enum Colour {
+  RED("r");
+  Colour(String code) {
+    this.code = code;
+  }
+  private final String code;
+}
+]]></code>
+  </test-code>
+
+  <test-code>
+    <description>constructors that call super or this, check, convert, copy or map parameters to other fields are not reported</description>
+    <expected-problems>0</expected-problems>
+    <code><![CDATA[
+import java.util.Objects;
+class Failure extends RuntimeException {
+  private final String code;
+  private final String name;
+  Failure(String code) {
+    super(code);
+    this.code = code;
+    this.name = "";
+  }
+  Failure() {
+    this("none");
+  }
+  Failure(String code, String name) {
+    this.code = Objects.requireNonNull(code);
+    this.name = name.trim();
+  }
+  private Failure(int unused) {
+  }
+}
+class Node {
+  private final Node next;
+  Node(Node next) {
+    this.next = next.next;
+  }
+}
+class Range {
+  private final int lower;
+  private final int upper;
+  Range(int value) {
+    this.lower = value;
+    this.upper = value;
+  }
+  Range(int from, int to) {
+    this.lower = to;
+    this.upper = from;
+  }
+  Range(int lower, int upper, boolean unused) {
+    this.lower = lower;
+    this.upper = upper;
+  }
+}
+]]></code>
+  </test-code>
+</test-data>

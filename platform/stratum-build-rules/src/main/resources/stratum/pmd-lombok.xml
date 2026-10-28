@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Stratum's rules against hand-written boilerplate (ST-ENG-42). Each rule finds code that Lombok
+  generates, and names the annotation to use instead. Only stratum-library-parent runs them, for
+  Stratum's libraries and starters, which have Lombok on their build path. Services are not checked:
+  whether a service uses Lombok is its team's choice.
+
+  Each rule matches only the plainest form of the boilerplate, so that it does not flag code with
+  logic in it. A getter that computes, a setter that validates, or a constructor that calls super()
+  or checks its arguments is not reported.
+-->
+<ruleset name="Stratum Lombok"
+    xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+  <description>Code that Stratum generates with Lombok instead of writing it by hand.</description>
+
+  <rule name="UseLombokGetter"
+      language="java"
+      message="Generate this getter with Lombok @Getter instead of writing it (ST-ENG-42)."
+      class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+    <description>
+      A getter that only returns a field of its class and is named as Lombok would name it, such as
+      getName() or isActive(). An adapter such as getUsername() returning loginName is not reported.
+    </description>
+    <priority>3</priority>
+    <properties>
+      <property name="xpath">
+        <value><![CDATA[
+//MethodDeclaration
+  [parent::ClassBody[parent::ClassDeclaration[@Interface = false()]] or parent::EnumBody]
+  [FormalParameters/@Size = 0]
+  [Block/@Size = 1]
+  [let $field := Block/ReturnStatement/(FieldAccess[ThisExpression] | VariableAccess)/@Name,
+       $property := concat(upper-case(substring($field, 1, 1)), substring($field, 2))
+   return $field = ../FieldDeclaration[@Static = false()]/VariableDeclarator/VariableId/@Name
+     and @Name = (concat('get', $property), concat('is', $property))]
+]]></value>
+      </property>
+    </properties>
+  </rule>
+
+  <rule name="UseLombokSetter"
+      language="java"
+      message="Generate this setter with Lombok @Setter instead of writing it (ST-ENG-42)."
+      class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+    <description>
+      A setter that only assigns its parameter to a field of its class and is named as Lombok would
+      name it, such as setName(String) for the field name.
+    </description>
+    <priority>3</priority>
+    <properties>
+      <property name="xpath">
+        <value><![CDATA[
+//MethodDeclaration
+  [parent::ClassBody[parent::ClassDeclaration[@Interface = false()]]]
+  [FormalParameters/@Size = 1]
+  [Block/@Size = 1]
+  [let $assignment := Block/ExpressionStatement/AssignmentExpression[@Operator = '='],
+       $field := $assignment/*[1][self::FieldAccess[ThisExpression] or self::VariableAccess]/@Name
+   return $field = ../FieldDeclaration[@Static = false()]/VariableDeclarator/VariableId/@Name
+     and $assignment/*[2][self::VariableAccess]/@Name = FormalParameters/FormalParameter/VariableId/@Name
+     and @Name = concat('set', upper-case(substring($field, 1, 1)), substring($field, 2))]
+]]></value>
+      </property>
+    </properties>
+  </rule>
+
+  <rule name="UseLombokConstructor"
+      language="java"
+      message="Generate this constructor with Lombok @RequiredArgsConstructor or @AllArgsConstructor instead of writing it (ST-ENG-42)."
+      class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+    <description>
+      A constructor that assigns each of its parameters, unchanged, to the field of the same name, and
+      does nothing else. A constructor that sets several fields from one parameter is not reported.
+    </description>
+    <priority>3</priority>
+    <properties>
+      <property name="xpath">
+        <value><![CDATA[
+//ConstructorDeclaration
+  [Block/@Size > 0]
+  [Block/@Size = FormalParameters/@Size]
+  [every $statement in Block/* satisfies
+    $statement/self::ExpressionStatement/AssignmentExpression[@Operator = '=']
+      [*[1][self::FieldAccess[ThisExpression]]/@Name = *[2][self::VariableAccess]/@Name]
+      [*[2]/@Name = $statement/../../FormalParameters/FormalParameter/VariableId/@Name]]
+]]></value>
+      </property>
+    </properties>
+  </rule>
+
+  <rule name="UseLombokEqualsAndHashCode"
+      language="java"
+      message="Use a record, or Lombok @EqualsAndHashCode, instead of writing equals and hashCode (ST-ENG-40, ST-ENG-42)."
+      class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+    <description>A hand-written equals(Object) or hashCode() in a class.</description>
+    <priority>3</priority>
+    <properties>
+      <property name="xpath">
+        <value><![CDATA[
+//MethodDeclaration
+  [parent::ClassBody[parent::ClassDeclaration[@Interface = false()]]]
+  [@Static = false()]
+  [(@Name = 'equals' and FormalParameters/@Size = 1
+      and FormalParameters/FormalParameter/ClassType[@SimpleName = 'Object'])
+    or (@Name = 'hashCode' and FormalParameters/@Size = 0)]
+]]></value>
+      </property>
+    </properties>
+  </rule>
+
+  <rule name="UseLombokToString"
+      language="java"
+      message="Use a record, or Lombok @ToString, instead of writing toString; leave out secrets and personal data with @ToString.Exclude (ST-ENG-42, ST-SEC-03)."
+      class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+    <description>A hand-written toString() in a class. Enums may still override toString.</description>
+    <priority>3</priority>
+    <properties>
+      <property name="xpath">
+        <value><![CDATA[
+//MethodDeclaration
+  [parent::ClassBody[parent::ClassDeclaration[@Interface = false()]]]
+  [@Static = false()]
+  [@Name = 'toString' and FormalParameters/@Size = 0]
+]]></value>
+      </property>
+    </properties>
+  </rule>
+
+  <rule name="UseLombokBuilder"
+      language="java"
+      message="Generate this builder with Lombok @Builder instead of writing it (ST-ENG-42)."
+      class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+    <description>
+      A class named *Builder with a build() method, which neither extends nor implements another type.
+      A class that implements a library's builder interface is not reported, nor a builder class that
+      customizes the one Lombok generates for its enclosing type, such as a build() that validates.
+    </description>
+    <priority>3</priority>
+    <properties>
+      <property name="xpath">
+        <value><![CDATA[
+//ClassDeclaration
+  [@Interface = false()]
+  [ends-with(@SimpleName, 'Builder')]
+  [not(ExtendsList or ImplementsList)]
+  [not((../../ModifierList | ../ConstructorDeclaration/ModifierList | ../MethodDeclaration/ModifierList)
+      /Annotation[@SimpleName = ('Builder', 'SuperBuilder')])]
+  [ClassBody/MethodDeclaration[@Name = 'build'][FormalParameters/@Size = 0]]
+]]></value>
+      </property>
+    </properties>
+  </rule>
+
+  <rule name="UseLombokLogger"
+      language="java"
+      message="Declare the logger with Lombok @Slf4j instead of calling getLogger (ST-ENG-42)."
+      class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+    <description>A logger field created by hand.</description>
+    <priority>3</priority>
+    <properties>
+      <property name="xpath">
+        <value><![CDATA[
+//FieldDeclaration/VariableDeclarator/MethodCall
+  [@MethodName = 'getLogger']
+  [TypeExpression/ClassType[@SimpleName = ('LoggerFactory', 'LogManager', 'Logger')]]
+]]></value>
+      </property>
+    </properties>
+  </rule>
+</ruleset>

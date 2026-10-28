@@ -128,8 +128,11 @@ Every execution that Stratum's parent POMs add has an id starting with `stratum-
 
 The Checkstyle rules check names and imports, and reject magic numbers, console output and
 `Thread.sleep`. They do not ask your service for Javadoc: whether to write it is your team's choice.
-Stratum's own libraries and starters are also checked for Javadoc on every type and method, by a
-second set of rules that only `stratum-library-parent` runs.
+Stratum's own libraries and starters are checked further, by rules that only
+`stratum-library-parent` runs and your service does not get: Google's Checkstyle configuration,
+Javadoc on every type and method, at most 400 lines per Java file, and PMD rules that fail the build
+on getters, setters, builders, loggers, constructors, `equals`, `hashCode` and `toString` written by
+hand where Lombok can generate them.
 Layout is left to Google Java Format. The PMD rules are PMD's best-practice, error-prone,
 multithreading, performance and security categories, without the few rules that conflict with
 Stratum's conventions; each exclusion is explained in the rule file.

@@ -95,8 +95,10 @@ How the limits apply:
   several documents and an index that links them.
 - Never squeeze a file under the limit by joining statements, lengthening lines or removing blank lines.
 - A file already over its limit may only be changed in a way that makes it shorter.
-- The limits are enforced by agents and the judge. Do not add a script, test, build plugin or CI job that counts
-  lines.
+- The build enforces the 400-line limit on Java files in Stratum's libraries and starters, with Checkstyle's
+  `FileLength` check (`stratum/checkstyle-library.xml`). Every other limit, on POMs, YAML, other configuration and
+  text files, is checked by agents and the judge only. Do not add another script, test, build plugin or CI job
+  that counts lines unless the owner asks for it.
 
 ## Engineering rules
 
@@ -123,7 +125,8 @@ topic file wins.
 - JDK 25. Build with the Maven Wrapper (`./mvnw`), which pins the Maven version; the commands below
   work the same with `./mvnw` in place of `mvn`.
 - `mvn verify` must pass before every push. It runs formatting (Spotless with google-java-format),
-  Checkstyle, PMD, SpotBugs, the Maven Enforcer, unit tests (`*Test.java`, Surefire), integration tests
+  Checkstyle (Stratum's rules, plus Google's `google_checks.xml` for Stratum's own code), PMD (with the rules
+  against hand-written boilerplate of ST-ENG-42 for Stratum's own code), SpotBugs, the Maven Enforcer, unit tests (`*Test.java`, Surefire), integration tests
   (`*IT.java`, Failsafe) and JaCoCo coverage. Each one fails the build.
 - While working on one module, `mvn -pl <module> -am verify` is enough. Run the full `mvn verify` before asking for
   the judge.
