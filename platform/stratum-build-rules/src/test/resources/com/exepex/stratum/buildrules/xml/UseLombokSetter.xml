@@ -24,7 +24,7 @@ class Person {
   </test-code>
 
   <test-code>
-    <description>setters that validate, convert, return this or ignore their parameter are not reported</description>
+    <description>setters that validate, convert, return this, ignore their parameter or have another name are not reported</description>
     <expected-problems>0</expected-problems>
     <code><![CDATA[
 class Person {
@@ -45,6 +45,9 @@ class Person {
   }
   void setDefaultName(String ignored) {
     this.name = DEFAULT_NAME;
+  }
+  void setUsername(String username) {
+    this.name = username;
   }
   private static final String DEFAULT_NAME = "x";
 }

@@ -42,7 +42,7 @@ enum Colour {
   </test-code>
 
   <test-code>
-    <description>getters with logic, parameters or a static field are not reported</description>
+    <description>getters with logic, parameters, a static field or another name are not reported</description>
     <expected-problems>0</expected-problems>
     <code><![CDATA[
 class Person {
@@ -61,6 +61,9 @@ class Person {
   }
   String getOther(String key) {
     return key;
+  }
+  String getUsername() {
+    return name;
   }
 }
 ]]></code>

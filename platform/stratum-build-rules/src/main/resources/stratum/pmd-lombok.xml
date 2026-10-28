@@ -19,18 +19,22 @@
       language="java"
       message="Generate this getter with Lombok @Getter instead of writing it (ST-ENG-42)."
       class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
-    <description>A getter that only returns a field of its class.</description>
+    <description>
+      A getter that only returns a field of its class and is named as Lombok would name it, such as
+      getName() or isActive(). An adapter such as getUsername() returning loginName is not reported.
+    </description>
     <priority>3</priority>
     <properties>
       <property name="xpath">
         <value><![CDATA[
 //MethodDeclaration
   [parent::ClassBody[parent::ClassDeclaration[@Interface = false()]] or parent::EnumBody]
-  [matches(@Name, '^(get|is)[A-Z]')]
   [FormalParameters/@Size = 0]
   [Block/@Size = 1]
-  [Block/ReturnStatement/(FieldAccess[ThisExpression] | VariableAccess)/@Name
-    = ../FieldDeclaration[@Static = false()]/VariableDeclarator/VariableId/@Name]
+  [let $field := Block/ReturnStatement/(FieldAccess[ThisExpression] | VariableAccess)/@Name,
+       $property := concat(upper-case(substring($field, 1, 1)), substring($field, 2))
+   return $field = ../FieldDeclaration[@Static = false()]/VariableDeclarator/VariableId/@Name
+     and @Name = (concat('get', $property), concat('is', $property))]
 ]]></value>
       </property>
     </properties>
@@ -40,21 +44,23 @@
       language="java"
       message="Generate this setter with Lombok @Setter instead of writing it (ST-ENG-42)."
       class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
-    <description>A setter that only assigns its parameter to a field of its class.</description>
+    <description>
+      A setter that only assigns its parameter to a field of its class and is named as Lombok would
+      name it, such as setName(String) for the field name.
+    </description>
     <priority>3</priority>
     <properties>
       <property name="xpath">
         <value><![CDATA[
 //MethodDeclaration
   [parent::ClassBody[parent::ClassDeclaration[@Interface = false()]]]
-  [matches(@Name, '^set[A-Z]')]
   [FormalParameters/@Size = 1]
   [Block/@Size = 1]
-  [Block/ExpressionStatement/AssignmentExpression[@Operator = '=']
-    [*[1][self::FieldAccess[ThisExpression] or self::VariableAccess]/@Name
-      = ../../../../FieldDeclaration[@Static = false()]/VariableDeclarator/VariableId/@Name]
-    [*[2][self::VariableAccess]/@Name
-      = ../../../FormalParameters/FormalParameter/VariableId/@Name]]
+  [let $assignment := Block/ExpressionStatement/AssignmentExpression[@Operator = '='],
+       $field := $assignment/*[1][self::FieldAccess[ThisExpression] or self::VariableAccess]/@Name
+   return $field = ../FieldDeclaration[@Static = false()]/VariableDeclarator/VariableId/@Name
+     and $assignment/*[2][self::VariableAccess]/@Name = FormalParameters/FormalParameter/VariableId/@Name
+     and @Name = concat('set', upper-case(substring($field, 1, 1)), substring($field, 2))]
 ]]></value>
       </property>
     </properties>
@@ -65,7 +71,8 @@
       message="Generate this constructor with Lombok @RequiredArgsConstructor or @AllArgsConstructor instead of writing it (ST-ENG-42)."
       class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
     <description>
-      A constructor whose every statement assigns one of its parameters, unchanged, to a field.
+      A constructor that assigns each of its parameters, unchanged, to the field of the same name, and
+      does nothing else. A constructor that sets several fields from one parameter is not reported.
     </description>
     <priority>3</priority>
     <properties>
@@ -73,10 +80,11 @@
         <value><![CDATA[
 //ConstructorDeclaration
   [Block/@Size > 0]
+  [Block/@Size = FormalParameters/@Size]
   [every $statement in Block/* satisfies
     $statement/self::ExpressionStatement/AssignmentExpression[@Operator = '=']
-      [*[1][self::FieldAccess[ThisExpression] or self::VariableAccess]]
-      [*[2][self::VariableAccess]/@Name = $statement/../../FormalParameters/FormalParameter/VariableId/@Name]]
+      [*[1][self::FieldAccess[ThisExpression]]/@Name = *[2][self::VariableAccess]/@Name]
+      [*[2]/@Name = $statement/../../FormalParameters/FormalParameter/VariableId/@Name]]
 ]]></value>
       </property>
     </properties>
@@ -94,7 +102,9 @@
 //MethodDeclaration
   [parent::ClassBody[parent::ClassDeclaration[@Interface = false()]]]
   [@Static = false()]
-  [(@Name = 'equals' and FormalParameters/@Size = 1) or (@Name = 'hashCode' and FormalParameters/@Size = 0)]
+  [(@Name = 'equals' and FormalParameters/@Size = 1
+      and FormalParameters/FormalParameter/ClassType[@SimpleName = 'Object'])
+    or (@Name = 'hashCode' and FormalParameters/@Size = 0)]
 ]]></value>
       </property>
     </properties>

@@ -29,7 +29,7 @@ enum Colour {
   </test-code>
 
   <test-code>
-    <description>constructors that call super or this, check, convert or copy are not reported</description>
+    <description>constructors that call super or this, check, convert, copy or map parameters to other fields are not reported</description>
     <expected-problems>0</expected-problems>
     <code><![CDATA[
 import java.util.Objects;
@@ -55,6 +55,22 @@ class Node {
   private final Node next;
   Node(Node next) {
     this.next = next.next;
+  }
+}
+class Range {
+  private final int lower;
+  private final int upper;
+  Range(int value) {
+    this.lower = value;
+    this.upper = value;
+  }
+  Range(int from, int to) {
+    this.lower = to;
+    this.upper = from;
+  }
+  Range(int lower, int upper, boolean unused) {
+    this.lower = lower;
+    this.upper = upper;
   }
 }
 ]]></code>
