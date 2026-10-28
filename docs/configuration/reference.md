@@ -50,7 +50,8 @@ stratum.environment=prod
 ## On/off switches
 
 Every module is off until you switch it on with one property. All default to `false`, so adding a
-starter, or a [bundle](../modules/bundles.md), sets nothing up by itself.
+starter, or a [bundle](../modules/bundles.md), sets nothing up by itself. A module's own switches,
+such as `stratum.web.correlation.enabled`, apply only once the module is on.
 
 | Property | Switches on |
 | --- | --- |

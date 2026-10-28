@@ -153,15 +153,23 @@ every step and explains each line.
 Your service already has a parent, such as your company's? Import the Stratum BOM instead. See
 [Installation](docs/getting-started/installation.md).
 
-**2. Add the bundle for your kind of application**, or single starters. No `<version>` tags:
-Stratum manages them. The [bundles](docs/modules/bundles.md) are `stratum-starter-microservice`,
-`stratum-starter-web-ui`, `stratum-starter-batch` and `stratum-starter-cli`.
+**2. Add the starters you need.** No `<version>` tags: Stratum manages them. This example uses
+three single starters. For a whole application, add a [bundle](#bundles) instead, and switch on
+each module it brings.
 
 ```xml
 <dependencies>
   <dependency>
     <groupId>com.exepex.stratum</groupId>
-    <artifactId>stratum-starter-microservice</artifactId>
+    <artifactId>stratum-starter-web</artifactId>
+  </dependency>
+  <dependency>
+    <groupId>com.exepex.stratum</groupId>
+    <artifactId>stratum-starter-logging</artifactId>
+  </dependency>
+  <dependency>
+    <groupId>com.exepex.stratum</groupId>
+    <artifactId>stratum-starter-observability</artifactId>
   </dependency>
   <dependency>
     <groupId>com.exepex.stratum</groupId>
@@ -227,6 +235,10 @@ default, examples in YAML and properties, how to override it and how to troubles
 
 One dependency per kind of application; each lists only the single starters that kind needs. See
 [Bundle starters](docs/modules/bundles.md).
+
+A bundle with `security` puts Spring Security on the classpath. Until you switch on
+`stratum.security.enabled` and set its issuer, Spring Boot's default applies and every endpoint
+asks for a login. See [Security](docs/modules/security.md).
 
 | Bundle | Single starters it adds |
 | --- | --- |

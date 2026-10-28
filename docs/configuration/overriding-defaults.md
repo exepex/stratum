@@ -189,13 +189,17 @@ stratum:
 stratum.cache.enabled=true
 ```
 
-Leaving the property unset, or setting it to `false`, removes all of the module's beans and defaults,
-as if the starter were not there, while keeping its libraries. That is useful for a test profile, or
-while you migrate one concern at a time. If you never want the module, remove the starter from your
-`pom.xml`, or exclude it from the bundle, instead.
+Leaving the property unset, or setting it to `false`, removes all of Stratum's beans and defaults for
+the module. Spring Boot's own setup for the libraries the starter brings still applies, such as
+Spring Security's default login; to avoid that, leave the starter out. Switching a module off is
+useful for a test profile, or while you migrate one concern at a time. If you never want the
+module, remove the starter from your `pom.xml`, or exclude it from the bundle, instead.
 
 The switch is read from properties only, not from a `StratumPropertiesCustomizer`: Spring decides
 which beans to create before any customizer runs.
+
+A module's own switches, such as `stratum.web.correlation.enabled`, apply only once the module is
+on. Their defaults, often `true`, mean that a module you switch on comes with all its parts.
 
 Some modules also let you switch off one part:
 

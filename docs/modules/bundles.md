@@ -92,7 +92,9 @@ its company's security and drops Stratum's:
 </dependency>
 ```
 
-To keep a starter on the classpath without it setting anything up, leave its switch unset. See
+To keep a starter on the classpath without Stratum setting anything up, leave its switch unset.
+Spring Boot's own setup for the libraries the starter brings still applies, such as Spring
+Security's default login; to avoid that, exclude the starter as above. See
 [Turn a module on or off](../configuration/overriding-defaults.md#level-4-turn-a-module-on-or-off).
 
 ## Pick single starters instead

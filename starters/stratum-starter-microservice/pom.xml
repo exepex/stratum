@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  A bundle starter: it contains no code and only lists the single starters that a REST microservice needs, so that
-  a service adds one dependency instead of several (ADR 0003). A service adds any other starter
-  next to it, and excludes one it does not want. A bundle never lists a starter that this kind of
-  application does not need.
+  A bundle starter: it contains no code and only lists the single starters that a REST microservice
+  needs, so that a service adds one dependency instead of several (ADR 0003). A service adds any
+  other starter next to it, and excludes one it does not want. A bundle never lists a starter that
+  this kind of application does not need.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"

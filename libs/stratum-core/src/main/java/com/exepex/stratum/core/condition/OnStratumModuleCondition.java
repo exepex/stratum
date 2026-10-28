@@ -34,7 +34,7 @@ class OnStratumModuleCondition extends SpringBootCondition {
   public ConditionOutcome getMatchOutcome(
       ConditionContext context, AnnotatedTypeMetadata metadata) {
     var module = moduleName(metadata);
-    var property = "stratum." + module + ".enabled";
+    var property = StratumModuleConstants.enabledProperty(module);
     var message = ConditionMessage.forCondition(ConditionalOnStratumModule.class, module);
     var configured = Binder.get(context.getEnvironment()).bind(property, Boolean.class);
     if (configured.isBound()) {
@@ -59,9 +59,8 @@ class OnStratumModuleCondition extends SpringBootCondition {
             .getString(MergedAnnotation.VALUE);
     if (module.isEmpty() || !ConfigurationPropertyName.isValid(module)) {
       throw new IllegalStateException(
-          "@ConditionalOnStratumModule needs a lower-case, kebab-case module name such as"
-              + " \"http-client\", but"
-              + " got \""
+          "@ConditionalOnStratumModule needs a lower-case, kebab-case module name"
+              + " such as \"http-client\", but got \""
               + module
               + "\".");
     }
