@@ -9,7 +9,8 @@ import lombok.RequiredArgsConstructor;
  * Masks the value of each sensitive key in text, as in {@code password=x}, {@code "token":"x"},
  * {@code ?api_key=x&} or Lombok's {@code User(email=x, ...)}. A quoted value ends at its closing
  * quote. An unquoted value runs over spaces until the next key, or until one of {@code , ; & ) } ]
- * "} or a line break.
+ * "} or a line break; the value of a header that holds a list, such as {@code Cookie: a=1; b=2},
+ * runs to the end of the line.
  *
  * <p>Only the key is found with a regular expression; the value's end is found by scanning, so a
  * long or hostile value cannot make matching slow.
@@ -51,7 +52,7 @@ final class KeyValuePairs implements UnaryOperator<String> {
     while (from < text.length() && keys.find(from)) {
       var valueStart = keys.end();
       var quoted = valueStart < text.length() && text.charAt(valueStart) == QUOTE;
-      var valueEnd = quoted ? quotedEnd(text, valueStart + 1) : plainEnd(text, valueStart);
+      var valueEnd = valueEnd(text, keys.group(1), valueStart, quoted);
       var mask = fieldNames.mask(keys.group(1), () -> value(text, valueStart, valueEnd, quoted));
       if (mask.isPresent() && valueEnd > valueStart) {
         masked
@@ -72,6 +73,25 @@ final class KeyValuePairs implements UnaryOperator<String> {
     return quoted
         ? text.substring(start + 1, Math.max(start + 1, end - 1))
         : text.substring(start, end);
+  }
+
+  /** Returns where the value that starts at the index ends. */
+  private static int valueEnd(String text, String key, int start, boolean quoted) {
+    if (quoted) {
+      return quotedEnd(text, start + 1);
+    }
+    return SensitiveFieldNames.isHeaderList(key) ? lineEnd(text, start) : plainEnd(text, start);
+  }
+
+  /** Returns the end of the line, without trailing spaces. */
+  private static int lineEnd(String text, int from) {
+    var end = from;
+    for (var i = from; i < text.length() && text.charAt(i) != '\r' && text.charAt(i) != '\n'; i++) {
+      if (!Character.isWhitespace(text.charAt(i))) {
+        end = i + 1;
+      }
+    }
+    return end;
   }
 
   /** Returns the index after the closing quote, or the end of the text when there is none. */

@@ -89,6 +89,13 @@ class SecretRedactionTest {
     }
 
     @Test
+    @DisplayName("a Cookie header is masked to the end of the line, with every cookie in it")
+    void wholeCookieHeaderIsMasked() {
+      assertThat(text("Cookie: sid=fake-session; opaque=fake-cookie\nnext line"))
+          .isEqualTo("Cookie: ****\nnext line");
+    }
+
+    @Test
     @DisplayName("a password in a key-value pair is masked, and the next pair is kept")
     void keyValueSecretIsMasked() {
       assertThat(text("password=" + PASSWORD + " user=bob")).isEqualTo("password=**** user=bob");
@@ -127,6 +134,23 @@ class SecretRedactionTest {
     void validCardIsMasked() {
       assertThat(text("paid with 4111 1111 1111 1111 today")).isEqualTo("paid with ****1111 today");
       assertThat(text("card " + CARD)).isEqualTo("card ****1111");
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+        strings = {
+          "paid with 4111111111111111 43",
+          "paid with 4111 1111 1111 1111 43",
+          "43 4111111111111111 paid",
+          "4111-1111-1111-1111 7 and 5500 0000 0000 0004"
+        })
+    @DisplayName("a card next to another number is still found and masked")
+    void cardNextToNumberIsMasked(String line) {
+      assertThat(text(line))
+          .doesNotContain("4111111111111111")
+          .doesNotContain("4111 1111 1111 1111")
+          .doesNotContain("4111-1111-1111-1111")
+          .contains("****1111");
     }
 
     @Test

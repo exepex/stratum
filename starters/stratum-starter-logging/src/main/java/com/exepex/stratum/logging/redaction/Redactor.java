@@ -113,26 +113,25 @@ public final class Redactor {
   private static List<Pattern> compile(List<String> patterns) {
     var compiled = new ArrayList<Pattern>(patterns.size());
     for (var pattern : patterns) {
-      // Neither the pattern nor the parser's message, which quotes it, is shown: the pattern
-      // describes what the service wants hidden.
-      var error = syntaxError(pattern);
-      if (error != null) {
+      // Neither the pattern nor the parser's message, which can quote parts of it, is shown: the
+      // pattern describes what the service wants hidden.
+      if (!isValid(pattern)) {
         throw new StratumException(
             LoggingErrorCode.INVALID_REDACTION_PATTERN,
-            "pattern " + (compiled.size() + 1) + ", " + error);
+            "pattern " + (compiled.size() + 1) + " is not a valid regular expression");
       }
       compiled.add(Pattern.compile(pattern));
     }
     return compiled;
   }
 
-  /** Returns what is wrong with the pattern, without quoting it, or {@code null} if it is valid. */
-  private static @Nullable String syntaxError(String pattern) {
+  /** Returns whether the pattern compiles. */
+  private static boolean isValid(String pattern) {
     try {
       Pattern.compile(pattern);
-      return null;
+      return true;
     } catch (PatternSyntaxException e) {
-      return e.getDescription();
+      return false;
     }
   }
 }

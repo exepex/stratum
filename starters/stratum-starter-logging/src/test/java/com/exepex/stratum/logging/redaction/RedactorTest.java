@@ -9,6 +9,8 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.util.unit.DataSize;
 
 @DisplayName("Redactor checks its settings, limits each value and fails closed")
@@ -24,16 +26,17 @@ class RedactorTest {
   @DisplayName("when it is made")
   class Settings {
 
-    @Test
-    @DisplayName("an invalid extra pattern stops startup with SX-LOGGING-1002, without the pattern")
-    void invalidPatternIsRejected() {
-      var settings = LoggingTestData.withRedaction(List.of(), List.of("ok-\\d+", "secret-(\\d+"));
+    @ParameterizedTest
+    @ValueSource(strings = {"secret-(\\d+", "\\p{secret-name}", "(?<secret>a)(?<secret>b)"})
+    @DisplayName("an invalid extra pattern stops startup with SX-LOGGING-1002, with no part of it")
+    void invalidPatternIsRejected(String invalid) {
+      var settings = LoggingTestData.withRedaction(List.of(), List.of("ok-\\d+", invalid));
 
       assertThatExceptionOfType(StratumException.class)
           .isThrownBy(() -> Redactor.from(settings))
           .withMessageStartingWith("SX-LOGGING-1002: ")
           .withMessageContaining("pattern 2")
-          .withMessageNotContaining("secret-");
+          .withMessageNotContaining("secret");
     }
 
     @Test

@@ -87,6 +87,10 @@ final class SensitiveFieldNames {
   private static final Set<String> PERSONAL_IDENTIFIERS =
       Set.of("email", "phone", "mobile", "telephone", "fax", "cell", "msisdn", "iban");
 
+  /** Headers whose value is a list, such as {@code Cookie: a=1; b=2}, masked as a whole. */
+  private static final Set<String> HEADER_LISTS =
+      Set.of("cookie", "setcookie", "authorization", "proxyauthorization");
+
   /** Names whose values are masked in full. */
   private final Set<String> maskedInFull;
 
@@ -123,6 +127,16 @@ final class SensitiveFieldNames {
     return maskedKeepingLastFour.contains(key)
         ? Optional.of(Masks.keepingLastFour(value.get()))
         : Optional.empty();
+  }
+
+  /**
+   * Returns whether the name is a header whose whole value, to the end of the line, is masked.
+   *
+   * @param name the key name
+   * @return whether its value is a list masked as a whole
+   */
+  static boolean isHeaderList(String name) {
+    return HEADER_LISTS.contains(normalize(name));
   }
 
   /** Normalizes every name in the stream. */

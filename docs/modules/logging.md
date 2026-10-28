@@ -115,7 +115,9 @@ Names are compared without case, `_` or `-`, and only their last part counts, so
 `spring.datasource.password` and `PASSWORD` all match. A name is matched in a field, in an MDC
 entry, and in text such as `password=x`, `"token":"x"`, `?api_key=x&` or Lombok's
 `User(email=x, …)`. An unquoted value in text runs until the next key, a comma, `;`, `&`, a closing
-bracket or the end of the line.
+bracket or the end of the line. The values of `Cookie`, `Set-Cookie` and `Authorization` run to the
+end of the line, so every cookie in the header is masked. A card number next to another number, as
+in `4111 1111 1111 1111 43`, is still found.
 
 Every value is also cut to `stratum.logging.max-field-length` (16KB by default) and ends with
 `...[truncated]` when it was longer. If masking a value fails, `[REDACTION_FAILED]` is written
@@ -268,7 +270,7 @@ which keeps Spring Boot's default plain-text logging, with no checks and no reda
 | Symptom | Likely cause and fix |
 | --- | --- |
 | Startup stops with `SX-LOGGING-1001` | Set `spring.application.name`. |
-| Startup stops with `SX-LOGGING-1002` | An `extra-patterns` entry is not a valid regular expression; the message gives its position. |
+| Startup stops with `SX-LOGGING-1002` | An `extra-patterns` entry is not a valid regular expression; the message gives its position, never the pattern. |
 | Logs are plain text in production | `stratum.logging.enabled` is not `true`, or `stratum.logging.format=text` is set somewhere. Look for the startup warning. |
 | A secret still appears in logs | Add its key to `extra-keys` or its shape to `extra-patterns`, then rotate the secret. Report the format so it can be added to the built-in list. |
 | A value shows `[REDACTION_FAILED]` | Masking that value failed, so it was hidden. Report the log call so the cause can be fixed. |

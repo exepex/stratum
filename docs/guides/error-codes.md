@@ -160,7 +160,7 @@ Each of these is an error that stops the application at startup, and only when
 | Code | Meaning | Fix |
 | --- | --- | --- |
 | `SX-LOGGING-1001` | `spring.application.name` is not set. The module writes it on every line as `service.name`, so lines from different services can be told apart. | Set `spring.application.name` in `application.properties` or `application.yml`. |
-| `SX-LOGGING-1002` | A pattern in `stratum.logging.redaction.extra-patterns` is not a valid regular expression. The message gives the pattern's position in the list and what is wrong with it, but never the pattern itself. | Correct the pattern. In `.properties` files, write each backslash twice. |
+| `SX-LOGGING-1002` | A pattern in `stratum.logging.redaction.extra-patterns` is not a valid regular expression. The message gives the pattern's position in the list, never the pattern or any part of it. | Correct the pattern. In `.properties` files, write each backslash twice. |
 
 A `stratum.logging.max-field-length` outside 1KB to 1MB stops startup with `SX-CORE-1003`, like any
 other invalid setting.

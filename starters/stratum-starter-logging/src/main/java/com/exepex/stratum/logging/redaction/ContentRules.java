@@ -7,7 +7,6 @@ import java.util.regex.MatchResult;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
-import org.apache.commons.validator.routines.CreditCardValidator;
 import org.apache.commons.validator.routines.EmailValidator;
 import org.apache.commons.validator.routines.IBANValidator;
 
@@ -19,9 +18,13 @@ import org.apache.commons.validator.routines.IBANValidator;
 @UtilityClass
 class ContentRules {
 
-  /** A JSON Web Token: three Base64 parts, the first starting with {@code eyJ}. */
+  /**
+   * A JSON Web Token: three Base64 parts, the first starting with {@code eyJ}. It must start a word
+   * and its parts are matched possessively, so that matching stays linear on long hostile text.
+   */
   private static final Pattern JWT =
-      Pattern.compile("eyJ[A-Za-z0-9_-]{5,}\\.[A-Za-z0-9_-]{5,}\\.[A-Za-z0-9_-]{5,}");
+      Pattern.compile(
+          "(?<![A-Za-z0-9_-])eyJ[A-Za-z0-9_-]{5,}+\\.[A-Za-z0-9_-]{5,}+\\.[A-Za-z0-9_-]{5,}+");
 
   /** An HTTP authorization scheme and its credentials, such as {@code Bearer abc}. */
   private static final Pattern AUTH_SCHEME =
@@ -31,23 +34,19 @@ class ContentRules {
   private static final Pattern URL_CREDENTIALS =
       Pattern.compile("(?i)\\b([a-z][a-z0-9+.-]*://)[^\\s/:@]+:[^\\s/@]+@");
 
-  /** Thirteen to nineteen digits, with optional spaces or dashes: a possible card number. */
-  private static final Pattern CARD_SHAPE = Pattern.compile("\\b\\d(?:[ -]?\\d){12,18}\\b");
-
   /** A US social security number. */
   private static final Pattern SSN_SHAPE = Pattern.compile("\\b\\d{3}-\\d{2}-\\d{4}\\b");
 
-  /** A possible email address. */
+  /**
+   * A possible email address. Its local part must start a word and is matched possessively, so that
+   * matching stays linear on a long run of letters with no domain.
+   */
   private static final Pattern EMAIL_SHAPE =
-      Pattern.compile("[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}");
+      Pattern.compile("(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]++@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}");
 
   /** A possible IBAN, with optional spaces between groups. */
   private static final Pattern IBAN_SHAPE =
       Pattern.compile("(?i)\\b[a-z]{2}\\d{2}(?:\\s?[a-z0-9]){10,30}\\b");
-
-  /** Checks a card number's length and Luhn check digit, for any card brand. */
-  private static final CreditCardValidator CARD =
-      CreditCardValidator.genericCreditCardValidator(13, 19);
 
   /**
    * Returns the rules in the order they run: secrets, then personal data, then the service's own.
@@ -69,7 +68,7 @@ class ContentRules {
                 URL_CREDENTIALS,
                 match -> match.group(1) + Masks.MASK + "@"),
             new KeyValuePairs(fieldNames),
-            new RedactionRule(ContentRules::hasDigit, CARD_SHAPE, ContentRules::maskCard),
+            new CardNumbers(),
             new RedactionRule(
                 text -> text.indexOf('-') >= 0,
                 SSN_SHAPE,
@@ -81,12 +80,6 @@ class ContentRules {
             .<UnaryOperator<String>>map(
                 pattern -> new RedactionRule(text -> true, pattern, match -> Masks.MASK));
     return Stream.concat(builtIn, extra).toList();
-  }
-
-  /** Masks a card number that passes the Luhn check, keeping its last four digits. */
-  private static String maskCard(MatchResult match) {
-    var digits = match.group().replaceAll("\\D", "");
-    return CARD.isValid(digits) ? Masks.keepingLastFour(digits) : match.group();
   }
 
   /** Masks a valid email address, keeping its last four characters. */
