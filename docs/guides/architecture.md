@@ -100,7 +100,8 @@ flowchart TD
 - `stratum-library-parent` adds Lombok and the annotation processors Stratum's own code uses, and
   checks for that code: Google's Checkstyle configuration (`google_checks.xml`), Javadoc on every
   type and method and at most 400 lines per Java file (`stratum/checkstyle-library.xml`), and no
-  hand-written code that Lombok generates (`stratum/pmd-lombok.xml`). Services get none of these; those choices are their team's.
+  hand-written code that Lombok generates (`stratum/pmd-lombok.xml`). Services get none of these;
+  those choices are their team's.
 - `stratum-parent` adds what only a service needs: the executable jar, `build-info.properties` and
   `git.properties`. Libraries do not inherit it, because a library jar that carried those two files
   would hide the service's own files from `/actuator/info`.

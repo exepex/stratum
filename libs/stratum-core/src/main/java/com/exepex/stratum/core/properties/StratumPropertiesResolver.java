@@ -2,10 +2,13 @@ package com.exepex.stratum.core.properties;
 
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Path;
 import jakarta.validation.Validator;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
@@ -143,8 +146,22 @@ public final class StratumPropertiesResolver {
    * @return the property and the constraint, such as {@code "timeout breaks @NotNull"}
    */
   private static String describe(ConstraintViolation<?> violation) {
-    return violation.getPropertyPath()
+    return propertyName(violation.getPropertyPath())
         + " breaks @"
         + violation.getConstraintDescriptor().getAnnotation().annotationType().getSimpleName();
+  }
+
+  /**
+   * Joins the names along a property path and leaves out map keys and list indexes, because a key
+   * is configuration data too and may be a credential or a person's identifier.
+   *
+   * @param path the path to the broken value, such as {@code tokens[alice].<map value>}
+   * @return the names only, such as {@code tokens.<map value>}
+   */
+  private static String propertyName(Path path) {
+    return StreamSupport.stream(path.spliterator(), false)
+        .map(Path.Node::getName)
+        .filter(Objects::nonNull)
+        .collect(Collectors.joining("."));
   }
 }

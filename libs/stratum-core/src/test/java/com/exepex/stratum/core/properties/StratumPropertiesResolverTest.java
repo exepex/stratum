@@ -9,7 +9,9 @@ import com.exepex.stratum.core.properties.testsupport.GreetingTestData;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validation;
 import jakarta.validation.ValidatorFactory;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -173,6 +175,25 @@ class StratumPropertiesResolverTest {
         .withMessage("Invalid SecretSettings: token breaks @Pattern")
         .withMessageNotContaining("hunter2");
   }
+
+  @Test
+  @DisplayName(
+      "a map key, which may be a credential or a person's identifier, never reaches the error")
+  void neverQuotesMapKeys() {
+    var settings = new KeyedSettings(Map.of("alice@example.com", ""));
+
+    assertThatExceptionOfType(ConstraintViolationException.class)
+        .isThrownBy(() -> resolver.resolve(settings, Stream.empty()))
+        .withMessage("Invalid KeyedSettings: tokens.<map value> breaks @NotBlank")
+        .withMessageNotContaining("alice");
+  }
+
+  /**
+   * Settings keyed by a value that must not appear in an error.
+   *
+   * @param tokens a token per user, each of which must not be blank
+   */
+  private record KeyedSettings(Map<String, @NotBlank String> tokens) {}
 
   /**
    * Settings whose constraint message quotes the rejected value.
