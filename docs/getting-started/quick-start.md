@@ -269,14 +269,14 @@ in this request.
 
 ## Step 7: test it
 
-`src/test/java/com/acme/orders/OrderApiIT.java`:
+`src/test/java/com/acme/orders/OrderApiIntegrationTest.java`:
 
 ```java
 package com.acme.orders;
 
 @StratumIntegrationTest
 @StubHttpClient("inventory")              // replaces inventory with a local HTTP stub
-class OrderApiIT {
+class OrderApiIntegrationTest {
 
   @Autowired MockMvcTester mvc;
   @Autowired HttpStub inventory;
@@ -309,7 +309,7 @@ Run all tests:
 mvn verify
 ```
 
-Unit tests (`*Test.java`) run in the `test` phase; integration tests (`*IT.java`) run in the
+Unit tests (`*Test.java`) run in the `test` phase; integration tests (`*IntegrationTest.java`) run in the
 `integration-test` phase. See [Testing with stratum-test](../modules/test.md).
 
 ## What to read next

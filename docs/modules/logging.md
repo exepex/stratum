@@ -1,15 +1,18 @@
 # Logging: `stratum-starter-logging`
 
-**Status: Planned.** Structured JSON logs in one format across every service, with trace and
-correlation IDs on every line and secrets redacted before anything is written.
+**Status: Partly built.** Structured JSON logs in one format across every service, with the service's
+name and environment on every line, and secrets and personal data masked before anything is written.
+Trace IDs, workflow names and context that follows a request across threads are
+[planned](#planned).
 
 [← Documentation home](../README.md) · Property prefix: `stratum.logging`
 
 ## What it does
 
 Logs are only useful if you can search them across services. That needs every service to write the
-same fields with the same names. This starter sets up Spring Boot's structured logging in one agreed
-format and adds the context needed to follow a request.
+same fields with the same names, and no service to leak a password or a customer's card number into
+them. This starter sets up Spring Boot's structured logging in one agreed format and masks
+sensitive values in every field of every line.
 
 You keep logging the usual way, with SLF4J:
 
@@ -19,7 +22,7 @@ You keep logging the usual way, with SLF4J:
 class OrderService {
 
   void place(Order order) {
-    log.info("Order placed: id={}, items={}", order.id(), order.items().size());
+    log.atInfo().addKeyValue("order_id", order.id()).log("Order placed");
   }
 }
 ```
@@ -33,120 +36,150 @@ class OrderService {
 </dependency>
 ```
 
-The starter does nothing until you switch it on, in `application.properties`:
+The starter does nothing until you switch it on. It also needs the service's name, which it writes
+on every line. In `application.properties`:
 
 ```properties
+spring.application.name=order-service
+stratum.environment=prod
 stratum.logging.enabled=true
 ```
 
 or in `application.yml`:
 
 ```yaml
+spring:
+  application:
+    name: order-service
 stratum:
+  environment: prod
   logging:
     enabled: true
 ```
 
-Logback is the logging backend, as in Spring Boot by default.
+If the module is on and `spring.application.name` is missing or blank, the service stops at startup
+with [`SX-LOGGING-1001`](../guides/error-codes.md#stratum-starter-logging).
+
+Logback, Spring Boot's default, is the logging backend that Stratum tests.
 
 ## What you get
 
-A log line like the one above comes out as one JSON object (shown formatted here):
+The line above comes out as one JSON object in the
+[Elastic Common Schema (ECS)](https://www.elastic.co/guide/en/ecs/current/), shown formatted here:
 
 ```json
 {
-  "@timestamp": "2026-10-27T21:15:04.512Z",
-  "log.level": "INFO",
-  "message": "Order placed: id=8f14e45f, items=3",
-  "service.name": "order-service",
-  "service.environment": "prod",
-  "process.thread.name": "tomcat-handler-12",
-  "log.logger": "com.acme.orders.OrderService",
-  "trace.id": "4bf92f3577b34da6a3ce929d0e0e4736",
-  "span.id": "00f067aa0ba902b7",
-  "correlation_id": "c0a8012e-7f3d-4a8e-9a43-2f9b6f1c2d10"
+  "@timestamp": "2026-10-28T21:15:04.512Z",
+  "log": { "level": "INFO", "logger": "com.acme.orders.OrderService" },
+  "process": { "pid": 4120, "thread": { "name": "tomcat-handler-12" } },
+  "service": { "name": "order-service", "environment": "prod", "node": {} },
+  "message": "Order placed",
+  "order_id": "8f14e45f",
+  "ecs": { "version": "8.11" }
 }
 ```
 
-| Feature | Behaviour |
+| Field | Where it comes from |
 | --- | --- |
-| Structured format | [Elastic Common Schema (ECS)](https://www.elastic.co/guide/en/ecs/current/) by default, so field names are the same everywhere |
-| Trace context | `trace.id` and `span.id` on every line written during a traced request (needs the observability starter) |
-| Correlation ID | `correlation_id` on every line (needs the web starter) |
-| Service identity | `service.name` from `spring.application.name`, `service.environment` from [`stratum.environment`](../configuration/reference.md#shared-properties), plus version |
-| Redaction | Values of secret-looking keys and patterns are replaced with `****` before writing |
-| Readable local logs | `text` format with colours when the `local` profile is active |
+| `service.name` | `spring.application.name` (required) |
+| `service.environment` | [`stratum.environment`](../configuration/reference.md#shared-properties), when set |
+| `service.version` | Your jar's manifest, when it has a version |
+| `error.type`, `error.message`, `error.stack_trace` | The exception you pass to the log call. The root cause comes first, so a cut stack trace still shows why it failed. |
+| Your own fields | Key-value pairs (`addKeyValue`) and MDC entries, at the top level |
 
-### What redaction covers
+Elastic reads ECS as it is; Grafana Loki and Datadog parse any JSON line. If your platform needs
+another layout, set `stratum.logging.format` to `logstash` or `gelf`.
 
-Redaction is applied to the final log message and to structured key-value pairs:
+## Redaction
 
-| Rule | Example input | Written as |
+Redaction runs on **every value** of a JSON line: the message, the exception's message and stack
+trace, MDC entries and key-value pairs. It cannot be switched off.
+
+| What | Found by | Written as |
 | --- | --- | --- |
-| Key names (case-insensitive): `password`, `passwd`, `secret`, `token`, `access_token`, `refresh_token`, `authorization`, `api-key`, `apikey`, `client-secret`, `cookie`, `set-cookie` | `password=hunter2` | `password=****` |
-| `Bearer` tokens | `Authorization: Bearer eyJhbGci...` | `Authorization: Bearer ****` |
-| JWT-shaped strings | `eyJhbGciOi....eyJzdWIi....sig` | `****` |
-| Your own keys and patterns | see [properties](#properties) | `****` |
+| Credentials: `password`, `secret`, `client_secret`, `api_key`, `X-Api-Key`, `token`, `access_token`, `refresh_token`, `id_token`, `authorization`, `cookie`, `set-cookie`, `session_id`, `private_key`, `pin`, `otp`, `cvv` and similar | Field or key name | `****` |
+| Payment cards and national IDs: `card_number`, `pan`, `ssn`, `national_id`, `tax_id`, `passport` | Field or key name | `****1234` (last four kept) |
+| Card numbers in text | 13 to 19 digits that pass the Luhn check | `****1111` |
+| US social security numbers in text | `123-45-6789` | `****6789` |
+| JSON Web Tokens | `eyJ…` in three parts | `****` |
+| `Basic`, `Bearer`, `Digest` and `Negotiate` credentials | The scheme name | `Bearer ****` |
+| A user and password in a URL | `https://user:pass@host` | `https://****@host` |
+| Names, dates of birth and addresses: `first_name`, `last_name`, `full_name`, `username`, `date_of_birth`, `address` and similar | Field or key name | `****` |
+| Email, phone and IBAN fields | Field or key name | `****` plus last four |
+| Email addresses in text | A valid address | `****.com` |
+| International phone numbers in text | A valid number starting with `+` | `****0958` |
+| IBANs in text | A valid IBAN (checksum checked) | `****5432` |
+| Your own keys and patterns | [`extra-keys` and `extra-patterns`](#properties) | `****` |
+
+Names are compared without case, `_` or `-`, and only their last part counts, so `password`,
+`spring.datasource.password` and `PASSWORD` all match. A name is matched in a field, in an MDC
+entry, and in text such as `password=x`, `"token":"x"`, `?api_key=x&` or Lombok's
+`User(email=x, …)`. An unquoted value in text runs until the next key, a comma, `;`, `&`, a closing
+bracket or the end of the line.
+
+Every value is also cut to `stratum.logging.max-field-length` (16KB by default) and ends with
+`...[truncated]` when it was longer. If masking a value fails, `[REDACTION_FAILED]` is written
+instead; the value is never written as it was.
 
 > [!IMPORTANT]
-> Redaction is a safety net, not a licence. Do not log personal data or secrets on purpose. A
-> pattern can always miss a format it was not written for.
+> Redaction is a safety net, not a licence to log personal data or secrets. A name or address with
+> no telltale key cannot be found. Keep secrets out of `toString()`: mark them with Lombok's
+> `@ToString.Exclude`, or leave them out of a record's `toString()`.
+
+The `text` format writes plain lines that are **not** redacted. It is meant for your laptop. Unless
+every active profile is `local` or `test`, the `text` format logs a warning at startup.
 
 ## Properties
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
 | `stratum.logging.enabled` | boolean | `false` | Switches the whole starter on. Until it is `true`, the starter sets up nothing. |
-| `stratum.logging.format` | `ecs`, `logstash`, `gelf`, `text` | `ecs` | Console log format. `text` is for humans; the others are JSON. |
-| `stratum.logging.include-trace-context` | boolean | `true` | Adds `trace.id` and `span.id`. |
-| `stratum.logging.redaction.enabled` | boolean | `true` | Applies redaction. |
-| `stratum.logging.redaction.replacement` | string | `****` | Text written instead of a redacted value. |
-| `stratum.logging.redaction.extra-keys` | list | *(empty)* | More key names to redact, added to the built-in list. |
-| `stratum.logging.redaction.extra-patterns` | list of regex | *(empty)* | More patterns whose matches are redacted. |
-| `stratum.logging.mdc.extra-keys` | list | *(empty)* | Additional MDC keys to write as top-level fields. |
+| `stratum.logging.format` | `ecs`, `logstash`, `gelf`, `text` | `ecs` | Console log format. `text` is plain and not redacted; the others are JSON. |
+| `stratum.logging.max-field-length` | data size, `1KB` to `1MB` | `16KB` | The longest value written, also used as the stack trace limit. Outside the range, startup stops with `SX-CORE-1003`. |
+| `stratum.logging.redaction.extra-keys` | list | *(empty)* | More field and key names whose values are masked in full, added to the built-in names. |
+| `stratum.logging.redaction.extra-patterns` | list of regex | *(empty)* | More patterns whose matches are masked in full. An invalid pattern stops startup with `SX-LOGGING-1002`; the message gives its position in the list, never the pattern. |
+
+The shared [`stratum.environment`](../configuration/reference.md#shared-properties) sets
+`service.environment`.
 
 Spring Boot properties this starter sets by default (your values win):
 
 | Spring Boot property | Stratum default |
 | --- | --- |
 | `logging.structured.format.console` | value of `stratum.logging.format` (unset when `text`) |
-| `logging.level.root` | `INFO` |
-
-Log levels are still set with Spring Boot's `logging.level.*` properties.
+| `logging.structured.ecs.service.environment` | value of `stratum.environment` |
+| `logging.structured.json.stacktrace.max-length` | value of `stratum.logging.max-field-length`, in bytes |
+| `logging.structured.json.stacktrace.root` | `first` |
 
 ## Examples
 
-Production: JSON, environment name, extra redaction:
+Production, with the service's own sensitive names and an employee-ID pattern:
 
 ```yaml
 stratum:
   environment: prod
   logging:
-    format: ecs
+    enabled: true
     redaction:
       extra-keys:
-        - iban
-        - card-number
+        - badge-no
+        - member-id
       extra-patterns:
-        - '\b\d{4}[ -]?\d{4}[ -]?\d{4}[ -]?\d{4}\b'   # card-like numbers
-logging:
-  level:
-    com.acme.orders: DEBUG
+        - '\bEMP-\d{6}\b'
 ```
 
 ```properties
-stratum.logging.format=ecs
 stratum.environment=prod
-stratum.logging.redaction.extra-keys=iban,card-number
-stratum.logging.redaction.extra-patterns[0]=\\b\\d{4}[ -]?\\d{4}[ -]?\\d{4}[ -]?\\d{4}\\b
-logging.level.com.acme.orders=DEBUG
+stratum.logging.enabled=true
+stratum.logging.redaction.extra-keys=badge-no,member-id
+stratum.logging.redaction.extra-patterns[0]=\\bEMP-\\d{6}\\b
 ```
 
 > [!NOTE]
 > In `.properties` files a backslash must be doubled (`\\d`). In YAML, single-quote the pattern
 > and write each backslash once.
 
-Readable logs on your laptop, in `application-local.yml`:
+Readable logs on your laptop, in `application-local.yml` or `application-local.properties`:
 
 ```yaml
 stratum:
@@ -158,7 +191,22 @@ stratum:
 stratum.logging.format=text
 ```
 
-Add your own field to every log line of a request:
+Add a fixed field to every line, such as the team that owns the service, with Spring Boot's own
+property:
+
+```yaml
+logging:
+  structured:
+    json:
+      add:
+        team: payments
+```
+
+```properties
+logging.structured.json.add.team=payments
+```
+
+Add a field to every line of one piece of work with the MDC:
 
 ```java
 try (var ignored = MDC.putCloseable("tenant_id", tenantId)) {
@@ -166,43 +214,62 @@ try (var ignored = MDC.putCloseable("tenant_id", tenantId)) {
 }
 ```
 
-```yaml
-stratum:
-  logging:
-    mdc:
-      extra-keys:
-        - tenant_id
-```
-
-```properties
-stratum.logging.mdc.extra-keys=tenant_id
-```
-
 ## Configure in Java
 
-**Planned.** You will also be able to set every property on this page in Java code, through this module's
-customizer or builder, with the same names and defaults. This section will show how once that API is designed.
+Not possible for this module. Logging starts before Spring creates any bean, so a
+`StratumPropertiesCustomizer<LoggingProperties>` bean would come too late to change it. Set these
+properties in `application.properties`, `application.yml`, environment variables or command-line
+arguments.
+
+## Change log levels at runtime
+
+Log levels are set with Spring Boot's `logging.level.*` properties. To change one without a
+redeploy, use Spring Boot Actuator's `loggers` endpoint. It is not exposed over HTTP by default;
+expose it only on the management port, behind authentication:
+
+```properties
+management.server.port=8081
+management.endpoints.web.exposure.include=health,loggers
+```
+
+```bash
+curl -X POST -H 'Content-Type: application/json' -d '{"configuredLevel":"DEBUG"}' \
+  http://localhost:8081/actuator/loggers/com.acme.orders
+```
+
+A Stratum endpoint that switches DEBUG on for a limited time, and back off by itself, is
+[planned](#planned).
 
 ## Customize
 
 - **Different JSON fields:** Spring Boot's `StructuredLogFormatter` lets you write your own format;
   set `logging.structured.format.console` to its class name. Prefer the standard format so logs
   stay searchable across services.
-- **Your own Logback file:** a `logback-spring.xml` in your service replaces Stratum's setup
-  completely, including redaction. Avoid it unless you have a strong reason.
+- **Your own Logback file:** a `logback-spring.xml` replaces Spring Boot's setup. Redaction still
+  applies to an appender that uses Spring Boot's `StructuredLogEncoder`; a pattern encoder writes
+  plain, unredacted text. Avoid your own file unless you have a strong reason.
 
 ## Switch it on or off
 
-`stratum.logging.enabled=true` switches the starter on.
-Leaving it unset is the same as `false`.
+`stratum.logging.enabled=true` switches the starter on. Leaving it unset is the same as `false`,
+which keeps Spring Boot's default plain-text logging, with no checks and no redaction.
 
-`stratum.logging.enabled=false` returns to Spring Boot's default plain-text logging.
+## Planned
+
+| Feature | What it adds |
+| --- | --- |
+| Workflows | `@Workflow` on a method, or `Workflows.start` without AOP, names a piece of work; `workflow`, `root_workflow` and an optional `workflow_id` go on every line, and errors carry `error.code` |
+| Context hand-off | The same fields, trace and correlation IDs follow work into `@Async`, executors, `@Scheduled` jobs and Reactor, and across services |
+| Management endpoint | Secured, timed switches for DEBUG on one logger, timing lines for one workflow, and unmasking personal data for a short time, each switching back by itself |
+| Trace and correlation IDs | `trace.id`, `span.id` and `correlation_id`, with the observability and web starters |
 
 ## Troubleshooting
 
 | Symptom | Likely cause and fix |
 | --- | --- |
-| No `trace.id` in log lines | `stratum-starter-observability` is missing, or the line was written outside a request (for example at startup). |
-| Logs are plain text in production | The `local` profile is active, or `stratum.logging.format=text` is set somewhere. Check `/actuator/env` in a safe environment. |
+| Startup stops with `SX-LOGGING-1001` | Set `spring.application.name`. |
+| Startup stops with `SX-LOGGING-1002` | An `extra-patterns` entry is not a valid regular expression; the message gives its position. |
+| Logs are plain text in production | `stratum.logging.enabled` is not `true`, or `stratum.logging.format=text` is set somewhere. Look for the startup warning. |
 | A secret still appears in logs | Add its key to `extra-keys` or its shape to `extra-patterns`, then rotate the secret. Report the format so it can be added to the built-in list. |
+| A value shows `[REDACTION_FAILED]` | Masking that value failed, so it was hidden. Report the log call so the cause can be fixed. |
 | Duplicate log lines | Your service has its own `logback-spring.xml` adding a second appender. |

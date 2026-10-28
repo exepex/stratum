@@ -1,0 +1,62 @@
+package com.exepex.stratum.logging.it;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+
+import com.exepex.stratum.core.error.StratumException;
+import lombok.extern.slf4j.Slf4j;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.boot.WebApplicationType;
+import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.context.ConfigurableApplicationContext;
+
+@ExtendWith(OutputCaptureExtension.class)
+@Slf4j
+@DisplayName("The logging starter's settings and checks at startup")
+class LoggingStartupIntegrationTest {
+
+  /** Starts the test application with the given command-line arguments. */
+  private static ConfigurableApplicationContext start(String... args) {
+    return new SpringApplicationBuilder(OrdersApplication.class)
+        .web(WebApplicationType.NONE)
+        .run(args);
+  }
+
+  @Test
+  @DisplayName("with the module unset, logs stay Spring Boot's plain text")
+  void moduleOffKeepsPlainText(CapturedOutput output) {
+    try (var _ = start("--spring.application.name=orders")) {
+      log.info("plain line password=fake-unmasked");
+    }
+
+    assertThat(output).contains("plain line password=fake-unmasked").doesNotContain("\"message\"");
+  }
+
+  @Test
+  @DisplayName("with the module on and no service name, startup stops with SX-LOGGING-1001")
+  void missingNameStopsStartup() {
+    assertThatExceptionOfType(StratumException.class)
+        .isThrownBy(() -> start("--stratum.logging.enabled=true"))
+        .withMessageStartingWith("SX-LOGGING-1001: ");
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @ValueSource(strings = {"logging-yaml", "logging-properties"})
+  @DisplayName("the same settings work from application.yml and application.properties")
+  void settingsBindFromBothFormats(String configName, CapturedOutput output) {
+    try (var _ = start("--spring.config.name=" + configName)) {
+      log.atInfo().addKeyValue("badge_no", "B-77").log("badge checked");
+    }
+
+    assertThat(output)
+        .contains("\"message\":\"badge checked\"")
+        .contains("\"environment\":\"staging\"")
+        .contains("\"badge_no\":\"****\"");
+  }
+}

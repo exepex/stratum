@@ -50,6 +50,10 @@ type>`. It receives the settings already read from your files, with Stratum's de
 you did not set, and returns the settings the module should use. Call `toBuilder()` on what it
 receives, change only what you need, and `build()`: every other value is kept.
 
+The logging module is the one exception: logging starts before Spring creates any bean, so its
+`stratum.logging.*` values can be set only in files, environment variables or command-line
+arguments. See [Logging → Configure in Java](../modules/logging.md#configure-in-java).
+
 The settings types of the modules are planned; each module page will name its own. The example
 below uses a module called `example` with two settings, `message` and `timeout`. The same values,
 set three ways:
@@ -206,7 +210,6 @@ Some modules also let you switch off one part:
 | Property | Turns off |
 | --- | --- |
 | `stratum.web.request-logging.enabled=false` | Only the per-request log line |
-| `stratum.logging.redaction.enabled=false` | Only redaction (not recommended) |
 | `stratum.observability.tracing.enabled=false` | Only tracing; metrics and health stay |
 
 ## Advanced: exclude one auto-configuration class

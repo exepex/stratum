@@ -150,3 +150,17 @@ yet.
 
 `SX-CORE-1003` is a `ConstraintViolationException` with the code at the start of its message, so
 tools that read the broken constraints still can. The others are a `StratumException`.
+
+## stratum-starter-logging
+
+Each of these is an error that stops the application at startup, and only when
+`stratum.logging.enabled=true`. The logging module reports no warnings with a code. See the
+[logging module](../modules/logging.md).
+
+| Code | Meaning | Fix |
+| --- | --- | --- |
+| `SX-LOGGING-1001` | `spring.application.name` is not set. The module writes it on every line as `service.name`, so lines from different services can be told apart. | Set `spring.application.name` in `application.properties` or `application.yml`. |
+| `SX-LOGGING-1002` | A pattern in `stratum.logging.redaction.extra-patterns` is not a valid regular expression. The message gives the pattern's position in the list and what is wrong with it, but never the pattern itself. | Correct the pattern. In `.properties` files, write each backslash twice. |
+
+A `stratum.logging.max-field-length` outside 1KB to 1MB stops startup with `SX-CORE-1003`, like any
+other invalid setting.

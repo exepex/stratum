@@ -25,7 +25,7 @@ and container images are pinned in the BOM.
 | --- | --- | --- | --- | --- | --- |
 | **Unit test** | `*Test.java` | `mvn test` (Surefire) | No | No | Milliseconds |
 | **Slice or mock test** | `*Test.java` | `mvn test` (Surefire) | Part of it | No | About a second |
-| **Integration test** | `*IT.java` | `mvn verify` (Failsafe) | Fully | Yes | Seconds |
+| **Integration test** | `*IntegrationTest.java` | `mvn verify` (Failsafe) | Fully | Yes | Seconds |
 
 Write mostly unit tests, some slice tests, and integration tests for the paths that matter: the API
 contract, database queries, messaging. The naming decides where a test runs, so name files
@@ -77,7 +77,7 @@ containers your service needs.
 ```java
 @StratumIntegrationTest
 @WithContainers({Postgres.class, Kafka.class})
-class OrderFlowIT {
+class OrderFlowIntegrationTest {
 
   @Autowired MockMvcTester mvc;
   @Autowired OrderRepository repository;
@@ -118,7 +118,7 @@ what other tests left behind.
 ```java
 @StratumIntegrationTest
 @StubHttpClient("inventory")
-class ReservationIT {
+class ReservationIntegrationTest {
 
   @Autowired HttpStub inventory;
 
@@ -173,8 +173,8 @@ customizer or builder, with the same names and defaults. This section will show 
 
 ```bash
 mvn test        # unit and slice tests only, no Docker needed
-mvn verify      # everything, including *IT.java (Docker must be running)
-mvn verify -Dit.test=OrderFlowIT   # one integration test class
+mvn verify      # everything, including *IntegrationTest.java (Docker must be running)
+mvn verify -Dit.test=OrderFlowIntegrationTest   # one integration test class
 ```
 
 ## Troubleshooting
@@ -182,6 +182,6 @@ mvn verify -Dit.test=OrderFlowIT   # one integration test class
 | Symptom | Likely cause and fix |
 | --- | --- |
 | `Could not find a valid Docker environment` | Docker is not running, or your user cannot access it. Run `docker info`. |
-| An `*IT.java` test never runs with `mvn test` | Intended: integration tests run in `mvn verify`. |
+| An `*IntegrationTest.java` test never runs with `mvn test` | Intended: integration tests run in `mvn verify`. |
 | Tests pass alone but fail together | Shared containers keep data. Make each test create its own data, or clean up in `@AfterEach`. |
 | First integration test run is slow | Images are being downloaded. Later runs reuse them. |

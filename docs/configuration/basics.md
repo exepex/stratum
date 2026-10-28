@@ -38,9 +38,8 @@ spring:
 
 stratum:
   logging:
+    enabled: true
     format: ecs
-    redaction:
-      enabled: true
   http-client:
     defaults:
       connect-timeout: 1s
@@ -51,8 +50,8 @@ stratum:
 # application.properties
 spring.application.name=order-service
 
+stratum.logging.enabled=true
 stratum.logging.format=ecs
-stratum.logging.redaction.enabled=true
 stratum.http-client.defaults.connect-timeout=1s
 stratum.http-client.defaults.read-timeout=5s
 ```
@@ -84,7 +83,7 @@ stratum . <module> . <group> . <setting>
    └── always "stratum"
 ```
 
-Examples: `stratum.logging.redaction.enabled`, `stratum.security.public-paths`,
+Examples: `stratum.logging.redaction.extra-keys`, `stratum.security.public-paths`,
 `stratum.http-client.clients.inventory.base-url`.
 
 Names are written in **kebab-case** (lower case, words joined by `-`). Spring Boot's **relaxed

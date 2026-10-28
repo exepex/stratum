@@ -95,7 +95,7 @@ match. Keep any value that is deliberately different, and write down why in a co
 ## Step 8: tests
 
 Replace your own Testcontainers setup and JWT helpers with `stratum-test`. Rename integration
-tests to `*IT.java` so they run in `mvn verify`.
+tests to `*IntegrationTest.java` so they run in `mvn verify`.
 
 ## What a migrated service usually removes
 
