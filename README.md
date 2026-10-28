@@ -221,8 +221,10 @@ standard error responses.
 
 ## Modules
 
-All modules are **Planned**. Each links to its full page: what it sets up, every property with its
-default, examples in YAML and properties, how to override it and how to troubleshoot it.
+All modules are **Planned**, except `stratum-starter-logging`, which is partly built: JSON logs with
+the service's name and environment, and redaction. Each links to its full page: what it sets up,
+every property with its default, examples in YAML and properties, how to override it and how to
+troubleshoot it.
 
 ### Build and platform
 
@@ -254,7 +256,7 @@ Every starter is off until its `stratum.<module>.enabled` property is `true`.
 | Starter | In one sentence | Property prefix |
 | --- | --- | --- |
 | [`stratum-starter-web`](docs/modules/web.md) | REST defaults: error format, correlation IDs, request logging, JSON settings. | `stratum.web` |
-| [`stratum-starter-logging`](docs/modules/logging.md) | Structured JSON logs with trace context and secret redaction. | `stratum.logging` |
+| [`stratum-starter-logging`](docs/modules/logging.md) | Structured JSON logs with secrets and personal data redacted; trace context planned. | `stratum.logging` |
 | [`stratum-starter-observability`](docs/modules/observability.md) | Metrics, OpenTelemetry tracing, health and Kubernetes probes. | `stratum.observability` |
 | [`stratum-starter-security`](docs/modules/security.md) | OAuth2 resource server: JWT validation, roles, public paths, CORS. | `stratum.security` |
 | [`stratum-starter-oauth2-client`](docs/modules/oauth2-client.md) | Gets and refreshes tokens for calls to other services. | `stratum.oauth2-client` |
@@ -363,14 +365,14 @@ The decision behind it: [ADR 0001](docs/adr/0001-coexistence-with-company-framew
 you everything you need for unit, mock and integration tests in one test dependency:
 
 - **Unit tests** (`*Test.java`) with JUnit 5, AssertJ and Mockito.
-- **Integration tests** (`*IT.java`) that start a real PostgreSQL, Kafka or Redis in Docker with
+- **Integration tests** (`*IntegrationTest.java`) that start a real PostgreSQL, Kafka or Redis in Docker with
   Testcontainers. Image versions are pinned centrally, so every service tests against the same ones.
 - **HTTP stubs** for the services you call, so tests never depend on a real downstream service.
 - **Security helpers** to call secured endpoints with a test JWT.
 
 ```java
 @StratumIntegrationTest
-class OrderApiIT {
+class OrderApiIntegrationTest {
 
   @Test
   void createsAnOrder(@Autowired MockMvcTester mvc) {

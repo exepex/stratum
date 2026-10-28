@@ -45,8 +45,9 @@ conventions. Each rule has an ID so that reviews and judge verdicts can cite it.
 
 ## Integration tests
 
-- **ST-TEST-30** Integration test classes end in `IT`, sit in an `it` package and run under Failsafe in the `verify`
-  phase.
+- **ST-TEST-30** Integration test classes end in `IntegrationTest`, sit in an `it` package and run under Failsafe in
+  the `verify` phase. Surefire runs every other `*Test` class. (Google's Checkstyle rules reject `IT` as a name
+  ending, because it is an abbreviation.)
 - **ST-TEST-31** They start a minimal test application with `@SpringBootTest`, so they show what a real service gets
   by adding the starter.
 - **ST-TEST-32** Real dependencies (PostgreSQL, Kafka, Redis, an OAuth2 server) run in Testcontainers provided by
