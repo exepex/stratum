@@ -1,13 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Versions and build checks shared by services and Stratum's own modules. Services use stratum-parent,
-  which adds packaging; Stratum's libraries and starters use stratum-library-parent, which adds the
-  Javadoc rules.
+  Build checks shared by services and Stratum's own modules. Services use stratum-parent, which adds
+  packaging; Stratum's libraries and starters use stratum-library-parent, which adds the Javadoc rules.
 
-  - Spring Boot's dependency and plugin versions come from spring-boot-starter-parent. Stratum never
-    overrides a version Spring Boot manages (ST-ENG-61).
-  - stratum-bom adds the versions of Stratum's modules and of the libraries Spring Boot does not manage.
-  - <properties> holds the versions of the plugins Spring Boot does not manage, sorted by name.
+  - Every version, Spring Boot's included, comes from the root pom.xml, this POM's parent. This POM
+    writes no version number; it uses the root POM's properties.
+  - It imports stratum-bom, for the versions of Stratum's modules and of the libraries Spring Boot
+    does not manage.
   - Every execution id starts with "stratum-" so it never merges with a company parent's execution.
   Keep <properties>, <dependencies> and <plugins> sorted by name.
 -->
@@ -17,35 +16,19 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-parent</artifactId>
-    <version>4.1.2</version>
-    <relativePath/>
+    <groupId>com.exepex.stratum</groupId>
+    <artifactId>stratum</artifactId>
+    <version>${revision}</version>
+    <relativePath>../../pom.xml</relativePath>
   </parent>
 
-  <groupId>com.exepex.stratum</groupId>
   <artifactId>stratum-build-parent</artifactId>
-  <version>${revision}</version>
   <packaging>pom</packaging>
 
   <name>Stratum build parent</name>
-  <description>Java 25, Stratum's versions, plugin versions and build checks, shared by services and Stratum's modules.</description>
+  <description>Build checks and stratum-bom, shared by services and Stratum's modules.</description>
 
   <properties>
-    <checkstyle.version>14.3.0</checkstyle.version>
-    <dependency-check-maven.version>13.0.0</dependency-check-maven.version>
-    <extra-enforcer-rules.version>1.12.1</extra-enforcer-rules.version>
-    <findsecbugs-plugin.version>1.14.0</findsecbugs-plugin.version>
-    <flatten-maven-plugin.version>1.8.0</flatten-maven-plugin.version>
-    <google-java-format.version>1.36.1</google-java-format.version>
-    <jacoco-maven-plugin.version>0.8.16</jacoco-maven-plugin.version>
-    <java.version>25</java.version>
-    <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
-    <maven-pmd-plugin.version>3.28.0</maven-pmd-plugin.version>
-    <maven-site-plugin.version>3.22.0</maven-site-plugin.version>
-    <pmd.version>7.28.0</pmd.version>
-    <spotbugs-maven-plugin.version>4.10.5.0</spotbugs-maven-plugin.version>
-    <spotless-maven-plugin.version>3.10.4</spotless-maven-plugin.version>
     <!-- Line coverage that the coverage-gate profile requires; a service may raise it, never lower it. -->
     <stratum.coverage.minimum>0.80</stratum.coverage.minimum>
   </properties>
@@ -73,11 +56,6 @@
               <include>**/*IT.java</include>
             </includes>
           </configuration>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-site-plugin</artifactId>
-          <version>${maven-site-plugin.version}</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -253,32 +231,6 @@
             <phase>verify</phase>
             <goals>
               <goal>check</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-      <!-- Writes ${revision} as a fixed version into the installed POM. stratum-parent stops it for services. -->
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>flatten-maven-plugin</artifactId>
-        <version>${flatten-maven-plugin.version}</version>
-        <configuration>
-          <flattenMode>resolveCiFriendliesOnly</flattenMode>
-          <updatePomFile>true</updatePomFile>
-        </configuration>
-        <executions>
-          <execution>
-            <id>stratum-flatten</id>
-            <phase>process-resources</phase>
-            <goals>
-              <goal>flatten</goal>
-            </goals>
-          </execution>
-          <execution>
-            <id>stratum-flatten-clean</id>
-            <phase>clean</phase>
-            <goals>
-              <goal>clean</goal>
             </goals>
           </execution>
         </executions>

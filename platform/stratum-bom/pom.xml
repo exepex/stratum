@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   Stratum's bill of materials: the versions of Stratum's modules and of the libraries Stratum uses that
-  Spring Boot does not manage. Its parent is the reactor POM, which manages no dependency, and it never
-  imports spring-boot-dependencies, so a service under a company parent gets Spring Boot's versions
-  from that parent only (ADR 0001, ST-ENG-60).
-  Keep <properties> and <dependencyManagement> sorted by name.
+  Spring Boot does not manage. The version numbers are properties of the root POM, its parent.
+  The root POM inherits Spring Boot's parent, so the installed BOM is flattened in "bom" mode: it has
+  no parent and manages only the entries below. It also carries the root POM's properties, so that
+  the versions below resolve when a service imports it; Maven imports only <dependencyManagement>, so
+  those properties do not change the service. The BOM never brings Spring Boot's versions, so a
+  service under a company parent gets them from that parent only (ADR 0001, ST-ENG-60).
+  Keep <dependencyManagement> sorted by name.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -23,11 +26,6 @@
 
   <name>Stratum BOM</name>
   <description>Versions of Stratum's modules and of the extra libraries Stratum uses.</description>
-
-  <properties>
-    <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
-    <mapstruct.version>1.6.3</mapstruct.version>
-  </properties>
 
   <dependencyManagement>
     <dependencies>
@@ -128,4 +126,23 @@
       </dependency>
     </dependencies>
   </dependencyManagement>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>flatten-maven-plugin</artifactId>
+        <configuration>
+          <flattenMode>bom</flattenMode>
+          <!-- Spring's project URL, developers and SCM, inherited through the root POM, are not Stratum's. -->
+          <pomElements>
+            <developers>remove</developers>
+            <issueManagement>remove</issueManagement>
+            <scm>remove</scm>
+            <url>remove</url>
+          </pomElements>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
 </project>

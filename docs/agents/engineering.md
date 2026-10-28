@@ -186,11 +186,12 @@ Every starter follows these rules:
 
 ## Dependencies
 
-- **ST-ENG-60** The versions of Stratum's modules and of the libraries Spring Boot does not manage are set in
-  `stratum-bom`, which `stratum-parent` imports. Spring Boot's versions come from the parent: `stratum-parent`
-  inherits `spring-boot-starter-parent`, and `stratum-bom` does not import Spring Boot's BOM, so a service under a
-  company parent gets one Spring Boot version (ADR 0001). A module POM never sets the version of a managed
-  dependency. No version ranges and no `LATEST`.
+- **ST-ENG-60** Every version Stratum chooses is a property in the root `pom.xml`, and no other POM writes a
+  version number (ADR 0005). `stratum-bom`, which `stratum-parent` imports, lists Stratum's modules and the
+  libraries Spring Boot does not manage. Spring Boot's versions come from the parent: the root `pom.xml`, and so
+  `stratum-parent`, inherits `spring-boot-starter-parent`, and the installed `stratum-bom` has no parent and does
+  not import Spring Boot's BOM, so a service under a company parent gets one Spring Boot version (ADR 0001). No
+  version ranges and no `LATEST`.
 - **ST-ENG-61** Do not override a version that Spring Boot manages, in `stratum-bom` or in `stratum-parent`. Such an
   override would not reach services that import the BOM under their own parent. When a security fix cannot wait for
   a Spring Boot release, the release notes tell services how to override that version themselves.

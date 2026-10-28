@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Builds every Stratum module in one run. It is also the parent of stratum-bom and stratum-build-rules,
-  which cannot inherit stratum-build-parent, so that their POMs are flattened too.
-  Stratum's version is set once, as revision in .mvn/maven.config. Dependency versions live in
-  platform/stratum-bom, plugin versions in platform/stratum-build-parent.
-  stratum-bom and stratum-build-rules cannot inherit spring-boot-starter-parent, so this POM pins the
-  plugins they run to the versions that spring-boot-starter-parent sets in stratum-build-parent. When
-  the Spring Boot version changes, copy its plugin versions here too.
+  Builds every Stratum module in one run, and is the one place where Stratum sets a version.
+
+  - The Spring Boot version is the version of the parent below. Spring Boot's parent sets the
+    versions of every library and plugin Spring Boot manages; Stratum never overrides them (ST-ENG-61).
+  - <properties> holds every other version Stratum chooses: Java, the build tools and plugins Spring
+    Boot does not manage, and the libraries stratum-bom manages. No other POM writes a version number.
+  - Stratum's own version is revision in .mvn/maven.config.
+  - Every Stratum POM inherits this one, directly or through stratum-build-parent.
   Keep <properties> and <pluginManagement> sorted by name.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
@@ -14,13 +15,20 @@
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>4.1.2</version>
+    <relativePath/>
+  </parent>
+
   <groupId>com.exepex.stratum</groupId>
   <artifactId>stratum</artifactId>
   <version>${revision}</version>
   <packaging>pom</packaging>
 
   <name>Stratum</name>
-  <description>Builds every Stratum module: platform, shared libraries and starters.</description>
+  <description>Builds every Stratum module and sets every version Stratum chooses.</description>
 
   <modules>
     <!-- Platform: versions, build rules and parent POMs -->
@@ -52,16 +60,22 @@
   </modules>
 
   <properties>
+    <checkstyle.version>14.3.0</checkstyle.version>
+    <dependency-check-maven.version>13.0.0</dependency-check-maven.version>
+    <extra-enforcer-rules.version>1.12.1</extra-enforcer-rules.version>
+    <findsecbugs-plugin.version>1.14.0</findsecbugs-plugin.version>
     <flatten-maven-plugin.version>1.8.0</flatten-maven-plugin.version>
-    <maven-clean-plugin.version>3.5.0</maven-clean-plugin.version>
-    <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
-    <maven-deploy-plugin.version>3.1.4</maven-deploy-plugin.version>
-    <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
-    <maven-install-plugin.version>3.1.4</maven-install-plugin.version>
-    <maven-jar-plugin.version>3.5.1</maven-jar-plugin.version>
-    <maven-resources-plugin.version>3.5.0</maven-resources-plugin.version>
+    <google-java-format.version>1.36.1</google-java-format.version>
+    <jacoco-maven-plugin.version>0.8.16</jacoco-maven-plugin.version>
+    <java.version>25</java.version>
+    <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
+    <mapstruct.version>1.6.3</mapstruct.version>
+    <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
+    <maven-pmd-plugin.version>3.28.0</maven-pmd-plugin.version>
     <maven-site-plugin.version>3.22.0</maven-site-plugin.version>
-    <maven-surefire-plugin.version>3.5.6</maven-surefire-plugin.version>
+    <pmd.version>7.28.0</pmd.version>
+    <spotbugs-maven-plugin.version>4.10.5.0</spotbugs-maven-plugin.version>
+    <spotless-maven-plugin.version>3.10.4</spotless-maven-plugin.version>
   </properties>
 
   <build>
@@ -69,52 +83,17 @@
       <plugins>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-clean-plugin</artifactId>
-          <version>${maven-clean-plugin.version}</version>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-compiler-plugin</artifactId>
-          <version>${maven-compiler-plugin.version}</version>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-deploy-plugin</artifactId>
-          <version>${maven-deploy-plugin.version}</version>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-install-plugin</artifactId>
-          <version>${maven-install-plugin.version}</version>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-jar-plugin</artifactId>
-          <version>${maven-jar-plugin.version}</version>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-resources-plugin</artifactId>
-          <version>${maven-resources-plugin.version}</version>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-site-plugin</artifactId>
           <version>${maven-site-plugin.version}</version>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-surefire-plugin</artifactId>
-          <version>${maven-surefire-plugin.version}</version>
         </plugin>
       </plugins>
     </pluginManagement>
     <plugins>
-      <!-- Fails the build of this POM and its two children if a plugin they use has no version. -->
+      <!-- Fails the build if a plugin has no version. Every Stratum module and every service that uses
+           stratum-parent inherits this check. -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
-        <version>${maven-enforcer-plugin.version}</version>
         <executions>
           <execution>
             <id>stratum-enforce-plugin-versions</id>
@@ -129,7 +108,8 @@
           </execution>
         </executions>
       </plugin>
-      <!-- The same plugin and settings as in stratum-build-parent, which this POM cannot share. -->
+      <!-- Writes ${revision} as a fixed version into the installed POM. stratum-parent stops it for
+           services, and stratum-bom changes its mode. -->
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>flatten-maven-plugin</artifactId>

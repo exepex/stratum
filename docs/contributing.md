@@ -77,8 +77,8 @@ Dependabot also opens pull requests that upgrade dependencies every week. They r
 checks; how they are grouped and reviewed is in
 [ADR 0004](adr/0004-dependency-updates.md). A security update, the pull request Dependabot opens
 from an alert, comes only once Dependabot security updates are switched on in the repository
-settings. The eight Maven plugins that ADR 0004 leaves out move only with a Spring Boot upgrade, so
-a fix to one of them also arrives only through that upgrade.
+settings. The Maven plugins whose versions Spring Boot sets, such as Compiler and Surefire, move only
+with a Spring Boot upgrade, so a fix to one of them also arrives only through that upgrade.
 
 The `security` profile (OWASP Dependency-Check) still works when you run it yourself with an NVD
 API key; see [Optional profiles](modules/parent-and-bom.md#optional-profiles). CI does not run it,
