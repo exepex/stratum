@@ -2,13 +2,9 @@ package com.exepex.stratum.core.properties;
 
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
-import jakarta.validation.Path;
 import jakarta.validation.Validator;
-import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
@@ -107,8 +103,8 @@ public final class StratumPropertiesResolver {
   }
 
   /**
-   * Stops startup when the settings break a constraint. The message names each property and
-   * constraint but never the value, which may be a secret.
+   * Stops startup when the settings break a constraint. The message names each property key and
+   * rule but never the value, which may be a secret ({@link ConstraintViolationMessages}).
    *
    * @param properties the settings after every customizer has run
    * @param <P> the module's settings type
@@ -116,52 +112,8 @@ public final class StratumPropertiesResolver {
   private <P> void validate(P properties) {
     Set<ConstraintViolation<P>> violations = validator.validate(properties);
     if (!violations.isEmpty()) {
-      throw new ConstraintViolationException(describe(properties, violations), violations);
+      throw new ConstraintViolationException(
+          ConstraintViolationMessages.describe(properties, violations), violations);
     }
-  }
-
-  /**
-   * Describes the violations in one sorted line, so that the message is the same on every run. It
-   * names each constraint by its annotation rather than by its message, because a constraint
-   * message can quote the rejected value with {@code ${validatedValue}}.
-   *
-   * @param properties the settings that were validated
-   * @param violations the constraints they break
-   * @param <P> the module's settings type
-   * @return a message such as {@code "Invalid ExampleProperties: timeout breaks @NotNull"}
-   */
-  private static <P> String describe(P properties, Set<ConstraintViolation<P>> violations) {
-    return violations.stream()
-        .map(StratumPropertiesResolver::describe)
-        .sorted()
-        .collect(
-            Collectors.joining(
-                "; ", "Invalid " + properties.getClass().getSimpleName() + ": ", ""));
-  }
-
-  /**
-   * Names one broken constraint without its value or message.
-   *
-   * @param violation the broken constraint
-   * @return the property and the constraint, such as {@code "timeout breaks @NotNull"}
-   */
-  private static String describe(ConstraintViolation<?> violation) {
-    return propertyName(violation.getPropertyPath())
-        + " breaks @"
-        + violation.getConstraintDescriptor().getAnnotation().annotationType().getSimpleName();
-  }
-
-  /**
-   * Joins the names along a property path and leaves out map keys and list indexes, because a key
-   * is configuration data too and may be a credential or a person's identifier.
-   *
-   * @param path the path to the broken value, such as {@code tokens[alice].<map value>}
-   * @return the names only, such as {@code tokens.<map value>}
-   */
-  private static String propertyName(Path path) {
-    return StreamSupport.stream(path.spliterator(), false)
-        .map(Path.Node::getName)
-        .filter(Objects::nonNull)
-        .collect(Collectors.joining("."));
   }
 }

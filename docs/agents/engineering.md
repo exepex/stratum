@@ -112,6 +112,10 @@ Every starter follows these rules:
   validates the settings after the Java configuration has run, so Java can correct or supply a value (ST-ENG-34).
   `stratum-core` depends on `spring-boot-starter-validation` for this, so every starter that depends on
   `stratum-core` brings Hibernate Validator and Spring Boot's `Validator` bean; a starter does not declare it again.
+  A field that holds nested settings, such as a pool or a map of clients, is annotated `@Valid`; without it the
+  nested constraints are never checked. The startup error names each property by its key, such as
+  `stratum.http-client.pool.max-size`, and each rule with its limits, such as `@Size(max=10)`. It never shows a
+  value, a map key, a list index or a constraint message, because any of them can be a secret.
 - **ST-ENG-32** Every property works the same from `application.properties` and `application.yml`. Property names use
   kebab-case, Spring Boot's canonical form. Tests for property binding cover both formats.
 - **ST-ENG-33** Every tunable value (pool size, timeout, limit, TTL, retry count) is a property. None is hardcoded.

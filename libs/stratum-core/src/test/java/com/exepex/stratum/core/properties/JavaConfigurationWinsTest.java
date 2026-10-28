@@ -92,7 +92,8 @@ class JavaConfigurationWinsTest {
                       .getFailure()
                       .rootCause()
                       .isInstanceOf(ConstraintViolationException.class)
-                      .hasMessage("Invalid GreetingProperties: message breaks @NotBlank"));
+                      .hasMessage(
+                          "Invalid GreetingProperties: stratum.greeting.message breaks @NotBlank"));
     }
 
     @Test

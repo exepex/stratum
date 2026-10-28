@@ -96,8 +96,8 @@ Rules that apply to every module:
   A `null` stops the application at startup with a message naming the customizer.
 - The settings are checked once, after your customizers have run. So a customizer can correct or
   supply a value the files leave invalid or unset. A bad value from either place, such as a blank
-  message or a missing timeout, stops the application at startup. The message names the setting and
-  the rule it breaks, never the value, which might be a secret.
+  message or a missing timeout, stops the application at startup. The message names the property
+  key and the rule it breaks, never the value, which might be a secret.
 - Declare the customizer with its settings type, as the return type of a `@Bean` method like the
   examples above. Spring uses that type to give each customizer to its own module. A customizer
   registered without it, for example with `registerBean(StratumPropertiesCustomizer.class, ...)`,
