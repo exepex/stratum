@@ -1,0 +1,169 @@
+package com.exepex.stratum.core.properties;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.exepex.stratum.core.properties.fixture.Greeter;
+import com.exepex.stratum.core.properties.fixture.GreetingAutoConfiguration;
+import com.exepex.stratum.core.properties.fixture.GreetingProperties;
+import com.exepex.stratum.core.properties.testsupport.GreetingTestData;
+import jakarta.validation.ConstraintViolationException;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.context.properties.bind.validation.BindValidationException;
+import org.springframework.boot.env.PropertiesPropertySourceLoader;
+import org.springframework.boot.env.PropertySourceLoader;
+import org.springframework.boot.env.YamlPropertySourceLoader;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.boot.validation.autoconfigure.ValidationAutoConfiguration;
+import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.core.annotation.Order;
+import org.springframework.core.io.ClassPathResource;
+
+@DisplayName("A module's settings come from properties, YAML and Java, and Java wins")
+class JavaConfigurationWinsTest {
+
+  private final ApplicationContextRunner contextRunner =
+      new ApplicationContextRunner()
+          .withConfiguration(
+              AutoConfigurations.of(
+                  ValidationAutoConfiguration.class, GreetingAutoConfiguration.class));
+
+  @Test
+  @DisplayName("with nothing set, the module uses its defaults")
+  void usesDefaultsWhenNothingIsSet() {
+    contextRunner.run(
+        context ->
+            assertThat(context.getBean(Greeter.class).settings())
+                .isEqualTo(GreetingTestData.defaults()));
+  }
+
+  @Nested
+  @DisplayName("with values in a configuration file")
+  class FromFiles {
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"greeting/application.properties", "greeting/application.yml"})
+    @DisplayName("the module uses the values from application.properties and application.yml")
+    void bindsValuesFromFile(String file) {
+      contextRunner
+          .withInitializer(context -> load(context, file))
+          .run(
+              context ->
+                  assertThat(context.getBean(Greeter.class).settings())
+                      .isEqualTo(
+                          new GreetingProperties("Hi from a file", GreetingTestData.FILE_TIMEOUT)));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"greeting/application.properties", "greeting/application.yml"})
+    @DisplayName("a value set in Java wins over the same value in the file")
+    void javaValueWinsOverFileValue(String file) {
+      contextRunner
+          .withInitializer(context -> load(context, file))
+          .withBean("javaTimeout", StratumPropertiesCustomizer.class, GreetingTestData::javaTimeout)
+          .run(
+              context ->
+                  assertThat(context.getBean(Greeter.class).settings())
+                      .isEqualTo(
+                          new GreetingProperties("Hi from a file", GreetingTestData.JAVA_TIMEOUT)));
+    }
+
+    @Test
+    @DisplayName("a bad value in a file stops startup")
+    void badFileValueStopsStartup() {
+      contextRunner
+          .withPropertyValues("stratum.greeting.message=")
+          .run(
+              context ->
+                  assertThat(context)
+                      .getFailure()
+                      .rootCause()
+                      .isInstanceOf(BindValidationException.class));
+    }
+  }
+
+  @Nested
+  @DisplayName("with values in Java")
+  class FromJava {
+
+    @Test
+    @DisplayName("customizers run in @Order order, so the last one wins")
+    void customizersRunInOrder() {
+      contextRunner
+          .withUserConfiguration(OrderedCustomizers.class)
+          .run(
+              context ->
+                  assertThat(context.getBean(Greeter.class).settings().message())
+                      .isEqualTo("second"));
+    }
+
+    @Test
+    @DisplayName("a bad value set in Java stops startup")
+    void badJavaValueStopsStartup() {
+      contextRunner
+          .withBean(
+              "blankMessage",
+              StratumPropertiesCustomizer.class,
+              () -> GreetingTestData.javaMessage(""))
+          .run(
+              context ->
+                  assertThat(context)
+                      .getFailure()
+                      .rootCause()
+                      .isInstanceOf(ConstraintViolationException.class));
+    }
+  }
+
+  /**
+   * Adds a configuration file to the context's environment, as Spring Boot does at startup.
+   *
+   * @param context the context under test
+   * @param file the classpath location of an {@code .properties} or {@code .yml} file
+   */
+  private static void load(ConfigurableApplicationContext context, String file) {
+    PropertySourceLoader loader =
+        file.endsWith(".yml")
+            ? new YamlPropertySourceLoader()
+            : new PropertiesPropertySourceLoader();
+    try {
+      loader
+          .load(file, new ClassPathResource(file))
+          .forEach(source -> context.getEnvironment().getPropertySources().addFirst(source));
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  /** Two customizers declared out of order, to show that {@code @Order} decides. */
+  static class OrderedCustomizers {
+
+    /**
+     * Runs second, because of its higher order value.
+     *
+     * @return a customizer that sets the message to {@code second}
+     */
+    @Bean
+    @Order(2)
+    StratumPropertiesCustomizer<GreetingProperties> second() {
+      return GreetingTestData.javaMessage("second");
+    }
+
+    /**
+     * Runs first, because of its lower order value.
+     *
+     * @return a customizer that sets the message to {@code first}
+     */
+    @Bean
+    @Order(1)
+    StratumPropertiesCustomizer<GreetingProperties> first() {
+      return GreetingTestData.javaMessage("first");
+    }
+  }
+}

@@ -62,8 +62,9 @@ Stratum 0.1 targets Spring Boot 4.1.2 and Java 25. See
 [Versioning and upgrades](upgrading.md#compatibility).
 
 **Can I use a newer Spring Boot than Stratum's?**
-A newer patch release in the supported line, yes. A newer minor or major release, no: Stratum stops
-at startup outside its supported line. Wait for the Stratum release that moves to it. See
+A newer patch release in the supported line, yes. A newer minor or major release, no: it is not
+tested with Stratum and can fail at startup or at run time. Wait for the Stratum release that moves
+to it. See
 [Compatibility](upgrading.md#compatibility).
 
 ## Testing

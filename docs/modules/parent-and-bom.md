@@ -1,7 +1,7 @@
 # Parent POM and BOM: `stratum-parent` and `stratum-bom`
 
 **Status: Built, not released.** `stratum-parent` and `stratum-bom` exist in the repository and pass
-`mvn verify`, but no version is published yet. The startup check of the Spring Boot version is planned.
+`mvn verify`, but no version is published yet.
 This page explains how your service gets Stratum's tested versions, Java settings and build checks.
 
 [← Documentation home](../README.md) · How to choose between them: [Installation](../getting-started/installation.md)

@@ -109,7 +109,10 @@ Every starter follows these rules:
 - **ST-ENG-34** Every setting can also be set in Java, for services whose configuration files would grow too large.
   Each module offers a customizer bean or a builder on its public API that sets the same options, with the same
   names and defaults as the properties. When a setting is given in both places, the Java configuration wins, and
-  the module's documentation says so.
+  the module's documentation says so. The shared mechanism is in `stratum-core`: a service declares
+  `StratumPropertiesCustomizer<P>` beans for the module's settings record `P`, and the module's auto-configuration
+  builds its beans only from `StratumPropertiesResolver.resolve(bound, customizers.orderedStream())`, never from the
+  bound record directly.
 
 ## Java 25 and Spring Boot 4
 
@@ -176,6 +179,3 @@ Every starter follows these rules:
 - **ST-ENG-64** Every dependency and Maven plugin comes from Maven Central. No other repository in any POM, no
   JitPack, no jars downloaded from GitHub and no source copied from another project. The library must be actively
   maintained and its licence compatible with Apache 2.0.
-- **ST-ENG-65** Each release supports one Spring Boot line, such as `4.1.x`, stated in the compatibility table of
-  `docs/guides/upgrading.md`. `stratum-core` checks the running Spring Boot version at startup and stops the service
-  with a message naming both versions when it is outside that line (ADR 0001).

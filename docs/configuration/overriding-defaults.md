@@ -1,13 +1,14 @@
 # Overriding defaults
 
-**Status: Planned.** Stratum's defaults suit most services, but never all of them. This page shows the
-four ways to change what Stratum does, from the lightest touch to the strongest.
+**Status: Planned.** Only the Java configuration of [level 1](#set-the-same-values-in-java) is
+built, in `stratum-core`. Stratum's defaults suit most services, but never all of them. This page
+shows the four ways to change what Stratum does, from the lightest touch to the strongest.
 
 [← Documentation home](../README.md)
 
 | Level | You want to | You do | Effort |
 | --- | --- | --- | --- |
-| 1 | Change a value | Set a property | One line |
+| 1 | Change a value | Set a property, or the same value in Java | One line, or a small bean |
 | 2 | Adjust a bean Stratum built | Declare a customizer bean | A few lines |
 | 3 | Replace a bean entirely | Declare your own bean of the same type | You own that bean from now on |
 | 4 | Turn a module off | `stratum.<module>.enabled=false` | One line |
@@ -36,6 +37,67 @@ stratum:
 stratum.http-client.defaults.read-timeout=10s
 stratum.logging.redaction.extra-keys=iban,date-of-birth
 ```
+
+### Set the same values in Java
+
+Every value you can set in a file you can also set in Java code. This suits a service whose
+configuration files would otherwise grow too large, or a value worked out in code. When a value is
+set in both places, **the Java value wins**.
+
+Each module binds its `stratum.<module>.*` properties to one settings type, a Java record. To set
+values in Java, declare a bean of type `StratumPropertiesCustomizer<the settings type>`. It receives
+the settings already read from your files, with Stratum's defaults for anything you did not set, and
+returns the settings the module should use. Change only what you need and copy the rest.
+
+The settings types of the modules are planned; each module page will name its own. The example
+below uses a module called `example` with two settings, `message` and `timeout`. The same values,
+set three ways:
+
+```properties
+stratum.example.message=Hello
+stratum.example.timeout=5s
+```
+
+```yaml
+stratum:
+  example:
+    message: Hello
+    timeout: 5s
+```
+
+```java
+@Configuration
+class ExampleConfig {
+
+  @Bean
+  StratumPropertiesCustomizer<ExampleProperties> exampleSettings() {
+    return properties -> new ExampleProperties("Hello", Duration.ofSeconds(5));
+  }
+}
+```
+
+With all three in place, the module uses the values from the Java bean. To set only the timeout in
+Java and keep the message from your files, copy it across:
+
+```java
+@Bean
+StratumPropertiesCustomizer<ExampleProperties> exampleTimeout() {
+  return properties -> new ExampleProperties(properties.message(), Duration.ofSeconds(5));
+}
+```
+
+Rules that apply to every module:
+
+- Several customizers for the same settings run in `@Order` order. Each receives the result of the
+  one before, so the last one wins.
+- A customizer must not return `null`. To leave the settings unchanged, return what it received.
+  A `null` stops the application at startup with a message naming the customizer.
+- Values set in Java are validated like values in files. A bad value, such as a blank message or a
+  missing timeout, stops the application at startup. The message names the setting and the rule it
+  breaks, never the value, which might be a secret.
+
+`StratumPropertiesCustomizer` is in `stratum-core`, in the package
+`com.exepex.stratum.core.properties`. Every starter brings it with it.
 
 ## Level 2: adjust a bean with a customizer
 

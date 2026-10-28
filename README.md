@@ -303,8 +303,9 @@ against it. There are three setups:
 
 In setups B and C three rules keep the two frameworks from conflicting:
 
-- **One Spring Boot version, set by the parent.** `stratum-bom` does not set Spring Boot's versions,
-  and Stratum stops at startup if the running Spring Boot version is outside the line it supports.
+- **One Spring Boot version, set by the parent.** `stratum-bom` does not set Spring Boot's versions.
+  The company parent's Spring Boot version must be in the line Stratum supports, which the
+  [compatibility table](docs/guides/upgrading.md#compatibility) lists.
 - **The company's bean wins.** Stratum's beans are created only when no bean of the same type exists,
   and Stratum's auto-configurations usually run after the company's. The exceptions, and what to do
   about them, are in

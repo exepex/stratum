@@ -40,11 +40,12 @@ does not compete with the company parent for that decision:
   company parent in setups B and C.
 - Each Stratum release supports one Spring Boot line, such as `4.1.x`. The
   [compatibility table](upgrading.md#compatibility) lists it.
-- At startup, Stratum checks the Spring Boot version that is actually running. If it is outside the
-  supported line, the service stops with a message that names both versions.
+- Stratum does not check the Spring Boot version at startup
+  ([ADR 0002](../adr/0002-no-startup-version-check.md)). Before the company parent moves to a new
+  Spring Boot version, check that a Stratum release supports it.
 
-So the company decides when to move to a new Spring Boot version, and Stratum tells you at the first
-start if its release does not support that version yet.
+So the company decides when to move to a new Spring Boot version, and the compatibility table tells
+you which Stratum release to use with it.
 
 > [!NOTE]
 > When a library is managed by both the company parent and `stratum-bom`, Maven uses the parent's
@@ -237,6 +238,6 @@ reason, setup B is recommended unless the team needs a single parent.
 
 | Problem | Likely cause | Fix |
 | --- | --- | --- |
-| Startup stops: Spring Boot version not supported | The company parent manages a Spring Boot version outside Stratum's line | Use the Stratum release that supports it, or wait for one. See [Versioning and upgrades](upgrading.md) |
+| `NoSuchMethodError` or `ClassNotFoundException` from a Spring class at startup | The company parent manages a Spring Boot version outside Stratum's line | Use the Stratum release that supports it, or wait for one. See [Versioning and upgrades](upgrading.md) |
 | A Stratum bean is used instead of the company's | The company bean is created later or has a different type | Order the company auto-configuration with `beforeName`, or turn the Stratum module off |
 | `NoSuchMethodError` at startup | A library's version comes from the company parent and is older than Stratum needs | Compare `mvn dependency:tree` with the release notes and align the company parent |

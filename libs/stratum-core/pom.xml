@@ -14,5 +14,26 @@
   <artifactId>stratum-core</artifactId>
 
   <name>Stratum core</name>
-  <description>Planned: Shared internals of Stratum's starters: constants, property defaults and the Spring Boot version check.</description>
+  <description>Shared internals of Stratum's starters: how a module's settings combine properties and Java configuration.</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>jakarta.validation</groupId>
+      <artifactId>jakarta.validation-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.jspecify</groupId>
+      <artifactId>jspecify</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-validation</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
 </project>
