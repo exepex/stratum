@@ -33,6 +33,7 @@ stratum/
 │   ├── stratum-bom/                # versions of Stratum's modules and the extra libraries it uses
 │   ├── stratum-build-parent/       # Java 25, the BOM, every plugin version and the build checks
 │   ├── stratum-build-rules/        # Checkstyle, PMD and Enforcer rules, packaged as a jar
+│   ├── stratum-library-parent/     # parent POM for libs and starters: adds the Javadoc check
 │   └── stratum-parent/             # parent POM for services: adds the executable jar and build info
 ├── libs/
 │   ├── stratum-core/               # shared internals: constants, property defaults, version check
@@ -82,15 +83,19 @@ flowchart TD
     BOM[stratum-bom] -->|imported by| BP
     BR[stratum-build-rules] -->|rules loaded by| BP
     BP -->|parent of| SP[stratum-parent]
-    BP -->|parent of| LIBS[libs and starters]
+    BP -->|parent of| LP[stratum-library-parent]
+    LP -->|parent of| LIBS[libs and starters]
     SP -->|parent of| SVC[a service]
     ROOT[root pom.xml] -->|parent of| BOM
     ROOT -->|parent of| BR
 ```
 
-- `stratum-build-parent` holds the versions and every build check. Services get it through
-  `stratum-parent`, and Stratum's libraries and starters inherit it directly, so Stratum's own code
-  is held to the rules it gives its users.
+- `stratum-build-parent` holds the versions and the build checks. Services get it through
+  `stratum-parent`, and Stratum's libraries and starters through `stratum-library-parent`, so
+  Stratum's own code is held to the rules it gives its users.
+- `stratum-library-parent` adds one check for Stratum's own code: Javadoc on every type and method
+  (`stratum/checkstyle-javadoc.xml`). Services are not checked for Javadoc; whether a service
+  writes it is its team's choice.
 - `stratum-parent` adds what only a service needs: the executable jar, `build-info.properties` and
   `git.properties`. Libraries do not inherit it, because a library jar that carried those two files
   would hide the service's own files from `/actuator/info`.

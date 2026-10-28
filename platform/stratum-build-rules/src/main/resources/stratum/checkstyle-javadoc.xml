@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE module PUBLIC
+    "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+    "https://checkstyle.org/dtds/configuration_1_3.dtd">
+<!--
+  Stratum's Javadoc rules (ST-ENG-14, ST-ENG-15). Only stratum-library-parent runs them, for Stratum's
+  libraries and starters. Services are not checked, because whether a service writes Javadoc is its
+  team's choice.
+-->
+<module name="Checker">
+  <property name="charset" value="UTF-8"/>
+  <property name="severity" value="error"/>
+  <property name="fileExtensions" value="java"/>
+
+  <module name="TreeWalker">
+    <!-- Javadoc on every type and method (ST-ENG-14). Tests use @DisplayName instead. -->
+    <module name="MissingJavadocType">
+      <property name="scope" value="private"/>
+      <property name="skipAnnotations" value="Generated, DisplayName"/>
+    </module>
+    <module name="MissingJavadocMethod">
+      <property name="scope" value="private"/>
+      <property name="allowMissingPropertyJavadoc" value="false"/>
+      <property name="allowedAnnotations"
+          value="Override, Test, ParameterizedTest, RepeatedTest, TestFactory, TestTemplate"/>
+      <property name="tokens" value="METHOD_DEF, CTOR_DEF, ANNOTATION_FIELD_DEF, COMPACT_CTOR_DEF"/>
+    </module>
+    <module name="InvalidJavadocPosition"/>
+    <module name="JavadocMethod">
+      <property name="accessModifiers" value="public, protected, package, private"/>
+    </module>
+    <module name="NonEmptyAtclauseDescription"/>
+    <!-- A summary sentence that says what the element does, not its signature (ST-ENG-15) -->
+    <module name="SummaryJavadoc">
+      <property name="forbiddenSummaryFragments"
+          value="^@return the *|^This method returns |^A [{]@code [a-zA-Z0-9]+[}]( is a )"/>
+    </module>
+  </module>
+</module>

@@ -6,9 +6,9 @@
 
   <parent>
     <groupId>com.exepex.stratum</groupId>
-    <artifactId>stratum-build-parent</artifactId>
+    <artifactId>stratum-library-parent</artifactId>
     <version>${revision}</version>
-    <relativePath>../../platform/stratum-build-parent/pom.xml</relativePath>
+    <relativePath>../../platform/stratum-library-parent/pom.xml</relativePath>
   </parent>
 
   <artifactId>stratum-starter-logging</artifactId>

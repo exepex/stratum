@@ -4,6 +4,7 @@
   stratum-build-parent; this POM adds what only a service needs: the executable jar, and the
   build-info.properties and git.properties files that /actuator/info shows. Stratum's own libraries do
   not inherit this POM, because a library jar that carried those two files would hide the service's own.
+  Services are not checked for Javadoc; that check is in stratum-library-parent.
   Keep <plugins> sorted by name.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
