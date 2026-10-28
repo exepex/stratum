@@ -104,7 +104,8 @@ class ErrorReportTest {
     @DisplayName("line breaks and other control characters in the detail become spaces")
     void replacesControlCharactersInDetail() {
       var report =
-          ErrorReport.of(OrderErrorCode.OUT_OF_STOCK, SKU + "\r\n2026-10-28 INFO\u0085\u2028\u2029forged\t");
+          ErrorReport.of(
+              OrderErrorCode.OUT_OF_STOCK, SKU + "\r\n2026-10-28 INFO\u0085\u2028\u2029forged\t");
 
       assertThat(report.getExternal().message())
           .isEqualTo("Not enough stock: SKU-1  2026-10-28 INFO   forged ");
