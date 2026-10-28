@@ -137,9 +137,29 @@ final class KeyValuePairs implements UnaryOperator<String> {
             ? new Value(String.valueOf(opening), start, text.length(), text.length())
             : new Value(String.valueOf(opening), start, closing, closing + 1);
       }
+      if (opening == '[' || opening == '{') {
+        var end = containerEnd(text, start);
+        return new Value("", start, end, end);
+      }
       var end =
           SensitiveFieldNames.isHeaderList(key) ? lineEnd(text, start) : plainEnd(text, start);
       return new Value("", start, end, end);
+    }
+
+    /**
+     * Returns the end of a JSON array or object that starts at the position: just after its closing
+     * bracket, or the end of the text if it has none. Brackets inside strings are skipped.
+     */
+    private static int containerEnd(String text, int start) {
+      var afterScan =
+          Stream.iterate(
+                  new ContainerScan(start + 1, 1, false),
+                  scan -> scan.depth() > 0 && scan.position() < text.length(),
+                  scan -> scan.next(text))
+              .reduce((earlier, later) -> later)
+              .orElseThrow()
+              .next(text);
+      return afterScan.depth() == 0 ? afterScan.position() : text.length();
     }
 
     /** Returns whether there is nothing to mask. */
@@ -214,6 +234,34 @@ final class KeyValuePairs implements UnaryOperator<String> {
           && Character.isWhitespace(text.charAt(position))
           && !Character.isWhitespace(text.charAt(position - 1))
           && nextKey.region(position, text.length()).lookingAt();
+    }
+  }
+
+  /**
+   * One step of the scan for the end of a JSON array or object.
+   *
+   * @param position the next character to read
+   * @param depth how many brackets are open
+   * @param inString whether the scan is inside a quoted string
+   */
+  private record ContainerScan(int position, int depth, boolean inString) {
+
+    /** Reads the character at the position and returns the state after it. */
+    private ContainerScan next(String text) {
+      var character = text.charAt(position);
+      if (inString) {
+        return switch (character) {
+          case '\\' -> new ContainerScan(position + 2, depth, true);
+          case '"' -> new ContainerScan(position + 1, depth, false);
+          default -> new ContainerScan(position + 1, depth, true);
+        };
+      }
+      return switch (character) {
+        case '"' -> new ContainerScan(position + 1, depth, true);
+        case '[', '{' -> new ContainerScan(position + 1, depth + 1, false);
+        case ']', '}' -> new ContainerScan(position + 1, depth - 1, false);
+        default -> new ContainerScan(position + 1, depth, false);
+      };
     }
   }
 }

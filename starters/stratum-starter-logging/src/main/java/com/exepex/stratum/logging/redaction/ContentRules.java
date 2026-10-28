@@ -51,11 +51,12 @@ class ContentRules {
       Pattern.compile("(?i)(?<![a-z0-9+.-])([a-z][a-z0-9+.-]*+://)[^\\s/:@]++:[^\\s/@]++@");
 
   /**
-   * Digit groups separated by single spaces or dashes, with at least 13 digits in all. A run must
-   * start where no word or earlier group comes before it, so that matching stays linear.
+   * Digit groups separated by single spaces or dashes, with at least 13 digits in all, wherever
+   * they start, even right after a word such as {@code order123}. The run is matched possessively
+   * and needs nothing after it, so a failed start scans at most 13 digits and matching stays
+   * linear.
    */
-  private static final Pattern CARD_GROUPS =
-      Pattern.compile("(?<!\\w|\\d[ -])\\d(?:[ -]?\\d){12,}+");
+  private static final Pattern CARD_GROUPS = Pattern.compile("\\d(?:[ -]?\\d){12,}+");
 
   /** One group of digits. */
   private static final Pattern DIGIT_GROUP = Pattern.compile("\\d+");

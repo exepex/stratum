@@ -118,7 +118,8 @@ Names are compared without case, `_` or `-`, and only their last part counts, so
 entry, and in text such as `password=x`, `"token":"x"`, `'token': 'x'`, escaped JSON
 (`\"token\":\"x\"`), `?api_key=x&`, `password%3Dx` or Lombok's `User(email=x, …)`. An unquoted value in text runs until the next key, a comma, `;`, `&`, a closing
 bracket or the end of the line. The values of `Cookie`, `Set-Cookie` and `Authorization` run to the
-end of the line, so every cookie in the header is masked. A card number next to another number, as
+end of the line, so every cookie in the header is masked. A JSON array or object under a sensitive key,
+as in `"token":[...]`, is masked up to its closing bracket. A card number next to another number, as
 in `4111 1111 1111 1111 43`, is still found.
 
 Every value is also cut to `stratum.logging.max-field-length` (16KB by default) and ends with

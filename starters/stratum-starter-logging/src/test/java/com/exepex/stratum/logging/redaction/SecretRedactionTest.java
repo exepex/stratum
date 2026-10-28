@@ -192,6 +192,16 @@ class SecretRedactionTest {
     }
 
     @Test
+    @DisplayName(
+        "a JSON array or object under a secret key is masked whole, and the next pair kept")
+    void jsonContainerUnderSecretKeyIsMasked() {
+      assertThat(text("{\"token\":[\"" + PASSWORD + "\", 2],\"id\":7}"))
+          .isEqualTo("{\"token\":****,\"id\":7}");
+      assertThat(text("{\"secret\":{\"value\":\"a]b\",\"nested\":{\"x\":1}},\"id\":7}"))
+          .isEqualTo("{\"secret\":****,\"id\":7}");
+    }
+
+    @Test
     @DisplayName("a JSON Web Token cut after its second part is still masked")
     void cutJwtIsMasked() {
       var cut = JWT.substring(0, JWT.lastIndexOf('.'));
@@ -246,6 +256,8 @@ class SecretRedactionTest {
           "paid with 4111111111111111 43",
           "paid with 4111 1111 1111 1111 43",
           "43 4111111111111111 paid",
+          "order123 4111111111111111 paid",
+          "order123 4111 1111 1111 1111 paid",
           "4111-1111-1111-1111 7 and 5500 0000 0000 0004"
         })
     @DisplayName("a card next to another number is still found and masked")
@@ -295,6 +307,14 @@ class SecretRedactionTest {
     @DisplayName("an extra pattern is masked in full")
     void extraPatternIsMasked() {
       assertThat(withRules.redact(null, "ref ACME-123456 done")).isEqualTo("ref **** done");
+    }
+
+    @Test
+    @DisplayName("an extra key that is built in with its last four kept is masked in full")
+    void extraKeyIsMaskedInFull() {
+      var withEmail = Redactor.from(LoggingTestData.withRedaction(List.of("email"), List.of()));
+
+      assertThat(withEmail.redact("email", "jane.doe@example.com")).isEqualTo(Redactor.MASK);
     }
 
     @Test

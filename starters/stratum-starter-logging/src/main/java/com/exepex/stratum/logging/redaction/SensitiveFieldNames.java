@@ -114,6 +114,10 @@ final class SensitiveFieldNames {
       return Optional.empty();
     }
     var key = normalize(name);
+    // A name listed to be masked in full, such as an extra key, wins over keeping the last four.
+    if (maskedInFull.contains(key)) {
+      return Optional.of(Redactor.MASK);
+    }
     if (maskedKeepingLastFour.contains(key)) {
       return Optional.of(Redactor.keepingLastFour(value.get()));
     }
