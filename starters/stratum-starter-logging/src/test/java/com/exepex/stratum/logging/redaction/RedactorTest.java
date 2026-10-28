@@ -73,9 +73,9 @@ class RedactorTest {
         Redactor.from(LoggingTestData.defaults().maxFieldLength(DataSize.ofKilobytes(1)).build());
 
     @Test
-    @DisplayName("a value longer than the limit is cut and marked")
+    @DisplayName("a value even one character longer than the limit is cut and marked")
     void longValueIsCut() {
-      var cut = (String) redactor.redact("message", "x".repeat(SMALLEST_LIMIT * 2));
+      var cut = (String) redactor.redact("message", "x".repeat(SMALLEST_LIMIT + 1));
 
       assertThat(cut)
           .hasSize(SMALLEST_LIMIT + Redactor.TRUNCATED.length())
