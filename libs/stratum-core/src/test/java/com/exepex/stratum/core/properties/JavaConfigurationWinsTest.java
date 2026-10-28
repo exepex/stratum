@@ -7,25 +7,19 @@ import com.exepex.stratum.core.properties.fixture.Greeter;
 import com.exepex.stratum.core.properties.fixture.GreetingAutoConfiguration;
 import com.exepex.stratum.core.properties.fixture.GreetingProperties;
 import com.exepex.stratum.core.properties.testsupport.GreetingTestData;
+import com.exepex.stratum.test.ConfigFile;
 import jakarta.validation.ConstraintViolationException;
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
-import org.springframework.boot.env.PropertiesPropertySourceLoader;
-import org.springframework.boot.env.PropertySourceLoader;
-import org.springframework.boot.env.YamlPropertySourceLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.validation.autoconfigure.ValidationAutoConfiguration;
-import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
-import org.springframework.core.io.ClassPathResource;
 
 @DisplayName("A module's settings come from properties, YAML and Java, and Java wins")
 class JavaConfigurationWinsTest {
@@ -54,7 +48,7 @@ class JavaConfigurationWinsTest {
     @DisplayName("the module uses the values from application.properties and application.yml")
     void bindsValuesFromFile(String file) {
       contextRunner
-          .withInitializer(context -> load(context, file))
+          .withInitializer(ConfigFile.load(file))
           .run(
               context ->
                   assertThat(context.getBean(Greeter.class).settings())
@@ -70,7 +64,7 @@ class JavaConfigurationWinsTest {
     @DisplayName("a value set in Java wins over the same value in the file")
     void javaValueWinsOverFileValue(String file) {
       contextRunner
-          .withInitializer(context -> load(context, file))
+          .withInitializer(ConfigFile.load(file))
           .withUserConfiguration(JavaTimeout.class)
           .run(
               context ->
@@ -165,26 +159,6 @@ class JavaConfigurationWinsTest {
                               + GreetingTestData.class.getName())
                       .hasStackTraceContaining(
                           "declare it as StratumPropertiesCustomizer<GreetingProperties>"));
-    }
-  }
-
-  /**
-   * Adds a configuration file to the context's environment, as Spring Boot does at startup.
-   *
-   * @param context the context under test
-   * @param file the classpath location of an {@code .properties} or {@code .yml} file
-   */
-  private static void load(ConfigurableApplicationContext context, String file) {
-    PropertySourceLoader loader =
-        file.endsWith(".yml")
-            ? new YamlPropertySourceLoader()
-            : new PropertiesPropertySourceLoader();
-    try {
-      loader
-          .load(file, new ClassPathResource(file))
-          .forEach(source -> context.getEnvironment().getPropertySources().addFirst(source));
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
     }
   }
 

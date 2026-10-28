@@ -1,0 +1,6 @@
+sample:
+  message: Hi from the first document
+  timeout: 5s
+---
+sample:
+  message: Hi from the second document

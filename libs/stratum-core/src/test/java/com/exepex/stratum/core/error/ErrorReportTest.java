@@ -1,18 +1,18 @@
 package com.exepex.stratum.core.error;
 
-import static com.exepex.stratum.core.error.testsupport.ErrorTestData.CORRELATION_ID;
-import static com.exepex.stratum.core.error.testsupport.ErrorTestData.CORRELATION_ID_KEY;
 import static com.exepex.stratum.core.error.testsupport.ErrorTestData.LONGEST_ID_LENGTH;
 import static com.exepex.stratum.core.error.testsupport.ErrorTestData.QUANTITY_PROBLEM;
 import static com.exepex.stratum.core.error.testsupport.ErrorTestData.SKU;
-import static com.exepex.stratum.core.error.testsupport.ErrorTestData.SPAN_ID;
-import static com.exepex.stratum.core.error.testsupport.ErrorTestData.TRACE_ID;
+import static com.exepex.stratum.test.LoggingContextIds.CORRELATION_ID;
+import static com.exepex.stratum.test.LoggingContextIds.CORRELATION_ID_KEY;
+import static com.exepex.stratum.test.LoggingContextIds.SPAN_ID;
+import static com.exepex.stratum.test.LoggingContextIds.TRACE_ID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 import com.example.orders.ImpostorErrorCode;
 import com.example.orders.OrderErrorCode;
-import com.exepex.stratum.core.error.testsupport.ErrorTestData;
+import com.exepex.stratum.test.LoggingContextIds;
 import java.lang.reflect.RecordComponent;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -111,7 +111,7 @@ class ErrorReportTest {
     @Test
     @DisplayName("it takes them from the logging context")
     void readsIdsFromLoggingContext() {
-      ErrorTestData.putIdsInLoggingContext();
+      LoggingContextIds.putInLoggingContext();
 
       var report = ErrorReport.of(OrderErrorCode.OUT_OF_STOCK, SKU);
 
@@ -202,7 +202,7 @@ class ErrorReportTest {
     @Test
     @DisplayName("it keeps the code, severity, message, details, trace and correlation IDs")
     void keepsWhatCallersMaySee() {
-      ErrorTestData.putIdsInLoggingContext();
+      LoggingContextIds.putInLoggingContext();
 
       var external =
           ErrorReport.of(OrderErrorCode.OUT_OF_STOCK, SKU)
