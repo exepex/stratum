@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Cases for the UseLombokToString rule in stratum/pmd-lombok.xml: code it must report, then code it must not. -->
+<test-data
+    xmlns="http://pmd.sourceforge.net/rule-tests"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://pmd.sourceforge.net/rule-tests http://pmd.sourceforge.net/rule-tests_1_0_0.xsd">
+
+  <test-code>
+    <description>a hand-written toString in a class</description>
+    <expected-problems>1</expected-problems>
+    <expected-linenumbers>3</expected-linenumbers>
+    <code><![CDATA[
+class Money {
+  @Override
+  public String toString() {
+    return "Money";
+  }
+}
+]]></code>
+  </test-code>
+
+  <test-code>
+    <description>an enum toString and a toString with parameters are not reported</description>
+    <expected-problems>0</expected-problems>
+    <code><![CDATA[
+enum Mode {
+  ON;
+  @Override
+  public String toString() {
+    return "on";
+  }
+}
+class Money {
+  String toString(int digits) {
+    return "Money" + digits;
+  }
+}
+]]></code>
+  </test-code>
+</test-data>

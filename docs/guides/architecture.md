@@ -33,7 +33,7 @@ stratum/
 │   ├── stratum-bom/                # versions of Stratum's modules and the extra libraries it uses
 │   ├── stratum-build-parent/       # Java 25, the BOM, every plugin version and the build checks
 │   ├── stratum-build-rules/        # Checkstyle, PMD and Enforcer rules, packaged as a jar
-│   ├── stratum-library-parent/     # parent POM for libs and starters: adds Lombok and the Javadoc check
+│   ├── stratum-library-parent/     # parent POM for libs and starters: adds Lombok and Stratum-only checks
 │   └── stratum-parent/             # parent POM for services: adds the executable jar and build info
 ├── libs/
 │   ├── stratum-core/               # shared internals: constants, property defaults
@@ -97,9 +97,10 @@ flowchart TD
 - `stratum-build-parent` holds the versions and the build checks. Services get it through
   `stratum-parent`, and Stratum's libraries and starters through `stratum-library-parent`, so
   Stratum's own code is held to the rules it gives its users.
-- `stratum-library-parent` adds one check for Stratum's own code: Javadoc on every type and method
-  (`stratum/checkstyle-javadoc.xml`). Services are not checked for Javadoc; whether a service
-  writes it is its team's choice.
+- `stratum-library-parent` adds Lombok and the annotation processors Stratum's own code uses, and
+  checks for that code: Google's Checkstyle configuration (`google_checks.xml`), Javadoc on every
+  type and method and at most 400 lines per Java file (`stratum/checkstyle-library.xml`), and no
+  hand-written code that Lombok generates (`stratum/pmd-lombok.xml`). Services get none of these; those choices are their team's.
 - `stratum-parent` adds what only a service needs: the executable jar, `build-info.properties` and
   `git.properties`. Libraries do not inherit it, because a library jar that carried those two files
   would hide the service's own files from `/actuator/info`.

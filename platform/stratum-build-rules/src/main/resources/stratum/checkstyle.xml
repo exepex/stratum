@@ -5,10 +5,9 @@
 <!--
   Stratum's Checkstyle rules for every build, services included. Layout (indentation, line length,
   import order, whitespace) is left to google-java-format, which Spotless checks, so these rules cover
-  what a formatter cannot: names, imports and risky constructs. The Javadoc rules are in
-  checkstyle-javadoc.xml, which only Stratum's own modules use. Rule IDs in comments point to
-  docs/agents/.
-  No check counts lines: file size is checked by agents and the judge (AGENTS.md, ST-AG-10).
+  what a formatter cannot: names, imports and risky constructs. Stratum's own modules are also
+  checked against Google's Checkstyle configuration and checkstyle-library.xml (Javadoc and the
+  400-line limit), which stratum-library-parent runs. Rule IDs in comments point to docs/agents/.
 -->
 <module name="Checker">
   <property name="charset" value="UTF-8"/>

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Cases for the UseLombokSetter rule in stratum/pmd-lombok.xml: code it must report, then code it must not. -->
+<test-data
+    xmlns="http://pmd.sourceforge.net/rule-tests"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://pmd.sourceforge.net/rule-tests http://pmd.sourceforge.net/rule-tests_1_0_0.xsd">
+
+  <test-code>
+    <description>setters that only assign their parameter to a field</description>
+    <expected-problems>2</expected-problems>
+    <expected-linenumbers>4,7</expected-linenumbers>
+    <code><![CDATA[
+class Person {
+  private String name;
+  private boolean active;
+  void setName(String name) {
+    this.name = name;
+  }
+  void setActive(boolean value) {
+    active = value;
+  }
+}
+]]></code>
+  </test-code>
+
+  <test-code>
+    <description>setters that validate, convert, return this, ignore their parameter or have another name are not reported</description>
+    <expected-problems>0</expected-problems>
+    <code><![CDATA[
+class Person {
+  private String name;
+  private int count;
+  void setCount(int count) {
+    if (count < 0) {
+      throw new IllegalArgumentException();
+    }
+    this.count = count;
+  }
+  void setName(String name) {
+    this.name = name.trim();
+  }
+  Person setLabel(String name) {
+    this.name = name;
+    return this;
+  }
+  void setDefaultName(String ignored) {
+    this.name = DEFAULT_NAME;
+  }
+  void setUsername(String username) {
+    this.name = username;
+  }
+  private static final String DEFAULT_NAME = "x";
+}
+]]></code>
+  </test-code>
+</test-data>
