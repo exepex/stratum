@@ -95,6 +95,13 @@ class PersonalDataRedactionTest {
     }
 
     @Test
+    @DisplayName("an IBAN right after an IBAN-shaped word is masked")
+    void ibanAfterIbanShapedWordIsMasked() {
+      assertThat(text("ref DE12 DE89370400440532013000")).isEqualTo("ref DE12 ****3000");
+      assertThat(text("AB12CD DE89 3704 0044 0532 0130 00")).isEqualTo("AB12CD ****3000");
+    }
+
+    @Test
     @DisplayName("an IBAN-shaped code that fails its checksum is kept")
     void invalidIbanIsKept() {
       assertThat(text("code GB00WEST12345698765432")).isEqualTo("code GB00WEST12345698765432");

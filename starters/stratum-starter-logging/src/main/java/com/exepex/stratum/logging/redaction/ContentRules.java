@@ -180,15 +180,31 @@ class ContentRules {
     return replace(text, ibans);
   }
 
-  /** Finds the next valid IBAN from the given position, skipping candidates that are not one. */
+  /**
+   * Finds the next valid IBAN from the given position. After a candidate that is not one, the
+   * search goes on from its second word, where an IBAN may start after an IBAN-shaped word.
+   */
   private static Optional<Replacement> nextIban(Matcher matcher, int from) {
     return Stream.iterate(
             find(matcher, from),
             Optional::isPresent,
-            candidate -> find(matcher, candidate.orElseThrow().end()))
+            candidate -> find(matcher, secondWord(candidate.orElseThrow())))
         .map(Optional::orElseThrow)
         .flatMap(candidate -> validIban(candidate).stream())
         .findFirst();
+  }
+
+  /** Returns where a candidate's second word starts, or its end if it is one word. */
+  private static int secondWord(MatchResult candidate) {
+    var firstWord =
+        candidate
+            .group()
+            .chars()
+            .takeWhile(character -> !Character.isWhitespace(character))
+            .count();
+    return firstWord < candidate.group().length()
+        ? candidate.start() + (int) firstWord + 1
+        : candidate.end();
   }
 
   /** Returns the pattern's next match from the given position, if there is one. */
