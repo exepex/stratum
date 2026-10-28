@@ -170,6 +170,14 @@ class SecretRedactionTest {
     }
 
     @Test
+    @DisplayName("a secret in escaped JSON is masked whole, even when it holds an escaped quote")
+    void escapedJsonSecretWithQuoteIsMasked() {
+      var line = "{\\\"password\\\":\\\"prefix\\\\\\\"fake-suffix\\\",\\\"id\\\":7}";
+
+      assertThat(text(line)).isEqualTo("{\\\"password\\\":\\\"****\\\",\\\"id\\\":7}");
+    }
+
+    @Test
     @DisplayName("a JSON Web Token cut after its second part is still masked")
     void cutJwtIsMasked() {
       var cut = JWT.substring(0, JWT.lastIndexOf('.'));

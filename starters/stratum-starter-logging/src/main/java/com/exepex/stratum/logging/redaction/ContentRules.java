@@ -24,8 +24,8 @@ import org.apache.commons.validator.routines.IBANValidator;
  * candidates; Apache Commons Validator and Google's libphonenumber decide whether a candidate is a
  * real card number, email address, IBAN or phone number, so that ordinary numbers stay readable.
  *
- * <p>The JWT and email patterns must start a word and match possessively, so that matching stays
- * linear on long hostile text.
+ * <p>The patterns that can match long runs must start a run, through a lookbehind, and match
+ * possessively, so that matching stays linear on long hostile text.
  */
 @UtilityClass
 class ContentRules {
@@ -46,10 +46,14 @@ class ContentRules {
 
   /** A user name and password in a URL, such as {@code https://user:secret@host}. */
   private static final Pattern URL_CREDENTIALS =
-      Pattern.compile("(?i)\\b([a-z][a-z0-9+.-]*://)[^\\s/:@]+:[^\\s/@]+@");
+      Pattern.compile("(?i)(?<![a-z0-9+.-])([a-z][a-z0-9+.-]*+://)[^\\s/:@]++:[^\\s/@]++@");
 
-  /** Digit groups separated by single spaces or dashes, with at least 13 digits in all. */
-  private static final Pattern CARD_GROUPS = Pattern.compile("\\b\\d(?:[ -]?\\d){12,}+\\b");
+  /**
+   * Digit groups separated by single spaces or dashes, with at least 13 digits in all. A run must
+   * start where no word or earlier group comes before it, so that matching stays linear.
+   */
+  private static final Pattern CARD_GROUPS =
+      Pattern.compile("(?<!\\w|\\d[ -])\\d(?:[ -]?\\d){12,}+");
 
   /** One group of digits. */
   private static final Pattern DIGIT_GROUP = Pattern.compile("\\d+");
@@ -129,27 +133,35 @@ class ContentRules {
   /**
    * Masks the card numbers in a run of digit groups, keeping the last four digits. A run such as
    * {@code 4111 1111 1111 1111 43} can hold a card next to other numbers, so the longest valid card
-   * that starts at each group is looked for, and the first one found is masked before the rest.
+   * that starts at each group is looked for, and the search goes on after the card it finds.
    */
   private static String maskCards(String run) {
     var groups = DIGIT_GROUP.matcher(run).results().toList();
-    return IntStream.range(0, groups.size())
-        .mapToObj(first -> longestCard(run, groups, first))
-        .flatMap(Optional::stream)
-        .findFirst()
-        .map(
-            card ->
-                run.substring(0, card.start())
-                    + Redactor.keepingLastFour(digits(run, card))
-                    + maskCards(run.substring(card.end())))
-        .orElse(run);
+    var masked = new StringBuilder(run.length());
+    var copied = 0;
+    var first = 0;
+    // A loop, not a stream: where the next search starts depends on the card just found.
+    while (first < groups.size()) {
+      var card = longestCard(run, groups, first);
+      if (card.isEmpty()) {
+        first++;
+        continue;
+      }
+      var found = card.get();
+      masked
+          .append(run, copied, found.start())
+          .append(Redactor.keepingLastFour(digits(run, found)));
+      copied = found.end();
+      first = found.lastGroup() + 1;
+    }
+    return masked.append(run, copied, run.length()).toString();
   }
 
   /** Returns the longest valid card that starts at the first group, if there is one. */
   private static Optional<CardSpan> longestCard(String run, List<MatchResult> groups, int first) {
     var start = groups.get(first).start();
     return IntStream.range(first, groups.size())
-        .mapToObj(last -> new CardSpan(start, groups.get(last).end()))
+        .mapToObj(last -> new CardSpan(start, groups.get(last).end(), last))
         .takeWhile(candidate -> digits(run, candidate).length() <= MAX_CARD_DIGITS)
         .filter(candidate -> CARD.isValid(digits(run, candidate)))
         .reduce((shorter, longer) -> longer);
@@ -220,6 +232,7 @@ class ContentRules {
    *
    * @param start where its first group starts
    * @param end where its last group ends
+   * @param lastGroup the position of its last group in the run
    */
-  private record CardSpan(int start, int end) {}
+  private record CardSpan(int start, int end, int lastGroup) {}
 }

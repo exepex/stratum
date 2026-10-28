@@ -1,5 +1,6 @@
 package com.exepex.stratum.logging.redaction;
 
+import java.util.function.IntPredicate;
 import java.util.function.UnaryOperator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -32,6 +33,12 @@ final class KeyValuePairs implements UnaryOperator<String> {
 
   /** Opens and closes an escaped quoted value inside a JSON string. */
   private static final String ESCAPED_QUOTE = "\\\"";
+
+  /**
+   * In escaped JSON a backslash is written as four, so the count of backslashes before a quote is
+   * read modulo four: one closes the value, three is a quote inside it.
+   */
+  private static final int ESCAPED_JSON_CYCLE = 4;
 
   /** The characters that end an unquoted value. */
   private static final String VALUE_ENDS = ",;&)}]\"\r\n";
@@ -83,14 +90,20 @@ final class KeyValuePairs implements UnaryOperator<String> {
     /** Finds the value that starts at the index. */
     private static Value at(String text, String key, int start) {
       if (text.startsWith(ESCAPED_QUOTE, start)) {
-        var close = text.indexOf(ESCAPED_QUOTE, start + ESCAPED_QUOTE.length());
+        // Inside escaped JSON, a quote in the value is written \\\" and the closing one \".
+        var close =
+            closingQuote(
+                text,
+                start + ESCAPED_QUOTE.length(),
+                '"',
+                backslashes -> backslashes % ESCAPED_JSON_CYCLE == 1);
         return close < 0
             ? new Value(ESCAPED_QUOTE, start, text.length(), text.length())
-            : new Value(ESCAPED_QUOTE, start, close, close + ESCAPED_QUOTE.length());
+            : new Value(ESCAPED_QUOTE, start, close - 1, close + 1);
       }
       var first = start < text.length() ? text.charAt(start) : ' ';
       if (first == '"' || first == '\'') {
-        var close = closingQuote(text, start + 1, first);
+        var close = closingQuote(text, start + 1, first, backslashes -> backslashes % 2 == 0);
         return close < 0
             ? new Value(String.valueOf(first), start, text.length(), text.length())
             : new Value(String.valueOf(first), start, close, close + 1);
@@ -116,23 +129,28 @@ final class KeyValuePairs implements UnaryOperator<String> {
     }
   }
 
-  /** Returns the position of the closing quote, skipping escaped ones, or -1 if there is none. */
-  private static int closingQuote(String text, int from, char quote) {
+  /**
+   * Returns the position of the closing quote, or -1 if there is none. A quote closes the value
+   * when the number of backslashes before it passes the test; any other quote is part of the value.
+   */
+  private static int closingQuote(String text, int from, char quote, IntPredicate closes) {
     return IntStream.range(from, text.length())
-        .filter(position -> text.charAt(position) == quote && !isEscaped(text, from, position))
+        .filter(
+            position ->
+                text.charAt(position) == quote
+                    && closes.test(backslashesBefore(text, from, position)))
         .findFirst()
         .orElse(-1);
   }
 
-  /** Returns whether an odd number of backslashes, which escape it, comes before the position. */
-  private static boolean isEscaped(String text, int from, int position) {
-    var backslashes =
+  /** Returns how many backslashes come just before the position, counting back to {@code from}. */
+  private static int backslashesBefore(String text, int from, int position) {
+    return (int)
         IntStream.iterate(
                 position - 1,
                 previous -> previous >= from && text.charAt(previous) == '\\',
                 previous -> previous - 1)
             .count();
-    return backslashes % 2 == 1;
   }
 
   /** Returns the end of the line, without trailing spaces. */

@@ -31,7 +31,11 @@ class SlowInputTest {
         filled("eyJ"),
         "password=" + filled("word "),
         filled("+1 "),
-        filled("1 "));
+        filled("1 "),
+        filled("a:"),
+        filled("a.") + "://",
+        filled("1 ") + "1a",
+        filled("4111111111111111 "));
   }
 
   /** Repeats the text until it is about {@link #LENGTH} characters long. */
