@@ -61,8 +61,7 @@ class ConstraintViolationMessagesTest {
   void namesThePropertyKey() {
     var settings = VALID.toBuilder().readTimeout(null).build();
 
-    assertThat(describe(settings))
-        .isEqualTo("Invalid ClientSettings: stratum.client.read-timeout breaks @NotNull");
+    assertThat(describe(settings)).isEqualTo("stratum.client.read-timeout breaks @NotNull");
   }
 
   @Test
@@ -70,8 +69,7 @@ class ConstraintViolationMessagesTest {
   void namesTheRuleWithItsLimits() {
     var settings = VALID.toBuilder().name("a-name-that-is-too-long").build();
 
-    assertThat(describe(settings))
-        .isEqualTo("Invalid ClientSettings: stratum.client.name breaks @Size(max=10)");
+    assertThat(describe(settings)).isEqualTo("stratum.client.name breaks @Size(max=10)");
   }
 
   @Test
@@ -80,7 +78,7 @@ class ConstraintViolationMessagesTest {
     var settings = VALID.toBuilder().tokens(Map.of("orders", "hunter2")).build();
 
     assertThat(describe(settings))
-        .isEqualTo("Invalid ClientSettings: stratum.client.tokens[*] breaks @Pattern(regexp=\\d+)")
+        .isEqualTo("stratum.client.tokens[*] breaks @Pattern(regexp=\\d+)")
         .doesNotContain("hunter2");
   }
 
@@ -99,8 +97,7 @@ class ConstraintViolationMessagesTest {
   void hidesListIndexes() {
     var settings = VALID.toBuilder().hosts(List.of("ok", "")).build();
 
-    assertThat(describe(settings))
-        .isEqualTo("Invalid ClientSettings: stratum.client.hosts[*] breaks @NotBlank");
+    assertThat(describe(settings)).isEqualTo("stratum.client.hosts[*] breaks @NotBlank");
   }
 
   @Test
@@ -108,24 +105,20 @@ class ConstraintViolationMessagesTest {
   void checksNestedSettingsMarkedValid() {
     var settings = VALID.toBuilder().pool(new Pool(0)).build();
 
-    assertThat(describe(settings))
-        .isEqualTo("Invalid ClientSettings: stratum.client.pool.max-size breaks @Positive");
+    assertThat(describe(settings)).isEqualTo("stratum.client.pool.max-size breaks @Positive");
   }
 
   @Test
   @DisplayName("settings without @ConfigurationProperties are named by their own keys")
   void namesKeysWithoutPrefix() {
-    assertThat(describe(new Unprefixed("")))
-        .isEqualTo("Invalid Unprefixed: value breaks @NotBlank");
+    assertThat(describe(new Unprefixed(""))).isEqualTo("value breaks @NotBlank");
   }
 
   @Test
   @DisplayName("a service's own constraint without public access is named with its limits")
   void namesNonPublicConstraints() {
     assertThat(describe(new CodedSettings("toolong")))
-        .isEqualTo(
-            "Invalid CodedSettings: stratum.coded.code"
-                + " breaks @ShortCode(format=String, region=us)");
+        .isEqualTo("stratum.coded.code" + " breaks @ShortCode(format=String, region=us)");
   }
 
   @Test
@@ -144,7 +137,7 @@ class ConstraintViolationMessagesTest {
 
     assertThat(ConstraintViolationMessages.describe(settings, reverseKeyOrder))
         .isEqualTo(
-            "Invalid ClientSettings: stratum.client.name breaks @Size(max=10);"
+            "stratum.client.name breaks @Size(max=10);"
                 + " stratum.client.pool.max-size breaks @Positive;"
                 + " stratum.client.read-timeout breaks @NotNull");
   }
@@ -152,8 +145,7 @@ class ConstraintViolationMessagesTest {
   @Test
   @DisplayName("a rule on the settings type itself is named by the prefix alone")
   void namesTypeLevelRulesByPrefix() {
-    assertThat(describe(new RangeSettings(2, 1)))
-        .isEqualTo("Invalid RangeSettings: stratum.range breaks @MinBelowMax");
+    assertThat(describe(new RangeSettings(2, 1))).isEqualTo("stratum.range breaks @MinBelowMax");
   }
 
   /**

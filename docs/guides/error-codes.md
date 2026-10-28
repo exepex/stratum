@@ -1,0 +1,151 @@
+# Error and warning codes
+
+Every error and warning that Stratum reports has a code, such as `SX-CORE-1002`. You can search for
+the code in your logs, and look it up on this page to see what it means and how to fix it. Your
+service can use the same codes, error objects and exception for its own errors.
+
+[← Documentation home](../README.md)
+
+## What a code looks like
+
+```text
+SX-CORE-1002
+│  │    └── a four-digit number, unique within the module
+│  └─────── the module that reports it, such as CORE or WEB
+└────────── SX: the code belongs to Stratum
+```
+
+- **`SX-` is reserved for Stratum.** Your service uses its own prefix, such as `PAY-0001` or
+  `ORD-0001`. If a service declares a code that starts with `SX-`, Stratum rejects every report
+  made from it, so a service can't declare one by mistake. The check ignores case and leading
+  spaces, and accepts a code only from a class in Stratum's package, `com.exepex.stratum`.
+- **Each module numbers its own codes.** Errors and warnings share one range of numbers, so a
+  number is never used twice in a module.
+- **The code does not say how serious the problem is.** Each code has a separate `severity`,
+  `ERROR` or `WARNING`, which every report made from it carries.
+- **Info messages have no code.** Only errors and warnings need to be looked up.
+
+Each module declares all its codes, errors and warnings together, in one Java enum, such as
+`CoreErrorCode`. The severity and description of each code are constants in that enum. No
+properties file holds them, so no configuration can change what a Stratum code means.
+
+## The two error objects
+
+Stratum describes every error or warning with two objects. Both are in `stratum-core`, in the
+package `com.exepex.stratum.core.error`.
+
+| Object | Who sees it | What it holds |
+| --- | --- | --- |
+| `ErrorReport` | Your own logs only | Code, severity, message, field details, the trace, span and correlation IDs, and the cause with its stack trace |
+| `ExternalError` | Anyone outside the application: an API caller, a command-line user, a batch job's result, a user interface | Code, severity, message, field details, the trace ID and the correlation ID |
+
+`ExternalError` has the same shape in every kind of application. It has no field for a stack
+trace, the cause or the span ID, so none of them can leak to a caller, whatever sends it.
+`ErrorReport.getExternal()` gives the part of a report that may leave the application.
+
+An `ExternalError` written as JSON looks like this:
+
+```json
+{
+  "code": "ORD-0001",
+  "severity": "ERROR",
+  "message": "Not enough stock: SKU-1",
+  "details": [
+    { "field": "quantity", "message": "must be greater than 0" }
+  ],
+  "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "correlationId": "order-42"
+}
+```
+
+A code's description is fixed text with no placeholders. The message is that description, or the
+description, a colon and one detail that the code passes when it reports the problem, such as
+`Not enough stock: SKU-1`. The message is shown to callers, so never put a secret, personal data,
+a class name or any other internal detail in the detail. Pass an exception as the cause, never in
+the detail. Line breaks and other control characters in the detail are replaced with spaces, so a
+value from a request cannot forge a log line.
+Stratum's own `SX-CORE` errors stop the application at startup and never reach a caller.
+
+## The trace, span and correlation IDs
+
+You never pass these IDs by hand. A report reads them, when it is made, from the logging context
+(SLF4J's MDC) of the current thread:
+
+| ID | Logging context key | Set by | Ties together |
+| --- | --- | --- | --- |
+| Trace ID | `traceId` | Tracing (Micrometer Tracing) | Every step of one request, across services |
+| Span ID | `spanId` | Tracing (Micrometer Tracing) | One operation within the request |
+| Correlation ID | `correlationId` | Stratum (planned: the web and logging modules) | Every step of one business workflow, such as one order or one batch job, across many requests |
+
+A report keeps an ID only if it is 1 to 128 characters long and holds nothing but letters, digits,
+`-`, `_`, `.` and `:`. Any other ID is left out, so that a value sent by a caller cannot forge a log
+line or break a response. **Planned:** the web module will read the correlation ID from the
+`X-Correlation-Id` header, or create one, and pass it on to the services it calls.
+
+## Using codes in your service
+
+Declare your codes in one enum that implements `ErrorCode`, with your own prefix. Give each code
+its severity and a fixed description:
+
+```java
+@Getter
+@RequiredArgsConstructor
+public enum OrderErrorCode implements ErrorCode {
+
+  /** The order asks for more items than are in stock. */
+  OUT_OF_STOCK("ORD-0001", Severity.ERROR, "Not enough stock"),
+
+  /** The order was accepted, but it will ship late. */
+  DELAYED("ORD-0002", Severity.WARNING, "The order will ship late");
+
+  private final String code;
+  private final Severity severity;
+  private final String description;
+}
+```
+
+Throw an error, or log a warning:
+
+```java
+throw new StratumException(OrderErrorCode.OUT_OF_STOCK, sku);
+
+var warning = ErrorReport.of(OrderErrorCode.DELAYED, "3 days");
+log.warn(warning.getCodeAndMessage());
+```
+
+The detail is optional: `new StratumException(code)` and `ErrorReport.of(code)` use the description
+alone, and `new StratumException(code, detail, cause)` adds the exception behind the failure.
+
+The exception's message starts with the code, such as `ORD-0001: Not enough stock: SKU-1`, and
+`exception.getReport()` gives its `ErrorReport`. Log the exception itself, so the log shows its
+stack trace and cause:
+
+```java
+log.error(exception.getMessage(), exception);
+```
+
+To add field details, build the report first:
+
+```java
+var report =
+    ErrorReport.of(OrderErrorCode.OUT_OF_STOCK, sku)
+        .withDetails(List.of(new ErrorDetail("quantity", "must be greater than 0")));
+throw new StratumException(report);
+```
+
+A warning cannot be thrown: `new StratumException(report)` rejects a report whose severity is
+`WARNING`.
+
+## stratum-core
+
+Each of these is an error that stops the application at startup. `stratum-core` reports no warnings
+yet.
+
+| Code | Meaning | Fix |
+| --- | --- | --- |
+| `SX-CORE-1001` | A module name given to `@ConditionalOnStratumModule` is not one lower-case, kebab-case word, such as `http-client`. | Rename the module in the annotation. This is a fault in a starter, not in your service's configuration. |
+| `SX-CORE-1002` | A `StratumPropertiesCustomizer` is broken. The message names the customizer and says what went wrong: it returned `null`, it returned settings of another type, or it failed with a `ClassCastException`. | If it returned `null`, return the settings it received to leave them unchanged. If it is a customizer for other settings, or was registered without its type, declare it as `StratumPropertiesCustomizer<TheSettings>`, for example as the return type of a `@Bean` method. If the failed cast is in the customizer's own code, the cause shows where. |
+| `SX-CORE-1003` | A module's settings break their rules, after the files and the Java configuration are combined. The message names each property key and rule, never the value. | Correct the named properties. See [Validation](../configuration/basics.md#validation-wrong-values-fail-fast). |
+
+`SX-CORE-1003` is a `ConstraintViolationException` with the code at the start of its message, so
+tools that read the broken constraints still can. The others are a `StratumException`.

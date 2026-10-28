@@ -14,7 +14,7 @@
   <artifactId>stratum-core</artifactId>
 
   <name>Stratum core</name>
-  <description>Shared internals of Stratum's starters: the switch that turns each module on or off, and how a module's settings combine properties and Java configuration.</description>
+  <description>Shared internals of Stratum's starters: the switch that turns each module on or off, how a module's settings combine properties and Java configuration, and the error and warning codes with the error objects every module reports.</description>
 
   <dependencies>
     <dependency>
@@ -24,6 +24,13 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-autoconfigure</artifactId>
+    </dependency>
+    <!-- SLF4J's logging context (MDC), where tracing and Stratum keep the trace, span and
+         correlation IDs that every error report records. Spring Boot's logging starter already
+         brings it through spring-boot-starter-validation; it is declared because core uses it. -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
     </dependency>
     <dependency>
       <groupId>org.jspecify</groupId>

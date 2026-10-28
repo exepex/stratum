@@ -60,7 +60,7 @@ Every error, whether thrown by your code, by validation or by Spring, looks like
   "instance": "/orders",
   "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
   "correlationId": "c0a8012e-7f3d-4a8e-9a43-2f9b6f1c2d10",
-  "errors": [
+  "details": [
     { "field": "sku", "message": "must not be blank" },
     { "field": "quantity", "message": "must be greater than 0" }
   ]
@@ -71,12 +71,16 @@ Every error, whether thrown by your code, by validation or by Spring, looks like
 | --- | --- |
 | `ErrorResponseException` (Spring) or a subclass | The status it carries |
 | Exception annotated `@ResponseStatus(...)` | That status |
-| `MethodArgumentNotValidException`, `ConstraintViolationException` | `400`, with `errors` |
+| `MethodArgumentNotValidException`, `ConstraintViolationException` | `400`, with `details` |
 | `AccessDeniedException` / missing or invalid token | `403` / `401` (with the security starter) |
 | Downstream timeout or connection failure (with the http-client starter) | `503` or `504` |
 | Anything else | `500`, with a generic `detail`; the real message and stack trace go to the log only |
 
 Internal details such as stack traces, SQL or class names are **never** sent to the caller.
+
+**Planned:** the body will also carry the fields of Stratum's external error object, which every
+kind of application shares: `code`, `severity` and `correlationId`. See
+[Error and warning codes](../guides/error-codes.md).
 
 ### How correlation IDs work
 
