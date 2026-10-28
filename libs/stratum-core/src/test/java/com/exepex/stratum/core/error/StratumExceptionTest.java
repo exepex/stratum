@@ -31,6 +31,13 @@ class StratumExceptionTest {
   }
 
   @Test
+  @DisplayName("with an empty detail, its message has no dangling colon")
+  void messageWithEmptyDetail() {
+    assertThat(new StratumException(OrderErrorCode.OUT_OF_STOCK, ""))
+        .hasMessage("ORD-0001: Not enough stock");
+  }
+
+  @Test
   @DisplayName("the exception it wraps becomes its cause")
   void keepsCause() {
     var cause = new IllegalStateException("stock service down");

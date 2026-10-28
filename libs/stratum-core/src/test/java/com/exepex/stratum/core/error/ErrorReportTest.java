@@ -62,6 +62,15 @@ class ErrorReportTest {
       assertThat(report.getCodeAndMessage()).isEqualTo("ORD-0001: Not enough stock: SKU-1");
     }
 
+    @ParameterizedTest(name = "\"{0}\"")
+    @ValueSource(strings = {"", " ", "\t\r\n", "\u0000"})
+    @DisplayName("with a detail that is blank or only control characters, the message has no colon")
+    void leavesOutBlankDetail(String detail) {
+      var report = ErrorReport.of(OrderErrorCode.OUT_OF_STOCK, detail);
+
+      assertThat(report.getCodeAndMessage()).isEqualTo("ORD-0001: Not enough stock");
+    }
+
     @Test
     @DisplayName("a warning code gives the severity WARNING")
     void warningCodeGivesWarningSeverity() {

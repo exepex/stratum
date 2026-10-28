@@ -73,7 +73,8 @@ public class ErrorReport implements Serializable {
 
   /**
    * Makes a report from a code and one detail, such as the name of the class at fault. Its message
-   * is the code's description, a colon and the detail.
+   * is the code's description, a colon and the detail. A detail that is blank, or only control
+   * characters, is left out, so the message is the description alone with no dangling colon.
    *
    * @param code the error or warning code
    * @param detail what is specific to this occurrence. It can be shown outside the application, so
@@ -84,8 +85,9 @@ public class ErrorReport implements Serializable {
    *     declared by Stratum
    */
   public static ErrorReport of(ErrorCode code, String detail) {
-    return create(
-        code, code.getDescription() + ": " + CONTROL_CHARACTERS.matcher(detail).replaceAll(" "));
+    var safeDetail = CONTROL_CHARACTERS.matcher(detail).replaceAll(" ");
+    var description = code.getDescription();
+    return create(code, safeDetail.isBlank() ? description : description + ": " + safeDetail);
   }
 
   /**

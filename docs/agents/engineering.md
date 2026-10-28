@@ -160,7 +160,8 @@ Every starter follows these rules:
 - **ST-ENG-46** A lambda is a single expression or a method reference. When it needs more than one statement, extract
   a named method and reference it.
 - **ST-ENG-47** Logic and state belong in injected beans, not static methods. Static methods are only for pure helpers
-  and constants.
+  and constants. One exception: `ErrorReport.of` reads the trace, span and correlation IDs from SLF4J's `MDC`, so
+  that any code, injected or not, can report an error without passing the IDs by hand.
 - **ST-ENG-48** Every `AutoCloseable` that a method opens is closed with try-with-resources. Do not close resources
   owned by the caller or managed by Spring.
 - **ST-ENG-49** Use the Spring Boot 4 and Spring Framework 7 APIs, such as Jackson 3, `RestClient` and HTTP interface
