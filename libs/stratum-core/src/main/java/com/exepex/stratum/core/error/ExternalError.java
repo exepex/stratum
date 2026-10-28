@@ -1,5 +1,6 @@
 package com.exepex.stratum.core.error;
 
+import java.io.Serializable;
 import java.util.List;
 import org.jspecify.annotations.Nullable;
 
@@ -7,7 +8,8 @@ import org.jspecify.annotations.Nullable;
  * An error or warning as it is shown outside the application: in an HTTP response body, on a
  * command line, in a batch job's result or in a user interface. Every Stratum module uses this one
  * shape, so a caller reads every service's errors the same way. It never holds a stack trace or the
- * cause; those stay in the {@link ErrorReport} it was made from, which goes to the logs.
+ * cause; those stay in the {@link ErrorReport} it was made from, which goes to the logs. It is
+ * serializable because a {@link StratumException} carries it inside its report.
  *
  * @param code the code, such as {@code SX-CORE-1002} or a service's own {@code PAY-0001}
  * @param severity whether the operation failed or only needs attention
@@ -24,7 +26,8 @@ public record ExternalError(
     String message,
     List<ErrorDetail> details,
     @Nullable String traceId,
-    @Nullable String correlationId) {
+    @Nullable String correlationId)
+    implements Serializable {
 
   /**
    * Keeps an unchangeable copy of the details.

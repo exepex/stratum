@@ -18,9 +18,16 @@ class StratumExceptionTest {
   void messageStartsWithCode() {
     var exception = new StratumException(OrderErrorCode.OUT_OF_STOCK, SKU);
 
-    assertThat(exception).hasMessage("ORD-0001: Not enough stock for SKU-1.").hasNoCause();
-    assertThat(exception.getReport().getCode()).isEqualTo("ORD-0001");
+    assertThat(exception).hasMessage("ORD-0001: Not enough stock: SKU-1").hasNoCause();
+    assertThat(exception.getReport().getExternal().code()).isEqualTo("ORD-0001");
     assertThat(exception.getReport().getCause()).isNull();
+  }
+
+  @Test
+  @DisplayName("without a detail, its message is the code and the code's description")
+  void messageWithoutDetail() {
+    assertThat(new StratumException(OrderErrorCode.OUT_OF_STOCK))
+        .hasMessage("ORD-0001: Not enough stock");
   }
 
   @Test
@@ -28,7 +35,7 @@ class StratumExceptionTest {
   void keepsCause() {
     var cause = new IllegalStateException("stock service down");
 
-    var exception = new StratumException(cause, OrderErrorCode.OUT_OF_STOCK, SKU);
+    var exception = new StratumException(OrderErrorCode.OUT_OF_STOCK, SKU, cause);
 
     assertThat(exception).hasCause(cause);
     assertThat(exception.getReport().getCause()).isSameAs(cause);
@@ -46,7 +53,7 @@ class StratumExceptionTest {
     var exception = new StratumException(report);
 
     assertThat(exception).hasCause(cause);
-    assertThat(exception.getReport().getDetails()).containsExactly(QUANTITY_PROBLEM);
+    assertThat(exception.getReport().getExternal().details()).containsExactly(QUANTITY_PROBLEM);
   }
 
   @Test

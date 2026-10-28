@@ -17,6 +17,7 @@ import java.lang.reflect.RecordComponent;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -40,16 +41,25 @@ class ErrorReportTest {
   class FromCode {
 
     @Test
-    @DisplayName("it takes the code's severity and fills in the description")
-    void takesSeverityAndFillsDescription() {
+    @DisplayName("without a detail, its message is the code's description")
+    void takesSeverityAndDescription() {
+      var report = ErrorReport.of(OrderErrorCode.OUT_OF_STOCK);
+      var external = report.getExternal();
+
+      assertThat(external.code()).isEqualTo("ORD-0001");
+      assertThat(external.severity()).isEqualTo(Severity.ERROR);
+      assertThat(external.message()).isEqualTo("Not enough stock");
+      assertThat(report.getCodeAndMessage()).isEqualTo("ORD-0001: Not enough stock");
+      assertThat(external.details()).isEmpty();
+      assertThat(report.getCause()).isNull();
+    }
+
+    @Test
+    @DisplayName("with a detail, its message is the description, a colon and the detail")
+    void appendsDetail() {
       var report = ErrorReport.of(OrderErrorCode.OUT_OF_STOCK, SKU);
 
-      assertThat(report.getCode()).isEqualTo("ORD-0001");
-      assertThat(report.getSeverity()).isEqualTo(Severity.ERROR);
-      assertThat(report.getMessage()).isEqualTo("Not enough stock for SKU-1.");
-      assertThat(report.getCodeAndMessage()).isEqualTo("ORD-0001: Not enough stock for SKU-1.");
-      assertThat(report.getDetails()).isEmpty();
-      assertThat(report.getCause()).isNull();
+      assertThat(report.getCodeAndMessage()).isEqualTo("ORD-0001: Not enough stock: SKU-1");
     }
 
     @Test
@@ -57,16 +67,16 @@ class ErrorReportTest {
     void warningCodeGivesWarningSeverity() {
       var report = ErrorReport.of(OrderErrorCode.DELAYED, "3 days");
 
-      assertThat(report.getSeverity()).isEqualTo(Severity.WARNING);
-      assertThat(report.getMessage()).isEqualTo("The order will ship 3 days late.");
+      assertThat(report.getExternal().severity()).isEqualTo(Severity.WARNING);
+      assertThat(report.getExternal().message()).isEqualTo("The order will ship late: 3 days");
     }
 
     @Test
     @DisplayName("Stratum's own code with the SX- prefix is accepted")
     void acceptsStratumCodeDeclaredByStratum() {
-      var report = ErrorReport.of(CoreErrorCode.CUSTOMIZER_RETURNED_NULL, "Greeter");
+      var report = ErrorReport.of(CoreErrorCode.CUSTOMIZER_BROKEN, "Greeter");
 
-      assertThat(report.getCode()).isEqualTo("SX-CORE-1002");
+      assertThat(report.getExternal().code()).isEqualTo("SX-CORE-1002");
     }
 
     @ParameterizedTest(name = "\"{0}\"")
@@ -84,28 +94,13 @@ class ErrorReportTest {
     }
 
     @Test
-    @DisplayName("line breaks and other control characters in an argument become spaces")
-    void replacesControlCharactersInArguments() {
+    @DisplayName("line breaks and other control characters in the detail become spaces")
+    void replacesControlCharactersInDetail() {
       var report =
           ErrorReport.of(OrderErrorCode.OUT_OF_STOCK, SKU + "\r\n2026-10-28 INFO forged\t");
 
-      assertThat(report.getMessage())
-          .isEqualTo("Not enough stock for SKU-1  2026-10-28 INFO forged .");
-    }
-
-    @Test
-    @DisplayName("an argument is inserted as text and never read as a pattern")
-    void insertsArgumentsAsText() {
-      var report = ErrorReport.of(OrderErrorCode.OUT_OF_STOCK, "{} %s %n");
-
-      assertThat(report.getMessage()).isEqualTo("Not enough stock for {} %s %n.");
-    }
-
-    @Test
-    @DisplayName("a null argument is written as null")
-    void writesNullArgument() {
-      assertThat(ErrorReport.of(OrderErrorCode.OUT_OF_STOCK, (Object) null).getMessage())
-          .isEqualTo("Not enough stock for null.");
+      assertThat(report.getExternal().message())
+          .isEqualTo("Not enough stock: SKU-1  2026-10-28 INFO forged ");
     }
   }
 
@@ -120,9 +115,9 @@ class ErrorReportTest {
 
       var report = ErrorReport.of(OrderErrorCode.OUT_OF_STOCK, SKU);
 
-      assertThat(report.getTraceId()).isEqualTo(TRACE_ID);
+      assertThat(report.getExternal().traceId()).isEqualTo(TRACE_ID);
       assertThat(report.getSpanId()).isEqualTo(SPAN_ID);
-      assertThat(report.getCorrelationId()).isEqualTo(CORRELATION_ID);
+      assertThat(report.getExternal().correlationId()).isEqualTo(CORRELATION_ID);
     }
 
     @Test
@@ -130,9 +125,9 @@ class ErrorReportTest {
     void leavesIdsNullWithoutContext() {
       var report = ErrorReport.of(OrderErrorCode.OUT_OF_STOCK, SKU);
 
-      assertThat(report.getTraceId()).isNull();
+      assertThat(report.getExternal().traceId()).isNull();
       assertThat(report.getSpanId()).isNull();
-      assertThat(report.getCorrelationId()).isNull();
+      assertThat(report.getExternal().correlationId()).isNull();
     }
 
     @ParameterizedTest(name = "{0}")
@@ -141,7 +136,7 @@ class ErrorReportTest {
     void keepsUsableId(String id) {
       MDC.put(CORRELATION_ID_KEY, id);
 
-      assertThat(ErrorReport.of(OrderErrorCode.OUT_OF_STOCK, SKU).getCorrelationId()).isEqualTo(id);
+      assertThat(correlationIdOfNewReport()).isEqualTo(id);
     }
 
     @ParameterizedTest(name = "\"{0}\"")
@@ -150,7 +145,7 @@ class ErrorReportTest {
     void leavesOutUnusableId(String id) {
       MDC.put(CORRELATION_ID_KEY, id);
 
-      assertThat(ErrorReport.of(OrderErrorCode.OUT_OF_STOCK, SKU).getCorrelationId()).isNull();
+      assertThat(correlationIdOfNewReport()).isNull();
     }
 
     @Test
@@ -158,11 +153,19 @@ class ErrorReportTest {
     void limitsIdLength() {
       var longest = "a".repeat(LONGEST_ID_LENGTH);
       MDC.put(CORRELATION_ID_KEY, longest);
-      assertThat(ErrorReport.of(OrderErrorCode.OUT_OF_STOCK, SKU).getCorrelationId())
-          .isEqualTo(longest);
+      assertThat(correlationIdOfNewReport()).isEqualTo(longest);
 
       MDC.put(CORRELATION_ID_KEY, longest + "a");
-      assertThat(ErrorReport.of(OrderErrorCode.OUT_OF_STOCK, SKU).getCorrelationId()).isNull();
+      assertThat(correlationIdOfNewReport()).isNull();
+    }
+
+    /**
+     * Makes a report from the current logging context.
+     *
+     * @return the correlation ID the report kept, or {@code null}
+     */
+    private @Nullable String correlationIdOfNewReport() {
+      return ErrorReport.of(OrderErrorCode.OUT_OF_STOCK).getExternal().correlationId();
     }
   }
 
@@ -178,7 +181,7 @@ class ErrorReportTest {
       var report = ErrorReport.of(OrderErrorCode.OUT_OF_STOCK, SKU).withDetails(details);
       details.clear();
 
-      assertThat(report.getDetails()).containsExactly(QUANTITY_PROBLEM);
+      assertThat(report.getExternal().details()).containsExactly(QUANTITY_PROBLEM);
     }
 
     @Test
@@ -194,7 +197,7 @@ class ErrorReportTest {
 
   @Nested
   @DisplayName("when it is shown outside the application")
-  class ToExternal {
+  class External {
 
     @Test
     @DisplayName("it keeps the code, severity, message, details, trace and correlation IDs")
@@ -204,15 +207,15 @@ class ErrorReportTest {
       var external =
           ErrorReport.of(OrderErrorCode.OUT_OF_STOCK, SKU)
               .withDetails(List.of(QUANTITY_PROBLEM))
-              .withCause(new IllegalStateException("internal QUANTITY_PROBLEM"))
-              .toExternal();
+              .withCause(new IllegalStateException("stock service down"))
+              .getExternal();
 
       assertThat(external)
           .isEqualTo(
               new ExternalError(
                   "ORD-0001",
                   Severity.ERROR,
-                  "Not enough stock for SKU-1.",
+                  "Not enough stock: SKU-1",
                   List.of(QUANTITY_PROBLEM),
                   TRACE_ID,
                   CORRELATION_ID));

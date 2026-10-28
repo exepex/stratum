@@ -11,38 +11,24 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum CoreErrorCode implements ErrorCode {
 
-  /** A module name given to {@code @ConditionalOnStratumModule} is not kebab-case. */
+  /**
+   * A module name given to {@code @ConditionalOnStratumModule} is not one kebab-case word. Only a
+   * starter's author can cause it, never a service's configuration.
+   */
   MODULE_NAME_NOT_KEBAB_CASE(
       "SX-CORE-1001",
       Severity.ERROR,
-      "@ConditionalOnStratumModule needs a lower-case, kebab-case module name"
-          + " such as \"http-client\", but got \"{}\"."),
+      "@ConditionalOnStratumModule needs one lower-case, kebab-case module name, such as"
+          + " http-client"),
 
-  /** A settings customizer returned {@code null}. */
-  CUSTOMIZER_RETURNED_NULL(
-      "SX-CORE-1002",
-      Severity.ERROR,
-      "{} returned null. Return the settings it received to leave them unchanged."),
+  /**
+   * A {@code StratumPropertiesCustomizer} returned {@code null} or settings of another type, or
+   * failed with a {@code ClassCastException}. The detail says which, and names the customizer.
+   */
+  CUSTOMIZER_BROKEN("SX-CORE-1002", Severity.ERROR, "A StratumPropertiesCustomizer is broken"),
 
-  /** A settings customizer returned settings of another type. */
-  CUSTOMIZER_FOR_OTHER_SETTINGS(
-      "SX-CORE-1003",
-      Severity.ERROR,
-      "{} returned settings of another type: it is a customizer for other settings, or it was"
-          + " registered without its type. To fix it, declare it as"
-          + " StratumPropertiesCustomizer<{}>, for example as the return type of a @Bean method."),
-
-  /** A settings customizer failed with a {@code ClassCastException}. */
-  CUSTOMIZER_CAST_FAILED(
-      "SX-CORE-1004",
-      Severity.ERROR,
-      "{} failed with a ClassCastException. If it is a customizer for other settings, or was"
-          + " registered without its type, declare it as StratumPropertiesCustomizer<{}>, for"
-          + " example as the return type of a @Bean method. Otherwise the cast that failed is in"
-          + " the customizer's own code; see the cause."),
-
-  /** A module's settings break their constraints. */
-  INVALID_SETTINGS("SX-CORE-1005", Severity.ERROR, "Invalid {}: {}");
+  /** A module's settings break their rules; the detail names each property key and rule. */
+  INVALID_SETTINGS("SX-CORE-1003", Severity.ERROR, "Invalid settings");
 
   /** The code, such as {@code SX-CORE-1001}. */
   private final String code;
@@ -50,6 +36,6 @@ public enum CoreErrorCode implements ErrorCode {
   /** Whether the operation failed or only needs attention. */
   private final Severity severity;
 
-  /** What went wrong and how to fix it, with placeholders for the details. */
+  /** What went wrong, in fixed text. */
   private final String description;
 }

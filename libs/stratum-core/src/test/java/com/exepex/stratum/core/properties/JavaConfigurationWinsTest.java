@@ -94,7 +94,7 @@ class JavaConfigurationWinsTest {
                       .rootCause()
                       .isInstanceOf(ConstraintViolationException.class)
                       .hasMessage(
-                          "SX-CORE-1005: Invalid GreetingProperties:"
+                          "SX-CORE-1003: Invalid settings:"
                               + " stratum.greeting.message breaks @NotBlank"));
     }
 
@@ -161,7 +161,7 @@ class JavaConfigurationWinsTest {
                       .getFailure()
                       .hasStackTraceContaining(
                           StratumException.class.getName()
-                              + ": SX-CORE-1004: "
+                              + ": SX-CORE-1002: A StratumPropertiesCustomizer is broken: "
                               + GreetingTestData.class.getName())
                       .hasStackTraceContaining(
                           "declare it as StratumPropertiesCustomizer<GreetingProperties>"));

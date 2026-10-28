@@ -18,30 +18,39 @@ public final class StratumException extends RuntimeException {
   @Serial private static final long serialVersionUID = 1L;
 
   /**
-   * The code, message, details and IDs of the failure; {@link ErrorReport#toExternal()} gives the
+   * The code, message, details and IDs of the failure; {@code getReport().getExternal()} is the
    * part a caller may see.
    */
   private final ErrorReport report;
 
   /**
-   * Makes the exception for an error code.
+   * Makes the exception for an error code, with the code's description as its message.
    *
    * @param code the error code
-   * @param arguments the values for the placeholders in the code's description
    */
-  public StratumException(ErrorCode code, Object... arguments) {
-    this(ErrorReport.of(code, arguments));
+  public StratumException(ErrorCode code) {
+    this(ErrorReport.of(code));
   }
 
   /**
-   * Makes the exception for an error code, caused by another exception.
+   * Makes the exception for an error code and one detail, such as the name of the class at fault.
    *
-   * @param cause the exception behind the failure
    * @param code the error code
-   * @param arguments the values for the placeholders in the code's description
+   * @param detail what is specific to this failure; see {@link ErrorReport#of(ErrorCode, String)}
    */
-  public StratumException(Throwable cause, ErrorCode code, Object... arguments) {
-    this(ErrorReport.of(code, arguments).withCause(cause));
+  public StratumException(ErrorCode code, String detail) {
+    this(ErrorReport.of(code, detail));
+  }
+
+  /**
+   * Makes the exception for an error code and one detail, caused by another exception.
+   *
+   * @param code the error code
+   * @param detail what is specific to this failure; see {@link ErrorReport#of(ErrorCode, String)}
+   * @param cause the exception behind the failure
+   */
+  public StratumException(ErrorCode code, String detail, Throwable cause) {
+    this(ErrorReport.of(code, detail).withCause(cause));
   }
 
   /**
@@ -63,9 +72,10 @@ public final class StratumException extends RuntimeException {
    * @return the report's cause, if any
    */
   private static @Nullable Throwable causeOfError(ErrorReport report) {
-    if (report.getSeverity() != Severity.ERROR) {
+    var external = report.getExternal();
+    if (external.severity() != Severity.ERROR) {
       throw new IllegalArgumentException(
-          report.getCode() + " is a warning; log it instead of throwing it.");
+          external.code() + " is a warning; log it instead of throwing it.");
     }
     return report.getCause();
   }

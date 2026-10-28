@@ -27,8 +27,8 @@ public interface ErrorCode {
   Severity getSeverity();
 
   /**
-   * What went wrong and how to fix it. Each {@code {}} in it is a placeholder, filled in order when
-   * a report is made, as in a log message.
+   * What went wrong, in fixed text with no placeholders. The place that reports the problem can add
+   * one detail, such as the name of the class at fault, after it.
    *
    * @return the description
    */

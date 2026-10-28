@@ -11,10 +11,10 @@ import lombok.RequiredArgsConstructor;
 public enum OrderErrorCode implements ErrorCode {
 
   /** The order asks for more items than are in stock. */
-  OUT_OF_STOCK("ORD-0001", Severity.ERROR, "Not enough stock for {}."),
+  OUT_OF_STOCK("ORD-0001", Severity.ERROR, "Not enough stock"),
 
   /** The order was accepted, but it will ship late. */
-  DELAYED("ORD-0002", Severity.WARNING, "The order will ship {} late.");
+  DELAYED("ORD-0002", Severity.WARNING, "The order will ship late");
 
   /** The code. */
   private final String code;
@@ -22,6 +22,6 @@ public enum OrderErrorCode implements ErrorCode {
   /** Whether the order failed or only needs attention. */
   private final Severity severity;
 
-  /** The description, with a placeholder. */
+  /** The fixed description. */
   private final String description;
 }

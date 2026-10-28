@@ -41,7 +41,7 @@ package `com.exepex.stratum.core.error`.
 
 `ExternalError` has the same shape in every kind of application. It has no field for a stack
 trace, the cause or the span ID, so none of them can leak to a caller, whatever sends it.
-`ErrorReport.toExternal()` gives the part of a report that may leave the application.
+`ErrorReport.getExternal()` gives the part of a report that may leave the application.
 
 An `ExternalError` written as JSON looks like this:
 
@@ -49,7 +49,7 @@ An `ExternalError` written as JSON looks like this:
 {
   "code": "ORD-0001",
   "severity": "ERROR",
-  "message": "Not enough stock for SKU-1.",
+  "message": "Not enough stock: SKU-1",
   "details": [
     { "field": "quantity", "message": "must be greater than 0" }
   ],
@@ -58,11 +58,12 @@ An `ExternalError` written as JSON looks like this:
 }
 ```
 
-The message is the code's description with its placeholders filled in. A placeholder is written
-`{}`, as in a log message, and the arguments fill them in order. It is shown to callers, so
-never fill a placeholder with a secret, personal data, a class name or any other internal detail.
-Pass an exception as the cause, never as an argument. Line breaks and other control characters in
-an argument are replaced with spaces, so a value from a request cannot forge a log line.
+A code's description is fixed text with no placeholders. The message is that description, or the
+description, a colon and one detail that the code passes when it reports the problem, such as
+`Not enough stock: SKU-1`. The message is shown to callers, so never put a secret, personal data,
+a class name or any other internal detail in the detail. Pass an exception as the cause, never in
+the detail. Line breaks and other control characters in the detail are replaced with spaces, so a
+value from a request cannot forge a log line.
 Stratum's own `SX-CORE` errors stop the application at startup and never reach a caller.
 
 ## The trace, span and correlation IDs
@@ -84,7 +85,7 @@ line or break a response. **Planned:** the web module will read the correlation 
 ## Using codes in your service
 
 Declare your codes in one enum that implements `ErrorCode`, with your own prefix. Give each code
-its severity:
+its severity and a fixed description:
 
 ```java
 @Getter
@@ -92,10 +93,10 @@ its severity:
 public enum OrderErrorCode implements ErrorCode {
 
   /** The order asks for more items than are in stock. */
-  OUT_OF_STOCK("ORD-0001", Severity.ERROR, "Not enough stock for {}."),
+  OUT_OF_STOCK("ORD-0001", Severity.ERROR, "Not enough stock"),
 
   /** The order was accepted, but it will ship late. */
-  DELAYED("ORD-0002", Severity.WARNING, "The order will ship {} late.");
+  DELAYED("ORD-0002", Severity.WARNING, "The order will ship late");
 
   private final String code;
   private final Severity severity;
@@ -108,11 +109,14 @@ Throw an error, or log a warning:
 ```java
 throw new StratumException(OrderErrorCode.OUT_OF_STOCK, sku);
 
-var warning = ErrorReport.of(OrderErrorCode.DELAYED, days);
+var warning = ErrorReport.of(OrderErrorCode.DELAYED, "3 days");
 log.warn(warning.getCodeAndMessage());
 ```
 
-The exception's message starts with the code, such as `ORD-0001: Not enough stock for SKU-1.`, and
+The detail is optional: `new StratumException(code)` and `ErrorReport.of(code)` use the description
+alone, and `new StratumException(code, detail, cause)` adds the exception behind the failure.
+
+The exception's message starts with the code, such as `ORD-0001: Not enough stock: SKU-1`, and
 `exception.getReport()` gives its `ErrorReport`. Log the exception itself, so the log shows its
 stack trace and cause:
 
@@ -140,10 +144,8 @@ yet.
 | Code | Meaning | Fix |
 | --- | --- | --- |
 | `SX-CORE-1001` | A module name given to `@ConditionalOnStratumModule` is not one lower-case, kebab-case word, such as `http-client`. | Rename the module in the annotation. This is a fault in a starter, not in your service's configuration. |
-| `SX-CORE-1002` | A `StratumPropertiesCustomizer` returned `null`. The message names the customizer. | Return the settings the customizer received to leave them unchanged. |
-| `SX-CORE-1003` | A `StratumPropertiesCustomizer` returned settings of another type. It is a customizer for another module, or it was registered without its type. | Declare it as `StratumPropertiesCustomizer<TheSettings>`, for example as the return type of a `@Bean` method. |
-| `SX-CORE-1004` | A `StratumPropertiesCustomizer` failed with a `ClassCastException`. | If it is a customizer for other settings, or registered without its type, fix it as for `SX-CORE-1003`. Otherwise the failed cast is in the customizer's own code; the cause shows where. |
-| `SX-CORE-1005` | A module's settings break their rules, after the files and the Java configuration are combined. The message names each property key and rule, never the value. | Correct the named properties. See [Validation](../configuration/basics.md#validation-wrong-values-fail-fast). |
+| `SX-CORE-1002` | A `StratumPropertiesCustomizer` is broken. The message names the customizer and says what went wrong: it returned `null`, it returned settings of another type, or it failed with a `ClassCastException`. | If it returned `null`, return the settings it received to leave them unchanged. If it is a customizer for other settings, or was registered without its type, declare it as `StratumPropertiesCustomizer<TheSettings>`, for example as the return type of a `@Bean` method. If the failed cast is in the customizer's own code, the cause shows where. |
+| `SX-CORE-1003` | A module's settings break their rules, after the files and the Java configuration are combined. The message names each property key and rule, never the value. | Correct the named properties. See [Validation](../configuration/basics.md#validation-wrong-values-fail-fast). |
 
-`SX-CORE-1005` is a `ConstraintViolationException` with the code at the start of its message, so
+`SX-CORE-1003` is a `ConstraintViolationException` with the code at the start of its message, so
 tools that read the broken constraints still can. The others are a `StratumException`.

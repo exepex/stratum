@@ -19,6 +19,10 @@ import org.junit.jupiter.api.Test;
 @DisplayName("StratumPropertiesResolver works out the settings a module uses")
 class StratumPropertiesResolverTest {
 
+  /** How every message about a broken customizer starts, before the customizer's name. */
+  private static final String BROKEN_CUSTOMIZER =
+      "SX-CORE-1002: A StratumPropertiesCustomizer is broken: ";
+
   private static ValidatorFactory validatorFactory;
 
   private static StratumPropertiesResolver resolver;
@@ -103,7 +107,7 @@ class StratumPropertiesResolverTest {
 
       assertThatExceptionOfType(StratumException.class)
           .isThrownBy(() -> resolver.resolve(GreetingTestData.defaults(), Stream.of(broken)))
-          .withMessageStartingWith("SX-CORE-1002: " + ReturnsNull.class.getName())
+          .withMessageStartingWith(BROKEN_CUSTOMIZER + ReturnsNull.class.getName())
           .withMessageContaining("returned null");
     }
 
@@ -116,7 +120,8 @@ class StratumPropertiesResolverTest {
       assertThatExceptionOfType(StratumException.class)
           .isThrownBy(
               () -> resolver.resolve((Object) GreetingTestData.defaults(), Stream.of(forStrings)))
-          .withMessageStartingWith("SX-CORE-1004: " + StratumPropertiesResolverTest.class.getName())
+          .withMessageStartingWith(
+              BROKEN_CUSTOMIZER + StratumPropertiesResolverTest.class.getName())
           .withMessageContaining("StratumPropertiesCustomizer<GreetingProperties>")
           .withCauseInstanceOf(ClassCastException.class);
     }
@@ -130,7 +135,7 @@ class StratumPropertiesResolverTest {
 
       assertThatExceptionOfType(StratumException.class)
           .isThrownBy(() -> resolver.resolve(GreetingTestData.defaults(), Stream.of(buggy)))
-          .withMessageStartingWith("SX-CORE-1004: ")
+          .withMessageStartingWith(BROKEN_CUSTOMIZER)
           .withMessageContaining("the cast that failed is in the customizer's own code")
           .withCauseInstanceOf(ClassCastException.class);
     }
@@ -143,8 +148,8 @@ class StratumPropertiesResolverTest {
       assertThatExceptionOfType(StratumException.class)
           .isThrownBy(
               () -> resolver.resolve((Object) GreetingTestData.defaults(), Stream.of(wrongResult)))
-          .withMessageStartingWith("SX-CORE-1003: ")
-          .withMessageContaining("returned settings of another type")
+          .withMessageStartingWith(BROKEN_CUSTOMIZER)
+          .withMessageContaining("cannot change GreetingProperties")
           .withMessageContaining("declare it as StratumPropertiesCustomizer<GreetingProperties>")
           .withNoCause();
     }
@@ -159,8 +164,7 @@ class StratumPropertiesResolverTest {
               () ->
                   resolver.resolve(
                       GreetingTestData.defaults(), Stream.of(GreetingTestData.javaMessage(blank))))
-          .withMessage(
-              "SX-CORE-1005: Invalid GreetingProperties: stratum.greeting.message breaks @NotBlank")
+          .withMessage("SX-CORE-1003: Invalid settings: stratum.greeting.message breaks @NotBlank")
           .satisfies(failure -> assertThat(failure.getConstraintViolations()).hasSize(1));
     }
 
@@ -175,7 +179,7 @@ class StratumPropertiesResolverTest {
           .isThrownBy(
               () -> resolver.resolve(GreetingTestData.defaults(), Stream.of(noTimeout, blank)))
           .withMessage(
-              "SX-CORE-1005: Invalid GreetingProperties: stratum.greeting.message breaks @NotBlank;"
+              "SX-CORE-1003: Invalid settings: stratum.greeting.message breaks @NotBlank;"
                   + " stratum.greeting.timeout breaks @NotNull");
     }
   }

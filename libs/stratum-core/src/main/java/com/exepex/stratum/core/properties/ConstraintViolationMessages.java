@@ -41,7 +41,7 @@ class ConstraintViolationMessages {
    * @param violations the constraints they break
    * @param <P> the module's settings type
    * @return the broken rules, such as {@code "stratum.example.name breaks @NotBlank;
-   *     stratum.example.timeout breaks @NotNull"}; the resolver puts them in {@code SX-CORE-1005}
+   *     stratum.example.timeout breaks @NotNull"}; the resolver puts them in {@code SX-CORE-1003}
    */
   static <P> String describe(P properties, Set<ConstraintViolation<P>> violations) {
     var prefix = prefixOf(properties.getClass());

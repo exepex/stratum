@@ -60,7 +60,8 @@ class OnStratumModuleCondition extends SpringBootCondition {
             .get(ConditionalOnStratumModule.class)
             .getString(MergedAnnotation.VALUE);
     if (!isKebabCase(module)) {
-      throw new StratumException(CoreErrorCode.MODULE_NAME_NOT_KEBAB_CASE, module);
+      throw new StratumException(
+          CoreErrorCode.MODULE_NAME_NOT_KEBAB_CASE, "got \"" + module + "\"");
     }
     return module;
   }

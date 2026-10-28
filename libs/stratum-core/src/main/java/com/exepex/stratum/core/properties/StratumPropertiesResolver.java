@@ -37,8 +37,8 @@ public final class StratumPropertiesResolver {
    *     auto-configuration passes {@code ObjectProvider.orderedStream()}
    * @param <P> the module's settings type
    * @return the settings after every customizer has run
-   * @throws StratumException if a customizer returns {@code null} or settings of another type
-   * @throws ConstraintViolationException {@code SX-CORE-1005} if the resulting settings break a
+   * @throws StratumException {@code SX-CORE-1002} if a customizer is broken
+   * @throws ConstraintViolationException {@code SX-CORE-1003} if the resulting settings break a
    *     constraint
    */
   public <P> P resolve(P bound, Stream<? extends StratumPropertiesCustomizer<P>> customizers) {
@@ -58,9 +58,8 @@ public final class StratumPropertiesResolver {
    * @param customizer the customizer to run
    * @param <P> the module's settings type
    * @return the settings the customizer returned
-   * @throws StratumException {@code SX-CORE-1002} if the customizer returns {@code null}, {@code
-   *     SX-CORE-1003} if it returns settings of another type, or {@code SX-CORE-1004} if it fails
-   *     with a {@code ClassCastException}
+   * @throws StratumException {@code SX-CORE-1002} if the customizer returns {@code null} or
+   *     settings of another type, or fails with a {@code ClassCastException}
    */
   private static <P> P customize(P properties, StratumPropertiesCustomizer<P> customizer) {
     var customizerName = customizer.getClass().getName();
@@ -70,25 +69,53 @@ public final class StratumPropertiesResolver {
       customized = customizer.customize(properties);
     } catch (ClassCastException e) {
       // Java erases generic types, so this is either a customizer for other settings or a bad
-      // cast in the customizer's own code; the message covers both and the cause tells which.
+      // cast in the customizer's own code; the detail covers both and the cause tells which.
       throw new StratumException(
-          e, CoreErrorCode.CUSTOMIZER_CAST_FAILED, customizerName, settingsType);
+          CoreErrorCode.CUSTOMIZER_BROKEN,
+          customizerName
+              + " failed with a ClassCastException while changing "
+              + settingsType
+              + ". If it is a customizer for other settings, or was registered without its type, "
+              + declareWithType(settingsType)
+              + " Otherwise the cast that failed is in the customizer's own code; see the cause.",
+          e);
     }
     if (customized == null) {
-      throw new StratumException(CoreErrorCode.CUSTOMIZER_RETURNED_NULL, customizerName);
+      throw new StratumException(
+          CoreErrorCode.CUSTOMIZER_BROKEN,
+          customizerName
+              + " returned null. Return the settings it received to leave them unchanged.");
     }
     if (!properties.getClass().isInstance(customized)) {
       // Spring matches a customizer to a module by its generic type, so this is a customizer for
       // another module, or one registered without its type.
       throw new StratumException(
-          CoreErrorCode.CUSTOMIZER_FOR_OTHER_SETTINGS, customizerName, settingsType);
+          CoreErrorCode.CUSTOMIZER_BROKEN,
+          customizerName
+              + " cannot change "
+              + settingsType
+              + ": it is a customizer for other settings, or it was registered without its type."
+              + " To fix it, "
+              + declareWithType(settingsType));
     }
     return customized;
   }
 
   /**
+   * Tells the developer how to declare a customizer so that Spring gives it to the right module.
+   *
+   * @param settingsType the simple name of the module's settings type
+   * @return the advice, as the end of a sentence
+   */
+  private static String declareWithType(String settingsType) {
+    return "declare it as StratumPropertiesCustomizer<"
+        + settingsType
+        + ">, for example as the return type of a @Bean method.";
+  }
+
+  /**
    * Stops startup when the settings break a constraint. The message starts with {@code
-   * SX-CORE-1005} and names each property key and rule but never the value, which may be a secret
+   * SX-CORE-1003} and names each property key and rule but never the value, which may be a secret
    * ({@link ConstraintViolationMessages}). It stays a {@code ConstraintViolationException}, so that
    * the broken constraints remain available to tools that read them.
    *
@@ -101,7 +128,6 @@ public final class StratumPropertiesResolver {
       throw new ConstraintViolationException(
           ErrorReport.of(
                   CoreErrorCode.INVALID_SETTINGS,
-                  properties.getClass().getSimpleName(),
                   ConstraintViolationMessages.describe(properties, violations))
               .getCodeAndMessage(),
           violations);
