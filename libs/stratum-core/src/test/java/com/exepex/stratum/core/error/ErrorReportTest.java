@@ -19,6 +19,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.slf4j.MDC;
 
 @DisplayName("ErrorReport records an error or warning for the logs")
@@ -64,15 +66,35 @@ class ErrorReportTest {
       assertThat(report.getCode()).isEqualTo("SX-CORE-1002");
     }
 
-    @Test
-    @DisplayName("a service's code with Stratum's SX- prefix is rejected")
-    void rejectsStratumPrefixDeclaredOutsideStratum() {
+    @ParameterizedTest(name = "\"{0}\"")
+    @EnumSource(ImpostorErrorCode.class)
+    @DisplayName("a service's code with Stratum's SX- prefix, in any case or spacing, is rejected")
+    void rejectsStratumPrefixDeclaredOutsideStratum(ImpostorErrorCode impostor) {
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> ErrorReport.of(ImpostorErrorCode.COPIED_STRATUM_CODE))
+          .isThrownBy(() -> ErrorReport.of(impostor))
           .withMessage(
               ImpostorErrorCode.class.getName()
-                  + " declares SX-CORE-1002, but the prefix SX- is reserved for Stratum."
+                  + " declares "
+                  + impostor.getCode()
+                  + ", but the prefix SX- is reserved for Stratum."
                   + " Give the service's codes their own prefix.");
+    }
+
+    @Test
+    @DisplayName("line breaks and other control characters in an argument become spaces")
+    void replacesControlCharactersInArguments() {
+      var report =
+          ErrorReport.of(OrderErrorCode.OUT_OF_STOCK, SKU + "\r\n2026-10-28 INFO forged\t");
+
+      assertThat(report.getMessage())
+          .isEqualTo("Not enough stock for SKU-1  2026-10-28 INFO forged .");
+    }
+
+    @Test
+    @DisplayName("a null argument is written as null")
+    void writesNullArgument() {
+      assertThat(ErrorReport.of(OrderErrorCode.OUT_OF_STOCK, (Object) null).getMessage())
+          .isEqualTo("Not enough stock for null.");
     }
   }
 

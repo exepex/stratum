@@ -112,13 +112,13 @@ public class ErrorReport implements Serializable {
   }
 
   /**
-   * Rejects a code that uses Stratum's prefix but is declared outside Stratum, so that no service
-   * can make an error look like one of Stratum's.
+   * Rejects a code that uses Stratum's prefix but is declared outside Stratum, so that a service
+   * cannot declare one by mistake.
    *
    * @param code the code to check
    */
   private static void requireOwnPrefix(MessageCode code) {
-    if (code.getCode().startsWith(ErrorConstants.STRATUM_CODE_PREFIX)
+    if (usesStratumPrefix(code.getCode())
         && !code.getClass().getName().startsWith(ErrorConstants.STRATUM_PACKAGE)) {
       throw new IllegalArgumentException(
           code.getClass().getName()
@@ -128,6 +128,19 @@ public class ErrorReport implements Serializable {
               + ErrorConstants.STRATUM_CODE_PREFIX
               + " is reserved for Stratum. Give the service's codes their own prefix.");
     }
+  }
+
+  /**
+   * Returns whether a code starts with Stratum's prefix, ignoring case and leading spaces, so that
+   * {@code " sx-core-1002"} counts too. The check stops mistakes; a class in Stratum's package can
+   * still declare any code.
+   *
+   * @param code the code
+   * @return whether the code looks like one of Stratum's
+   */
+  private static boolean usesStratumPrefix(String code) {
+    var prefix = ErrorConstants.STRATUM_CODE_PREFIX;
+    return code.strip().regionMatches(true, 0, prefix, 0, prefix.length());
   }
 
   /**

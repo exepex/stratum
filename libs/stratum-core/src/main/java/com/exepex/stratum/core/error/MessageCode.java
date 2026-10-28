@@ -30,7 +30,10 @@ public sealed interface MessageCode permits ErrorCode, WarningCode {
 
   /**
    * Returns the description with its placeholders filled in. The text can be shown outside the
-   * application, so never pass a secret, personal data or an internal detail as an argument.
+   * application, so never pass a secret, personal data or an internal detail as an argument, and
+   * pass an exception as the cause, never as an argument. Line breaks and other control characters
+   * in an argument are replaced with spaces, so that a value from a request cannot forge a log
+   * line.
    *
    * @implNote The placeholders are SLF4J's {@code {}}, not {@link String#format} patterns, so an
    *     argument is only ever inserted as text and never read as part of the pattern.
@@ -38,6 +41,7 @@ public sealed interface MessageCode permits ErrorCode, WarningCode {
    * @return the filled-in description
    */
   default String describe(Object... arguments) {
-    return MessageFormatter.basicArrayFormat(getDescription(), arguments);
+    return MessageFormatter.basicArrayFormat(
+        getDescription(), MessageArguments.withoutControlCharacters(arguments));
   }
 }

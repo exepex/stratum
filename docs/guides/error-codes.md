@@ -17,7 +17,8 @@ SX-CORE-1002
 
 - **`SX-` is reserved for Stratum.** Your service uses its own prefix, such as `PAY-0001` or
   `ORD-0001`. If a service declares a code that starts with `SX-`, Stratum rejects every report
-  made from it, so no service can make its errors look like Stratum's.
+  made from it, so a service can't declare one by mistake. The check ignores case and leading
+  spaces, and accepts a code only from a class in Stratum's package, `com.exepex.stratum`.
 - **Each module numbers its own codes.** The errors and warnings of one module share one range of
   numbers, so a number is never used twice in a module.
 - **The code does not say how serious the problem is.** Each report has a separate `severity`
@@ -60,6 +61,8 @@ An `ExternalError` written as JSON looks like this:
 The message is the code's description with its placeholders filled in. A placeholder is written
 `{}`, as in a log message, and the arguments fill them in order. It is shown to callers, so
 never fill a placeholder with a secret, personal data, a class name or any other internal detail.
+Pass an exception as the cause, never as an argument. Line breaks and other control characters in
+an argument are replaced with spaces, so a value from a request cannot forge a log line.
 Stratum's own `SX-CORE` errors stop the application at startup and never reach a caller.
 
 ## The trace, span and correlation IDs
@@ -112,7 +115,8 @@ with its cause, so the log shows the stack trace:
 ```java
 log.error(report.getCodeAndMessage(), report.getCause());
 ```
- To add field details, build the report first:
+
+To add field details, build the report first:
 
 ```java
 var report =
