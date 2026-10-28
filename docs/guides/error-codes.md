@@ -19,15 +19,15 @@ SX-CORE-1002
   `ORD-0001`. If a service declares a code that starts with `SX-`, Stratum rejects every report
   made from it, so a service can't declare one by mistake. The check ignores case and leading
   spaces, and accepts a code only from a class in Stratum's package, `com.exepex.stratum`.
-- **Each module numbers its own codes.** The errors and warnings of one module share one range of
-  numbers, so a number is never used twice in a module.
-- **The code does not say how serious the problem is.** Each report has a separate `severity`
-  field, `ERROR` or `WARNING`, which comes from the kind of code.
+- **Each module numbers its own codes.** Errors and warnings share one range of numbers, so a
+  number is never used twice in a module.
+- **The code does not say how serious the problem is.** Each code has a separate `severity`,
+  `ERROR` or `WARNING`, which every report made from it carries.
 - **Info messages have no code.** Only errors and warnings need to be looked up.
 
-Each module declares its codes in Java, in one enum for errors and one for warnings, such as
-`CoreErrorCode` and `CoreWarningCode`. The description of each code is a constant in that enum.
-No properties file holds them, so no configuration can change what a Stratum code means.
+Each module declares all its codes, errors and warnings together, in one Java enum, such as
+`CoreErrorCode`. The severity and description of each code are constants in that enum. No
+properties file holds them, so no configuration can change what a Stratum code means.
 
 ## The two error objects
 
@@ -83,8 +83,8 @@ line or break a response. **Planned:** the web module will read the correlation 
 
 ## Using codes in your service
 
-Declare your codes in an enum, with your own prefix. Use `ErrorCode` for errors and `WarningCode`
-for warnings:
+Declare your codes in one enum that implements `ErrorCode`, with your own prefix. Give each code
+its severity:
 
 ```java
 @Getter
@@ -92,9 +92,13 @@ for warnings:
 public enum OrderErrorCode implements ErrorCode {
 
   /** The order asks for more items than are in stock. */
-  OUT_OF_STOCK("ORD-0001", "Not enough stock for {}.");
+  OUT_OF_STOCK("ORD-0001", Severity.ERROR, "Not enough stock for {}."),
+
+  /** The order was accepted, but it will ship late. */
+  DELAYED("ORD-0002", Severity.WARNING, "The order will ship {} late.");
 
   private final String code;
+  private final Severity severity;
   private final String description;
 }
 ```
@@ -104,16 +108,16 @@ Throw an error, or log a warning:
 ```java
 throw new StratumException(OrderErrorCode.OUT_OF_STOCK, sku);
 
-var warning = ErrorReport.of(OrderWarningCode.DELAYED, days);
+var warning = ErrorReport.of(OrderErrorCode.DELAYED, days);
 log.warn(warning.getCodeAndMessage());
 ```
 
 The exception's message starts with the code, such as `ORD-0001: Not enough stock for SKU-1.`, and
-`exception.getReport()` gives its `ErrorReport`, whose cause is the exception itself. Log a report
-with its cause, so the log shows the stack trace:
+`exception.getReport()` gives its `ErrorReport`. Log the exception itself, so the log shows its
+stack trace and cause:
 
 ```java
-log.error(report.getCodeAndMessage(), report.getCause());
+log.error(exception.getMessage(), exception);
 ```
 
 To add field details, build the report first:
@@ -130,9 +134,8 @@ A warning cannot be thrown: `new StratumException(report)` rejects a report whos
 
 ## stratum-core
 
-### Errors
-
-Each of these stops the application at startup.
+Each of these is an error that stops the application at startup. `stratum-core` reports no warnings
+yet.
 
 | Code | Meaning | Fix |
 | --- | --- | --- |
@@ -144,7 +147,3 @@ Each of these stops the application at startup.
 
 `SX-CORE-1005` is a `ConstraintViolationException` with the code at the start of its message, so
 tools that read the broken constraints still can. The others are a `StratumException`.
-
-### Warnings
-
-`stratum-core` reports no warnings yet.

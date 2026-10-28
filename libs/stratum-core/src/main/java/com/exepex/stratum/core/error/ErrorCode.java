@@ -1,12 +1,36 @@
 package com.exepex.stratum.core.error;
 
 /**
- * A code for a failure: the operation did not do what was asked. Reports made from it have the
- * severity {@link Severity#ERROR}, and only these codes can be thrown as a {@link
- * StratumException}.
+ * A stable code with a fixed severity and description, which names one kind of error or warning so
+ * that it can be looked up in the documentation and searched for in logs.
  *
- * <p>A service declares its own codes in an enum that implements this interface, with its own
+ * <p>Each module declares its codes, errors and warnings together, in one enum that implements this
+ * interface, so that no configuration file can change them. A service does the same with its own
  * prefix, such as {@code PAY-0001}. The prefix {@code SX-} is reserved for Stratum: a report made
  * from a code with that prefix declared outside Stratum is rejected.
  */
-public non-sealed interface ErrorCode extends MessageCode {}
+public interface ErrorCode {
+
+  /**
+   * The code as it appears in logs and responses, such as {@code SX-CORE-1002} or a service's own
+   * {@code PAY-0001}.
+   *
+   * @return the code
+   */
+  String getCode();
+
+  /**
+   * Whether a report with this code means the operation failed or only needs attention.
+   *
+   * @return the severity
+   */
+  Severity getSeverity();
+
+  /**
+   * What went wrong and how to fix it. Each {@code {}} in it is a placeholder, filled in order when
+   * a report is made, as in a log message.
+   *
+   * @return the description
+   */
+  String getDescription();
+}

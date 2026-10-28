@@ -9,7 +9,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.regex.MatchResult;
 import java.util.regex.Pattern;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -29,7 +28,7 @@ class CoreCodesTest {
   }
 
   @Test
-  @DisplayName("no two codes, error or warning, share a number")
+  @DisplayName("no two codes share a number")
   void codesAreUnique() {
     assertThat(coreCodes()).doesNotHaveDuplicates();
   }
@@ -47,15 +46,12 @@ class CoreCodesTest {
   }
 
   /**
-   * Returns the codes of both of stratum-core's enums.
+   * Returns every stratum-core code.
    *
-   * @return every error and warning code
+   * @return the codes of all errors and warnings
    */
   private static List<String> coreCodes() {
-    return Stream.concat(
-            Arrays.stream(CoreErrorCode.values()), Arrays.stream(CoreWarningCode.values()))
-        .map(MessageCode::getCode)
-        .toList();
+    return Arrays.stream(CoreErrorCode.values()).map(CoreErrorCode::getCode).toList();
   }
 
   /**

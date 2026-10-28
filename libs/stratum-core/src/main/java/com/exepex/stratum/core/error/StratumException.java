@@ -6,8 +6,8 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * A failure with an {@link ErrorCode}. Its message starts with the code, such as {@code
- * SX-CORE-1002: ...}, and its {@linkplain #getReport() report} holds everything the logs need, with
- * this exception as the cause, so the report's stack trace is this exception's.
+ * SX-CORE-1002: ...}, and its {@linkplain #getReport() report} holds the code, message, details and
+ * IDs. Log the exception itself, so the log shows its stack trace and cause.
  *
  * <p>Stratum throws it for its own errors; a service can throw it with its own codes.
  */
@@ -18,7 +18,7 @@ public final class StratumException extends RuntimeException {
   @Serial private static final long serialVersionUID = 1L;
 
   /**
-   * Everything known about the failure, for the logs; {@link ErrorReport#toExternal()} gives the
+   * The code, message, details and IDs of the failure; {@link ErrorReport#toExternal()} gives the
    * part a caller may see.
    */
   private final ErrorReport report;
@@ -53,7 +53,7 @@ public final class StratumException extends RuntimeException {
    */
   public StratumException(ErrorReport report) {
     super(report.getCodeAndMessage(), causeOfError(report));
-    this.report = report.withCause(this);
+    this.report = report;
   }
 
   /**

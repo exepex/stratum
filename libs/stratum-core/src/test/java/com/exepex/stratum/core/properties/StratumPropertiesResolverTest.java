@@ -144,7 +144,7 @@ class StratumPropertiesResolverTest {
           .isThrownBy(
               () -> resolver.resolve((Object) GreetingTestData.defaults(), Stream.of(wrongResult)))
           .withMessageStartingWith("SX-CORE-1003: ")
-          .withMessageContaining("cannot change GreetingProperties")
+          .withMessageContaining("returned settings of another type")
           .withMessageContaining("declare it as StratumPropertiesCustomizer<GreetingProperties>")
           .withNoCause();
     }

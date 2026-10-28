@@ -1,6 +1,5 @@
 package com.exepex.stratum.core.properties;
 
-import com.exepex.stratum.core.error.CoreErrorCode;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ElementKind;
 import jakarta.validation.Path;
@@ -41,17 +40,15 @@ class ConstraintViolationMessages {
    * @param properties the settings that were validated
    * @param violations the constraints they break
    * @param <P> the module's settings type
-   * @return a message such as {@code "Invalid ExampleProperties: stratum.example.timeout
-   *     breaks @NotNull"}
+   * @return the broken rules, such as {@code "stratum.example.name breaks @NotBlank;
+   *     stratum.example.timeout breaks @NotNull"}; the resolver puts them in {@code SX-CORE-1005}
    */
   static <P> String describe(P properties, Set<ConstraintViolation<P>> violations) {
     var prefix = prefixOf(properties.getClass());
-    var broken =
-        violations.stream()
-            .map(violation -> describe(prefix, violation))
-            .sorted()
-            .collect(Collectors.joining("; "));
-    return CoreErrorCode.INVALID_SETTINGS.describe(properties.getClass().getSimpleName(), broken);
+    return violations.stream()
+        .map(violation -> describe(prefix, violation))
+        .sorted()
+        .collect(Collectors.joining("; "));
   }
 
   /**

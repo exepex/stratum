@@ -1,7 +1,7 @@
 package com.exepex.stratum.core.properties;
 
 import com.exepex.stratum.core.error.CoreErrorCode;
-import com.exepex.stratum.core.error.ErrorConstants;
+import com.exepex.stratum.core.error.ErrorReport;
 import com.exepex.stratum.core.error.StratumException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -72,7 +72,7 @@ public final class StratumPropertiesResolver {
       // Java erases generic types, so this is either a customizer for other settings or a bad
       // cast in the customizer's own code; the message covers both and the cause tells which.
       throw new StratumException(
-          e, CoreErrorCode.CUSTOMIZER_CAST_FAILED, customizerName, settingsType, settingsType);
+          e, CoreErrorCode.CUSTOMIZER_CAST_FAILED, customizerName, settingsType);
     }
     if (customized == null) {
       throw new StratumException(CoreErrorCode.CUSTOMIZER_RETURNED_NULL, customizerName);
@@ -81,7 +81,7 @@ public final class StratumPropertiesResolver {
       // Spring matches a customizer to a module by its generic type, so this is a customizer for
       // another module, or one registered without its type.
       throw new StratumException(
-          CoreErrorCode.CUSTOMIZER_FOR_OTHER_SETTINGS, customizerName, settingsType, settingsType);
+          CoreErrorCode.CUSTOMIZER_FOR_OTHER_SETTINGS, customizerName, settingsType);
     }
     return customized;
   }
@@ -99,9 +99,11 @@ public final class StratumPropertiesResolver {
     Set<ConstraintViolation<P>> violations = validator.validate(properties);
     if (!violations.isEmpty()) {
       throw new ConstraintViolationException(
-          CoreErrorCode.INVALID_SETTINGS.getCode()
-              + ErrorConstants.CODE_SEPARATOR
-              + ConstraintViolationMessages.describe(properties, violations),
+          ErrorReport.of(
+                  CoreErrorCode.INVALID_SETTINGS,
+                  properties.getClass().getSimpleName(),
+                  ConstraintViolationMessages.describe(properties, violations))
+              .getCodeAndMessage(),
           violations);
     }
   }

@@ -1,12 +1,28 @@
 package com.exepex.stratum.core.error.testsupport;
 
-import com.exepex.stratum.core.error.ErrorConstants;
+import com.exepex.stratum.core.error.ErrorDetail;
 import lombok.experimental.UtilityClass;
 import org.slf4j.MDC;
 
 /** Values shared by the error tests: an item and a set of diagnostic IDs. */
 @UtilityClass
 public class ErrorTestData {
+
+  /** Where tracing puts the trace ID in the logging context. */
+  public static final String TRACE_ID_KEY = "traceId";
+
+  /** Where tracing puts the span ID in the logging context. */
+  public static final String SPAN_ID_KEY = "spanId";
+
+  /** Where Stratum puts the correlation ID in the logging context. */
+  public static final String CORRELATION_ID_KEY = "correlationId";
+
+  /** The length of the longest ID that an error report keeps. */
+  public static final int LONGEST_ID_LENGTH = 128;
+
+  /** A problem with one field of an order. */
+  public static final ErrorDetail QUANTITY_PROBLEM =
+      new ErrorDetail("quantity", "must be positive");
 
   /** The item the test orders ask for. */
   public static final String SKU = "SKU-1";
@@ -25,8 +41,8 @@ public class ErrorTestData {
    * logging context, as tracing and Stratum do. Clear it with {@code MDC.clear()} after the test.
    */
   public static void putIdsInLoggingContext() {
-    MDC.put(ErrorConstants.TRACE_ID_KEY, TRACE_ID);
-    MDC.put(ErrorConstants.SPAN_ID_KEY, SPAN_ID);
-    MDC.put(ErrorConstants.CORRELATION_ID_KEY, CORRELATION_ID);
+    MDC.put(TRACE_ID_KEY, TRACE_ID);
+    MDC.put(SPAN_ID_KEY, SPAN_ID);
+    MDC.put(CORRELATION_ID_KEY, CORRELATION_ID);
   }
 }
