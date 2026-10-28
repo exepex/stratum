@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  The parent POM of Stratum's own libraries and starters. It adds one check to stratum-build-parent:
-  the Javadoc rules (ST-ENG-14, ST-ENG-15). Services use stratum-parent, which does not inherit this
-  POM, because whether a service writes Javadoc is its team's choice.
+  The parent POM of Stratum's own libraries and starters. It adds checks to stratum-build-parent:
+  Google's Checkstyle configuration, the Javadoc rules (ST-ENG-14, ST-ENG-15), the 400-line limit on
+  Java files (ST-AG-10) and the rules against boilerplate that Lombok generates (ST-ENG-42). Services
+  use stratum-parent, which does not inherit this POM, because these choices are their team's.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -20,28 +21,50 @@
   <packaging>pom</packaging>
 
   <name>Stratum library parent</name>
-  <description>Parent POM for Stratum's libraries and starters: stratum-build-parent plus the Javadoc rules.</description>
+  <description>Parent POM for Stratum's libraries and starters: stratum-build-parent plus Google style, Javadoc, file length and Lombok rules.</description>
 
   <build>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
+        <!-- Each execution has its own result and cache files, so that none overwrites another's. -->
         <executions>
-          <!-- Its own result and cache files, so that it does not overwrite those of stratum-checkstyle-check. -->
+          <!-- google_checks.xml ships inside Checkstyle, so it moves with each Checkstyle upgrade. -->
           <execution>
-            <id>stratum-checkstyle-javadoc</id>
+            <id>stratum-checkstyle-google</id>
             <phase>validate</phase>
             <goals>
               <goal>check</goal>
             </goals>
             <configuration>
-              <cacheFile>${project.build.directory}/checkstyle-javadoc-cachefile</cacheFile>
-              <configLocation>stratum/checkstyle-javadoc.xml</configLocation>
-              <outputFile>${project.build.directory}/checkstyle-javadoc-result.xml</outputFile>
+              <cacheFile>${project.build.directory}/checkstyle-google-cachefile</cacheFile>
+              <configLocation>google_checks.xml</configLocation>
+              <outputFile>${project.build.directory}/checkstyle-google-result.xml</outputFile>
+            </configuration>
+          </execution>
+          <execution>
+            <id>stratum-checkstyle-library</id>
+            <phase>validate</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <configuration>
+              <cacheFile>${project.build.directory}/checkstyle-library-cachefile</cacheFile>
+              <configLocation>stratum/checkstyle-library.xml</configLocation>
+              <outputFile>${project.build.directory}/checkstyle-library-result.xml</outputFile>
             </configuration>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-pmd-plugin</artifactId>
+        <configuration>
+          <rulesets combine.children="append">
+            <ruleset>stratum/pmd-lombok.xml</ruleset>
+          </rulesets>
+        </configuration>
       </plugin>
     </plugins>
   </build>

@@ -28,7 +28,9 @@ cite it.
   parameters that switch behaviour. Remove dead and commented-out code. Comments inside a method explain a reason or
   constraint, never what the next line does. Names and Javadoc follow ST-ENG-13 to ST-ENG-15.
 - **ST-ENG-09 Formatting.** Java is formatted with google-java-format through Spotless and checked by Checkstyle.
-  Do not hand-format around the formatter, add `spotless:off` or add Checkstyle suppressions.
+  Stratum's libraries and starters are also checked against Google's own Checkstyle configuration
+  (`google_checks.xml`, shipped inside Checkstyle). Do not hand-format around the formatter, add `spotless:off`, or
+  silence a check with `@SuppressWarnings`, a `CHECKSTYLE` comment or a suppression file.
 
 ## Cross-cutting concerns
 
@@ -125,7 +127,10 @@ Every starter follows these rules:
 - **ST-ENG-42** Do not hand-write code that a library can generate. Use Lombok for loggers (`@Slf4j`), constructors
   (`@RequiredArgsConstructor`, `@AllArgsConstructor`), accessors (`@Getter`, `@Setter`), builders (`@Builder`) and
   classes of static helpers (`@UtilityClass`). Use MapStruct for mapping one type to another. Prefer a record over a
-  Lombok value class. Never put `@Data` or `@ToString` on a type that holds a secret or personal data.
+  Lombok value class. Never put `@Data` or `@ToString` on a type that holds a secret or personal data. In Stratum's
+  libraries and starters, PMD fails the build on a hand-written getter, setter, builder, logger, `equals`,
+  `hashCode` or `toString`, and on a constructor that only assigns its parameters to fields
+  (`stratum/pmd-lombok.xml`). A getter, setter or constructor with logic in it is not reported.
 - **ST-ENG-43** When a type has a builder, construct it with the builder, not with `new`. Records without a builder,
   exceptions, collections and framework types designed for constructors may use `new`.
 - **ST-ENG-44** A fixed set of values is an `enum`, not a set of strings. Error codes are the exception: they stay
