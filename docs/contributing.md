@@ -46,40 +46,23 @@ GitHub Actions builds every pull request, and every push to `main`, with
 [`.github/workflows/build.yml`](../.github/workflows/build.yml). It runs one command on JDK 25:
 
 ```bash
-./mvnw verify -Psecurity org.cyclonedx:cyclonedx-maven-plugin:<version>:makeAggregateBom
+./mvnw verify org.cyclonedx:cyclonedx-maven-plugin:<version>:makeAggregateBom
 ```
 
 | Part | What it does | Where to find the result |
 | --- | --- | --- |
 | `verify` | Every check that `./mvnw verify` runs on your machine | The run's log |
-| `-Psecurity` | Scans the dependencies with OWASP Dependency-Check and fails the run on a vulnerability scored 7.0 or higher | The `dependency-check-reports` artifact |
 | `makeAggregateBom` | Writes an SBOM (software bill of materials): a CycloneDX list of every library the build includes | The `sbom` artifact, as `bom.json` and `bom.xml` |
 
 An artifact is a file that a run keeps; open the run in the **Actions** tab and download it from
-the run's summary page. The SBOM is written only when the build and the scan pass. The SBOM
-plugin's version is not written in the workflow: it is the version Spring Boot's parent manages,
-which the workflow reads from `stratum-parent` before the build.
+the run's summary page. The SBOM is written only when the build passes. The SBOM plugin's version
+is not written in the workflow: it is the version Spring Boot's parent manages, which the workflow
+reads from `stratum-parent` before the build.
 
-The scan downloads vulnerability data from the US National Vulnerability Database (NVD), which needs
-an API key. The run stops with an error naming the missing key until the repository has a secret named
-`NVD_API_KEY`. Request a free key from the [NVD](https://nvd.nist.gov/developers/request-an-api-key),
-then add it under **Settings → Secrets and variables → Actions** in the repository. Never write the
-key in a file.
-
-The first scan downloads the whole NVD database. That has taken from 24 minutes to over an hour,
-depending on how fast the NVD answers, so the job may run for up to 150 minutes. Each passing build of
-`main` saves the database, and every run starts from that copy, so it fetches only the changes.
-When the NVD service is down, the scan stops with `NVD Returned Status Code: 503`. That is not a
-problem in your change: re-run the job when the NVD is back. The scan uses the NVD data only:
-Dependency-Check's Sonatype OSS Index analyzer is off, because it needs a separate account token.
-
-GitHub gives no repository secrets to a pull request from a fork, so such a pull request is built
-and gets its SBOM, but skips the scan; the run shows a warning that says so. The scan runs on `main`
-when the pull request merges.
-
-Dependabot pull requests do not get Actions secrets either, but they change dependencies, so they
-must be scanned. If Dependabot is turned on, add the same key under **Settings → Secrets and
-variables → Dependabot**, also named `NVD_API_KEY`.
+CI does not scan dependencies for known vulnerabilities. The `security` profile still does, when
+you run it yourself with an NVD API key; see
+[Optional profiles](modules/parent-and-bom.md#optional-profiles). CI stopped running it because the
+download from the US National Vulnerability Database (NVD) took from 24 minutes to over an hour.
 
 ## Rules for a new starter
 
