@@ -30,6 +30,10 @@
       <plugin>
         <groupId>io.github.git-commit-id</groupId>
         <artifactId>git-commit-id-maven-plugin</artifactId>
+        <!-- A service built without a .git folder, as in many Docker builds, still builds. -->
+        <configuration>
+          <failOnNoGitDirectory>false</failOnNoGitDirectory>
+        </configuration>
       </plugin>
       <!-- This POM is flattened when it is installed, but a service has its own version, so the
            flatten executions stop here. -->

@@ -2,11 +2,11 @@ package com.exepex.stratum.core.condition;
 
 import com.exepex.stratum.core.error.CoreErrorCode;
 import com.exepex.stratum.core.error.StratumException;
+import java.util.regex.Pattern;
 import org.springframework.boot.autoconfigure.condition.ConditionMessage;
 import org.springframework.boot.autoconfigure.condition.ConditionOutcome;
 import org.springframework.boot.autoconfigure.condition.SpringBootCondition;
 import org.springframework.boot.context.properties.bind.Binder;
-import org.springframework.boot.context.properties.source.ConfigurationPropertyName;
 import org.springframework.context.annotation.ConditionContext;
 import org.springframework.core.annotation.MergedAnnotation;
 import org.springframework.core.type.AnnotatedTypeMetadata;
@@ -18,14 +18,11 @@ import org.springframework.core.type.AnnotatedTypeMetadata;
  */
 class OnStratumModuleCondition extends SpringBootCondition {
 
-  /**
-   * Whether a module is on when its {@code stratum.<module>.enabled} property is not set: it is
-   * not, so that a service switches on each module it uses (ADR 0003).
-   */
-  static final boolean ENABLED_BY_DEFAULT = false;
+  /** A module name in kebab-case characters: lower-case letters, digits and hyphens. */
+  private static final Pattern KEBAB_CASE_CHARACTERS = Pattern.compile("[a-z0-9-]+");
 
   /**
-   * Reads {@code stratum.<module>.enabled} and compares it with the default.
+   * Reads {@code stratum.<module>.enabled}; a module whose property is not set is off (ADR 0003).
    *
    * @param context the context whose environment holds the property
    * @param metadata the annotated class or method
@@ -38,21 +35,14 @@ class OnStratumModuleCondition extends SpringBootCondition {
     var module = moduleName(metadata);
     var property = StratumModuleConstants.enabledProperty(module);
     var message = ConditionMessage.forCondition(ConditionalOnStratumModule.class, module);
-    var configured = Binder.get(context.getEnvironment()).bind(property, Boolean.class);
-    if (configured.isBound()) {
-      return new ConditionOutcome(
-          configured.get(), message.because(property + " is " + configured.get()));
+    var enabled = Binder.get(context.getEnvironment()).bind(property, Boolean.class);
+    if (!enabled.isBound()) {
+      return ConditionOutcome.noMatch(message.because(property + " is not set, so it is off"));
     }
-    return new ConditionOutcome(
-        ENABLED_BY_DEFAULT, message.because(property + " is not set; the default applies"));
+    return new ConditionOutcome(enabled.get(), message.because(property + " is " + enabled.get()));
   }
 
-  /**
-   * Returns the module name from the annotation and rejects one that is not in kebab-case.
-   *
-   * @param metadata the annotated class or method
-   * @return the module name
-   */
+  /** Returns the module name from the annotation and rejects one that is not in kebab-case. */
   private static String moduleName(AnnotatedTypeMetadata metadata) {
     String module =
         metadata
@@ -66,21 +56,11 @@ class OnStratumModuleCondition extends SpringBootCondition {
     return module;
   }
 
-  /**
-   * Returns whether a module name is one kebab-case word, such as {@code http-client}. Spring
-   * Boot's property name rules check the characters; a name with a dot or an index has more than
-   * one element or an indexed one, and would turn the switch into a nested or list property.
-   *
-   * @param module the module name
-   * @return whether the name can be the middle part of {@code stratum.<module>.enabled}
-   */
+  /** Returns whether a module name is one kebab-case word, such as {@code http-client}. */
   private static boolean isKebabCase(String module) {
-    if (!ConfigurationPropertyName.isValid(module)
-        || module.endsWith("-")
-        || module.contains("--")) {
-      return false;
-    }
-    var name = ConfigurationPropertyName.of(module);
-    return name.getNumberOfElements() == 1 && !name.isLastElementIndexed();
+    return KEBAB_CASE_CHARACTERS.matcher(module).matches()
+        && !module.startsWith("-")
+        && !module.endsWith("-")
+        && !module.contains("--");
   }
 }

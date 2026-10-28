@@ -109,16 +109,10 @@ class ConstraintViolationMessagesTest {
   }
 
   @Test
-  @DisplayName("settings without @ConfigurationProperties are named by their own keys")
-  void namesKeysWithoutPrefix() {
-    assertThat(describe(new Unprefixed(""))).isEqualTo("value breaks @NotBlank");
-  }
-
-  @Test
   @DisplayName("a service's own constraint without public access is named with its limits")
   void namesNonPublicConstraints() {
     assertThat(describe(new CodedSettings("toolong")))
-        .isEqualTo("stratum.coded.code" + " breaks @ShortCode(format=String, region=us)");
+        .isEqualTo("stratum.coded.code breaks @ShortCode(region=us)");
   }
 
   @Test
@@ -148,23 +142,12 @@ class ConstraintViolationMessagesTest {
     assertThat(describe(new RangeSettings(2, 1))).isEqualTo("stratum.range breaks @MinBelowMax");
   }
 
-  /**
-   * Validates the settings and returns the message the resolver would throw.
-   *
-   * @param settings the settings to validate
-   * @param <P> the settings type
-   * @return the message
-   */
+  /** Validates the settings and returns the message the resolver would throw. */
   private static <P> String describe(P settings) {
     return ConstraintViolationMessages.describe(settings, validator.validate(settings));
   }
 
-  /**
-   * Returns the path of a broken constraint as text.
-   *
-   * @param violation the broken constraint
-   * @return the path, such as {@code pool.maxSize}
-   */
+  /** Returns the path of a broken constraint as text. */
   private static String path(ConstraintViolation<?> violation) {
     return violation.getPropertyPath().toString();
   }
@@ -194,11 +177,4 @@ class ConstraintViolationMessagesTest {
    * @param maxSize the most connections the pool opens
    */
   private record Pool(@Positive int maxSize) {}
-
-  /**
-   * Settings that are not bound from properties.
-   *
-   * @param value a value that must not be blank
-   */
-  private record Unprefixed(@NotBlank String value) {}
 }

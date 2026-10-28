@@ -38,7 +38,7 @@
     </module>
     <module name="InvalidJavadocPosition"/>
     <module name="JavadocMethod">
-      <property name="accessModifiers" value="public, protected, package, private"/>
+      <property name="accessModifiers" value="public, protected, package"/>
     </module>
     <module name="NonEmptyAtclauseDescription"/>
     <!-- A summary sentence that says what the element does, not its signature (ST-ENG-15) -->

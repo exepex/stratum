@@ -2,7 +2,6 @@ package com.exepex.stratum.core.error;
 
 import java.io.Serial;
 import lombok.Getter;
-import org.jspecify.annotations.Nullable;
 
 /**
  * A failure with an {@link ErrorCode}. Its message starts with the code, such as {@code
@@ -61,22 +60,12 @@ public final class StratumException extends RuntimeException {
    * @throws IllegalArgumentException if the report is a warning, which is never thrown
    */
   public StratumException(ErrorReport report) {
-    super(report.getCodeAndMessage(), causeOfError(report));
-    this.report = report;
-  }
-
-  /**
-   * Returns the cause of a report, after checking that it reports an error.
-   *
-   * @param report the report
-   * @return the report's cause, if any
-   */
-  private static @Nullable Throwable causeOfError(ErrorReport report) {
     var external = report.getExternal();
     if (external.severity() != Severity.ERROR) {
       throw new IllegalArgumentException(
           external.code() + " is a warning; log it instead of throwing it.");
     }
-    return report.getCause();
+    super(report.getCodeAndMessage(), report.getCause());
+    this.report = report;
   }
 }

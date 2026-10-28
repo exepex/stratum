@@ -4,7 +4,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 /**
- * The errors and warnings of {@code stratum-core}, each listed with its fix in {@code
+ * The codes of {@code stratum-core}, each listed with its fix in {@code
  * docs/guides/error-codes.md}. Every error here stops the application at startup.
  */
 @Getter

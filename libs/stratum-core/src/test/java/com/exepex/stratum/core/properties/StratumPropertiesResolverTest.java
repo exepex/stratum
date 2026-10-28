@@ -136,7 +136,7 @@ class StratumPropertiesResolverTest {
       assertThatExceptionOfType(StratumException.class)
           .isThrownBy(() -> resolver.resolve(GreetingTestData.defaults(), Stream.of(buggy)))
           .withMessageStartingWith(BROKEN_CUSTOMIZER)
-          .withMessageContaining("the cast that failed is in the customizer's own code")
+          .withMessageContaining("Otherwise see the cause")
           .withCauseInstanceOf(ClassCastException.class);
     }
 
@@ -149,7 +149,7 @@ class StratumPropertiesResolverTest {
           .isThrownBy(
               () -> resolver.resolve((Object) GreetingTestData.defaults(), Stream.of(wrongResult)))
           .withMessageStartingWith(BROKEN_CUSTOMIZER)
-          .withMessageContaining("cannot change GreetingProperties")
+          .withMessageContaining("returned null or settings of another type")
           .withMessageContaining("declare it as StratumPropertiesCustomizer<GreetingProperties>")
           .withNoCause();
     }

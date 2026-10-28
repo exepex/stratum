@@ -8,4 +8,4 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param code a code of at most 3 characters
  */
 @ConfigurationProperties("stratum.coded")
-public record CodedSettings(@ShortCode(region = "us", format = String.class) String code) {}
+public record CodedSettings(@ShortCode(region = "us") String code) {}
