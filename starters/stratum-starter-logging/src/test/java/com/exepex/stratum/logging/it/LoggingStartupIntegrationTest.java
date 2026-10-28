@@ -12,6 +12,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.boot.logging.LoggingSystemProperty;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -31,6 +32,10 @@ class LoggingStartupIntegrationTest {
   @Test
   @DisplayName("with the module unset, logs stay Spring Boot's plain text")
   void moduleOffKeepsPlainText(CapturedOutput output) {
+    // Spring Boot keeps the console format as a JVM system property once any application in this
+    // JVM has set it, so an earlier test would make this one see JSON.
+    System.clearProperty(
+        LoggingSystemProperty.CONSOLE_STRUCTURED_FORMAT.getEnvironmentVariableName());
     try (var _ = start("--spring.application.name=orders")) {
       log.info("plain line password=fake-unmasked");
     }
