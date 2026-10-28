@@ -43,7 +43,7 @@ class OnStratumModuleCondition extends SpringBootCondition {
   }
 
   /** Returns the module name from the annotation and rejects one that is not in kebab-case. */
-  private static String moduleName(AnnotatedTypeMetadata metadata) {
+  private String moduleName(AnnotatedTypeMetadata metadata) {
     String module =
         metadata
             .getAnnotations()
@@ -57,7 +57,7 @@ class OnStratumModuleCondition extends SpringBootCondition {
   }
 
   /** Returns whether a module name is one kebab-case word, such as {@code http-client}. */
-  private static boolean isKebabCase(String module) {
+  private boolean isKebabCase(String module) {
     return KEBAB_CASE_CHARACTERS.matcher(module).matches()
         && !module.startsWith("-")
         && !module.endsWith("-")

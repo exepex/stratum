@@ -66,6 +66,9 @@ class ContentRules {
   /** Google's phone number library, which knows every country's numbering plan. */
   private static final PhoneNumberUtil PHONE_NUMBERS = PhoneNumberUtil.getInstance();
 
+  /** How many characters an identifier such as a card number keeps visible at its end. */
+  private static final int VISIBLE_END = 4;
+
   /**
    * Returns all the rules as one: secrets first, then personal data, then the service's own.
    *
@@ -84,7 +87,7 @@ class ContentRules {
                 ContentRules::hasDigit,
                 CardNumbers.CARD_GROUPS,
                 match -> CardNumbers.mask(match.group())),
-            rule(text -> text.contains("-"), SSN, match -> Redactor.keepingLastFour(match.group())),
+            rule(text -> text.contains("-"), SSN, match -> keepingLastFour(match.group())),
             rule(text -> text.contains("@"), EMAIL, ContentRules::maskEmail),
             text -> hasDigit(text) ? maskIbans(text) : text,
             ContentRules::maskPhoneNumbers);
@@ -120,7 +123,7 @@ class ContentRules {
   /** Masks a valid email address, keeping its last four characters. */
   private static String maskEmail(MatchResult match) {
     return EmailValidator.getInstance().isValid(match.group())
-        ? Redactor.keepingLastFour(match.group())
+        ? keepingLastFour(match.group())
         : match.group();
   }
 
@@ -194,7 +197,7 @@ class ContentRules {
                 Replacement.builder()
                     .start(candidate.start())
                     .end(candidate.start() + iban.length())
-                    .text(Redactor.keepingLastFour(compact(iban)))
+                    .text(keepingLastFour(compact(iban)))
                     .build());
   }
 
@@ -220,10 +223,23 @@ class ContentRules {
                     Replacement.builder()
                         .start(number.start())
                         .end(number.end())
-                        .text(Redactor.keepingLastFour(number.rawString()))
+                        .text(keepingLastFour(number.rawString()))
                         .build())
             .toList();
     return replace(text, replacements);
+  }
+
+  /**
+   * Masks a value but keeps its last four characters, such as {@code ****1111} for a card; a value
+   * of four characters or fewer is masked in full.
+   *
+   * @param value the value to mask
+   * @return the masked value
+   */
+  static String keepingLastFour(String value) {
+    return value.length() <= VISIBLE_END
+        ? Redactor.MASK
+        : Redactor.MASK + value.substring(value.length() - VISIBLE_END);
   }
 
   /**

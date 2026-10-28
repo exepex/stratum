@@ -46,12 +46,12 @@ class CoreCodesTest {
   }
 
   /** Returns every stratum-core code. */
-  private static List<String> coreCodes() {
+  private List<String> coreCodes() {
     return Arrays.stream(CoreErrorCode.values()).map(CoreErrorCode::getCode).toList();
   }
 
   /** Returns every stratum-core code that the error codes page mentions. */
-  private static List<String> documentedCodes() throws IOException {
+  private List<String> documentedCodes() throws IOException {
     return CORE_CODE
         .matcher(Files.readString(ERROR_CODES_PAGE))
         .results()

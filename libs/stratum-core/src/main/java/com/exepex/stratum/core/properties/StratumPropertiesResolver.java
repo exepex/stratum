@@ -60,10 +60,7 @@ public final class StratumPropertiesResolver {
    */
   public <P> P resolve(P bound, Stream<? extends StratumPropertiesCustomizer<P>> customizers) {
     var effective =
-        customizers
-            .gather(Gatherers.fold(() -> bound, StratumPropertiesResolver::customize))
-            .findFirst()
-            .orElseThrow();
+        customizers.gather(Gatherers.fold(() -> bound, this::customize)).findFirst().orElseThrow();
     validate(effective);
     return effective;
   }
@@ -79,7 +76,7 @@ public final class StratumPropertiesResolver {
    * @return the broken rules, such as {@code "stratum.example.name breaks @NotBlank;
    *     stratum.example.timeout breaks @NotNull"}
    */
-  static <P> String describe(P properties, Set<ConstraintViolation<P>> violations) {
+  <P> String describe(P properties, Set<ConstraintViolation<P>> violations) {
     var prefix = prefixOf(properties.getClass());
     return violations.stream()
         .map(violation -> describeViolation(prefix, violation))
@@ -90,7 +87,7 @@ public final class StratumPropertiesResolver {
   /**
    * Runs one customizer and rejects a result the module cannot use, naming the customizer at fault.
    */
-  private static <P> P customize(P properties, StratumPropertiesCustomizer<P> customizer) {
+  private <P> P customize(P properties, StratumPropertiesCustomizer<P> customizer) {
     var customizerName = customizer.getClass().getName();
     var settingsType = properties.getClass().getSimpleName();
     P customized;
@@ -122,7 +119,7 @@ public final class StratumPropertiesResolver {
   /**
    * Tells the developer how to declare a customizer so that Spring gives it to the right module.
    */
-  private static String declareWithType(String settingsType) {
+  private String declareWithType(String settingsType) {
     return "declare it as StratumPropertiesCustomizer<"
         + settingsType
         + ">, for example as the return type of a @Bean method.";
@@ -147,7 +144,7 @@ public final class StratumPropertiesResolver {
    *
    * <p>A constraint on the settings type itself has an empty path and is named by the prefix alone.
    */
-  private static String describeViolation(String prefix, ConstraintViolation<?> violation) {
+  private String describeViolation(String prefix, ConstraintViolation<?> violation) {
     var key = propertyKey(violation.getPropertyPath());
     return (key.isEmpty() ? prefix : prefix + "." + key)
         + " breaks "
@@ -155,7 +152,7 @@ public final class StratumPropertiesResolver {
   }
 
   /** Returns the prefix that {@code @ConfigurationProperties} gives the settings type. */
-  private static String prefixOf(Class<?> type) {
+  private String prefixOf(Class<?> type) {
     return MergedAnnotations.from(type).get(ConfigurationProperties.class).getString("prefix");
   }
 
@@ -163,16 +160,16 @@ public final class StratumPropertiesResolver {
    * Builds the property key from the names along the path, in kebab-case, with {@code [*]} for
    * every map key and list index.
    */
-  private static String propertyKey(Path path) {
+  private String propertyKey(Path path) {
     var key =
         StreamSupport.stream(path.spliterator(), false)
-            .map(StratumPropertiesResolver::keyPart)
+            .map(this::keyPart)
             .collect(Collectors.joining());
     return key.startsWith(".") ? key.substring(1) : key;
   }
 
   /** Returns one node's part of the key: {@code [*]} if it is an element, then {@code .name}. */
-  private static String keyPart(Path.Node node) {
+  private String keyPart(Path.Node node) {
     var element = node.isInIterable() ? ANY_ELEMENT : "";
     var name = node.getName();
     return node.getKind() == ElementKind.CONTAINER_ELEMENT || name == null
@@ -184,7 +181,7 @@ public final class StratumPropertiesResolver {
    * Names a rule by its annotation and the limits set on it, leaving out attributes at their
    * default.
    */
-  private static String rule(ConstraintDescriptor<?> constraint) {
+  private String rule(ConstraintDescriptor<?> constraint) {
     var type = constraint.getAnnotation().annotationType();
     var values = constraint.getAttributes();
     var limits =
@@ -202,7 +199,7 @@ public final class StratumPropertiesResolver {
   }
 
   /** Returns whether an attribute is a limit set away from its default, such as {@code max}. */
-  private static boolean isLimit(Method attribute, Map<String, Object> values) {
+  private boolean isLimit(Method attribute, Map<String, Object> values) {
     return !NON_LIMIT_ATTRIBUTES.contains(attribute.getName())
         && !Objects.deepEquals(values.get(attribute.getName()), attribute.getDefaultValue());
   }

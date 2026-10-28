@@ -59,7 +59,7 @@ class CardNumbers {
                     Replacement.builder()
                         .start(card.start())
                         .end(card.end())
-                        .text(Redactor.keepingLastFour(card.digits()))
+                        .text(ContentRules.keepingLastFour(card.digits()))
                         .build())
             .toList();
     return ContentRules.replace(run, cards);

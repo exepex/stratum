@@ -43,11 +43,15 @@ class InvalidSettingsMessageTest {
 
   private static Validator validator;
 
+  /** Builds the startup error from the violations. */
+  private static StratumPropertiesResolver resolver;
+
   /** Builds one validator for every test. */
   @BeforeAll
   static void createValidator() {
     validatorFactory = Validation.buildDefaultValidatorFactory();
     validator = validatorFactory.getValidator();
+    resolver = new StratumPropertiesResolver(validator);
   }
 
   /** Releases the validator factory's resources. */
@@ -126,10 +130,10 @@ class InvalidSettingsMessageTest {
             .build();
     var reverseKeyOrder =
         validator.validate(settings).stream()
-            .sorted(Comparator.comparing(InvalidSettingsMessageTest::path).reversed())
+            .sorted(Comparator.comparing(this::path).reversed())
             .collect(Collectors.toCollection(LinkedHashSet::new));
 
-    assertThat(StratumPropertiesResolver.describe(settings, reverseKeyOrder))
+    assertThat(resolver.describe(settings, reverseKeyOrder))
         .isEqualTo(
             "stratum.client.name breaks @Size(max=10, min=2);"
                 + " stratum.client.pool.max-size breaks @Positive;"
@@ -143,12 +147,12 @@ class InvalidSettingsMessageTest {
   }
 
   /** Validates the settings and returns the message the resolver would throw. */
-  private static <P> String describe(P settings) {
-    return StratumPropertiesResolver.describe(settings, validator.validate(settings));
+  private <P> String describe(P settings) {
+    return resolver.describe(settings, validator.validate(settings));
   }
 
   /** Returns the path of a broken constraint as text. */
-  private static String path(ConstraintViolation<?> violation) {
+  private String path(ConstraintViolation<?> violation) {
     return violation.getPropertyPath().toString();
   }
 

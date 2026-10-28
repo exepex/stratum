@@ -8,8 +8,6 @@ import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -21,7 +19,6 @@ import org.jspecify.annotations.Nullable;
  * <p>Names come in two groups. Secrets, payment cards and national IDs are always masked. Other
  * personal data is masked too; only that group may later be unmasked for a short time.
  */
-@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 final class SensitiveFieldNames {
 
   /** Short credential names, masked in full only when the whole name matches. */
@@ -91,15 +88,14 @@ final class SensitiveFieldNames {
   private final Set<String> maskedKeepingLastFour;
 
   /**
-   * Returns Stratum's names plus the service's own, which are masked in full.
+   * Takes Stratum's names plus the service's own, which are masked in full.
    *
    * @param extraKeys the service's names from {@code stratum.logging.redaction.extra-keys}
-   * @return the names
    */
-  static SensitiveFieldNames withExtraKeys(Collection<String> extraKeys) {
-    return new SensitiveFieldNames(
-        normalized(Stream.of(SECRETS, PERSONAL, extraKeys).flatMap(Collection::stream)),
-        normalized(Stream.of(SECRET_IDENTIFIERS, PERSONAL_IDENTIFIERS).flatMap(Set::stream)));
+  SensitiveFieldNames(Collection<String> extraKeys) {
+    maskedInFull = normalized(Stream.of(SECRETS, PERSONAL, extraKeys).flatMap(Collection::stream));
+    maskedKeepingLastFour =
+        normalized(Stream.of(SECRET_IDENTIFIERS, PERSONAL_IDENTIFIERS).flatMap(Set::stream));
   }
 
   /**
@@ -119,7 +115,7 @@ final class SensitiveFieldNames {
       return Optional.of(Redactor.MASK);
     }
     if (maskedKeepingLastFour.contains(key)) {
-      return Optional.of(Redactor.keepingLastFour(value.get()));
+      return Optional.of(ContentRules.keepingLastFour(value.get()));
     }
     return isSecret(key) ? Optional.of(Redactor.MASK) : Optional.empty();
   }
@@ -146,17 +142,17 @@ final class SensitiveFieldNames {
    * @param name the key name
    * @return whether its value is a list masked as a whole
    */
-  static boolean isHeaderList(String name) {
+  boolean isHeaderList(String name) {
     return HEADER_LISTS.contains(normalize(name));
   }
 
   /** Normalizes every name in the stream. */
-  private static Set<String> normalized(Stream<String> names) {
-    return names.map(SensitiveFieldNames::normalize).collect(Collectors.toUnmodifiableSet());
+  private Set<String> normalized(Stream<String> names) {
+    return names.map(this::normalize).collect(Collectors.toUnmodifiableSet());
   }
 
   /** Keeps the part after the last dot, in lower case, without {@code _} or {@code -}. */
-  private static String normalize(String name) {
+  private String normalize(String name) {
     return name.substring(name.lastIndexOf('.') + 1)
         .toLowerCase(Locale.ROOT)
         .replace("_", "")
