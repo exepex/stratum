@@ -76,7 +76,9 @@ class OnStratumModuleCondition extends SpringBootCondition {
    * @return whether the name can be the middle part of {@code stratum.<module>.enabled}
    */
   private static boolean isKebabCase(String module) {
-    if (!ConfigurationPropertyName.isValid(module)) {
+    if (!ConfigurationPropertyName.isValid(module)
+        || module.endsWith("-")
+        || module.contains("--")) {
       return false;
     }
     var name = ConfigurationPropertyName.of(module);

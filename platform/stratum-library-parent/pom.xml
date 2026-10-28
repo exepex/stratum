@@ -3,7 +3,8 @@
   The parent POM of Stratum's own libraries and starters. It adds to stratum-build-parent: Lombok
   with the annotation processors Stratum's code uses (ST-ENG-42), and checks: Google's Checkstyle
   configuration, the Javadoc rules (ST-ENG-14, ST-ENG-15), the 400-line limit on Java files
-  (ST-AG-10) and the rules against boilerplate that Lombok generates (ST-ENG-42). Services use
+  (ST-AG-10), the rules against boilerplate that Lombok generates (ST-ENG-42) and a rule that a
+  module with code has tests, so that the coverage gate can check it. Services use
   stratum-parent, which does not inherit this POM, because these choices are their team's.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
@@ -110,4 +111,44 @@
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <!-- A library or starter with code has tests (ST-TEST-01). JaCoCo's coverage gate skips a module
+         whose tests never ran, so without this rule untested code would pass it. -->
+    <profile>
+      <id>stratum-code-has-tests</id>
+      <activation>
+        <file>
+          <exists>${project.basedir}/src/main/java</exists>
+        </file>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-enforcer-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>stratum-enforce-tests-exist</id>
+                <phase>validate</phase>
+                <goals>
+                  <goal>enforce</goal>
+                </goals>
+                <configuration>
+                  <rules>
+                    <requireFilesExist>
+                      <files>
+                        <file>${project.basedir}/src/test/java</file>
+                      </files>
+                      <message>${project.artifactId} has code in src/main/java but no tests in src/test/java, so the coverage gate cannot check it.</message>
+                    </requireFilesExist>
+                  </rules>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>

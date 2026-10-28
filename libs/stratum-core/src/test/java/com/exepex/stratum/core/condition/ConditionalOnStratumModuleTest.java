@@ -144,7 +144,9 @@ class ConditionalOnStratumModuleTest {
           Arguments.of(DottedModule.class, "http.client"),
           Arguments.of(IndexedModule.class, "web[0]"),
           Arguments.of(UnnamedModule.class, ""),
-          Arguments.of(BracketedModule.class, "[web]"));
+          Arguments.of(BracketedModule.class, "[web]"),
+          Arguments.of(TrailingHyphenModule.class, "http-"),
+          Arguments.of(DoubleHyphenModule.class, "http--client"));
     }
   }
 
@@ -219,6 +221,16 @@ class ConditionalOnStratumModuleTest {
   @Configuration(proxyBeanMethods = false)
   @ConditionalOnStratumModule("[web]")
   static class BracketedModule {}
+
+  /** A module whose name ends in a hyphen. */
+  @Configuration(proxyBeanMethods = false)
+  @ConditionalOnStratumModule("http-")
+  static class TrailingHyphenModule {}
+
+  /** A module whose name has two hyphens in a row. */
+  @Configuration(proxyBeanMethods = false)
+  @ConditionalOnStratumModule("http--client")
+  static class DoubleHyphenModule {}
 
   /** A module with no name. */
   @Configuration(proxyBeanMethods = false)
