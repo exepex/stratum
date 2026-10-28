@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  The parent POM of Stratum's own libraries and starters. It adds one check to stratum-build-parent:
-  the Javadoc rules (ST-ENG-14, ST-ENG-15). Services use stratum-parent, which does not inherit this
-  POM, because whether a service writes Javadoc is its team's choice.
+  The parent POM of Stratum's own libraries and starters. It adds two things to stratum-build-parent:
+  Lombok with the annotation processors Stratum's code uses (ST-ENG-42), and the Javadoc rules
+  (ST-ENG-14, ST-ENG-15). Services use stratum-parent, which does not inherit this POM, because
+  whether a service uses these tools and writes Javadoc is its team's choice.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -20,7 +21,7 @@
   <packaging>pom</packaging>
 
   <name>Stratum library parent</name>
-  <description>Parent POM for Stratum's libraries and starters: stratum-build-parent plus the Javadoc rules.</description>
+  <description>Parent POM for Stratum's libraries and starters: stratum-build-parent plus Lombok, annotation processors and the Javadoc rules.</description>
 
   <!-- Every library and starter generates its boilerplate with Lombok (ST-ENG-42). Lombok works only at
        compile time, so it never reaches a service's classpath. -->
@@ -34,6 +35,37 @@
 
   <build>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <!--
+          Lombok, MapStruct and Spring Boot's configuration metadata generator (ST-ENG-31, ST-ENG-42), at
+          the versions Spring Boot and stratum-bom manage, so that no version is written here. Lombok
+          runs first and the binding lets MapStruct see the code Lombok generates. Services do not get
+          this list: which processors a service runs is its team's choice.
+        -->
+        <configuration>
+          <annotationProcessorPathsUseDepMgmt>true</annotationProcessorPathsUseDepMgmt>
+          <annotationProcessorPaths>
+            <path>
+              <groupId>org.projectlombok</groupId>
+              <artifactId>lombok</artifactId>
+            </path>
+            <path>
+              <groupId>org.projectlombok</groupId>
+              <artifactId>lombok-mapstruct-binding</artifactId>
+            </path>
+            <path>
+              <groupId>org.mapstruct</groupId>
+              <artifactId>mapstruct-processor</artifactId>
+            </path>
+            <path>
+              <groupId>org.springframework.boot</groupId>
+              <artifactId>spring-boot-configuration-processor</artifactId>
+            </path>
+          </annotationProcessorPaths>
+        </configuration>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>

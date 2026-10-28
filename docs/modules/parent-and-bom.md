@@ -116,7 +116,6 @@ libraries and starters also inherit, through `stratum-library-parent`.
 | Area | Setting |
 | --- | --- |
 | Java | `java.version=25`, which Spring Boot's parent turns into `maven.compiler.release`; `-parameters`; UTF-8 everywhere |
-| Annotation processors | Lombok, MapStruct (with `lombok-mapstruct-binding`) and `spring-boot-configuration-processor` run at compile time, at the versions Spring Boot and the BOM manage. A processor does nothing unless your code uses its annotations. To add your own, declare `<annotationProcessorPaths combine.children="append">` in your `maven-compiler-plugin` configuration, so the list is extended rather than replaced |
 | Plugin versions | Spring Boot's parent sets the versions of the plugins it manages, such as Compiler, Surefire, Failsafe, Enforcer and the Spring Boot plugin. `stratum-build-parent` sets the rest: JaCoCo, Spotless, Checkstyle, PMD, SpotBugs, FindSecBugs and OWASP Dependency-Check, one property each in `<properties>` |
 | Tests | `*Test.java` run by Surefire in `mvn test`; `*IT.java` run by Failsafe in `mvn verify` |
 | Formatting | Spotless checks Google Java Format; `mvn spotless:apply` fixes it |
@@ -131,7 +130,10 @@ Every execution that Stratum's parent POMs add has an id starting with `stratum-
 The Checkstyle rules check names and imports, and reject magic numbers, console output and
 `Thread.sleep`. They do not ask your service for Javadoc: whether to write it is your team's choice.
 Stratum's own libraries and starters are also checked for Javadoc on every type and method, by a
-second set of rules that only `stratum-library-parent` runs.
+second set of rules that only `stratum-library-parent` runs. That parent also runs Lombok, MapStruct
+and `spring-boot-configuration-processor` as annotation processors for Stratum's own code. Your
+service does not get them from `stratum-parent`: add the processors your team uses to your own
+`maven-compiler-plugin` configuration. The BOM manages MapStruct's version for you.
 Layout is left to Google Java Format. The PMD rules are PMD's best-practice, error-prone,
 multithreading, performance and security categories, without the few rules that conflict with
 Stratum's conventions; each exclusion is explained in the rule file.

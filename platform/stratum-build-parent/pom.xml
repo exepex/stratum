@@ -67,37 +67,6 @@
       <plugins>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-compiler-plugin</artifactId>
-          <!--
-            Lombok, MapStruct and Spring Boot's configuration metadata generator, taken from the BOM and
-            Spring Boot, so that no version is written here. Lombok runs first and the binding lets
-            MapStruct see the code Lombok generates. A service adds its own processor with
-            <annotationProcessorPaths combine.children="append">.
-          -->
-          <configuration>
-            <annotationProcessorPathsUseDepMgmt>true</annotationProcessorPathsUseDepMgmt>
-            <annotationProcessorPaths>
-              <path>
-                <groupId>org.projectlombok</groupId>
-                <artifactId>lombok</artifactId>
-              </path>
-              <path>
-                <groupId>org.projectlombok</groupId>
-                <artifactId>lombok-mapstruct-binding</artifactId>
-              </path>
-              <path>
-                <groupId>org.mapstruct</groupId>
-                <artifactId>mapstruct-processor</artifactId>
-              </path>
-              <path>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-configuration-processor</artifactId>
-              </path>
-            </annotationProcessorPaths>
-          </configuration>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-failsafe-plugin</artifactId>
           <configuration>
             <includes>

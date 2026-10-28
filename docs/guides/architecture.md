@@ -33,7 +33,7 @@ stratum/
 │   ├── stratum-bom/                # versions of Stratum's modules and the extra libraries it uses
 │   ├── stratum-build-parent/       # Java 25, the BOM, every plugin version and the build checks
 │   ├── stratum-build-rules/        # Checkstyle, PMD and Enforcer rules, packaged as a jar
-│   ├── stratum-library-parent/     # parent POM for libs and starters: adds the Javadoc check
+│   ├── stratum-library-parent/     # parent POM for libs and starters: adds Lombok and the Javadoc check
 │   └── stratum-parent/             # parent POM for services: adds the executable jar and build info
 ├── libs/
 │   ├── stratum-core/               # shared internals: constants, property defaults
