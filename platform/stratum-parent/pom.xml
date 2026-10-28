@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  The parent POM for services built on Stratum. Versions and build checks come from
+  The parent POM for services built on Stratum. Versions come from the root POM and build checks from
   stratum-build-parent; this POM adds what only a service needs: the executable jar, and the
   build-info.properties and git.properties files that /actuator/info shows. Stratum's own libraries do
   not inherit this POM, because a library jar that carried those two files would hide the service's own.
@@ -23,7 +23,7 @@
   <packaging>pom</packaging>
 
   <name>Stratum parent</name>
-  <description>Parent POM for services: Stratum's versions and build checks, plus the executable jar and build info.</description>
+  <description>Parent POM for services: Stratum's versions from the root POM and build checks from stratum-build-parent, plus the executable jar and build info.</description>
 
   <build>
     <plugins>
