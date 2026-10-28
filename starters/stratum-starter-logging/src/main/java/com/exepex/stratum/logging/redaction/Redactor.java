@@ -4,12 +4,13 @@ import com.exepex.stratum.core.error.CoreErrorCode;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.logging.LoggingErrorCode;
 import com.exepex.stratum.logging.LoggingProperties;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+import java.util.stream.IntStream;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
@@ -43,7 +44,7 @@ public final class Redactor {
   private final SensitiveFieldNames fieldNames;
 
   /** Masks values by what the text looks like. */
-  private final List<UnaryOperator<String>> contentRules;
+  private final UnaryOperator<String> contentRules;
 
   /** The longest a value may be, in characters. */
   private final int maxFieldLength;
@@ -86,7 +87,7 @@ public final class Redactor {
         case WritableJson _, Map<?, ?> _, Iterable<?> _, Object[] _ -> maskByName(fieldName, value);
         default -> redactOther(fieldName, value);
       };
-    } catch (IllegalArgumentException | IllegalStateException | IndexOutOfBoundsException e) {
+    } catch (IllegalArgumentException | IllegalStateException | IndexOutOfBoundsException failure) {
       // Fail closed: a value that could not be masked must never be written as it was.
       return FAILED;
     }
@@ -112,16 +113,7 @@ public final class Redactor {
 
   /** Masks text by its field name, or else by its content. */
   private String redactText(@Nullable String fieldName, String text) {
-    return fieldNames.mask(fieldName, () -> text).orElseGet(() -> redactContent(text));
-  }
-
-  /** Applies every content rule, then the phone number search. */
-  private String redactContent(String text) {
-    var masked = text;
-    for (var rule : contentRules) {
-      masked = rule.apply(masked);
-    }
-    return PhoneNumbers.mask(masked);
+    return fieldNames.mask(fieldName, () -> text).orElseGet(() -> contentRules.apply(text));
   }
 
   /** Cuts text longer than the maximum length. */
@@ -131,27 +123,28 @@ public final class Redactor {
 
   /** Compiles the service's patterns, stopping startup at the first invalid one. */
   private static List<Pattern> compile(List<String> patterns) {
-    var compiled = new ArrayList<Pattern>(patterns.size());
-    for (var pattern : patterns) {
-      // Neither the pattern nor the parser's message, which can quote parts of it, is shown: the
-      // pattern describes what the service wants hidden.
-      if (!isValid(pattern)) {
-        throw new StratumException(
-            LoggingErrorCode.INVALID_REDACTION_PATTERN,
-            "pattern " + (compiled.size() + 1) + " is not a valid regular expression");
-      }
-      compiled.add(Pattern.compile(pattern));
-    }
-    return compiled;
+    return IntStream.range(0, patterns.size())
+        .mapToObj(
+            position ->
+                compileOrEmpty(patterns.get(position))
+                    .orElseThrow(
+                        // Neither the pattern nor the parser's message, which can quote parts of
+                        // it, is shown: the pattern describes what the service wants hidden.
+                        () ->
+                            new StratumException(
+                                LoggingErrorCode.INVALID_REDACTION_PATTERN,
+                                "pattern "
+                                    + (position + 1)
+                                    + " is not a valid regular expression")))
+        .toList();
   }
 
-  /** Returns whether the pattern compiles. */
-  private static boolean isValid(String pattern) {
+  /** Returns the compiled pattern, or empty if it is not a valid regular expression. */
+  private static Optional<Pattern> compileOrEmpty(String pattern) {
     try {
-      Pattern.compile(pattern);
-      return true;
-    } catch (PatternSyntaxException e) {
-      return false;
+      return Optional.of(Pattern.compile(pattern));
+    } catch (PatternSyntaxException invalid) {
+      return Optional.empty();
     }
   }
 }

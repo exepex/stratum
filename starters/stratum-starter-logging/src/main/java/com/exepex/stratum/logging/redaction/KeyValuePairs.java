@@ -3,6 +3,7 @@ package com.exepex.stratum.logging.redaction;
 import java.util.function.UnaryOperator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -26,8 +27,8 @@ final class KeyValuePairs implements UnaryOperator<String> {
       Pattern.compile(
           "\\\\?[\"']?([A-Za-z][A-Za-z0-9_.-]{0,63}+)\\\\?[\"']?\\s*+(?:[=:]|%3[DdAa])\\s*+");
 
-  /** The start of a following key, which ends an unquoted value. */
-  private static final Pattern NEXT_KEY = Pattern.compile("[A-Za-z0-9_.-]++\\s*+[=:]");
+  /** Spaces and then another key, which end an unquoted value. */
+  private static final Pattern NEXT_KEY = Pattern.compile("\\s++[A-Za-z0-9_.-]++\\s*+[=:]");
 
   /** Opens and closes an escaped quoted value inside a JSON string. */
   private static final String ESCAPED_QUOTE = "\\\"";
@@ -115,55 +116,54 @@ final class KeyValuePairs implements UnaryOperator<String> {
     }
   }
 
-  /** Returns the index of the closing quote, skipping escaped ones, or -1 if there is none. */
+  /** Returns the position of the closing quote, skipping escaped ones, or -1 if there is none. */
   private static int closingQuote(String text, int from, char quote) {
-    var i = from;
-    while (i < text.length()) {
-      var c = text.charAt(i);
-      if (c == quote) {
-        return i;
-      }
-      // A backslash escapes the character after it, which may be a quote.
-      i += c == '\\' ? 2 : 1;
-    }
-    return -1;
+    return IntStream.range(from, text.length())
+        .filter(position -> text.charAt(position) == quote && !isEscaped(text, from, position))
+        .findFirst()
+        .orElse(-1);
+  }
+
+  /** Returns whether an odd number of backslashes, which escape it, comes before the position. */
+  private static boolean isEscaped(String text, int from, int position) {
+    var backslashes =
+        IntStream.iterate(
+                position - 1,
+                previous -> previous >= from && text.charAt(previous) == '\\',
+                previous -> previous - 1)
+            .count();
+    return backslashes % 2 == 1;
   }
 
   /** Returns the end of the line, without trailing spaces. */
   private static int lineEnd(String text, int from) {
-    var end = from;
-    for (var i = from; i < text.length() && text.charAt(i) != '\r' && text.charAt(i) != '\n'; i++) {
-      if (!Character.isWhitespace(text.charAt(i))) {
-        end = i + 1;
-      }
-    }
-    return end;
+    var lineBreak =
+        IntStream.range(from, text.length())
+            .filter(position -> text.charAt(position) == '\r' || text.charAt(position) == '\n')
+            .findFirst()
+            .orElse(text.length());
+    return from + text.substring(from, lineBreak).stripTrailing().length();
   }
 
   /** Returns the end of an unquoted value, without trailing spaces. */
   private static int plainEnd(String text, int from) {
     var nextKey = NEXT_KEY.matcher(text);
-    var end = from;
-    for (var i = from; i < text.length(); i++) {
-      var c = text.charAt(i);
-      if (VALUE_ENDS.indexOf(c) >= 0) {
-        return end;
-      }
-      if (!Character.isWhitespace(c)) {
-        end = i + 1;
-      } else if (end == i && startsKey(nextKey, text, i)) {
-        return end;
-      }
-    }
-    return end;
+    var stop =
+        IntStream.range(from, text.length())
+            .filter(
+                position ->
+                    VALUE_ENDS.indexOf(text.charAt(position)) >= 0
+                        || startsNextKey(nextKey, text, from, position))
+            .findFirst()
+            .orElse(text.length());
+    return from + text.substring(from, stop).stripTrailing().length();
   }
 
-  /** Returns whether a key follows the spaces that start at the index. */
-  private static boolean startsKey(Matcher nextKey, String text, int spaces) {
-    var i = spaces;
-    while (i < text.length() && Character.isWhitespace(text.charAt(i))) {
-      i++;
-    }
-    return nextKey.region(i, text.length()).lookingAt();
+  /** Returns whether the spaces that start at the position are followed by another key. */
+  private static boolean startsNextKey(Matcher nextKey, String text, int from, int position) {
+    return position > from
+        && Character.isWhitespace(text.charAt(position))
+        && !Character.isWhitespace(text.charAt(position - 1))
+        && nextKey.region(position, text.length()).lookingAt();
   }
 }
