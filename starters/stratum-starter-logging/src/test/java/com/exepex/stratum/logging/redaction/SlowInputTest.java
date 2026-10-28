@@ -61,6 +61,7 @@ class SlowInputTest {
         filled("a:", length),
         filled("eyJ", length),
         filled("a.", length) + "://",
+        filled("a://:", length),
         filled("0 ", length),
         filled("1 ", length),
         filled("1 ", length) + "1a",

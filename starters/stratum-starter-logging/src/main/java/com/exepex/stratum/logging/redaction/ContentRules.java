@@ -47,9 +47,12 @@ class ContentRules {
           "(?i)\\b(basic|bearer|digest|negotiate)\\s+"
               + "(?:[a-z]++=[^\\r\\n]++|[a-z0-9+/._=~-]{4,})");
 
-  /** A user name and password in a URL, such as {@code https://user:secret@host}. */
+  /**
+   * A password in a URL, with or without a user name, such as {@code https://user:secret@host} or
+   * {@code redis://:secret@host}.
+   */
   private static final Pattern URL_CREDENTIALS =
-      Pattern.compile("(?i)(?<![a-z0-9+.-])([a-z][a-z0-9+.-]*+://)[^\\s/:@]++:[^\\s/@]++@");
+      Pattern.compile("(?i)(?<![a-z0-9+.-])([a-z][a-z0-9+.-]*+://)[^\\s/:@]*+:[^\\s/@]++@");
 
   /**
    * Digit groups separated by single spaces or dashes, with at least 13 digits in all, wherever

@@ -237,6 +237,13 @@ class SecretRedactionTest {
     }
 
     @Test
+    @DisplayName("a password in a URL with no user name is masked")
+    void urlPasswordWithoutUserIsMasked() {
+      assertThat(text("connecting to redis://:" + PASSWORD + "@cache:6379/0"))
+          .isEqualTo("connecting to redis://****@cache:6379/0");
+    }
+
+    @Test
     @DisplayName("a secret in a Lombok toString is masked")
     void lombokToStringSecretIsMasked() {
       assertThat(text("Login(user=bob, password=" + PASSWORD + ")"))

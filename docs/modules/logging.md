@@ -105,7 +105,7 @@ is masked element by element. It cannot be switched off.
 | US social security numbers in text | `123-45-6789` | `****6789` |
 | JSON Web Tokens | `eyJ…` with two or three parts | `****` |
 | `Basic`, `Bearer`, `Digest` and `Negotiate` credentials; Digest's `name="value"` list runs to the end of the line | The scheme name | `Bearer ****` |
-| A user and password in a URL | `https://user:pass@host` | `https://****@host` |
+| A password in a URL, with or without a user | `https://user:pass@host`, `redis://:pass@host` | `https://****@host`, `redis://****@host` |
 | Names, dates of birth and addresses: `first_name`, `last_name`, `full_name`, `username`, `date_of_birth`, `address` and similar | Field or key name | `****` |
 | Email, phone and IBAN fields | Field or key name | `****` plus last four |
 | Email addresses in text | A valid address | `****.com` |
