@@ -26,7 +26,6 @@
         <value><![CDATA[
 //MethodDeclaration
   [parent::ClassBody[parent::ClassDeclaration[@Interface = false()]] or parent::EnumBody]
-  [@Static = false()]
   [matches(@Name, '^(get|is)[A-Z]')]
   [FormalParameters/@Size = 0]
   [Block/@Size = 1]
@@ -47,10 +46,8 @@
       <property name="xpath">
         <value><![CDATA[
 //MethodDeclaration
-  [parent::ClassBody[parent::ClassDeclaration[@Interface = false()]] or parent::EnumBody]
-  [@Static = false()]
+  [parent::ClassBody[parent::ClassDeclaration[@Interface = false()]]]
   [matches(@Name, '^set[A-Z]')]
-  [VoidType]
   [FormalParameters/@Size = 1]
   [Block/@Size = 1]
   [Block/ExpressionStatement/AssignmentExpression[@Operator = '=']

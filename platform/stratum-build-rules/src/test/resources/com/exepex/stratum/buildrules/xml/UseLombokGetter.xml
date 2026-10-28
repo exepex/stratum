@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Cases for the UseLombokGetter rule in stratum/pmd-lombok.xml: code it must report, then code it must not. -->
+<test-data
+    xmlns="http://pmd.sourceforge.net/rule-tests"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://pmd.sourceforge.net/rule-tests http://pmd.sourceforge.net/rule-tests_1_0_0.xsd">
+
+  <test-code>
+    <description>getters that only return a field</description>
+    <expected-problems>2</expected-problems>
+    <expected-linenumbers>4,7</expected-linenumbers>
+    <code><![CDATA[
+class Person {
+  private String name;
+  private boolean active;
+  String getName() {
+    return name;
+  }
+  boolean isActive() {
+    return this.active;
+  }
+}
+]]></code>
+  </test-code>
+
+  <test-code>
+    <description>an enum getter that only returns a field</description>
+    <expected-problems>1</expected-problems>
+    <expected-linenumbers>4</expected-linenumbers>
+    <code><![CDATA[
+enum Colour {
+  RED("r");
+  private final String code;
+  String getCode() {
+    return code;
+  }
+  Colour(String code) {
+    this.code = code + "";
+  }
+}
+]]></code>
+  </test-code>
+
+  <test-code>
+    <description>getters with logic, parameters or a static field are not reported</description>
+    <expected-problems>0</expected-problems>
+    <code><![CDATA[
+class Person {
+  private static final Person INSTANCE = new Person();
+  private String name = "x";
+  private int count;
+  static Person getInstance() {
+    return INSTANCE;
+  }
+  String getDisplayName() {
+    return name.toUpperCase();
+  }
+  int getCount() {
+    count++;
+    return count;
+  }
+  String getOther(String key) {
+    return key;
+  }
+}
+]]></code>
+  </test-code>
+
+  <test-code>
+    <description>interface and record accessors are not reported</description>
+    <expected-problems>0</expected-problems>
+    <code><![CDATA[
+interface Named {
+  String getName();
+}
+record Point(int x) {
+  public int getX() {
+    return x;
+  }
+}
+]]></code>
+  </test-code>
+</test-data>

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Cases for the UseLombokBuilder rule in stratum/pmd-lombok.xml: code it must report, then code it must not. -->
+<test-data
+    xmlns="http://pmd.sourceforge.net/rule-tests"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://pmd.sourceforge.net/rule-tests http://pmd.sourceforge.net/rule-tests_1_0_0.xsd">
+
+  <test-code>
+    <description>a hand-written builder class</description>
+    <expected-problems>1</expected-problems>
+    <expected-linenumbers>2</expected-linenumbers>
+    <code><![CDATA[
+class Person {
+  static final class PersonBuilder {
+    private String name;
+    PersonBuilder name(String name) {
+      this.name = name;
+      return this;
+    }
+    Person build() {
+      return new Person();
+    }
+  }
+}
+]]></code>
+  </test-code>
+
+  <test-code>
+    <description>a builder implementing an interface, or without build(), is not reported</description>
+    <expected-problems>0</expected-problems>
+    <code><![CDATA[
+import java.util.function.Supplier;
+class Person {
+  static final class RequestBuilder implements Supplier<String> {
+    String build() {
+      return "x";
+    }
+    @Override
+    public String get() {
+      return build();
+    }
+  }
+  static final class QueryBuilder {
+    String create() {
+      return "x";
+    }
+  }
+}
+]]></code>
+  </test-code>
+</test-data>

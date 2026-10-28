@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Cases for the UseLombokEqualsAndHashCode rule in stratum/pmd-lombok.xml: code it must report, then code it must not. -->
+<test-data
+    xmlns="http://pmd.sourceforge.net/rule-tests"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://pmd.sourceforge.net/rule-tests http://pmd.sourceforge.net/rule-tests_1_0_0.xsd">
+
+  <test-code>
+    <description>hand-written equals and hashCode in a class</description>
+    <expected-problems>2</expected-problems>
+    <expected-linenumbers>3,7</expected-linenumbers>
+    <code><![CDATA[
+class Money {
+  @Override
+  public boolean equals(Object other) {
+    return other == this;
+  }
+  @Override
+  public int hashCode() {
+    return 1;
+  }
+}
+]]></code>
+  </test-code>
+
+  <test-code>
+    <description>an equals with other parameters, a record and an anonymous class are not reported</description>
+    <expected-problems>0</expected-problems>
+    <code><![CDATA[
+class Money {
+  boolean equals(Object a, Object b) {
+    return a == b;
+  }
+  Object marker() {
+    return new Object() {
+      @Override
+      public int hashCode() {
+        return 1;
+      }
+    };
+  }
+}
+record Point(int x) {
+  @Override
+  public int hashCode() {
+    return x;
+  }
+}
+]]></code>
+  </test-code>
+</test-data>
