@@ -393,6 +393,9 @@ JaCoCo coverage report. The modules are grouped into `platform/` (BOM, parent PO
 rules), `libs/` (shared libraries) and `starters/`; see
 [Architecture](docs/guides/architecture.md#repository-layout).
 
+Every pull request runs the same build, plus a dependency vulnerability scan and an SBOM, in
+GitHub Actions; see [Checks on every pull request](docs/contributing.md#checks-on-every-pull-request).
+
 ## Contributing
 
 Contributions are welcome. Read the [contributing guide](docs/contributing.md) before you start. It

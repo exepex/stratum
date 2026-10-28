@@ -1,0 +1,107 @@
+# Builds Stratum on Java 25 for every pull request and every push to main.
+# One run does three things: ./mvnw verify (every build check and test), the dependency vulnerability
+# scan (the security profile) and an SBOM, a CycloneDX list of every library the build includes.
+# Pull requests from forks skip the scan, because GitHub gives them no secrets.
+# Pushes to main also keep the Maven and vulnerability-database cache warm for pull requests.
+name: Build
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # A new push to a pull request replaces its running build; builds of main always finish.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: Verify, scan and SBOM
+    runs-on: ubuntu-24.04
+    # A scan with no cached database downloads the whole NVD database, which has taken 24 minutes and,
+    # when the NVD was slow, over an hour. Later runs restore it from the cache and take about a minute.
+    timeout-minutes: 150
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      # The vulnerability database has its own cache, saved by every passing build of main, so a run
+      # only fetches the NVD changes since then. The Maven cache above is saved only when a POM
+      # changes, so on its own it would make every POM change download the whole database again.
+      - name: Restore the vulnerability database
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: dependency-check-data-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: dependency-check-data-
+
+      # The SBOM plugin version comes from Spring Boot's parent, so this file sets no plugin version.
+      - name: Read the SBOM plugin version
+        id: sbom-plugin
+        run: |
+          version=$(./mvnw -B -q -pl platform/stratum-parent help:evaluate \
+            -Dexpression=cyclonedx-maven-plugin.version -DforceStdout)
+          if [[ ! "$version" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
+            echo "::error::Could not read cyclonedx-maven-plugin.version from stratum-parent: '$version'"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      # GitHub gives no secrets to pull requests from forks, so those skip the scan; main scans after merge.
+      - name: Build, test, scan dependencies and write the SBOM
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+          CYCLONEDX_VERSION: ${{ steps.sbom-plugin.outputs.version }}
+          FROM_FORK: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
+        run: |
+          scan=(-Psecurity)
+          if [[ "$GITHUB_EVENT_NAME" == pull_request && "$FROM_FORK" == true ]]; then
+            echo "::warning::Pull request from a fork: no NVD_API_KEY, so the scan runs on main after merge."
+            scan=()
+          elif [[ -z "$NVD_API_KEY" ]]; then
+            # Dependency-Check rejects an empty key with an unclear "Invalid API Key" error.
+            echo "::error::The NVD_API_KEY repository secret is missing. See docs/contributing.md#checks-on-every-pull-request."
+            exit 1
+          fi
+          ./mvnw -B --no-transfer-progress verify "${scan[@]}" \
+            "org.cyclonedx:cyclonedx-maven-plugin:${CYCLONEDX_VERSION}:makeAggregateBom"
+
+      # Only main saves: pull requests can read main's caches but not each other's. Only after a
+      # passing run, so a database left half-updated by an NVD outage is never kept.
+      - name: Save the vulnerability database
+        if: success() && github.event_name == 'push'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: dependency-check-data-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Upload the SBOM
+        if: success()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sbom
+          path: |
+            target/bom.json
+            target/bom.xml
+          if-no-files-found: error
+
+      - name: Upload the vulnerability reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dependency-check-reports
+          path: '**/target/dependency-check-report.html'
+          if-no-files-found: warn
