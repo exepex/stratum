@@ -16,9 +16,11 @@ cite it.
   declares; throwing "unsupported" for part of it means the interface is too wide.
 - **ST-ENG-04 Depend on interfaces.** Every external system (HTTP service, database, broker, cloud service, identity
   provider) sits behind an interface, so replacing it takes one new class and its wiring.
-- **ST-ENG-05 Keep it simple.** Choose the simplest design that meets the requirement and scales. Do not add a
-  pattern or abstraction until there is a second real use for it. This does not apply to tunable values, which
-  are always properties (ST-ENG-33).
+- **ST-ENG-05 Simplest code that works.** Write the plainest code that meets today's need and scales. Add no type,
+  interface, helper, option or branch without a use that exists today. Prefer one type with a field to a hierarchy,
+  inline code to a one-call helper, and the JDK, Spring or Lombok to hand-written code. No clever tricks, and no
+  handling for cases that cannot happen. When a rule or tool pushes toward more structure, ask the owner first.
+  Tunable values are still properties (ST-ENG-33).
 - **ST-ENG-06 No duplication.** Do not copy logic. Before writing cross-cutting behaviour (headers, HTTP clients,
   error responses, retries, logging, test containers), find the Stratum module that already provides it and use it.
 - **ST-ENG-07 Patterns where they remove complexity.** Strategy for behaviour that varies by type, Factory for
@@ -61,11 +63,9 @@ for the service, not how it is built.
   or test method replaces Javadoc (ST-TEST-12); test support classes such as `<Domain>TestData` still have
   Javadoc. The build checks this for Stratum's libraries and starters through `stratum-library-parent`. Services
   built on Stratum are not checked for Javadoc: that is their team's choice.
-- **ST-ENG-15 Functional Javadoc.** Javadoc explains what the element does for the service and when to use it, in
-  plain words a developer new to Spring Boot can follow. It names units and defaults, for example: "How long to wait
-  for a downstream service to accept the connection before giving up. Defaults to 2 seconds." It does not restate the
-  signature ("Sets the connect timeout field") or describe internal mechanics. Technical detail goes in a short
-  `@implNote` only when a caller needs it.
+- **ST-ENG-15 Short, functional Javadoc.** One or two plain sentences on what the element does for the service and,
+  if it isn't obvious, why. Name units and defaults. Don't explain internals, restate the name or signature, or
+  justify design choices; a note a maintainer needs goes in a short `//` comment.
 
 ## Auto-configuration and beans
 

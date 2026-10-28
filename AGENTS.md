@@ -105,6 +105,8 @@ How the limits apply:
 These points summarise the topic files and apply to every change. Where this summary and a topic file differ, the
 topic file wins.
 
+- **Simple first.** Prefer the simplest code that works, with nothing built for a use that doesn't exist yet
+  (ST-ENG-05). Keep Javadoc brief, functional and logical (ST-ENG-15).
 - SOLID, KISS, DRY and clean code: clear names, small classes and methods with one purpose, no duplication, no dead
   code, no abstraction without a second use. Comments explain why, not what.
 - Each starter owns one cross-cutting concern and is optional. Code depends on interfaces, and every external
