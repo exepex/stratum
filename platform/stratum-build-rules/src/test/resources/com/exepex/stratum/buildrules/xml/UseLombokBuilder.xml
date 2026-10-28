@@ -26,6 +26,25 @@ class Person {
   </test-code>
 
   <test-code>
+    <description>a hand-written builder next to an unrelated Lombok builder</description>
+    <expected-problems>1</expected-problems>
+    <expected-linenumbers>2</expected-linenumbers>
+    <code><![CDATA[
+class Person {
+  static final class PersonBuilder {
+    Person build() {
+      return new Person();
+    }
+  }
+  @lombok.Builder
+  static final class Address {
+    private final String city;
+  }
+}
+]]></code>
+  </test-code>
+
+  <test-code>
     <description>a builder implementing an interface, without build(), or customizing a Lombok builder is not reported</description>
     <expected-problems>0</expected-problems>
     <code><![CDATA[

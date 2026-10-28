@@ -145,7 +145,8 @@
   [@Interface = false()]
   [ends-with(@SimpleName, 'Builder')]
   [not(ExtendsList or ImplementsList)]
-  [not(../..//Annotation[@SimpleName = ('Builder', 'SuperBuilder')])]
+  [not((../../ModifierList | ../ConstructorDeclaration/ModifierList | ../MethodDeclaration/ModifierList)
+      /Annotation[@SimpleName = ('Builder', 'SuperBuilder')])]
   [ClassBody/MethodDeclaration[@Name = 'build'][FormalParameters/@Size = 0]]
 ]]></value>
       </property>
