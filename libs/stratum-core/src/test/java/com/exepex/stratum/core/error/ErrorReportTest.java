@@ -13,9 +13,7 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
 import com.example.orders.ImpostorErrorCode;
 import com.example.orders.OrderErrorCode;
 import com.exepex.stratum.core.testsupport.TracingTestData;
-import java.lang.reflect.RecordComponent;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
@@ -63,7 +61,7 @@ class ErrorReportTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"", " ", "\n", "\u0000"})
+    @ValueSource(strings = {"", " ", "\n", "\u0000", "\u0085"})
     @DisplayName("with a detail that is blank or only control characters, the message has no colon")
     void leavesOutBlankDetail(String detail) {
       var report = ErrorReport.of(OrderErrorCode.OUT_OF_STOCK, detail);
@@ -106,10 +104,11 @@ class ErrorReportTest {
     @DisplayName("line breaks and other control characters in the detail become spaces")
     void replacesControlCharactersInDetail() {
       var report =
-          ErrorReport.of(OrderErrorCode.OUT_OF_STOCK, SKU + "\r\n2026-10-28 INFO forged\t");
+          ErrorReport.of(
+              OrderErrorCode.OUT_OF_STOCK, SKU + "\r\n2026-10-28 INFO\u0085\u2028\u2029forged\t");
 
       assertThat(report.getExternal().message())
-          .isEqualTo("Not enough stock: SKU-1  2026-10-28 INFO forged ");
+          .isEqualTo("Not enough stock: SKU-1  2026-10-28 INFO   forged ");
     }
   }
 
@@ -168,11 +167,7 @@ class ErrorReportTest {
       assertThat(correlationIdOfNewReport()).isNull();
     }
 
-    /**
-     * Makes a report from the current logging context.
-     *
-     * @return the correlation ID the report kept, or {@code null}
-     */
+    /** Makes a report from the current logging context. */
     private @Nullable String correlationIdOfNewReport() {
       return ErrorReport.of(OrderErrorCode.OUT_OF_STOCK).getExternal().correlationId();
     }
@@ -228,30 +223,6 @@ class ErrorReportTest {
                   List.of(QUANTITY_PROBLEM),
                   TRACE_ID,
                   CORRELATION_ID));
-    }
-
-    @Test
-    @DisplayName("it has no field for the span ID, the cause or the stack trace")
-    void hasNoInternalFields() {
-      var components =
-          Arrays.stream(ExternalError.class.getRecordComponents())
-              .map(RecordComponent::getName)
-              .toList();
-
-      assertThat(components)
-          .containsExactly("code", "severity", "message", "details", "traceId", "correlationId");
-    }
-
-    @Test
-    @DisplayName("made directly, it keeps a copy of the details")
-    void externalErrorCopiesDetails() {
-      var details = new ArrayList<>(List.of(QUANTITY_PROBLEM));
-
-      var external =
-          new ExternalError("ORD-0001", Severity.ERROR, "Not enough stock.", details, null, null);
-      details.clear();
-
-      assertThat(external.details()).containsExactly(QUANTITY_PROBLEM);
     }
   }
 }

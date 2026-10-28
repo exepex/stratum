@@ -145,7 +145,7 @@ yet.
 | Code | Meaning | Fix |
 | --- | --- | --- |
 | `SX-CORE-1001` | A module name given to `@ConditionalOnStratumModule` is not one lower-case, kebab-case word, such as `http-client`. | Rename the module in the annotation. This is a fault in a starter, not in your service's configuration. |
-| `SX-CORE-1002` | A `StratumPropertiesCustomizer` is broken. The message names the customizer and says what went wrong: it returned `null`, it returned settings of another type, or it failed with a `ClassCastException`. | If it returned `null`, return the settings it received to leave them unchanged. If it is a customizer for other settings, or was registered without its type, declare it as `StratumPropertiesCustomizer<TheSettings>`, for example as the return type of a `@Bean` method. If the failed cast is in the customizer's own code, the cause shows where. |
+| `SX-CORE-1002` | A `StratumPropertiesCustomizer` is broken. The message names the customizer and says whether it returned `null` or settings of another type, or failed with a `ClassCastException`. | Return the settings it received to keep them unchanged, and declare it as `StratumPropertiesCustomizer<TheSettings>`, for example as the return type of a `@Bean` method. If the cast that failed is in the customizer's own code, the cause shows where. |
 | `SX-CORE-1003` | A module's settings break their rules, after the files and the Java configuration are combined. The message names each property key and rule, never the value. | Correct the named properties. See [Validation](../configuration/basics.md#validation-wrong-values-fail-fast). |
 
 `SX-CORE-1003` is a `ConstraintViolationException` with the code at the start of its message, so

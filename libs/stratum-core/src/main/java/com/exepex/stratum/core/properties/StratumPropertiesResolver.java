@@ -22,11 +22,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public final class StratumPropertiesResolver {
 
-  /**
-   * Checks the Bean Validation constraints declared on the module's settings type. A module passes
-   * the application's {@code Validator} bean, which Spring Boot creates because {@code
-   * stratum-core} brings Hibernate Validator.
-   */
+  /** Checks the Bean Validation constraints declared on the module's settings type. */
   private final Validator validator;
 
   /**
@@ -53,13 +49,6 @@ public final class StratumPropertiesResolver {
 
   /**
    * Runs one customizer and rejects a result the module cannot use, naming the customizer at fault.
-   *
-   * @param properties the settings so far
-   * @param customizer the customizer to run
-   * @param <P> the module's settings type
-   * @return the settings the customizer returned
-   * @throws StratumException {@code SX-CORE-1002} if the customizer returns {@code null} or
-   *     settings of another type, or fails with a {@code ClassCastException}
    */
   private static <P> P customize(P properties, StratumPropertiesCustomizer<P> customizer) {
     var customizerName = customizer.getClass().getName();
@@ -68,34 +57,23 @@ public final class StratumPropertiesResolver {
     try {
       customized = customizer.customize(properties);
     } catch (ClassCastException e) {
-      // Java erases generic types, so this is either a customizer for other settings or a bad
-      // cast in the customizer's own code; the detail covers both and the cause tells which.
+      // Java erases generic types, so the customizer may be for other settings.
       throw new StratumException(
           CoreErrorCode.CUSTOMIZER_BROKEN,
           customizerName
               + " failed with a ClassCastException while changing "
               + settingsType
-              + ". If it is a customizer for other settings, or was registered without its type, "
+              + ". If it is for other settings, "
               + declareWithType(settingsType)
-              + " Otherwise the cast that failed is in the customizer's own code; see the cause.",
+              + " Otherwise see the cause.",
           e);
     }
-    if (customized == null) {
-      throw new StratumException(
-          CoreErrorCode.CUSTOMIZER_BROKEN,
-          customizerName
-              + " returned null. Return the settings it received to leave them unchanged.");
-    }
     if (!properties.getClass().isInstance(customized)) {
-      // Spring matches a customizer to a module by its generic type, so this is a customizer for
-      // another module, or one registered without its type.
       throw new StratumException(
           CoreErrorCode.CUSTOMIZER_BROKEN,
           customizerName
-              + " cannot change "
-              + settingsType
-              + ": it is a customizer for other settings, or it was registered without its type."
-              + " To fix it, "
+              + " returned null or settings of another type. Return the settings it received to"
+              + " keep them, and "
               + declareWithType(settingsType));
     }
     return customized;
@@ -103,9 +81,6 @@ public final class StratumPropertiesResolver {
 
   /**
    * Tells the developer how to declare a customizer so that Spring gives it to the right module.
-   *
-   * @param settingsType the simple name of the module's settings type
-   * @return the advice, as the end of a sentence
    */
   private static String declareWithType(String settingsType) {
     return "declare it as StratumPropertiesCustomizer<"
@@ -114,13 +89,8 @@ public final class StratumPropertiesResolver {
   }
 
   /**
-   * Stops startup when the settings break a constraint. The message starts with {@code
-   * SX-CORE-1003} and names each property key and rule but never the value, which may be a secret
-   * ({@link ConstraintViolationMessages}). It stays a {@code ConstraintViolationException}, so that
-   * the broken constraints remain available to tools that read them.
-   *
-   * @param properties the settings after every customizer has run
-   * @param <P> the module's settings type
+   * Stops startup with {@code SX-CORE-1003} when the settings break a constraint, naming each
+   * property key and rule but never a value, which may be a secret.
    */
   private <P> void validate(P properties) {
     Set<ConstraintViolation<P>> violations = validator.validate(properties);

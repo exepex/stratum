@@ -25,9 +25,8 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-autoconfigure</artifactId>
     </dependency>
-    <!-- SLF4J's logging context (MDC), where tracing and Stratum keep the trace, span and
-         correlation IDs that every error report records. Spring Boot's logging starter already
-         brings it through spring-boot-starter-validation; it is declared because core uses it. -->
+    <!-- Error reports read the trace, span and correlation IDs from SLF4J's MDC. Spring Boot's
+         starters bring SLF4J too; core declares it because it uses it directly. -->
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>

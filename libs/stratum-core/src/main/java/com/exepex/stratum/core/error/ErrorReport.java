@@ -17,9 +17,7 @@ import org.slf4j.MDC;
  * stack trace, which stay inside the application.
  *
  * <p>Make one with {@link #of}, which reads the trace, span and correlation IDs from the logging
- * context, so nobody passes them by hand. It is a class with a private constructor rather than a
- * record, because a record's constructor is always public and would skip the checks that {@link
- * #of} makes.
+ * context, so nobody passes them by hand.
  */
 @Value
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
@@ -41,8 +39,8 @@ public class ErrorReport implements Serializable {
    */
   private static final Pattern USABLE_ID = Pattern.compile("[A-Za-z0-9._:-]{1,128}");
 
-  /** Line breaks and every other control character, which could forge a log line. */
-  private static final Pattern CONTROL_CHARACTERS = Pattern.compile("\\p{Cntrl}");
+  /** Control characters and Unicode line and paragraph separators, which could forge a log line. */
+  private static final Pattern CONTROL_CHARACTERS = Pattern.compile("[\\p{Cc}\\p{Zl}\\p{Zp}]");
 
   /**
    * The part a caller may see: code, severity, message, field details, trace ID and correlation ID.
@@ -98,15 +96,7 @@ public class ErrorReport implements Serializable {
    * @return the new report
    */
   public ErrorReport withDetails(List<ErrorDetail> fieldProblems) {
-    var updated =
-        new ExternalError(
-            external.code(),
-            external.severity(),
-            external.message(),
-            fieldProblems,
-            external.traceId(),
-            external.correlationId());
-    return new ErrorReport(updated, spanId, cause);
+    return new ErrorReport(external.withDetails(fieldProblems), spanId, cause);
   }
 
   /**
@@ -118,13 +108,7 @@ public class ErrorReport implements Serializable {
     return external.code() + ": " + external.message();
   }
 
-  /**
-   * Makes a report with the given message, after checking the code.
-   *
-   * @param code the error or warning code
-   * @param message the message
-   * @return the report
-   */
+  /** Makes a report with the given message, after checking the code. */
   private static ErrorReport create(ErrorCode code, String message) {
     requireOwnPrefix(code);
     var external =
@@ -141,8 +125,6 @@ public class ErrorReport implements Serializable {
   /**
    * Rejects a code that uses Stratum's prefix, in any case and after any leading spaces, but is
    * declared outside Stratum's package, so that a service cannot declare one by mistake.
-   *
-   * @param code the code to check
    */
   private static void requireOwnPrefix(ErrorCode code) {
     var usesStratumPrefix =
@@ -160,12 +142,7 @@ public class ErrorReport implements Serializable {
     }
   }
 
-  /**
-   * Reads an ID from the current thread's logging context and keeps it only if it is usable.
-   *
-   * @param key the logging context key, such as {@code traceId}
-   * @return the ID, or {@code null} when it is missing or not usable
-   */
+  /** Reads an ID from the current thread's logging context and keeps it only if it is usable. */
   private static @Nullable String usableIdOrNull(String key) {
     var id = MDC.get(key);
     return id != null && USABLE_ID.matcher(id).matches() ? id : null;

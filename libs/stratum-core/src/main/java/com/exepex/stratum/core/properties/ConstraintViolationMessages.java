@@ -10,20 +10,16 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
-import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DataObjectPropertyName;
 import org.springframework.core.annotation.MergedAnnotations;
 import org.springframework.util.ObjectUtils;
 
 /**
- * Turns broken constraints into the one-line startup error a developer reads. It names each
- * property by the key the service sets, such as {@code stratum.greeting.timeout}, and each rule by
- * its annotation and limits, such as {@code @Size(max=10)}. It never includes a value, a map key, a
- * list index or a constraint message, because any of them can be configuration data, and a
- * constraint message can quote the value with {@code ${validatedValue}}.
+ * Builds the startup error for broken settings: each property key, such as {@code
+ * stratum.greeting.timeout}, and rule, such as {@code @Size(max=10)}. It never shows a value, map
+ * key, list index or constraint message, because any of them can be a secret.
  */
 @UtilityClass
 class ConstraintViolationMessages {
@@ -55,37 +51,22 @@ class ConstraintViolationMessages {
    * Names one broken constraint by its property key and its rule.
    *
    * <p>A constraint on the settings type itself has an empty path and is named by the prefix alone.
-   *
-   * @param prefix the settings type's property prefix, or an empty string if it has none
-   * @param violation the broken constraint
-   * @return the key and the rule, such as {@code "stratum.example.timeout breaks @NotNull"}
    */
   private static String describe(String prefix, ConstraintViolation<?> violation) {
     var key = propertyKey(violation.getPropertyPath());
-    return Stream.of(prefix, key).filter(part -> !part.isEmpty()).collect(Collectors.joining("."))
+    return (key.isEmpty() ? prefix : prefix + "." + key)
         + " breaks "
         + rule(violation.getConstraintDescriptor());
   }
 
-  /**
-   * Returns the prefix that {@code @ConfigurationProperties} gives the settings type.
-   *
-   * @param type the settings type
-   * @return the prefix, such as {@code stratum.example}, or an empty string if the type has none
-   */
+  /** Returns the prefix that {@code @ConfigurationProperties} gives the settings type. */
   private static String prefixOf(Class<?> type) {
-    return MergedAnnotations.from(type)
-        .get(ConfigurationProperties.class)
-        .getValue("prefix", String.class)
-        .orElse("");
+    return MergedAnnotations.from(type).get(ConfigurationProperties.class).getString("prefix");
   }
 
   /**
    * Builds the property key from the names along the path, in kebab-case, with {@code [*]} for
    * every map key and list index.
-   *
-   * @param path the path to the broken value, such as {@code tokens[alice].<map value>}
-   * @return the key, such as {@code tokens[*]}
    */
   private static String propertyKey(Path path) {
     var key = new StringBuilder();
@@ -103,11 +84,7 @@ class ConstraintViolationMessages {
 
   /**
    * Names a rule by its annotation and the limits set on it, leaving out attributes at their
-   * default. The values come from the descriptor that the validator has already read, so a
-   * constraint declared without public access works too.
-   *
-   * @param constraint the broken constraint
-   * @return the rule, such as {@code @NotBlank} or {@code @Size(max=10, min=2)}
+   * default.
    */
   private static String rule(ConstraintDescriptor<?> constraint) {
     var type = constraint.getAnnotation().annotationType();
@@ -117,31 +94,14 @@ class ConstraintViolationMessages {
       var value = values.get(attribute.getName());
       if (!NON_LIMIT_ATTRIBUTES.contains(attribute.getName())
           && !Objects.deepEquals(value, attribute.getDefaultValue())) {
-        limits.put(attribute.getName(), limit(value));
+        limits.put(attribute.getName(), ObjectUtils.nullSafeToString(value));
       }
     }
     var name = "@" + type.getSimpleName();
     return limits.isEmpty() ? name : name + "(" + join(limits) + ")";
   }
 
-  /**
-   * Writes one limit's value, naming a class by its simple name.
-   *
-   * @param value the attribute's value
-   * @return the value as text, such as {@code 10} or {@code String}
-   */
-  private static String limit(@Nullable Object value) {
-    return value instanceof Class<?> type
-        ? type.getSimpleName()
-        : ObjectUtils.nullSafeToString(value);
-  }
-
-  /**
-   * Joins the limits as {@code name=value} pairs.
-   *
-   * @param limits the limits, sorted by name
-   * @return the pairs, such as {@code max=10, min=2}
-   */
+  /** Joins the limits as {@code name=value} pairs. */
   private static String join(Map<String, String> limits) {
     return limits.entrySet().stream()
         .map(limit -> limit.getKey() + "=" + limit.getValue())

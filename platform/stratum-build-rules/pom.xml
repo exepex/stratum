@@ -23,8 +23,8 @@
   <description>Checkstyle, PMD and Maven Enforcer rules that every Stratum and service build is checked against.</description>
 
   <properties>
-    <!-- The JUnit version Spring Boot manages and the PMD version stratum-build-parent runs. This module
-         cannot inherit that parent, so update these when that parent's versions change. -->
+    <!-- The PMD version must match the one stratum-build-parent runs, so the tests check the same
+         rules. This module cannot inherit that parent, so update it with that parent's version. -->
     <junit-jupiter.version>6.1.3</junit-jupiter.version>
     <maven.compiler.release>25</maven.compiler.release>
     <pmd.version>7.28.0</pmd.version>

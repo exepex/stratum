@@ -44,11 +44,4 @@ import java.lang.annotation.Target;
    * @return the region
    */
   String region() default "eu";
-
-  /**
-   * The type the code is read as.
-   *
-   * @return the type
-   */
-  Class<?> format() default Object.class;
 }

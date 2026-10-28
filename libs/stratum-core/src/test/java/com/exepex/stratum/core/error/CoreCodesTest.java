@@ -45,21 +45,12 @@ class CoreCodesTest {
     assertThat(coreCodes()).containsAll(documentedCodes());
   }
 
-  /**
-   * Returns every stratum-core code.
-   *
-   * @return the codes of all errors and warnings
-   */
+  /** Returns every stratum-core code. */
   private static List<String> coreCodes() {
     return Arrays.stream(CoreErrorCode.values()).map(CoreErrorCode::getCode).toList();
   }
 
-  /**
-   * Returns every stratum-core code that the error codes page mentions.
-   *
-   * @return the codes found on the page
-   * @throws IOException if the page cannot be read
-   */
+  /** Returns every stratum-core code that the error codes page mentions. */
   private static List<String> documentedCodes() throws IOException {
     return CORE_CODE
         .matcher(Files.readString(ERROR_CODES_PAGE))
