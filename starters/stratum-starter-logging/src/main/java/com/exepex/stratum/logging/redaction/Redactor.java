@@ -16,6 +16,7 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import org.jspecify.annotations.Nullable;
+import org.springframework.boot.json.JsonWriter;
 import org.springframework.boot.json.WritableJson;
 import org.springframework.util.unit.DataSize;
 
@@ -104,7 +105,8 @@ public final class Redactor {
       return switch (value) {
         case null -> null;
         case String text -> redactText(fieldName, cut(text));
-        case WritableJson _, Map<?, ?> _, Iterable<?> _, Object[] _ -> maskByName(fieldName, value);
+        case WritableJson json -> redactJson(fieldName, json);
+        case Map<?, ?> _, Iterable<?> _, Object[] _ -> maskByName(fieldName, value);
         default -> redactOther(fieldName, value);
       };
     } catch (IllegalArgumentException | IllegalStateException | IndexOutOfBoundsException failure) {
@@ -124,8 +126,31 @@ public final class Redactor {
   }
 
   /**
-   * Masks a nested JSON object or a collection by its field name only: Spring Boot passes the
-   * values inside it on one by one.
+   * Masks JSON when Spring Boot writes it. Spring Boot's own nested objects write straight into the
+   * log line, passing their values here one by one, so nothing reaches the buffer. Any other JSON
+   * is written as it is, so its text is masked; masked JSON is written as a string, because masking
+   * can leave text that is not valid JSON.
+   */
+  private WritableJson redactJson(@Nullable String fieldName, WritableJson json) {
+    return out -> {
+      var buffer = new StringBuilder();
+      json.to(buffer);
+      var text = buffer.toString();
+      if (text.isEmpty()) {
+        return;
+      }
+      var redacted = redact(fieldName, text);
+      if (text.equals(redacted)) {
+        out.append(text);
+      } else {
+        JsonWriter.standard().write(redacted).to(out);
+      }
+    };
+  }
+
+  /**
+   * Masks a map, a collection or an array by its field name only: Spring Boot passes the values
+   * inside it on one by one.
    */
   private Object maskByName(@Nullable String fieldName, Object value) {
     return fieldNames.mask(fieldName, value::toString).map(Object.class::cast).orElse(value);

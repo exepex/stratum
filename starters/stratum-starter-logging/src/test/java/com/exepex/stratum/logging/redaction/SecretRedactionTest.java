@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.boot.json.WritableJson;
 
 @DisplayName("Secrets, cards and national IDs are always masked")
 class SecretRedactionTest {
@@ -117,6 +118,22 @@ class SecretRedactionTest {
       assertThat(redactor.redact(SECRET_FIELD, new Object[] {PASSWORD})).isEqualTo(Redactor.MASK);
       assertThat(redactor.redact(SECRET_FIELD, List.of(PASSWORD))).isEqualTo(Redactor.MASK);
       assertThat(redactor.redact(SECRET_FIELD, Map.of("value", PASSWORD))).isEqualTo(Redactor.MASK);
+    }
+
+    @Test
+    @DisplayName("JSON that Spring Boot writes as it is has its secrets masked")
+    void writableJsonSecretIsMasked() {
+      var details = WritableJson.of(out -> out.append("{\"password\":\"" + PASSWORD + "\"}"));
+      var plain = WritableJson.of(out -> out.append("{\"id\":7}"));
+
+      assertThat(written("details", details)).isEqualTo("\"{\\\"password\\\":\\\"****\\\"}\"");
+      assertThat(written("details", plain)).isEqualTo("{\"id\":7}");
+      assertThat(written(SECRET_FIELD, plain)).isEqualTo("\"****\"");
+    }
+
+    /** Returns the JSON written for the value after redaction. */
+    private String written(String fieldName, WritableJson json) {
+      return ((WritableJson) redactor.redact(fieldName, json)).toJsonString();
     }
 
     @Test

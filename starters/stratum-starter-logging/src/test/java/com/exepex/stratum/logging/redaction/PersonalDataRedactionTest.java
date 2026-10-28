@@ -87,6 +87,14 @@ class PersonalDataRedactionTest {
     }
 
     @Test
+    @DisplayName("two grouped IBANs next to each other are both masked")
+    void adjacentIbansAreMasked() {
+      var grouped = "GB82 WEST 1234 5698 7654 32";
+
+      assertThat(text("refund " + grouped + " " + grouped)).isEqualTo("refund ****5432 ****5432");
+    }
+
+    @Test
     @DisplayName("an IBAN-shaped code that fails its checksum is kept")
     void invalidIbanIsKept() {
       assertThat(text("code GB00WEST12345698765432")).isEqualTo("code GB00WEST12345698765432");

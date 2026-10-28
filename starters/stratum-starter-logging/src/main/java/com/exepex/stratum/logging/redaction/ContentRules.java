@@ -102,7 +102,7 @@ class ContentRules {
             rule(ContentRules::hasDigit, CARD_GROUPS, match -> maskCards(match.group())),
             rule(text -> text.contains("-"), SSN, match -> Redactor.keepingLastFour(match.group())),
             rule(text -> text.contains("@"), EMAIL, ContentRules::maskEmail),
-            rule(ContentRules::hasDigit, IBAN, ContentRules::maskIban),
+            text -> hasDigit(text) ? maskIbans(text) : text,
             ContentRules::maskPhoneNumbers);
     var extra =
         extraPatterns.stream().map(pattern -> rule(text -> true, pattern, match -> Redactor.MASK));
@@ -165,19 +165,55 @@ class ContentRules {
   }
 
   /**
-   * Masks a valid IBAN, keeping its last four characters. The pattern can take in words after the
-   * IBAN, so words are dropped from the end until what is left is valid.
+   * Masks every valid IBAN, keeping its last four characters. The pattern can take in words after
+   * an IBAN, including the start of the next one, so the search goes on after the IBAN itself.
    */
-  private static String maskIban(MatchResult match) {
-    var found = match.group();
+  private static String maskIbans(String text) {
+    var matcher = IBAN.matcher(text);
+    var ibans =
+        Stream.iterate(
+                nextIban(matcher, 0),
+                Optional::isPresent,
+                found -> nextIban(matcher, found.orElseThrow().end()))
+            .map(Optional::orElseThrow)
+            .toList();
+    return replace(text, ibans);
+  }
+
+  /** Finds the next valid IBAN from the given position, skipping candidates that are not one. */
+  private static Optional<Replacement> nextIban(Matcher matcher, int from) {
     return Stream.iterate(
-            found,
-            candidate -> !candidate.isEmpty(),
-            candidate -> candidate.substring(0, Math.max(candidate.lastIndexOf(' '), 0)))
-        .filter(candidate -> IBANValidator.getInstance().isValid(compact(candidate)))
+            find(matcher, from),
+            Optional::isPresent,
+            candidate -> find(matcher, candidate.orElseThrow().end()))
+        .map(Optional::orElseThrow)
+        .flatMap(candidate -> validIban(candidate).stream())
+        .findFirst();
+  }
+
+  /** Returns the pattern's next match from the given position, if there is one. */
+  private static Optional<MatchResult> find(Matcher matcher, int from) {
+    return matcher.find(from) ? Optional.of(matcher.toMatchResult()) : Optional.empty();
+  }
+
+  /**
+   * Returns the masked IBAN at the start of a candidate. Words are dropped from the candidate's end
+   * until what is left is a valid IBAN.
+   */
+  private static Optional<Replacement> validIban(MatchResult candidate) {
+    return Stream.iterate(
+            candidate.group(),
+            words -> !words.isEmpty(),
+            words -> words.substring(0, Math.max(words.lastIndexOf(' '), 0)))
+        .filter(words -> IBANValidator.getInstance().isValid(compact(words)))
         .findFirst()
-        .map(iban -> Redactor.keepingLastFour(compact(iban)) + found.substring(iban.length()))
-        .orElse(found);
+        .map(
+            iban ->
+                Replacement.builder()
+                    .start(candidate.start())
+                    .end(candidate.start() + iban.length())
+                    .text(Redactor.keepingLastFour(compact(iban)))
+                    .build());
   }
 
   /** Returns an IBAN without spaces, in upper case. */

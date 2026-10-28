@@ -95,7 +95,8 @@ another layout, set `stratum.logging.format` to `logstash` or `gelf`.
 Redaction runs on every value of a JSON line: the message, the exception's message and stack
 trace, MDC entries and key-value pairs. A key-value pair whose value is a number or an object, such
 as `addKeyValue("customer", customer)`, is masked through the value's `toString()`; a list or map
-is masked element by element. It cannot be switched off.
+is masked element by element. Ready-made JSON, such as a `WritableJson`, is masked through its text;
+if anything in it is masked, it is written as a JSON string. It cannot be switched off.
 
 | What | Found by | Written as |
 | --- | --- | --- |

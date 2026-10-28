@@ -65,7 +65,8 @@ class SlowInputTest {
         filled("0 ", length),
         filled("1 ", length),
         filled("1 ", length) + "1a",
-        filled("4111111111111111 ", length));
+        filled("4111111111111111 ", length),
+        filled("GB82 WEST 1234 5698 7654 32 ", length));
   }
 
   /** Repeats the text until it is about the given number of characters long. */

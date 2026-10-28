@@ -13,6 +13,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.MDC;
+import org.springframework.boot.json.WritableJson;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
@@ -62,8 +63,7 @@ class LoggingStarterIntegrationTest {
   }
 
   @Test
-  @DisplayName(
-      "values that are not text are masked by their toString, and lists element by element")
+  @DisplayName("values that are not text are masked by their text, and lists element by element")
   void masksValuesThatAreNotText(CapturedOutput output) {
     var customer = Customer.builder().name("Jane").dbPassword(PASSWORD).email(EMAIL).build();
 
@@ -72,6 +72,8 @@ class LoggingStarterIntegrationTest {
         .addKeyValue("ref", Long.valueOf(CARD))
         .addKeyValue("notes", List.of("token=" + PASSWORD))
         .addKeyValue("count", Integer.valueOf("3"))
+        .addKeyValue(
+            "details", WritableJson.of(out -> out.append("{\"password\":\"" + PASSWORD + "\"}")))
         .log("customer saved");
 
     assertThat(output)
@@ -79,7 +81,8 @@ class LoggingStarterIntegrationTest {
         .doesNotContain(PASSWORD)
         .doesNotContain(EMAIL)
         .doesNotContain(CARD)
-        .contains("\"count\":3");
+        .contains("\"count\":3")
+        .contains("\"details\":\"{\\\"password\\\":\\\"****\\\"}\"");
   }
 
   /**
