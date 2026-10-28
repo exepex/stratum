@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import lombok.Builder;
 import lombok.experimental.UtilityClass;
 import org.apache.commons.validator.routines.EmailValidator;
 import org.apache.commons.validator.routines.IBANValidator;
@@ -144,8 +145,11 @@ class ContentRules {
             .map(Optional::orElseThrow)
             .map(
                 card ->
-                    new Replacement(
-                        card.start(), card.end(), Redactor.keepingLastFour(card.digits())))
+                    Replacement.builder()
+                        .start(card.start())
+                        .end(card.end())
+                        .text(Redactor.keepingLastFour(card.digits()))
+                        .build())
             .toList();
     return replace(run, cards);
   }
@@ -192,8 +196,11 @@ class ContentRules {
         StreamSupport.stream(numbers.spliterator(), false)
             .map(
                 number ->
-                    new Replacement(
-                        number.start(), number.end(), Redactor.keepingLastFour(number.rawString())))
+                    Replacement.builder()
+                        .start(number.start())
+                        .end(number.end())
+                        .text(Redactor.keepingLastFour(number.rawString()))
+                        .build())
             .toList();
     return replace(text, replacements);
   }
@@ -230,6 +237,7 @@ class ContentRules {
    * @param lastGroup the position of its last group in the run
    * @param digits its digits, without spaces or dashes
    */
+  @Builder
   private record CardSpan(int start, int end, int lastGroup, String digits) {}
 
   /**
@@ -240,6 +248,7 @@ class ContentRules {
    * @param digits all the digits of the run
    * @param offsets where each group's digits start in {@code digits}, then the total length
    */
+  @Builder
   private record DigitGroups(List<MatchResult> groups, String digits, List<Integer> offsets) {
 
     /** Finds the digit groups of a run. */
@@ -250,10 +259,11 @@ class ContentRules {
                   IntStream.of(0), groups.stream().mapToInt(group -> group.end() - group.start()))
               .toArray();
       Arrays.parallelPrefix(offsets, Integer::sum);
-      return new DigitGroups(
-          groups,
-          groups.stream().map(MatchResult::group).collect(Collectors.joining()),
-          Arrays.stream(offsets).boxed().toList());
+      return DigitGroups.builder()
+          .groups(groups)
+          .digits(groups.stream().map(MatchResult::group).collect(Collectors.joining()))
+          .offsets(Arrays.stream(offsets).boxed().toList())
+          .build();
     }
 
     /** Returns the first valid card at or after the group. No card number starts with 0. */
@@ -273,11 +283,12 @@ class ContentRules {
           .filter(lastGroup -> digitCount(firstGroup, lastGroup) >= MIN_CARD_DIGITS)
           .mapToObj(
               lastGroup ->
-                  new CardSpan(
-                      start,
-                      groups.get(lastGroup).end(),
-                      lastGroup,
-                      digits.substring(offsets.get(firstGroup), offsets.get(lastGroup + 1))))
+                  CardSpan.builder()
+                      .start(start)
+                      .end(groups.get(lastGroup).end())
+                      .lastGroup(lastGroup)
+                      .digits(digits.substring(offsets.get(firstGroup), offsets.get(lastGroup + 1)))
+                      .build())
           .filter(candidate -> LuhnCheckDigit.LUHN_CHECK_DIGIT.isValid(candidate.digits()))
           .reduce((shorter, longer) -> longer);
     }
@@ -295,5 +306,6 @@ class ContentRules {
    * @param end where the part ends
    * @param text what is written instead
    */
+  @Builder
   record Replacement(int start, int end, String text) {}
 }

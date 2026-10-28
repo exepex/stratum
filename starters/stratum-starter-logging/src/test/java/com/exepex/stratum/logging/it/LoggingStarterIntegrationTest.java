@@ -7,6 +7,7 @@ import static com.exepex.stratum.logging.testsupport.LoggingTestData.PASSWORD;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
+import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -64,7 +65,7 @@ class LoggingStarterIntegrationTest {
   @DisplayName(
       "values that are not text are masked by their toString, and lists element by element")
   void masksValuesThatAreNotText(CapturedOutput output) {
-    var customer = new Customer("Jane", PASSWORD, EMAIL);
+    var customer = Customer.builder().name("Jane").dbPassword(PASSWORD).email(EMAIL).build();
 
     log.atInfo()
         .addKeyValue("customer", customer)
@@ -88,6 +89,7 @@ class LoggingStarterIntegrationTest {
    * @param dbPassword a secret
    * @param email the customer's email address
    */
+  @Builder
   private record Customer(String name, String dbPassword, String email) {}
 
   @Test

@@ -8,6 +8,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import lombok.Builder;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
@@ -89,7 +90,13 @@ final class KeyValuePairs implements UnaryOperator<String> {
     }
     var mask = fieldNames.mask(key, () -> value.content(text)).orElse(Redactor.MASK);
     return Optional.of(
-        new Pair(value.end(), new Replacement(value.start(), value.end(), value.wrap(mask))));
+        new Pair(
+            value.end(),
+            Replacement.builder()
+                .start(value.start())
+                .end(value.end())
+                .text(value.wrap(mask))
+                .build()));
   }
 
   /**
@@ -114,6 +121,7 @@ final class KeyValuePairs implements UnaryOperator<String> {
    * @param contentEnd where its content ends, before any closing quote
    * @param end where it ends, after any closing quote
    */
+  @Builder
   private record Value(String quote, int start, int contentEnd, int end) {
 
     /** Finds the value that starts at the index. */
@@ -127,23 +135,43 @@ final class KeyValuePairs implements UnaryOperator<String> {
                 '"',
                 backslashes -> backslashes % ESCAPED_JSON_CYCLE == 1);
         return closing < 0
-            ? new Value(ESCAPED_QUOTE, start, text.length(), text.length())
-            : new Value(ESCAPED_QUOTE, start, closing - 1, closing + 1);
+            ? Value.builder()
+                .quote(ESCAPED_QUOTE)
+                .start(start)
+                .contentEnd(text.length())
+                .end(text.length())
+                .build()
+            : Value.builder()
+                .quote(ESCAPED_QUOTE)
+                .start(start)
+                .contentEnd(closing - 1)
+                .end(closing + 1)
+                .build();
       }
       var opening = start < text.length() ? text.charAt(start) : ' ';
       if (opening == '"' || opening == '\'') {
         var closing = closingQuote(text, start + 1, opening, backslashes -> backslashes % 2 == 0);
         return closing < 0
-            ? new Value(String.valueOf(opening), start, text.length(), text.length())
-            : new Value(String.valueOf(opening), start, closing, closing + 1);
+            ? Value.builder()
+                .quote(String.valueOf(opening))
+                .start(start)
+                .contentEnd(text.length())
+                .end(text.length())
+                .build()
+            : Value.builder()
+                .quote(String.valueOf(opening))
+                .start(start)
+                .contentEnd(closing)
+                .end(closing + 1)
+                .build();
       }
       if (opening == '[' || opening == '{') {
         var end = containerEnd(text, start);
-        return new Value("", start, end, end);
+        return Value.builder().quote("").start(start).contentEnd(end).end(end).build();
       }
       var end =
           SensitiveFieldNames.isHeaderList(key) ? lineEnd(text, start) : plainEnd(text, start);
-      return new Value("", start, end, end);
+      return Value.builder().quote("").start(start).contentEnd(end).end(end).build();
     }
 
     /**
@@ -153,7 +181,7 @@ final class KeyValuePairs implements UnaryOperator<String> {
     private static int containerEnd(String text, int start) {
       var afterScan =
           Stream.iterate(
-                  new ContainerScan(start + 1, 1, false),
+                  ContainerScan.builder().position(start + 1).depth(1).build(),
                   scan -> scan.depth() > 0 && scan.position() < text.length(),
                   scan -> scan.next(text))
               .reduce((earlier, later) -> later)
@@ -244,6 +272,7 @@ final class KeyValuePairs implements UnaryOperator<String> {
    * @param depth how many brackets are open
    * @param inString whether the scan is inside a quoted string
    */
+  @Builder(toBuilder = true)
   private record ContainerScan(int position, int depth, boolean inString) {
 
     /** Reads the character at the position and returns the state after it. */
@@ -251,16 +280,16 @@ final class KeyValuePairs implements UnaryOperator<String> {
       var character = text.charAt(position);
       if (inString) {
         return switch (character) {
-          case '\\' -> new ContainerScan(position + 2, depth, true);
-          case '"' -> new ContainerScan(position + 1, depth, false);
-          default -> new ContainerScan(position + 1, depth, true);
+          case '\\' -> toBuilder().position(position + 2).build();
+          case '"' -> toBuilder().position(position + 1).inString(false).build();
+          default -> toBuilder().position(position + 1).build();
         };
       }
       return switch (character) {
-        case '"' -> new ContainerScan(position + 1, depth, true);
-        case '[', '{' -> new ContainerScan(position + 1, depth + 1, false);
-        case ']', '}' -> new ContainerScan(position + 1, depth - 1, false);
-        default -> new ContainerScan(position + 1, depth, false);
+        case '"' -> toBuilder().position(position + 1).inString(true).build();
+        case '[', '{' -> toBuilder().position(position + 1).depth(depth + 1).build();
+        case ']', '}' -> toBuilder().position(position + 1).depth(depth - 1).build();
+        default -> toBuilder().position(position + 1).build();
       };
     }
   }

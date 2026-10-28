@@ -13,7 +13,8 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.IntStream;
 import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.json.WritableJson;
 import org.springframework.util.unit.DataSize;
@@ -26,7 +27,8 @@ import org.springframework.util.unit.DataSize;
  * <p>Names, addresses and other data with no telltale shape are found only by their field or key
  * name. This is a safety net, not a licence to log personal data.
  */
-@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Builder(access = AccessLevel.PRIVATE)
 public final class Redactor {
 
   /** Replaces a masked value, or the part of it that is hidden. */
@@ -82,7 +84,11 @@ public final class Redactor {
     var redaction = settings.redaction();
     var fieldNames = SensitiveFieldNames.withExtraKeys(redaction.extraKeys());
     var contentRules = ContentRules.of(fieldNames, compile(redaction.extraPatterns()));
-    return new Redactor(fieldNames, contentRules, (int) maxFieldLength.toBytes());
+    return Redactor.builder()
+        .fieldNames(fieldNames)
+        .contentRules(contentRules)
+        .maxFieldLength((int) maxFieldLength.toBytes())
+        .build();
   }
 
   /**
