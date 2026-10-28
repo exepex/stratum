@@ -35,7 +35,9 @@ cite it.
 ## Cross-cutting concerns
 
 - **ST-ENG-10 One concern per starter.** Logging, observability, security, HTTP clients, resilience, data access,
-  caching and messaging each have their own `stratum-starter-*`. A service only gets what it adds.
+  caching and messaging each have their own `stratum-starter-*`. A service only gets what it adds. Bundle starters,
+  such as `stratum-starter-microservice`, contain no code and only list the single starters one kind of application
+  needs; no starter depends on a starter its concern does not need (ADR 0003).
 - **ST-ENG-11 Starters meet through Spring.** When one starter needs another's behaviour, it uses the public extension
   points of Spring and Micrometer, which the other starter configures. It never imports another starter's internal
   classes. Example: the HTTP client starter propagates traces through Micrometer's observation API, not through
@@ -72,13 +74,14 @@ Every starter follows these rules:
   `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`. Starters do not use component
   scanning.
 - **ST-ENG-21** Every bean has conditions: `@ConditionalOnMissingBean` so a service or another framework can supply
-  its own, `@ConditionalOnClass` when it needs an optional library, and `@ConditionalOnProperty(prefix =
-  "stratum.<module>", name = "enabled", matchIfMissing = true)` so the whole module can be turned off. The missing-bean
-  condition checks the type that services inject, such as Resilience4j's `CircuitBreakerRegistry`, not a Stratum
-  class. Every bean is also marked `@Fallback`, so that when another framework's bean of the same type exists, Spring
-  injects that one ([ADR 0001](../adr/0001-coexistence-with-company-frameworks.md)). For a type that Spring Boot
-  already auto-configures, such as `RestClient.Builder`, Stratum does not define its own bean: it adjusts Boot's bean
-  through a customizer (ST-ENG-24). A Stratum auto-configuration is ordered before a Spring Boot one only when it must
+  its own, `@ConditionalOnClass` when it needs an optional library, and every auto-configuration of a module carries
+  `@ConditionalOnStratumModule("<module>")` from `stratum-core`, so the whole module stays off until the service sets
+  `stratum.<module>.enabled=true` (ADR 0003). The missing-bean condition checks the type that services inject, such
+  as Resilience4j's `CircuitBreakerRegistry`, not a Stratum class. Every bean is also marked `@Fallback`, so that
+  when another framework's bean of the same type exists, Spring injects that one
+  ([ADR 0001](../adr/0001-coexistence-with-company-frameworks.md)). For a type that Spring Boot already
+  auto-configures, such as `RestClient.Builder`, Stratum does not define its own bean: it adjusts Boot's bean through
+  a customizer (ST-ENG-24). A Stratum auto-configuration is ordered before a Spring Boot one only when it must
   replace a bean Boot would otherwise create, such as the default `SecurityFilterChain`, and its module page says so.
 - **ST-ENG-22** Ordering between auto-configurations is declared with `before` and `after` on `@AutoConfiguration`,
   never left to classpath order. Every Stratum auto-configuration also has an `@AutoConfigureOrder` value later than
@@ -100,18 +103,26 @@ Every starter follows these rules:
 ## Configuration
 
 - **ST-ENG-30** Each module's settings are one `@ConfigurationProperties(prefix = "stratum.<module>")` type,
-  preferably a record, with Javadoc on every field and defaults in code. Do not read settings with scattered
-  `@Value` annotations.
+  preferably a record annotated with Lombok's `@Builder(toBuilder = true)`, with Javadoc on every field and
+  defaults in code. The builder is what a service's Java configuration uses to change one value and keep the rest
+  (ST-ENG-34). Do not read settings with scattered `@Value` annotations.
 - **ST-ENG-31** `spring-boot-configuration-processor` generates metadata for every property so IDEs can complete
-  `stratum.*` keys. Properties are validated with Bean Validation (`@Validated`), so a bad value stops the
-  application at startup rather than failing on the first request.
+  `stratum.*` keys. Properties carry Bean Validation constraints, so a bad value stops the application at startup
+  rather than failing on the first request. The settings record is not `@Validated`: `StratumPropertiesResolver`
+  validates the settings after the Java configuration has run, so Java can correct or supply a value (ST-ENG-34).
+  `stratum-core` depends on `spring-boot-starter-validation` for this, so every starter that depends on
+  `stratum-core` brings Hibernate Validator and Spring Boot's `Validator` bean; a starter does not declare it again.
 - **ST-ENG-32** Every property works the same from `application.properties` and `application.yml`. Property names use
   kebab-case, Spring Boot's canonical form. Tests for property binding cover both formats.
 - **ST-ENG-33** Every tunable value (pool size, timeout, limit, TTL, retry count) is a property. None is hardcoded.
 - **ST-ENG-34** Every setting can also be set in Java, for services whose configuration files would grow too large.
   Each module offers a customizer bean or a builder on its public API that sets the same options, with the same
   names and defaults as the properties. When a setting is given in both places, the Java configuration wins, and
-  the module's documentation says so.
+  the module's documentation says so. The shared mechanism is in `stratum-core`: a service declares
+  `StratumPropertiesCustomizer<P>` beans for the module's settings record `P`, and the module's auto-configuration
+  builds its beans only from `StratumPropertiesResolver.resolve(bound, customizers.orderedStream())`, never from the
+  bound record directly. Spring matches a customizer to its module by the generic type, so tests and examples
+  register customizers with their full type, as the return type of a `@Bean` method.
 
 ## Java 25 and Spring Boot 4
 
@@ -181,6 +192,3 @@ Every starter follows these rules:
 - **ST-ENG-64** Every dependency and Maven plugin comes from Maven Central. No other repository in any POM, no
   JitPack, no jars downloaded from GitHub and no source copied from another project. The library must be actively
   maintained and its licence compatible with Apache 2.0.
-- **ST-ENG-65** Each release supports one Spring Boot line, such as `4.1.x`, stated in the compatibility table of
-  `docs/guides/upgrading.md`. `stratum-core` checks the running Spring Boot version at startup and stops the service
-  with a message naming both versions when it is outside that line (ADR 0001).

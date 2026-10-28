@@ -91,7 +91,7 @@ Names are written in **kebab-case** (lower case, words joined by `-`). Spring Bo
 binding** also accepts `readTimeout` or `read_timeout`, but kebab-case is the standard; use it so
 everyone can search for one spelling.
 
-Every module has an on/off switch: `stratum.<module>.enabled` (default `true`).
+Every module has an on/off switch, `stratum.<module>.enabled`, and is off until you set it to `true`.
 
 ## Writing values: types and formats
 
@@ -179,41 +179,37 @@ java -jar order-service.jar --stratum.logging.format=text --server.port=9090
 
 ## Which value wins
 
-When the same property is set in several places, the source higher in this list wins (simplified
-from Spring Boot's full order):
+When the same property is set in several places, the source higher in this list wins. Items 2 to 7
+are simplified from Spring Boot's full order:
 
-1. Command-line arguments (`--key=value`)
-2. Environment variables
-3. Profile-specific files outside the jar (`config/application-prod.yml` next to the jar)
-4. `application.properties` / `application.yml` outside the jar
-5. Profile-specific files inside the jar (`src/main/resources/application-prod.yml`)
-6. `application.properties` / `application.yml` inside the jar
-7. **Stratum's built-in defaults** (always last, so anything you set wins)
+1. **Java configuration**: a `StratumPropertiesCustomizer` bean in your code. It is applied after
+   every file and argument below has been read, so it wins over all of them. See
+   [Set the same values in Java](overriding-defaults.md#set-the-same-values-in-java).
+2. Command-line arguments (`--key=value`)
+3. Environment variables
+4. Profile-specific files outside the jar (`config/application-prod.yml` next to the jar)
+5. `application.properties` / `application.yml` outside the jar
+6. Profile-specific files inside the jar (`src/main/resources/application-prod.yml`)
+7. `application.properties` / `application.yml` inside the jar
+8. **Stratum's built-in defaults** (always last, so anything you set wins)
 
 For profiles and per-environment setups, see
 [Profiles and environments](profiles-and-environments.md).
 
 ## Validation: wrong values fail fast
 
-Stratum validates every `stratum.*` property when the application starts. A missing required value,
-a negative timeout or an unknown choice stops the startup with a message like this:
+Stratum validates every `stratum.*` property when the application starts, in two steps:
+
+1. **Spring Boot reads the value.** A value that cannot be converted, such as `10x` for a timeout,
+   stops the startup with Spring Boot's `Failed to bind properties under 'stratum...'` message.
+2. **Stratum checks the module's rules**, such as a required value or a positive timeout, once your
+   [Java configuration](overriding-defaults.md#set-the-same-values-in-java) has run. So Java can
+   correct or supply a value the files leave unset. A value that breaks a rule stops the startup
+   with a message that names the settings type, each property and the rule it breaks, never the
+   value:
 
 ```text
-***************************
-APPLICATION FAILED TO START
-***************************
-
-Description:
-
-Binding to target [Bindable@... type = StratumHttpClientProperties] failed:
-
-    Property: stratum.http-client.clients.inventory.base-url
-    Value: "null"
-    Reason: must not be null
-
-Action:
-
-Update your application's configuration
+Invalid ExampleProperties: message breaks @NotBlank; timeout breaks @NotNull
 ```
 
 This is deliberate: a broken setting found at deploy time is far cheaper than one found by a

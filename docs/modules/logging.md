@@ -33,6 +33,20 @@ class OrderService {
 </dependency>
 ```
 
+The starter does nothing until you switch it on, in `application.properties`:
+
+```properties
+stratum.logging.enabled=true
+```
+
+or in `application.yml`:
+
+```yaml
+stratum:
+  logging:
+    enabled: true
+```
+
 Logback is the logging backend, as in Spring Boot by default.
 
 ## What you get
@@ -82,7 +96,7 @@ Redaction is applied to the final log message and to structured key-value pairs:
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.logging.enabled` | boolean | `true` | Switches the whole starter on or off. |
+| `stratum.logging.enabled` | boolean | `false` | Switches the whole starter on. Until it is `true`, the starter sets up nothing. |
 | `stratum.logging.format` | `ecs`, `logstash`, `gelf`, `text` | `ecs` | Console log format. `text` is for humans; the others are JSON. |
 | `stratum.logging.include-trace-context` | boolean | `true` | Adds `trace.id` and `span.id`. |
 | `stratum.logging.redaction.enabled` | boolean | `true` | Applies redaction. |
@@ -177,7 +191,10 @@ customizer or builder, with the same names and defaults. This section will show 
 - **Your own Logback file:** a `logback-spring.xml` in your service replaces Stratum's setup
   completely, including redaction. Avoid it unless you have a strong reason.
 
-## Switch it off
+## Switch it on or off
+
+`stratum.logging.enabled=true` switches the starter on.
+Leaving it unset is the same as `false`.
 
 `stratum.logging.enabled=false` returns to Spring Boot's default plain-text logging.
 

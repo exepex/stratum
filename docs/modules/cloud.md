@@ -30,6 +30,20 @@ Add the one for your provider:
 </dependency>
 ```
 
+The starter does nothing until you switch it on, in `application.properties`:
+
+```properties
+stratum.cloud.enabled=true
+```
+
+or in `application.yml`:
+
+```yaml
+stratum:
+  cloud:
+    enabled: true
+```
+
 ## Provider-neutral interfaces
 
 Business code talks to small Stratum interfaces. Switching provider means changing the starter and
@@ -65,7 +79,7 @@ role, or environment variables on a developer machine.
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.cloud.enabled` | boolean | `true` | Switches the cloud starter on or off. |
+| `stratum.cloud.enabled` | boolean | `false` | Switches the whole starter on. Until it is `true`, the starter sets up nothing. |
 | `stratum.cloud.region` | string | *(from the platform)* | Region to use. |
 | `stratum.cloud.storage.buckets.<alias>` | string | *(none)* | Maps an alias used in code (`invoices`) to a real bucket or container name. |
 | `stratum.cloud.secrets.enabled` | boolean | `false` | Loads secrets from the provider's secret store as properties. |

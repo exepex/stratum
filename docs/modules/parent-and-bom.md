@@ -1,7 +1,7 @@
 # Parent POM and BOM: `stratum-parent` and `stratum-bom`
 
 **Status: Built, not released.** `stratum-parent` and `stratum-bom` exist in the repository and pass
-`mvn verify`, but no version is published yet. The startup check of the Spring Boot version is planned.
+`mvn verify`, but no version is published yet.
 This page explains how your service gets Stratum's tested versions, Java settings and build checks.
 
 [← Documentation home](../README.md) · How to choose between them: [Installation](../getting-started/installation.md)
@@ -38,13 +38,14 @@ used next to a company framework. The reasons are in
 
 The BOM manages versions of:
 
-- every Stratum module,
+- every Stratum module, including the [bundle starters](bundles.md),
 - the extra libraries Stratum uses or recommends that Spring Boot does not manage (Resilience4j,
   cloud SDKs, and so on),
 - the container images used in tests (as Maven properties).
 
-Today it lists Stratum's own modules only. Each extra library is added together with the first
-starter that uses it.
+Today it lists Stratum's own modules and MapStruct (`mapstruct`, `mapstruct-processor` and
+`lombok-mapstruct-binding`). Each other extra library is added together with the first starter that
+uses it.
 
 It does **not** import Spring Boot's BOM (`spring-boot-dependencies`). If your parent does not
 manage Spring Boot's versions, import `spring-boot-dependencies` yourself, at the version in the
@@ -53,10 +54,11 @@ so their order does not matter.
 
 ### The supported Spring Boot version
 
-Each Stratum release supports one Spring Boot line, such as `4.1.x`. When your service starts,
-Stratum checks the Spring Boot version that is running. If it is outside the supported line, the
-service stops with a message that names both versions, so a mismatch is found on the first start
-and not in production.
+Each Stratum release supports one Spring Boot line, such as `4.1.x`. Your parent POM sets the
+Spring Boot version, and Stratum does not check it when your service starts. With `stratum-parent`
+it is always the tested version. Under a company parent, check that its version is in the
+[supported line](../guides/upgrading.md#compatibility) before you upgrade either one
+([ADR 0002](../adr/0002-no-startup-version-check.md)).
 
 ### Overriding one managed version
 
@@ -136,6 +138,55 @@ hand where Lombok can generate them.
 Layout is left to Google Java Format. The PMD rules are PMD's best-practice, error-prone,
 multithreading, performance and security categories, without the few rules that conflict with
 Stratum's conventions; each exclusion is explained in the rule file.
+
+### Using Lombok or MapStruct in your service
+
+`stratum-library-parent` runs Lombok, MapStruct and `spring-boot-configuration-processor` as
+annotation processors for Stratum's own code. Your service does not get them from `stratum-parent`:
+whether to use them is your team's choice. The BOM manages MapStruct's version for you.
+
+To use one, add the library as a dependency and list its processor in your own `pom.xml`. On JDK
+25 the compiler no longer runs a processor it only finds on the classpath. Without the block below,
+a service that adds Lombok fails to compile with errors such as `constructor OrderService in class
+OrderService cannot be applied to given types`, or `variable ... not initialized in the default
+constructor`, which do not mention Lombok.
+
+```xml
+<dependencies>
+  <dependency>
+    <groupId>org.projectlombok</groupId>
+    <artifactId>lombok</artifactId>
+    <scope>provided</scope>
+  </dependency>
+</dependencies>
+
+<build>
+  <plugins>
+    <plugin>
+      <groupId>org.apache.maven.plugins</groupId>
+      <artifactId>maven-compiler-plugin</artifactId>
+      <configuration>
+        <!-- Take the processors' versions from Spring Boot and stratum-bom. -->
+        <annotationProcessorPathsUseDepMgmt>true</annotationProcessorPathsUseDepMgmt>
+        <annotationProcessorPaths>
+          <path>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+          </path>
+          <path>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+          </path>
+        </annotationProcessorPaths>
+      </configuration>
+    </plugin>
+  </plugins>
+</build>
+```
+
+For MapStruct, also add the `org.mapstruct:mapstruct` dependency and two more paths after Lombok's:
+`org.projectlombok:lombok-mapstruct-binding` and `org.mapstruct:mapstruct-processor`. Keep Lombok
+first, so that MapStruct sees the code Lombok generates.
 
 ### Build checks your service gets
 

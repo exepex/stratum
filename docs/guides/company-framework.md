@@ -40,11 +40,12 @@ does not compete with the company parent for that decision:
   company parent in setups B and C.
 - Each Stratum release supports one Spring Boot line, such as `4.1.x`. The
   [compatibility table](upgrading.md#compatibility) lists it.
-- At startup, Stratum checks the Spring Boot version that is actually running. If it is outside the
-  supported line, the service stops with a message that names both versions.
+- Stratum does not check the Spring Boot version at startup
+  ([ADR 0002](../adr/0002-no-startup-version-check.md)). Before the company parent moves to a new
+  Spring Boot version, check that a Stratum release supports it.
 
-So the company decides when to move to a new Spring Boot version, and Stratum tells you at the first
-start if its release does not support that version yet.
+So the company decides when to move to a new Spring Boot version, and the compatibility table tells
+you which Stratum release to use with it.
 
 > [!NOTE]
 > When a library is managed by both the company parent and `stratum-bom`, Maven uses the parent's
@@ -98,37 +99,45 @@ it, for example
 Using `beforeName` avoids a compile-time dependency on Stratum. Stratum's auto-configuration class
 names may change between minor versions, and the release notes list every rename.
 
-## Rule 3: when whole setups overlap, turn Stratum's part off
+## Rule 3: when whole setups overlap, leave Stratum's part off
 
 Some concerns are not one bean but a whole setup, such as a security filter chain, a log format or a
 request filter. Running two of them gives wrong results: two filter chains, logs in two formats or
-two correlation IDs per request. Choose one framework for each such concern, and turn Stratum's off
-with its switch:
+two correlation IDs per request. Choose one framework for each such concern.
 
-| Overlap | Symptom when both run | Turn Stratum's off |
+Every Stratum module is **off until the service switches it on** with
+`stratum.<module>.enabled=true` ([ADR 0003](../adr/0003-bundle-starters-and-module-switches.md)).
+So Stratum's version of a concern stays off unless your team enables it, even when a
+[bundle](../modules/bundles.md) put its starter on the classpath. Where the company framework covers a
+concern, leave Stratum's switch unset, or exclude that starter from the bundle:
+
+| Overlap | Symptom when both run | Keep Stratum's off |
 | --- | --- | --- |
-| Security filter chain | Requests pass one chain and fail the other | `stratum.security.enabled=false` |
-| Log format and redaction | Log lines in two formats, or the company's format without Stratum's redaction | `stratum.logging.enabled=false` |
-| Correlation ID filter | Two IDs per request, under two header names | `stratum.web.correlation.enabled=false` |
-| Metrics and tracing setup | Duplicate metric tags, or traces that do not connect | `stratum.observability.enabled=false` |
-| HTTP client defaults | Two sets of timeouts or interceptors on the same client | `stratum.http-client.enabled=false` |
+| Security filter chain | Requests pass one chain and fail the other | Leave `stratum.security.enabled` unset |
+| Log format and redaction | Log lines in two formats, or the company's format without Stratum's redaction | Leave `stratum.logging.enabled` unset |
+| Correlation ID filter | Two IDs per request, under two header names | `stratum.web.correlation.enabled=false` when `stratum.web` is on |
+| Metrics and tracing setup | Duplicate metric tags, or traces that do not connect | Leave `stratum.observability.enabled` unset |
+| HTTP client defaults | Two sets of timeouts or interceptors on the same client | Leave `stratum.http-client.enabled` unset |
 
-For example, a service that keeps the company's security and logging but uses Stratum for
-everything else:
+For example, a service that keeps the company's security and logging, and switches on Stratum's web,
+observability and HTTP client modules:
 
 ```yaml
 # src/main/resources/application.yml
 stratum:
-  security:
-    enabled: false
-  logging:
-    enabled: false
+  web:
+    enabled: true
+  observability:
+    enabled: true
+  http-client:
+    enabled: true
 ```
 
 ```properties
 # src/main/resources/application.properties
-stratum.security.enabled=false
-stratum.logging.enabled=false
+stratum.web.enabled=true
+stratum.observability.enabled=true
+stratum.http-client.enabled=true
 ```
 
 Each module page lists the beans the module creates under **What you get**, so you can compare them
@@ -237,6 +246,6 @@ reason, setup B is recommended unless the team needs a single parent.
 
 | Problem | Likely cause | Fix |
 | --- | --- | --- |
-| Startup stops: Spring Boot version not supported | The company parent manages a Spring Boot version outside Stratum's line | Use the Stratum release that supports it, or wait for one. See [Versioning and upgrades](upgrading.md) |
+| `NoSuchMethodError` or `ClassNotFoundException` from a Spring class at startup | The company parent manages a Spring Boot version outside Stratum's line | Use the Stratum release that supports it, or wait for one. See [Versioning and upgrades](upgrading.md) |
 | A Stratum bean is used instead of the company's | The company bean is created later or has a different type | Order the company auto-configuration with `beforeName`, or turn the Stratum module off |
 | `NoSuchMethodError` at startup | A library's version comes from the company parent and is older than Stratum needs | Compare `mvn dependency:tree` with the release notes and align the company parent |

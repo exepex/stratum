@@ -88,7 +88,10 @@ What each option contains in detail: [Parent POM and BOM](../modules/parent-and-
 
 ## Step 2: add the starters you need
 
-Pick the starters that match what your service does. You can add more later.
+The quickest way is one [bundle starter](../modules/bundles.md) for your kind of application:
+`stratum-starter-microservice`, `stratum-starter-web-ui`, `stratum-starter-batch` or
+`stratum-starter-cli`. Or pick single starters that match what your service does. You can add more
+later.
 
 | Your service... | Add |
 | --- | --- |
@@ -135,6 +138,9 @@ A typical REST service that calls one other service:
 </dependencies>
 ```
 
+Every starter is off until you switch it on. Set `stratum.<module>.enabled=true` for each module
+your service uses, in step 3.
+
 Rules that keep you out of trouble:
 
 - **Never write a `<version>`** for a Stratum starter or for a library Stratum manages. The parent or
@@ -146,21 +152,39 @@ Rules that keep you out of trouble:
 
 ## Step 3: set the minimum configuration
 
-Every service must have a name. Stratum uses it in logs, metrics, traces and cache keys.
+Every service must have a name. Stratum uses it in logs, metrics, traces and cache keys. Then switch
+on each module you added, because every module is off until its `enabled` property is `true`. For
+the REST service above:
 
 ```yaml
 # src/main/resources/application.yml
 spring:
   application:
     name: order-service
+stratum:
+  web:
+    enabled: true
+  logging:
+    enabled: true
+  observability:
+    enabled: true
+  security:
+    enabled: true
+  http-client:
+    enabled: true
 ```
 
 ```properties
 # src/main/resources/application.properties
 spring.application.name=order-service
+stratum.web.enabled=true
+stratum.logging.enabled=true
+stratum.observability.enabled=true
+stratum.security.enabled=true
+stratum.http-client.enabled=true
 ```
 
-Some starters need one more setting before they can work. Stratum stops at startup with a clear
+Some starters, once switched on, need one more setting before they can work. Stratum stops at startup with a clear
 message if it is missing:
 
 | Starter | Required setting |

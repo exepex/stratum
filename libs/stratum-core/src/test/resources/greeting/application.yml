@@ -1,0 +1,4 @@
+stratum:
+  greeting:
+    message: Hi from a file
+    timeout: 5s

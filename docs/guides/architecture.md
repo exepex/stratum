@@ -12,7 +12,7 @@ service starts.
 | --- | --- |
 | **Convention over configuration** | Every module works with zero configuration and production-safe defaults. |
 | **Opt-in** | One starter per concern; a service carries only what it uses. |
-| **Never locked in** | Every bean is `@ConditionalOnMissingBean`; every default is a property; every module has an `enabled` switch. |
+| **Never locked in** | Every bean is `@ConditionalOnMissingBean`; every default is a property; every module has an `enabled` switch and stays off until a service sets it. |
 | **Plain Spring** | Stratum uses Spring Boot's auto-configuration and Spring's extension points. No custom programming model. |
 | **Secure by default** | Secrets redacted, timeouts on every remote call, minimal Actuator exposure, validation of tokens. |
 | **Fail fast** | Missing or invalid configuration stops startup with a clear message. |
@@ -33,22 +33,26 @@ stratum/
 │   ├── stratum-bom/                # versions of Stratum's modules and the extra libraries it uses
 │   ├── stratum-build-parent/       # Java 25, the BOM, every plugin version and the build checks
 │   ├── stratum-build-rules/        # Checkstyle, PMD and Enforcer rules, packaged as a jar
-│   ├── stratum-library-parent/     # parent POM for libs and starters: adds Stratum-only checks
+│   ├── stratum-library-parent/     # parent POM for libs and starters: adds Lombok and Stratum-only checks
 │   └── stratum-parent/             # parent POM for services: adds the executable jar and build info
 ├── libs/
-│   ├── stratum-core/               # shared internals: constants, property defaults, version check
+│   ├── stratum-core/               # shared internals: constants, property defaults
 │   └── stratum-test/               # test support for services
 ├── starters/
+│   ├── stratum-starter-batch/      # bundle: data-jpa, logging, observability
 │   ├── stratum-starter-cache/
+│   ├── stratum-starter-cli/        # bundle: logging
 │   ├── stratum-starter-data-jpa/
 │   ├── stratum-starter-http-client/
 │   ├── stratum-starter-kafka/
 │   ├── stratum-starter-logging/
+│   ├── stratum-starter-microservice/ # bundle: web, logging, observability, http-client, resilience, security
 │   ├── stratum-starter-oauth2-client/
 │   ├── stratum-starter-observability/
 │   ├── stratum-starter-resilience/
 │   ├── stratum-starter-security/
-│   └── stratum-starter-web/
+│   ├── stratum-starter-web/
+│   └── stratum-starter-web-ui/     # bundle: web, logging, observability, security
 └── docs/                           # this documentation
 ```
 
@@ -93,10 +97,11 @@ flowchart TD
 - `stratum-build-parent` holds the versions and the build checks. Services get it through
   `stratum-parent`, and Stratum's libraries and starters through `stratum-library-parent`, so
   Stratum's own code is held to the rules it gives its users.
-- `stratum-library-parent` adds checks for Stratum's own code: Google's Checkstyle configuration
-  (`google_checks.xml`), Javadoc on every type and method and at most 400 lines per Java file
-  (`stratum/checkstyle-library.xml`), and no hand-written code that Lombok generates
-  (`stratum/pmd-lombok.xml`). Services get none of these; those choices are their team's.
+- `stratum-library-parent` adds Lombok and the annotation processors Stratum's own code uses, and
+  checks for that code: Google's Checkstyle configuration (`google_checks.xml`), Javadoc on every
+  type and method and at most 400 lines per Java file (`stratum/checkstyle-library.xml`), and no
+  hand-written code that Lombok generates (`stratum/pmd-lombok.xml`). Services get none of these;
+  those choices are their team's.
 - `stratum-parent` adds what only a service needs: the executable jar, `build-info.properties` and
   `git.properties`. Libraries do not inherit it, because a library jar that carried those two files
   would hide the service's own files from `/actuator/info`.
@@ -182,7 +187,9 @@ planned next:
 
 | Topic | Status |
 | --- | --- |
-| [0001: Stratum next to a company framework](../adr/0001-coexistence-with-company-frameworks.md) | Accepted |
+| [0001: Stratum next to a company framework](../adr/0001-coexistence-with-company-frameworks.md) | Accepted; the startup version check in it is replaced by 0002 |
+| [0002: No startup check of the Spring Boot version](../adr/0002-no-startup-version-check.md) | Accepted |
+| [0003: Bundle starters and module switches](../adr/0003-bundle-starters-and-module-switches.md) | Accepted |
 | Maven `groupId` and Java package names | Decided by the owner: `com.exepex.stratum`, and packages under `com.exepex.stratum` |
 | Problem Details (RFC 9457) as the error format | Proposed |
 | Resilience4j as the resilience engine | Proposed |

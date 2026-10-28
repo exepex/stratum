@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  The parent POM of Stratum's own libraries and starters. It adds checks to stratum-build-parent:
-  Google's Checkstyle configuration, the Javadoc rules (ST-ENG-14, ST-ENG-15), the 400-line limit on
-  Java files (ST-AG-10) and the rules against boilerplate that Lombok generates (ST-ENG-42). Services
-  use stratum-parent, which does not inherit this POM, because these choices are their team's.
+  The parent POM of Stratum's own libraries and starters. It adds to stratum-build-parent: Lombok
+  with the annotation processors Stratum's code uses (ST-ENG-42), and checks: Google's Checkstyle
+  configuration, the Javadoc rules (ST-ENG-14, ST-ENG-15), the 400-line limit on Java files
+  (ST-AG-10) and the rules against boilerplate that Lombok generates (ST-ENG-42). Services use
+  stratum-parent, which does not inherit this POM, because these choices are their team's.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -21,10 +22,51 @@
   <packaging>pom</packaging>
 
   <name>Stratum library parent</name>
-  <description>Parent POM for Stratum's libraries and starters: stratum-build-parent plus Google style, Javadoc, file length and Lombok rules.</description>
+  <description>Parent POM for Stratum's libraries and starters: stratum-build-parent plus Lombok, annotation processors, and Google style, Javadoc, file length and Lombok rules.</description>
+
+  <!-- Every library and starter generates its boilerplate with Lombok (ST-ENG-42). Lombok works only at
+       compile time, so it never reaches a service's classpath. -->
+  <dependencies>
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
 
   <build>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <!--
+          Lombok, MapStruct and Spring Boot's configuration metadata generator (ST-ENG-31, ST-ENG-42), at
+          the versions Spring Boot and stratum-bom manage, so that no version is written here. Lombok
+          runs first and the binding lets MapStruct see the code Lombok generates. Services do not get
+          this list: which processors a service runs is its team's choice.
+        -->
+        <configuration>
+          <annotationProcessorPathsUseDepMgmt>true</annotationProcessorPathsUseDepMgmt>
+          <annotationProcessorPaths>
+            <path>
+              <groupId>org.projectlombok</groupId>
+              <artifactId>lombok</artifactId>
+            </path>
+            <path>
+              <groupId>org.projectlombok</groupId>
+              <artifactId>lombok-mapstruct-binding</artifactId>
+            </path>
+            <path>
+              <groupId>org.mapstruct</groupId>
+              <artifactId>mapstruct-processor</artifactId>
+            </path>
+            <path>
+              <groupId>org.springframework.boot</groupId>
+              <artifactId>spring-boot-configuration-processor</artifactId>
+            </path>
+          </annotationProcessorPaths>
+        </configuration>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>

@@ -1,0 +1,167 @@
+package com.exepex.stratum.core.properties;
+
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Path;
+import jakarta.validation.Validator;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
+import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * Works out the settings a Stratum module uses: the values bound from properties, changed by the
+ * service's {@link StratumPropertiesCustomizer} beans. Java configuration wins because it is
+ * applied last. Only the result is validated, so Java can correct or supply a value that the files
+ * leave invalid or unset, and a bad value from either place stops the application at startup.
+ *
+ * <p>A module's auto-configuration calls {@link #resolve} once, at startup, and builds its beans
+ * from the result.
+ */
+@RequiredArgsConstructor
+public final class StratumPropertiesResolver {
+
+  /**
+   * Checks the Bean Validation constraints declared on the module's settings type. A module passes
+   * the application's {@code Validator} bean, which Spring Boot creates because {@code
+   * stratum-core} brings Hibernate Validator.
+   */
+  private final Validator validator;
+
+  /**
+   * Returns the settings a module uses: {@code bound}, changed by each customizer in turn.
+   *
+   * @param bound the settings bound from {@code stratum.<module>.*} properties
+   * @param customizers the service's customizers for these settings, in the order to apply them; an
+   *     auto-configuration passes {@code ObjectProvider.orderedStream()}
+   * @param <P> the module's settings type
+   * @return the settings after every customizer has run
+   * @throws IllegalStateException if a customizer returns {@code null}
+   * @throws ConstraintViolationException if the resulting settings break a constraint
+   */
+  public <P> P resolve(P bound, Stream<? extends StratumPropertiesCustomizer<P>> customizers) {
+    var remaining = customizers.iterator();
+    var effective = bound;
+    while (remaining.hasNext()) {
+      effective = customize(effective, remaining.next());
+    }
+    validate(effective);
+    return effective;
+  }
+
+  /**
+   * Runs one customizer and rejects a result the module cannot use, naming the customizer at fault.
+   *
+   * @param properties the settings so far
+   * @param customizer the customizer to run
+   * @param <P> the module's settings type
+   * @return the settings the customizer returned
+   * @throws IllegalStateException if the customizer returns {@code null}, or is meant for another
+   *     settings type
+   */
+  private static <P> P customize(P properties, StratumPropertiesCustomizer<P> customizer) {
+    P customized;
+    try {
+      customized = customizer.customize(properties);
+    } catch (ClassCastException e) {
+      throw wrongType(properties, customizer, e);
+    }
+    if (customized == null) {
+      throw new IllegalStateException(
+          customizer.getClass().getName()
+              + " returned null. Return the settings it received to leave them unchanged.");
+    }
+    if (!properties.getClass().isInstance(customized)) {
+      throw wrongType(properties, customizer, null);
+    }
+    return customized;
+  }
+
+  /**
+   * Explains that a customizer reached settings it was not written for. Spring matches a customizer
+   * to a module by its generic type, so this happens when the customizer is for another module, or
+   * was registered without its type, for example with {@code
+   * registerBean(StratumPropertiesCustomizer.class, ...)}.
+   *
+   * @param properties the settings the customizer was given
+   * @param customizer the customizer at fault
+   * @param cause the failure inside the customizer, or {@code null} if it returned the wrong type
+   * @param <P> the module's settings type
+   * @return the exception to throw
+   */
+  private static <P> IllegalStateException wrongType(
+      P properties, StratumPropertiesCustomizer<P> customizer, @Nullable ClassCastException cause) {
+    var settingsType = properties.getClass().getSimpleName();
+    return new IllegalStateException(
+        customizer.getClass().getName()
+            + " cannot change "
+            + settingsType
+            + ": it is a customizer for other settings, or it was registered without its type."
+            + " Declare it as StratumPropertiesCustomizer<"
+            + settingsType
+            + ">, for example as the return type of a @Bean method.",
+        cause);
+  }
+
+  /**
+   * Stops startup when the settings break a constraint. The message names each property and
+   * constraint but never the value, which may be a secret.
+   *
+   * @param properties the settings after every customizer has run
+   * @param <P> the module's settings type
+   */
+  private <P> void validate(P properties) {
+    Set<ConstraintViolation<P>> violations = validator.validate(properties);
+    if (!violations.isEmpty()) {
+      throw new ConstraintViolationException(describe(properties, violations), violations);
+    }
+  }
+
+  /**
+   * Describes the violations in one sorted line, so that the message is the same on every run. It
+   * names each constraint by its annotation rather than by its message, because a constraint
+   * message can quote the rejected value with {@code ${validatedValue}}.
+   *
+   * @param properties the settings that were validated
+   * @param violations the constraints they break
+   * @param <P> the module's settings type
+   * @return a message such as {@code "Invalid ExampleProperties: timeout breaks @NotNull"}
+   */
+  private static <P> String describe(P properties, Set<ConstraintViolation<P>> violations) {
+    return violations.stream()
+        .map(StratumPropertiesResolver::describe)
+        .sorted()
+        .collect(
+            Collectors.joining(
+                "; ", "Invalid " + properties.getClass().getSimpleName() + ": ", ""));
+  }
+
+  /**
+   * Names one broken constraint without its value or message.
+   *
+   * @param violation the broken constraint
+   * @return the property and the constraint, such as {@code "timeout breaks @NotNull"}
+   */
+  private static String describe(ConstraintViolation<?> violation) {
+    return propertyName(violation.getPropertyPath())
+        + " breaks @"
+        + violation.getConstraintDescriptor().getAnnotation().annotationType().getSimpleName();
+  }
+
+  /**
+   * Joins the names along a property path and leaves out map keys and list indexes, because a key
+   * is configuration data too and may be a credential or a person's identifier.
+   *
+   * @param path the path to the broken value, such as {@code tokens[alice].<map value>}
+   * @return the names only, such as {@code tokens.<map value>}
+   */
+  private static String propertyName(Path path) {
+    return StreamSupport.stream(path.spliterator(), false)
+        .map(Path.Node::getName)
+        .filter(Objects::nonNull)
+        .collect(Collectors.joining("."));
+  }
+}

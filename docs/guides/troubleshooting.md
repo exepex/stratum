@@ -31,12 +31,12 @@ Look for `Stratum...AutoConfiguration` entries:
 ```text
 Positive matches:
    StratumHttpClientAutoConfiguration matched:
-      - @ConditionalOnProperty (stratum.http-client.enabled=true) matched
+      - @ConditionalOnStratumModule http-client stratum.http-client.enabled is true
 
 Negative matches:
    StratumCacheAutoConfiguration:
       Did not match:
-         - @ConditionalOnProperty (stratum.cache.enabled=true) found different value in property 'enabled'
+         - @ConditionalOnStratumModule cache stratum.cache.enabled is not set; the default applies
 ```
 
 ### 3. Actuator, in a safe environment

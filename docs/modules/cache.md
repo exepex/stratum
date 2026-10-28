@@ -25,6 +25,20 @@ read each other's entries, and publishes hit and miss metrics.
 </dependency>
 ```
 
+The starter does nothing until you switch it on, in `application.properties`:
+
+```properties
+stratum.cache.enabled=true
+```
+
+or in `application.yml`:
+
+```yaml
+stratum:
+  cache:
+    enabled: true
+```
+
 For Redis, also set `stratum.cache.type=redis` and Spring Boot's `spring.data.redis.*` connection
 properties. The Redis client library is already included.
 
@@ -61,7 +75,7 @@ class ProductService {
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.cache.enabled` | boolean | `true` | Switches the whole starter on or off. |
+| `stratum.cache.enabled` | boolean | `false` | Switches the whole starter on. Until it is `true`, the starter sets up nothing. |
 | `stratum.cache.type` | `caffeine`, `redis` | `caffeine` | Cache backend. |
 | `stratum.cache.default-ttl` | duration | `10m` | Time to live for caches without their own setting. |
 | `stratum.cache.default-max-size` | int | `10000` | Maximum entries per cache (Caffeine only). |
@@ -124,7 +138,10 @@ customizer or builder, with the same names and defaults. This section will show 
 Declare a `StratumCacheCustomizer` bean to adjust each cache as it is created, or your own
 `CacheManager` bean to replace the setup.
 
-## Switch it off
+## Switch it on or off
+
+`stratum.cache.enabled=true` switches the starter on.
+Leaving it unset is the same as `false`.
 
 `stratum.cache.enabled=false` turns caching off; `@Cacheable` methods then always run.
 
