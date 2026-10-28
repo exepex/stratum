@@ -1,5 +1,5 @@
 # Builds Stratum on Java 25 for every pull request and every push to main.
-# One run does three things: mvn verify (every build check and test), the dependency vulnerability
+# One run does three things: ./mvnw verify (every build check and test), the dependency vulnerability
 # scan (the security profile) and an SBOM, a CycloneDX list of every library the build includes.
 # Pull requests from forks skip the scan, because GitHub gives them no secrets.
 # Pushes to main also keep the Maven and vulnerability-database cache warm for pull requests.
@@ -41,7 +41,7 @@ jobs:
       - name: Read the SBOM plugin version
         id: sbom-plugin
         run: |
-          version=$(mvn -B -q -pl platform/stratum-parent help:evaluate \
+          version=$(./mvnw -B -q -pl platform/stratum-parent help:evaluate \
             -Dexpression=cyclonedx-maven-plugin.version -DforceStdout)
           if [[ ! "$version" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
             echo "::error::Could not read cyclonedx-maven-plugin.version from stratum-parent: '$version'"
@@ -65,7 +65,7 @@ jobs:
             echo "::error::The NVD_API_KEY repository secret is missing. See docs/contributing.md#checks-on-every-pull-request."
             exit 1
           fi
-          mvn -B --no-transfer-progress verify "${scan[@]}" \
+          ./mvnw -B --no-transfer-progress verify "${scan[@]}" \
             "org.cyclonedx:cyclonedx-maven-plugin:${CYCLONEDX_VERSION}:makeAggregateBom"
 
       - name: Upload the SBOM

@@ -46,12 +46,12 @@ GitHub Actions builds every pull request, and every push to `main`, with
 [`.github/workflows/build.yml`](../.github/workflows/build.yml). It runs one command on JDK 25:
 
 ```bash
-mvn verify -Psecurity org.cyclonedx:cyclonedx-maven-plugin:<version>:makeAggregateBom
+./mvnw verify -Psecurity org.cyclonedx:cyclonedx-maven-plugin:<version>:makeAggregateBom
 ```
 
 | Part | What it does | Where to find the result |
 | --- | --- | --- |
-| `verify` | Every check that `mvn verify` runs on your machine | The run's log |
+| `verify` | Every check that `./mvnw verify` runs on your machine | The run's log |
 | `-Psecurity` | Scans the dependencies with OWASP Dependency-Check and fails the run on a vulnerability scored 7.0 or higher | The `dependency-check-reports` artifact |
 | `makeAggregateBom` | Writes an SBOM (software bill of materials): a CycloneDX list of every library the build includes | The `sbom` artifact, as `bom.json` and `bom.xml` |
 
