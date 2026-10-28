@@ -11,6 +11,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DataObjectPropertyName;
 import org.springframework.core.annotation.MergedAnnotations;
@@ -115,11 +116,23 @@ class ConstraintViolationMessages {
       var value = values.get(attribute.getName());
       if (!NON_LIMIT_ATTRIBUTES.contains(attribute.getName())
           && !Objects.deepEquals(value, attribute.getDefaultValue())) {
-        limits.put(attribute.getName(), ObjectUtils.nullSafeToString(value));
+        limits.put(attribute.getName(), limit(value));
       }
     }
     var name = "@" + type.getSimpleName();
     return limits.isEmpty() ? name : name + "(" + join(limits) + ")";
+  }
+
+  /**
+   * Writes one limit's value, naming a class by its simple name.
+   *
+   * @param value the attribute's value
+   * @return the value as text, such as {@code 10} or {@code String}
+   */
+  private static String limit(@Nullable Object value) {
+    return value instanceof Class<?> type
+        ? type.getSimpleName()
+        : ObjectUtils.nullSafeToString(value);
   }
 
   /**

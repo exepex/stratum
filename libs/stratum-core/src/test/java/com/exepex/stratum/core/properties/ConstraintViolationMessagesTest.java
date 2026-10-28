@@ -2,9 +2,7 @@ package com.exepex.stratum.core.properties;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import jakarta.validation.Constraint;
-import jakarta.validation.Payload;
-import jakarta.validation.ReportAsSingleViolation;
+import com.exepex.stratum.core.properties.servicecode.CodedSettings;
 import jakarta.validation.Valid;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -14,10 +12,6 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterAll;
@@ -118,10 +112,12 @@ class ConstraintViolationMessagesTest {
   }
 
   @Test
-  @DisplayName("a constraint the service declares without public access is named with its limits")
+  @DisplayName("a service's own constraint without public access is named with its limits")
   void namesNonPublicConstraints() {
-    assertThat(describe(new Coded("toolong")))
-        .isEqualTo("Invalid Coded: code breaks @ShortCode(region=us)");
+    assertThat(describe(new CodedSettings("toolong")))
+        .isEqualTo(
+            "Invalid CodedSettings: stratum.coded.code"
+                + " breaks @ShortCode(format=String, region=us)");
   }
 
   /**
@@ -159,50 +155,6 @@ class ConstraintViolationMessagesTest {
    * @param maxSize the most connections the pool opens
    */
   private record Pool(@Positive int maxSize) {}
-
-  /**
-   * Settings checked by a constraint that is not public.
-   *
-   * @param code a code of at most 3 characters
-   */
-  private record Coded(@ShortCode(region = "us") String code) {}
-
-  /** A service's own constraint, declared without public access: a code of at most 3 characters. */
-  @Constraint(validatedBy = {})
-  @Size(max = 3)
-  @ReportAsSingleViolation
-  @Retention(RetentionPolicy.RUNTIME)
-  @Target({ElementType.FIELD, ElementType.METHOD, ElementType.PARAMETER})
-  @interface ShortCode {
-
-    /**
-     * The message when the code is too long.
-     *
-     * @return the message
-     */
-    String message() default "code too long";
-
-    /**
-     * The validation groups.
-     *
-     * @return the groups
-     */
-    Class<?>[] groups() default {};
-
-    /**
-     * The payload.
-     *
-     * @return the payload
-     */
-    Class<? extends Payload>[] payload() default {};
-
-    /**
-     * The region the code belongs to.
-     *
-     * @return the region
-     */
-    String region() default "eu";
-  }
 
   /**
    * Settings that are not bound from properties.
