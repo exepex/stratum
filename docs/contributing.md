@@ -75,6 +75,10 @@ GitHub gives no repository secrets to a pull request from a fork, so such a pull
 and gets its SBOM, but skips the scan; the run shows a warning that says so. The scan runs on `main`
 when the pull request merges.
 
+Dependabot pull requests do not get Actions secrets either, but they change dependencies, so they
+must be scanned. If Dependabot is turned on, add the same key under **Settings → Secrets and
+variables → Dependabot**, also named `NVD_API_KEY`.
+
 ## Rules for a new starter
 
 A new starter meets every rule in [engineering](agents/engineering.md), [testing](agents/testing.md),
