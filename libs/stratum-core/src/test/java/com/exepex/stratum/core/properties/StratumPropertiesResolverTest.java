@@ -9,6 +9,7 @@ import com.exepex.stratum.core.properties.testsupport.GreetingTestData;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validation;
 import jakarta.validation.ValidatorFactory;
+import jakarta.validation.constraints.Pattern;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -143,7 +144,7 @@ class StratumPropertiesResolverTest {
               () ->
                   resolver.resolve(
                       GreetingTestData.defaults(), Stream.of(GreetingTestData.javaMessage(blank))))
-          .withMessageStartingWith("Invalid GreetingProperties after Java configuration: message")
+          .withMessage("Invalid GreetingProperties: message breaks @NotBlank")
           .satisfies(failure -> assertThat(failure.getConstraintViolations()).hasSize(1));
     }
 
@@ -158,10 +159,28 @@ class StratumPropertiesResolverTest {
           .isThrownBy(
               () -> resolver.resolve(GreetingTestData.defaults(), Stream.of(noTimeout, blank)))
           .withMessage(
-              "Invalid GreetingProperties after Java configuration: message must not be blank;"
-                  + " timeout must not be null");
+              "Invalid GreetingProperties: message breaks @NotBlank; timeout breaks @NotNull");
     }
   }
+
+  @Test
+  @DisplayName("a constraint message that quotes the value never reaches the startup error")
+  void neverQuotesTheRejectedValue() {
+    var settings = new SecretSettings("hunter2");
+
+    assertThatExceptionOfType(ConstraintViolationException.class)
+        .isThrownBy(() -> resolver.resolve(settings, Stream.empty()))
+        .withMessage("Invalid SecretSettings: token breaks @Pattern")
+        .withMessageNotContaining("hunter2");
+  }
+
+  /**
+   * Settings whose constraint message quotes the rejected value.
+   *
+   * @param token a secret that must be all digits
+   */
+  private record SecretSettings(
+      @Pattern(regexp = "\\d+", message = "${validatedValue} is not all digits") String token) {}
 
   /** A customizer that breaks its contract by returning {@code null}. */
   private static final class ReturnsNull

@@ -15,7 +15,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
-import org.springframework.boot.context.properties.bind.validation.BindValidationException;
 import org.springframework.boot.env.PropertiesPropertySourceLoader;
 import org.springframework.boot.env.PropertySourceLoader;
 import org.springframework.boot.env.YamlPropertySourceLoader;
@@ -92,7 +91,20 @@ class JavaConfigurationWinsTest {
                   assertThat(context)
                       .getFailure()
                       .rootCause()
-                      .isInstanceOf(BindValidationException.class));
+                      .isInstanceOf(ConstraintViolationException.class)
+                      .hasMessage("Invalid GreetingProperties: message breaks @NotBlank"));
+    }
+
+    @Test
+    @DisplayName("a bad value in a file that Java configuration corrects does not stop startup")
+    void javaCorrectsBadFileValue() {
+      contextRunner
+          .withPropertyValues("stratum.greeting.message=")
+          .withUserConfiguration(JavaMessage.class)
+          .run(
+              context ->
+                  assertThat(context.getBean(Greeter.class).settings().message())
+                      .isEqualTo("Hi from Java"));
     }
   }
 
@@ -185,6 +197,21 @@ class JavaConfigurationWinsTest {
     @Bean
     StratumPropertiesCustomizer<GreetingProperties> javaTimeout() {
       return GreetingTestData.javaTimeout();
+    }
+  }
+
+  /** Sets the message in Java. */
+  @Configuration(proxyBeanMethods = false)
+  static class JavaMessage {
+
+    /**
+     * Sets the message to {@code Hi from Java}.
+     *
+     * @return the customizer
+     */
+    @Bean
+    StratumPropertiesCustomizer<GreetingProperties> javaMessage() {
+      return GreetingTestData.javaMessage("Hi from Java");
     }
   }
 

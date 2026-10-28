@@ -102,10 +102,11 @@ Every starter follows these rules:
   defaults in code. The builder is what a service's Java configuration uses to change one value and keep the rest
   (ST-ENG-34). Do not read settings with scattered `@Value` annotations.
 - **ST-ENG-31** `spring-boot-configuration-processor` generates metadata for every property so IDEs can complete
-  `stratum.*` keys. Properties are validated with Bean Validation (`@Validated`), so a bad value stops the
-  application at startup rather than failing on the first request. `stratum-core` depends on
-  `spring-boot-starter-validation` for this, so every starter that depends on `stratum-core` brings Hibernate
-  Validator and Spring Boot's `Validator` bean; a starter does not declare it again.
+  `stratum.*` keys. Properties carry Bean Validation constraints, so a bad value stops the application at startup
+  rather than failing on the first request. The settings record is not `@Validated`: `StratumPropertiesResolver`
+  validates the settings after the Java configuration has run, so Java can correct or supply a value (ST-ENG-34).
+  `stratum-core` depends on `spring-boot-starter-validation` for this, so every starter that depends on
+  `stratum-core` brings Hibernate Validator and Spring Boot's `Validator` bean; a starter does not declare it again.
 - **ST-ENG-32** Every property works the same from `application.properties` and `application.yml`. Property names use
   kebab-case, Spring Boot's canonical form. Tests for property binding cover both formats.
 - **ST-ENG-33** Every tunable value (pool size, timeout, limit, TTL, retry count) is a property. None is hardcoded.

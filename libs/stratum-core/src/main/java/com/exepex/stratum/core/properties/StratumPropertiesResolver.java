@@ -12,8 +12,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * Works out the settings a Stratum module uses: the values bound from properties, changed by the
  * service's {@link StratumPropertiesCustomizer} beans. Java configuration wins because it is
- * applied last. The result is validated again, so a bad value set in Java stops the application at
- * startup just as a bad value in a properties file does.
+ * applied last. Only the result is validated, so Java can correct or supply a value that the files
+ * leave invalid or unset, and a bad value from either place stops the application at startup.
  *
  * <p>A module's auto-configuration calls {@link #resolve} once, at startup, and builds its beans
  * from the result.
@@ -37,7 +37,7 @@ public final class StratumPropertiesResolver {
    * @param <P> the module's settings type
    * @return the settings after every customizer has run
    * @throws IllegalStateException if a customizer returns {@code null}
-   * @throws ConstraintViolationException if a customizer set a value that breaks a constraint
+   * @throws ConstraintViolationException if the resulting settings break a constraint
    */
   public <P> P resolve(P bound, Stream<? extends StratumPropertiesCustomizer<P>> customizers) {
     var remaining = customizers.iterator();
@@ -118,22 +118,33 @@ public final class StratumPropertiesResolver {
   }
 
   /**
-   * Describes the violations in one sorted line, so that the message is the same on every run.
+   * Describes the violations in one sorted line, so that the message is the same on every run. It
+   * names each constraint by its annotation rather than by its message, because a constraint
+   * message can quote the rejected value with {@code ${validatedValue}}.
    *
    * @param properties the settings that were validated
    * @param violations the constraints they break
    * @param <P> the module's settings type
-   * @return a message such as {@code "Invalid ExampleProperties after Java configuration: timeout
-   *     must not be null"}
+   * @return a message such as {@code "Invalid ExampleProperties: timeout breaks @NotNull"}
    */
   private static <P> String describe(P properties, Set<ConstraintViolation<P>> violations) {
     return violations.stream()
-        .map(violation -> violation.getPropertyPath() + " " + violation.getMessage())
+        .map(StratumPropertiesResolver::describe)
         .sorted()
         .collect(
             Collectors.joining(
-                "; ",
-                "Invalid " + properties.getClass().getSimpleName() + " after Java configuration: ",
-                ""));
+                "; ", "Invalid " + properties.getClass().getSimpleName() + ": ", ""));
+  }
+
+  /**
+   * Names one broken constraint without its value or message.
+   *
+   * @param violation the broken constraint
+   * @return the property and the constraint, such as {@code "timeout breaks @NotNull"}
+   */
+  private static String describe(ConstraintViolation<?> violation) {
+    return violation.getPropertyPath()
+        + " breaks @"
+        + violation.getConstraintDescriptor().getAnnotation().annotationType().getSimpleName();
   }
 }
