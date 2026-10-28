@@ -269,7 +269,7 @@ Every starter is off until its `stratum.<module>.enabled` property is `true`.
 
 | Module | In one sentence |
 | --- | --- |
-| [`stratum-test`](docs/modules/test.md) | JUnit 5, AssertJ, Mockito, Testcontainers, HTTP stubs and JWT helpers, ready to use. |
+| [`stratum-test`](docs/modules/test.md) | Planned: JUnit 5, AssertJ, Mockito, Testcontainers, HTTP stubs and JWT helpers. |
 
 ## Configuration: YAML or properties
 
@@ -358,8 +358,9 @@ The decision behind it: [ADR 0001](docs/adr/0001-coexistence-with-company-framew
 
 ## Testing your service
 
-`stratum-test` gives you everything you need for unit, mock and integration tests in one test
-dependency:
+**Planned.** `stratum-test` is not built yet. Until it is, add Spring Boot's
+`spring-boot-starter-test` with `<scope>test</scope>`. Once built, `stratum-test` is planned to give
+you everything you need for unit, mock and integration tests in one test dependency:
 
 - **Unit tests** (`*Test.java`) with JUnit 5, AssertJ and Mockito.
 - **Integration tests** (`*IT.java`) that start a real PostgreSQL, Kafka or Redis in Docker with
