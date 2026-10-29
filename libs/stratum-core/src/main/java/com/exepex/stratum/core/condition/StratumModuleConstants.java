@@ -2,12 +2,15 @@ package com.exepex.stratum.core.condition;
 
 import lombok.experimental.UtilityClass;
 
-/** The parts of every module's on/off property, {@code stratum.<module>.enabled} (ST-ENG-45). */
+/** The property keys that every Stratum module shares (ST-ENG-45). */
 @UtilityClass
 public class StratumModuleConstants {
 
   /** The first part of every Stratum property. */
   public static final String PREFIX = "stratum";
+
+  /** The environment the service runs in, such as {@code prod}, which several modules report. */
+  public static final String SERVICE_ENVIRONMENT = PREFIX + ".environment";
 
   /** The last part of a module's on/off property. */
   public static final String ENABLED = "enabled";

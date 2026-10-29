@@ -3,10 +3,8 @@ package com.exepex.stratum.logging;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import java.util.Set;
 import lombok.experimental.UtilityClass;
-import org.springframework.boot.context.properties.bind.Binder;
-import org.springframework.core.env.Environment;
 
-/** The property keys the logging module reads and sets (ST-ENG-45), and its on/off check. */
+/** The property keys the logging module reads and sets (ST-ENG-45). */
 @UtilityClass
 public class LoggingConstants {
 
@@ -21,9 +19,6 @@ public class LoggingConstants {
 
   /** The service's name, written as {@code service.name} on every line. */
   public static final String APPLICATION_NAME = "spring.application.name";
-
-  /** The environment the service runs in, such as {@code prod}, shared by every module. */
-  public static final String ENVIRONMENT = StratumModuleConstants.PREFIX + ".environment";
 
   /** Spring Boot's structured format for console logs. */
   public static final String CONSOLE_FORMAT = "logging.structured.format.console";
@@ -43,14 +38,4 @@ public class LoggingConstants {
 
   /** The profiles in which plain-text logs are expected. */
   public static final Set<String> LOCAL_PROFILES = Set.of("local", "test");
-
-  /**
-   * Returns whether {@code stratum.logging.enabled} is {@code true}. Unset means off.
-   *
-   * @param environment the application's environment
-   * @return whether the module is on
-   */
-  public static boolean isEnabled(Environment environment) {
-    return Boolean.TRUE.equals(Binder.get(environment).bind(ENABLED, Boolean.class).orElse(false));
-  }
 }

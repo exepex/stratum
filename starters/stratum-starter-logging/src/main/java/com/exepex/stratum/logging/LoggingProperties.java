@@ -1,5 +1,6 @@
 package com.exepex.stratum.logging;
 
+import jakarta.validation.constraints.AssertTrue;
 import java.util.List;
 import lombok.Builder;
 import lombok.Getter;
@@ -27,6 +28,12 @@ public record LoggingProperties(
     @DefaultValue("16KB") DataSize maxFieldLength,
     @DefaultValue Redaction redaction) {
 
+  /** The shortest allowed {@code max-field-length}. */
+  private static final DataSize MIN_FIELD_LENGTH = DataSize.ofKilobytes(1);
+
+  /** The longest allowed {@code max-field-length}. */
+  private static final DataSize MAX_FIELD_LENGTH = DataSize.ofMegabytes(1);
+
   /**
    * Binds {@code stratum.logging.*}, with the defaults for anything unset.
    *
@@ -35,6 +42,18 @@ public record LoggingProperties(
    */
   public static LoggingProperties bind(Environment environment) {
     return Binder.get(environment).bindOrCreate(LoggingConstants.PREFIX, LoggingProperties.class);
+  }
+
+  /**
+   * Returns whether {@code max-field-length} is from 1KB to 1MB. Validation reports a value out of
+   * that range as {@code stratum.logging.max-field-length-in-range breaks @AssertTrue}.
+   *
+   * @return whether the length is in range
+   */
+  @AssertTrue
+  public boolean isMaxFieldLengthInRange() {
+    return maxFieldLength.compareTo(MIN_FIELD_LENGTH) >= 0
+        && maxFieldLength.compareTo(MAX_FIELD_LENGTH) <= 0;
   }
 
   /** How log lines are written. Every format except {@link #TEXT} is one JSON object. */

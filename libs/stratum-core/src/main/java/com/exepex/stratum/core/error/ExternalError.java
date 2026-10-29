@@ -2,7 +2,7 @@ package com.exepex.stratum.core.error;
 
 import java.io.Serializable;
 import java.util.List;
-import lombok.With;
+import lombok.Builder;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -20,11 +20,12 @@ import org.jspecify.annotations.Nullable;
  * @param correlationId the ID that ties the steps of one business workflow together; {@code null}
  *     when none was set
  */
+@Builder(toBuilder = true)
 public record ExternalError(
     String code,
     Severity severity,
     String message,
-    @With List<ErrorDetail> details,
+    List<ErrorDetail> details,
     @Nullable String traceId,
     @Nullable String correlationId)
     implements Serializable {

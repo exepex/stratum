@@ -163,4 +163,4 @@ Each of these is an error that stops the application at startup, and only when
 | `SX-LOGGING-1002` | A pattern in `stratum.logging.redaction.extra-patterns` is not a valid regular expression. The message gives the pattern's position in the list, never the pattern or any part of it. | Correct the pattern. In `.properties` files, write each backslash twice. |
 
 A `stratum.logging.max-field-length` outside 1KB to 1MB stops startup with `SX-CORE-1003`, like any
-other invalid setting.
+other invalid setting. The message names the rule `stratum.logging.max-field-length-in-range`.

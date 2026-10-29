@@ -1,11 +1,17 @@
 package com.exepex.stratum.logging;
 
+import com.exepex.stratum.core.condition.StratumModuleConstants;
+import com.exepex.stratum.core.condition.StratumModuleSwitch;
 import com.exepex.stratum.core.error.StratumException;
+import com.exepex.stratum.core.properties.StratumPropertiesResolver;
 import com.exepex.stratum.logging.LoggingProperties.LogFormat;
 import com.exepex.stratum.logging.redaction.Redactor;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Validation;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.EnvironmentPostProcessor;
 import org.springframework.boot.SpringApplication;
@@ -47,23 +53,27 @@ public class LoggingEnvironmentPostProcessor implements EnvironmentPostProcessor
    * @param environment the application's environment
    * @param application the application being started
    * @throws StratumException {@code SX-LOGGING-1001} if the service has no name, {@code
-   *     SX-LOGGING-1002} or {@code SX-CORE-1003} if a setting is invalid
+   *     SX-LOGGING-1002} if an extra redaction pattern is invalid
+   * @throws ConstraintViolationException {@code SX-CORE-1003} if a setting breaks its rules
    */
   @Override
   public void postProcessEnvironment(
       ConfigurableEnvironment environment, SpringApplication application) {
-    if (!LoggingConstants.isEnabled(environment)) {
+    if (!StratumModuleSwitch.isEnabled(environment, LoggingConstants.MODULE)) {
       return;
     }
     if (!StringUtils.hasText(environment.getProperty(LoggingConstants.APPLICATION_NAME))) {
       throw new StratumException(LoggingErrorCode.APPLICATION_NAME_MISSING);
     }
-    var settings = LoggingProperties.bind(environment);
-    Redactor.from(settings);
+    var loggingProperties = LoggingProperties.bind(environment);
+    validate(loggingProperties);
+    Redactor.from(loggingProperties);
     environment
         .getPropertySources()
-        .addLast(new MapPropertySource(DEFAULTS_SOURCE, defaults(settings, environment)));
-    if (settings.format() == LogFormat.TEXT && !onlyLocalProfiles(environment)) {
+        .addLast(
+            new MapPropertySource(
+                DEFAULTS_SOURCE, stratumLoggingDefaults(loggingProperties, environment)));
+    if (loggingProperties.format() == LogFormat.TEXT && !onlyLocalProfiles(environment)) {
       logFactory
           .getLog(LoggingEnvironmentPostProcessor.class)
           .warn(
@@ -72,24 +82,36 @@ public class LoggingEnvironmentPostProcessor implements EnvironmentPostProcessor
     }
   }
 
+  /**
+   * Stops startup with {@code SX-CORE-1003} when a setting breaks its rules, in the same way as
+   * every other module. Logging starts before any bean exists, so it makes its own validator.
+   */
+  private void validate(LoggingProperties loggingProperties) {
+    try (var validatorFactory = Validation.buildDefaultValidatorFactory()) {
+      new StratumPropertiesResolver(validatorFactory.getValidator())
+          .resolve(loggingProperties, Stream.empty());
+    }
+  }
+
   /** Returns Spring Boot's logging properties that Stratum sets by default. */
-  private Map<String, Object> defaults(
-      LoggingProperties settings, ConfigurableEnvironment environment) {
-    var defaults = new HashMap<String, Object>();
-    var structuredFormat = settings.format().getStructuredFormat();
+  private Map<String, Object> stratumLoggingDefaults(
+      LoggingProperties loggingProperties, ConfigurableEnvironment environment) {
+    var defaultProperties = new HashMap<String, Object>();
+    var structuredFormat = loggingProperties.format().getStructuredFormat();
     if (structuredFormat != null) {
       // The file too: a plain-text file would hold every value unredacted.
-      defaults.put(LoggingConstants.CONSOLE_FORMAT, structuredFormat);
-      defaults.put(LoggingConstants.FILE_FORMAT, structuredFormat);
+      defaultProperties.put(LoggingConstants.CONSOLE_FORMAT, structuredFormat);
+      defaultProperties.put(LoggingConstants.FILE_FORMAT, structuredFormat);
     }
-    var serviceEnvironment = environment.getProperty(LoggingConstants.ENVIRONMENT);
+    var serviceEnvironment = environment.getProperty(StratumModuleConstants.SERVICE_ENVIRONMENT);
     if (StringUtils.hasText(serviceEnvironment)) {
-      defaults.put(LoggingConstants.ECS_ENVIRONMENT, serviceEnvironment);
+      defaultProperties.put(LoggingConstants.ECS_ENVIRONMENT, serviceEnvironment);
     }
     // Root cause first, so that a stack trace cut at the limit still shows why it failed.
-    defaults.put(LoggingConstants.STACK_TRACE_MAX_LENGTH, settings.maxFieldLength().toBytes());
-    defaults.put(LoggingConstants.STACK_TRACE_ROOT, "first");
-    return defaults;
+    defaultProperties.put(
+        LoggingConstants.STACK_TRACE_MAX_LENGTH, loggingProperties.maxFieldLength().toBytes());
+    defaultProperties.put(LoggingConstants.STACK_TRACE_ROOT, "first");
+    return defaultProperties;
   }
 
   /** Returns whether every active profile is one in which plain-text logs are expected. */

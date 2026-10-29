@@ -1,6 +1,5 @@
 package com.exepex.stratum.logging.redaction;
 
-import com.exepex.stratum.core.error.CoreErrorCode;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.logging.LoggingErrorCode;
 import com.exepex.stratum.logging.LoggingProperties;
@@ -13,12 +12,10 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.IntStream;
 import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.json.JsonWriter;
 import org.springframework.boot.json.WritableJson;
-import org.springframework.util.unit.DataSize;
 
 /**
  * Masks secrets and personal data in one log value: first by its field name, then by what the text
@@ -28,7 +25,6 @@ import org.springframework.util.unit.DataSize;
  * <p>Names, addresses and other data with no telltale shape are found only by their field or key
  * name. This is a safety net, not a licence to log personal data.
  */
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(access = AccessLevel.PRIVATE)
 public final class Redactor {
 
@@ -48,12 +44,6 @@ public final class Redactor {
   private static final IntPredicate IS_NUMBER =
       character -> Character.isDigit(character) || character == ' ' || character == '-';
 
-  /** The shortest allowed {@code max-field-length}. */
-  private static final DataSize MIN_FIELD_LENGTH = DataSize.ofKilobytes(1);
-
-  /** The longest allowed {@code max-field-length}. */
-  private static final DataSize MAX_FIELD_LENGTH = DataSize.ofMegabytes(1);
-
   /** Masks values by field name. */
   private final SensitiveFieldNames fieldNames;
 
@@ -66,26 +56,19 @@ public final class Redactor {
   /**
    * Makes a redactor from the module's settings.
    *
-   * @param settings the logging settings
+   * @param loggingProperties the logging settings, already validated
    * @return the redactor
    * @throws StratumException {@code SX-LOGGING-1002} if an extra pattern is not a valid regular
-   *     expression, {@code SX-CORE-1003} if {@code max-field-length} is out of range
+   *     expression
    */
-  public static Redactor from(LoggingProperties settings) {
-    var maxFieldLength = settings.maxFieldLength();
-    if (maxFieldLength.compareTo(MIN_FIELD_LENGTH) < 0
-        || maxFieldLength.compareTo(MAX_FIELD_LENGTH) > 0) {
-      throw new StratumException(
-          CoreErrorCode.INVALID_SETTINGS,
-          "stratum.logging.max-field-length must be from 1KB to 1MB");
-    }
-    var redaction = settings.redaction();
+  public static Redactor from(LoggingProperties loggingProperties) {
+    var redaction = loggingProperties.redaction();
     var fieldNames = new SensitiveFieldNames(redaction.extraKeys());
     var contentRules = ContentRules.of(fieldNames, compile(redaction.extraPatterns()));
     return Redactor.builder()
         .fieldNames(fieldNames)
         .contentRules(contentRules)
-        .maxFieldLength((int) maxFieldLength.toBytes())
+        .maxFieldLength((int) loggingProperties.maxFieldLength().toBytes())
         .build();
   }
 

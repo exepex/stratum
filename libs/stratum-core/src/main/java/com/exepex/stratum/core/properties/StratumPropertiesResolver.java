@@ -47,9 +47,10 @@ public final class StratumPropertiesResolver {
   private final Validator validator;
 
   /**
-   * Returns the settings a module uses: {@code bound}, changed by each customizer in turn.
+   * Returns the settings a module uses: {@code boundProperties}, changed by each customizer in
+   * turn.
    *
-   * @param bound the settings bound from {@code stratum.<module>.*} properties
+   * @param boundProperties the settings bound from {@code stratum.<module>.*} properties
    * @param customizers the service's customizers for these settings, in the order to apply them; an
    *     auto-configuration passes {@code ObjectProvider.orderedStream()}
    * @param <P> the module's settings type
@@ -58,11 +59,15 @@ public final class StratumPropertiesResolver {
    * @throws ConstraintViolationException {@code SX-CORE-1003} if the resulting settings break a
    *     constraint
    */
-  public <P> P resolve(P bound, Stream<? extends StratumPropertiesCustomizer<P>> customizers) {
-    var effective =
-        customizers.gather(Gatherers.fold(() -> bound, this::customize)).findFirst().orElseThrow();
-    validate(effective);
-    return effective;
+  public <P> P resolve(
+      P boundProperties, Stream<? extends StratumPropertiesCustomizer<P>> customizers) {
+    var effectiveProperties =
+        customizers
+            .gather(Gatherers.fold(() -> boundProperties, this::customize))
+            .findFirst()
+            .orElseThrow();
+    validate(effectiveProperties);
+    return effectiveProperties;
   }
 
   /**
@@ -76,7 +81,7 @@ public final class StratumPropertiesResolver {
    * @return the broken rules, such as {@code "stratum.example.name breaks @NotBlank;
    *     stratum.example.timeout breaks @NotNull"}
    */
-  <P> String describe(P properties, Set<ConstraintViolation<P>> violations) {
+  <P> String describeViolations(P properties, Set<ConstraintViolation<P>> violations) {
     var prefix = prefixOf(properties.getClass());
     return violations.stream()
         .map(violation -> describeViolation(prefix, violation))
@@ -130,10 +135,10 @@ public final class StratumPropertiesResolver {
    * property key and rule but never a value, which may be a secret.
    */
   private <P> void validate(P properties) {
-    Set<ConstraintViolation<P>> violations = validator.validate(properties);
+    var violations = validator.validate(properties);
     if (!violations.isEmpty()) {
       throw new ConstraintViolationException(
-          ErrorReport.of(CoreErrorCode.INVALID_SETTINGS, describe(properties, violations))
+          ErrorReport.of(CoreErrorCode.INVALID_SETTINGS, describeViolations(properties, violations))
               .getCodeAndMessage(),
           violations);
     }
@@ -148,7 +153,7 @@ public final class StratumPropertiesResolver {
     var key = propertyKey(violation.getPropertyPath());
     return (key.isEmpty() ? prefix : prefix + "." + key)
         + " breaks "
-        + rule(violation.getConstraintDescriptor());
+        + ruleWithLimits(violation.getConstraintDescriptor());
   }
 
   /** Returns the prefix that {@code @ConfigurationProperties} gives the settings type. */
@@ -181,26 +186,28 @@ public final class StratumPropertiesResolver {
    * Names a rule by its annotation and the limits set on it, leaving out attributes at their
    * default.
    */
-  private String rule(ConstraintDescriptor<?> constraint) {
-    var type = constraint.getAnnotation().annotationType();
-    var values = constraint.getAttributes();
+  private String ruleWithLimits(ConstraintDescriptor<?> constraint) {
+    var constraintType = constraint.getAnnotation().annotationType();
+    var attributeValuesByName = constraint.getAttributes();
     var limits =
-        Arrays.stream(type.getDeclaredMethods())
-            .filter(attribute -> isLimit(attribute, values))
+        Arrays.stream(constraintType.getDeclaredMethods())
+            .filter(attribute -> isLimit(attribute, attributeValuesByName))
             .sorted(Comparator.comparing(Method::getName))
             .map(
                 attribute ->
                     attribute.getName()
                         + "="
-                        + ObjectUtils.nullSafeToString(values.get(attribute.getName())))
+                        + ObjectUtils.nullSafeToString(
+                            attributeValuesByName.get(attribute.getName())))
             .collect(Collectors.joining(", "));
-    var name = "@" + type.getSimpleName();
-    return limits.isEmpty() ? name : name + "(" + limits + ")";
+    var ruleName = "@" + constraintType.getSimpleName();
+    return limits.isEmpty() ? ruleName : ruleName + "(" + limits + ")";
   }
 
   /** Returns whether an attribute is a limit set away from its default, such as {@code max}. */
-  private boolean isLimit(Method attribute, Map<String, Object> values) {
+  private boolean isLimit(Method attribute, Map<String, Object> attributeValuesByName) {
     return !NON_LIMIT_ATTRIBUTES.contains(attribute.getName())
-        && !Objects.deepEquals(values.get(attribute.getName()), attribute.getDefaultValue());
+        && !Objects.deepEquals(
+            attributeValuesByName.get(attribute.getName()), attribute.getDefaultValue());
   }
 }

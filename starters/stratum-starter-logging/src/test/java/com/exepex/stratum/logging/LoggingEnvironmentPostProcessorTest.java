@@ -3,11 +3,15 @@ package com.exepex.stratum.logging;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
+import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.error.StratumException;
+import jakarta.validation.ConstraintViolationException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.context.properties.bind.BindException;
 import org.springframework.boot.logging.DeferredLogs;
@@ -88,7 +92,8 @@ class LoggingEnvironmentPostProcessorTest {
     @Test
     @DisplayName("stratum.environment becomes service.environment")
     void setsServiceEnvironment() {
-      var environment = process(enabled().withProperty(LoggingConstants.ENVIRONMENT, "prod"));
+      var environment =
+          process(enabled().withProperty(StratumModuleConstants.SERVICE_ENVIRONMENT, "prod"));
 
       assertThat(environment.getProperty(LoggingConstants.ECS_ENVIRONMENT)).isEqualTo("prod");
     }
@@ -131,6 +136,36 @@ class LoggingEnvironmentPostProcessorTest {
       assertThatExceptionOfType(StratumException.class)
           .isThrownBy(() -> process(environment))
           .withMessageStartingWith("SX-LOGGING-1002: ");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"1023B", "1025KB"})
+    @DisplayName("a max-field-length below 1KB or above 1MB stops startup with SX-CORE-1003")
+    void maxFieldLengthOutOfRangeStopsStartup(String maxFieldLength) {
+      var environment =
+          enabled().withProperty(LoggingConstants.PREFIX + ".max-field-length", maxFieldLength);
+
+      assertThatExceptionOfType(ConstraintViolationException.class)
+          .isThrownBy(() -> process(environment))
+          .withMessage(
+              "SX-CORE-1003: Invalid settings: stratum.logging.max-field-length-in-range breaks"
+                  + " @AssertTrue");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"1KB", "1MB"})
+    @DisplayName("a max-field-length of exactly 1KB or 1MB is allowed")
+    void maxFieldLengthAtTheLimitsIsAllowed(String maxFieldLength) {
+      var environment =
+          process(
+              enabled()
+                  .withProperty(LoggingConstants.PREFIX + ".max-field-length", maxFieldLength));
+
+      assertThat(
+              environment
+                  .getPropertySources()
+                  .contains(LoggingEnvironmentPostProcessor.DEFAULTS_SOURCE))
+          .isTrue();
     }
   }
 

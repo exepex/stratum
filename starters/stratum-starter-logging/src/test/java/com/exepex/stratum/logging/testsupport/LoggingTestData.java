@@ -46,7 +46,11 @@ public class LoggingTestData {
     return LoggingProperties.builder()
         .format(LogFormat.ECS)
         .maxFieldLength(DEFAULT_MAX_FIELD_LENGTH)
-        .redaction(new LoggingProperties.Redaction(List.of(), List.of()));
+        .redaction(
+            LoggingProperties.Redaction.builder()
+                .extraKeys(List.of())
+                .extraPatterns(List.of())
+                .build());
   }
 
   /**
@@ -58,6 +62,12 @@ public class LoggingTestData {
    */
   public static LoggingProperties withRedaction(
       List<String> extraKeys, List<String> extraPatterns) {
-    return defaults().redaction(new LoggingProperties.Redaction(extraKeys, extraPatterns)).build();
+    return defaults()
+        .redaction(
+            LoggingProperties.Redaction.builder()
+                .extraKeys(extraKeys)
+                .extraPatterns(extraPatterns)
+                .build())
+        .build();
   }
 }
