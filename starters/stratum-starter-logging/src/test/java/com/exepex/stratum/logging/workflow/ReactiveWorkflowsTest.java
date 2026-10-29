@@ -71,6 +71,11 @@ class ReactiveWorkflowsTest {
     sink.next(workflowFields());
   }
 
+  /** Emits the service's own {@code channel} field seen by a {@code handle} operator. */
+  private void emitChannel(Object ignoredValue, SynchronousSink<String> sink) {
+    sink.next(MDC.get(CHANNEL));
+  }
+
   /** Returns a payment that sees its workflow fields on another thread. */
   private Mono<List<String>> paymentOnAnotherThread() {
     return Mono.just(PAYMENT)
@@ -152,12 +157,17 @@ class ReactiveWorkflowsTest {
   void wholeLoggingContextKeepsFields() {
     ContextRegistry.getInstance().registerThreadLocalAccessor(new Slf4jThreadLocalAccessor());
     Hooks.enableAutomaticContextPropagation();
-    MDC.put(CHANNEL, "web");
     try {
-      var paymentFields =
-          reactiveWorkflows.mono(PAYMENT, ORDER_NUMBER, paymentOnAnotherThread()).block();
+      var payment = reactiveWorkflows.mono(PAYMENT, ORDER_NUMBER, paymentOnAnotherThread());
+      assertThat(payment.block()).containsExactly(PAYMENT, PAYMENT, ORDER_NUMBER);
 
-      assertThat(paymentFields).containsExactly(PAYMENT, PAYMENT, ORDER_NUMBER);
+      MDC.put(CHANNEL, "web");
+      var channelInPayment =
+          reactiveWorkflows
+              .mono(PAYMENT, ORDER_NUMBER, Mono.just(PAYMENT).handle(this::emitChannel))
+              .block();
+      assertThat(channelInPayment).isEqualTo("web");
+      assertThat(payment.block()).containsExactly(PAYMENT, PAYMENT, ORDER_NUMBER);
     } finally {
       Hooks.disableAutomaticContextPropagation();
       ContextRegistry.getInstance().removeThreadLocalAccessor(Slf4jThreadLocalAccessor.KEY);
