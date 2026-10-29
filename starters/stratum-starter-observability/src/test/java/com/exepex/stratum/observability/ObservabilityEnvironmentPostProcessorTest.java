@@ -50,8 +50,8 @@ class ObservabilityEnvironmentPostProcessorTest {
 
   private static final String SERVICE_EXPOSURE = "health,loggers";
 
-  private static final String EXPOSED_ENDPOINTS =
-      ObservabilityConstants.PREFIX + ".exposed-endpoints";
+  private static final String ACTUATOR_ENDPOINTS_EXPOSED_OVER_HTTP =
+      ObservabilityConstants.PREFIX + ".actuator-endpoints-exposed-over-http";
 
   private static final String ON = "true";
 
@@ -177,20 +177,21 @@ class ObservabilityEnvironmentPostProcessorTest {
       var environment =
           runPostProcessor(
               environmentWithModuleOn()
-                  .withProperty(EXPOSED_ENDPOINTS, "health,prometheus")
-                  .withProperty(ObservabilityConstants.PREFIX + ".histograms", OFF)
-                  .withProperty(ObservabilityConstants.PREFIX + ".messaging-traces", OFF)
-                  .withProperty(StratumModuleConstants.PROPAGATE_CONTEXT, OFF));
+                  .withProperty(ACTUATOR_ENDPOINTS_EXPOSED_OVER_HTTP, "health,prometheus")
+                  .withProperty(
+                      ObservabilityConstants.PREFIX + ".record-timings-as-histograms", OFF)
+                  .withProperty(
+                      ObservabilityConstants.PREFIX + ".trace-kafka-and-rabbitmq-messages", OFF)
+                  .withProperty(StratumModuleConstants.PROPAGATE_CONTEXT_TO_ASYNC_THREADS, OFF));
 
       assertThat(environment.getProperty(ObservabilityConstants.WEB_EXPOSURE))
           .isEqualTo("health,prometheus");
       assertThat(environment.getProperty(ObservabilityConstants.HISTOGRAM_FOR_EVERY_TIMING))
-          .isNull();
-      assertThat(environment.getProperty(ObservabilityConstants.HISTOGRAM_FLAVOR)).isNull();
+          .isEqualTo(OFF);
       assertThat(
               ObservabilityConstants.MESSAGING_OBSERVATION_SWITCHES.stream()
                   .map(environment::getProperty))
-          .containsOnlyNulls();
+          .containsOnly(OFF);
       assertThat(environment.getProperty(PROPAGATE_TASK_CONTEXT)).isEqualTo(OFF);
     }
 
@@ -203,22 +204,24 @@ class ObservabilityEnvironmentPostProcessorTest {
               List.of(PrometheusEndpointObservabilitySettings.class),
               () ->
                   runPostProcessor(
-                      environmentWithModuleOn().withProperty(EXPOSED_ENDPOINTS, "health")));
+                      environmentWithModuleOn()
+                          .withProperty(ACTUATOR_ENDPOINTS_EXPOSED_OVER_HTTP, "health")));
 
       assertThat(environment.getProperty(ObservabilityConstants.WEB_EXPOSURE))
           .isEqualTo(String.join(",", PrometheusEndpointObservabilitySettings.ENDPOINTS));
       assertThat(environment.getProperty(ObservabilityConstants.HISTOGRAM_FOR_EVERY_TIMING))
-          .isNull();
+          .isEqualTo(OFF);
     }
 
     @Test
     @DisplayName("a blank exposed endpoint stops startup")
     void blankEndpointStopsStartup() {
-      var environment = environmentWithModuleOn().withProperty(EXPOSED_ENDPOINTS, "health, ");
+      var environment =
+          environmentWithModuleOn().withProperty(ACTUATOR_ENDPOINTS_EXPOSED_OVER_HTTP, "health, ");
 
       assertThatExceptionOfType(ConstraintViolationException.class)
           .isThrownBy(() -> runPostProcessor(environment))
-          .withMessageContaining(EXPOSED_ENDPOINTS);
+          .withMessageContaining(ACTUATOR_ENDPOINTS_EXPOSED_OVER_HTTP);
     }
 
     @Test
@@ -240,7 +243,7 @@ class ObservabilityEnvironmentPostProcessorTest {
       var environment =
           runPostProcessor(
               environmentWithModuleOn()
-                  .withProperty(EXPOSED_ENDPOINTS, "health,prometheus")
+                  .withProperty(ACTUATOR_ENDPOINTS_EXPOSED_OVER_HTTP, "health,prometheus")
                   .withProperty(ObservabilityConstants.WEB_EXPOSURE, SERVICE_EXPOSURE));
 
       assertThat(environment.getProperty(ObservabilityConstants.WEB_EXPOSURE))

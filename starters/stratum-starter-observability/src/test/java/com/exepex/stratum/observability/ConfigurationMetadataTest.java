@@ -22,9 +22,9 @@ class ConfigurationMetadataTest {
   private static final List<String> PROPERTY_NAMES =
       List.of(
           ObservabilityConstants.ENABLED,
-          ObservabilityConstants.PREFIX + ".exposed-endpoints",
-          ObservabilityConstants.PREFIX + ".histograms",
-          ObservabilityConstants.PREFIX + ".messaging-traces",
+          ObservabilityConstants.PREFIX + ".actuator-endpoints-exposed-over-http",
+          ObservabilityConstants.PREFIX + ".record-timings-as-histograms",
+          ObservabilityConstants.PREFIX + ".trace-kafka-and-rabbitmq-messages",
           ObservabilityConstants.PREFIX + ".tags.extra-forbidden",
           ObservabilityConstants.PREFIX + ".tags.allowed");
 

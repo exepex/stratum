@@ -17,7 +17,8 @@ class ConfigurationMetadataTest {
   private static final Path METADATA =
       Path.of("target/classes/META-INF/spring-configuration-metadata.json");
 
-  private static final String STACK_TRACE_ROOT = LoggingConstants.PREFIX + ".stack-trace-root";
+  private static final String STACK_TRACE_STARTS_WITH_ROOT_CAUSE =
+      LoggingConstants.PREFIX + ".stack-trace-starts-with-root-cause";
 
   /** Every property of the module, the switch included. */
   private static final List<String> PROPERTY_NAMES =
@@ -25,12 +26,12 @@ class ConfigurationMetadataTest {
           LoggingConstants.ENABLED,
           LoggingConstants.FORMAT,
           LoggingConstants.PREFIX + ".max-field-length",
-          STACK_TRACE_ROOT,
+          STACK_TRACE_STARTS_WITH_ROOT_CAUSE,
           LoggingConstants.PREFIX + ".redaction.extra-keys",
           LoggingConstants.EXTRA_PATTERNS);
 
   @Test
-  @DisplayName("every property has a description, and the choices of each enum are offered")
+  @DisplayName("every property has a description, and the formats are offered")
   void listsEveryProperty() throws IOException {
     var metadata = Files.readString(METADATA);
 
@@ -40,6 +41,6 @@ class ConfigurationMetadataTest {
         .hasSameSizeAs(PROPERTY_NAMES)
         .doesNotContainNull();
     assertThat(JsonPath.<List<String>>read(metadata, "$.hints[*].name"))
-        .containsExactly(LoggingConstants.FORMAT, STACK_TRACE_ROOT);
+        .containsExactly(LoggingConstants.FORMAT);
   }
 }

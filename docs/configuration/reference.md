@@ -16,7 +16,7 @@ These are not tied to one module.
 | --- | --- | --- | --- | --- |
 | `spring.application.name` | string | **required** | All modules | The service's name: in logs, metrics, traces, cache keys and the Kafka consumer group. Spring Boot property. |
 | `stratum.environment` | string | *(none)* | logging, observability | Environment name such as `dev`, `staging` or `prod`; written to logs as `service.environment` and to metrics as the `environment` tag. |
-| `stratum.propagate-context` | boolean | `true` | logging, observability | Whether `@Async` methods and work on Spring Boot's executors keep the trace and workflow fields of the code that started them. Sets `spring.task.execution.propagate-context`. |
+| `stratum.propagate-context-to-async-threads` | boolean | `true` | logging, observability | Whether `@Async` methods and work on Spring Boot's executors keep the trace and workflow fields of the code that started them. Sets `spring.task.execution.propagate-context`. |
 
 ```yaml
 spring:
@@ -83,17 +83,17 @@ it and shows what it does. Details are on each module page.
 | `logging.structured.format.file` | `ecs` | logging |
 | `logging.structured.ecs.service.environment` | `${stratum.environment}` | logging |
 | `logging.structured.json.stacktrace.max-length` | `16384` (from `stratum.logging.max-field-length`) | logging |
-| `logging.structured.json.stacktrace.root` | `first` (from `stratum.logging.stack-trace-root`) | logging |
-| `spring.task.execution.propagate-context` | `true` (from `stratum.propagate-context`) | logging, observability |
+| `logging.structured.json.stacktrace.root` | `first`, the root cause (from `stratum.logging.stack-trace-starts-with-root-cause`) | logging |
+| `spring.task.execution.propagate-context` | `true` (from `stratum.propagate-context-to-async-threads`) | logging, observability |
 | `management.otlp.metrics.export.enabled` | `false` while the module is off | observability |
 | `management.tracing.export.enabled` | `false` while the module is off | observability |
-| `management.endpoints.web.exposure.include` | `health,info` (from `stratum.observability.exposed-endpoints`) | observability |
+| `management.endpoints.web.exposure.include` | `health,info` (from `stratum.observability.actuator-endpoints-exposed-over-http`) | observability |
 | `management.metrics.tags.application`, `.environment`, `.host` | `${spring.application.name}`, `${stratum.environment}`, `$HOSTNAME` | observability |
 | `management.opentelemetry.resource-attributes[deployment.environment.name]` | `${stratum.environment}` | observability |
-| `management.metrics.distribution.percentiles-histogram.all` | `true` (from `stratum.observability.histograms`) | observability |
-| `management.otlp.metrics.export.histogram-flavor` | `base2-exponential-bucket-histogram` (from `stratum.observability.histograms`) | observability |
-| `spring.kafka.template.observation-enabled`, `spring.kafka.listener.observation-enabled` | `true` (from `stratum.observability.messaging-traces`) | observability |
-| `spring.rabbitmq.template.observation-enabled`, `spring.rabbitmq.listener.simple.observation-enabled`, `.direct.observation-enabled`, `.stream.observation-enabled` | `true` (from `stratum.observability.messaging-traces`) | observability |
+| `management.metrics.distribution.percentiles-histogram.all` | `true` (from `stratum.observability.record-timings-as-histograms`) | observability |
+| `management.otlp.metrics.export.histogram-flavor` | `base2-exponential-bucket-histogram` | observability |
+| `spring.kafka.template.observation-enabled`, `spring.kafka.listener.observation-enabled` | `true` (from `stratum.observability.trace-kafka-and-rabbitmq-messages`) | observability |
+| `spring.rabbitmq.template.observation-enabled`, `spring.rabbitmq.listener.simple.observation-enabled`, `.direct.observation-enabled`, `.stream.observation-enabled` | `true` (from `stratum.observability.trace-kafka-and-rabbitmq-messages`) | observability |
 | `spring.jpa.open-in-view` | `false` | data |
 | `spring.jpa.hibernate.ddl-auto` | `validate` | data |
 | `spring.kafka.producer.acks` | `all` | kafka |

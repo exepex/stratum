@@ -18,12 +18,12 @@ class ConfigurationMetadataTest {
       Path.of("target/classes/META-INF/spring-configuration-metadata.json");
 
   @Test
-  @DisplayName("stratum.environment and stratum.propagate-context are listed with a description")
+  @DisplayName("every shared property is listed with a type and a description")
   void listsSharedProperties() throws IOException {
     var metadata = Files.readString(METADATA);
 
     assertThat(JsonPath.<List<String>>read(metadata, "$.properties[*].name"))
-        .containsExactly("stratum.environment", "stratum.propagate-context");
+        .containsExactly("stratum.environment", "stratum.propagate-context-to-async-threads");
     assertThat(JsonPath.<List<String>>read(metadata, "$.properties[*].type"))
         .containsExactly("java.lang.String", "java.lang.Boolean");
     assertThat(JsonPath.<List<String>>read(metadata, "$.properties[*].description"))

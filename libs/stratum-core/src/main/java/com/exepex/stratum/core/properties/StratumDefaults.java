@@ -45,15 +45,16 @@ public class StratumDefaults {
   /**
    * Returns Spring Boot's switch that makes its executors carry the logging and tracing context, so
    * that {@code @Async} methods and work on Spring's executors keep the trace and workflow fields,
-   * set from {@code stratum.propagate-context}, which defaults to {@code true}.
+   * set from {@code stratum.propagate-context-to-async-threads}, which defaults to {@code true}.
    *
    * @param environment the application's environment
    * @return the switch and its value
    */
-  public static Map<String, Object> contextPropagation(Environment environment) {
+  public static Map<String, Object> asyncThreadContextPropagation(Environment environment) {
     return Map.of(
         StratumModuleConstants.PROPAGATE_TASK_CONTEXT,
-        environment.getProperty(StratumModuleConstants.PROPAGATE_CONTEXT, Boolean.class, true));
+        environment.getProperty(
+            StratumModuleConstants.PROPAGATE_CONTEXT_TO_ASYNC_THREADS, Boolean.class, true));
   }
 
   /** Returns whether the service's default properties hold the key or any element of it. */

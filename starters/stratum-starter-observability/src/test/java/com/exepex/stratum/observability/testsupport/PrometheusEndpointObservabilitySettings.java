@@ -12,6 +12,9 @@ public class PrometheusEndpointObservabilitySettings implements ObservabilityPro
 
   @Override
   public ObservabilityProperties customize(ObservabilityProperties properties) {
-    return properties.toBuilder().exposedEndpoints(ENDPOINTS).histograms(false).build();
+    return properties.toBuilder()
+        .actuatorEndpointsExposedOverHttp(ENDPOINTS)
+        .recordTimingsAsHistograms(false)
+        .build();
   }
 }

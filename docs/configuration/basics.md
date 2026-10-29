@@ -232,7 +232,7 @@ and then:
 - warn about unknown or deprecated keys.
 
 Most Spring Boot defaults that Stratum changes come from a Stratum key, such as
-`stratum.observability.exposed-endpoints` for `management.endpoints.web.exposure.include`, so the
+`stratum.observability.actuator-endpoints-exposed-over-http` for `management.endpoints.web.exposure.include`, so the
 IDE shows Stratum's default and what it sets; each module page lists them. The Spring Boot key
 still wins if you set it.
 

@@ -142,7 +142,7 @@ Every starter follows these rules:
   switches, shared properties and Spring Boot properties are set in Java through `SpringApplication`'s default
   properties; a module's defaults for Spring Boot properties are added with `StratumDefaults`, so that any value
   the service sets, there or anywhere else, wins. A Spring Boot default that Stratum changes comes from a setting
-  of the module, or a shared `stratum.*` key, such as `stratum.observability.exposed-endpoints`, so the IDE shows
+  of the module, or a shared `stratum.*` key, such as `stratum.observability.actuator-endpoints-exposed-over-http`, so the IDE shows
   it with Stratum's default and a customizer can change it.
 
 ## Java 25 and Spring Boot 4

@@ -18,29 +18,29 @@ import org.springframework.core.env.Environment;
  * descriptions of the components are what IDEs show, so they are plain sentences. A Spring Boot
  * property the service sets itself wins over the setting that gives it Stratum's default.
  *
- * @param exposedEndpoints The actuator endpoints reachable over HTTP. Sets Spring Boot's
- *     management.endpoints.web.exposure.include. Defaults to health and info; add others only
- *     behind authentication.
- * @param histograms Whether every timer and distribution summary is stored as an exponential
- *     histogram, so any percentile can be read for one pod or for all pods. Sets Spring Boot's
- *     management.metrics.distribution.percentiles-histogram.all and
- *     management.otlp.metrics.export.histogram-flavor. Defaults to true.
- * @param messagingTraces Whether Kafka and RabbitMQ messages are traced and timed when they are
- *     sent and received. Sets Spring Boot's observation-enabled switches of the Kafka and RabbitMQ
- *     templates and listeners. Defaults to true.
+ * @param actuatorEndpointsExposedOverHttp The actuator endpoints reachable over HTTP. Sets Spring
+ *     Boot's management.endpoints.web.exposure.include. Defaults to health and info; add others
+ *     only behind authentication.
+ * @param recordTimingsAsHistograms Whether every timer and distribution summary is stored as an
+ *     exponential histogram, so any percentile can be read for one pod or for all pods; false keeps
+ *     only count, sum and max. Sets Spring Boot's
+ *     management.metrics.distribution.percentiles-histogram.all. Defaults to true.
+ * @param traceKafkaAndRabbitmqMessages Whether Kafka and RabbitMQ messages are traced and timed
+ *     when they are sent and received. Sets Spring Boot's observation-enabled switches of the Kafka
+ *     and RabbitMQ templates and listeners. Defaults to true.
  * @param tags Which metric tags are refused.
  */
 @Builder(toBuilder = true)
 @ConfigurationProperties(prefix = ObservabilityConstants.PREFIX)
 public record ObservabilityProperties(
-    @DefaultValue({"health", "info"}) List<@NotBlank String> exposedEndpoints,
-    @DefaultValue("true") boolean histograms,
-    @DefaultValue("true") boolean messagingTraces,
+    @DefaultValue({"health", "info"}) List<@NotBlank String> actuatorEndpointsExposedOverHttp,
+    @DefaultValue("true") boolean recordTimingsAsHistograms,
+    @DefaultValue("true") boolean traceKafkaAndRabbitmqMessages,
     @DefaultValue @Valid Tags tags) {
 
   /** Keeps an unchangeable copy of the endpoints. */
   public ObservabilityProperties {
-    exposedEndpoints = List.copyOf(exposedEndpoints);
+    actuatorEndpointsExposedOverHttp = List.copyOf(actuatorEndpointsExposedOverHttp);
   }
 
   /**

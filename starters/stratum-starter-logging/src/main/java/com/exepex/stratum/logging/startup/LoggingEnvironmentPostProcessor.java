@@ -12,7 +12,6 @@ import com.exepex.stratum.logging.redaction.Redactor;
 import jakarta.validation.ConstraintViolationException;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Locale;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.EnvironmentPostProcessor;
@@ -104,8 +103,10 @@ public class LoggingEnvironmentPostProcessor implements EnvironmentPostProcessor
         LoggingConstants.STACK_TRACE_MAX_LENGTH, loggingProperties.maxFieldLength().toBytes());
     defaultProperties.put(
         LoggingConstants.STACK_TRACE_ROOT,
-        loggingProperties.stackTraceRoot().name().toLowerCase(Locale.ROOT));
-    defaultProperties.putAll(StratumDefaults.contextPropagation(environment));
+        loggingProperties.stackTraceStartsWithRootCause()
+            ? LoggingConstants.ROOT_CAUSE_FIRST
+            : LoggingConstants.OUTERMOST_EXCEPTION_FIRST);
+    defaultProperties.putAll(StratumDefaults.asyncThreadContextPropagation(environment));
     return defaultProperties;
   }
 

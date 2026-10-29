@@ -234,8 +234,8 @@ This works with the senders and listeners Spring Boot sets up, such as `KafkaTem
 `@KafkaListener`, `JmsTemplate` and `@JmsListener`. This starter adds no messaging library, so
 Stratum's switches do nothing until your service brings Kafka or RabbitMQ.
 
-To turn them all off, set `stratum.observability.messaging-traces=false`. To turn one off, set its
-switch to `false`, for example `spring.kafka.listener.observation-enabled=false`.
+To turn them all off, set `stratum.observability.trace-kafka-and-rabbitmq-messages=false`. To turn
+one off, set its switch to `false`, for example `spring.kafka.listener.observation-enabled=false`.
 
 ### Threads and reactive code
 
@@ -321,15 +321,15 @@ noticed. The service keeps running.
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
 | `stratum.observability.enabled` | boolean | `false` | Switches the whole starter on. Until it is `true`, the starter sets up nothing and turns export off. |
-| `stratum.observability.exposed-endpoints` | list of strings | `health,info` | The actuator endpoints reachable over HTTP. Add others only behind authentication. A blank name stops startup with `SX-CORE-1003`. |
-| `stratum.observability.histograms` | boolean | `true` | Whether every timing is stored as a base-2 exponential histogram ([timings](#timings)). `false` leaves Spring Boot's own defaults. |
-| `stratum.observability.messaging-traces` | boolean | `true` | Whether Kafka and RabbitMQ messages are traced and timed ([messages](#messages)). `false` leaves Spring Boot's switches off. |
+| `stratum.observability.actuator-endpoints-exposed-over-http` | list of strings | `health,info` | The actuator endpoints reachable over HTTP. Add others only behind authentication. A blank name stops startup with `SX-CORE-1003`. |
+| `stratum.observability.record-timings-as-histograms` | boolean | `true` | Whether every timing is stored as a base-2 exponential histogram ([timings](#timings)). `false` keeps only count, sum and max. |
+| `stratum.observability.trace-kafka-and-rabbitmq-messages` | boolean | `true` | Whether Kafka and RabbitMQ messages are traced and timed ([messages](#messages)). `false` turns Spring Boot's switches off. |
 | `stratum.observability.tags.extra-forbidden` | list of strings | empty | More tag names the [tag guard](#tag-guard) refuses, added to the built-in ones. Case, `_`, `-` and `.` are ignored. A blank name stops startup with `SX-CORE-1003`. |
 | `stratum.observability.tags.allowed` | list of strings | empty | Tag names the [tag guard](#tag-guard) keeps even though they are refused by default, such as `customerId`. Compared like `extra-forbidden`. A blank name stops startup with `SX-CORE-1003`. |
 
 The shared [`stratum.environment`](../../docs/configuration/reference.md#shared-properties) sets the
 `environment` tag and the `deployment.environment.name` resource attribute, and the shared
-`stratum.propagate-context` (default `true`) decides whether `@Async` work keeps the trace.
+`stratum.propagate-context-to-async-threads` (default `true`) decides whether `@Async` work keeps the trace.
 
 Spring Boot properties this starter sets by default. A value you set wins, from any file, the
 environment, the command line or Java default properties:
@@ -338,16 +338,16 @@ environment, the command line or Java default properties:
 | --- | --- |
 | `management.otlp.metrics.export.enabled` | `false` while the module is off |
 | `management.tracing.export.enabled` | `false` while the module is off |
-| `management.endpoints.web.exposure.include` | value of `stratum.observability.exposed-endpoints` |
+| `management.endpoints.web.exposure.include` | value of `stratum.observability.actuator-endpoints-exposed-over-http` |
 | `management.metrics.tags.application` | value of `spring.application.name` |
 | `management.metrics.tags.environment` | value of `stratum.environment` |
 | `management.metrics.tags.host` | value of the `HOSTNAME` environment variable |
 | `management.opentelemetry.resource-attributes[deployment.environment.name]` | value of `stratum.environment` |
-| `management.metrics.distribution.percentiles-histogram.all` | `true` while `stratum.observability.histograms` is `true` |
-| `management.otlp.metrics.export.histogram-flavor` | `base2-exponential-bucket-histogram` while `stratum.observability.histograms` is `true` |
-| `spring.task.execution.propagate-context` | value of `stratum.propagate-context` ([threads](#threads-and-reactive-code)) |
-| `spring.kafka.template.observation-enabled`, `spring.kafka.listener.observation-enabled` | `true` while `stratum.observability.messaging-traces` is `true` |
-| `spring.rabbitmq.template.observation-enabled`, `spring.rabbitmq.listener.simple.observation-enabled`, `.direct.observation-enabled`, `.stream.observation-enabled` | `true` while `stratum.observability.messaging-traces` is `true` |
+| `management.metrics.distribution.percentiles-histogram.all` | value of `stratum.observability.record-timings-as-histograms` |
+| `management.otlp.metrics.export.histogram-flavor` | `base2-exponential-bucket-histogram` |
+| `spring.task.execution.propagate-context` | value of `stratum.propagate-context-to-async-threads` ([threads](#threads-and-reactive-code)) |
+| `spring.kafka.template.observation-enabled`, `spring.kafka.listener.observation-enabled` | value of `stratum.observability.trace-kafka-and-rabbitmq-messages` |
+| `spring.rabbitmq.template.observation-enabled`, `spring.rabbitmq.listener.simple.observation-enabled`, `.direct.observation-enabled`, `.stream.observation-enabled` | value of `stratum.observability.trace-kafka-and-rabbitmq-messages` |
 
 ## Examples
 
@@ -399,20 +399,20 @@ management:
 Send metrics to Prometheus by scraping instead of pushing. Add `io.micrometer:micrometer-registry-prometheus`
 (its version comes from Spring Boot), expose the endpoint, and turn OTLP metrics off. With Stratum's
 histograms on, each timer becomes about 70 `_bucket` series per set of tags in the scrape. The
-`histograms` line below turns them off, leaving count, sum and max; to keep them for one
-metric, also set `management.metrics.distribution.percentiles-histogram.<metric-name>=true`.
+`record-timings-as-histograms` line below turns them off, leaving count, sum and max; to keep them
+for one metric, also set `management.metrics.distribution.percentiles-histogram.<metric-name>=true`.
 
 ```properties
-stratum.observability.exposed-endpoints=health,info,prometheus
-stratum.observability.histograms=false
+stratum.observability.actuator-endpoints-exposed-over-http=health,info,prometheus
+stratum.observability.record-timings-as-histograms=false
 management.otlp.metrics.export.enabled=false
 ```
 
 ```yaml
 stratum:
   observability:
-    exposed-endpoints: health,info,prometheus
-    histograms: false
+    actuator-endpoints-exposed-over-http: health,info,prometheus
+    record-timings-as-histograms: false
 management:
   otlp:
     metrics:

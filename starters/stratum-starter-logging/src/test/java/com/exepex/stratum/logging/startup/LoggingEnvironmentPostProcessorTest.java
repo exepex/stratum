@@ -32,6 +32,8 @@ class LoggingEnvironmentPostProcessorTest {
 
   private static final String GELF = "gelf";
 
+  private static final String OFF = "false";
+
   private static final String NOT_REDACTED = "plain text, which is not redacted";
 
   /** Holds the post-processor's log lines until the test writes them out. */
@@ -62,8 +64,7 @@ class LoggingEnvironmentPostProcessorTest {
     @DisplayName("it adds nothing and does not ask for a service name")
     void addsNothing() {
       var unset = runPostProcessor(new MockEnvironment());
-      var off =
-          runPostProcessor(new MockEnvironment().withProperty(LoggingConstants.ENABLED, "false"));
+      var off = runPostProcessor(new MockEnvironment().withProperty(LoggingConstants.ENABLED, OFF));
 
       assertThat(unset.getProperty(LoggingConstants.CONSOLE_FORMAT)).isNull();
       assertThat(off.getPropertySources().contains(DefaultPropertiesPropertySource.NAME)).isFalse();
@@ -113,27 +114,28 @@ class LoggingEnvironmentPostProcessorTest {
     }
 
     @Test
-    @DisplayName("Spring's executors carry the context, unless stratum.propagate-context is false")
+    @DisplayName("Spring's executors carry the context unless the service turns it off")
     void propagatesContext() {
       var defaultEnvironment = runPostProcessor(environmentWithModuleOn());
       var noPropagation =
           runPostProcessor(
               environmentWithModuleOn()
-                  .withProperty(StratumModuleConstants.PROPAGATE_CONTEXT, "false"));
+                  .withProperty(StratumModuleConstants.PROPAGATE_CONTEXT_TO_ASYNC_THREADS, OFF));
 
       assertThat(defaultEnvironment.getProperty(StratumModuleConstants.PROPAGATE_TASK_CONTEXT))
           .isEqualTo("true");
       assertThat(noPropagation.getProperty(StratumModuleConstants.PROPAGATE_TASK_CONTEXT))
-          .isEqualTo("false");
+          .isEqualTo(OFF);
     }
 
     @Test
-    @DisplayName("stratum.logging.stack-trace-root=last is passed to Spring Boot")
-    void setsChosenStackTraceRoot() {
+    @DisplayName("a stack trace can start with the exception the code caught")
+    void outermostExceptionFirst() {
       var environment =
           runPostProcessor(
               environmentWithModuleOn()
-                  .withProperty(LoggingConstants.PREFIX + ".stack-trace-root", "last"));
+                  .withProperty(
+                      LoggingConstants.PREFIX + ".stack-trace-starts-with-root-cause", OFF));
 
       assertThat(environment.getProperty(LoggingConstants.STACK_TRACE_ROOT)).isEqualTo("last");
     }
