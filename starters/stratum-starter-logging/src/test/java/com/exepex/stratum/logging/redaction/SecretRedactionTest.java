@@ -77,7 +77,7 @@ class SecretRedactionTest {
         })
     @DisplayName("a secret field, or one whose name holds a secret word, is masked in full")
     void secretFieldIsMaskedInFull(String name) {
-      assertThat(redactor.redact(name, "plain value")).isEqualTo(Redactor.MASK);
+      assertThat(redactor.redact(name, "plain value")).isEqualTo(MaskedText.MASK);
     }
 
     @ParameterizedTest
@@ -101,7 +101,7 @@ class SecretRedactionTest {
     @Test
     @DisplayName("a value that is not text, such as a numeric PIN, is masked by its name")
     void nonTextValueIsMaskedByName() {
-      assertThat(redactor.redact("pin", Integer.valueOf("1234"))).isEqualTo(Redactor.MASK);
+      assertThat(redactor.redact("pin", Integer.valueOf("1234"))).isEqualTo(MaskedText.MASK);
     }
 
     @Test
@@ -115,9 +115,10 @@ class SecretRedactionTest {
     @Test
     @DisplayName("an array, list or map under a secret name is masked in full")
     void containerUnderSecretNameIsMasked() {
-      assertThat(redactor.redact(SECRET_FIELD, new Object[] {PASSWORD})).isEqualTo(Redactor.MASK);
-      assertThat(redactor.redact(SECRET_FIELD, List.of(PASSWORD))).isEqualTo(Redactor.MASK);
-      assertThat(redactor.redact(SECRET_FIELD, Map.of("value", PASSWORD))).isEqualTo(Redactor.MASK);
+      assertThat(redactor.redact(SECRET_FIELD, new Object[] {PASSWORD})).isEqualTo(MaskedText.MASK);
+      assertThat(redactor.redact(SECRET_FIELD, List.of(PASSWORD))).isEqualTo(MaskedText.MASK);
+      assertThat(redactor.redact(SECRET_FIELD, Map.of("value", PASSWORD)))
+          .isEqualTo(MaskedText.MASK);
     }
 
     @Test
@@ -197,7 +198,7 @@ class SecretRedactionTest {
     @DisplayName(
         "a secret is masked in escaped JSON, single quotes, URL encoding and compound keys")
     void secretInOtherFormsIsMasked(String line) {
-      assertThat(text(line)).doesNotContain(PASSWORD).contains(Redactor.MASK);
+      assertThat(text(line)).doesNotContain(PASSWORD).contains(MaskedText.MASK);
     }
 
     @Test
@@ -216,13 +217,15 @@ class SecretRedactionTest {
           .isEqualTo("{\"token\":****,\"id\":7}");
       assertThat(text("{\"secret\":{\"value\":\"a]b\",\"nested\":{\"x\":1}},\"id\":7}"))
           .isEqualTo("{\"secret\":****,\"id\":7}");
+      assertThat(text("{\"secret\":{\"note\":\"a \\\"}\\\" b\"},\"id\":7}"))
+          .isEqualTo("{\"secret\":****,\"id\":7}");
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"password=[", "{\"secret\":{", "password={\"a\":\"\\"})
     @DisplayName("a bracket that opens a secret value at the end of the text is masked")
     void bracketAtEndOfTextIsMasked(String line) {
-      assertThat(text(line)).endsWith(Redactor.MASK);
+      assertThat(text(line)).endsWith(MaskedText.MASK);
     }
 
     @Test
@@ -230,7 +233,7 @@ class SecretRedactionTest {
     void cutJwtIsMasked() {
       var cut = JWT.substring(0, JWT.lastIndexOf('.'));
 
-      assertThat(text("token " + cut)).isEqualTo("token " + Redactor.MASK);
+      assertThat(text("token " + cut)).isEqualTo("token " + MaskedText.MASK);
     }
 
     @Test
@@ -240,10 +243,23 @@ class SecretRedactionTest {
     }
 
     @Test
+    @DisplayName("a sensitive key inside a masked value does not mask it a second time")
+    void secretKeyInsideMaskedValueIsSkipped() {
+      assertThat(text("password=\"token=abc\"")).isEqualTo("password=\"****\"");
+    }
+
+    @Test
     @DisplayName("a quoted JSON secret is masked, even with spaces and escaped quotes")
     void quotedJsonSecretIsMasked() {
       assertThat(text("{\"password\":\"a b \\\"c\",\"id\":7}"))
           .isEqualTo("{\"password\":\"****\",\"id\":7}");
+    }
+
+    @Test
+    @DisplayName("a quoted secret with no closing quote is masked to the end of the text")
+    void unclosedQuotedSecretIsMasked() {
+      assertThat(text("password=\"S3CR3T")).isEqualTo("password=\"****");
+      assertThat(text("{\"token\":\"S3CR3T")).isEqualTo("{\"token\":\"****");
     }
 
     @Test
@@ -279,6 +295,9 @@ class SecretRedactionTest {
     void validCardIsMasked() {
       assertThat(text("paid with 4111 1111 1111 1111 today")).isEqualTo("paid with ****1111 today");
       assertThat(text("card " + CARD)).isEqualTo("card ****1111");
+      assertThat(text("card 4402 6140 1419 3141 705")).isEqualTo("card ****1705");
+      assertThat(text("card 4111 1111 1111 1111 003")).isEqualTo("card ****1003");
+      assertThat(text("0 4111 1111 1111 1111")).isEqualTo("0 ****1111");
     }
 
     @ParameterizedTest
@@ -339,7 +358,7 @@ class SecretRedactionTest {
     @Test
     @DisplayName("an extra key is masked as a field and in a key-value pair, up to the next key")
     void extraKeyIsMasked() {
-      assertThat(withRules.redact("badge-no", "B-77")).isEqualTo(Redactor.MASK);
+      assertThat(withRules.redact("badge-no", "B-77")).isEqualTo(MaskedText.MASK);
       assertThat(withRules.redact(null, "badgeNo=B 77 gate=4")).isEqualTo("badgeNo=**** gate=4");
     }
 
@@ -354,13 +373,13 @@ class SecretRedactionTest {
     void extraKeyIsMaskedInFull() {
       var withEmail = Redactor.from(LoggingTestData.withRedaction(List.of("email"), List.of()));
 
-      assertThat(withEmail.redact("email", "jane.doe@example.com")).isEqualTo(Redactor.MASK);
+      assertThat(withEmail.redact("email", "jane.doe@example.com")).isEqualTo(MaskedText.MASK);
     }
 
     @Test
     @DisplayName("the built-in rules still apply")
     void builtInRulesStillApply() {
-      assertThat(withRules.redact(SECRET_FIELD, "x")).isEqualTo(Redactor.MASK);
+      assertThat(withRules.redact(SECRET_FIELD, "x")).isEqualTo(MaskedText.MASK);
     }
   }
 }

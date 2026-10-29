@@ -3,6 +3,7 @@ package com.exepex.stratum.logging.redaction;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.logging.LoggingErrorCode;
 import com.exepex.stratum.logging.LoggingProperties;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -30,27 +31,25 @@ import org.springframework.boot.json.WritableJson;
 @Builder(access = AccessLevel.PRIVATE)
 public final class Redactor {
 
-  /** Replaces a masked value, or the part of it that is hidden. */
-  static final String MASK = "****";
-
   /** Written instead of a value that could not be masked. */
-  static final String FAILED = "[REDACTION_FAILED]";
+  static final String REDACTION_FAILED = "[REDACTION_FAILED]";
 
   /** Added to the end of a value that was cut. */
-  static final String TRUNCATED = "...[truncated]";
+  static final String TRUNCATION_MARKER = "...[truncated]";
 
   /** A character of a word, which a cut must not split. */
-  private static final IntPredicate IS_WORD = character -> !Character.isWhitespace(character);
+  private static final IntPredicate NOT_WHITESPACE =
+      character -> !Character.isWhitespace(character);
 
   /** A character of a number written in groups, such as {@code 4111 1111}. */
-  private static final IntPredicate IS_NUMBER =
+  private static final IntPredicate DIGIT_OR_GROUP_SEPARATOR =
       character -> Character.isDigit(character) || character == ' ' || character == '-';
 
   /** Masks values by field name. */
   private final SensitiveFieldNames fieldNames;
 
   /** Masks values by what the text looks like. */
-  private final UnaryOperator<String> contentRules;
+  private final UnaryOperator<String> contentMaskingRules;
 
   /** The longest a value may be, in characters. */
   private final int maxFieldLength;
@@ -66,10 +65,11 @@ public final class Redactor {
   public static Redactor from(LoggingProperties loggingProperties) {
     var redaction = loggingProperties.redaction();
     var fieldNames = new SensitiveFieldNames(redaction.extraKeys());
-    var contentRules = ContentRules.of(fieldNames, compile(redaction.extraPatterns()));
+    var contentMaskingRules =
+        ContentMaskingRules.allRulesInOrder(fieldNames, compile(redaction.extraPatterns()));
     return Redactor.builder()
         .fieldNames(fieldNames)
-        .contentRules(contentRules)
+        .contentMaskingRules(contentMaskingRules)
         .maxFieldLength((int) loggingProperties.maxFieldLength().toBytes())
         .build();
   }
@@ -79,21 +79,21 @@ public final class Redactor {
    * value, such as a number or an object, is masked by its name or its {@code toString()}.
    *
    * @param fieldName the value's field name; {@code null} when it has none
-   * @param value the value
+   * @param logValue the value
    * @return the value to write
    */
-  public @Nullable Object redact(@Nullable String fieldName, @Nullable Object value) {
+  public @Nullable Object redact(@Nullable String fieldName, @Nullable Object logValue) {
     try {
-      return switch (value) {
+      return switch (logValue) {
         case null -> null;
-        case String text -> redactText(fieldName, cut(text));
+        case String text -> redactText(fieldName, truncateToMaxFieldLength(text));
         case WritableJson json -> redactJson(fieldName, json);
-        case Map<?, ?> _, Iterable<?> _, Object[] _ -> maskByName(fieldName, value);
-        default -> redactOther(fieldName, value);
+        case Map<?, ?> _, Iterable<?> _, Object[] _ -> maskByName(fieldName, logValue);
+        default -> redactOther(fieldName, logValue);
       };
     } catch (IllegalArgumentException | IllegalStateException | IndexOutOfBoundsException _) {
       // Fail closed: a value that could not be masked must never be written as it was.
-      return FAILED;
+      return REDACTION_FAILED;
     }
   }
 
@@ -101,10 +101,10 @@ public final class Redactor {
    * Masks a value such as a number or an object by its text, which may hold a card number or a
    * {@code toString()} with secrets. The value is kept as it is when its text needs no masking.
    */
-  private Object redactOther(@Nullable String fieldName, Object value) {
-    var text = value.toString();
-    var redacted = redactText(fieldName, cut(text));
-    return redacted.equals(text) ? value : redacted;
+  private Object redactOther(@Nullable String fieldName, Object logValue) {
+    var text = logValue.toString();
+    var redacted = redactText(fieldName, truncateToMaxFieldLength(text));
+    return redacted.equals(text) ? logValue : redacted;
   }
 
   /**
@@ -114,33 +114,37 @@ public final class Redactor {
    * can leave text that is not valid JSON.
    */
   private WritableJson redactJson(@Nullable String fieldName, WritableJson json) {
-    return out -> {
-      var buffer = new StringBuilder();
-      json.to(buffer);
-      var text = buffer.toString();
-      if (text.isEmpty()) {
-        return;
-      }
-      var redacted = redact(fieldName, text);
-      if (text.equals(redacted)) {
-        out.append(text);
-      } else {
-        JsonWriter.standard().write(redacted).to(out);
-      }
-    };
+    return out -> writeRedactedJson(fieldName, json, out);
+  }
+
+  /** Writes the JSON to the output: as it is when nothing is masked, else as a masked string. */
+  private void writeRedactedJson(@Nullable String fieldName, WritableJson json, Appendable out)
+      throws IOException {
+    var buffer = new StringBuilder();
+    json.to(buffer);
+    var text = buffer.toString();
+    if (text.isEmpty()) {
+      return;
+    }
+    var redacted = redact(fieldName, text);
+    if (text.equals(redacted)) {
+      out.append(text);
+    } else {
+      JsonWriter.standard().write(redacted).to(out);
+    }
   }
 
   /**
    * Masks a map, a collection or an array by its field name only: Spring Boot passes the values
    * inside it on one by one.
    */
-  private Object maskByName(@Nullable String fieldName, Object value) {
-    return fieldNames.mask(fieldName, value::toString).map(Object.class::cast).orElse(value);
+  private Object maskByName(@Nullable String fieldName, Object logValue) {
+    return fieldNames.mask(fieldName, logValue::toString).map(Object.class::cast).orElse(logValue);
   }
 
   /** Masks text by its field name, or else by its content. */
   private String redactText(@Nullable String fieldName, String text) {
-    return fieldNames.mask(fieldName, () -> text).orElseGet(() -> contentRules.apply(text));
+    return fieldNames.mask(fieldName, () -> text).orElseGet(() -> contentMaskingRules.apply(text));
   }
 
   /**
@@ -148,25 +152,17 @@ public final class Redactor {
    * the rules look for, so the cut also drops the word it falls in and any digits just before it,
    * such as the first groups of a card number.
    */
-  private String cut(String text) {
+  private String truncateToMaxFieldLength(String text) {
     if (text.length() <= maxFieldLength) {
       return text;
     }
-    var kept = text.substring(0, maxFieldLength);
     var cutsWord = !Character.isWhitespace(text.charAt(maxFieldLength));
-    var wordEnd = cutsWord ? kept.length() - trailing(kept, IS_WORD) : kept.length();
-    var end = wordEnd - trailing(kept.substring(0, wordEnd), IS_NUMBER);
-    return kept.substring(0, end) + TRUNCATED;
-  }
-
-  /** Returns how many characters at the end of the text match the test. */
-  private int trailing(String text, IntPredicate test) {
-    return (int)
-        IntStream.iterate(
-                text.length() - 1,
-                position -> position >= 0 && test.test(text.charAt(position)),
-                position -> position - 1)
-            .count();
+    var wordEnd =
+        cutsWord
+            ? maxFieldLength - MaskedText.countTrailing(text, 0, maxFieldLength, NOT_WHITESPACE)
+            : maxFieldLength;
+    var end = wordEnd - MaskedText.countTrailing(text, 0, wordEnd, DIGIT_OR_GROUP_SEPARATOR);
+    return text.substring(0, end) + TRUNCATION_MARKER;
   }
 
   /** Compiles the service's patterns, stopping startup at the first invalid one. */
