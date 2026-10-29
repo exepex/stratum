@@ -86,9 +86,14 @@ public class ObservabilityExportAddressCheck
         .orElse(true);
   }
 
-  /** Returns whether every active profile is one in which no Collector is expected. */
+  /**
+   * Returns whether every profile the application runs under is one in which no Collector is
+   * expected. With no active profile, Spring runs under the default profiles, such as one set with
+   * {@code spring.profiles.default=local}.
+   */
   private boolean onlyLocalProfiles(ConfigurableEnvironment environment) {
-    var profiles = environment.getActiveProfiles();
+    var activeProfiles = environment.getActiveProfiles();
+    var profiles = activeProfiles.length > 0 ? activeProfiles : environment.getDefaultProfiles();
     return profiles.length > 0
         && Arrays.stream(profiles).allMatch(ObservabilityConstants.LOCAL_PROFILES::contains);
   }

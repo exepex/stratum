@@ -150,7 +150,8 @@ Boot reads from the standard OpenTelemetry environment variables, such as
 
 Without the check, metrics would go to `localhost:4318` and traces nowhere, and nobody would notice.
 Both `http` and `https` addresses are accepted, because most Collectors run inside the cluster. The
-check counts as local only when every active profile is `local` or `test`.
+check counts as local only when every active profile is `local` or `test`, or, with no active
+profile, every default profile (`spring.profiles.default`) is.
 
 ## Properties
 

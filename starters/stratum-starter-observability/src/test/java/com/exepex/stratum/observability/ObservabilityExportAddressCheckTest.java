@@ -163,6 +163,23 @@ class ObservabilityExportAddressCheckTest {
   }
 
   @Test
+  @DisplayName("with no active profile and local as the default profile, no address is needed")
+  void localDefaultProfileNeedsNoAddress() {
+    var environment = environmentWithModuleOn();
+    environment.setDefaultProfiles("local");
+
+    assertThatCode(() -> runCheck(environment)).doesNotThrowAnyException();
+  }
+
+  @Test
+  @DisplayName("with no active profile and Spring's own default profile, the addresses are needed")
+  void springDefaultProfileNeedsAddresses() {
+    assertThatExceptionOfType(StratumException.class)
+        .isThrownBy(() -> runCheck(environmentWithModuleOn()))
+        .withMessageStartingWith(MISSING_ADDRESS);
+  }
+
+  @Test
   @DisplayName("a test profile next to another profile still needs the addresses")
   void mixedProfilesNeedAddresses() {
     var environment = environmentWithModuleOn();
