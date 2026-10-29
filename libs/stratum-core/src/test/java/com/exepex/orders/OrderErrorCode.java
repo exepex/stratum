@@ -1,4 +1,4 @@
-package com.example.orders;
+package com.exepex.orders;
 
 import com.exepex.stratum.core.error.ErrorCode;
 import com.exepex.stratum.core.error.Severity;

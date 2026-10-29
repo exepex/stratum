@@ -3,6 +3,6 @@
  * error and warning codes, and one that tries to use Stratum's prefix.
  */
 @NullMarked
-package com.example.orders;
+package com.exepex.orders;
 
 import org.jspecify.annotations.NullMarked;

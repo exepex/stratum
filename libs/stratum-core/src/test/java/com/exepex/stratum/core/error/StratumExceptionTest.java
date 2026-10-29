@@ -5,7 +5,7 @@ import static com.exepex.stratum.core.error.testsupport.ErrorTestData.SKU;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
-import com.example.orders.OrderErrorCode;
+import com.exepex.orders.OrderErrorCode;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
