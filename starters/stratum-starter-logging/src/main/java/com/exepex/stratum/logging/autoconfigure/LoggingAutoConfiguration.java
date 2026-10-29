@@ -3,6 +3,7 @@ package com.exepex.stratum.logging.autoconfigure;
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.properties.StratumCustomizers;
+import com.exepex.stratum.core.reactor.ReactorOperatorContextPropagation;
 import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.workflow.ReactiveWorkflows;
 import com.exepex.stratum.logging.workflow.WorkflowAspect;
@@ -18,6 +19,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Fallback;
+import org.springframework.core.env.Environment;
 import reactor.core.publisher.Mono;
 
 /** Creates the logging module's workflow beans, when {@code stratum.logging.enabled=true}. */
@@ -28,12 +30,15 @@ public final class LoggingAutoConfiguration {
 
   /**
    * Stops startup with {@code SX-CORE-1004} when the service declares a logging customizer as a
-   * bean, which would be silently ignored.
+   * bean, which would be silently ignored, and turns on Reactor's context propagation when the
+   * service's final setting asks for it.
    *
    * @param beanFactory the service's beans
+   * @param environment the service's environment, with its {@code @PropertySource} files loaded
    */
-  public LoggingAutoConfiguration(ListableBeanFactory beanFactory) {
+  public LoggingAutoConfiguration(ListableBeanFactory beanFactory, Environment environment) {
     StratumCustomizers.rejectBeans(beanFactory);
+    ReactorOperatorContextPropagation.enableWhenSetToEveryOperator(environment);
   }
 
   /**

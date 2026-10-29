@@ -239,16 +239,18 @@ The fields follow the work to other threads:
   observability. An executor you create yourself does too when you build it with Spring Boot's
   `ThreadPoolTaskExecutorBuilder` bean. Other threads, such as those of
   `CompletableFuture.supplyAsync` without an executor, do not get them.
-- **Reactor.** The fields travel in the Reactor context. With Spring Boot's default,
-  `spring.reactor.context-propagation=limited`, they are on the lines written in `handle` and `tap`
-  operators. Set it to `auto` to have them on every operator's lines, at a small cost per operator.
+- **Reactor.** The fields travel in the Reactor context. The starter sets Spring Boot's
+  `spring.reactor.context-propagation=auto` and turns on Reactor's context propagation, also without
+  WebFlux or WebClient, so the lines written in every operator, such as `map` after a thread change,
+  carry them. `stratum.context-propagation.reactor=false` keeps Spring Boot's `limited` mode, where
+  only `handle` and `tap` lines carry them, saving a small cost per operator.
 - **`@Scheduled` jobs.** Each run starts outside any workflow, as its own piece of work.
 
 The fields stay inside the service. With the observability starter, the trace ID reaches the
 services it calls; sending the workflow fields too is [planned](#planned). The observability
 starter also puts `traceId`, `spanId` and `correlationId` on the lines written inside a traced
-operation, with the same limits for Reactor and the service's own threads
-([observability](../stratum-starter-observability/README.md#threads-and-reactive-code)).
+operation, reactive code included; threads the service creates itself need
+[wrapping](../stratum-starter-observability/README.md#threads-and-reactive-code).
 
 ## Redaction
 
@@ -317,8 +319,9 @@ as the console.
 | `stratum.logging.redaction.extra-patterns` | list of regex | *(empty)* | More patterns whose matches are masked in full. An invalid pattern stops startup with `SX-LOGGING-1002`; the message gives its position in the list, never the pattern. |
 
 The shared [`stratum.environment`](../../docs/configuration/reference.md#shared-properties) sets
-`service.environment`, and the shared `stratum.propagate-context-to-async-threads` (default `true`) decides whether
-`@Async` methods and Spring Boot's executors keep the workflow fields.
+`service.environment`, and the shared `stratum.context-propagation.async-threads` and
+`stratum.context-propagation.reactor` (both default `true`) decide whether `@Async` methods, Spring
+Boot's executors and Reactor operators keep the workflow fields.
 
 Spring Boot properties this starter sets by default. A value you set wins, from any file, the
 environment, the command line or Java default properties:
@@ -330,7 +333,8 @@ environment, the command line or Java default properties:
 | `logging.structured.ecs.service.environment` | value of `stratum.environment` |
 | `logging.structured.json.stacktrace.max-length` | value of `stratum.logging.max-field-length`, in bytes |
 | `logging.structured.json.stacktrace.root` | `first` (root cause first), or `last` when `stratum.logging.stack-trace-starts-with-root-cause=false` |
-| `spring.task.execution.propagate-context` | value of `stratum.propagate-context-to-async-threads` |
+| `spring.task.execution.propagate-context` | value of `stratum.context-propagation.async-threads` |
+| `spring.reactor.context-propagation` | `auto`, or `limited` when `stratum.context-propagation.reactor=false` |
 
 ## Examples
 

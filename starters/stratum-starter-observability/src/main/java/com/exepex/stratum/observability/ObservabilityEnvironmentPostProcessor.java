@@ -53,11 +53,11 @@ public class ObservabilityEnvironmentPostProcessor implements EnvironmentPostPro
   @Override
   public void postProcessEnvironment(
       ConfigurableEnvironment environment, SpringApplication application) {
-    var defaults =
-        StratumModuleSwitch.isEnabled(environment, ObservabilityConstants.MODULE)
-            ? defaultsWithModuleOn(environment)
-            : EXPORT_OFF;
-    StratumDefaults.addBelowServiceValues(environment, defaults);
+    if (!StratumModuleSwitch.isEnabled(environment, ObservabilityConstants.MODULE)) {
+      StratumDefaults.addBelowServiceValues(environment, EXPORT_OFF);
+      return;
+    }
+    StratumDefaults.addBelowServiceValues(environment, defaultsWithModuleOn(environment));
   }
 
   /** Returns the exposure, histogram, executor, messaging, tag and resource defaults. */
@@ -91,6 +91,7 @@ public class ObservabilityEnvironmentPostProcessor implements EnvironmentPostPro
             defaults.put(
                 observationSwitch, observabilityProperties.traceKafkaAndRabbitmqMessages()));
     defaults.putAll(StratumDefaults.asyncThreadContextPropagation(environment));
+    defaults.putAll(StratumDefaults.reactorOperatorContextPropagation(environment));
     return defaults;
   }
 

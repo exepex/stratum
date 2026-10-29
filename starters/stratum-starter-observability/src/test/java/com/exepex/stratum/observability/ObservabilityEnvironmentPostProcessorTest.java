@@ -19,6 +19,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.env.DefaultPropertiesPropertySource;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.mock.env.MockEnvironment;
+import reactor.core.publisher.Hooks;
 
 @DisplayName("ObservabilityEnvironmentPostProcessor sets Spring Boot's defaults before startup")
 class ObservabilityEnvironmentPostProcessorTest {
@@ -36,7 +37,9 @@ class ObservabilityEnvironmentPostProcessorTest {
 
   /** The published key, spelled out so a misspelt key in the module fails the test. */
   private static final String PROPAGATE_CONTEXT_TO_ASYNC_THREADS =
-      "stratum.propagate-context-to-async-threads";
+      "stratum.context-propagation.async-threads";
+
+  private static final String REACTOR_CONTEXT_PROPAGATION = "spring.reactor.context-propagation";
 
   private static final String KAFKA_LISTENER_SWITCH = "spring.kafka.listener.observation-enabled";
 
@@ -130,11 +133,26 @@ class ObservabilityEnvironmentPostProcessorTest {
     }
 
     @Test
-    @DisplayName("Spring Boot's executors carry the trace, so @Async work joins the caller's trace")
-    void executorsCarryTrace() {
+    @DisplayName(
+        "Spring Boot's executors and every Reactor operator carry the trace, so @Async work and"
+            + " reactive code join the caller's trace")
+    void executorsAndReactorCarryTrace() {
       var environment = runPostProcessor(environmentWithModuleOn());
 
       assertThat(environment.getProperty(PROPAGATE_TASK_CONTEXT)).isEqualTo(ON);
+      assertThat(environment.getProperty(REACTOR_CONTEXT_PROPAGATION)).isEqualTo("auto");
+    }
+
+    @Test
+    @DisplayName(
+        "it leaves Reactor's context propagation to the auto-configuration, so that a service's"
+            + " @PropertySource files, loaded later, can still turn it off")
+    void leavesReactorContextPropagationForLaterDecision() {
+      Hooks.disableAutomaticContextPropagation();
+
+      runPostProcessor(environmentWithModuleOn());
+
+      assertThat(Hooks.isAutomaticContextPropagationEnabled()).isFalse();
     }
 
     @Test

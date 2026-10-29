@@ -19,6 +19,10 @@ class StratumDefaultsTest {
   private static final String HISTOGRAMS =
       "management.metrics.distribution.percentiles-histogram.all";
 
+  private static final String TASK_CONTEXT_PROPAGATION = "spring.task.execution.propagate-context";
+
+  private static final String REACTOR_CONTEXT_PROPAGATION = "spring.reactor.context-propagation";
+
   /** The exposure the service chose. */
   private static final String SERVICE_EXPOSURE = "health,loggers";
 
@@ -56,6 +60,31 @@ class StratumDefaultsTest {
                 .precedenceOf(
                     environment.getPropertySources().get(DefaultPropertiesPropertySource.NAME)))
         .isEqualTo(environment.getPropertySources().size() - 1);
+  }
+
+  @Test
+  @DisplayName("by default, Spring's executors and every Reactor operator carry the context")
+  void contextCrossesEveryThreadByDefault() {
+    var environment = new MockEnvironment();
+
+    assertThat(StratumDefaults.asyncThreadContextPropagation(environment))
+        .containsExactlyEntriesOf(Map.of(TASK_CONTEXT_PROPAGATION, true));
+    assertThat(StratumDefaults.reactorOperatorContextPropagation(environment))
+        .containsExactlyEntriesOf(Map.of(REACTOR_CONTEXT_PROPAGATION, "auto"));
+  }
+
+  @Test
+  @DisplayName("each Stratum switch, set to false, turns its own propagation back to Spring Boot's")
+  void eachSwitchTurnsItsPropagationOff() {
+    var environment =
+        new MockEnvironment()
+            .withProperty("stratum.context-propagation.async-threads", "false")
+            .withProperty("stratum.context-propagation.reactor", "false");
+
+    assertThat(StratumDefaults.asyncThreadContextPropagation(environment))
+        .containsExactlyEntriesOf(Map.of(TASK_CONTEXT_PROPAGATION, false));
+    assertThat(StratumDefaults.reactorOperatorContextPropagation(environment))
+        .containsExactlyEntriesOf(Map.of(REACTOR_CONTEXT_PROPAGATION, "limited"));
   }
 
   @Test

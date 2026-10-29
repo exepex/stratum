@@ -21,6 +21,7 @@ import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import reactor.core.publisher.Hooks;
 import reactor.core.publisher.Mono;
 
 @DisplayName("LoggingAutoConfiguration creates the workflow beans")
@@ -28,9 +29,26 @@ class LoggingAutoConfigurationTest {
 
   private static final String MODULE_ON = LoggingConstants.ENABLED + "=true";
 
+  private static final String REACTOR_CONTEXT_PROPAGATION = "spring.reactor.context-propagation";
+
   private final ApplicationContextRunner contextRunner =
       new ApplicationContextRunner()
           .withConfiguration(AutoConfigurations.of(LoggingAutoConfiguration.class));
+
+  @Test
+  @DisplayName(
+      "Reactor carries the context into every operator only when the setting it sees while beans"
+          + " are created is auto, so a service's own limited wins")
+  void reactorContextPropagationFollowsFinalSetting() {
+    Hooks.disableAutomaticContextPropagation();
+    contextRunner
+        .withPropertyValues(MODULE_ON, REACTOR_CONTEXT_PROPAGATION + "=limited")
+        .run(_ -> assertThat(Hooks.isAutomaticContextPropagationEnabled()).isFalse());
+    contextRunner
+        .withPropertyValues(MODULE_ON, REACTOR_CONTEXT_PROPAGATION + "=auto")
+        .run(_ -> assertThat(Hooks.isAutomaticContextPropagationEnabled()).isTrue());
+    Hooks.disableAutomaticContextPropagation();
+  }
 
   @Test
   @DisplayName("with the module on, the workflows, reactive workflows and aspect are created")

@@ -23,6 +23,7 @@ import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.mock.env.MockEnvironment;
+import reactor.core.publisher.Hooks;
 
 @DisplayName("LoggingEnvironmentPostProcessor sets up logging before the application starts")
 @ExtendWith(OutputCaptureExtension.class)
@@ -36,7 +37,7 @@ class LoggingEnvironmentPostProcessorTest {
 
   /** The published key, spelled out so a misspelt key in the module fails the test. */
   private static final String PROPAGATE_CONTEXT_TO_ASYNC_THREADS =
-      "stratum.propagate-context-to-async-threads";
+      "stratum.context-propagation.async-threads";
 
   private static final String NOT_REDACTED = "plain text, which is not redacted";
 
@@ -129,6 +130,34 @@ class LoggingEnvironmentPostProcessorTest {
           .isEqualTo("true");
       assertThat(noPropagation.getProperty(StratumModuleConstants.PROPAGATE_TASK_CONTEXT))
           .isEqualTo(OFF);
+    }
+
+    @Test
+    @DisplayName(
+        "every Reactor operator carries the context, unless"
+            + " stratum.context-propagation.reactor is false")
+    void propagatesContextToEveryReactorOperator() {
+      var defaultEnvironment = runPostProcessor(environmentWithModuleOn());
+      var handleAndTapOnly =
+          runPostProcessor(
+              environmentWithModuleOn().withProperty("stratum.context-propagation.reactor", OFF));
+
+      assertThat(defaultEnvironment.getProperty("spring.reactor.context-propagation"))
+          .isEqualTo("auto");
+      assertThat(handleAndTapOnly.getProperty("spring.reactor.context-propagation"))
+          .isEqualTo("limited");
+    }
+
+    @Test
+    @DisplayName(
+        "it leaves Reactor's context propagation to the auto-configuration, so that a service's"
+            + " @PropertySource files, loaded later, can still turn it off")
+    void leavesReactorContextPropagationForLaterDecision() {
+      Hooks.disableAutomaticContextPropagation();
+
+      runPostProcessor(environmentWithModuleOn());
+
+      assertThat(Hooks.isAutomaticContextPropagationEnabled()).isFalse();
     }
 
     @Test

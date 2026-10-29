@@ -107,6 +107,7 @@ public class LoggingEnvironmentPostProcessor implements EnvironmentPostProcessor
             ? LoggingConstants.ROOT_CAUSE_FIRST
             : LoggingConstants.OUTERMOST_EXCEPTION_FIRST);
     defaultProperties.putAll(StratumDefaults.asyncThreadContextPropagation(environment));
+    defaultProperties.putAll(StratumDefaults.reactorOperatorContextPropagation(environment));
     return defaultProperties;
   }
 

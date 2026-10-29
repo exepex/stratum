@@ -23,12 +23,16 @@ class ConfigurationMetadataTest {
     var metadata = Files.readString(METADATA);
 
     assertThat(JsonPath.<List<String>>read(metadata, "$.properties[*].name"))
-        .containsExactly("stratum.environment", "stratum.propagate-context-to-async-threads");
+        .containsExactly(
+            "stratum.environment",
+            "stratum.context-propagation.async-threads",
+            "stratum.context-propagation.reactor");
     assertThat(JsonPath.<List<String>>read(metadata, "$.properties[*].type"))
-        .containsExactly("java.lang.String", "java.lang.Boolean");
+        .containsExactly("java.lang.String", "java.lang.Boolean", "java.lang.Boolean");
     assertThat(JsonPath.<List<String>>read(metadata, "$.properties[*].description"))
         .doesNotContainNull()
-        .hasSize(2);
-    assertThat(JsonPath.<Boolean>read(metadata, "$.properties[1].defaultValue")).isTrue();
+        .hasSameSizeAs(JsonPath.<List<String>>read(metadata, "$.properties[*].name"));
+    assertThat(JsonPath.<List<Boolean>>read(metadata, "$.properties[1:].defaultValue"))
+        .containsExactly(true, true);
   }
 }

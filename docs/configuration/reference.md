@@ -16,7 +16,8 @@ These are not tied to one module.
 | --- | --- | --- | --- | --- |
 | `spring.application.name` | string | **required** | All modules | The service's name: in logs, metrics, traces, cache keys and the Kafka consumer group. Spring Boot property. |
 | `stratum.environment` | string | *(none)* | logging, observability | Environment name such as `dev`, `staging` or `prod`; written to logs as `service.environment` and to metrics as the `environment` tag. |
-| `stratum.propagate-context-to-async-threads` | boolean | `true` | logging, observability | Whether `@Async` methods and work on Spring Boot's executors keep the trace and workflow fields of the code that started them. Sets `spring.task.execution.propagate-context`. |
+| `stratum.context-propagation.async-threads` | boolean | `true` | logging, observability | Whether `@Async` methods and work on Spring Boot's executors keep the trace and workflow fields of the code that started them. Sets `spring.task.execution.propagate-context`. |
+| `stratum.context-propagation.reactor` | boolean | `true` | logging, observability | Whether log lines in WebFlux handlers and every Reactor operator keep the trace, correlation ID and workflow fields, and `WebClient` sends the correlation ID on. Sets `spring.reactor.context-propagation` to `auto` (or `limited` when `false`). |
 
 ```yaml
 spring:
@@ -84,7 +85,8 @@ it and shows what it does. Details are on each module page.
 | `logging.structured.ecs.service.environment` | `${stratum.environment}` | logging |
 | `logging.structured.json.stacktrace.max-length` | `16384` (from `stratum.logging.max-field-length`) | logging |
 | `logging.structured.json.stacktrace.root` | `first`, the root cause (from `stratum.logging.stack-trace-starts-with-root-cause`) | logging |
-| `spring.task.execution.propagate-context` | `true` (from `stratum.propagate-context-to-async-threads`) | logging, observability |
+| `spring.task.execution.propagate-context` | `true` (from `stratum.context-propagation.async-threads`) | logging, observability |
+| `spring.reactor.context-propagation` | `auto` (from `stratum.context-propagation.reactor`) | logging, observability |
 | `management.otlp.metrics.export.enabled` | `false` while the module is off | observability |
 | `management.tracing.export.enabled` | `false` while the module is off | observability |
 | `management.endpoints.web.exposure.include` | `health,info` (from `stratum.observability.actuator-endpoints-exposed-over-http`) | observability |

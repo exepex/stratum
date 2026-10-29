@@ -30,11 +30,14 @@ import org.springframework.boot.validation.autoconfigure.ValidationAutoConfigura
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.util.UriComponentsBuilder;
+import reactor.core.publisher.Hooks;
 
 @DisplayName("ObservabilityAutoConfiguration creates the URL filter, tag guard and ID recorder")
 class ObservabilityAutoConfigurationTest {
 
   private static final String MODULE_ON = ObservabilityConstants.ENABLED + "=true";
+
+  private static final String REACTOR_CONTEXT_PROPAGATION = "spring.reactor.context-propagation";
 
   private static final String EXTRA_FORBIDDEN =
       ObservabilityConstants.PREFIX + ".tags.extra-forbidden";
@@ -59,6 +62,21 @@ class ObservabilityAutoConfigurationTest {
   /** Returns what the context's guard answers for a metric with one tag. */
   private MeterFilterReply guardReplyForTag(AssertableApplicationContext context, String tagName) {
     return context.getBean(MetricTagGuard.class).accept(MetricTestData.counterTaggedWith(tagName));
+  }
+
+  @Test
+  @DisplayName(
+      "Reactor carries the context into every operator only when the setting it sees while beans"
+          + " are created is auto, so a service's own limited wins")
+  void reactorContextPropagationFollowsFinalSetting() {
+    Hooks.disableAutomaticContextPropagation();
+    contextRunner
+        .withPropertyValues(MODULE_ON, REACTOR_CONTEXT_PROPAGATION + "=limited")
+        .run(_ -> assertThat(Hooks.isAutomaticContextPropagationEnabled()).isFalse());
+    contextRunner
+        .withPropertyValues(MODULE_ON, REACTOR_CONTEXT_PROPAGATION + "=auto")
+        .run(_ -> assertThat(Hooks.isAutomaticContextPropagationEnabled()).isTrue());
+    Hooks.disableAutomaticContextPropagation();
   }
 
   @Test

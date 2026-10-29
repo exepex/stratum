@@ -3,6 +3,7 @@ package com.exepex.stratum.observability.autoconfigure;
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.properties.StratumCustomizers;
+import com.exepex.stratum.core.reactor.ReactorOperatorContextPropagation;
 import com.exepex.stratum.observability.CorrelationIdRecorder;
 import com.exepex.stratum.observability.MetricTagGuard;
 import com.exepex.stratum.observability.ObservabilityConstants;
@@ -26,12 +27,15 @@ public final class ObservabilityAutoConfiguration {
 
   /**
    * Stops startup with {@code SX-CORE-1004} when the service declares an observability customizer
-   * as a bean, which would be silently ignored.
+   * as a bean, which would be silently ignored, and turns on Reactor's context propagation when the
+   * service's final setting asks for it.
    *
    * @param beanFactory the service's beans
+   * @param environment the service's environment, with its {@code @PropertySource} files loaded
    */
-  public ObservabilityAutoConfiguration(ListableBeanFactory beanFactory) {
+  public ObservabilityAutoConfiguration(ListableBeanFactory beanFactory, Environment environment) {
     StratumCustomizers.rejectBeans(beanFactory);
+    ReactorOperatorContextPropagation.enableWhenSetToEveryOperator(environment);
   }
 
   /**
