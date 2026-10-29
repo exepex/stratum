@@ -57,6 +57,12 @@ public class ObservabilityConstants {
   /** Spring Boot's switch for sending spans over OTLP. */
   public static final String TRACING_OTLP_EXPORT_ENABLED = "management.tracing.export.otlp.enabled";
 
+  /**
+   * Spring Boot's switch for the whole OpenTelemetry SDK, also set by {@code OTEL_SDK_DISABLED}.
+   * When it is off, spans go nowhere, so no span address is needed.
+   */
+  public static final String OPEN_TELEMETRY_ENABLED = "management.opentelemetry.enabled";
+
   /** Spring Boot's OTLP address for spans. */
   public static final String TRACING_EXPORT_ENDPOINT =
       "management.opentelemetry.tracing.export.otlp.endpoint";

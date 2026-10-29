@@ -40,6 +40,9 @@ class ObservabilityStarterIntegrationTest {
   /** A password in the partner's URL, which must not reach spans or metrics. */
   private static final String PASSWORD = "LEAK-password-7c2";
 
+  /** The argument that turns the module on. */
+  private static final String MODULE_ON = "--stratum.observability.enabled=true";
+
   /** The logger of Micrometer's OTLP registry. */
   private static final String METRICS_EXPORT_LOGGER =
       "io.micrometer.registry.otlp.OtlpMeterRegistry";
@@ -104,9 +107,7 @@ class ObservabilityStarterIntegrationTest {
     try (var context =
         start(
             withCollector(
-                "--spring.application.name=orders",
-                "--stratum.environment=prod",
-                "--stratum.observability.enabled=true"))) {
+                "--spring.application.name=orders", "--stratum.environment=prod", MODULE_ON))) {
       callPartner(context);
     }
 
@@ -145,8 +146,21 @@ class ObservabilityStarterIntegrationTest {
   @DisplayName("with the module on and no export address, startup stops with SX-OBSERVABILITY-1001")
   void missingAddressStopsStartup() {
     assertThatExceptionOfType(StratumException.class)
-        .isThrownBy(() -> start("--stratum.observability.enabled=true"))
+        .isThrownBy(() -> start(MODULE_ON))
         .withMessageStartingWith("SX-OBSERVABILITY-1001: ");
+  }
+
+  @Test
+  @DisplayName("with OpenTelemetry off, starts with only a metrics address and still sends metrics")
+  void openTelemetryOffNeedsOnlyMetricsAddress() {
+    start(
+            MODULE_ON,
+            "--management.opentelemetry.enabled=false",
+            "--management.otlp.metrics.export.url=" + collector.url(CollectorStub.METRICS_PATH))
+        .close();
+
+    assertThat(collector.bodiesOf(CollectorStub.METRICS_PATH)).isNotEmpty();
+    assertThat(collector.bodiesOf(CollectorStub.TRACES_PATH)).isEmpty();
   }
 
   @ParameterizedTest
@@ -164,7 +178,7 @@ class ObservabilityStarterIntegrationTest {
   /** Starts and stops the application with the module on and only metrics sent, to an address. */
   private void runWithMetricsAddress(String metricsAddress) {
     start(
-            "--stratum.observability.enabled=true",
+            MODULE_ON,
             "--management.otlp.metrics.export.url=" + metricsAddress,
             "--management.tracing.export.enabled=false")
         .close();

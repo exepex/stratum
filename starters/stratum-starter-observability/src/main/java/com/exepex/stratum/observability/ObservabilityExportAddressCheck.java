@@ -14,7 +14,9 @@ import org.springframework.util.StringUtils;
 
 /**
  * Stops startup with {@code SX-OBSERVABILITY-1001} when the module is on and an OTLP export that is
- * on has no address, in every profile. It runs after every environment post-processor, so an
+ * on has no address, in every profile. With OpenTelemetry off ({@code
+ * management.opentelemetry.enabled=false} or {@code OTEL_SDK_DISABLED=true}), spans are not sent,
+ * so only the metrics address is needed. It runs after every environment post-processor, so an
  * address that Spring Boot maps from the {@code OTEL_EXPORTER_OTLP_*} environment variables counts.
  */
 public class ObservabilityExportAddressCheck
@@ -62,6 +64,7 @@ public class ObservabilityExportAddressCheck
         EXPORT_SWITCHES_BY_ADDRESS.entrySet().stream()
             .filter(exportSwitches -> isOn(environment, exportSwitches.getValue()))
             .map(Map.Entry::getKey)
+            .filter(address -> spansCanBeSent(environment) || !isSpanAddress(address))
             .filter(address -> !StringUtils.hasText(environment.getProperty(address)))
             .sorted()
             .toList();
@@ -70,6 +73,17 @@ public class ObservabilityExportAddressCheck
           ObservabilityErrorCode.EXPORT_ENDPOINT_MISSING,
           "set " + String.join(" and ", missingAddresses) + ", or turn that export off");
     }
+  }
+
+  /** Returns whether OpenTelemetry is on; when it is off, Spring Boot sends no spans. */
+  private boolean spansCanBeSent(ConfigurableEnvironment environment) {
+    return environment.getProperty(
+        ObservabilityConstants.OPEN_TELEMETRY_ENABLED, Boolean.class, true);
+  }
+
+  /** Returns whether the address is the one spans are sent to. */
+  private boolean isSpanAddress(String address) {
+    return ObservabilityConstants.TRACING_EXPORT_ENDPOINT.equals(address);
   }
 
   /** Returns the first switch that is set, most specific first, or on when none is set. */

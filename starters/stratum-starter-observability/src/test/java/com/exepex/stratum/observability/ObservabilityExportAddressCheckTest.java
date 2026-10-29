@@ -152,6 +152,28 @@ class ObservabilityExportAddressCheckTest {
         .withMessageContaining(ObservabilityConstants.TRACING_EXPORT_ENDPOINT);
   }
 
+  @Test
+  @DisplayName("with OpenTelemetry off, spans need no address and metrics still do")
+  void openTelemetryOffNeedsOnlyMetricsAddress() {
+    var environment =
+        environmentWithModuleOn().withProperty(ObservabilityConstants.OPEN_TELEMETRY_ENABLED, OFF);
+
+    assertThatExceptionOfType(StratumException.class)
+        .isThrownBy(() -> runCheck(environment))
+        .withMessageEndingWith(": set management.otlp.metrics.export.url, or turn that export off");
+  }
+
+  @Test
+  @DisplayName("with OpenTelemetry off and a metrics address, startup goes on")
+  void openTelemetryOffWithMetricsAddress() {
+    var environment =
+        environmentWithModuleOn()
+            .withProperty(ObservabilityConstants.OPEN_TELEMETRY_ENABLED, OFF)
+            .withProperty(ObservabilityConstants.METRICS_EXPORT_URL, COLLECTOR + "/v1/metrics");
+
+    assertThatCode(() -> runCheck(environment)).doesNotThrowAnyException();
+  }
+
   @ParameterizedTest
   @FieldSource("FORMERLY_EXEMPT_PROFILES")
   @DisplayName("the local and test profiles need the addresses too, as every other profile does")

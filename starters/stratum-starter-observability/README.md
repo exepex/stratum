@@ -153,7 +153,9 @@ metrics, or `management.defaults.metrics.export.enabled` when it is not set;
 `management.tracing.export.otlp.enabled` decides for traces, or `management.tracing.export.enabled`
 when it is not set. With none of them set, both exports are on. An address or switch that Spring
 Boot reads from the standard OpenTelemetry environment variables, such as
-`OTEL_EXPORTER_OTLP_ENDPOINT`, counts.
+`OTEL_EXPORTER_OTLP_ENDPOINT`, counts. With OpenTelemetry itself off
+(`management.opentelemetry.enabled=false` or `OTEL_SDK_DISABLED=true`), Spring Boot sends no spans,
+so only the metrics address is needed.
 
 Without the check, metrics would go to `localhost:4318` and traces nowhere, and nobody would notice.
 Both `http` and `https` addresses are accepted, because most Collectors run inside the cluster.
