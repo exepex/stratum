@@ -12,6 +12,7 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.IntStream;
 import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.json.JsonWriter;
@@ -25,6 +26,7 @@ import org.springframework.boot.json.WritableJson;
  * <p>Names, addresses and other data with no telltale shape are found only by their field or key
  * name. This is a safety net, not a licence to log personal data.
  */
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(access = AccessLevel.PRIVATE)
 public final class Redactor {
 
@@ -89,7 +91,7 @@ public final class Redactor {
         case Map<?, ?> _, Iterable<?> _, Object[] _ -> maskByName(fieldName, value);
         default -> redactOther(fieldName, value);
       };
-    } catch (IllegalArgumentException | IllegalStateException | IndexOutOfBoundsException failure) {
+    } catch (IllegalArgumentException | IllegalStateException | IndexOutOfBoundsException _) {
       // Fail closed: a value that could not be masked must never be written as it was.
       return FAILED;
     }
@@ -189,7 +191,7 @@ public final class Redactor {
   private static Optional<Pattern> compileOrEmpty(String pattern) {
     try {
       return Optional.of(Pattern.compile(pattern));
-    } catch (PatternSyntaxException invalid) {
+    } catch (PatternSyntaxException _) {
       return Optional.empty();
     }
   }

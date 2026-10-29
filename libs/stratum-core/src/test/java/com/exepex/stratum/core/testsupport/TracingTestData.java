@@ -1,10 +1,12 @@
 package com.exepex.stratum.core.testsupport;
 
-import com.exepex.stratum.core.error.LoggingContextKeys;
 import lombok.experimental.UtilityClass;
 import org.slf4j.MDC;
 
-/** Sample trace, span and correlation IDs. A request has these IDs whether it succeeds or fails. */
+/**
+ * Sample trace, span and correlation IDs, put in the logging context under the keys that tracing
+ * and Stratum write. The keys are spelled out here, so a test fails if Stratum's constants change.
+ */
 @UtilityClass
 public class TracingTestData {
 
@@ -22,8 +24,8 @@ public class TracingTestData {
    * logging context, as tracing and Stratum do. Clear it with {@code MDC.clear()} after the test.
    */
   public static void putIdsInLoggingContext() {
-    MDC.put(LoggingContextKeys.TRACE_ID, TRACE_ID);
-    MDC.put(LoggingContextKeys.SPAN_ID, SPAN_ID);
-    MDC.put(LoggingContextKeys.CORRELATION_ID, CORRELATION_ID);
+    MDC.put("traceId", TRACE_ID);
+    MDC.put("spanId", SPAN_ID);
+    MDC.put("correlationId", CORRELATION_ID);
   }
 }

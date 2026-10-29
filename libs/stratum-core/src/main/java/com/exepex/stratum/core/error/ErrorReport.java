@@ -120,12 +120,12 @@ public class ErrorReport implements Serializable {
             .severity(code.getSeverity())
             .message(message)
             .details(List.of())
-            .traceId(usableIdOrNull(LoggingContextKeys.TRACE_ID))
-            .correlationId(usableIdOrNull(LoggingContextKeys.CORRELATION_ID))
+            .traceId(usableIdOrNull(LoggingContextConstants.TRACE_ID))
+            .correlationId(usableIdOrNull(LoggingContextConstants.CORRELATION_ID))
             .build();
     return ErrorReport.builder()
         .external(external)
-        .spanId(usableIdOrNull(LoggingContextKeys.SPAN_ID))
+        .spanId(usableIdOrNull(LoggingContextConstants.SPAN_ID))
         .build();
   }
 

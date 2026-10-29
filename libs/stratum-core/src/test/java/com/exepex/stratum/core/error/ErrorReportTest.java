@@ -141,7 +141,7 @@ class ErrorReportTest {
     @ValueSource(strings = {"c0a8012e-7f3d-4a8e-9a43-2f9b6f1c2d10", "order_42.step:3", "a"})
     @DisplayName("an ID of letters, digits, '-', '_', '.' and ':' is kept")
     void keepsUsableId(String id) {
-      MDC.put(LoggingContextKeys.CORRELATION_ID, id);
+      MDC.put(LoggingContextConstants.CORRELATION_ID, id);
 
       assertThat(correlationIdOfNewReport()).isEqualTo(id);
     }
@@ -150,7 +150,7 @@ class ErrorReportTest {
     @ValueSource(strings = {"", "order 42", "id\nforged log line", "id\r", "<script>", "ü"})
     @DisplayName("an empty ID, or one with any other character, is left out")
     void leavesOutUnusableId(String id) {
-      MDC.put(LoggingContextKeys.CORRELATION_ID, id);
+      MDC.put(LoggingContextConstants.CORRELATION_ID, id);
 
       assertThat(correlationIdOfNewReport()).isNull();
     }
@@ -159,10 +159,10 @@ class ErrorReportTest {
     @DisplayName("an ID of 128 characters is kept, and one of 129 is left out")
     void limitsIdLength() {
       var longest = "a".repeat(LONGEST_ID_LENGTH);
-      MDC.put(LoggingContextKeys.CORRELATION_ID, longest);
+      MDC.put(LoggingContextConstants.CORRELATION_ID, longest);
       assertThat(correlationIdOfNewReport()).isEqualTo(longest);
 
-      MDC.put(LoggingContextKeys.CORRELATION_ID, longest + "a");
+      MDC.put(LoggingContextConstants.CORRELATION_ID, longest + "a");
       assertThat(correlationIdOfNewReport()).isNull();
     }
 

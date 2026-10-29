@@ -6,7 +6,7 @@ import lombok.experimental.UtilityClass;
  * The keys under which tracing and Stratum put request IDs in the logging context (SLF4J's MDC).
  */
 @UtilityClass
-public class LoggingContextKeys {
+public class LoggingContextConstants {
 
   /** The trace ID of the request, set by tracing. */
   public static final String TRACE_ID = "traceId";

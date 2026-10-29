@@ -3,7 +3,6 @@ package com.exepex.stratum.logging;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
-import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.error.StratumException;
 import jakarta.validation.ConstraintViolationException;
 import org.junit.jupiter.api.DisplayName;
@@ -92,8 +91,7 @@ class LoggingEnvironmentPostProcessorTest {
     @Test
     @DisplayName("stratum.environment becomes service.environment")
     void setsServiceEnvironment() {
-      var environment =
-          process(enabled().withProperty(StratumModuleConstants.SERVICE_ENVIRONMENT, "prod"));
+      var environment = process(enabled().withProperty("stratum.environment", "prod"));
 
       assertThat(environment.getProperty(LoggingConstants.ECS_ENVIRONMENT)).isEqualTo("prod");
     }
