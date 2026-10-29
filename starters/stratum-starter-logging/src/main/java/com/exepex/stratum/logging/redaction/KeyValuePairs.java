@@ -153,15 +153,15 @@ final class KeyValuePairs implements UnaryOperator<String> {
    * bracket, or the end of the text if it has none. Brackets inside strings are skipped.
    */
   private int containerEnd(String text, int start) {
-    var afterScan =
+    // The stream never ends, so it always has a first match.
+    var finishedScan =
         Stream.iterate(
                 ContainerScan.builder().position(start + 1).depth(1).build(),
-                scan -> scan.depth() > 0 && scan.position() < text.length(),
                 scan -> scan.next(text))
-            .reduce((earlier, later) -> later)
-            .orElseThrow()
-            .next(text);
-    return afterScan.depth() == 0 ? afterScan.position() : text.length();
+            .filter(scan -> scan.depth() == 0 || scan.position() >= text.length())
+            .findFirst()
+            .orElseThrow();
+    return finishedScan.depth() == 0 ? finishedScan.position() : text.length();
   }
 
   /**
