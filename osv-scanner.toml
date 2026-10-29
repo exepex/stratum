@@ -6,5 +6,5 @@
 
 [[IgnoredVulns]]
 id = "GHSA-ccrj-gw8r-854m"
-effectiveUntil = 2026-11-28
+ignoreUntil = 2026-11-28
 reason = "io.opentelemetry:opentelemetry-api 1.62.0, managed by Spring Boot 4.1.2; fixed in 1.67.0, which no Spring Boot 4.1 release brings in yet"
