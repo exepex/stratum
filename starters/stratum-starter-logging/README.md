@@ -5,7 +5,10 @@ name and environment on every line, and secrets and personal data masked before 
 Trace IDs, workflow names and context that follows a request across threads are
 [planned](#planned).
 
-[← Documentation home](../README.md) · Property prefix: `stratum.logging`
+This page covers this module only. How Stratum works as a whole, its other modules and how
+configuration works in general are in the [documentation](../../docs/README.md).
+
+[← Documentation home](../../docs/README.md) · Property prefix: `stratum.logging`
 
 ## What it does
 
@@ -36,6 +39,10 @@ class OrderService {
 </dependency>
 ```
 
+Every bundle starter (`stratum-starter-microservice`, `-web-ui`, `-batch` and `-cli`) already
+includes it, so add it on its own only when your service uses no bundle. The version comes from
+Stratum's parent or BOM ([installation](../../docs/getting-started/installation.md)).
+
 The starter does nothing until you switch it on. It also needs the service's name, which it writes
 on every line. In `application.properties`:
 
@@ -58,9 +65,29 @@ stratum:
 ```
 
 If the module is on and `spring.application.name` is missing or blank, the service stops at startup
-with [`SX-LOGGING-1001`](../guides/error-codes.md#stratum-starter-logging).
+with [`SX-LOGGING-1001`](../../docs/guides/error-codes.md#stratum-starter-logging).
 
 Logback, Spring Boot's default, is the logging backend that Stratum tests.
+
+## How it works with Spring Boot's logging
+
+Spring Boot already sets up Logback for you, with no XML file, and can write
+[structured JSON logs](https://docs.spring.io/spring-boot/reference/features/logging.html)
+when `logging.structured.format.console` is set. This starter builds on that setup and does not
+replace it:
+
+- It ships no Logback XML, so it never clashes with yours. Without one, Spring Boot's own Logback
+  setup is used. If you add a `logback-spring.xml`, your file takes over, and only its appenders
+  that use Spring Boot's structured encoder are redacted ([Customize](#customize)).
+- At startup, before any bean exists, it sets a few of Spring Boot's `logging.structured.*`
+  properties, listed [below](#properties). A value you set in a configuration file, an environment
+  variable, a system property or a command-line argument wins over Stratum's.
+- It adds redaction to Spring Boot's `ecs`, `logstash` and `gelf` formats, so every line in those
+  formats is masked, on the console and in a log file.
+
+Everything else, such as `logging.level.*`, `logging.file.name` and `logging.structured.json.add.*`,
+works as the Spring Boot documentation describes. To use your own Logback file, see
+[Customize](#customize).
 
 ## What you get
 
@@ -82,7 +109,7 @@ The line above comes out as one JSON object in the
 | Field | Where it comes from |
 | --- | --- |
 | `service.name` | `spring.application.name` (required) |
-| `service.environment` | [`stratum.environment`](../configuration/reference.md#shared-properties), when set |
+| `service.environment` | [`stratum.environment`](../../docs/configuration/reference.md#shared-properties), when set |
 | `service.version` | Your jar's manifest, when it has a version |
 | `error.type`, `error.message`, `error.stack_trace` | The exception you pass to the log call. The root cause comes first, so a cut stack trace still shows why it failed. |
 | Your own fields | Key-value pairs (`addKeyValue`) and MDC entries, at the top level |
@@ -149,7 +176,7 @@ as the console.
 | `stratum.logging.redaction.extra-keys` | list | *(empty)* | More field and key names whose values are masked in full, added to the built-in names. |
 | `stratum.logging.redaction.extra-patterns` | list of regex | *(empty)* | More patterns whose matches are masked in full. An invalid pattern stops startup with `SX-LOGGING-1002`; the message gives its position in the list, never the pattern. |
 
-The shared [`stratum.environment`](../configuration/reference.md#shared-properties) sets
+The shared [`stratum.environment`](../../docs/configuration/reference.md#shared-properties) sets
 `service.environment`.
 
 Spring Boot properties this starter sets by default (your values win):
@@ -266,6 +293,11 @@ A Stratum endpoint that switches DEBUG on for a limited time, and back off by it
 - **Different JSON fields:** Spring Boot's `StructuredLogFormatter` lets you write your own format;
   set `logging.structured.format.console` to its class name. Prefer the standard format so logs
   stay searchable across services.
+
+  > [!WARNING]
+  > Your own formatter is **not** redacted unless its constructor takes a
+  > `StructuredLoggingJsonMembersCustomizer` and applies it to the members it writes. Spring Boot
+  > passes Stratum's redaction in only through that parameter.
 - **Your own Logback file:** Stratum ships no Logback XML, so it never clashes with yours. Most
   needs, such as levels, a log file or the format, are met with `logging.*` properties. If you need
   a `logback-spring.xml`, for example for an extra appender, start from Spring Boot's structured
@@ -299,6 +331,7 @@ which keeps Spring Boot's default plain-text logging, with no checks and no reda
 | Context hand-off | The same fields, trace and correlation IDs follow work into `@Async`, executors, `@Scheduled` jobs and Reactor, and across services |
 | Management endpoint | Secured, timed switches for DEBUG on one logger, timing lines for one workflow, and unmasking personal data for a short time, each switching back by itself |
 | Trace and correlation IDs | `trace.id`, `span.id` and `correlation_id`, with the observability and web starters |
+| Body logging on demand | Request and response bodies in the logs when you need them, planned for the web and HTTP client starters rather than this one |
 
 ## Troubleshooting
 

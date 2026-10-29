@@ -35,7 +35,7 @@ stratum.environment=prod
 | Prefix | Module | Full table | Required settings |
 | --- | --- | --- | --- |
 | `stratum.web.*` | `stratum-starter-web` | [Web → Properties](../modules/web.md#properties) | none |
-| `stratum.logging.*` | `stratum-starter-logging` | [Logging → Properties](../modules/logging.md#properties) | none |
+| `stratum.logging.*` | `stratum-starter-logging` | [Logging → Properties](../../starters/stratum-starter-logging/README.md#properties) | none |
 | `stratum.observability.*` | `stratum-starter-observability` | [Observability → Properties](../modules/observability.md#properties) | none |
 | `stratum.security.*` | `stratum-starter-security` | [Security → Properties](../modules/security.md#properties) | `resource-server.issuer-uri` |
 | `stratum.oauth2-client.*` | `stratum-starter-oauth2-client` | [OAuth2 client → Properties](../modules/oauth2-client.md#properties) | a `spring.security.oauth2.client.registration.<name>` |

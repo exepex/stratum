@@ -155,7 +155,7 @@ tools that read the broken constraints still can. The others are a `StratumExcep
 
 Each of these is an error that stops the application at startup, and only when
 `stratum.logging.enabled=true`. The logging module reports no warnings with a code. See the
-[logging module](../modules/logging.md).
+[logging module](../../starters/stratum-starter-logging/README.md).
 
 | Code | Meaning | Fix |
 | --- | --- | --- |
