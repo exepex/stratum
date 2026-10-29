@@ -44,7 +44,7 @@ class LoggingCodesTest {
   }
 
   /** Returns every code of the logging module. */
-  private static List<String> loggingCodes() {
+  private List<String> loggingCodes() {
     return Arrays.stream(LoggingErrorCode.values()).map(LoggingErrorCode::getCode).toList();
   }
 }

@@ -30,7 +30,7 @@ class LoggingEnvironmentPostProcessorTest {
       new LoggingEnvironmentPostProcessor(logs);
 
   /** Returns an environment with the module on and a service name. */
-  private static MockEnvironment enabled() {
+  private MockEnvironment enabled() {
     return new MockEnvironment()
         .withProperty(LoggingConstants.ENABLED, "true")
         .withProperty(LoggingConstants.APPLICATION_NAME, "orders");

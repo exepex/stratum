@@ -52,7 +52,7 @@ public class LoggingEnvironmentPostProcessor implements EnvironmentPostProcessor
   @Override
   public void postProcessEnvironment(
       ConfigurableEnvironment environment, SpringApplication application) {
-    if (!LoggingProperties.isEnabled(environment)) {
+    if (!LoggingConstants.isEnabled(environment)) {
       return;
     }
     if (!StringUtils.hasText(environment.getProperty(LoggingConstants.APPLICATION_NAME))) {
@@ -73,7 +73,7 @@ public class LoggingEnvironmentPostProcessor implements EnvironmentPostProcessor
   }
 
   /** Returns Spring Boot's logging properties that Stratum sets by default. */
-  private static Map<String, Object> defaults(
+  private Map<String, Object> defaults(
       LoggingProperties settings, ConfigurableEnvironment environment) {
     var defaults = new HashMap<String, Object>();
     var structuredFormat = settings.format().getStructuredFormat();
@@ -93,7 +93,7 @@ public class LoggingEnvironmentPostProcessor implements EnvironmentPostProcessor
   }
 
   /** Returns whether every active profile is one in which plain-text logs are expected. */
-  private static boolean onlyLocalProfiles(ConfigurableEnvironment environment) {
+  private boolean onlyLocalProfiles(ConfigurableEnvironment environment) {
     var profiles = environment.getActiveProfiles();
     return profiles.length > 0
         && Arrays.stream(profiles).allMatch(LoggingConstants.LOCAL_PROFILES::contains);

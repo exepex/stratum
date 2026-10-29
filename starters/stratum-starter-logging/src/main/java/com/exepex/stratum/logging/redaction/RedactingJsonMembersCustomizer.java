@@ -1,5 +1,6 @@
 package com.exepex.stratum.logging.redaction;
 
+import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.LoggingProperties;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.json.JsonWriter.Members;
@@ -26,7 +27,7 @@ public final class RedactingJsonMembersCustomizer
    */
   public RedactingJsonMembersCustomizer(Environment environment) {
     this.redactor =
-        LoggingProperties.isEnabled(environment)
+        LoggingConstants.isEnabled(environment)
             ? Redactor.from(LoggingProperties.bind(environment))
             : null;
   }

@@ -27,7 +27,7 @@ import org.springframework.context.ConfigurableApplicationContext;
 class LoggingStartupIntegrationTest {
 
   /** Starts the test application with the given command-line arguments. */
-  private static ConfigurableApplicationContext start(String... args) {
+  private ConfigurableApplicationContext start(String... args) {
     return new SpringApplicationBuilder(OrdersApplication.class)
         .web(WebApplicationType.NONE)
         .run(args);

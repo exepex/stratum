@@ -21,7 +21,7 @@ class RedactingJsonMembersCustomizerTest {
 
   /** Writes the line through a JSON writer that the customizer has customized. */
   @SuppressWarnings("unchecked")
-  private static String write(MockEnvironment environment) {
+  private String write(MockEnvironment environment) {
     var customizer = new RedactingJsonMembersCustomizer(environment);
     JsonWriter<Map<String, String>> writer =
         JsonWriter.of(

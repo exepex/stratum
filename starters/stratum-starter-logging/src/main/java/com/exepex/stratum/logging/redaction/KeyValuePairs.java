@@ -83,7 +83,7 @@ final class KeyValuePairs implements UnaryOperator<String> {
       return Optional.empty();
     }
     var key = keys.group(1);
-    var value = fieldNames.isSensitive(key) ? Value.at(text, key, keys.end()) : null;
+    var value = fieldNames.isSensitive(key) ? valueAt(text, key, keys.end()) : null;
     if (value == null || value.isEmpty()) {
       // A value that is not masked may itself hold pairs, as in a JSON message string.
       return Optional.of(new Pair(Math.max(keys.end(), keys.start() + 1), null));
@@ -97,6 +97,127 @@ final class KeyValuePairs implements UnaryOperator<String> {
                 .end(value.end())
                 .text(value.wrap(mask))
                 .build()));
+  }
+
+  /** Finds the value that starts at the index. */
+  private Value valueAt(String text, String key, int start) {
+    if (text.startsWith(ESCAPED_QUOTE, start)) {
+      // Inside escaped JSON, a quote in the value is written \\\" and the closing one \".
+      var closing =
+          closingQuote(
+              text,
+              start + ESCAPED_QUOTE.length(),
+              '"',
+              backslashes -> backslashes % ESCAPED_JSON_CYCLE == 1);
+      return closing < 0
+          ? Value.builder()
+              .quote(ESCAPED_QUOTE)
+              .start(start)
+              .contentEnd(text.length())
+              .end(text.length())
+              .build()
+          : Value.builder()
+              .quote(ESCAPED_QUOTE)
+              .start(start)
+              .contentEnd(closing - 1)
+              .end(closing + 1)
+              .build();
+    }
+    var opening = start < text.length() ? text.charAt(start) : ' ';
+    if (opening == '"' || opening == '\'') {
+      var closing = closingQuote(text, start + 1, opening, backslashes -> backslashes % 2 == 0);
+      return closing < 0
+          ? Value.builder()
+              .quote(String.valueOf(opening))
+              .start(start)
+              .contentEnd(text.length())
+              .end(text.length())
+              .build()
+          : Value.builder()
+              .quote(String.valueOf(opening))
+              .start(start)
+              .contentEnd(closing)
+              .end(closing + 1)
+              .build();
+    }
+    if (opening == '[' || opening == '{') {
+      var end = containerEnd(text, start);
+      return Value.builder().quote("").start(start).contentEnd(end).end(end).build();
+    }
+    var end = fieldNames.isHeaderList(key) ? lineEnd(text, start) : plainEnd(text, start);
+    return Value.builder().quote("").start(start).contentEnd(end).end(end).build();
+  }
+
+  /**
+   * Returns the end of a JSON array or object that starts at the position: just after its closing
+   * bracket, or the end of the text if it has none. Brackets inside strings are skipped.
+   */
+  private int containerEnd(String text, int start) {
+    var afterScan =
+        Stream.iterate(
+                ContainerScan.builder().position(start + 1).depth(1).build(),
+                scan -> scan.depth() > 0 && scan.position() < text.length(),
+                scan -> scan.next(text))
+            .reduce((earlier, later) -> later)
+            .orElseThrow()
+            .next(text);
+    return afterScan.depth() == 0 ? afterScan.position() : text.length();
+  }
+
+  /**
+   * Returns the position of the closing quote, or -1 if there is none. A quote closes the value
+   * when the number of backslashes before it passes the test; any other quote is part of the value.
+   */
+  private int closingQuote(String text, int from, char quote, IntPredicate closes) {
+    return IntStream.range(from, text.length())
+        .filter(
+            position ->
+                text.charAt(position) == quote
+                    && closes.test(backslashesBefore(text, from, position)))
+        .findFirst()
+        .orElse(-1);
+  }
+
+  /** Returns how many backslashes come just before the position, counting back to {@code from}. */
+  private int backslashesBefore(String text, int from, int position) {
+    return (int)
+        IntStream.iterate(
+                position - 1,
+                previous -> previous >= from && text.charAt(previous) == '\\',
+                previous -> previous - 1)
+            .count();
+  }
+
+  /** Returns the end of the line, without trailing spaces. */
+  private int lineEnd(String text, int from) {
+    var lineBreak =
+        IntStream.range(from, text.length())
+            .filter(position -> text.charAt(position) == '\r' || text.charAt(position) == '\n')
+            .findFirst()
+            .orElse(text.length());
+    return from + text.substring(from, lineBreak).stripTrailing().length();
+  }
+
+  /** Returns the end of an unquoted value, without trailing spaces. */
+  private int plainEnd(String text, int from) {
+    var nextKey = NEXT_KEY.matcher(text);
+    var stop =
+        IntStream.range(from, text.length())
+            .filter(
+                position ->
+                    VALUE_ENDS.indexOf(text.charAt(position)) >= 0
+                        || startsNextKey(nextKey, text, from, position))
+            .findFirst()
+            .orElse(text.length());
+    return from + text.substring(from, stop).stripTrailing().length();
+  }
+
+  /** Returns whether the spaces that start at the position are followed by another key. */
+  private boolean startsNextKey(Matcher nextKey, String text, int from, int position) {
+    return position > from
+        && Character.isWhitespace(text.charAt(position))
+        && !Character.isWhitespace(text.charAt(position - 1))
+        && nextKey.region(position, text.length()).lookingAt();
   }
 
   /**
@@ -124,72 +245,6 @@ final class KeyValuePairs implements UnaryOperator<String> {
   @Builder
   private record Value(String quote, int start, int contentEnd, int end) {
 
-    /** Finds the value that starts at the index. */
-    private static Value at(String text, String key, int start) {
-      if (text.startsWith(ESCAPED_QUOTE, start)) {
-        // Inside escaped JSON, a quote in the value is written \\\" and the closing one \".
-        var closing =
-            closingQuote(
-                text,
-                start + ESCAPED_QUOTE.length(),
-                '"',
-                backslashes -> backslashes % ESCAPED_JSON_CYCLE == 1);
-        return closing < 0
-            ? Value.builder()
-                .quote(ESCAPED_QUOTE)
-                .start(start)
-                .contentEnd(text.length())
-                .end(text.length())
-                .build()
-            : Value.builder()
-                .quote(ESCAPED_QUOTE)
-                .start(start)
-                .contentEnd(closing - 1)
-                .end(closing + 1)
-                .build();
-      }
-      var opening = start < text.length() ? text.charAt(start) : ' ';
-      if (opening == '"' || opening == '\'') {
-        var closing = closingQuote(text, start + 1, opening, backslashes -> backslashes % 2 == 0);
-        return closing < 0
-            ? Value.builder()
-                .quote(String.valueOf(opening))
-                .start(start)
-                .contentEnd(text.length())
-                .end(text.length())
-                .build()
-            : Value.builder()
-                .quote(String.valueOf(opening))
-                .start(start)
-                .contentEnd(closing)
-                .end(closing + 1)
-                .build();
-      }
-      if (opening == '[' || opening == '{') {
-        var end = containerEnd(text, start);
-        return Value.builder().quote("").start(start).contentEnd(end).end(end).build();
-      }
-      var end =
-          SensitiveFieldNames.isHeaderList(key) ? lineEnd(text, start) : plainEnd(text, start);
-      return Value.builder().quote("").start(start).contentEnd(end).end(end).build();
-    }
-
-    /**
-     * Returns the end of a JSON array or object that starts at the position: just after its closing
-     * bracket, or the end of the text if it has none. Brackets inside strings are skipped.
-     */
-    private static int containerEnd(String text, int start) {
-      var afterScan =
-          Stream.iterate(
-                  ContainerScan.builder().position(start + 1).depth(1).build(),
-                  scan -> scan.depth() > 0 && scan.position() < text.length(),
-                  scan -> scan.next(text))
-              .reduce((earlier, later) -> later)
-              .orElseThrow()
-              .next(text);
-      return afterScan.depth() == 0 ? afterScan.position() : text.length();
-    }
-
     /** Returns whether there is nothing to mask. */
     private boolean isEmpty() {
       return contentEnd <= start + quote.length();
@@ -203,65 +258,6 @@ final class KeyValuePairs implements UnaryOperator<String> {
     /** Returns the mask in the value's quotes, with a closing quote only if the value had one. */
     private String wrap(String mask) {
       return quote + mask + (end > contentEnd ? quote : "");
-    }
-
-    /**
-     * Returns the position of the closing quote, or -1 if there is none. A quote closes the value
-     * when the number of backslashes before it passes the test; any other quote is part of the
-     * value.
-     */
-    private static int closingQuote(String text, int from, char quote, IntPredicate closes) {
-      return IntStream.range(from, text.length())
-          .filter(
-              position ->
-                  text.charAt(position) == quote
-                      && closes.test(backslashesBefore(text, from, position)))
-          .findFirst()
-          .orElse(-1);
-    }
-
-    /**
-     * Returns how many backslashes come just before the position, counting back to {@code from}.
-     */
-    private static int backslashesBefore(String text, int from, int position) {
-      return (int)
-          IntStream.iterate(
-                  position - 1,
-                  previous -> previous >= from && text.charAt(previous) == '\\',
-                  previous -> previous - 1)
-              .count();
-    }
-
-    /** Returns the end of the line, without trailing spaces. */
-    private static int lineEnd(String text, int from) {
-      var lineBreak =
-          IntStream.range(from, text.length())
-              .filter(position -> text.charAt(position) == '\r' || text.charAt(position) == '\n')
-              .findFirst()
-              .orElse(text.length());
-      return from + text.substring(from, lineBreak).stripTrailing().length();
-    }
-
-    /** Returns the end of an unquoted value, without trailing spaces. */
-    private static int plainEnd(String text, int from) {
-      var nextKey = NEXT_KEY.matcher(text);
-      var stop =
-          IntStream.range(from, text.length())
-              .filter(
-                  position ->
-                      VALUE_ENDS.indexOf(text.charAt(position)) >= 0
-                          || startsNextKey(nextKey, text, from, position))
-              .findFirst()
-              .orElse(text.length());
-      return from + text.substring(from, stop).stripTrailing().length();
-    }
-
-    /** Returns whether the spaces that start at the position are followed by another key. */
-    private static boolean startsNextKey(Matcher nextKey, String text, int from, int position) {
-      return position > from
-          && Character.isWhitespace(text.charAt(position))
-          && !Character.isWhitespace(text.charAt(position - 1))
-          && nextKey.region(position, text.length()).lookingAt();
     }
   }
 

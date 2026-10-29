@@ -41,9 +41,6 @@ public final class Redactor {
   /** Added to the end of a value that was cut. */
   static final String TRUNCATED = "...[truncated]";
 
-  /** How many characters an identifier such as a card number keeps visible at its end. */
-  private static final int VISIBLE_END = 4;
-
   /** A character of a word, which a cut must not split. */
   private static final IntPredicate IS_WORD = character -> !Character.isWhitespace(character);
 
@@ -83,7 +80,7 @@ public final class Redactor {
           "stratum.logging.max-field-length must be from 1KB to 1MB");
     }
     var redaction = settings.redaction();
-    var fieldNames = SensitiveFieldNames.withExtraKeys(redaction.extraKeys());
+    var fieldNames = new SensitiveFieldNames(redaction.extraKeys());
     var contentRules = ContentRules.of(fieldNames, compile(redaction.extraPatterns()));
     return Redactor.builder()
         .fieldNames(fieldNames)
@@ -178,26 +175,13 @@ public final class Redactor {
   }
 
   /** Returns how many characters at the end of the text match the test. */
-  private static int trailing(String text, IntPredicate test) {
+  private int trailing(String text, IntPredicate test) {
     return (int)
         IntStream.iterate(
                 text.length() - 1,
                 position -> position >= 0 && test.test(text.charAt(position)),
                 position -> position - 1)
             .count();
-  }
-
-  /**
-   * Masks a value but keeps its last four characters, such as {@code ****1111} for a card; a value
-   * of four characters or fewer is masked in full.
-   *
-   * @param value the value to mask
-   * @return the masked value
-   */
-  static String keepingLastFour(String value) {
-    return value.length() <= VISIBLE_END
-        ? MASK
-        : MASK + value.substring(value.length() - VISIBLE_END);
   }
 
   /** Compiles the service's patterns, stopping startup at the first invalid one. */

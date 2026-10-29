@@ -10,6 +10,7 @@ import lombok.Value;
 import lombok.With;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.MDC;
+import org.springframework.util.StringUtils;
 
 /**
  * Everything known about one error or warning, for the application's own logs: the {@linkplain
@@ -128,9 +129,7 @@ public class ErrorReport implements Serializable {
    */
   private static void requireOwnPrefix(ErrorCode code) {
     var usesStratumPrefix =
-        code.getCode()
-            .strip()
-            .regionMatches(true, 0, STRATUM_CODE_PREFIX, 0, STRATUM_CODE_PREFIX.length());
+        StringUtils.startsWithIgnoreCase(code.getCode().strip(), STRATUM_CODE_PREFIX);
     if (usesStratumPrefix && !code.getClass().getName().startsWith(STRATUM_PACKAGE)) {
       throw new IllegalArgumentException(
           code.getClass().getName()
