@@ -99,6 +99,7 @@ starter therefore never sends anything, not even to Spring Boot's default addres
 | Timings as histograms | Every timer, such as HTTP server and client calls, `@Scheduled` jobs and Spring Batch steps, is sent as a base-2 exponential histogram ([below](#timings)) |
 | Tag guard | A metric with a tag named like an ID, such as `userId`, is dropped with one warning; the RabbitMQ routing key is removed from send timers ([below](#tag-guard)) |
 | Correlation ID | In the logging context of every traced operation, so log lines and error reports carry it ([below](#correlation-id)) |
+| Other threads | `@Async` methods and Spring Boot's executors keep the caller's trace and correlation ID ([below](#threads-and-reactive-code)) |
 | Messages | Kafka, JMS (IBM MQ, ActiveMQ) and RabbitMQ: sending and handling a message are timed and traced, and the consumer joins the sender's trace and correlation ID ([below](#messages)) |
 | Traces | OpenTelemetry traces. W3C `traceparent` is read from incoming requests and sent on calls made with Spring's HTTP clients. Spring Boot keeps 10% of new traces, and always follows the caller's decision, so a trace is never half kept |
 | Trace resource | `service.name` from `spring.application.name` (set by Spring Boot), and `deployment.environment.name` from `stratum.environment` |
@@ -106,7 +107,7 @@ starter therefore never sends anything, not even to Spring Boot's default addres
 | Health | `/actuator/health`, with Spring Boot's Kubernetes `liveness` and `readiness` groups |
 | Safe exposure | Only `health` and `info` are reachable over HTTP |
 | Startup check | With the module on, startup stops if an export address is missing, in every profile ([below](#startup-check)) |
-| No Collector on your laptop | With the metrics address on `localhost`, metrics that cannot be sent are dropped without a warning ([below](#running-without-a-collector)) |
+| No Collector on your laptop | With an address on `localhost`, metrics and spans that cannot be sent are dropped without a warning ([below](#running-without-a-collector)) |
 
 Pushing means a short-lived job, such as a batch run or a command-line tool, still sends its data:
 Spring Boot sends the last metrics and traces when the application stops.
@@ -182,7 +183,8 @@ try (var correlation = tracer.createBaggageInScope("correlationId", order.correl
 
 Baggage travels with the trace: Spring's HTTP clients send it in the W3C `baggage` header on every
 outgoing call, to every host, third parties included, and Kafka, JMS and RabbitMQ senders put it in
-a `baggage` message header ([messages](#messages)). So the correlation ID set in baggage reaches
+a `baggage` message header ([messages](#messages)). In reactive code, `WebClient` sends it only with
+`spring.reactor.context-propagation=auto` ([reactive code](#threads-and-reactive-code)). So the correlation ID set in baggage reaches
 every service you call or send a message to.
 
 > [!WARNING]
@@ -207,6 +209,10 @@ With the module on, sending and handling a message are observed like an HTTP cal
   retry is counted. A message handled without error has `error=none`. JMS timers do not show
   failures: a `@JmsListener` that throws is still recorded with `error=none`, so count JMS failures
   from your logs.
+- **Kafka batch listeners.** Spring Kafka observes listeners that take one record at a time. A
+  `@KafkaListener` with `batch = "true"` does not join the sender's trace and has no correlation ID,
+  and its `spring.kafka.listener` timer carries Spring Kafka's older tags, `name`, `result` and
+  `exception`, instead of the ones below.
 
 | Technology | Timers | How it is switched on |
 | --- | --- | --- |
@@ -229,6 +235,23 @@ Stratum's switches do nothing until your service brings Kafka or RabbitMQ.
 
 To turn one off, set its switch to `false`, for example
 `spring.kafka.listener.observation-enabled=false`.
+
+### Threads and reactive code
+
+Stratum sets Spring Boot's `spring.task.execution.propagate-context=true`, so `@Async` methods,
+Spring Boot's task executor and executors built with its `ThreadPoolTaskExecutorBuilder` keep the
+caller's trace and correlation ID. Threads your code creates itself do not: an `ExecutorService`
+from `Executors`, `new Thread`, virtual threads you start, `new ThreadPoolTaskExecutor()` and
+`CompletableFuture.supplyAsync` without an executor. Wrap your own `ExecutorService` with
+Micrometer's `ContextExecutorService.wrap(executor, () -> snapshotFactory.captureAll())`, where
+`snapshotFactory` is `ContextSnapshotFactory.builder().build()`.
+
+In reactive code, Spring Boot's default `spring.reactor.context-propagation=limited` puts the trace
+and correlation ID only on lines written in `handle` and `tap` operators. Lines written in a WebFlux
+handler, or in `map`, `flatMap` or `doOnNext` after a thread change, have neither, and `WebClient`
+sends `traceparent` but no `baggage`. Set `spring.reactor.context-propagation=auto` to fix both, at a
+small cost per operator. The same setting carries the logging starter's
+[workflow fields](../stratum-starter-logging/README.md#async-and-reactive-work).
 
 ### URLs on spans and metrics
 
@@ -281,13 +304,15 @@ turn the module off in that profile with `stratum.observability.enabled=false`.
 
 ### Running without a Collector
 
-On your laptop you may point the exports at `localhost` without running a Collector. When the
-metrics address is on this machine (`localhost`, `127.0.0.1` or `[::1]`), Stratum turns off
-Micrometer's warning for a failed push, which would otherwise print a stack trace every minute. The
-metrics are dropped quietly. Spans that cannot be sent are dropped too. Set
-`logging.level.io.micrometer.registry.otlp.OtlpMeterRegistry=warn` to see the warning again. Any
-other address, such as `http://otel-collector:4318`, keeps the warning, so a broken Collector in a
-shared environment is noticed.
+On your laptop you may point the exports at `localhost` without running a Collector. For each
+export whose address is on this machine (`localhost`, `127.0.0.1` or `[::1]`), Stratum turns off
+the log of a failed send: Micrometer's warning for metrics and OpenTelemetry's error for spans, each
+of which would otherwise print a stack trace at every attempt. The data is dropped quietly. To see
+them again, set `logging.level.io.micrometer.registry.otlp.OtlpMeterRegistry=warn` or
+`logging.level.io.opentelemetry.exporter.internal.http.HttpExporter=error`. Any other address, such
+as `http://otel-collector:4318`, keeps both: a warning with a stack trace at every metrics push,
+every minute by default, and an error with a stack trace for each batch of spans that cannot be
+sent, so a broken Collector in a shared environment is noticed. The service keeps running.
 
 ## Properties
 
@@ -313,6 +338,7 @@ Spring Boot properties this starter sets by default (your values win):
 | `management.opentelemetry.resource-attributes[deployment.environment.name]` | value of `stratum.environment` |
 | `management.metrics.distribution.percentiles-histogram.all` | `true` |
 | `management.otlp.metrics.export.histogram-flavor` | `base2-exponential-bucket-histogram` |
+| `spring.task.execution.propagate-context` | `true`, so `@Async` work keeps the trace ([threads](#threads-and-reactive-code)) |
 | `spring.kafka.template.observation-enabled`, `spring.kafka.listener.observation-enabled` | `true` |
 | `spring.rabbitmq.template.observation-enabled`, `spring.rabbitmq.listener.simple.observation-enabled`, `.direct.observation-enabled`, `.stream.observation-enabled` | `true` |
 

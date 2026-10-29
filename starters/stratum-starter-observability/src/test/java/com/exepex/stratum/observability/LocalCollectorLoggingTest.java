@@ -14,7 +14,8 @@ import org.springframework.boot.context.logging.LoggingApplicationListener;
 import org.springframework.boot.support.EnvironmentPostProcessorApplicationListener;
 import org.springframework.mock.env.MockEnvironment;
 
-@DisplayName("LocalCollectorLogging drops metrics quietly when the Collector is on this machine")
+@DisplayName(
+    "LocalCollectorLogging drops metrics and spans quietly when the Collector is on this machine")
 class LocalCollectorLoggingTest {
 
   private static final String OFF = "off";
@@ -35,6 +36,12 @@ class LocalCollectorLoggingTest {
           "http://localhost.example.com:4318/v1/metrics",
           "http://local host/v1/metrics",
           "");
+
+  /** A span address on this machine. */
+  private static final String LOCAL_SPAN_ADDRESS = "http://localhost:4318/v1/traces";
+
+  /** A span address that is not on this machine. */
+  private static final String OTHER_SPAN_ADDRESS = "http://otel-collector:4318/v1/traces";
 
   private final LocalCollectorLogging localCollectorLogging = new LocalCollectorLogging();
 
@@ -100,6 +107,34 @@ class LocalCollectorLoggingTest {
     run(environment);
 
     assertThat(environment.getProperty(LocalCollectorLogging.METRICS_EXPORT_LOG_LEVEL)).isNull();
+  }
+
+  @Test
+  @DisplayName("a span address on this machine turns OpenTelemetry's send error off")
+  void localSpanAddressTurnsErrorOff() {
+    var environment =
+        new MockEnvironment()
+            .withProperty(ObservabilityConstants.ENABLED, "true")
+            .withProperty(ObservabilityConstants.TRACING_EXPORT_ENDPOINT, LOCAL_SPAN_ADDRESS);
+
+    run(environment);
+
+    assertThat(environment.getProperty(LocalCollectorLogging.SPAN_EXPORT_LOG_LEVEL)).isEqualTo(OFF);
+    assertThat(environment.getProperty(LocalCollectorLogging.METRICS_EXPORT_LOG_LEVEL)).isNull();
+  }
+
+  @Test
+  @DisplayName("each address is checked on its own")
+  void eachAddressIsCheckedOnItsOwn() {
+    var environment =
+        environmentWithModuleOn(LOCAL_ADDRESSES.getFirst())
+            .withProperty(ObservabilityConstants.TRACING_EXPORT_ENDPOINT, OTHER_SPAN_ADDRESS);
+
+    run(environment);
+
+    assertThat(environment.getProperty(LocalCollectorLogging.METRICS_EXPORT_LOG_LEVEL))
+        .isEqualTo(OFF);
+    assertThat(environment.getProperty(LocalCollectorLogging.SPAN_EXPORT_LOG_LEVEL)).isNull();
   }
 
   @Test

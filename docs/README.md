@@ -5,8 +5,9 @@ overview; these pages give the detail: how to set Stratum up, how to configure e
 how to use it day to day.
 
 > [!NOTE]
-> Stratum is in the design stage. Every page describes the **planned** behaviour, which is the
-> design target and may change before the first release. The `groupId` is
+> Stratum is in the design stage. Each page's status line says whether it describes built or
+> **planned** behaviour; planned behaviour is the design target and may change before the first
+> release. The `groupId` is
 > `com.exepex.stratum`; `0.1.0-SNAPSHOT` is a placeholder for the first released version.
 
 ## Where to start

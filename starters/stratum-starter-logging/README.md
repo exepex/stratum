@@ -245,7 +245,9 @@ The fields follow the work to other threads:
 - **`@Scheduled` jobs.** Each run starts outside any workflow, as its own piece of work.
 
 The fields stay inside the service. With the observability starter, the trace ID reaches the
-services it calls; sending the workflow fields too is [planned](#planned).
+services it calls; sending the workflow fields too is [planned](#planned). The observability
+starter also puts `traceId`, `spanId` and `correlationId` on every line written inside a traced
+operation.
 
 ## Redaction
 
@@ -468,7 +470,7 @@ which keeps Spring Boot's default plain-text logging, with no checks and no reda
 | --- | --- |
 | Workflows across services | The workflow fields sent to the service's own downstream services, planned with the HTTP client starter |
 | Management endpoint | Secured, timed switches for DEBUG on one logger, timing lines for one workflow, and unmasking personal data for a short time, each switching back by itself |
-| Trace and correlation IDs | `trace.id`, `span.id` and `correlation_id`, with the observability and web starters |
+| ECS names for trace IDs | Today's `traceId`, `spanId` and `correlationId` fields renamed to ECS's `trace.id`, `span.id` and `correlation_id`, with the observability and web starters |
 | Body logging on demand | Request and response bodies in the logs when you need them, planned for the web and HTTP client starters rather than this one |
 
 ## Troubleshooting
