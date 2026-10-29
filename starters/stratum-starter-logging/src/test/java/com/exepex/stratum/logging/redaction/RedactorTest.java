@@ -102,7 +102,7 @@ class RedactorTest {
           .isEqualTo(beforeToken.strip() + Redactor.TRUNCATION_MARKER);
     }
 
-    @ParameterizedTest(name = "\"{0}\"")
+    @ParameterizedTest
     @FieldSource("GROUP_SEPARATORS_A_CUT_DROPS")
     @DisplayName("card digits split by a dot, underscore or slash that cross the limit are dropped")
     void groupsAcrossTheLimitAreDropped(String separator) {

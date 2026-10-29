@@ -133,7 +133,7 @@ if anything in it is masked, it is written as a JSON string. It cannot be switch
 | US social security numbers in text | `123-45-6789` | `****6789` |
 | JSON Web Tokens | `eyJ…` with two or three parts | `****` |
 | `Basic`, `Bearer`, `Digest` and `Negotiate` credentials; Digest's `name="value"` list runs to the end of the line | The scheme name | `Bearer ****` |
-| A password in a URL, with or without a user | `https://user:pass@host`, `redis://:pass@host`; a password with a raw `@` is masked up to the last `@` before the host, never past a space, `/`, `?`, `#`, a quote, `<`, `>`, `,`, `;`, `&` or `=` | `https://****@host`, `redis://****@host` |
+| A password in a URL, with or without a user | `https://user:pass@host`, `redis://:pass@host`; a password with a raw `@` is masked up to the last `@` before the host, never past a space, `/`, `?`, `#`, a quote, `<` or `>`. When another `@` follows a `,`, `;`, `&` or `=`, it is unclear where the password ends, so the rest of the line is masked | `https://****@host`, `redis://****@host` |
 | Names, dates of birth and addresses: `first_name`, `last_name`, `full_name`, `username`, `date_of_birth`, `address` and similar | Field or key name | `****` |
 | Email, phone and IBAN fields | Field or key name | `****` plus last four |
 | Email addresses in text | A valid address | `****.com` |

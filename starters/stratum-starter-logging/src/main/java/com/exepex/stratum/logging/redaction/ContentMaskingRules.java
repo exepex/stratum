@@ -44,10 +44,12 @@ class ContentMaskingRules {
           "(?i)\\b(basic|bearer|digest|negotiate)\\s+"
               + "(?:[a-z]++=[^\\r\\n]++|[a-z0-9+/._=~-]{4,})");
 
-  // After the password's first part, the match backtracks to the last @ before any /, ?, # or
-  // space, or any quote, <, >, comma, semicolon, & or = that ends a URL written in other text. So
-  // an @ inside the password is masked, while an @ in the path, the query or the next value is
-  // never reached, and a key such as password= is left for the key-value rule. Each scan stops at
+  // A URL ends at a space, /, ?, #, a quote, < or >. A comma, semicolon, & or = may be part of
+  // the password or start the next value, as in https://u:p@host,password=x@y, so when another @
+  // follows one of them, the rest of the line is masked: where the password ends is unclear, and
+  // masking less could show its end, or the key of the next secret and so its value. Otherwise the
+  // match backtracks to the last @ before any of them, so
+  // an @ inside the password is masked. Each scan is possessive or backtracks once, and stops at
   // the next URL's //, so matching stays linear.
   /**
    * A password in a URL, with or without a user name, such as {@code https://user:secret@host},
@@ -56,7 +58,8 @@ class ContentMaskingRules {
   private static final Pattern URL_CREDENTIALS =
       Pattern.compile(
           "(?i)(?<![a-z0-9+.-])([a-z][a-z0-9+.-]*+://)[^\\s/:@]*+:[^\\s/@]++"
-              + "(?:@[^\\s/?#\"'<>,;&=]*@|@)");
+              + "(?:@(?=[^\\s/?#\"'<>,;&=]*+[,;&=][^\\s/?#\"'<>]*@)[^\\r\\n]*+"
+              + "|@[^\\s/?#\"'<>,;&=]*@|@)");
 
   /** A US social security number. */
   private static final Pattern SSN = Pattern.compile("\\b\\d{3}-\\d{2}-\\d{4}\\b");
@@ -182,9 +185,12 @@ class ContentMaskingRules {
     return match.group(1) + " " + MaskedText.MASK;
   }
 
-  /** Masks the user name and password of a URL, keeping its scheme. */
+  /**
+   * Masks the user name and password of a URL, keeping its scheme, and its host unless the rest of
+   * the line was masked with them.
+   */
   private static String maskUrlCredentials(MatchResult match) {
-    return match.group(1) + MaskedText.MASK + "@";
+    return match.group(1) + MaskedText.MASK + (match.group().endsWith("@") ? "@" : "");
   }
 
   /**
