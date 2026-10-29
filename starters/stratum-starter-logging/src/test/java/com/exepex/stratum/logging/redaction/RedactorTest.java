@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.beans.BeanUtils;
 import org.springframework.util.unit.DataSize;
 
 @DisplayName("Redactor checks its settings, limits each value and fails closed")
@@ -85,14 +86,20 @@ class RedactorTest {
       assertThat(redactor.redact(MESSAGE, value)).isEqualTo(value);
     }
 
-    @Test
+    @ParameterizedTest
+    @ValueSource(
+        classes = {
+          IllegalArgumentException.class,
+          IllegalStateException.class,
+          IndexOutOfBoundsException.class
+        })
     @DisplayName("a value that fails to mask is replaced, never written as it was")
-    void failureIsReplaced() {
+    void failureIsReplaced(Class<? extends RuntimeException> failureType) {
       var broken =
           new Object() {
             @Override
             public String toString() {
-              throw new IllegalStateException("broken toString");
+              throw BeanUtils.instantiateClass(failureType);
             }
           };
 

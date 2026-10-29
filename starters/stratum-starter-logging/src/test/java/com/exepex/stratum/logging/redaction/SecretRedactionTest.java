@@ -256,6 +256,13 @@ class SecretRedactionTest {
     }
 
     @Test
+    @DisplayName("a quoted secret with no closing quote is masked to the end of the text")
+    void unclosedQuotedSecretIsMasked() {
+      assertThat(text("password=\"S3CR3T")).isEqualTo("password=\"****");
+      assertThat(text("{\"token\":\"S3CR3T")).isEqualTo("{\"token\":\"****");
+    }
+
+    @Test
     @DisplayName("a token in a URL's query string is masked, and the other parameters are kept")
     void queryStringTokenIsMasked() {
       assertThat(text("GET /orders?access_token=abc123&page=2"))
@@ -289,6 +296,8 @@ class SecretRedactionTest {
       assertThat(text("paid with 4111 1111 1111 1111 today")).isEqualTo("paid with ****1111 today");
       assertThat(text("card " + CARD)).isEqualTo("card ****1111");
       assertThat(text("card 4402 6140 1419 3141 705")).isEqualTo("card ****1705");
+      assertThat(text("card 4111 1111 1111 1111 003")).isEqualTo("card ****1003");
+      assertThat(text("0 4111 1111 1111 1111")).isEqualTo("0 ****1111");
     }
 
     @ParameterizedTest
