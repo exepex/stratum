@@ -4,13 +4,33 @@ import static com.exepex.stratum.logging.testsupport.LoggingTestData.CARD;
 import static com.exepex.stratum.logging.testsupport.LoggingTestData.redactUnnamedText;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.FieldSource;
 
 @DisplayName("Card numbers in text keep only their last four digits")
 class CardNumberRedactionTest {
+
+  /** Lines with the test card next to another number, each of which must still have it masked. */
+  private static final List<String> CARDS_NEXT_TO_OTHER_NUMBERS =
+      List.of(
+          "paid with 4111111111111111 43",
+          "paid with 4111 1111 1111 1111 43",
+          "43 4111111111111111 paid",
+          "order123 4111111111111111 paid",
+          "order123 4111 1111 1111 1111 paid",
+          "4111-1111-1111-1111 7 and 5500 0000 0000 0004");
+
+  /** The test card with its groups split by each other separator, and by a mix of them. */
+  private static final List<String> CARDS_WITH_OTHER_SEPARATORS =
+      List.of(
+          "4111.1111.1111.1111",
+          "4111/1111/1111/1111",
+          "4111_1111_1111_1111",
+          "4111  1111  1111  1111",
+          "4111 1111-1111.1111");
 
   @Test
   @DisplayName("a card number that passes the Luhn check keeps only its last four digits")
@@ -24,15 +44,7 @@ class CardNumberRedactionTest {
   }
 
   @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "paid with 4111111111111111 43",
-        "paid with 4111 1111 1111 1111 43",
-        "43 4111111111111111 paid",
-        "order123 4111111111111111 paid",
-        "order123 4111 1111 1111 1111 paid",
-        "4111-1111-1111-1111 7 and 5500 0000 0000 0004"
-      })
+  @FieldSource("CARDS_NEXT_TO_OTHER_NUMBERS")
   @DisplayName("a card next to another number is still found and masked")
   void cardNextToNumberIsMasked(String line) {
     assertThat(redactUnnamedText(line))
@@ -65,14 +77,7 @@ class CardNumberRedactionTest {
   }
 
   @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "4111.1111.1111.1111",
-        "4111/1111/1111/1111",
-        "4111_1111_1111_1111",
-        "4111  1111  1111  1111",
-        "4111 1111-1111.1111"
-      })
+  @FieldSource("CARDS_WITH_OTHER_SEPARATORS")
   @DisplayName("a card split by dots, slashes, underscores or two spaces is masked")
   void cardWithOtherSeparatorsIsMasked(String card) {
     assertThat(redactUnnamedText("card " + card + " paid")).isEqualTo("card ****1111 paid");

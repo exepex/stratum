@@ -10,7 +10,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.beans.BeanUtils;
 import org.springframework.util.unit.DataSize;
 
@@ -33,8 +33,12 @@ class RedactorTest {
   @DisplayName("when it is made")
   class WhenBuiltFromProperties {
 
+    /** Extra patterns that are not valid regular expressions, each naming a secret. */
+    private static final List<String> INVALID_PATTERNS =
+        List.of("secret-(\\d+", "\\p{secret-name}", "(?<secret>a)(?<secret>b)");
+
     @ParameterizedTest
-    @ValueSource(strings = {"secret-(\\d+", "\\p{secret-name}", "(?<secret>a)(?<secret>b)"})
+    @FieldSource("INVALID_PATTERNS")
     @DisplayName("an invalid extra pattern stops startup with SX-LOGGING-1002, with no part of it")
     void invalidPatternIsRejected(String invalid) {
       var properties =
@@ -51,6 +55,13 @@ class RedactorTest {
   @Nested
   @DisplayName("when it masks a value")
   class WhenMaskingValues {
+
+    /** The exceptions a failed masking can throw, each replaced by the failure marker. */
+    private static final List<Class<? extends RuntimeException>> MASKING_FAILURE_TYPES =
+        List.of(
+            IllegalArgumentException.class,
+            IllegalStateException.class,
+            IndexOutOfBoundsException.class);
 
     private final Redactor redactor =
         Redactor.from(LoggingTestData.defaults().maxFieldLength(DataSize.ofKilobytes(1)).build());
@@ -99,12 +110,7 @@ class RedactorTest {
     }
 
     @ParameterizedTest
-    @ValueSource(
-        classes = {
-          IllegalArgumentException.class,
-          IllegalStateException.class,
-          IndexOutOfBoundsException.class
-        })
+    @FieldSource("MASKING_FAILURE_TYPES")
     @DisplayName("a value that fails to mask is replaced, never written as it was")
     void failureIsReplaced(Class<? extends RuntimeException> failureType) {
       var broken =

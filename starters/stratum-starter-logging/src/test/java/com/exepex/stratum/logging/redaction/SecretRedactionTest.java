@@ -15,7 +15,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.boot.json.WritableJson;
 
 @DisplayName("Secrets, cards and national IDs are always masked")
@@ -28,68 +28,72 @@ class SecretRedactionTest {
   @DisplayName("by field name")
   class ByFieldName {
 
+    /** Card and national ID field names, each masked with its last four characters kept. */
+    private static final List<String> CARD_AND_NATIONAL_ID_FIELD_NAMES =
+        List.of(
+            "card",
+            "cardNumber",
+            "credit_card",
+            "pan",
+            "ssn",
+            "national_id",
+            "tax_id",
+            "passport",
+            "passport_number");
+
+    /** Secret field names, whole or as part of a longer name, each masked in full. */
+    private static final List<String> SECRET_FIELD_NAMES =
+        List.of(
+            "pwd",
+            "pass",
+            "auth",
+            "pin",
+            "otp",
+            "cvv",
+            "cvc",
+            "password",
+            "passwd",
+            "passphrase",
+            "secret",
+            "client_secret",
+            "token",
+            "access_token",
+            "refresh_token",
+            "id_token",
+            "X-Auth-Token",
+            "X-CSRF-Token",
+            "apiKey",
+            "X-Api-Key",
+            "credential",
+            "credentials",
+            "private_key",
+            "session_id",
+            "JSESSIONID",
+            "cookie",
+            "set-cookie",
+            "Authorization",
+            "Proxy-Authorization",
+            "spring.datasource.password",
+            "dbPassword",
+            "userPassword",
+            "newPassword",
+            "secretKey",
+            "apiToken",
+            "authToken",
+            "aws_secret_access_key",
+            "passcode",
+            "passCode",
+            "user_passcode");
+
     @ParameterizedTest
-    @ValueSource(
-        strings = {
-          "pwd",
-          "pass",
-          "auth",
-          "pin",
-          "otp",
-          "cvv",
-          "cvc",
-          "password",
-          "passwd",
-          "passphrase",
-          "secret",
-          "client_secret",
-          "token",
-          "access_token",
-          "refresh_token",
-          "id_token",
-          "X-Auth-Token",
-          "X-CSRF-Token",
-          "apiKey",
-          "X-Api-Key",
-          "credential",
-          "credentials",
-          "private_key",
-          "session_id",
-          "JSESSIONID",
-          "cookie",
-          "set-cookie",
-          "Authorization",
-          "Proxy-Authorization",
-          "spring.datasource.password",
-          "dbPassword",
-          "userPassword",
-          "newPassword",
-          "secretKey",
-          "apiToken",
-          "authToken",
-          "aws_secret_access_key",
-          "passcode",
-          "passCode",
-          "user_passcode"
-        })
+    @FieldSource("SECRET_FIELD_NAMES")
     @DisplayName("a secret field, or one whose name holds a secret word, is masked in full")
     void secretFieldIsMaskedInFull(String name) {
       assertThat(DEFAULT_REDACTOR.redact(name, "plain value")).isEqualTo(MaskedText.MASK);
     }
 
     @ParameterizedTest
-    @ValueSource(
-        strings = {
-          "card",
-          "cardNumber",
-          "credit_card",
-          "pan",
-          "ssn",
-          "national_id",
-          "tax_id",
-          "passport",
-          "passport_number"
-        })
+    @FieldSource("CARD_AND_NATIONAL_ID_FIELD_NAMES")
     @DisplayName("a card or national ID field keeps only its last four characters")
     void cardFieldKeepsLastFour(String name) {
       assertThat(DEFAULT_REDACTOR.redact(name, "any-card-1234")).isEqualTo("****1234");
@@ -150,6 +154,25 @@ class SecretRedactionTest {
   @DisplayName("in text")
   class InText {
 
+    /** Secret values whose opening bracket is never closed before the text ends. */
+    private static final List<String> SECRET_BRACKETS_AT_END_OF_TEXT =
+        List.of("password=[", "{\"secret\":{", "password={\"a\":\"\\");
+
+    /** A password written in escaped JSON, single quotes, URL encoding and compound keys. */
+    private static final List<String> SECRETS_IN_OTHER_FORMS =
+        List.of(
+            "dbPassword=" + PASSWORD,
+            "pass=" + PASSWORD,
+            "{\\\"password\\\":\\\"" + PASSWORD + "\\\"}",
+            "{'password': '" + PASSWORD + "'}",
+            "GET /login?password%3D" + PASSWORD,
+            "X-CSRF-Token: " + PASSWORD,
+            "Customer[name=Jane, dbPassword=" + PASSWORD + "]");
+
+    /** The HTTP authorization schemes whose credentials are masked. */
+    private static final List<String> AUTHORIZATION_SCHEMES =
+        List.of("Bearer", "Basic", "Digest", "Negotiate");
+
     @Test
     @DisplayName("a JSON Web Token is masked")
     void jwtIsMasked() {
@@ -157,7 +180,7 @@ class SecretRedactionTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"Bearer", "Basic", "Digest", "Negotiate"})
+    @FieldSource("AUTHORIZATION_SCHEMES")
     @DisplayName("credentials after an authorization scheme are masked")
     void authorizationSchemeIsMasked(String scheme) {
       assertThat(redactUnnamedText("sent " + scheme + " dXNlcjpwYXNz to x"))
@@ -188,16 +211,7 @@ class SecretRedactionTest {
     }
 
     @ParameterizedTest
-    @ValueSource(
-        strings = {
-          "dbPassword=" + PASSWORD,
-          "pass=" + PASSWORD,
-          "{\\\"password\\\":\\\"" + PASSWORD + "\\\"}",
-          "{'password': '" + PASSWORD + "'}",
-          "GET /login?password%3D" + PASSWORD,
-          "X-CSRF-Token: " + PASSWORD,
-          "Customer[name=Jane, dbPassword=" + PASSWORD + "]"
-        })
+    @FieldSource("SECRETS_IN_OTHER_FORMS")
     @DisplayName(
         "a secret is masked in escaped JSON, single quotes, URL encoding and compound keys")
     void secretInOtherFormsIsMasked(String line) {
@@ -226,7 +240,7 @@ class SecretRedactionTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"password=[", "{\"secret\":{", "password={\"a\":\"\\"})
+    @FieldSource("SECRET_BRACKETS_AT_END_OF_TEXT")
     @DisplayName("a bracket that opens a secret value at the end of the text is masked")
     void bracketAtEndOfTextIsMasked(String line) {
       assertThat(redactUnnamedText(line)).endsWith(MaskedText.MASK);
