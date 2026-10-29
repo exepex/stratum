@@ -11,6 +11,7 @@ import io.opentelemetry.context.Context;
 import io.opentelemetry.sdk.trace.ReadWriteSpan;
 import io.opentelemetry.sdk.trace.ReadableSpan;
 import io.opentelemetry.sdk.trace.SpanProcessor;
+import java.util.Objects;
 import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.MDC;
@@ -88,12 +89,18 @@ public class CorrelationIdRecorder implements EventListener, SpanProcessor {
     return false;
   }
 
-  /** Puts the correlation ID of the span that became current; leaves the context without one. */
-  private void putCorrelationId(@Nullable Span span, Baggage baggage) {
-    if (span != null) {
+  /**
+   * Puts the correlation ID of the span that became current. A context without a span, such as one
+   * that clears tracing for a while, has no correlation ID either.
+   */
+  private void putCorrelationId(@Nullable Span span, @Nullable Baggage baggage) {
+    if (span == null) {
+      MDC.remove(LoggingContextConstants.CORRELATION_ID);
+    } else {
       MDC.put(
           LoggingContextConstants.CORRELATION_ID,
-          correlationIdFromBaggage(baggage).orElse(span.getSpanContext().getTraceId()));
+          correlationIdFromBaggage(Objects.requireNonNullElse(baggage, Baggage.empty()))
+              .orElse(span.getSpanContext().getTraceId()));
     }
   }
 
