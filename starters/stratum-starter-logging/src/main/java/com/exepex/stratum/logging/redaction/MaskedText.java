@@ -1,5 +1,7 @@
 package com.exepex.stratum.logging.redaction;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.function.IntPredicate;
 import java.util.stream.IntStream;
@@ -48,6 +50,29 @@ class MaskedText {
   }
 
   /**
+   * Returns the replacements in order, with each set of overlapping ones joined into one that
+   * covers them all. The joined one writes the text of the one that ends last, so only the end that
+   * one keeps visible is shown.
+   *
+   * @param replacements the parts to replace, in any order, possibly overlapping
+   * @return the parts to replace, in order and not overlapping
+   */
+  static List<Replacement> joiningOverlaps(List<Replacement> replacements) {
+    var joined = new ArrayList<Replacement>();
+    // A loop, because each replacement is joined to the one before it when the two overlap.
+    for (var replacement :
+        replacements.stream().sorted(Comparator.comparingInt(Replacement::start)).toList()) {
+      if (joined.isEmpty() || replacement.start() >= joined.getLast().end()) {
+        joined.add(replacement);
+      } else if (replacement.end() > joined.getLast().end()) {
+        var earlier = joined.removeLast();
+        joined.add(replacement.toBuilder().start(earlier.start()).build());
+      }
+    }
+    return joined;
+  }
+
+  /**
    * Returns how many characters just before {@code end} pass the test, counting back no further
    * than {@code from}.
    *
@@ -73,6 +98,6 @@ class MaskedText {
    * @param end where the part ends
    * @param text what is written instead
    */
-  @Builder
+  @Builder(toBuilder = true)
   record Replacement(int start, int end, String text) {}
 }

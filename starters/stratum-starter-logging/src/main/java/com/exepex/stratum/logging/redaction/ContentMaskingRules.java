@@ -44,17 +44,29 @@ class ContentMaskingRules {
           "(?i)\\b(basic|bearer|digest|negotiate)\\s+"
               + "(?:[a-z]++=[^\\r\\n]++|[a-z0-9+/._=~-]{4,})");
 
-  // After the password's first part, the match backtracks to the last @ before any /, ?, # or
-  // space, so an @ inside the password is masked, while an @ in the path or query is never reached
-  // and a query key such as password= is left for the key-value rule. Each scan stops at the next
-  // URL's //, so matching stays linear.
+  // A URL ends at a space, /, ?, #, a quote, < or >. A comma, semicolon, & or = may be part of
+  // the password or start the next value, as in https://u:p@host,password=x@y. Each scan is
+  // possessive or backtracks once, and stops at the next URL's //, so matching stays linear.
+  /**
+   * A password in a URL whose end is unclear, because another {@code @} follows a comma, semicolon,
+   * {@code &} or {@code =}, with the rest of the line. All of it is masked: masking less could show
+   * the password's end, or the key of the next secret and so its value.
+   */
+  private static final Pattern URL_PASSWORD_OF_UNCLEAR_END =
+      Pattern.compile(
+          "(?i)(?<![a-z0-9+.-])([a-z][a-z0-9+.-]*+://)[^\\s/:@]*+:[^\\s/@]++@"
+              + "(?=[^\\s/?#\"'<>,;&=]*+[,;&=][^\\s/?#\"'<>]*@)[^\\r\\n]*+");
+
   /**
    * A password in a URL, with or without a user name, such as {@code https://user:secret@host},
-   * {@code redis://:secret@host} or {@code https://user:p@ss@host}.
+   * {@code redis://:secret@host} or {@code https://user:p@ss@host}. The match backtracks to the
+   * last @ before the URL ends or a comma, semicolon, & or =, so an @ inside the password is
+   * masked.
    */
   private static final Pattern URL_CREDENTIALS =
       Pattern.compile(
-          "(?i)(?<![a-z0-9+.-])([a-z][a-z0-9+.-]*+://)[^\\s/:@]*+:[^\\s/@]++(?:@[^\\s/?#]*@|@)");
+          "(?i)(?<![a-z0-9+.-])([a-z][a-z0-9+.-]*+://)[^\\s/:@]*+:[^\\s/@]++"
+              + "(?:@[^\\s/?#\"'<>,;&=]*@|@)");
 
   /** A US social security number. */
   private static final Pattern SSN = Pattern.compile("\\b\\d{3}-\\d{2}-\\d{4}\\b");
@@ -89,21 +101,72 @@ class ContentMaskingRules {
                 maskingMatches(AUTH_SCHEME, ContentMaskingRules::maskAuthScheme)),
             guardedRule(
                 text -> text.contains("://"),
+                maskingMatches(
+                    URL_PASSWORD_OF_UNCLEAR_END, match -> match.group(1) + MaskedText.MASK)),
+            guardedRule(
+                text -> text.contains("://"),
                 maskingMatches(URL_CREDENTIALS, ContentMaskingRules::maskUrlCredentials)),
             guardedRule(ContentMaskingRules::mayHoldKeyValuePair, keyValuePairMasker::mask),
-            guardedRule(ContentMaskingRules::hasDigit, CardNumberMasker::mask),
-            guardedRule(
-                text -> text.contains("-"),
-                maskingMatches(SSN, match -> MaskedText.keepingLastFour(match.group()))),
-            guardedRule(
-                text -> text.contains("@"), maskingMatches(EMAIL, ContentMaskingRules::maskEmail)),
-            guardedRule(ContentMaskingRules::hasDigit, ContentMaskingRules::maskIbans),
-            // Only numbers with a country code, such as +44 20 7946 0958, are found.
-            guardedRule(text -> text.contains("+"), ContentMaskingRules::maskPhoneNumbers));
+            ContentMaskingRules::maskPersonalDataTwice);
     var extraRules =
         extraPatterns.stream().map(pattern -> maskingMatches(pattern, match -> MaskedText.MASK));
     return Stream.concat(builtInRules, extraRules)
         .reduce(UnaryOperator.identity(), ContentMaskingRules::earlierThenLater);
+  }
+
+  /**
+   * Masks personal data twice, because text next to a value can hide it from the first search, such
+   * as a card number right before an email address or a phone number, and masking that text shows
+   * it to the second. Text that the first search left unchanged is not searched again.
+   */
+  private static String maskPersonalDataTwice(String logText) {
+    var maskedOnce = maskPersonalData(logText);
+    return maskedOnce.equals(logText) ? maskedOnce : maskPersonalData(maskedOnce);
+  }
+
+  /**
+   * Masks card numbers, social security numbers, email addresses, IBANs and phone numbers. All are
+   * looked for in the same text, and parts that overlap are masked as one. Masking one in turn
+   * could break the shape of another that it overlaps, such as a card number inside an email
+   * address, and leave the rest of that one visible.
+   */
+  private static String maskPersonalData(String logText) {
+    var found =
+        Stream.of(
+                guardedFinder(ContentMaskingRules::hasDigit, CardNumberMasker::cardsIn),
+                guardedFinder(text -> text.contains("-"), keepingLastFourOf(SSN, ssn -> true)),
+                guardedFinder(
+                    text -> text.contains("@"),
+                    keepingLastFourOf(EMAIL, EmailValidator.getInstance()::isValid)),
+                guardedFinder(ContentMaskingRules::hasDigit, ContentMaskingRules::ibansIn),
+                guardedFinder(text -> text.contains("+"), ContentMaskingRules::phoneNumbersIn))
+            .flatMap(finder -> finder.apply(logText).stream())
+            .toList();
+    return MaskedText.replace(logText, MaskedText.joiningOverlaps(found));
+  }
+
+  /** Returns a finder that searches only text that passes a cheap check, finding nothing else. */
+  private static Function<String, List<Replacement>> guardedFinder(
+      Predicate<String> mayMatch, Function<String, List<Replacement>> find) {
+    return text -> mayMatch.test(text) ? find.apply(text) : List.of();
+  }
+
+  /** Returns a finder of the pattern's matches that are real, each keeping its last four. */
+  private static Function<String, List<Replacement>> keepingLastFourOf(
+      Pattern pattern, Predicate<String> isReal) {
+    return text ->
+        pattern
+            .matcher(text)
+            .results()
+            .filter(match -> isReal.test(match.group()))
+            .map(
+                match ->
+                    Replacement.builder()
+                        .start(match.start())
+                        .end(match.end())
+                        .text(MaskedText.keepingLastFour(match.group()))
+                        .build())
+            .toList();
   }
 
   /** Returns a rule that masks only text that passes a cheap check, skipping the rest. */
@@ -138,18 +201,12 @@ class ContentMaskingRules {
     return match.group(1) + MaskedText.MASK + "@";
   }
 
-  /** Masks a valid email address, keeping its last four characters. */
-  private static String maskEmail(MatchResult match) {
-    return EmailValidator.getInstance().isValid(match.group())
-        ? MaskedText.keepingLastFour(match.group())
-        : match.group();
-  }
-
   /**
-   * Masks every valid IBAN, keeping its last four characters. The pattern can take in words after
-   * an IBAN, including the start of the next one, so the search goes on after the IBAN itself.
+   * Returns every valid IBAN, each keeping its last four characters. The pattern can take in words
+   * after an IBAN, including the start of the next one, so the search goes on after the IBAN
+   * itself.
    */
-  private static String maskIbans(String text) {
+  private static List<Replacement> ibansIn(String text) {
     var candidates = IBAN.matcher(text);
     var maskedIbans = new ArrayList<Replacement>();
     var searchFrom = 0;
@@ -161,7 +218,7 @@ class ContentMaskingRules {
       maskedIban.ifPresent(maskedIbans::add);
       searchFrom = maskedIban.isPresent() ? maskedIban.get().end() : secondWordStart(candidate);
     }
-    return MaskedText.replace(text, maskedIbans);
+    return maskedIbans;
   }
 
   /** Returns where a candidate's second word starts, or its end if it is one word. */
@@ -216,20 +273,21 @@ class ContentMaskingRules {
     return iban.replace(" ", "").toUpperCase(Locale.ROOT);
   }
 
-  /** Masks every international phone number, keeping its last four digits. */
-  private static String maskPhoneNumbers(String text) {
+  /**
+   * Returns every phone number with a country code, such as {@code +44 20 7946 0958}, each keeping
+   * its last four digits.
+   */
+  private static List<Replacement> phoneNumbersIn(String text) {
     var phoneNumbers = PHONE_NUMBER_PARSER.findNumbers(text, null, Leniency.VALID, Long.MAX_VALUE);
-    var maskedPhoneNumbers =
-        StreamSupport.stream(phoneNumbers.spliterator(), false)
-            .map(
-                phoneNumber ->
-                    Replacement.builder()
-                        .start(phoneNumber.start())
-                        .end(phoneNumber.end())
-                        .text(MaskedText.keepingLastFour(phoneNumber.rawString()))
-                        .build())
-            .toList();
-    return MaskedText.replace(text, maskedPhoneNumbers);
+    return StreamSupport.stream(phoneNumbers.spliterator(), false)
+        .map(
+            phoneNumber ->
+                Replacement.builder()
+                    .start(phoneNumber.start())
+                    .end(phoneNumber.end())
+                    .text(MaskedText.keepingLastFour(phoneNumber.rawString()))
+                    .build())
+        .toList();
   }
 
   /** Returns whether the text holds {@code =}, {@code :} or {@code %3}, which every pair needs. */

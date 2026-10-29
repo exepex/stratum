@@ -5,7 +5,10 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.logging.testsupport.LoggingTestData;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -21,10 +24,16 @@ class RedactorTest {
   private static final int SMALLEST_MAX_FIELD_LENGTH = 1024;
 
   /**
-   * How many {@code ab} pairs make Java's regex engine overflow the stack on {@code (a|b)*c}, while
-   * staying under the default 16KB limit.
+   * How many {@code ab} pairs make Java's regex engine overflow a {@link #SMALL_STACK_BYTES} stack
+   * on {@code (a|b)*c}, while staying under the default 16KB limit.
    */
   private static final int OVERFLOWING_PAIRS = 8000;
+
+  /** The stack size of the thread that overflows, so the test does not rely on the JVM default. */
+  private static final long SMALL_STACK_BYTES = 256 * 1024;
+
+  /** How long the overflowing thread may take to give its result. */
+  private static final long OVERFLOW_WAIT_SECONDS = 10;
 
   /** The field that holds a log line's message. */
   private static final String MESSAGE = "message";
@@ -63,6 +72,9 @@ class RedactorTest {
             IllegalStateException.class,
             IndexOutOfBoundsException.class);
 
+    /** The separators that a cut must drop, with the digits before them. */
+    private static final List<String> GROUP_SEPARATORS_A_CUT_DROPS = List.of(".", "_", "/");
+
     private final Redactor redactor =
         Redactor.from(LoggingTestData.defaults().maxFieldLength(DataSize.ofKilobytes(1)).build());
 
@@ -82,16 +94,24 @@ class RedactorTest {
     @DisplayName("a card or token that crosses the limit is dropped, not left half visible")
     void secretAcrossTheLimitIsDropped() {
       var beforeCard = "y".repeat(SMALLEST_MAX_FIELD_LENGTH - "4111 1111 1".length()) + " ";
-      var beforeDottedCard =
-          "y".repeat(SMALLEST_MAX_FIELD_LENGTH - "4111.1111 1111.1".length()) + " ";
       var beforeToken = "z".repeat(SMALLEST_MAX_FIELD_LENGTH - "opaque".length()) + " ";
 
       assertThat(redactor.redact(MESSAGE, beforeCard + "4111 1111 1111 1111"))
           .isEqualTo(beforeCard.strip() + Redactor.TRUNCATION_MARKER);
-      assertThat(redactor.redact(MESSAGE, beforeDottedCard + "4111.1111 1111.1111"))
-          .isEqualTo(beforeDottedCard.strip() + Redactor.TRUNCATION_MARKER);
       assertThat(redactor.redact(MESSAGE, beforeToken + "opaque-token-value"))
           .isEqualTo(beforeToken.strip() + Redactor.TRUNCATION_MARKER);
+    }
+
+    @ParameterizedTest
+    @FieldSource("GROUP_SEPARATORS_A_CUT_DROPS")
+    @DisplayName("card digits split by a dot, underscore or slash that cross the limit are dropped")
+    void groupsAcrossTheLimitAreDropped(String separator) {
+      var groups = "4111" + separator + "1111 1111" + separator + "1111";
+      var beforeGroups =
+          "y".repeat(SMALLEST_MAX_FIELD_LENGTH - groups.length() + "111".length()) + " ";
+
+      assertThat(redactor.redact(MESSAGE, beforeGroups + groups))
+          .isEqualTo(beforeGroups.strip() + Redactor.TRUNCATION_MARKER);
     }
 
     @Test
@@ -125,6 +145,20 @@ class RedactorTest {
     }
 
     @Test
+    @DisplayName("a list whose toString() returns null, under a card name, is masked")
+    void nullTextListUnderCardNameIsMasked() {
+      var withoutText =
+          new ArrayList<String>() {
+            @Override
+            public String toString() {
+              return null;
+            }
+          };
+
+      assertThat(redactor.redact("card_number", withoutText)).isEqualTo(MaskedText.MASK);
+    }
+
+    @Test
     @DisplayName("a value whose toString() returns null is written as the text null")
     void nullTextIsWrittenAsNull() {
       var withoutText =
@@ -140,11 +174,14 @@ class RedactorTest {
 
     @Test
     @DisplayName("an extra pattern that overflows the stack fails closed, without throwing")
-    void stackOverflowIsReplaced() {
+    void stackOverflowIsReplaced() throws Exception {
       var withDeepPattern =
           Redactor.from(LoggingTestData.withRedaction(List.of(), List.of("(a|b)*c")).build());
+      var redaction =
+          new FutureTask<>(() -> withDeepPattern.redact(MESSAGE, "ab".repeat(OVERFLOWING_PAIRS)));
+      new Thread(null, redaction, "small-stack", SMALL_STACK_BYTES).start();
 
-      assertThat(withDeepPattern.redact(MESSAGE, "ab".repeat(OVERFLOWING_PAIRS)))
+      assertThat(redaction.get(OVERFLOW_WAIT_SECONDS, TimeUnit.SECONDS))
           .isEqualTo(Redactor.REDACTION_FAILED);
     }
 
