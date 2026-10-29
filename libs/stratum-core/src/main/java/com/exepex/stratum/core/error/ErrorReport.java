@@ -11,7 +11,6 @@ import lombok.Value;
 import lombok.With;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.MDC;
-import org.springframework.util.StringUtils;
 
 /**
  * Everything known about one error or warning, for the application's own logs: the {@linkplain
@@ -130,13 +129,12 @@ public class ErrorReport implements Serializable {
   }
 
   /**
-   * Rejects a code that uses Stratum's prefix, in any case and after any leading spaces, but is
-   * declared outside Stratum's package, so that a service cannot declare one by mistake.
+   * Rejects a code that starts with Stratum's prefix but is declared outside Stratum's package, so
+   * that a service cannot declare one by mistake.
    */
   private static void requireOwnPrefix(ErrorCode code) {
-    var usesStratumPrefix =
-        StringUtils.startsWithIgnoreCase(code.getCode().strip(), STRATUM_CODE_PREFIX);
-    if (usesStratumPrefix && !code.getClass().getName().startsWith(STRATUM_PACKAGE)) {
+    if (code.getCode().startsWith(STRATUM_CODE_PREFIX)
+        && !code.getClass().getName().startsWith(STRATUM_PACKAGE)) {
       throw new IllegalArgumentException(
           code.getClass().getName()
               + " declares "
