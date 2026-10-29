@@ -4,7 +4,6 @@ import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.condition.StratumModuleSwitch;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.core.properties.StratumDefaults;
-import com.exepex.stratum.core.reactor.ReactorOperatorContextPropagation;
 import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.LoggingErrorCode;
 import com.exepex.stratum.logging.LoggingProperties;
@@ -68,7 +67,6 @@ public class LoggingEnvironmentPostProcessor implements EnvironmentPostProcessor
     requireValidRedactionPatterns(loggingProperties);
     StratumDefaults.addBelowServiceValues(
         environment, stratumLoggingDefaults(loggingProperties, environment));
-    ReactorOperatorContextPropagation.enableWhenSetToEveryOperator(environment);
     if (loggingProperties.format() == LogFormat.TEXT && !onlyLocalProfiles(environment)) {
       logFactory
           .getLog(LoggingEnvironmentPostProcessor.class)

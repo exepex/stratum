@@ -21,9 +21,11 @@ public class ReactorOperatorContextPropagation {
 
   /**
    * Turns on Reactor's context propagation in every operator when the service uses Reactor and the
-   * setting is {@code auto}. Calling it again, or after Spring Boot did, changes nothing.
+   * setting is {@code auto}. Calling it again, or after Spring Boot did, changes nothing. Called
+   * while beans are created, not before, so that a value from a {@code @PropertySource} file wins.
    *
-   * @param environment the application's environment, with Stratum's defaults already added
+   * @param environment the application's environment, with Stratum's defaults and the service's
+   *     {@code @PropertySource} files loaded
    */
   public static void enableWhenSetToEveryOperator(Environment environment) {
     // Spring Boot reads the setting ignoring case.

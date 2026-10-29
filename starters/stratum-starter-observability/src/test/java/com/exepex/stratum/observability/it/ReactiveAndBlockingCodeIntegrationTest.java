@@ -262,8 +262,12 @@ class ReactiveAndBlockingCodeIntegrationTest {
             .map(CompletableFuture::join)
             .toList();
 
-    assertThat(idsSeenOnReactorSchedulers).allSatisfy(ids -> assertThat(ids).isEmpty());
-    assertThat(idsSeenOnSpringExecutor).allSatisfy(ids -> assertThat(ids).isEmpty());
+    assertThat(idsSeenOnReactorSchedulers)
+        .hasSize(2 * TASKS_PER_IDLE_POOL)
+        .allSatisfy(ids -> assertThat(ids).isEmpty());
+    assertThat(idsSeenOnSpringExecutor)
+        .hasSize(TASKS_PER_IDLE_POOL)
+        .allSatisfy(ids -> assertThat(ids).isEmpty());
   }
 
   /** Returns the trace and correlation IDs the logging context holds on this thread. */

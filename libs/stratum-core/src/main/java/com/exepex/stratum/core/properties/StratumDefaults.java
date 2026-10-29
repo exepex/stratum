@@ -67,14 +67,15 @@ public class StratumDefaults {
    * @return the setting and its value
    */
   public static Map<String, Object> reactorOperatorContextPropagation(Environment environment) {
-    var everyReactorOperator =
-        environment.getProperty(
-            StratumModuleConstants.PROPAGATE_CONTEXT_TO_EVERY_REACTOR_OPERATOR,
-            Boolean.class,
-            true);
+    var contextInEveryReactorOperator =
+        Boolean.TRUE.equals(
+            environment.getProperty(
+                StratumModuleConstants.PROPAGATE_CONTEXT_TO_EVERY_REACTOR_OPERATOR,
+                Boolean.class,
+                true));
     return Map.of(
         StratumModuleConstants.REACTOR_CONTEXT_PROPAGATION,
-        everyReactorOperator
+        contextInEveryReactorOperator
             ? StratumModuleConstants.REACTOR_CONTEXT_IN_EVERY_OPERATOR
             : StratumModuleConstants.REACTOR_CONTEXT_IN_HANDLE_AND_TAP_ONLY);
   }

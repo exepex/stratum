@@ -145,21 +145,14 @@ class ObservabilityEnvironmentPostProcessorTest {
 
     @Test
     @DisplayName(
-        "it turns on Reactor's context propagation itself, so a service that uses Reactor without"
-            + " WebFlux, such as R2DBC, keeps the trace after a thread change")
-    void turnsOnReactorContextPropagationWithoutWebFlux() {
-      // Reactor's switch is global, so the test starts from off and leaves it as it found it.
-      var propagationEnabledBeforeTest = Hooks.isAutomaticContextPropagationEnabled();
+        "it leaves Reactor's context propagation to the auto-configuration, so that a service's"
+            + " @PropertySource files, loaded later, can still turn it off")
+    void leavesReactorContextPropagationForLaterDecision() {
       Hooks.disableAutomaticContextPropagation();
-      try {
-        runPostProcessor(environmentWithModuleOn());
 
-        assertThat(Hooks.isAutomaticContextPropagationEnabled()).isTrue();
-      } finally {
-        if (!propagationEnabledBeforeTest) {
-          Hooks.disableAutomaticContextPropagation();
-        }
-      }
+      runPostProcessor(environmentWithModuleOn());
+
+      assertThat(Hooks.isAutomaticContextPropagationEnabled()).isFalse();
     }
 
     @Test
