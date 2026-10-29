@@ -105,6 +105,8 @@ spring:
     username: orders
     password: ${ORDERS_DB_PASSWORD}
 
+# Where the observability starter sends metrics and traces: your OpenTelemetry Collector.
+# Required outside the local and test profiles once stratum.observability.enabled is true.
 management:
   otlp:
     metrics:
@@ -148,6 +150,8 @@ spring.application.name=order-service
 spring.datasource.url=jdbc:postgresql://orders-db:5432/orders
 spring.datasource.username=orders
 spring.datasource.password=${ORDERS_DB_PASSWORD}
+# Where the observability starter sends metrics and traces: your OpenTelemetry Collector.
+# Required outside the local and test profiles once stratum.observability.enabled is true.
 management.otlp.metrics.export.url=http://otel-collector:4318/v1/metrics
 management.opentelemetry.tracing.export.otlp.endpoint=http://otel-collector:4318/v1/traces
 
