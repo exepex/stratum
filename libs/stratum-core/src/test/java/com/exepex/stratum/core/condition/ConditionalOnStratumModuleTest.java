@@ -11,7 +11,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.springframework.boot.autoconfigure.condition.ConditionEvaluationReport;
 import org.springframework.boot.context.properties.bind.BindException;
+import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,6 +28,31 @@ class ConditionalOnStratumModuleTest {
 
   private final ApplicationContextRunner contextRunner =
       new ApplicationContextRunner().withUserConfiguration(GreetingModule.class);
+
+  /** Returns the condition report's message for the test module, as {@code --debug} shows it. */
+  private String reportMessage(AssertableApplicationContext context) {
+    return ConditionEvaluationReport.get(context.getBeanFactory())
+        .getConditionAndOutcomesBySource()
+        .get(GreetingModule.class.getName())
+        .iterator()
+        .next()
+        .getOutcome()
+        .getMessage();
+  }
+
+  @Test
+  @DisplayName("the condition report says whether the property is true")
+  void reportSaysWhetherPropertyIsTrue() {
+    contextRunner
+        .withPropertyValues("stratum.greeting.enabled=true")
+        .run(
+            context ->
+                assertThat(reportMessage(context)).endsWith("stratum.greeting.enabled is true"));
+    contextRunner.run(
+        context ->
+            assertThat(reportMessage(context))
+                .endsWith("stratum.greeting.enabled is not true, so it is off"));
+  }
 
   @Test
   @DisplayName("with the property unset, the module is off and the application still starts")

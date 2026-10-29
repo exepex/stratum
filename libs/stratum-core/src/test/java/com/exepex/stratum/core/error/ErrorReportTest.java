@@ -4,7 +4,6 @@ import static com.exepex.stratum.core.error.testsupport.ErrorTestData.LONGEST_ID
 import static com.exepex.stratum.core.error.testsupport.ErrorTestData.QUANTITY_PROBLEM;
 import static com.exepex.stratum.core.error.testsupport.ErrorTestData.SKU;
 import static com.exepex.stratum.core.testsupport.TracingTestData.CORRELATION_ID;
-import static com.exepex.stratum.core.testsupport.TracingTestData.CORRELATION_ID_KEY;
 import static com.exepex.stratum.core.testsupport.TracingTestData.SPAN_ID;
 import static com.exepex.stratum.core.testsupport.TracingTestData.TRACE_ID;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -142,7 +141,7 @@ class ErrorReportTest {
     @ValueSource(strings = {"c0a8012e-7f3d-4a8e-9a43-2f9b6f1c2d10", "order_42.step:3", "a"})
     @DisplayName("an ID of letters, digits, '-', '_', '.' and ':' is kept")
     void keepsUsableId(String id) {
-      MDC.put(CORRELATION_ID_KEY, id);
+      MDC.put(LoggingContextConstants.CORRELATION_ID, id);
 
       assertThat(correlationIdOfNewReport()).isEqualTo(id);
     }
@@ -151,7 +150,7 @@ class ErrorReportTest {
     @ValueSource(strings = {"", "order 42", "id\nforged log line", "id\r", "<script>", "ü"})
     @DisplayName("an empty ID, or one with any other character, is left out")
     void leavesOutUnusableId(String id) {
-      MDC.put(CORRELATION_ID_KEY, id);
+      MDC.put(LoggingContextConstants.CORRELATION_ID, id);
 
       assertThat(correlationIdOfNewReport()).isNull();
     }
@@ -160,10 +159,10 @@ class ErrorReportTest {
     @DisplayName("an ID of 128 characters is kept, and one of 129 is left out")
     void limitsIdLength() {
       var longest = "a".repeat(LONGEST_ID_LENGTH);
-      MDC.put(CORRELATION_ID_KEY, longest);
+      MDC.put(LoggingContextConstants.CORRELATION_ID, longest);
       assertThat(correlationIdOfNewReport()).isEqualTo(longest);
 
-      MDC.put(CORRELATION_ID_KEY, longest + "a");
+      MDC.put(LoggingContextConstants.CORRELATION_ID, longest + "a");
       assertThat(correlationIdOfNewReport()).isNull();
     }
 
@@ -216,13 +215,14 @@ class ErrorReportTest {
 
       assertThat(external)
           .isEqualTo(
-              new ExternalError(
-                  "ORD-0001",
-                  Severity.ERROR,
-                  "Not enough stock: SKU-1",
-                  List.of(QUANTITY_PROBLEM),
-                  TRACE_ID,
-                  CORRELATION_ID));
+              ExternalError.builder()
+                  .code("ORD-0001")
+                  .severity(Severity.ERROR)
+                  .message("Not enough stock: SKU-1")
+                  .details(List.of(QUANTITY_PROBLEM))
+                  .traceId(TRACE_ID)
+                  .correlationId(CORRELATION_ID)
+                  .build());
     }
   }
 }

@@ -1,5 +1,6 @@
 package com.exepex.stratum.logging.redaction;
 
+import com.exepex.stratum.core.condition.StratumModuleSwitch;
 import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.LoggingProperties;
 import org.jspecify.annotations.Nullable;
@@ -27,7 +28,7 @@ public final class RedactingJsonMembersCustomizer
    */
   public RedactingJsonMembersCustomizer(Environment environment) {
     this.redactor =
-        LoggingConstants.isEnabled(environment)
+        StratumModuleSwitch.isEnabled(environment, LoggingConstants.MODULE)
             ? Redactor.from(LoggingProperties.bind(environment))
             : null;
   }

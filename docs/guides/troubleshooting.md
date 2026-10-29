@@ -36,7 +36,7 @@ Positive matches:
 Negative matches:
    StratumCacheAutoConfiguration:
       Did not match:
-         - @ConditionalOnStratumModule cache stratum.cache.enabled is not set, so it is off
+         - @ConditionalOnStratumModule cache stratum.cache.enabled is not true, so it is off
 ```
 
 ### 3. Actuator, in a safe environment

@@ -6,7 +6,6 @@ import java.util.regex.Pattern;
 import org.springframework.boot.autoconfigure.condition.ConditionMessage;
 import org.springframework.boot.autoconfigure.condition.ConditionOutcome;
 import org.springframework.boot.autoconfigure.condition.SpringBootCondition;
-import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.context.annotation.ConditionContext;
 import org.springframework.core.annotation.MergedAnnotation;
 import org.springframework.core.type.AnnotatedTypeMetadata;
@@ -35,16 +34,14 @@ class OnStratumModuleCondition extends SpringBootCondition {
     var module = moduleName(metadata);
     var property = StratumModuleConstants.enabledProperty(module);
     var message = ConditionMessage.forCondition(ConditionalOnStratumModule.class, module);
-    var enabled = Binder.get(context.getEnvironment()).bind(property, Boolean.class);
-    if (!enabled.isBound()) {
-      return ConditionOutcome.noMatch(message.because(property + " is not set, so it is off"));
-    }
-    return new ConditionOutcome(enabled.get(), message.because(property + " is " + enabled.get()));
+    var enabled = StratumModuleSwitch.isEnabled(context.getEnvironment(), module);
+    return new ConditionOutcome(
+        enabled, message.because(property + (enabled ? " is true" : " is not true, so it is off")));
   }
 
   /** Returns the module name from the annotation and rejects one that is not in kebab-case. */
   private String moduleName(AnnotatedTypeMetadata metadata) {
-    String module =
+    var module =
         metadata
             .getAnnotations()
             .get(ConditionalOnStratumModule.class)
@@ -58,6 +55,7 @@ class OnStratumModuleCondition extends SpringBootCondition {
 
   /** Returns whether a module name is one kebab-case word, such as {@code http-client}. */
   private boolean isKebabCase(String module) {
+    // One pattern for the hyphen rules would nest quantifiers, which SpotBugs rejects as ReDoS.
     return KEBAB_CASE_CHARACTERS.matcher(module).matches()
         && !module.startsWith("-")
         && !module.endsWith("-")

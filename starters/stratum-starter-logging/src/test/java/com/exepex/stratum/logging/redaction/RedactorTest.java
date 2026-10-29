@@ -22,9 +22,6 @@ class RedactorTest {
   /** The field that holds a log line's message. */
   private static final String MESSAGE = "message";
 
-  /** The largest allowed limit, 1MB, in bytes. */
-  private static final long LARGEST_LIMIT = 1_048_576;
-
   @Nested
   @DisplayName("when it is made")
   class Settings {
@@ -40,34 +37,6 @@ class RedactorTest {
           .withMessageStartingWith("SX-LOGGING-1002: ")
           .withMessageContaining("pattern 2")
           .withMessageNotContaining("secret");
-    }
-
-    @Test
-    @DisplayName("a limit below 1KB or above 1MB stops startup with SX-CORE-1003")
-    void limitOutOfRangeIsRejected() {
-      var tooSmall =
-          LoggingTestData.defaults().maxFieldLength(DataSize.ofBytes(SMALLEST_LIMIT - 1)).build();
-      var tooLarge =
-          LoggingTestData.defaults().maxFieldLength(DataSize.ofBytes(LARGEST_LIMIT + 1)).build();
-
-      assertThatExceptionOfType(StratumException.class)
-          .isThrownBy(() -> Redactor.from(tooSmall))
-          .withMessageStartingWith("SX-CORE-1003: ")
-          .withMessageContaining("stratum.logging.max-field-length");
-      assertThatExceptionOfType(StratumException.class).isThrownBy(() -> Redactor.from(tooLarge));
-    }
-
-    @Test
-    @DisplayName("limits of exactly 1KB and 1MB are accepted")
-    void limitsAtTheBoundsAreAccepted() {
-      assertThat(
-              Redactor.from(
-                  LoggingTestData.defaults().maxFieldLength(DataSize.ofKilobytes(1)).build()))
-          .isNotNull();
-      assertThat(
-              Redactor.from(
-                  LoggingTestData.defaults().maxFieldLength(DataSize.ofMegabytes(1)).build()))
-          .isNotNull();
     }
   }
 

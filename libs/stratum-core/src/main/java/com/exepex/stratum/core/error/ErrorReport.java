@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.regex.Pattern;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Value;
 import lombok.With;
 import org.jspecify.annotations.Nullable;
@@ -22,6 +23,7 @@ import org.springframework.util.StringUtils;
  */
 @Value
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Builder(toBuilder = true, access = AccessLevel.PRIVATE)
 public class ErrorReport implements Serializable {
 
   /** Version of the serialized form, kept so that a {@link StratumException} can be serialized. */
@@ -97,7 +99,7 @@ public class ErrorReport implements Serializable {
    * @return the new report
    */
   public ErrorReport withDetails(List<ErrorDetail> fieldProblems) {
-    return new ErrorReport(external.withDetails(fieldProblems), spanId, cause);
+    return toBuilder().external(external.toBuilder().details(fieldProblems).build()).build();
   }
 
   /**
@@ -113,14 +115,18 @@ public class ErrorReport implements Serializable {
   private static ErrorReport create(ErrorCode code, String message) {
     requireOwnPrefix(code);
     var external =
-        new ExternalError(
-            code.getCode(),
-            code.getSeverity(),
-            message,
-            List.of(),
-            usableIdOrNull("traceId"),
-            usableIdOrNull("correlationId"));
-    return new ErrorReport(external, usableIdOrNull("spanId"), null);
+        ExternalError.builder()
+            .code(code.getCode())
+            .severity(code.getSeverity())
+            .message(message)
+            .details(List.of())
+            .traceId(usableIdOrNull(LoggingContextConstants.TRACE_ID))
+            .correlationId(usableIdOrNull(LoggingContextConstants.CORRELATION_ID))
+            .build();
+    return ErrorReport.builder()
+        .external(external)
+        .spanId(usableIdOrNull(LoggingContextConstants.SPAN_ID))
+        .build();
   }
 
   /**

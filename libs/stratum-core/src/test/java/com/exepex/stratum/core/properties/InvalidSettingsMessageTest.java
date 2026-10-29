@@ -133,7 +133,7 @@ class InvalidSettingsMessageTest {
             .sorted(Comparator.comparing(this::path).reversed())
             .collect(Collectors.toCollection(LinkedHashSet::new));
 
-    assertThat(resolver.describe(settings, reverseKeyOrder))
+    assertThat(resolver.describeViolations(settings, reverseKeyOrder))
         .isEqualTo(
             "stratum.client.name breaks @Size(max=10, min=2);"
                 + " stratum.client.pool.max-size breaks @Positive;"
@@ -148,7 +148,7 @@ class InvalidSettingsMessageTest {
 
   /** Validates the settings and returns the message the resolver would throw. */
   private <P> String describe(P settings) {
-    return resolver.describe(settings, validator.validate(settings));
+    return resolver.describeViolations(settings, validator.validate(settings));
   }
 
   /** Returns the path of a broken constraint as text. */
