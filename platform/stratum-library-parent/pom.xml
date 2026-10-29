@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   The parent POM of Stratum's own libraries and starters. It adds to stratum-build-parent: Lombok
-  with the annotation processors Stratum's code uses (ST-ENG-42), and checks: Google's Checkstyle
-  configuration, the Javadoc rules (ST-ENG-14, ST-ENG-15), the 400-line limit on Java files
+  with the annotation processors Stratum's code uses (ST-ENG-42), ArchUnit for the architecture
+  tests (ST-TEST-21), and checks: Google's Checkstyle configuration, the Javadoc rules
+  (ST-ENG-14, ST-ENG-15), the 400-line limit on Java files
   (ST-AG-10), the rules against boilerplate that Lombok generates (ST-ENG-42) and a rule that a
   module with code runs tests, so that the coverage gate can check it. Services use
   stratum-parent, which does not inherit this POM, because these choices are their team's.
@@ -32,6 +33,12 @@
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
       <scope>provided</scope>
+    </dependency>
+    <!-- Checks the rules between packages and starters in architecture tests (ST-TEST-21). -->
+    <dependency>
+      <groupId>com.tngtech.archunit</groupId>
+      <artifactId>archunit</artifactId>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 
