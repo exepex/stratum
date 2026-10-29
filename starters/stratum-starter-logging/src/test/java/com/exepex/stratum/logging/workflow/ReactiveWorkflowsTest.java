@@ -7,15 +7,19 @@ import static org.awaitility.Awaitility.await;
 
 import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.testsupport.FinishedObservations;
+import io.micrometer.context.ContextRegistry;
+import io.micrometer.context.integration.Slf4jThreadLocalAccessor;
 import io.micrometer.observation.Observation;
 import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.reactivestreams.Publisher;
 import org.slf4j.MDC;
 import org.springframework.aop.aspectj.annotation.AspectJProxyFactory;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Hooks;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.SynchronousSink;
 import reactor.core.scheduler.Schedulers;
@@ -28,6 +32,9 @@ class ReactiveWorkflowsTest {
 
   /** The inner workflow's name. */
   private static final String PAYMENT = "PAYMENT";
+
+  /** A logging field of the service's own, outside the workflow fields. */
+  private static final String CHANNEL = "channel";
 
   /** An order number used as the workflow's ID. */
   private static final String ORDER_NUMBER = "ORD-1042";
@@ -125,19 +132,36 @@ class ReactiveWorkflowsTest {
   }
 
   @Test
-  @DisplayName("an @Workflow method's failing Flux runs as the workflow and records its failure")
+  @DisplayName(
+      "an @Workflow Flux runs as the workflow and records its failure, though declared Publisher")
   void annotatedFluxMethodRecordsFailure() {
     var proxyFactory = new AspectJProxyFactory(new RefundService());
-    proxyFactory.setProxyTargetClass(true);
     proxyFactory.addAspect(new WorkflowAspect(workflows, reactiveWorkflows));
-    RefundService refundService = proxyFactory.getProxy();
+    Refunds refundService = proxyFactory.getProxy();
 
-    var refunds = refundService.refunds();
+    var refunds = Flux.from(refundService.refunds());
     assertThat(observations.getFinished()).isEmpty();
     assertThatIllegalStateException().isThrownBy(refunds::blockLast);
 
     await().untilAsserted(() -> assertThat(observations.getFinished()).hasSize(1));
     assertThat(observationNamed(CHECKOUT).getError()).isSameAs(paymentDeclined);
+  }
+
+  @Test
+  @DisplayName("in auto mode, a service's accessor for the whole logging context keeps the fields")
+  void wholeLoggingContextKeepsFields() {
+    ContextRegistry.getInstance().registerThreadLocalAccessor(new Slf4jThreadLocalAccessor());
+    Hooks.enableAutomaticContextPropagation();
+    MDC.put(CHANNEL, "web");
+    try {
+      var paymentFields =
+          reactiveWorkflows.mono(PAYMENT, ORDER_NUMBER, paymentOnAnotherThread()).block();
+
+      assertThat(paymentFields).containsExactly(PAYMENT, PAYMENT, ORDER_NUMBER);
+    } finally {
+      Hooks.disableAutomaticContextPropagation();
+      ContextRegistry.getInstance().removeThreadLocalAccessor(Slf4jThreadLocalAccessor.KEY);
+    }
   }
 
   @Test
@@ -155,14 +179,27 @@ class ReactiveWorkflowsTest {
         .orElseThrow();
   }
 
+  /** Gives an order's refunds, declared as a plain {@code Publisher}. */
+  @FunctionalInterface
+  interface Refunds {
+
+    /**
+     * Returns the order's refunds.
+     *
+     * @return the refunds
+     */
+    Publisher<String> refunds();
+  }
+
   /** A service whose workflow method returns a {@code Flux} that fails. */
-  class RefundService {
+  class RefundService implements Refunds {
 
     /**
      * Returns the order's refunds, as the {@code ORDER_CHECKOUT} workflow.
      *
      * @return refunds that fail with the declined payment
      */
+    @Override
     @Workflow(CHECKOUT)
     public Flux<String> refunds() {
       return Flux.error(paymentDeclined);

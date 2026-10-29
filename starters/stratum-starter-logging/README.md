@@ -210,8 +210,9 @@ A workflow ends when its work has finished, even when that is after the call ret
 - A `@Workflow` method that returns a `Mono` or `Flux` only builds the work. The workflow runs
   each time the result is subscribed, until it completes, fails or is cancelled. Lines written
   while the method builds it are outside the workflow, and so is an exception it throws instead of
-  returning one: it passes on unchanged, but is not timed. The method's declared return type
-  decides, so declare `Mono` or `Flux`, not `Publisher` or a type variable.
+  returning one: it passes on unchanged, but is not timed. The class's method decides, so this
+  holds when an interface declares `Publisher` or a type variable and the class returns `Mono` or
+  `Flux`. A method that returns only `Publisher` runs as other work does.
 
 Without `@Workflow`, run a `Mono` or `Flux` through `ReactiveWorkflows`, a bean that exists when
 Reactor is on the classpath. `flux` does the same for a `Flux`:
@@ -241,8 +242,6 @@ The fields follow the work to other threads:
 - **Reactor.** The fields travel in the Reactor context. With Spring Boot's default,
   `spring.reactor.context-propagation=limited`, they are on the lines written in `handle` and `tap`
   operators. Set it to `auto` to have them on every operator's lines, at a small cost per operator.
-  Don't also register Micrometer's `Slf4jThreadLocalAccessor` for the whole MDC: in `auto` mode it
-  can replace the workflow fields.
 - **`@Scheduled` jobs.** Each run starts outside any workflow, as its own piece of work.
 
 The fields stay inside the service. With the observability starter, the trace ID reaches the

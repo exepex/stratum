@@ -1,9 +1,12 @@
 package com.exepex.stratum.logging.workflow;
 
 import com.exepex.stratum.logging.LoggingConstants;
+import io.micrometer.context.integration.Slf4jThreadLocalAccessor;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.contextpropagation.ObservationThreadLocalAccessor;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Flux;
@@ -123,11 +126,34 @@ public class ReactiveWorkflows {
     return observation.start();
   }
 
-  /** Puts the run's fields and observation in the context of the work it runs. */
+  /**
+   * Puts the run's fields and observation in the context of the work it runs. A logging context
+   * that a service carries whole in Reactor also gets the fields, so that restoring it in {@code
+   * auto} mode keeps them.
+   */
   private Context withWorkflow(
       Context context, Map<String, String> fields, Observation observation) {
+    var withRun =
+        context
+            .put(LoggingConstants.WORKFLOW_FIELDS, fields)
+            .put(ObservationThreadLocalAccessor.KEY, observation);
     return context
-        .put(LoggingConstants.WORKFLOW_FIELDS, fields)
-        .put(ObservationThreadLocalAccessor.KEY, observation);
+        .<Map<String, String>>getOrEmpty(Slf4jThreadLocalAccessor.KEY)
+        .map(
+            loggingContext ->
+                withRun.put(Slf4jThreadLocalAccessor.KEY, withFields(loggingContext, fields)))
+        .orElse(withRun);
+  }
+
+  /**
+   * Returns a copy of the logging context with the run's fields; a field without a value is
+   * removed.
+   */
+  private Map<String, String> withFields(
+      Map<String, String> loggingContext, Map<String, String> fields) {
+    var copy = new HashMap<>(loggingContext);
+    copy.putAll(fields);
+    copy.values().removeIf(Objects::isNull);
+    return copy;
   }
 }
