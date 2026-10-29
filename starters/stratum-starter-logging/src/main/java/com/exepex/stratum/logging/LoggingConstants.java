@@ -4,7 +4,7 @@ import com.exepex.stratum.core.condition.StratumModuleConstants;
 import java.util.Set;
 import lombok.experimental.UtilityClass;
 
-/** The property keys the logging module reads and sets (ST-ENG-45). */
+/** The property keys, log fields and metric names the logging module uses (ST-ENG-45). */
 @UtilityClass
 public class LoggingConstants {
 
@@ -41,6 +41,24 @@ public class LoggingConstants {
 
   /** Whether Spring Boot writes the root cause of a stack trace first or last. */
   public static final String STACK_TRACE_ROOT = "logging.structured.json.stacktrace.root";
+
+  /** The log field, and metric tag, with the name of the workflow a line belongs to. */
+  public static final String WORKFLOW = "workflow";
+
+  /** The log field, and metric tag, with the name of the outermost workflow. */
+  public static final String ROOT_WORKFLOW = "root_workflow";
+
+  /** The log field, and span attribute, with the ID the service gave its workflow. */
+  public static final String WORKFLOW_ID = "workflow_id";
+
+  /** The log field with the code of a logged {@code StratumException}. */
+  public static final String ERROR_CODE = "error.code";
+
+  /** The same field in GELF, whose own fields start with {@code _}. */
+  public static final String GELF_ERROR_CODE = "_error_code";
+
+  /** The name of the timer and span of every workflow. */
+  public static final String WORKFLOW_OBSERVATION = "stratum.workflow";
 
   /** The profiles in which plain-text logs are expected. */
   public static final Set<String> LOCAL_PROFILES = Set.of("local", "test");

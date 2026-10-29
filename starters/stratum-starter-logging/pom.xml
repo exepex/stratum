@@ -47,6 +47,20 @@
       <groupId>com.googlecode.libphonenumber</groupId>
       <artifactId>libphonenumber</artifactId>
     </dependency>
+    <!-- Spring Boot's default logging backend; the error code field reads its log events. Optional,
+         so a service that uses another backend does not get it. -->
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <!-- Makes @Workflow work. Optional: the service adds AspectJ, and without it @Workflow is
+         ignored. -->
+    <dependency>
+      <groupId>org.aspectj</groupId>
+      <artifactId>aspectjweaver</artifactId>
+      <optional>true</optional>
+    </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
