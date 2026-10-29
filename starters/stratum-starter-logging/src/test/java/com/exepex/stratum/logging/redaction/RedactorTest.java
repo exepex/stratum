@@ -54,8 +54,8 @@ class RedactorTest {
       var cut = (String) redactor.redact(MESSAGE, words.substring(0, SMALLEST_LIMIT + 1));
 
       assertThat(cut)
-          .hasSize(SMALLEST_LIMIT + Redactor.TRUNCATED.length())
-          .endsWith(Redactor.TRUNCATED);
+          .hasSize(SMALLEST_LIMIT + Redactor.TRUNCATION_MARKER.length())
+          .endsWith(Redactor.TRUNCATION_MARKER);
     }
 
     @Test
@@ -65,9 +65,16 @@ class RedactorTest {
       var beforeToken = "z".repeat(SMALLEST_LIMIT - "opaque".length()) + " ";
 
       assertThat(redactor.redact(MESSAGE, beforeCard + "4111 1111 1111 1111"))
-          .isEqualTo(beforeCard.strip() + Redactor.TRUNCATED);
+          .isEqualTo(beforeCard.strip() + Redactor.TRUNCATION_MARKER);
       assertThat(redactor.redact(MESSAGE, beforeToken + "opaque-token-value"))
-          .isEqualTo(beforeToken.strip() + Redactor.TRUNCATED);
+          .isEqualTo(beforeToken.strip() + Redactor.TRUNCATION_MARKER);
+    }
+
+    @Test
+    @DisplayName("a value with no space that is over the limit is dropped whole")
+    void longWordIsDroppedWhole() {
+      assertThat(redactor.redact(MESSAGE, "x".repeat(SMALLEST_LIMIT + 1)))
+          .isEqualTo(Redactor.TRUNCATION_MARKER);
     }
 
     @Test
@@ -89,7 +96,7 @@ class RedactorTest {
             }
           };
 
-      assertThat(redactor.redact("cardNumber", broken)).isEqualTo(Redactor.FAILED);
+      assertThat(redactor.redact("cardNumber", broken)).isEqualTo(Redactor.REDACTION_FAILED);
     }
 
     @Test

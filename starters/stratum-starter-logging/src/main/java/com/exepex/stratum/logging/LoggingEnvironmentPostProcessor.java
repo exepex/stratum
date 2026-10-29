@@ -67,7 +67,7 @@ public class LoggingEnvironmentPostProcessor implements EnvironmentPostProcessor
     }
     var loggingProperties = LoggingProperties.bind(environment);
     validate(loggingProperties);
-    Redactor.from(loggingProperties);
+    requireValidRedactionPatterns(loggingProperties);
     environment
         .getPropertySources()
         .addLast(
@@ -91,6 +91,14 @@ public class LoggingEnvironmentPostProcessor implements EnvironmentPostProcessor
       new StratumPropertiesResolver(validatorFactory.getValidator())
           .resolve(loggingProperties, Stream.empty());
     }
+  }
+
+  /**
+   * Stops startup with {@code SX-LOGGING-1002} when an extra redaction pattern is invalid. The
+   * redactor is built only for this check: Spring Boot's logging builds the one it uses.
+   */
+  private void requireValidRedactionPatterns(LoggingProperties loggingProperties) {
+    Redactor.from(loggingProperties);
   }
 
   /** Returns Spring Boot's logging properties that Stratum sets by default. */
