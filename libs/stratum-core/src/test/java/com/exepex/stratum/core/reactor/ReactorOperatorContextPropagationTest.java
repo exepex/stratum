@@ -2,6 +2,7 @@ package com.exepex.stratum.core.reactor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.IOException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -50,11 +51,11 @@ class ReactorOperatorContextPropagationTest {
 
   @Test
   @DisplayName("not, and without failing, when the service has no Reactor")
-  void doesNothingWithoutReactor() {
+  void doesNothingWithoutReactor() throws IOException {
     var thread = Thread.currentThread();
     var serviceClassLoader = thread.getContextClassLoader();
-    thread.setContextClassLoader(new FilteredClassLoader(Hooks.class));
-    try {
+    try (var classLoaderWithoutReactor = new FilteredClassLoader(Hooks.class)) {
+      thread.setContextClassLoader(classLoaderWithoutReactor);
       ReactorOperatorContextPropagation.enableWhenSetToEveryOperator(
           environmentWithReactorSetting("auto"));
     } finally {

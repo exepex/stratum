@@ -21,6 +21,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -293,9 +294,13 @@ class ReactiveAndBlockingCodeIntegrationTest {
   }
 
   /** Checks that a request with no caller's trace saw its own trace ID as its correlation ID. */
-  private void assertOwnTraceIsTheCorrelationId(LoggingContextSeen loggingContext) {
-    assertThat(loggingContext.traceId()).isNotNull().isNotEqualTo(CALLER_TRACE.traceId());
-    assertThat(loggingContext.correlationId()).isEqualTo(loggingContext.traceId());
+  private void assertOwnTraceIsTheCorrelationId(@Nullable LoggingContextSeen loggingContext) {
+    assertThat(loggingContext)
+        .isNotNull()
+        .satisfies(seen -> assertThat(seen.correlationId()).isEqualTo(seen.traceId()))
+        .extracting(LoggingContextSeen::traceId)
+        .isNotNull()
+        .isNotEqualTo(CALLER_TRACE.traceId());
   }
 
   @Test

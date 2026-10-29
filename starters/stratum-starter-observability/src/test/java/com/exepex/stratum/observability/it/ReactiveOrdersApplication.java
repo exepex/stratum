@@ -111,10 +111,10 @@ public class ReactiveOrdersApplication {
      *
      * @param orderNumber the order
      * @param place the place in the handler
-     * @return the IDs seen there
+     * @return the IDs seen there, or null if the order's request never reached that place
      */
-    LoggingContextSeen loggingContextAt(String orderNumber, PlaceInReactiveCode place) {
-      return loggingContextByOrderNumber.get(orderNumber).get(place);
+    @Nullable LoggingContextSeen loggingContextAt(String orderNumber, PlaceInReactiveCode place) {
+      return loggingContextByOrderNumber.getOrDefault(orderNumber, Map.of()).get(place);
     }
 
     /** Keeps what the logging context holds now, for a place in an order's request. */
