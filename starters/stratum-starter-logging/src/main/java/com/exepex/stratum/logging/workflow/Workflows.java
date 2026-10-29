@@ -52,7 +52,7 @@ public class Workflows {
       String name, @Nullable String workflowId, CheckedRunnable<E> work) throws E {
     var restoreOuterWorkflow = enter(name, workflowId);
     try {
-      observation(name, workflowId).observeChecked(work);
+      observation(name).observeChecked(work);
     } finally {
       restoreOuterWorkflow.run();
     }
@@ -92,7 +92,7 @@ public class Workflows {
       String name, @Nullable String workflowId, CheckedCallable<T, E> work) throws E {
     var restoreOuterWorkflow = enter(name, workflowId);
     try {
-      return observation(name, workflowId).observeChecked(work);
+      return observation(name).observeChecked(work);
     } finally {
       restoreOuterWorkflow.run();
     }
@@ -143,18 +143,21 @@ public class Workflows {
 
   /**
    * Returns the workflow's timer and span, tagged with its name and the outermost workflow's name.
-   * The ID goes on the span only, because each ID value would make a new metric series.
+   * The ID, its own or the one it inherits, goes on the span only, because each ID value would make
+   * a new metric series. Called after {@link #enter}, so the logging context holds the effective
+   * values.
    */
-  private Observation observation(String name, @Nullable String workflowId) {
+  private Observation observation(String name) {
     var rootWorkflow = Objects.requireNonNullElse(MDC.get(LoggingConstants.ROOT_WORKFLOW), name);
+    var workflowId = MDC.get(LoggingConstants.WORKFLOW_ID);
     var observation =
         Observation.createNotStarted(LoggingConstants.WORKFLOW_OBSERVATION, observationRegistry)
             .contextualName(name)
             .lowCardinalityKeyValue(LoggingConstants.WORKFLOW, name)
             .lowCardinalityKeyValue(LoggingConstants.ROOT_WORKFLOW, rootWorkflow);
-    return workflowId != null && isSafeForLogs(workflowId)
-        ? observation.highCardinalityKeyValue(LoggingConstants.WORKFLOW_ID, workflowId)
-        : observation;
+    return workflowId == null
+        ? observation
+        : observation.highCardinalityKeyValue(LoggingConstants.WORKFLOW_ID, workflowId);
   }
 
   /** Returns whether a name or ID can go in a log line as it is. */

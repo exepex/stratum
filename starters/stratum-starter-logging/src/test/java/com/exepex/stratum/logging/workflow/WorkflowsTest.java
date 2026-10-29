@@ -148,8 +148,12 @@ class WorkflowsTest {
         .containsExactlyInAnyOrder(
             KeyValue.of(LoggingConstants.WORKFLOW, PAYMENT),
             KeyValue.of(LoggingConstants.ROOT_WORKFLOW, CHECKOUT));
-    assertThat(finishedObservations.getLast().getHighCardinalityKeyValues())
-        .containsExactly(KeyValue.of(LoggingConstants.WORKFLOW_ID, ORDER_NUMBER));
+    assertThat(finishedObservations)
+        .extracting(Observation.Context::getHighCardinalityKeyValues)
+        .allSatisfy(
+            idTags ->
+                assertThat(idTags)
+                    .containsExactly(KeyValue.of(LoggingConstants.WORKFLOW_ID, ORDER_NUMBER)));
   }
 
   @Test
