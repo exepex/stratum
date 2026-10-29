@@ -61,9 +61,10 @@ class ObservabilityEnvironmentPostProcessorTest {
       assertThat(unset.getProperty(ObservabilityConstants.METRICS_EXPORT_ENABLED)).isEqualTo(OFF);
       assertThat(off.getProperty(ObservabilityConstants.TRACING_EXPORT_ENABLED)).isEqualTo(OFF);
       assertThat(unset.getProperty(ObservabilityConstants.WEB_EXPOSURE)).isNull();
-      assertThat(ObservabilityConstants.MESSAGING_OBSERVATION_SWITCHES)
-          .allSatisfy(
-              observationSwitch -> assertThat(unset.getProperty(observationSwitch)).isNull());
+      assertThat(
+              ObservabilityConstants.MESSAGING_OBSERVATION_SWITCHES.stream()
+                  .map(unset::getProperty))
+          .containsOnlyNulls();
     }
 
     @Test
@@ -127,11 +128,11 @@ class ObservabilityEnvironmentPostProcessorTest {
       var environment =
           runPostProcessor(environmentWithModuleOn().withProperty(KAFKA_LISTENER_SWITCH, OFF));
 
-      assertThat(ObservabilityConstants.MESSAGING_OBSERVATION_SWITCHES)
-          .filteredOn(observationSwitch -> !KAFKA_LISTENER_SWITCH.equals(observationSwitch))
-          .allSatisfy(
-              observationSwitch ->
-                  assertThat(environment.getProperty(observationSwitch)).isEqualTo(ON));
+      assertThat(
+              ObservabilityConstants.MESSAGING_OBSERVATION_SWITCHES.stream()
+                  .filter(observationSwitch -> !KAFKA_LISTENER_SWITCH.equals(observationSwitch))
+                  .map(environment::getProperty))
+          .containsOnly(ON);
       assertThat(environment.getProperty(KAFKA_LISTENER_SWITCH)).isEqualTo(OFF);
     }
 
