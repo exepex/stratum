@@ -11,14 +11,20 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.boot.logging.LoggingSystem;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.util.ClassUtils;
 import org.springframework.web.client.RestClient;
 
 @DisplayName("A short-lived application with the observability starter")
+@ExtendWith(OutputCaptureExtension.class)
 class ObservabilityStarterIntegrationTest {
 
   /** The same settings, written once as YAML and once as properties. */
@@ -34,6 +40,13 @@ class ObservabilityStarterIntegrationTest {
   /** A password in the partner's URL, which must not reach spans or metrics. */
   private static final String PASSWORD = "LEAK-password-7c2";
 
+  /** The logger of Micrometer's OTLP registry. */
+  private static final String METRICS_EXPORT_LOGGER =
+      "io.micrometer.registry.otlp.OtlpMeterRegistry";
+
+  /** Micrometer's warning when it cannot push metrics. */
+  private static final String PUSH_FAILED = "Failed to publish metrics";
+
   /** Receives what the application sends, and answers the partner call. */
   private final CollectorStub collector = new CollectorStub();
 
@@ -44,10 +57,14 @@ class ObservabilityStarterIntegrationTest {
    */
   ObservabilityStarterIntegrationTest() throws IOException {}
 
-  /** Stops the collector stub after each test. */
+  /**
+   * Stops the collector stub after each test, and clears the log level Stratum may have set,
+   * because it outlives the application in the test JVM.
+   */
   @AfterEach
-  void stopCollector() {
+  void stopCollectorAndResetLogLevel() {
     collector.close();
+    LoggingSystem.get(ClassUtils.getDefaultClassLoader()).setLogLevel(METRICS_EXPORT_LOGGER, null);
   }
 
   /** Starts the test application with the given command-line arguments. */
@@ -142,5 +159,30 @@ class ObservabilityStarterIntegrationTest {
       assertThat(context.getEnvironment().getProperty("management.metrics.tags.environment"))
           .isEqualTo("staging");
     }
+  }
+
+  /** Starts and stops the application with the module on and only metrics sent, to an address. */
+  private void runWithMetricsAddress(String metricsAddress) {
+    start(
+            "--stratum.observability.enabled=true",
+            "--management.otlp.metrics.export.url=" + metricsAddress,
+            "--management.tracing.export.enabled=false")
+        .close();
+  }
+
+  @Test
+  @DisplayName("with no Collector on localhost, metrics are dropped without a warning")
+  void localhostWithoutCollectorIsQuiet(CapturedOutput output) {
+    runWithMetricsAddress("http://localhost:1/v1/metrics");
+
+    assertThat(output).doesNotContain(PUSH_FAILED);
+  }
+
+  @Test
+  @DisplayName("with no Collector at another address, the failed push is logged")
+  void otherAddressWithoutCollectorWarns(CapturedOutput output) {
+    runWithMetricsAddress("http://otel-collector.invalid:1/v1/metrics");
+
+    assertThat(output).contains(PUSH_FAILED);
   }
 }

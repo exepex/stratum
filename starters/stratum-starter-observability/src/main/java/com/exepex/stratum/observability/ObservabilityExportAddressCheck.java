@@ -2,7 +2,6 @@ package com.exepex.stratum.observability;
 
 import com.exepex.stratum.core.condition.StratumModuleSwitch;
 import com.exepex.stratum.core.error.StratumException;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -15,9 +14,8 @@ import org.springframework.util.StringUtils;
 
 /**
  * Stops startup with {@code SX-OBSERVABILITY-1001} when the module is on and an OTLP export that is
- * on has no address, except in the local and test profiles, where no Collector is expected. It runs
- * after every environment post-processor, so an address that Spring Boot maps from the {@code
- * OTEL_EXPORTER_OTLP_*} environment variables counts.
+ * on has no address, in every profile. It runs after every environment post-processor, so an
+ * address that Spring Boot maps from the {@code OTEL_EXPORTER_OTLP_*} environment variables counts.
  */
 public class ObservabilityExportAddressCheck
     implements ApplicationListener<ApplicationEnvironmentPreparedEvent>, Ordered {
@@ -51,14 +49,13 @@ public class ObservabilityExportAddressCheck
    * Checks the export addresses once the environment is ready.
    *
    * @param event the event that carries the application's environment
-   * @throws StratumException {@code SX-OBSERVABILITY-1001} if the module is on outside the local
-   *     and test profiles and an export that is on has no address
+   * @throws StratumException {@code SX-OBSERVABILITY-1001} if the module is on and an export that
+   *     is on has no address
    */
   @Override
   public void onApplicationEvent(ApplicationEnvironmentPreparedEvent event) {
     var environment = event.getEnvironment();
-    if (!StratumModuleSwitch.isEnabled(environment, ObservabilityConstants.MODULE)
-        || onlyLocalProfiles(environment)) {
+    if (!StratumModuleSwitch.isEnabled(environment, ObservabilityConstants.MODULE)) {
       return;
     }
     var missingAddresses =
@@ -84,17 +81,5 @@ public class ObservabilityExportAddressCheck
                 Optional.ofNullable(environment.getProperty(exportSwitch, Boolean.class)).stream())
         .findFirst()
         .orElse(true);
-  }
-
-  /**
-   * Returns whether every profile the application runs under is one in which no Collector is
-   * expected. With no active profile, Spring runs under the default profiles, such as one set with
-   * {@code spring.profiles.default=local}.
-   */
-  private boolean onlyLocalProfiles(ConfigurableEnvironment environment) {
-    var activeProfiles = environment.getActiveProfiles();
-    var profiles = activeProfiles.length > 0 ? activeProfiles : environment.getDefaultProfiles();
-    return profiles.length > 0
-        && Arrays.stream(profiles).allMatch(ObservabilityConstants.LOCAL_PROFILES::contains);
   }
 }

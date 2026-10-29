@@ -14,8 +14,8 @@ import lombok.RequiredArgsConstructor;
 public enum ObservabilityErrorCode implements ErrorCode {
 
   /**
-   * Outside the local and test profiles, metrics or spans would be sent nowhere useful because
-   * their address is not set. The detail names each missing property.
+   * With the module on, metrics or spans would be sent nowhere useful because their address is not
+   * set. The detail names each missing property.
    */
   EXPORT_ENDPOINT_MISSING(
       "SX-OBSERVABILITY-1001",

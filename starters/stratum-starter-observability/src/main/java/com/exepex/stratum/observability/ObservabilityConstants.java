@@ -1,7 +1,6 @@
 package com.exepex.stratum.observability;
 
 import com.exepex.stratum.core.condition.StratumModuleConstants;
-import java.util.Set;
 import lombok.experimental.UtilityClass;
 
 /** The property keys, tag names and span attributes the observability module uses (ST-ENG-45). */
@@ -19,9 +18,6 @@ public class ObservabilityConstants {
 
   /** The environment variable that holds the host's name; in Kubernetes, the pod's name. */
   public static final String HOSTNAME = "HOSTNAME";
-
-  /** The profiles in which the export endpoints may be left unset. */
-  public static final Set<String> LOCAL_PROFILES = Set.of("local", "test");
 
   /** Spring Boot's list of actuator endpoints reachable over HTTP. */
   public static final String WEB_EXPOSURE = "management.endpoints.web.exposure.include";

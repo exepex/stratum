@@ -43,8 +43,8 @@ The `stratum-starter-microservice`, `-web-ui` and `-batch` bundles already inclu
 `-cli` bundle does not: a command-line tool adds it on its own when it needs it. The version comes
 from Stratum's parent or BOM ([installation](../../docs/getting-started/installation.md)).
 
-The starter does nothing until you switch it on, and outside the `local` and `test` profiles it
-needs your Collector's addresses. In `application.properties`:
+The starter does nothing until you switch it on, and once it is on it needs your Collector's
+addresses, in every profile. In `application.properties`:
 
 ```properties
 spring.application.name=order-service
@@ -101,7 +101,8 @@ starter therefore never sends anything, not even to Spring Boot's default addres
 | URLs on spans | The full URL of each HTTP client call, query string included, is kept on its span; only the user info is removed. Metrics never carry the query ([below](#urls-on-spans-and-metrics)) |
 | Health | `/actuator/health`, with Spring Boot's Kubernetes `liveness` and `readiness` groups |
 | Safe exposure | Only `health` and `info` are reachable over HTTP |
-| Startup check | Outside the `local` and `test` profiles, startup stops if an export address is missing ([below](#startup-check)) |
+| Startup check | With the module on, startup stops if an export address is missing, in every profile ([below](#startup-check)) |
+| No Collector on your laptop | With the metrics address on `localhost`, metrics that cannot be sent are dropped without a warning ([below](#running-without-a-collector)) |
 
 Pushing means a short-lived job, such as a batch run or a command-line tool, still sends its data:
 Spring Boot sends the last metrics and traces when the application stops.
@@ -141,7 +142,7 @@ client spans and metrics.
 
 ### Startup check
 
-Outside the `local` and `test` profiles, with the module on, startup stops with
+With the module on, in every profile, startup stops with
 [`SX-OBSERVABILITY-1001`](../../docs/guides/error-codes.md#stratum-starter-observability) if:
 
 - metrics are sent over OTLP and `management.otlp.metrics.export.url` is not set; or
@@ -155,9 +156,19 @@ Boot reads from the standard OpenTelemetry environment variables, such as
 `OTEL_EXPORTER_OTLP_ENDPOINT`, counts.
 
 Without the check, metrics would go to `localhost:4318` and traces nowhere, and nobody would notice.
-Both `http` and `https` addresses are accepted, because most Collectors run inside the cluster. The
-check counts as local only when every active profile is `local` or `test`, or, with no active
-profile, every default profile (`spring.profiles.default`) is.
+Both `http` and `https` addresses are accepted, because most Collectors run inside the cluster.
+There is no exception for the `local` or `test` profile: if you do not want to send anything there,
+turn the module off in that profile with `stratum.observability.enabled=false`.
+
+### Running without a Collector
+
+On your laptop you may point the exports at `localhost` without running a Collector. When the
+metrics address is on this machine (`localhost`, `127.0.0.1` or `[::1]`), Stratum turns off
+Micrometer's warning for a failed push, which would otherwise print a stack trace every minute. The
+metrics are dropped quietly. Spans that cannot be sent are dropped too. Set
+`logging.level.io.micrometer.registry.otlp.OtlpMeterRegistry=warn` to see the warning again. Any
+other address, such as `http://otel-collector:4318`, keeps the warning, so a broken Collector in a
+shared environment is noticed.
 
 ## Properties
 
@@ -183,15 +194,26 @@ Spring Boot properties this starter sets by default (your values win):
 ## Examples
 
 Keep every trace while you develop, in `application-local.properties` or `application-local.yml`.
-No Collector address is needed in the `local` profile; start a Collector on your laptop if you want
-to see the data:
+Point the exports at `localhost`; start a Collector on your laptop if you want to see the data, or
+leave it off and the data is dropped quietly:
 
 ```properties
+management.otlp.metrics.export.url=http://localhost:4318/v1/metrics
+management.opentelemetry.tracing.export.otlp.endpoint=http://localhost:4318/v1/traces
 management.tracing.sampling.probability=1.0
 ```
 
 ```yaml
 management:
+  otlp:
+    metrics:
+      export:
+        url: http://localhost:4318/v1/metrics
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          endpoint: http://localhost:4318/v1/traces
   tracing:
     sampling:
       probability: 1.0

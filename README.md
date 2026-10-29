@@ -202,9 +202,10 @@ stratum.logging.enabled=true
 stratum.observability.enabled=true
 ```
 
-Outside the `local` and `test` profiles, the observability module also needs your OpenTelemetry
-Collector's addresses, or it stops at startup; run with `--spring.profiles.active=local` to try it
-without one ([Observability](starters/stratum-starter-observability/README.md#startup-check)).
+Once it is on, the observability module also needs your OpenTelemetry Collector's addresses, in
+every profile, or it stops at startup. To try it without a Collector, point both at `localhost`
+(`http://localhost:4318/v1/metrics` and `http://localhost:4318/v1/traces`), and the data is dropped
+quietly ([Observability](starters/stratum-starter-observability/README.md#running-without-a-collector)).
 
 **4. Write a controller** and run `mvn spring-boot:run`:
 

@@ -39,8 +39,8 @@ class ObservabilityExportAddressCheckTest {
           ObservabilityConstants.TRACING_EXPORT_ENABLED,
           ObservabilityConstants.TRACING_OTLP_EXPORT_ENABLED);
 
-  /** Active profiles, comma-separated, in which no Collector is expected. */
-  private static final List<String> LOCAL_PROFILE_SETS = List.of("local", "test", "local,test");
+  /** Profiles that were once exempt from the check, and are no longer. */
+  private static final List<String> FORMERLY_EXEMPT_PROFILES = List.of("local", "test");
 
   private final ObservabilityExportAddressCheck check = new ObservabilityExportAddressCheck();
 
@@ -153,37 +153,11 @@ class ObservabilityExportAddressCheckTest {
   }
 
   @ParameterizedTest
-  @FieldSource("LOCAL_PROFILE_SETS")
-  @DisplayName("in the local and test profiles no address is needed")
-  void localProfilesNeedNoAddress(String profiles) {
+  @FieldSource("FORMERLY_EXEMPT_PROFILES")
+  @DisplayName("the local and test profiles need the addresses too, as every other profile does")
+  void everyProfileNeedsAddresses(String profile) {
     var environment = environmentWithModuleOn();
-    environment.setActiveProfiles(profiles.split(","));
-
-    assertThatCode(() -> runCheck(environment)).doesNotThrowAnyException();
-  }
-
-  @Test
-  @DisplayName("with no active profile and local as the default profile, no address is needed")
-  void localDefaultProfileNeedsNoAddress() {
-    var environment = environmentWithModuleOn();
-    environment.setDefaultProfiles("local");
-
-    assertThatCode(() -> runCheck(environment)).doesNotThrowAnyException();
-  }
-
-  @Test
-  @DisplayName("with no active profile and Spring's own default profile, the addresses are needed")
-  void springDefaultProfileNeedsAddresses() {
-    assertThatExceptionOfType(StratumException.class)
-        .isThrownBy(() -> runCheck(environmentWithModuleOn()))
-        .withMessageStartingWith(MISSING_ADDRESS);
-  }
-
-  @Test
-  @DisplayName("a test profile next to another profile still needs the addresses")
-  void mixedProfilesNeedAddresses() {
-    var environment = environmentWithModuleOn();
-    environment.setActiveProfiles("test", "prod");
+    environment.setActiveProfiles(profile);
 
     assertThatExceptionOfType(StratumException.class)
         .isThrownBy(() -> runCheck(environment))

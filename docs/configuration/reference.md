@@ -36,7 +36,7 @@ stratum.environment=prod
 | --- | --- | --- | --- |
 | `stratum.web.*` | `stratum-starter-web` | [Web → Properties](../modules/web.md#properties) | none |
 | `stratum.logging.*` | `stratum-starter-logging` | [Logging → Properties](../../starters/stratum-starter-logging/README.md#properties) | none |
-| `stratum.observability.*` | `stratum-starter-observability` | [Observability → Properties](../../starters/stratum-starter-observability/README.md#properties) | Collector addresses, outside `local` and `test` |
+| `stratum.observability.*` | `stratum-starter-observability` | [Observability → Properties](../../starters/stratum-starter-observability/README.md#properties) | Collector addresses, once enabled |
 | `stratum.security.*` | `stratum-starter-security` | [Security → Properties](../modules/security.md#properties) | `resource-server.issuer-uri` |
 | `stratum.oauth2-client.*` | `stratum-starter-oauth2-client` | [OAuth2 client → Properties](../modules/oauth2-client.md#properties) | a `spring.security.oauth2.client.registration.<name>` |
 | `stratum.http-client.*` | `stratum-starter-http-client` | [HTTP client → Properties](../modules/http-client.md#properties) | `clients.<name>.base-url` |
@@ -106,7 +106,7 @@ spring:
     password: ${ORDERS_DB_PASSWORD}
 
 # Where the observability starter sends metrics and traces: your OpenTelemetry Collector.
-# Required outside the local and test profiles once stratum.observability.enabled is true.
+# Required in every profile once stratum.observability.enabled is true.
 management:
   otlp:
     metrics:
@@ -151,7 +151,7 @@ spring.datasource.url=jdbc:postgresql://orders-db:5432/orders
 spring.datasource.username=orders
 spring.datasource.password=${ORDERS_DB_PASSWORD}
 # Where the observability starter sends metrics and traces: your OpenTelemetry Collector.
-# Required outside the local and test profiles once stratum.observability.enabled is true.
+# Required in every profile once stratum.observability.enabled is true.
 management.otlp.metrics.export.url=http://otel-collector:4318/v1/metrics
 management.opentelemetry.tracing.export.otlp.endpoint=http://otel-collector:4318/v1/traces
 
