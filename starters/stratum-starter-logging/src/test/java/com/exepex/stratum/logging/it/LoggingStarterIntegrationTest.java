@@ -2,6 +2,7 @@ package com.exepex.stratum.logging.it;
 
 import static com.exepex.stratum.logging.testsupport.LoggingTestData.CARD;
 import static com.exepex.stratum.logging.testsupport.LoggingTestData.EMAIL;
+import static com.exepex.stratum.logging.testsupport.LoggingTestData.ITEM_COUNT;
 import static com.exepex.stratum.logging.testsupport.LoggingTestData.JWT;
 import static com.exepex.stratum.logging.testsupport.LoggingTestData.PASSWORD;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -71,7 +72,7 @@ class LoggingStarterIntegrationTest {
         .addKeyValue("customer", customer)
         .addKeyValue("ref", Long.valueOf(CARD))
         .addKeyValue("notes", List.of("token=" + PASSWORD))
-        .addKeyValue("count", Integer.valueOf("3"))
+        .addKeyValue("count", ITEM_COUNT)
         .addKeyValue(
             "details", WritableJson.of(out -> out.append("{\"password\":\"" + PASSWORD + "\"}")))
         .log("customer saved");
@@ -81,7 +82,7 @@ class LoggingStarterIntegrationTest {
         .doesNotContain(PASSWORD)
         .doesNotContain(EMAIL)
         .doesNotContain(CARD)
-        .contains("\"count\":3")
+        .contains("\"count\":" + ITEM_COUNT)
         .contains("\"details\":\"{\\\"password\\\":\\\"****\\\"}\"");
   }
 

@@ -2,12 +2,13 @@ package com.exepex.stratum.logging.testsupport;
 
 import com.exepex.stratum.logging.LoggingProperties;
 import com.exepex.stratum.logging.LoggingProperties.LogFormat;
+import com.exepex.stratum.logging.redaction.Redactor;
 import java.util.List;
 import lombok.experimental.UtilityClass;
 import org.springframework.util.unit.DataSize;
 
 /**
- * Settings and fake sensitive values shared by the logging tests. Every value is made up, such as
+ * Properties and fake sensitive values shared by the logging tests. Every value is made up, such as
  * the well-known test card number {@code 4111 1111 1111 1111}.
  */
 @UtilityClass
@@ -31,14 +32,26 @@ public class LoggingTestData {
   /** A made-up US social security number. */
   public static final String SSN = "123-45-6789";
 
+  /** A made-up numeric PIN. */
+  public static final int PIN = 1234;
+
+  /** An ordinary order number, which is never masked. */
+  public static final long ORDER_ID = 42L;
+
+  /** An ordinary count of items, which is never masked. */
+  public static final int ITEM_COUNT = 3;
+
   /** The default {@code max-field-length}. */
   public static final DataSize DEFAULT_MAX_FIELD_LENGTH = DataSize.ofKilobytes(16);
+
+  /** Masks with the default properties. */
+  private static final Redactor DEFAULT_REDACTOR = Redactor.from(defaults().build());
 
   /** A made-up JSON Web Token. */
   public static final String JWT = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJmYWtlIn0.c2lnbmF0dXJlLWZha2U";
 
   /**
-   * Returns the module's settings with every default.
+   * Returns the module's properties with every default.
    *
    * @return ECS, a 16KB limit and no extra rules
    */
@@ -58,16 +71,25 @@ public class LoggingTestData {
    *
    * @param extraKeys the extra names to mask
    * @param extraPatterns the extra patterns to mask
-   * @return the settings
+   * @return the properties, ready to change further and build
    */
-  public static LoggingProperties withRedaction(
+  public static LoggingProperties.LoggingPropertiesBuilder withRedaction(
       List<String> extraKeys, List<String> extraPatterns) {
     return defaults()
         .redaction(
             LoggingProperties.Redaction.builder()
                 .extraKeys(extraKeys)
                 .extraPatterns(extraPatterns)
-                .build())
-        .build();
+                .build());
+  }
+
+  /**
+   * Masks text that has no field name, as in a log message, with the default properties.
+   *
+   * @param text the text to mask
+   * @return the masked text
+   */
+  public static String redactUnnamedText(String text) {
+    return (String) DEFAULT_REDACTOR.redact(null, text);
   }
 }

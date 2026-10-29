@@ -21,10 +21,10 @@ public class GreetingTestData {
   /**
    * Returns the test module's settings with every default.
    *
-   * @return settings with message {@code Hello} and a 2-second timeout
+   * @return a builder with message {@code Hello} and a 2-second timeout
    */
-  public static GreetingProperties defaults() {
-    return GreetingProperties.builder().message("Hello").timeout(DEFAULT_TIMEOUT).build();
+  public static GreetingProperties.GreetingPropertiesBuilder defaults() {
+    return GreetingProperties.builder().message("Hello").timeout(DEFAULT_TIMEOUT);
   }
 
   /**
@@ -48,11 +48,11 @@ public class GreetingTestData {
 
   /**
    * Returns a customizer for another module, whose settings are a plain {@code String}. It casts
-   * what it receives, so it fails if it is ever given the test module's settings.
+   * what it receives, so it fails if it is ever given the test module's properties.
    *
    * @return the customizer
    */
   public static StratumPropertiesCustomizer<String> otherModule() {
-    return settings -> settings.strip();
+    return properties -> properties.strip();
   }
 }

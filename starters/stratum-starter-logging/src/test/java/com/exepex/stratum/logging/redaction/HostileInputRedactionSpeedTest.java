@@ -12,7 +12,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.util.unit.DataSize;
 
 @DisplayName("Redaction stays fast on hostile text, up to the largest allowed size")
-class SlowInputTest {
+class HostileInputRedactionSpeedTest {
 
   /** Characters in each input at the default limit: just under 16KB. */
   private static final int DEFAULT_LENGTH = 16_000;
@@ -20,23 +20,20 @@ class SlowInputTest {
   /** Characters in each input at the largest allowed limit: just under 1MB. */
   private static final int LARGEST_LENGTH = 1_000_000;
 
-  /**
-   * Far above the few milliseconds each 16KB input takes, and far below the seconds it once took.
-   */
-  private static final Duration DEFAULT_LIMIT = Duration.ofSeconds(1);
+  /** How long masking one 16KB input may take: far above the few milliseconds it needs. */
+  private static final Duration DEFAULT_INPUT_TIME_LIMIT = Duration.ofSeconds(1);
 
-  /**
-   * Linear work on 1MB takes a few seconds at most, even on a slow build machine with coverage on;
-   * work that grows with the square took about 29 seconds.
-   */
-  private static final Duration LARGEST_LIMIT = Duration.ofSeconds(15);
+  // Linear work on 1MB takes a few seconds at most, even on a slow build machine with coverage on,
+  // while work that grows with the square of the length takes far longer.
+  /** How long masking one 1MB input may take. */
+  private static final Duration LARGEST_INPUT_TIME_LIMIT = Duration.ofSeconds(15);
 
   private final Redactor redactor = Redactor.from(LoggingTestData.defaults().build());
 
   private final Redactor largestRedactor =
       Redactor.from(LoggingTestData.defaults().maxFieldLength(DataSize.ofMegabytes(1)).build());
 
-  /** Texts of about 16KB that once took seconds, or could, because a pattern rescanned the rest. */
+  /** Texts of about 16KB that would be slow to mask if a pattern rescanned the rest of the text. */
   private static Stream<String> hostileInputs() {
     return Stream.concat(
         Stream.of(
@@ -82,9 +79,11 @@ class SlowInputTest {
   @MethodSource("hostileInputs")
   @DisplayName("each 16KB input is masked within a second")
   void hostileInputIsFast(String input) {
-    var masked = assertTimeoutPreemptively(DEFAULT_LIMIT, () -> redactor.redact("message", input));
+    var masked =
+        assertTimeoutPreemptively(
+            DEFAULT_INPUT_TIME_LIMIT, () -> redactor.redact("message", input));
 
-    assertThat(masked).isNotNull();
+    assertThat(masked).isNotEqualTo(Redactor.REDACTION_FAILED);
   }
 
   @ParameterizedTest
@@ -92,8 +91,9 @@ class SlowInputTest {
   @DisplayName("each 1MB input is masked in linear time")
   void largestHostileInputIsLinear(String input) {
     var masked =
-        assertTimeoutPreemptively(LARGEST_LIMIT, () -> largestRedactor.redact("message", input));
+        assertTimeoutPreemptively(
+            LARGEST_INPUT_TIME_LIMIT, () -> largestRedactor.redact("message", input));
 
-    assertThat(masked).isNotNull();
+    assertThat(masked).isNotEqualTo(Redactor.REDACTION_FAILED);
   }
 }

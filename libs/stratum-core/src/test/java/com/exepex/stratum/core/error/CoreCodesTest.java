@@ -22,41 +22,29 @@ class CoreCodesTest {
   private static final Pattern CORE_CODE = Pattern.compile("SX-CORE-\\d{4}");
 
   @Test
-  @DisplayName("every code is SX-CORE- and four digits")
+  @DisplayName("every code is SX-CORE- and four digits, and no two share a number")
   void everyCodeHasTheFormat() {
-    assertThat(coreCodes()).allSatisfy(code -> assertThat(code).matches(CORE_CODE));
+    assertThat(coreCodes())
+        .allSatisfy(code -> assertThat(code).matches(CORE_CODE))
+        .doesNotHaveDuplicates();
   }
 
   @Test
-  @DisplayName("no two codes share a number")
-  void codesAreUnique() {
-    assertThat(coreCodes()).doesNotHaveDuplicates();
+  @DisplayName("the error codes page lists exactly the module's codes")
+  void pageListsExactlyTheCodes() throws IOException {
+    var documented =
+        CORE_CODE
+            .matcher(Files.readString(ERROR_CODES_PAGE))
+            .results()
+            .map(MatchResult::group)
+            .distinct()
+            .toList();
+
+    assertThat(documented).containsExactlyInAnyOrderElementsOf(coreCodes());
   }
 
-  @Test
-  @DisplayName("every code is listed on the error codes page")
-  void everyCodeIsDocumented() throws IOException {
-    assertThat(documentedCodes()).containsAll(coreCodes());
-  }
-
-  @Test
-  @DisplayName("the error codes page lists no stratum-core code that does not exist")
-  void pageListsNoUnknownCode() throws IOException {
-    assertThat(coreCodes()).containsAll(documentedCodes());
-  }
-
-  /** Returns every stratum-core code. */
+  /** Returns every code of stratum-core. */
   private List<String> coreCodes() {
     return Arrays.stream(CoreErrorCode.values()).map(CoreErrorCode::getCode).toList();
-  }
-
-  /** Returns every stratum-core code that the error codes page mentions. */
-  private List<String> documentedCodes() throws IOException {
-    return CORE_CODE
-        .matcher(Files.readString(ERROR_CODES_PAGE))
-        .results()
-        .map(MatchResult::group)
-        .distinct()
-        .toList();
   }
 }

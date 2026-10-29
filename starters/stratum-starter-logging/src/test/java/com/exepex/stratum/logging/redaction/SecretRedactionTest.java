@@ -4,6 +4,7 @@ import static com.exepex.stratum.logging.testsupport.LoggingTestData.CARD;
 import static com.exepex.stratum.logging.testsupport.LoggingTestData.JWT;
 import static com.exepex.stratum.logging.testsupport.LoggingTestData.PASSWORD;
 import static com.exepex.stratum.logging.testsupport.LoggingTestData.SSN;
+import static com.exepex.stratum.logging.testsupport.LoggingTestData.redactUnnamedText;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.logging.testsupport.LoggingTestData;
@@ -24,11 +25,6 @@ class SecretRedactionTest {
   private static final String SECRET_FIELD = "password";
 
   private final Redactor redactor = Redactor.from(LoggingTestData.defaults().build());
-
-  /** Masks a value that has no field name, as in a log message. */
-  private String text(String value) {
-    return (String) redactor.redact(null, value);
-  }
 
   @Nested
   @DisplayName("by field name")
@@ -101,7 +97,7 @@ class SecretRedactionTest {
     @Test
     @DisplayName("a value that is not text, such as a numeric PIN, is masked by its name")
     void nonTextValueIsMaskedByName() {
-      assertThat(redactor.redact("pin", Integer.valueOf("1234"))).isEqualTo(MaskedText.MASK);
+      assertThat(redactor.redact("pin", LoggingTestData.PIN)).isEqualTo(MaskedText.MASK);
     }
 
     @Test
@@ -140,8 +136,8 @@ class SecretRedactionTest {
     @Test
     @DisplayName("an ordinary field and value are left as they are")
     void ordinaryFieldIsKept() {
-      var orderId = Long.valueOf("42");
-      assertThat(redactor.redact("orderId", orderId)).isEqualTo(orderId);
+      assertThat(redactor.redact("orderId", LoggingTestData.ORDER_ID))
+          .isEqualTo(LoggingTestData.ORDER_ID);
       assertThat(redactor.redact("name", "order-service")).isEqualTo("order-service");
     }
   }
@@ -153,34 +149,37 @@ class SecretRedactionTest {
     @Test
     @DisplayName("a JSON Web Token is masked")
     void jwtIsMasked() {
-      assertThat(text("token " + JWT + " used")).isEqualTo("token **** used");
+      assertThat(redactUnnamedText("token " + JWT + " used")).isEqualTo("token **** used");
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"Bearer", "Basic", "Digest", "Negotiate"})
     @DisplayName("credentials after an authorization scheme are masked")
     void authorizationSchemeIsMasked(String scheme) {
-      assertThat(text("sent " + scheme + " dXNlcjpwYXNz to x"))
+      assertThat(redactUnnamedText("sent " + scheme + " dXNlcjpwYXNz to x"))
           .isEqualTo("sent " + scheme + " **** to x");
     }
 
     @Test
     @DisplayName("Digest credentials, a list of parameters, are masked to the end of the line")
     void digestParametersAreMasked() {
-      assertThat(text("sent Digest username=\"fake-user\", response=\"fake-response\"\nnext"))
+      assertThat(
+              redactUnnamedText(
+                  "sent Digest username=\"fake-user\", response=\"fake-response\"\nnext"))
           .isEqualTo("sent Digest ****\nnext");
     }
 
     @Test
     @DisplayName("an Authorization header written as text is masked")
     void authorizationHeaderIsMasked() {
-      assertThat(text("Authorization: Bearer abc.def.ghi")).doesNotContain("abc.def.ghi");
+      assertThat(redactUnnamedText("Authorization: Bearer abc.def.ghi"))
+          .doesNotContain("abc.def.ghi");
     }
 
     @Test
     @DisplayName("a Cookie header is masked to the end of the line, with every cookie in it")
     void wholeCookieHeaderIsMasked() {
-      assertThat(text("Cookie: sid=fake-session; opaque=fake-cookie\nnext line"))
+      assertThat(redactUnnamedText("Cookie: sid=fake-session; opaque=fake-cookie\nnext line"))
           .isEqualTo("Cookie: ****\nnext line");
     }
 
@@ -198,7 +197,7 @@ class SecretRedactionTest {
     @DisplayName(
         "a secret is masked in escaped JSON, single quotes, URL encoding and compound keys")
     void secretInOtherFormsIsMasked(String line) {
-      assertThat(text(line)).doesNotContain(PASSWORD).contains(MaskedText.MASK);
+      assertThat(redactUnnamedText(line)).doesNotContain(PASSWORD).contains(MaskedText.MASK);
     }
 
     @Test
@@ -206,18 +205,19 @@ class SecretRedactionTest {
     void escapedJsonSecretWithQuoteIsMasked() {
       var line = "{\\\"password\\\":\\\"prefix\\\\\\\"fake-suffix\\\",\\\"id\\\":7}";
 
-      assertThat(text(line)).isEqualTo("{\\\"password\\\":\\\"****\\\",\\\"id\\\":7}");
+      assertThat(redactUnnamedText(line)).isEqualTo("{\\\"password\\\":\\\"****\\\",\\\"id\\\":7}");
     }
 
     @Test
     @DisplayName(
         "a JSON array or object under a secret key is masked whole, and the next pair kept")
     void jsonContainerUnderSecretKeyIsMasked() {
-      assertThat(text("{\"token\":[\"" + PASSWORD + "\", 2],\"id\":7}"))
+      assertThat(redactUnnamedText("{\"token\":[\"" + PASSWORD + "\", 2],\"id\":7}"))
           .isEqualTo("{\"token\":****,\"id\":7}");
-      assertThat(text("{\"secret\":{\"value\":\"a]b\",\"nested\":{\"x\":1}},\"id\":7}"))
+      assertThat(
+              redactUnnamedText("{\"secret\":{\"value\":\"a]b\",\"nested\":{\"x\":1}},\"id\":7}"))
           .isEqualTo("{\"secret\":****,\"id\":7}");
-      assertThat(text("{\"secret\":{\"note\":\"a \\\"}\\\" b\"},\"id\":7}"))
+      assertThat(redactUnnamedText("{\"secret\":{\"note\":\"a \\\"}\\\" b\"},\"id\":7}"))
           .isEqualTo("{\"secret\":****,\"id\":7}");
     }
 
@@ -225,7 +225,7 @@ class SecretRedactionTest {
     @ValueSource(strings = {"password=[", "{\"secret\":{", "password={\"a\":\"\\"})
     @DisplayName("a bracket that opens a secret value at the end of the text is masked")
     void bracketAtEndOfTextIsMasked(String line) {
-      assertThat(text(line)).endsWith(MaskedText.MASK);
+      assertThat(redactUnnamedText(line)).endsWith(MaskedText.MASK);
     }
 
     @Test
@@ -233,71 +233,73 @@ class SecretRedactionTest {
     void cutJwtIsMasked() {
       var cut = JWT.substring(0, JWT.lastIndexOf('.'));
 
-      assertThat(text("token " + cut)).isEqualTo("token " + MaskedText.MASK);
+      assertThat(redactUnnamedText("token " + cut)).isEqualTo("token " + MaskedText.MASK);
     }
 
     @Test
     @DisplayName("a password in a key-value pair is masked, and the next pair is kept")
     void keyValueSecretIsMasked() {
-      assertThat(text("password=" + PASSWORD + " user=bob")).isEqualTo("password=**** user=bob");
+      assertThat(redactUnnamedText("password=" + PASSWORD + " user=bob"))
+          .isEqualTo("password=**** user=bob");
     }
 
     @Test
     @DisplayName("a sensitive key inside a masked value does not mask it a second time")
     void secretKeyInsideMaskedValueIsSkipped() {
-      assertThat(text("password=\"token=abc\"")).isEqualTo("password=\"****\"");
+      assertThat(redactUnnamedText("password=\"token=abc\"")).isEqualTo("password=\"****\"");
     }
 
     @Test
     @DisplayName("a quoted JSON secret is masked, even with spaces and escaped quotes")
     void quotedJsonSecretIsMasked() {
-      assertThat(text("{\"password\":\"a b \\\"c\",\"id\":7}"))
+      assertThat(redactUnnamedText("{\"password\":\"a b \\\"c\",\"id\":7}"))
           .isEqualTo("{\"password\":\"****\",\"id\":7}");
     }
 
     @Test
     @DisplayName("a quoted secret with no closing quote is masked to the end of the text")
     void unclosedQuotedSecretIsMasked() {
-      assertThat(text("password=\"S3CR3T")).isEqualTo("password=\"****");
-      assertThat(text("{\"token\":\"S3CR3T")).isEqualTo("{\"token\":\"****");
+      assertThat(redactUnnamedText("password=\"S3CR3T")).isEqualTo("password=\"****");
+      assertThat(redactUnnamedText("{\"token\":\"S3CR3T")).isEqualTo("{\"token\":\"****");
     }
 
     @Test
     @DisplayName("a token in a URL's query string is masked, and the other parameters are kept")
     void queryStringTokenIsMasked() {
-      assertThat(text("GET /orders?access_token=abc123&page=2"))
+      assertThat(redactUnnamedText("GET /orders?access_token=abc123&page=2"))
           .isEqualTo("GET /orders?access_token=****&page=2");
     }
 
     @Test
     @DisplayName("a user name and password in a URL are masked")
     void urlCredentialsAreMasked() {
-      assertThat(text("connecting to postgres://app:" + PASSWORD + "@db:5432/orders"))
+      assertThat(redactUnnamedText("connecting to postgres://app:" + PASSWORD + "@db:5432/orders"))
           .isEqualTo("connecting to postgres://****@db:5432/orders");
     }
 
     @Test
     @DisplayName("a password in a URL with no user name is masked")
     void urlPasswordWithoutUserIsMasked() {
-      assertThat(text("connecting to redis://:" + PASSWORD + "@cache:6379/0"))
+      assertThat(redactUnnamedText("connecting to redis://:" + PASSWORD + "@cache:6379/0"))
           .isEqualTo("connecting to redis://****@cache:6379/0");
     }
 
     @Test
     @DisplayName("a secret in a Lombok toString is masked")
     void lombokToStringSecretIsMasked() {
-      assertThat(text("Login(user=bob, password=" + PASSWORD + ")"))
+      assertThat(redactUnnamedText("Login(user=bob, password=" + PASSWORD + ")"))
           .isEqualTo("Login(user=bob, password=****)");
     }
 
     @Test
     @DisplayName("a card number that passes the Luhn check keeps only its last four digits")
     void validCardIsMasked() {
-      assertThat(text("paid with 4111 1111 1111 1111 today")).isEqualTo("paid with ****1111 today");
-      assertThat(text("card " + CARD)).isEqualTo("card ****1111");
-      assertThat(text("card 4402 6140 1419 3141 705")).isEqualTo("card ****1705");
-      assertThat(text("card 4111 1111 1111 1111 003")).isEqualTo("card ****1003");
-      assertThat(text("0 4111 1111 1111 1111")).isEqualTo("0 ****1111");
+      assertThat(redactUnnamedText("paid with 4111 1111 1111 1111 today"))
+          .isEqualTo("paid with ****1111 today");
+      assertThat(redactUnnamedText("card " + CARD)).isEqualTo("card ****1111");
+      assertThat(redactUnnamedText("card 4402 6140 1419 3141 705")).isEqualTo("card ****1705");
+      assertThat(redactUnnamedText("card 4111 1111 1111 1111 003")).isEqualTo("card ****1003");
+      assertThat(redactUnnamedText("0 4111 1111 1111 1111")).isEqualTo("0 ****1111");
     }
 
     @ParameterizedTest
@@ -312,7 +314,7 @@ class SecretRedactionTest {
         })
     @DisplayName("a card next to another number is still found and masked")
     void cardNextToNumberIsMasked(String line) {
-      assertThat(text(line))
+      assertThat(redactUnnamedText(line))
           .doesNotContain("4111111111111111")
           .doesNotContain("4111 1111 1111 1111")
           .doesNotContain("4111-1111-1111-1111")
@@ -322,29 +324,31 @@ class SecretRedactionTest {
     @Test
     @DisplayName("every card in a run of digit groups is masked, not only the first")
     void everyCardInRunIsMasked() {
-      assertThat(text("cards 4111111111111111 5500000000000004 done"))
+      assertThat(redactUnnamedText("cards 4111111111111111 5500000000000004 done"))
           .isEqualTo("cards ****1111 ****0004 done");
-      assertThat(text("cards 4111 1111 1111 1111 4111 1111 1111 1111 done"))
+      assertThat(redactUnnamedText("cards 4111 1111 1111 1111 4111 1111 1111 1111 done"))
           .doesNotContain("4111 1111 1111 1111");
     }
 
     @Test
     @DisplayName("a card that overlaps a longer valid number before it is masked too")
     void overlappingCardIsMasked() {
-      assertThat(text("cards 3782 822463 10005 4242 4242 4242 4242 done"))
+      assertThat(redactUnnamedText("cards 3782 822463 10005 4242 4242 4242 4242 done"))
           .isEqualTo("cards ****4242 done");
     }
 
     @Test
     @DisplayName("a long number that fails the Luhn check is kept")
     void numberFailingLuhnIsKept() {
-      assertThat(text("order 4111111111111112")).isEqualTo("order 4111111111111112");
+      assertThat(redactUnnamedText("order 4111111111111112")).isEqualTo("order 4111111111111112");
     }
 
     @Test
     @DisplayName("a social security number keeps only its last four digits")
     void ssnIsMasked() {
-      assertThat(text("ssn on file " + SSN)).doesNotContain("123-45").contains("****6789");
+      assertThat(redactUnnamedText("ssn on file " + SSN))
+          .doesNotContain("123-45")
+          .contains("****6789");
     }
   }
 
@@ -353,7 +357,8 @@ class SecretRedactionTest {
   class ServiceRules {
 
     private final Redactor withRules =
-        Redactor.from(LoggingTestData.withRedaction(List.of("badge_no"), List.of("ACME-\\d{6}")));
+        Redactor.from(
+            LoggingTestData.withRedaction(List.of("badge_no"), List.of("ACME-\\d{6}")).build());
 
     @Test
     @DisplayName("an extra key is masked as a field and in a key-value pair, up to the next key")
@@ -371,7 +376,8 @@ class SecretRedactionTest {
     @Test
     @DisplayName("an extra key that is built in with its last four kept is masked in full")
     void extraKeyIsMaskedInFull() {
-      var withEmail = Redactor.from(LoggingTestData.withRedaction(List.of("email"), List.of()));
+      var withEmail =
+          Redactor.from(LoggingTestData.withRedaction(List.of("email"), List.of()).build());
 
       assertThat(withEmail.redact("email", "jane.doe@example.com")).isEqualTo(MaskedText.MASK);
     }

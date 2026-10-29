@@ -16,11 +16,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param min the lowest value
  * @param max the highest value
  */
-@RangeSettings.MinBelowMax
+@RangeProperties.MinBelowMax
 @ConfigurationProperties("stratum.range")
-public record RangeSettings(int min, int max) {
+public record RangeProperties(int min, int max) {
 
-  /** A rule on a whole {@link RangeSettings}: its minimum is below its maximum. */
+  /** A rule on a whole {@link RangeProperties}: its minimum is below its maximum. */
   @Constraint(validatedBy = MinBelowMax.Check.class)
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.TYPE)
@@ -48,7 +48,7 @@ public record RangeSettings(int min, int max) {
     Class<? extends Payload>[] payload() default {};
 
     /** Checks {@link MinBelowMax}; public, because the validator creates it. */
-    final class Check implements ConstraintValidator<MinBelowMax, RangeSettings> {
+    final class Check implements ConstraintValidator<MinBelowMax, RangeProperties> {
 
       /**
        * Returns whether the minimum is below the maximum.
@@ -58,7 +58,7 @@ public record RangeSettings(int min, int max) {
        * @return whether the settings keep the rule
        */
       @Override
-      public boolean isValid(RangeSettings range, ConstraintValidatorContext context) {
+      public boolean isValid(RangeProperties range, ConstraintValidatorContext context) {
         return range.min() < range.max();
       }
     }
