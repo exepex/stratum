@@ -68,6 +68,13 @@ threshold. When a scan fails, upgrade the library. A library whose version Sprin
 fixed by a Spring Boot upgrade, not by an override in Stratum
 ([ST-ENG-61](agents/engineering.md#dependencies)).
 
+Until that Spring Boot release exists, the owner can let the scan skip the advisory: an entry in
+[`osv-scanner.toml`](../osv-scanner.toml) with the advisory ID, the reason and an expiry date at
+most 30 days away, after which the scan fails again. The same pull request lists the advisory and
+the version services should set under
+[Open advisories](guides/upgrading.md#open-advisories). The entry is deleted when the Spring Boot
+upgrade that fixes it merges.
+
 GitHub's Dependabot alerts cover what a pull request scan cannot: a vulnerability published after a
 library is already on `main`. GitHub reads the dependency graph and opens an alert in the
 repository's **Security** tab. Alerts are a repository setting, not a file in the repository, and

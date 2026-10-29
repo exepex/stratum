@@ -76,3 +76,16 @@ Security fixes in Stratum or in a managed library are released as patch versions
 possible, and announced with the affected versions. If you cannot upgrade Stratum right away, the
 release notes show which version to override as a temporary fix (see
 [Parent POM and BOM](../modules/parent-and-bom.md#the-bom)).
+
+### Open advisories
+
+These are known vulnerabilities in a library Spring Boot manages, where the fix is not yet in any
+Spring Boot release, so Stratum cannot ship it. Until it is, set the patched version in your
+service. With `stratum-parent`, or any parent that extends `spring-boot-starter-parent`, set Spring
+Boot's version property (see
+[Overriding one managed version](../modules/parent-and-bom.md#overriding-one-managed-version)), and
+remove it when you upgrade to a Stratum release that no longer lists the advisory.
+
+| Advisory | Library | Affected | Set in your service |
+| --- | --- | --- | --- |
+| [GHSA-ccrj-gw8r-854m](https://osv.dev/GHSA-ccrj-gw8r-854m) (Medium, CVSS 5.3) | `io.opentelemetry:opentelemetry-api` | 1.62.0, from Spring Boot 4.1.2 | `<opentelemetry.version>1.67.0</opentelemetry.version>` |
