@@ -178,11 +178,12 @@ java -jar order-service.jar --stratum.logging.format=text --server.port=9090
 
 ## Which value wins
 
-When the same property is set in several places, the source higher in this list wins. Items 2 to 7
+When the same property is set in several places, the source higher in this list wins. Items 2 to 8
 are simplified from Spring Boot's full order:
 
-1. **Java configuration**: a `StratumPropertiesCustomizer` bean in your code. It is applied after
-   every file and argument below has been read, so it wins over all of them. See
+1. **Java configuration**: a class that implements the module's customizer interface, such as
+   `LoggingPropertiesCustomizer`, listed in `META-INF/spring.factories`. It is applied after every
+   file and argument below has been read, so it wins over all of them. See
    [Set the same values in Java](overriding-defaults.md#set-the-same-values-in-java).
 2. Command-line arguments (`--key=value`)
 3. Environment variables
@@ -190,7 +191,8 @@ are simplified from Spring Boot's full order:
 5. `application.properties` / `application.yml` outside the jar
 6. Profile-specific files inside the jar (`src/main/resources/application-prod.yml`)
 7. `application.properties` / `application.yml` inside the jar
-8. **Stratum's built-in defaults** (always last, so anything you set wins)
+8. Default properties set in Java with `SpringApplication.setDefaultProperties`
+9. **Stratum's built-in defaults** (always last, so anything you set wins)
 
 For profiles and per-environment setups, see
 [Profiles and environments](profiles-and-environments.md).
