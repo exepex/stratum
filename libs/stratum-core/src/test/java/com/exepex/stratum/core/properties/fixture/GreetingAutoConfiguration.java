@@ -50,7 +50,7 @@ public class GreetingAutoConfiguration {
       @DefaultValue("2s") @NotNull Duration timeout) {}
 
   /**
-   * The bean the test module builds from its properties.
+   * The bean the test module builds from its settings.
    *
    * @param properties the properties the module resolved and uses
    */

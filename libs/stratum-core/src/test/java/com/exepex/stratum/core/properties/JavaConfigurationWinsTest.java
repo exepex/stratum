@@ -236,7 +236,7 @@ class JavaConfigurationWinsTest {
     }
   }
 
-  /** A customizer for another module's properties, which the test module must ignore. */
+  /** A customizer for another module's settings, which the test module must ignore. */
   @Configuration(proxyBeanMethods = false)
   static class OtherModule {
 

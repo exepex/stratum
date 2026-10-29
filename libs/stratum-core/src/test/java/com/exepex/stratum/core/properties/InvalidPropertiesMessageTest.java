@@ -43,7 +43,7 @@ class InvalidPropertiesMessageTest {
   private static final ValidatorFactory VALIDATOR_FACTORY =
       Validation.buildDefaultValidatorFactory();
 
-  /** Checks the properties' constraints. */
+  /** Checks the settings' constraints. */
   private final Validator validator = VALIDATOR_FACTORY.getValidator();
 
   /** Builds the startup error from the violations. */

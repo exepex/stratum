@@ -8,7 +8,7 @@ import lombok.experimental.UtilityClass;
 import org.springframework.util.unit.DataSize;
 
 /**
- * Properties and fake sensitive values shared by the logging tests. Every value is made up, such as
+ * Settings and fake sensitive values shared by the logging tests. Every value is made up, such as
  * the well-known test card number {@code 4111 1111 1111 1111}.
  */
 @UtilityClass
@@ -44,14 +44,14 @@ public class LoggingTestData {
   /** The default {@code max-field-length}. */
   public static final DataSize DEFAULT_MAX_FIELD_LENGTH = DataSize.ofKilobytes(16);
 
-  /** Masks with the default properties. */
-  private static final Redactor DEFAULT_REDACTOR = Redactor.from(defaults().build());
-
   /** A made-up JSON Web Token. */
   public static final String JWT = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJmYWtlIn0.c2lnbmF0dXJlLWZha2U";
 
+  /** Masks with the default settings; the redaction tests share it. */
+  public static final Redactor DEFAULT_REDACTOR = Redactor.from(defaults().build());
+
   /**
-   * Returns the module's properties with every default.
+   * Returns a builder for the module's settings, with every default.
    *
    * @return ECS, a 16KB limit and no extra rules
    */
@@ -71,7 +71,7 @@ public class LoggingTestData {
    *
    * @param extraKeys the extra names to mask
    * @param extraPatterns the extra patterns to mask
-   * @return the properties, ready to change further and build
+   * @return the settings, ready to change further and build
    */
   public static LoggingProperties.LoggingPropertiesBuilder withRedaction(
       List<String> extraKeys, List<String> extraPatterns) {
@@ -84,7 +84,7 @@ public class LoggingTestData {
   }
 
   /**
-   * Masks text that has no field name, as in a log message, with the default properties.
+   * Masks text that has no field name, as in a log message, with the default settings.
    *
    * @param text the text to mask
    * @return the masked text

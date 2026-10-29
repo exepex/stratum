@@ -1,12 +1,12 @@
 package com.exepex.stratum.logging.redaction;
 
+import static com.exepex.stratum.logging.testsupport.LoggingTestData.DEFAULT_REDACTOR;
 import static com.exepex.stratum.logging.testsupport.LoggingTestData.EMAIL;
 import static com.exepex.stratum.logging.testsupport.LoggingTestData.IBAN;
 import static com.exepex.stratum.logging.testsupport.LoggingTestData.PHONE;
 import static com.exepex.stratum.logging.testsupport.LoggingTestData.redactUnnamedText;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.exepex.stratum.logging.testsupport.LoggingTestData;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -15,8 +15,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 @DisplayName("Personal data is masked")
 class PersonalDataRedactionTest {
-
-  private final Redactor redactor = Redactor.from(LoggingTestData.defaults().build());
 
   @Nested
   @DisplayName("by field name")
@@ -41,7 +39,7 @@ class PersonalDataRedactionTest {
         })
     @DisplayName("a name, birth date or address field is masked in full")
     void personalFieldIsMaskedInFull(String name) {
-      assertThat(redactor.redact(name, "Jane")).isEqualTo(MaskedText.MASK);
+      assertThat(DEFAULT_REDACTOR.redact(name, "Jane")).isEqualTo(MaskedText.MASK);
     }
 
     @ParameterizedTest(name = "{0}")
@@ -49,7 +47,7 @@ class PersonalDataRedactionTest {
         strings = {"email", "phone", "mobile", "telephone", "fax", "cell", "msisdn", "iban"})
     @DisplayName("an email, phone or IBAN field keeps only its last four characters")
     void identifierFieldKeepsLastFour(String name) {
-      assertThat(redactor.redact(name, "anything.com")).isEqualTo("****.com");
+      assertThat(DEFAULT_REDACTOR.redact(name, "anything.com")).isEqualTo("****.com");
     }
   }
 

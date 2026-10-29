@@ -27,7 +27,7 @@ class StratumPropertiesResolverTest {
   private static final ValidatorFactory VALIDATOR_FACTORY =
       Validation.buildDefaultValidatorFactory();
 
-  /** Resolves the test module's properties. */
+  /** Resolves the test module's settings. */
   private final StratumPropertiesResolver resolver =
       new StratumPropertiesResolver(VALIDATOR_FACTORY.getValidator());
 

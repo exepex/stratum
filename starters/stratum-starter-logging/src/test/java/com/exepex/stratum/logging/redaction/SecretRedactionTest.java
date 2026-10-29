@@ -1,6 +1,7 @@
 package com.exepex.stratum.logging.redaction;
 
 import static com.exepex.stratum.logging.testsupport.LoggingTestData.CARD;
+import static com.exepex.stratum.logging.testsupport.LoggingTestData.DEFAULT_REDACTOR;
 import static com.exepex.stratum.logging.testsupport.LoggingTestData.JWT;
 import static com.exepex.stratum.logging.testsupport.LoggingTestData.PASSWORD;
 import static com.exepex.stratum.logging.testsupport.LoggingTestData.SSN;
@@ -23,8 +24,6 @@ class SecretRedactionTest {
 
   /** A field name that is always masked. */
   private static final String SECRET_FIELD = "password";
-
-  private final Redactor redactor = Redactor.from(LoggingTestData.defaults().build());
 
   @Nested
   @DisplayName("by field name")
@@ -73,7 +72,7 @@ class SecretRedactionTest {
         })
     @DisplayName("a secret field, or one whose name holds a secret word, is masked in full")
     void secretFieldIsMaskedInFull(String name) {
-      assertThat(redactor.redact(name, "plain value")).isEqualTo(MaskedText.MASK);
+      assertThat(DEFAULT_REDACTOR.redact(name, "plain value")).isEqualTo(MaskedText.MASK);
     }
 
     @ParameterizedTest
@@ -91,13 +90,13 @@ class SecretRedactionTest {
         })
     @DisplayName("a card or national ID field keeps only its last four characters")
     void cardFieldKeepsLastFour(String name) {
-      assertThat(redactor.redact(name, "any-card-1234")).isEqualTo("****1234");
+      assertThat(DEFAULT_REDACTOR.redact(name, "any-card-1234")).isEqualTo("****1234");
     }
 
     @Test
     @DisplayName("a value that is not text, such as a numeric PIN, is masked by its name")
     void nonTextValueIsMaskedByName() {
-      assertThat(redactor.redact("pin", LoggingTestData.PIN)).isEqualTo(MaskedText.MASK);
+      assertThat(DEFAULT_REDACTOR.redact("pin", LoggingTestData.PIN)).isEqualTo(MaskedText.MASK);
     }
 
     @Test
@@ -105,15 +104,18 @@ class SecretRedactionTest {
     void objectTextIsMasked() {
       var destination = URI.create("https://app:" + PASSWORD + "@host/orders");
 
-      assertThat(redactor.redact("destination", destination)).isEqualTo("https://****@host/orders");
+      assertThat(DEFAULT_REDACTOR.redact("destination", destination))
+          .isEqualTo("https://****@host/orders");
     }
 
     @Test
     @DisplayName("an array, list or map under a secret name is masked in full")
     void containerUnderSecretNameIsMasked() {
-      assertThat(redactor.redact(SECRET_FIELD, new Object[] {PASSWORD})).isEqualTo(MaskedText.MASK);
-      assertThat(redactor.redact(SECRET_FIELD, List.of(PASSWORD))).isEqualTo(MaskedText.MASK);
-      assertThat(redactor.redact(SECRET_FIELD, Map.of("value", PASSWORD)))
+      assertThat(DEFAULT_REDACTOR.redact(SECRET_FIELD, new Object[] {PASSWORD}))
+          .isEqualTo(MaskedText.MASK);
+      assertThat(DEFAULT_REDACTOR.redact(SECRET_FIELD, List.of(PASSWORD)))
+          .isEqualTo(MaskedText.MASK);
+      assertThat(DEFAULT_REDACTOR.redact(SECRET_FIELD, Map.of("value", PASSWORD)))
           .isEqualTo(MaskedText.MASK);
     }
 
@@ -130,15 +132,15 @@ class SecretRedactionTest {
 
     /** Returns the JSON written for the value after redaction. */
     private String written(String fieldName, WritableJson json) {
-      return ((WritableJson) redactor.redact(fieldName, json)).toJsonString();
+      return ((WritableJson) DEFAULT_REDACTOR.redact(fieldName, json)).toJsonString();
     }
 
     @Test
     @DisplayName("an ordinary field and value are left as they are")
     void ordinaryFieldIsKept() {
-      assertThat(redactor.redact("orderId", LoggingTestData.ORDER_ID))
+      assertThat(DEFAULT_REDACTOR.redact("orderId", LoggingTestData.ORDER_ID))
           .isEqualTo(LoggingTestData.ORDER_ID);
-      assertThat(redactor.redact("name", "order-service")).isEqualTo("order-service");
+      assertThat(DEFAULT_REDACTOR.redact("name", "order-service")).isEqualTo("order-service");
     }
   }
 
