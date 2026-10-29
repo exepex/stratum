@@ -28,6 +28,19 @@
           "description": "Plain text for a laptop. It is not redacted."
         }
       ]
+    },
+    {
+      "name": "stratum.logging.stack-trace-root",
+      "values": [
+        {
+          "value": "first",
+          "description": "The root cause first, the default, so that a cut stack trace still shows why it failed."
+        },
+        {
+          "value": "last",
+          "description": "The exception that was caught first, as Java prints it."
+        }
+      ]
     }
   ]
 }

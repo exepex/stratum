@@ -312,11 +312,13 @@ as the console.
 | `stratum.logging.enabled` | boolean | `false` | Switches the whole starter on. Until it is `true`, the starter sets up nothing. |
 | `stratum.logging.format` | `ecs`, `logstash`, `gelf`, `text` | `ecs` | Console log format. `text` is plain and not redacted; the others are JSON. |
 | `stratum.logging.max-field-length` | data size, `1KB` to `1MB` | `16KB` | The longest value written, also used as the stack trace limit. Outside the range, startup stops with `SX-CORE-1003`, which names the rule `stratum.logging.max-field-length-in-range`. |
+| `stratum.logging.stack-trace-root` | `first`, `last` | `first` | Which exception of a stack trace is written first: `first` is the root cause, so a stack trace cut at `max-field-length` still shows why it failed; `last` is the exception that was caught. |
 | `stratum.logging.redaction.extra-keys` | list | *(empty)* | More field and key names whose values are masked in full, added to the built-in names. |
 | `stratum.logging.redaction.extra-patterns` | list of regex | *(empty)* | More patterns whose matches are masked in full. An invalid pattern stops startup with `SX-LOGGING-1002`; the message gives its position in the list, never the pattern. |
 
 The shared [`stratum.environment`](../../docs/configuration/reference.md#shared-properties) sets
-`service.environment`.
+`service.environment`, and the shared `stratum.propagate-context` (default `true`) decides whether
+`@Async` methods and Spring Boot's executors keep the workflow fields.
 
 Spring Boot properties this starter sets by default. A value you set wins, from any file, the
 environment, the command line or Java default properties:
@@ -327,8 +329,8 @@ environment, the command line or Java default properties:
 | `logging.structured.format.file` | value of `stratum.logging.format` (unset when `text`) |
 | `logging.structured.ecs.service.environment` | value of `stratum.environment` |
 | `logging.structured.json.stacktrace.max-length` | value of `stratum.logging.max-field-length`, in bytes |
-| `logging.structured.json.stacktrace.root` | `first` |
-| `spring.task.execution.propagate-context` | `true`, so that `@Async` methods and Spring Boot's executors keep the workflow fields |
+| `logging.structured.json.stacktrace.root` | value of `stratum.logging.stack-trace-root` |
+| `spring.task.execution.propagate-context` | value of `stratum.propagate-context` |
 
 ## Examples
 

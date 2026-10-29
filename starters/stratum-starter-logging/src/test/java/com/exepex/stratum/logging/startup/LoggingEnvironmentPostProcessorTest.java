@@ -3,6 +3,7 @@ package com.exepex.stratum.logging.startup;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
+import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.logging.LoggingConstants;
 import jakarta.validation.ConstraintViolationException;
@@ -109,6 +110,32 @@ class LoggingEnvironmentPostProcessorTest {
           runPostProcessor(environmentWithModuleOn().withProperty("stratum.environment", "prod"));
 
       assertThat(environment.getProperty(LoggingConstants.ECS_ENVIRONMENT)).isEqualTo("prod");
+    }
+
+    @Test
+    @DisplayName("Spring's executors carry the context, unless stratum.propagate-context is false")
+    void propagatesContext() {
+      var defaultEnvironment = runPostProcessor(environmentWithModuleOn());
+      var noPropagation =
+          runPostProcessor(
+              environmentWithModuleOn()
+                  .withProperty(StratumModuleConstants.PROPAGATE_CONTEXT, "false"));
+
+      assertThat(defaultEnvironment.getProperty(StratumModuleConstants.PROPAGATE_TASK_CONTEXT))
+          .isEqualTo("true");
+      assertThat(noPropagation.getProperty(StratumModuleConstants.PROPAGATE_TASK_CONTEXT))
+          .isEqualTo("false");
+    }
+
+    @Test
+    @DisplayName("stratum.logging.stack-trace-root=last is passed to Spring Boot")
+    void setsChosenStackTraceRoot() {
+      var environment =
+          runPostProcessor(
+              environmentWithModuleOn()
+                  .withProperty(LoggingConstants.PREFIX + ".stack-trace-root", "last"));
+
+      assertThat(environment.getProperty(LoggingConstants.STACK_TRACE_ROOT)).isEqualTo("last");
     }
 
     @Test

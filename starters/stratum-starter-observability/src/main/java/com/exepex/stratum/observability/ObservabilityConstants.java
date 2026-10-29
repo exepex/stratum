@@ -26,9 +26,6 @@ public class ObservabilityConstants {
   /** Spring Boot's list of actuator endpoints reachable over HTTP. */
   public static final String WEB_EXPOSURE = "management.endpoints.web.exposure.include";
 
-  /** The actuator endpoints Stratum exposes over HTTP by default (ST-SEC-10). */
-  public static final String SAFE_ENDPOINTS = "health,info";
-
   /** The prefix of Spring Boot's tags added to every metric. */
   public static final String METRIC_TAGS = "management.metrics.tags.";
 

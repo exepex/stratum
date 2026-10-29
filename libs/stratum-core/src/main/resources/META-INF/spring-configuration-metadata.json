@@ -10,6 +10,12 @@
       "name": "stratum.environment",
       "type": "java.lang.String",
       "description": "The environment the service runs in, such as prod. The logging module writes it as service.environment and the observability module tags every metric and span with it."
+    },
+    {
+      "name": "stratum.propagate-context",
+      "type": "java.lang.Boolean",
+      "description": "Whether @Async methods and work on Spring Boot's executors keep the trace and workflow fields of the code that started them. Used by the logging and observability modules when they are on. Sets Spring Boot's spring.task.execution.propagate-context, which wins if the service sets it.",
+      "defaultValue": true
     }
   ]
 }

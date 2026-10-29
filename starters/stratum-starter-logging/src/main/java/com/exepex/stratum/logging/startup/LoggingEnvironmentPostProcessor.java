@@ -12,6 +12,7 @@ import com.exepex.stratum.logging.redaction.Redactor;
 import jakarta.validation.ConstraintViolationException;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.EnvironmentPostProcessor;
@@ -99,12 +100,12 @@ public class LoggingEnvironmentPostProcessor implements EnvironmentPostProcessor
     if (StringUtils.hasText(serviceEnvironment)) {
       defaultProperties.put(LoggingConstants.ECS_ENVIRONMENT, serviceEnvironment);
     }
-    // Root cause first, so that a stack trace cut at the limit still shows why it failed.
     defaultProperties.put(
         LoggingConstants.STACK_TRACE_MAX_LENGTH, loggingProperties.maxFieldLength().toBytes());
-    defaultProperties.put(LoggingConstants.STACK_TRACE_ROOT, "first");
-    // So that @Async methods and work on Spring's executors keep the workflow and trace fields.
-    defaultProperties.put(StratumModuleConstants.PROPAGATE_TASK_CONTEXT, true);
+    defaultProperties.put(
+        LoggingConstants.STACK_TRACE_ROOT,
+        loggingProperties.stackTraceRoot().name().toLowerCase(Locale.ROOT));
+    defaultProperties.putAll(StratumDefaults.contextPropagation(environment));
     return defaultProperties;
   }
 

@@ -14,8 +14,14 @@ public class StratumModuleConstants {
   public static final String SERVICE_ENVIRONMENT = PREFIX + ".environment";
 
   /**
+   * Whether the logging and observability modules make Spring Boot's executors carry their context,
+   * through {@link #PROPAGATE_TASK_CONTEXT}. Defaults to {@code true}.
+   */
+  public static final String PROPAGATE_CONTEXT = PREFIX + ".propagate-context";
+
+  /**
    * Spring Boot's switch that makes its executors carry the logging and tracing context, which the
-   * logging and observability modules both turn on.
+   * logging and observability modules turn on by default.
    */
   public static final String PROPAGATE_TASK_CONTEXT = "spring.task.execution.propagate-context";
 

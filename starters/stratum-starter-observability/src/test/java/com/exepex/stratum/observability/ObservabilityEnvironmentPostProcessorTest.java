@@ -1,13 +1,20 @@
 package com.exepex.stratum.observability;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.core.condition.StratumModuleConstants;
+import com.exepex.stratum.observability.testsupport.JavaConfigurationTestData;
+import com.exepex.stratum.observability.testsupport.PrometheusEndpointObservabilitySettings;
+import jakarta.validation.ConstraintViolationException;
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.env.DefaultPropertiesPropertySource;
 import org.springframework.core.env.MapPropertySource;
@@ -42,6 +49,9 @@ class ObservabilityEnvironmentPostProcessorTest {
           "spring.rabbitmq.listener.stream.observation-enabled");
 
   private static final String SERVICE_EXPOSURE = "health,loggers";
+
+  private static final String EXPOSED_ENDPOINTS =
+      ObservabilityConstants.PREFIX + ".exposed-endpoints";
 
   private static final String ON = "true";
 
@@ -111,7 +121,7 @@ class ObservabilityEnvironmentPostProcessorTest {
       var environment = runPostProcessor(environmentWithModuleOn());
 
       assertThat(environment.getProperty(ObservabilityConstants.WEB_EXPOSURE))
-          .isEqualTo(ObservabilityConstants.SAFE_ENDPOINTS);
+          .isEqualTo("health,info");
       assertThat(environment.getProperty(ObservabilityConstants.METRICS_EXPORT_ENABLED)).isNull();
     }
 
@@ -162,6 +172,56 @@ class ObservabilityEnvironmentPostProcessorTest {
     }
 
     @Test
+    @DisplayName("the stratum.observability settings change the Spring Boot properties they set")
+    void stratumSettingsChangeDefaults() {
+      var environment =
+          runPostProcessor(
+              environmentWithModuleOn()
+                  .withProperty(EXPOSED_ENDPOINTS, "health,prometheus")
+                  .withProperty(ObservabilityConstants.PREFIX + ".histograms", OFF)
+                  .withProperty(ObservabilityConstants.PREFIX + ".messaging-traces", OFF)
+                  .withProperty(StratumModuleConstants.PROPAGATE_CONTEXT, OFF));
+
+      assertThat(environment.getProperty(ObservabilityConstants.WEB_EXPOSURE))
+          .isEqualTo("health,prometheus");
+      assertThat(environment.getProperty(ObservabilityConstants.HISTOGRAM_FOR_EVERY_TIMING))
+          .isNull();
+      assertThat(environment.getProperty(ObservabilityConstants.HISTOGRAM_FLAVOR)).isNull();
+      assertThat(
+              ObservabilityConstants.MESSAGING_OBSERVATION_SWITCHES.stream()
+                  .map(environment::getProperty))
+          .containsOnlyNulls();
+      assertThat(environment.getProperty(PROPAGATE_TASK_CONTEXT)).isEqualTo(OFF);
+    }
+
+    @Test
+    @DisplayName("settings from a customizer listed in spring.factories win before startup")
+    void javaSettingsWin(@TempDir Path folder) throws IOException {
+      var environment =
+          JavaConfigurationTestData.withCustomizers(
+              folder,
+              List.of(PrometheusEndpointObservabilitySettings.class),
+              () ->
+                  runPostProcessor(
+                      environmentWithModuleOn().withProperty(EXPOSED_ENDPOINTS, "health")));
+
+      assertThat(environment.getProperty(ObservabilityConstants.WEB_EXPOSURE))
+          .isEqualTo(String.join(",", PrometheusEndpointObservabilitySettings.ENDPOINTS));
+      assertThat(environment.getProperty(ObservabilityConstants.HISTOGRAM_FOR_EVERY_TIMING))
+          .isNull();
+    }
+
+    @Test
+    @DisplayName("a blank exposed endpoint stops startup")
+    void blankEndpointStopsStartup() {
+      var environment = environmentWithModuleOn().withProperty(EXPOSED_ENDPOINTS, "health, ");
+
+      assertThatExceptionOfType(ConstraintViolationException.class)
+          .isThrownBy(() -> runPostProcessor(environment))
+          .withMessageContaining(EXPOSED_ENDPOINTS);
+    }
+
+    @Test
     @DisplayName("a tag whose value is unset or blank is left out")
     void leavesOutUnsetTags() {
       var environment =
@@ -175,11 +235,12 @@ class ObservabilityEnvironmentPostProcessorTest {
     }
 
     @Test
-    @DisplayName("the service's own exposure wins over Stratum's")
+    @DisplayName("the service's own exposure wins over Stratum's, and over its Stratum setting")
     void serviceExposureWins() {
       var environment =
           runPostProcessor(
               environmentWithModuleOn()
+                  .withProperty(EXPOSED_ENDPOINTS, "health,prometheus")
                   .withProperty(ObservabilityConstants.WEB_EXPOSURE, SERVICE_EXPOSURE));
 
       assertThat(environment.getProperty(ObservabilityConstants.WEB_EXPOSURE))
