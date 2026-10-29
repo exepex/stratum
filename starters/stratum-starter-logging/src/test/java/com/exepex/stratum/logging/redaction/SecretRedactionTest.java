@@ -310,6 +310,13 @@ class SecretRedactionTest {
     }
 
     @Test
+    @DisplayName("an @ in a URL's query is not read as the end of a password")
+    void atSignInUrlQueryIsKept() {
+      assertThat(redactUnnamedText("https://alice:example@host?password=before@after"))
+          .isEqualTo("https://****@host?password=****");
+    }
+
+    @Test
     @DisplayName("an @ in a URL's path is not read as the end of a password")
     void atSignInUrlPathIsKept() {
       assertThat(redactUnnamedText("see https://social.example:8443/@bob and https://a:x@h/@c"))
