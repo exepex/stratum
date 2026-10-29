@@ -52,7 +52,7 @@ receives, change only what you need, and `build()`: every other value is kept.
 
 The logging module is the one exception: logging starts before Spring creates any bean, so its
 `stratum.logging.*` values can be set only in files, environment variables or command-line
-arguments. See [Logging → Configure in Java](../modules/logging.md#configure-in-java).
+arguments. See [Logging → Configure in Java](../../starters/stratum-starter-logging/README.md#configure-in-java).
 
 The settings types of the modules are planned; each module page will name its own. The example
 below uses a module called `example` with two settings, `message` and `timeout`. The same values,

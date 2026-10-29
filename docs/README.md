@@ -46,7 +46,7 @@ Each module page follows the same layout so you always know where to look:
 | Parent POM and BOM | [parent-and-bom.md](modules/parent-and-bom.md) |
 | Bundle starters (one dependency per kind of application) | [bundles.md](modules/bundles.md) |
 | Web (REST defaults, errors, correlation IDs) | [web.md](modules/web.md) |
-| Logging | [logging.md](modules/logging.md) |
+| Logging | [stratum-starter-logging/README.md](../starters/stratum-starter-logging/README.md) |
 | Observability (metrics, tracing, health) | [observability.md](modules/observability.md) |
 | Security (resource server, JWT) | [security.md](modules/security.md) |
 | OAuth2 client (service-to-service tokens) | [oauth2-client.md](modules/oauth2-client.md) |

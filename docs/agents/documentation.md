@@ -12,10 +12,11 @@ the documentation must work for both. Documentation is part of every change and 
 | Document | What it covers |
 |---|---|
 | `README.md` | What Stratum is and why it exists, its modules, a quick start and how to build. A clear overview that links to `docs/` for detail. |
-| `docs/README.md` | The index of the user documentation. Every page in `docs/` is linked from it, except the agent rules in `docs/agents/`, which `AGENTS.md` indexes. |
+| `docs/README.md` | The index of the user documentation. Every page in `docs/` and every module `README.md` is linked from it, except the agent rules in `docs/agents/`, which `AGENTS.md` indexes. |
 | `docs/getting-started/` | Installing Stratum, the core concepts and a first service, step by step. |
 | `docs/configuration/` | How configuration works, overriding defaults, profiles, and `reference.md`: every `stratum.*` property in one table. |
-| `docs/modules/<module>.md` | One page per module: what it sets up, each of its properties (type, default, meaning), how to replace each bean, and usage examples. |
+| `README.md` of a starter or library | The module's own page, for a developer who uses that module: what it sets up, each of its properties (type, default, meaning), how to replace each bean, and usage examples. It links to `docs/` for everything that is not about the module. |
+| `docs/modules/<module>.md` | The page of a module that has no `README.md` of its own yet, with the same content. |
 | `docs/contributing.md` | How a person proposes a change: issues, branches, build commands. It links to `AGENTS.md` for the rules and repeats none of them. |
 | `docs/adr/` | Architecture decision records, numbered in order. An accepted record is never edited, which is the one exception to ST-DOC-03; a new record replaces it. Each is linked from `docs/README.md`. |
 | `docs/guides/` | Topics that span modules: architecture, migrating a service, upgrading, troubleshooting, FAQ. |
