@@ -1,9 +1,10 @@
-package com.exepex.stratum.logging;
+package com.exepex.stratum.logging.startup;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.core.error.StratumException;
+import com.exepex.stratum.logging.LoggingConstants;
 import jakarta.validation.ConstraintViolationException;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
