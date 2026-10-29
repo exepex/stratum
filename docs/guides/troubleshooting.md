@@ -82,7 +82,7 @@ On your laptop (the `local` profile exposes these endpoints) you can inspect the
 | Requests return `401` or `403` | [Security → Troubleshooting](../modules/security.md#troubleshooting) |
 | Calls to another service time out | [HTTP client → Troubleshooting](../modules/http-client.md#troubleshooting) |
 | `CallNotPermittedException` | [Resilience → Troubleshooting](../modules/resilience.md#troubleshooting) |
-| No trace IDs in logs, or traces broken between services | [Observability → Troubleshooting](../modules/observability.md#troubleshooting) |
+| No trace IDs in logs, or traces broken between services | [Observability → Troubleshooting](../../starters/stratum-starter-observability/README.md#troubleshooting) |
 | Connection pool exhausted | [Data → Troubleshooting](../modules/data-jpa.md#troubleshooting) |
 | Messages in a dead-letter topic | [Kafka → Troubleshooting](../modules/kafka.md#troubleshooting) |
 

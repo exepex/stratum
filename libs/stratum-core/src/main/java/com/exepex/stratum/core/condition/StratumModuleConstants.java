@@ -1,6 +1,7 @@
 package com.exepex.stratum.core.condition;
 
 import lombok.experimental.UtilityClass;
+import org.springframework.boot.autoconfigure.AutoConfigureOrder;
 
 /** The property keys that every Stratum module shares (ST-ENG-45). */
 @UtilityClass
@@ -11,6 +12,13 @@ public class StratumModuleConstants {
 
   /** The environment the service runs in, such as {@code prod}, which several modules report. */
   public static final String SERVICE_ENVIRONMENT = PREFIX + ".environment";
+
+  /**
+   * The {@code @AutoConfigureOrder} of every Stratum auto-configuration: later than the default, so
+   * that a company framework's auto-configurations with no order run first and their beans win (ADR
+   * 0001).
+   */
+  public static final int AUTO_CONFIGURATION_ORDER = AutoConfigureOrder.DEFAULT_ORDER + 1000;
 
   /** The last part of a module's on/off property. */
   public static final String ENABLED = "enabled";

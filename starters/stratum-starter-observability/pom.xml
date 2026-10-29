@@ -14,5 +14,33 @@
   <artifactId>stratum-starter-observability</artifactId>
 
   <name>Stratum starter: observability</name>
-  <description>Planned: Metrics, OpenTelemetry tracing, health and Kubernetes probes.</description>
+  <description>Metrics, traces and health, sent over OTLP to an OpenTelemetry Collector, with safe defaults.</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.exepex.stratum</groupId>
+      <artifactId>stratum-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+    <!-- Brings Micrometer's OTLP metrics registry and the OpenTelemetry tracing bridge and exporter. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-opentelemetry</artifactId>
+    </dependency>
+    <!-- Parses the URLs recorded on HTTP client spans. Only present when the service uses Spring's HTTP
+         clients, which are the only source of those spans. -->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-web</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
 </project>

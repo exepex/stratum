@@ -189,6 +189,7 @@ message if it is missing:
 
 | Starter | Required setting |
 | --- | --- |
+| `stratum-starter-observability` | `management.otlp.metrics.export.url` and `management.opentelemetry.tracing.export.otlp.endpoint`, in every profile once enabled |
 | `stratum-starter-security` | `stratum.security.resource-server.issuer-uri` |
 | `stratum-starter-http-client` | `stratum.http-client.clients.<name>.base-url` for each client |
 | `stratum-starter-data-jpa` | `spring.datasource.url`, `username`, `password` |

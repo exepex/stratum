@@ -243,8 +243,7 @@ stratum:
 ```
 
 Some Stratum properties are shortcuts that set Spring Boot properties for you. For example,
-`stratum.observability.tracing.sampling-probability` sets Spring Boot's
-`management.tracing.sampling.probability`. If you set the Spring Boot property directly, your value
-wins. Each module page lists which Spring Boot properties it sets by default.
+`stratum.logging.format` sets Spring Boot's `logging.structured.format.console`. If you set the
+Spring Boot property directly, your value wins. Each module page lists which Spring Boot properties it sets by default.
 
 Next: [Profiles and environments](profiles-and-environments.md).

@@ -47,7 +47,7 @@ Each module page follows the same layout so you always know where to look:
 | Bundle starters (one dependency per kind of application) | [bundles.md](modules/bundles.md) |
 | Web (REST defaults, errors, correlation IDs) | [web.md](modules/web.md) |
 | Logging | [stratum-starter-logging/README.md](../starters/stratum-starter-logging/README.md) |
-| Observability (metrics, tracing, health) | [observability.md](modules/observability.md) |
+| Observability (metrics, tracing, health) | [stratum-starter-observability/README.md](../starters/stratum-starter-observability/README.md) |
 | Security (resource server, JWT) | [security.md](modules/security.md) |
 | OAuth2 client (service-to-service tokens) | [oauth2-client.md](modules/oauth2-client.md) |
 | HTTP client | [http-client.md](modules/http-client.md) |

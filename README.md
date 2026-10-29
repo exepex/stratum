@@ -202,6 +202,11 @@ stratum.logging.enabled=true
 stratum.observability.enabled=true
 ```
 
+Once it is on, the observability module also needs your OpenTelemetry Collector's addresses, in
+every profile, or it stops at startup. To try it without a Collector, point both at `localhost`
+(`http://localhost:4318/v1/metrics` and `http://localhost:4318/v1/traces`), and the data is dropped
+quietly ([Observability](starters/stratum-starter-observability/README.md#running-without-a-collector)).
+
 **4. Write a controller** and run `mvn spring-boot:run`:
 
 ```java
@@ -221,8 +226,9 @@ standard error responses.
 
 ## Modules
 
-All modules are **Planned**, except `stratum-starter-logging`, which is partly built: JSON logs with
-the service's name and environment, and redaction. Each links to its full page: what it sets up,
+All modules are **Planned**, except two that are partly built: `stratum-starter-logging` (JSON logs
+with the service's name and environment, and redaction) and `stratum-starter-observability`
+(metrics, traces and health sent over OTLP, with safe defaults). Each links to its full page: what it sets up,
 every property with its default, examples in YAML and properties, how to override it and how to
 troubleshoot it.
 
@@ -257,7 +263,7 @@ Every starter is off until its `stratum.<module>.enabled` property is `true`.
 | --- | --- | --- |
 | [`stratum-starter-web`](docs/modules/web.md) | REST defaults: error format, correlation IDs, request logging, JSON settings. | `stratum.web` |
 | [`stratum-starter-logging`](starters/stratum-starter-logging/README.md) | Structured JSON logs with secrets and personal data redacted; trace context planned. | `stratum.logging` |
-| [`stratum-starter-observability`](docs/modules/observability.md) | Metrics, OpenTelemetry tracing, health and Kubernetes probes. | `stratum.observability` |
+| [`stratum-starter-observability`](starters/stratum-starter-observability/README.md) | Metrics, traces and health, sent over OTLP to an OpenTelemetry Collector. | `stratum.observability` |
 | [`stratum-starter-security`](docs/modules/security.md) | OAuth2 resource server: JWT validation, roles, public paths, CORS. | `stratum.security` |
 | [`stratum-starter-oauth2-client`](docs/modules/oauth2-client.md) | Gets and refreshes tokens for calls to other services. | `stratum.oauth2-client` |
 | [`stratum-starter-http-client`](docs/modules/http-client.md) | Declarative HTTP clients with timeouts, tracing, tokens and retries. | `stratum.http-client` |
