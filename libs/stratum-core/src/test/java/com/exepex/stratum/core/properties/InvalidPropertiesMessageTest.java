@@ -4,9 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.properties.servicecode.CodedProperties;
 import com.exepex.stratum.core.properties.servicecode.RangeProperties;
-import com.exepex.stratum.core.properties.testsupport.ValidationTestData;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Valid;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
+import jakarta.validation.ValidatorFactory;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -18,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.Builder;
+import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -35,9 +38,16 @@ class InvalidPropertiesMessageTest {
           .pool(new Pool(1))
           .build();
 
+  /** Hibernate Validator, as Spring Boot uses it; JUnit closes it after the last test. */
+  @AutoClose
+  private static final ValidatorFactory VALIDATOR_FACTORY =
+      Validation.buildDefaultValidatorFactory();
+
+  /** Checks the properties' constraints. */
+  private final Validator validator = VALIDATOR_FACTORY.getValidator();
+
   /** Builds the startup error from the violations. */
-  private final StratumPropertiesResolver resolver =
-      new StratumPropertiesResolver(ValidationTestData.VALIDATOR);
+  private final StratumPropertiesResolver resolver = new StratumPropertiesResolver(validator);
 
   @Test
   @DisplayName("a property is named by the kebab-case key a service sets")
@@ -108,7 +118,7 @@ class InvalidPropertiesMessageTest {
             .pool(new Pool(0))
             .build();
     var reverseKeyOrder =
-        ValidationTestData.VALIDATOR.validate(properties).stream()
+        validator.validate(properties).stream()
             .sorted(Comparator.comparing(this::path).reversed())
             .collect(Collectors.toCollection(LinkedHashSet::new));
 
@@ -127,8 +137,7 @@ class InvalidPropertiesMessageTest {
 
   /** Validates the settings and returns the message the resolver would throw. */
   private <P> String describe(P properties) {
-    return resolver.describeViolations(
-        properties, ValidationTestData.VALIDATOR.validate(properties));
+    return resolver.describeViolations(properties, validator.validate(properties));
   }
 
   /** Returns the path of a broken constraint as text. */

@@ -6,9 +6,11 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.core.properties.fixture.GreetingAutoConfiguration.GreetingProperties;
 import com.exepex.stratum.core.properties.testsupport.GreetingTestData;
-import com.exepex.stratum.core.properties.testsupport.ValidationTestData;
 import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Validation;
+import jakarta.validation.ValidatorFactory;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -20,9 +22,14 @@ class StratumPropertiesResolverTest {
   private static final String BROKEN_CUSTOMIZER =
       "SX-CORE-1002: A StratumPropertiesCustomizer is broken: ";
 
+  /** Hibernate Validator, as Spring Boot uses it; JUnit closes it after the last test. */
+  @AutoClose
+  private static final ValidatorFactory VALIDATOR_FACTORY =
+      Validation.buildDefaultValidatorFactory();
+
   /** Resolves the test module's properties. */
   private final StratumPropertiesResolver resolver =
-      new StratumPropertiesResolver(ValidationTestData.VALIDATOR);
+      new StratumPropertiesResolver(VALIDATOR_FACTORY.getValidator());
 
   @Nested
   @DisplayName("when the service has no Java configuration")
