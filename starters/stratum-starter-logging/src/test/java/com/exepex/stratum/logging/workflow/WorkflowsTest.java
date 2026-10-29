@@ -8,6 +8,7 @@ import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.testsupport.FinishedObservations;
 import io.micrometer.common.KeyValue;
 import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationHandler;
 import io.micrometer.observation.ObservationRegistry;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -167,6 +168,19 @@ class WorkflowsTest {
   }
 
   @Test
+  @DisplayName("the fields are removed even when ending the observation fails")
+  void restoresFieldsWhenObservationFails() {
+    var observationRegistry = ObservationRegistry.create();
+    observationRegistry.observationConfig().observationHandler(new FailingObservationHandler());
+    var workflows = new Workflows(observationRegistry);
+
+    assertThatIllegalStateException().isThrownBy(() -> workflows.run(CHECKOUT, this::placeOrder));
+    assertThatIllegalStateException()
+        .isThrownBy(() -> workflows.call(CHECKOUT, this::workflowFields));
+    assertThat(workflowFields()).containsOnlyNulls();
+  }
+
+  @Test
   @DisplayName("work that returns a future ends when the future completes, with its failure")
   void endsWhenFutureCompletes() {
     var payment = new CompletableFuture<String>();
@@ -178,5 +192,31 @@ class WorkflowsTest {
     assertThat(finishedObservations)
         .singleElement()
         .satisfies(checkout -> assertThat(checkout.getError()).isSameAs(paymentDeclined));
+  }
+
+  /** A service's observation handler that fails when an observation ends. */
+  private static final class FailingObservationHandler
+      implements ObservationHandler<Observation.Context> {
+
+    /**
+     * Fails.
+     *
+     * @param context the observation's context
+     */
+    @Override
+    public void onStop(Observation.Context context) {
+      throw new IllegalStateException("exporter down");
+    }
+
+    /**
+     * Handles every observation.
+     *
+     * @param context the observation's context
+     * @return always {@code true}
+     */
+    @Override
+    public boolean supportsContext(Observation.Context context) {
+      return true;
+    }
   }
 }

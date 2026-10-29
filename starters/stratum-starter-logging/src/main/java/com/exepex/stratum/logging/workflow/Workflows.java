@@ -57,11 +57,9 @@ public class Workflows {
   public <E extends Throwable> void run(
       String name, @Nullable String workflowId, CheckedRunnable<E> work) throws E {
     var outerFields = enter(name, workflowId);
-    var observation = observation(workflowFields.currentFields()).start();
     try {
-      observation.scopedChecked(work);
+      observation(workflowFields.currentFields()).observeChecked(work);
     } finally {
-      observation.stop();
       workflowFields.setValue(outerFields);
     }
   }
@@ -100,14 +98,9 @@ public class Workflows {
   public <T, E extends Throwable> @Nullable T call(
       String name, @Nullable String workflowId, CheckedCallable<T, E> work) throws E {
     var outerFields = enter(name, workflowId);
-    var observation = observation(workflowFields.currentFields()).start();
-    @Nullable T result = null;
     try {
-      result = observation.scopedChecked(work);
-      return result;
+      return observeUntilDone(observation(workflowFields.currentFields()), work);
     } finally {
-      // A failure leaves the result null; scopedChecked has recorded it.
-      stopWhenDone(observation, result);
       workflowFields.setValue(outerFields);
     }
   }
@@ -176,6 +169,20 @@ public class Workflows {
     var outerFields = workflowFields.currentFields();
     workflowFields.setValue(fieldsInside(name, workflowId, outerFields));
     return outerFields;
+  }
+
+  /** Runs the work in the observation, which ends when the work's result is done. */
+  private <T, E extends Throwable> @Nullable T observeUntilDone(
+      Observation observation, CheckedCallable<T, E> work) throws E {
+    observation.start();
+    @Nullable T result = null;
+    try {
+      result = observation.scopedChecked(work);
+      return result;
+    } finally {
+      // A failure leaves the result null; scopedChecked has recorded it.
+      stopWhenDone(observation, result);
+    }
   }
 
   /**
