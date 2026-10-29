@@ -62,7 +62,7 @@ public class ObservabilityAutoConfiguration {
     var properties =
         new StratumPropertiesResolver(validator)
             .resolve(boundProperties, customizers.orderedStream());
-    return new MetricTagGuard(properties.tags().extraForbidden());
+    return new MetricTagGuard(properties.tags().extraForbidden(), properties.tags().allowed());
   }
 
   /**

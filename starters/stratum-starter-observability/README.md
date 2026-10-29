@@ -132,17 +132,22 @@ exponential histograms. If it does not, send classic fixed buckets instead with
 
 Each distinct value of a metric tag creates a new time series, so a tag that holds an ID, such as a
 user or order ID, can overload the metrics backend. Stratum drops every metric that has a tag with
-one of these names, ignoring case, `_` and `-`:
+one of these names, ignoring case, `_`, `-` and `.`:
 
 `userId`, `customerId`, `accountId`, `orderId`, `sessionId`, `requestId`, `transactionId`,
 `traceId`, `spanId`, `correlationId`, `email`, `ipAddress`
 
-So `user_id` and `USER-ID` are dropped too. The first time a metric is dropped, Stratum logs
+So `user_id`, `USER-ID` and `user.id` are dropped too. The first time a metric is dropped, Stratum
+logs
 [`SX-OBSERVABILITY-1002`](../../docs/guides/error-codes.md#stratum-starter-observability), naming
 the metric and the tag, never a value. Put such IDs in log lines or span attributes instead.
 
-Add your own names with `stratum.observability.tags.extra-forbidden`; the built-in names cannot be
-removed. To change the rule itself, declare your own `MetricTagGuard` bean, and Stratum's backs off.
+Add your own names with `stratum.observability.tags.extra-forbidden`. To keep a built-in name, list
+it in `stratum.observability.tags.allowed`. Do that only when the tag has a small, known set of
+values, such as `userId` in an internal tool with a few dozen users. The guard is about the cost of
+metrics, not about privacy: whether an ID may appear in logs is up to the logging starter's
+redaction. To change the rule itself, declare your own `MetricTagGuard` bean, and Stratum's backs
+off.
 
 ### Correlation ID
 
@@ -170,8 +175,16 @@ try (var correlation = tracer.createBaggageInScope("correlationId", order.correl
 }
 ```
 
+Baggage travels with the trace: Spring's HTTP clients send it in the W3C `baggage` header on every
+outgoing call, to every host, third parties included. So the correlation ID set in baggage reaches
+every service you call.
+
+> [!WARNING]
+> Never put a secret or personal data, such as a customer's name or email address, in the
+> correlation ID or any other baggage entry. Every host your service calls receives it.
+
 **Planned:** the web starter will take the ID from the `X-Correlation-Id` header, and the logging
-starter will send it on to the services you call.
+starter will limit the baggage to your own hosts.
 
 ### URLs on spans and metrics
 
@@ -237,7 +250,8 @@ shared environment is noticed.
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
 | `stratum.observability.enabled` | boolean | `false` | Switches the whole starter on. Until it is `true`, the starter sets up nothing and turns export off. |
-| `stratum.observability.tags.extra-forbidden` | list of strings | empty | More tag names the [tag guard](#tag-guard) refuses, added to the built-in ones. Case, `_` and `-` are ignored. A blank name stops startup with `SX-CORE-1003`. |
+| `stratum.observability.tags.extra-forbidden` | list of strings | empty | More tag names the [tag guard](#tag-guard) refuses, added to the built-in ones. Case, `_`, `-` and `.` are ignored. A blank name stops startup with `SX-CORE-1003`. |
+| `stratum.observability.tags.allowed` | list of strings | empty | Tag names the [tag guard](#tag-guard) keeps even though they are refused by default, such as `customerId`. Compared like `extra-forbidden`. A blank name stops startup with `SX-CORE-1003`. |
 
 The shared [`stratum.environment`](../../docs/configuration/reference.md#shared-properties) sets the
 `environment` tag and the `deployment.environment.name` resource attribute.
@@ -258,10 +272,12 @@ Spring Boot properties this starter sets by default (your values win):
 
 ## Examples
 
-Refuse tags that hold tenant and device IDs, as well as the built-in ones:
+Refuse tags that hold tenant and device IDs, as well as the built-in ones, and keep `customerId`
+for a business-to-business service with a few dozen customers:
 
 ```properties
 stratum.observability.tags.extra-forbidden=tenantId,deviceId
+stratum.observability.tags.allowed=customerId
 ```
 
 ```yaml
@@ -271,6 +287,8 @@ stratum:
       extra-forbidden:
         - tenantId
         - deviceId
+      allowed:
+        - customerId
 ```
 
 Keep every trace while you develop, in `application-local.properties` or `application-local.yml`.
@@ -300,11 +318,15 @@ management:
 ```
 
 Send metrics to Prometheus by scraping instead of pushing. Add `io.micrometer:micrometer-registry-prometheus`
-(its version comes from Spring Boot), expose the endpoint, and turn OTLP metrics off:
+(its version comes from Spring Boot), expose the endpoint, and turn OTLP metrics off. With Stratum's
+histograms on, each timer becomes about 70 `_bucket` series per set of tags in the scrape. The last
+line below turns the histograms off, leaving count, sum and max; to keep them for one
+metric, also set `management.metrics.distribution.percentiles-histogram.<metric-name>=true`.
 
 ```properties
 management.endpoints.web.exposure.include=health,info,prometheus
 management.otlp.metrics.export.enabled=false
+management.metrics.distribution.percentiles-histogram.all=false
 ```
 
 ```yaml
@@ -317,6 +339,10 @@ management:
     metrics:
       export:
         enabled: false
+  metrics:
+    distribution:
+      percentiles-histogram:
+        all: false
 ```
 
 > [!CAUTION]
@@ -336,6 +362,7 @@ StratumPropertiesCustomizer<ObservabilityProperties> forbiddenTags() {
           .tags(
               properties.tags().toBuilder()
                   .extraForbidden(List.of("tenantId", "deviceId"))
+                  .allowed(List.of("customerId"))
                   .build())
           .build();
 }

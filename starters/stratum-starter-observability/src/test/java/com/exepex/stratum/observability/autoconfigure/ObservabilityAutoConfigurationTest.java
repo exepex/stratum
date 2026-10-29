@@ -8,8 +8,7 @@ import com.exepex.stratum.observability.MetricTagGuard;
 import com.exepex.stratum.observability.ObservabilityConstants;
 import com.exepex.stratum.observability.ObservabilityProperties;
 import com.exepex.stratum.observability.TelemetryUrlFilter;
-import io.micrometer.core.instrument.Meter;
-import io.micrometer.core.instrument.Tags;
+import com.exepex.stratum.observability.testsupport.MetricTestData;
 import io.micrometer.core.instrument.config.MeterFilterReply;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -32,6 +31,11 @@ class ObservabilityAutoConfigurationTest {
   private static final String EXTRA_FORBIDDEN =
       ObservabilityConstants.PREFIX + ".tags.extra-forbidden";
 
+  private static final String ALLOWED = ObservabilityConstants.PREFIX + ".tags.allowed";
+
+  /** The built-in tag name the service keeps in its properties. */
+  private static final String ORDER_TAG = "orderId";
+
   /** The tag name the service sets in its properties. */
   private static final String TENANT_TAG = "tenantId";
 
@@ -46,9 +50,7 @@ class ObservabilityAutoConfigurationTest {
 
   /** Returns what the context's guard answers for a metric with one tag. */
   private MeterFilterReply guardReplyForTag(AssertableApplicationContext context, String tagName) {
-    return context
-        .getBean(MetricTagGuard.class)
-        .accept(new Meter.Id("orders.placed", Tags.of(tagName, "A"), null, null, Meter.Type.TIMER));
+    return context.getBean(MetricTagGuard.class).accept(MetricTestData.counterTaggedWith(tagName));
   }
 
   @Test
@@ -125,13 +127,16 @@ class ObservabilityAutoConfigurationTest {
   }
 
   @Test
-  @DisplayName("the guard refuses the tag names set in properties")
+  @DisplayName("the guard refuses and keeps the tag names set in properties")
   void guardUsesPropertyNames() {
     contextRunner
-        .withPropertyValues(MODULE_ON, EXTRA_FORBIDDEN + "=" + TENANT_TAG)
+        .withPropertyValues(
+            MODULE_ON, EXTRA_FORBIDDEN + "=" + TENANT_TAG, ALLOWED + "=" + ORDER_TAG)
         .run(
-            context ->
-                assertThat(guardReplyForTag(context, TENANT_TAG)).isEqualTo(MeterFilterReply.DENY));
+            context -> {
+              assertThat(guardReplyForTag(context, TENANT_TAG)).isEqualTo(MeterFilterReply.DENY);
+              assertThat(guardReplyForTag(context, ORDER_TAG)).isEqualTo(MeterFilterReply.NEUTRAL);
+            });
   }
 
   @Test
@@ -169,7 +174,7 @@ class ObservabilityAutoConfigurationTest {
     final TelemetryUrlFilter filter = new TelemetryUrlFilter();
 
     /** The service's tag guard. */
-    final MetricTagGuard guard = new MetricTagGuard(List.of());
+    final MetricTagGuard guard = new MetricTagGuard(List.of(), List.of());
 
     /** The service's correlation ID recorder. */
     final CorrelationIdRecorder recorder = new CorrelationIdRecorder();
@@ -213,7 +218,7 @@ class ObservabilityAutoConfigurationTest {
     static final TelemetryUrlFilter FILTER = new TelemetryUrlFilter();
 
     /** The company's tag guard. */
-    static final MetricTagGuard GUARD = new MetricTagGuard(List.of());
+    static final MetricTagGuard GUARD = new MetricTagGuard(List.of(), List.of());
 
     /** The company's correlation ID recorder. */
     static final CorrelationIdRecorder RECORDER = new CorrelationIdRecorder();

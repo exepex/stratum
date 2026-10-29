@@ -112,12 +112,12 @@ public class ErrorReport implements Serializable {
             .severity(code.getSeverity())
             .message(message)
             .details(List.of())
-            .traceId(usableIdOrNull(LoggingContextConstants.TRACE_ID))
-            .correlationId(usableIdOrNull(LoggingContextConstants.CORRELATION_ID))
+            .traceId(safeIdOrNull(LoggingContextConstants.TRACE_ID))
+            .correlationId(safeIdOrNull(LoggingContextConstants.CORRELATION_ID))
             .build();
     return ErrorReport.builder()
         .external(external)
-        .spanId(usableIdOrNull(LoggingContextConstants.SPAN_ID))
+        .spanId(safeIdOrNull(LoggingContextConstants.SPAN_ID))
         .build();
   }
 
@@ -138,9 +138,11 @@ public class ErrorReport implements Serializable {
     }
   }
 
-  /** Reads an ID from the current thread's logging context and keeps it only if it is usable. */
-  private static @Nullable String usableIdOrNull(String key) {
+  /** Reads an ID from the current thread's logging context, or null if it is not safe for logs. */
+  private static @Nullable String safeIdOrNull(String key) {
     var id = MDC.get(key);
-    return id != null && LoggingContextConstants.USABLE_ID.matcher(id).matches() ? id : null;
+    return id != null && LoggingContextConstants.ID_FORMAT_SAFE_FOR_LOGS.matcher(id).matches()
+        ? id
+        : null;
   }
 }

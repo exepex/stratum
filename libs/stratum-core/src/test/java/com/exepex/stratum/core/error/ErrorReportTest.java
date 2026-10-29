@@ -130,11 +130,11 @@ class ErrorReportTest {
   class WithIds {
 
     /** IDs made only of the allowed characters, which a report keeps. */
-    private static final List<String> USABLE_IDS =
+    private static final List<String> SAFE_IDS =
         List.of("c0a8012e-7f3d-4a8e-9a43-2f9b6f1c2d10", "order_42.step:3", "a");
 
     /** IDs that are empty or hold any other character, which a report leaves out. */
-    private static final List<String> UNUSABLE_IDS =
+    private static final List<String> UNSAFE_IDS =
         List.of("", "order 42", "id\nforged log line", "id\r", "<script>", "ü");
 
     @Test
@@ -160,18 +160,18 @@ class ErrorReportTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @FieldSource("USABLE_IDS")
+    @FieldSource("SAFE_IDS")
     @DisplayName("an ID of letters, digits, '-', '_', '.' and ':' is kept")
-    void keepsUsableId(String id) {
+    void keepsSafeId(String id) {
       MDC.put(LoggingContextConstants.CORRELATION_ID, id);
 
       assertThat(correlationIdOfNewReport()).isEqualTo(id);
     }
 
     @ParameterizedTest
-    @FieldSource("UNUSABLE_IDS")
+    @FieldSource("UNSAFE_IDS")
     @DisplayName("an empty ID, or one with any other character, is left out")
-    void leavesOutUnusableId(String id) {
+    void leavesOutUnsafeId(String id) {
       MDC.put(LoggingContextConstants.CORRELATION_ID, id);
 
       assertThat(correlationIdOfNewReport()).isNull();

@@ -77,7 +77,9 @@ class CorrelationIdIntegrationTest {
   }
 
   @Test
-  @DisplayName("one set in baggage is used in logs and error reports, and recorded on later spans")
+  @DisplayName(
+      "one set in baggage is used in logs and error reports, recorded on later spans, and kept"
+          + " when a child span's scope closes")
   void usesBaggageCorrelationId() {
     try (var context = start()) {
       startSpanWithBaggage(context.getBean(Tracer.class), ORDER_CORRELATION_ID);
@@ -101,7 +103,8 @@ class CorrelationIdIntegrationTest {
 
   /**
    * Sets a correlation ID in baggage inside a span, checks the logging context and error reports,
-   * and starts a child span that should record it.
+   * and runs a child span that should record it. After the child's scope closes, the parent's ID
+   * must be back in the logging context.
    */
   private void startSpanWithBaggage(Tracer tracer, String correlationId) {
     var span = tracer.nextSpan().name("place-order").start();
@@ -112,7 +115,13 @@ class CorrelationIdIntegrationTest {
           ORDER_CORRELATION_ID.equals(correlationId) ? correlationId : span.context().traceId();
       assertThat(MDC.get(LoggingContextConstants.CORRELATION_ID)).isEqualTo(expectedId);
       assertThat(correlationIdOfErrorReport()).isEqualTo(expectedId);
-      tracer.nextSpan().name("charge-card").start().end();
+      var childSpan = tracer.nextSpan().name("charge-card").start();
+      try (var _ = tracer.withSpan(childSpan)) {
+        assertThat(MDC.get(LoggingContextConstants.CORRELATION_ID)).isEqualTo(expectedId);
+      } finally {
+        childSpan.end();
+      }
+      assertThat(MDC.get(LoggingContextConstants.CORRELATION_ID)).isEqualTo(expectedId);
     } finally {
       span.end();
     }

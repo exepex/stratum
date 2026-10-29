@@ -7,3 +7,4 @@ stratum:
     enabled: true
     tags:
       extra-forbidden: tenantId
+      allowed: orderId

@@ -18,17 +18,23 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 public record ObservabilityProperties(@DefaultValue @Valid Tags tags) {
 
   /**
-   * Which metric tags are refused, on top of Stratum's built-in ID names, which cannot be removed.
+   * Which metric tags are refused, besides Stratum's built-in ID names. Case, {@code _}, {@code -}
+   * and {@code .} are ignored in every name.
    *
    * @param extraForbidden more tag names, such as {@code tenantId}; a metric with one of them is
-   *     dropped. Case, {@code _} and {@code -} are ignored. Defaults to none.
+   *     dropped. Defaults to none.
+   * @param allowed tag names that are kept even though they are refused by default, such as {@code
+   *     customerId} for a service with a few dozen customers. Defaults to none.
    */
   @Builder(toBuilder = true)
-  public record Tags(@DefaultValue({}) List<@NotBlank String> extraForbidden) {
+  public record Tags(
+      @DefaultValue({}) List<@NotBlank String> extraForbidden,
+      @DefaultValue({}) List<@NotBlank String> allowed) {
 
-    /** Keeps an unchangeable copy of the names. */
+    /** Keeps unchangeable copies of the names. */
     public Tags {
       extraForbidden = List.copyOf(extraForbidden);
+      allowed = List.copyOf(allowed);
     }
   }
 }

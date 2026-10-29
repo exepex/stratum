@@ -84,8 +84,10 @@ line or break a response.
 With `stratum.observability.enabled=true`, the correlation ID is the `correlationId` entry of the
 tracing baggage when one is set, and otherwise the trace ID, which every service in the same trace
 shares ([observability module](../../starters/stratum-starter-observability/README.md#correlation-id)).
-**Planned:** the web module will read the correlation ID from the `X-Correlation-Id` header and set
-it in the baggage, and the logging module will pass it on to the services it calls.
+Baggage is sent on every outgoing call made with Spring's HTTP clients, to every host, so never put
+a secret or personal data in the correlation ID. **Planned:** the web module will read the
+correlation ID from the `X-Correlation-Id` header and set it in the baggage, and the logging module
+will limit the baggage to the service's own hosts.
 
 ## Using codes in your service
 
@@ -179,4 +181,4 @@ stops the application at startup; `SX-OBSERVABILITY-1002` is a warning. See the
 | Code | Meaning | Fix |
 | --- | --- | --- |
 | `SX-OBSERVABILITY-1001` | With the module on, in any profile, metrics or traces are sent over OTLP but their address is not set, so they would be lost. The message names each missing property: `management.otlp.metrics.export.url`, `management.opentelemetry.tracing.export.otlp.endpoint` or both. | Set the named property to your OpenTelemetry Collector, such as `http://otel-collector:4318/v1/metrics`, or turn that export off with `management.otlp.metrics.export.enabled=false` or `management.tracing.export.enabled=false`. On a laptop without a Collector, use `http://localhost:4318/...`; the data is then dropped quietly. |
-| `SX-OBSERVABILITY-1002` | Warning, logged once per metric: a metric was dropped because one of its tags is named like an ID, such as `userId`, `trace_id` or a name in `stratum.observability.tags.extra-forbidden`. Each ID value would create a new time series. The message names the metric and the tag, never a value. | Remove the tag from the metric and put the ID in a log line or a span attribute instead. If the tag really holds a few fixed values, rename it so it no longer looks like an ID. |
+| `SX-OBSERVABILITY-1002` | Warning, logged once per metric: a metric was dropped because one of its tags is named like an ID, such as `userId`, `trace_id`, `user.id` or a name in `stratum.observability.tags.extra-forbidden`. Each ID value would create a new time series. The message names the metric and the tag, never a value. | Remove the tag from the metric and put the ID in a log line or a span attribute instead. If the tag really holds a small, known set of values, list its name in `stratum.observability.tags.allowed`. |

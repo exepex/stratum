@@ -19,9 +19,10 @@ public class LoggingContextConstants {
   public static final String CORRELATION_ID = "correlationId";
 
   /**
-   * What a usable trace, span or correlation ID looks like: 1 to 128 letters, digits, {@code -},
-   * {@code _}, {@code .} or {@code :}. Anything else, such as a line break, could forge a log line
-   * or break a response, so Stratum never uses it.
+   * The format a trace, span or correlation ID must have before Stratum writes it to a log line or
+   * an error response: 1 to 128 letters, digits, {@code -}, {@code _}, {@code .} or {@code :}. An
+   * ID in any other format, such as one with a line break sent by a caller, could forge a log line
+   * or break a response, so Stratum leaves it out.
    */
-  public static final Pattern USABLE_ID = Pattern.compile("[A-Za-z0-9._:-]{1,128}");
+  public static final Pattern ID_FORMAT_SAFE_FOR_LOGS = Pattern.compile("[A-Za-z0-9._:-]{1,128}");
 }

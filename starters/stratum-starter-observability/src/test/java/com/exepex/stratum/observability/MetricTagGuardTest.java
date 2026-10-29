@@ -1,5 +1,8 @@
 package com.exepex.stratum.observability;
 
+import static com.exepex.stratum.observability.testsupport.MetricTestData.METRIC_NAME;
+import static com.exepex.stratum.observability.testsupport.MetricTestData.TAG_VALUE;
+import static com.exepex.stratum.observability.testsupport.MetricTestData.counterTaggedWith;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.micrometer.core.instrument.Meter;
@@ -20,28 +23,25 @@ class MetricTagGuardTest {
 
   /** Spellings of a built-in ID name, which all match it. */
   private static final List<String> ID_TAG_SPELLINGS =
-      List.of("userId", "user_id", "USER-ID", "trace_id", "correlationId");
+      List.of("userId", "user_id", "USER-ID", "user.id", "trace_id", "correlationId");
 
   /** A service's own tag name, added to the built-in ones. */
   private static final String TENANT_TAG = "tenantId";
 
-  /** The value of the tag, which is never reported. */
-  private static final String TAG_VALUE = "user-7731";
+  /** A built-in name the service keeps, spelled differently from the built-in one. */
+  private static final String ALLOWED_ORDER_TAG = "order_id";
 
-  /** The name of the metric in each test. */
-  private static final String METRIC_NAME = "orders.placed";
-
-  private final MetricTagGuard guard = new MetricTagGuard(List.of(TENANT_TAG));
+  private final MetricTagGuard guard =
+      new MetricTagGuard(List.of(TENANT_TAG), List.of(ALLOWED_ORDER_TAG));
 
   /** Returns the reply for a counter with one tag. */
   private MeterFilterReply replyForTag(String tagName) {
-    return guard.accept(
-        new Meter.Id(METRIC_NAME, Tags.of(tagName, TAG_VALUE), null, null, Meter.Type.COUNTER));
+    return guard.accept(counterTaggedWith(tagName));
   }
 
   @ParameterizedTest
   @FieldSource("ID_TAG_SPELLINGS")
-  @DisplayName("a built-in ID name is refused whatever its case, _ or -")
+  @DisplayName("a built-in ID name is refused whatever its case, _, - or .")
   void refusesIdTag(String tagName) {
     assertThat(replyForTag(tagName)).isEqualTo(MeterFilterReply.DENY);
   }
@@ -50,6 +50,12 @@ class MetricTagGuardTest {
   @DisplayName("the service's own name is refused as well")
   void refusesServiceTag() {
     assertThat(replyForTag("tenant_id")).isEqualTo(MeterFilterReply.DENY);
+  }
+
+  @Test
+  @DisplayName("a built-in name the service allows is kept, whatever its spelling")
+  void keepsAllowedTag() {
+    assertThat(replyForTag("orderId")).isEqualTo(MeterFilterReply.NEUTRAL);
   }
 
   @Test

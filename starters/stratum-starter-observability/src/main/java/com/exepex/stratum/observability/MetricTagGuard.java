@@ -16,8 +16,8 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Drops every metric with a tag named like an ID, such as {@code userId} or {@code trace_id},
  * because each ID value would make a new time series and can overload the metrics backend. Names
- * are compared ignoring case, {@code _} and {@code -}. Each dropped metric is reported once, with
- * {@code SX-OBSERVABILITY-1002}.
+ * are compared ignoring case, {@code _}, {@code -} and {@code .}. Each dropped metric is reported
+ * once, with {@code SX-OBSERVABILITY-1002}.
  */
 @Slf4j
 public class MetricTagGuard implements MeterFilter {
@@ -38,21 +38,27 @@ public class MetricTagGuard implements MeterFilter {
           "email",
           "ipaddress");
 
-  /** The built-in names and the service's own, written as they are compared. */
+  /** The built-in names and the service's own, less the allowed ones, written as compared. */
   private final Set<String> forbiddenTagNames;
 
   /** The names of the metrics already reported, so each is reported once. */
   private final Set<String> reportedMetricNames = ConcurrentHashMap.newKeySet();
 
   /**
-   * Makes a guard that refuses the built-in names and the service's own.
+   * Makes a guard that refuses the built-in names and the service's own, except the allowed ones.
    *
    * @param extraForbiddenTagNames the service's own names, from {@code
    *     stratum.observability.tags.extra-forbidden}
+   * @param allowedTagNames the names the service keeps, from {@code
+   *     stratum.observability.tags.allowed}
    */
-  public MetricTagGuard(Collection<String> extraForbiddenTagNames) {
+  public MetricTagGuard(
+      Collection<String> extraForbiddenTagNames, Collection<String> allowedTagNames) {
+    var comparableAllowedTagNames =
+        allowedTagNames.stream().map(this::comparable).collect(Collectors.toUnmodifiableSet());
     forbiddenTagNames =
         Stream.concat(ID_TAG_NAMES.stream(), extraForbiddenTagNames.stream().map(this::comparable))
+            .filter(tagName -> !comparableAllowedTagNames.contains(tagName))
             .collect(Collectors.toUnmodifiableSet());
   }
 
@@ -87,8 +93,8 @@ public class MetricTagGuard implements MeterFilter {
     }
   }
 
-  /** Returns the tag name as it is compared: lower case, without {@code _} and {@code -}. */
+  /** Returns the tag name as it is compared: lower case, without underscores, hyphens and dots. */
   private String comparable(String tagName) {
-    return tagName.toLowerCase(Locale.ROOT).replace("_", "").replace("-", "");
+    return tagName.toLowerCase(Locale.ROOT).replace("_", "").replace("-", "").replace(".", "");
   }
 }

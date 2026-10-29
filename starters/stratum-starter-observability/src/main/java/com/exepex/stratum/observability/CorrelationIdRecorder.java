@@ -46,7 +46,7 @@ public class CorrelationIdRecorder implements EventListener, SpanProcessor {
   }
 
   /**
-   * Records the baggage correlation ID on a span that starts, if there is a usable one.
+   * Records the baggage correlation ID on a span that starts, if one is set and is safe for logs.
    *
    * @param parentContext the context the span starts in
    * @param span the span that starts
@@ -104,10 +104,11 @@ public class CorrelationIdRecorder implements EventListener, SpanProcessor {
     }
   }
 
-  /** Returns the baggage correlation ID, if one is set and is usable. */
+  /** Returns the baggage correlation ID, if one is set and is safe for logs. */
   private Optional<String> correlationIdFromBaggage(Baggage baggage) {
     return Optional.ofNullable(baggage.getEntryValue(LoggingContextConstants.CORRELATION_ID))
         .filter(
-            correlationId -> LoggingContextConstants.USABLE_ID.matcher(correlationId).matches());
+            correlationId ->
+                LoggingContextConstants.ID_FORMAT_SAFE_FOR_LOGS.matcher(correlationId).matches());
   }
 }
