@@ -3,6 +3,7 @@ package com.exepex.stratum.observability;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.condition.StratumModuleConstants;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -22,6 +23,18 @@ class ObservabilityEnvironmentPostProcessorTest {
       ObservabilityConstants.METRIC_TAGS + ObservabilityConstants.HOST_TAG;
 
   private static final String KAFKA_LISTENER_SWITCH = "spring.kafka.listener.observation-enabled";
+
+  /**
+   * Spring Boot's Kafka and RabbitMQ observation switches other than the Kafka listener's, spelled
+   * out here so a misspelt key in the module fails the test.
+   */
+  private static final List<String> OTHER_MESSAGING_SWITCHES =
+      List.of(
+          "spring.kafka.template.observation-enabled",
+          "spring.rabbitmq.template.observation-enabled",
+          "spring.rabbitmq.listener.simple.observation-enabled",
+          "spring.rabbitmq.listener.direct.observation-enabled",
+          "spring.rabbitmq.listener.stream.observation-enabled");
 
   private static final String ON = "true";
 
@@ -128,11 +141,7 @@ class ObservabilityEnvironmentPostProcessorTest {
       var environment =
           runPostProcessor(environmentWithModuleOn().withProperty(KAFKA_LISTENER_SWITCH, OFF));
 
-      assertThat(
-              ObservabilityConstants.MESSAGING_OBSERVATION_SWITCHES.stream()
-                  .filter(observationSwitch -> !KAFKA_LISTENER_SWITCH.equals(observationSwitch))
-                  .map(environment::getProperty))
-          .containsOnly(ON);
+      assertThat(OTHER_MESSAGING_SWITCHES.stream().map(environment::getProperty)).containsOnly(ON);
       assertThat(environment.getProperty(KAFKA_LISTENER_SWITCH)).isEqualTo(OFF);
     }
 
