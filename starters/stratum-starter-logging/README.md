@@ -127,13 +127,13 @@ if anything in it is masked, it is written as a JSON string. It cannot be switch
 
 | What | Found by | Written as |
 | --- | --- | --- |
-| Credentials: any name that contains `password`, `passwd`, `passphrase`, `secret`, `token`, `apikey`, `credential`, `privatekey`, `sessionid`, `cookie` or `authorization`, such as `dbPassword`, `aws_secret_access_key`, `X-CSRF-Token` or `JSESSIONID`; and the whole names `pwd`, `pass`, `auth`, `pin`, `otp`, `cvv` and `cvc` | Field or key name | `****` |
+| Credentials: any name that contains `password`, `passwd`, `passphrase`, `passcode`, `secret`, `token`, `apikey`, `credential`, `privatekey`, `sessionid`, `cookie` or `authorization`, such as `dbPassword`, `aws_secret_access_key`, `X-CSRF-Token` or `JSESSIONID`; and the whole names `pwd`, `pass`, `auth`, `pin`, `otp`, `cvv` and `cvc` | Field or key name | `****` |
 | Payment cards and national IDs: `card_number`, `pan`, `ssn`, `national_id`, `tax_id`, `passport` | Field or key name | `****1234` (last four kept) |
-| Card numbers in text | 13 to 19 digits that pass the Luhn check | `****1111` |
+| Card numbers in text | 13 to 19 digits that pass the Luhn check, in groups split by a space, two spaces, `-`, `.`, `/` or `_` | `****1111` |
 | US social security numbers in text | `123-45-6789` | `****6789` |
 | JSON Web Tokens | `eyJ…` with two or three parts | `****` |
 | `Basic`, `Bearer`, `Digest` and `Negotiate` credentials; Digest's `name="value"` list runs to the end of the line | The scheme name | `Bearer ****` |
-| A password in a URL, with or without a user | `https://user:pass@host`, `redis://:pass@host` | `https://****@host`, `redis://****@host` |
+| A password in a URL, with or without a user | `https://user:pass@host`, `redis://:pass@host`; a password with a raw `@` is masked up to the last `@` before the host | `https://****@host`, `redis://****@host` |
 | Names, dates of birth and addresses: `first_name`, `last_name`, `full_name`, `username`, `date_of_birth`, `address` and similar | Field or key name | `****` |
 | Email, phone and IBAN fields | Field or key name | `****` plus last four |
 | Email addresses in text | A valid address | `****.com` |
@@ -148,12 +148,14 @@ entry, and in text such as `password=x`, `"token":"x"`, `'token': 'x'`, escaped 
 bracket or the end of the line. The values of `Cookie`, `Set-Cookie` and `Authorization` run to the
 end of the line, so every cookie in the header is masked. A JSON array or object under a sensitive key,
 as in `"token":[...]`, is masked up to its closing bracket. A card number next to another number, as
-in `4111 1111 1111 1111 43`, is still found.
+in `4111 1111 1111 1111 43`, is still found. Digits split by dots, such as a timestamp, are
+masked too when they pass the Luhn check, as about one long number in ten does.
 
 Every value is also cut to `stratum.logging.max-field-length` (16KB by default) and ends with
 `...[truncated]` when it was longer. The cut drops the word it falls in and any digits just before
 it, so a token or card number that crosses the limit is never left half visible. If masking a value fails, `[REDACTION_FAILED]` is written
-instead; the value is never written as it was.
+instead; the value is never written as it was. That includes an `extra-patterns` expression that
+overflows the stack on long text. A `toString()` that returns `null` is written as `null`.
 
 > [!IMPORTANT]
 > Redaction is a safety net, not a licence to log personal data or secrets. A name or address with

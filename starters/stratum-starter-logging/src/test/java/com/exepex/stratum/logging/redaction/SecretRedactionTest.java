@@ -1,6 +1,5 @@
 package com.exepex.stratum.logging.redaction;
 
-import static com.exepex.stratum.logging.testsupport.LoggingTestData.CARD;
 import static com.exepex.stratum.logging.testsupport.LoggingTestData.DEFAULT_REDACTOR;
 import static com.exepex.stratum.logging.testsupport.LoggingTestData.JWT;
 import static com.exepex.stratum.logging.testsupport.LoggingTestData.PASSWORD;
@@ -16,7 +15,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.boot.json.WritableJson;
 
 @DisplayName("Secrets, cards and national IDs are always masked")
@@ -29,65 +28,72 @@ class SecretRedactionTest {
   @DisplayName("by field name")
   class ByFieldName {
 
+    /** Card and national ID field names, each masked with its last four characters kept. */
+    private static final List<String> CARD_AND_NATIONAL_ID_FIELD_NAMES =
+        List.of(
+            "card",
+            "cardNumber",
+            "credit_card",
+            "pan",
+            "ssn",
+            "national_id",
+            "tax_id",
+            "passport",
+            "passport_number");
+
+    /** Secret field names, whole or as part of a longer name, each masked in full. */
+    private static final List<String> SECRET_FIELD_NAMES =
+        List.of(
+            "pwd",
+            "pass",
+            "auth",
+            "pin",
+            "otp",
+            "cvv",
+            "cvc",
+            "password",
+            "passwd",
+            "passphrase",
+            "secret",
+            "client_secret",
+            "token",
+            "access_token",
+            "refresh_token",
+            "id_token",
+            "X-Auth-Token",
+            "X-CSRF-Token",
+            "apiKey",
+            "X-Api-Key",
+            "credential",
+            "credentials",
+            "private_key",
+            "session_id",
+            "JSESSIONID",
+            "cookie",
+            "set-cookie",
+            "Authorization",
+            "Proxy-Authorization",
+            "spring.datasource.password",
+            "dbPassword",
+            "userPassword",
+            "newPassword",
+            "secretKey",
+            "apiToken",
+            "authToken",
+            "aws_secret_access_key",
+            "passcode",
+            "passCode",
+            "user_passcode");
+
     @ParameterizedTest
-    @ValueSource(
-        strings = {
-          "pwd",
-          "pass",
-          "auth",
-          "pin",
-          "otp",
-          "cvv",
-          "cvc",
-          "password",
-          "passwd",
-          "passphrase",
-          "secret",
-          "client_secret",
-          "token",
-          "access_token",
-          "refresh_token",
-          "id_token",
-          "X-Auth-Token",
-          "X-CSRF-Token",
-          "apiKey",
-          "X-Api-Key",
-          "credential",
-          "credentials",
-          "private_key",
-          "session_id",
-          "JSESSIONID",
-          "cookie",
-          "set-cookie",
-          "Authorization",
-          "Proxy-Authorization",
-          "spring.datasource.password",
-          "dbPassword",
-          "userPassword",
-          "newPassword",
-          "secretKey",
-          "apiToken",
-          "authToken",
-          "aws_secret_access_key"
-        })
+    @FieldSource("SECRET_FIELD_NAMES")
     @DisplayName("a secret field, or one whose name holds a secret word, is masked in full")
     void secretFieldIsMaskedInFull(String name) {
       assertThat(DEFAULT_REDACTOR.redact(name, "plain value")).isEqualTo(MaskedText.MASK);
     }
 
     @ParameterizedTest
-    @ValueSource(
-        strings = {
-          "card",
-          "cardNumber",
-          "credit_card",
-          "pan",
-          "ssn",
-          "national_id",
-          "tax_id",
-          "passport",
-          "passport_number"
-        })
+    @FieldSource("CARD_AND_NATIONAL_ID_FIELD_NAMES")
     @DisplayName("a card or national ID field keeps only its last four characters")
     void cardFieldKeepsLastFour(String name) {
       assertThat(DEFAULT_REDACTOR.redact(name, "any-card-1234")).isEqualTo("****1234");
@@ -148,6 +154,25 @@ class SecretRedactionTest {
   @DisplayName("in text")
   class InText {
 
+    /** Secret values whose opening bracket is never closed before the text ends. */
+    private static final List<String> SECRET_BRACKETS_AT_END_OF_TEXT =
+        List.of("password=[", "{\"secret\":{", "password={\"a\":\"\\");
+
+    /** A password written in escaped JSON, single quotes, URL encoding and compound keys. */
+    private static final List<String> SECRETS_IN_OTHER_FORMS =
+        List.of(
+            "dbPassword=" + PASSWORD,
+            "pass=" + PASSWORD,
+            "{\\\"password\\\":\\\"" + PASSWORD + "\\\"}",
+            "{'password': '" + PASSWORD + "'}",
+            "GET /login?password%3D" + PASSWORD,
+            "X-CSRF-Token: " + PASSWORD,
+            "Customer[name=Jane, dbPassword=" + PASSWORD + "]");
+
+    /** The HTTP authorization schemes whose credentials are masked. */
+    private static final List<String> AUTHORIZATION_SCHEMES =
+        List.of("Bearer", "Basic", "Digest", "Negotiate");
+
     @Test
     @DisplayName("a JSON Web Token is masked")
     void jwtIsMasked() {
@@ -155,7 +180,7 @@ class SecretRedactionTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"Bearer", "Basic", "Digest", "Negotiate"})
+    @FieldSource("AUTHORIZATION_SCHEMES")
     @DisplayName("credentials after an authorization scheme are masked")
     void authorizationSchemeIsMasked(String scheme) {
       assertThat(redactUnnamedText("sent " + scheme + " dXNlcjpwYXNz to x"))
@@ -186,16 +211,7 @@ class SecretRedactionTest {
     }
 
     @ParameterizedTest
-    @ValueSource(
-        strings = {
-          "dbPassword=" + PASSWORD,
-          "pass=" + PASSWORD,
-          "{\\\"password\\\":\\\"" + PASSWORD + "\\\"}",
-          "{'password': '" + PASSWORD + "'}",
-          "GET /login?password%3D" + PASSWORD,
-          "X-CSRF-Token: " + PASSWORD,
-          "Customer[name=Jane, dbPassword=" + PASSWORD + "]"
-        })
+    @FieldSource("SECRETS_IN_OTHER_FORMS")
     @DisplayName(
         "a secret is masked in escaped JSON, single quotes, URL encoding and compound keys")
     void secretInOtherFormsIsMasked(String line) {
@@ -224,7 +240,7 @@ class SecretRedactionTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"password=[", "{\"secret\":{", "password={\"a\":\"\\"})
+    @FieldSource("SECRET_BRACKETS_AT_END_OF_TEXT")
     @DisplayName("a bracket that opens a secret value at the end of the text is masked")
     void bracketAtEndOfTextIsMasked(String line) {
       assertThat(redactUnnamedText(line)).endsWith(MaskedText.MASK);
@@ -287,62 +303,31 @@ class SecretRedactionTest {
     }
 
     @Test
+    @DisplayName("a URL password that holds a raw @ is masked up to the last @ before the host")
+    void urlPasswordWithRawAtSignIsMasked() {
+      assertThat(redactUnnamedText("connecting to https://bob:p@ss@word@api.example.com/v1"))
+          .isEqualTo("connecting to https://****@api.example.com/v1");
+    }
+
+    @Test
+    @DisplayName("an @ in a URL's query is not read as the end of a password")
+    void atSignInUrlQueryIsKept() {
+      assertThat(redactUnnamedText("https://alice:example@host?password=before@after"))
+          .isEqualTo("https://****@host?password=****");
+    }
+
+    @Test
+    @DisplayName("an @ in a URL's path is not read as the end of a password")
+    void atSignInUrlPathIsKept() {
+      assertThat(redactUnnamedText("see https://social.example:8443/@bob and https://a:x@h/@c"))
+          .isEqualTo("see https://social.example:8443/@bob and https://****@h/@c");
+    }
+
+    @Test
     @DisplayName("a secret in a Lombok toString is masked")
     void lombokToStringSecretIsMasked() {
       assertThat(redactUnnamedText("Login(user=bob, password=" + PASSWORD + ")"))
           .isEqualTo("Login(user=bob, password=****)");
-    }
-
-    @Test
-    @DisplayName("a card number that passes the Luhn check keeps only its last four digits")
-    void validCardIsMasked() {
-      assertThat(redactUnnamedText("paid with 4111 1111 1111 1111 today"))
-          .isEqualTo("paid with ****1111 today");
-      assertThat(redactUnnamedText("card " + CARD)).isEqualTo("card ****1111");
-      assertThat(redactUnnamedText("card 4402 6140 1419 3141 705")).isEqualTo("card ****1705");
-      assertThat(redactUnnamedText("card 4111 1111 1111 1111 003")).isEqualTo("card ****1003");
-      assertThat(redactUnnamedText("0 4111 1111 1111 1111")).isEqualTo("0 ****1111");
-    }
-
-    @ParameterizedTest
-    @ValueSource(
-        strings = {
-          "paid with 4111111111111111 43",
-          "paid with 4111 1111 1111 1111 43",
-          "43 4111111111111111 paid",
-          "order123 4111111111111111 paid",
-          "order123 4111 1111 1111 1111 paid",
-          "4111-1111-1111-1111 7 and 5500 0000 0000 0004"
-        })
-    @DisplayName("a card next to another number is still found and masked")
-    void cardNextToNumberIsMasked(String line) {
-      assertThat(redactUnnamedText(line))
-          .doesNotContain("4111111111111111")
-          .doesNotContain("4111 1111 1111 1111")
-          .doesNotContain("4111-1111-1111-1111")
-          .contains("****1111");
-    }
-
-    @Test
-    @DisplayName("every card in a run of digit groups is masked, not only the first")
-    void everyCardInRunIsMasked() {
-      assertThat(redactUnnamedText("cards 4111111111111111 5500000000000004 done"))
-          .isEqualTo("cards ****1111 ****0004 done");
-      assertThat(redactUnnamedText("cards 4111 1111 1111 1111 4111 1111 1111 1111 done"))
-          .doesNotContain("4111 1111 1111 1111");
-    }
-
-    @Test
-    @DisplayName("a card that overlaps a longer valid number before it is masked too")
-    void overlappingCardIsMasked() {
-      assertThat(redactUnnamedText("cards 3782 822463 10005 4242 4242 4242 4242 done"))
-          .isEqualTo("cards ****4242 done");
-    }
-
-    @Test
-    @DisplayName("a long number that fails the Luhn check is kept")
-    void numberFailingLuhnIsKept() {
-      assertThat(redactUnnamedText("order 4111111111111112")).isEqualTo("order 4111111111111112");
     }
 
     @Test

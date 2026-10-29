@@ -65,6 +65,9 @@ class HostileInputRedactionSpeedTest {
         filled("0 ", length),
         filled("1 ", length),
         filled("1 ", length) + "1a",
+        filled("1  ", length),
+        filled("1.", length),
+        "https://user:" + filled("p@", length),
         filled("4111111111111111 ", length),
         filled("GB82 WEST 1234 5698 7654 32 ", length),
         filled("de12 ", length));

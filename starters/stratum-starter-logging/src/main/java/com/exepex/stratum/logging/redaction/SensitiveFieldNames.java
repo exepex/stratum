@@ -68,6 +68,7 @@ final class SensitiveFieldNames {
           "password",
           "passwd",
           "passphrase",
+          "passcode",
           "secret",
           "token",
           "apikey",

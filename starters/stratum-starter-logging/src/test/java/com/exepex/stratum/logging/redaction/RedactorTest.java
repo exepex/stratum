@@ -10,7 +10,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.beans.BeanUtils;
 import org.springframework.util.unit.DataSize;
 
@@ -20,6 +20,12 @@ class RedactorTest {
   /** The smallest allowed limit, 1KB, in characters. */
   private static final int SMALLEST_MAX_FIELD_LENGTH = 1024;
 
+  /**
+   * How many {@code ab} pairs make Java's regex engine overflow the stack on {@code (a|b)*c}, while
+   * staying under the default 16KB limit.
+   */
+  private static final int OVERFLOWING_PAIRS = 8000;
+
   /** The field that holds a log line's message. */
   private static final String MESSAGE = "message";
 
@@ -27,8 +33,12 @@ class RedactorTest {
   @DisplayName("when it is made")
   class WhenBuiltFromProperties {
 
+    /** Extra patterns that are not valid regular expressions, each naming a secret. */
+    private static final List<String> INVALID_PATTERNS =
+        List.of("secret-(\\d+", "\\p{secret-name}", "(?<secret>a)(?<secret>b)");
+
     @ParameterizedTest
-    @ValueSource(strings = {"secret-(\\d+", "\\p{secret-name}", "(?<secret>a)(?<secret>b)"})
+    @FieldSource("INVALID_PATTERNS")
     @DisplayName("an invalid extra pattern stops startup with SX-LOGGING-1002, with no part of it")
     void invalidPatternIsRejected(String invalid) {
       var properties =
@@ -45,6 +55,13 @@ class RedactorTest {
   @Nested
   @DisplayName("when it masks a value")
   class WhenMaskingValues {
+
+    /** The exceptions a failed masking can throw, each replaced by the failure marker. */
+    private static final List<Class<? extends RuntimeException>> MASKING_FAILURE_TYPES =
+        List.of(
+            IllegalArgumentException.class,
+            IllegalStateException.class,
+            IndexOutOfBoundsException.class);
 
     private final Redactor redactor =
         Redactor.from(LoggingTestData.defaults().maxFieldLength(DataSize.ofKilobytes(1)).build());
@@ -65,10 +82,14 @@ class RedactorTest {
     @DisplayName("a card or token that crosses the limit is dropped, not left half visible")
     void secretAcrossTheLimitIsDropped() {
       var beforeCard = "y".repeat(SMALLEST_MAX_FIELD_LENGTH - "4111 1111 1".length()) + " ";
+      var beforeDottedCard =
+          "y".repeat(SMALLEST_MAX_FIELD_LENGTH - "4111.1111 1111.1".length()) + " ";
       var beforeToken = "z".repeat(SMALLEST_MAX_FIELD_LENGTH - "opaque".length()) + " ";
 
       assertThat(redactor.redact(MESSAGE, beforeCard + "4111 1111 1111 1111"))
           .isEqualTo(beforeCard.strip() + Redactor.TRUNCATION_MARKER);
+      assertThat(redactor.redact(MESSAGE, beforeDottedCard + "4111.1111 1111.1111"))
+          .isEqualTo(beforeDottedCard.strip() + Redactor.TRUNCATION_MARKER);
       assertThat(redactor.redact(MESSAGE, beforeToken + "opaque-token-value"))
           .isEqualTo(beforeToken.strip() + Redactor.TRUNCATION_MARKER);
     }
@@ -89,12 +110,7 @@ class RedactorTest {
     }
 
     @ParameterizedTest
-    @ValueSource(
-        classes = {
-          IllegalArgumentException.class,
-          IllegalStateException.class,
-          IndexOutOfBoundsException.class
-        })
+    @FieldSource("MASKING_FAILURE_TYPES")
     @DisplayName("a value that fails to mask is replaced, never written as it was")
     void failureIsReplaced(Class<? extends RuntimeException> failureType) {
       var broken =
@@ -106,6 +122,30 @@ class RedactorTest {
           };
 
       assertThat(redactor.redact("cardNumber", broken)).isEqualTo(Redactor.REDACTION_FAILED);
+    }
+
+    @Test
+    @DisplayName("a value whose toString() returns null is written as the text null")
+    void nullTextIsWrittenAsNull() {
+      var withoutText =
+          new Object() {
+            @Override
+            public String toString() {
+              return null;
+            }
+          };
+
+      assertThat(redactor.redact(MESSAGE, withoutText)).isEqualTo("null");
+    }
+
+    @Test
+    @DisplayName("an extra pattern that overflows the stack fails closed, without throwing")
+    void stackOverflowIsReplaced() {
+      var withDeepPattern =
+          Redactor.from(LoggingTestData.withRedaction(List.of(), List.of("(a|b)*c")).build());
+
+      assertThat(withDeepPattern.redact(MESSAGE, "ab".repeat(OVERFLOWING_PAIRS)))
+          .isEqualTo(Redactor.REDACTION_FAILED);
     }
 
     @Test
