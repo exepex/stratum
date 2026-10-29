@@ -76,12 +76,14 @@ Spring Boot already sets up Logback for you, with no XML file, and can write
 when `logging.structured.format.console` is set. This starter builds on that setup and does not
 replace it:
 
-- It ships no Logback XML. Spring Boot's own Logback setup stays in charge, so nothing clashes with
-  a `logback-spring.xml` of yours.
+- It ships no Logback XML, so it never clashes with yours. Without one, Spring Boot's own Logback
+  setup is used. If you add a `logback-spring.xml`, your file takes over, and only its appenders
+  that use Spring Boot's structured encoder are redacted ([Customize](#customize)).
 - At startup, before any bean exists, it sets a few of Spring Boot's `logging.structured.*`
-  properties, listed [below](#properties). A value you set yourself always wins.
-- It adds redaction to Spring Boot's JSON writer, so every structured line is masked, on the
-  console and in a log file.
+  properties, listed [below](#properties). A value you set in a configuration file, an environment
+  variable, a system property or a command-line argument wins over Stratum's.
+- It adds redaction to Spring Boot's `ecs`, `logstash` and `gelf` formats, so every line in those
+  formats is masked, on the console and in a log file.
 
 Everything else, such as `logging.level.*`, `logging.file.name` and `logging.structured.json.add.*`,
 works as the Spring Boot documentation describes. To use your own Logback file, see
@@ -291,6 +293,11 @@ A Stratum endpoint that switches DEBUG on for a limited time, and back off by it
 - **Different JSON fields:** Spring Boot's `StructuredLogFormatter` lets you write your own format;
   set `logging.structured.format.console` to its class name. Prefer the standard format so logs
   stay searchable across services.
+
+  > [!WARNING]
+  > Your own formatter is **not** redacted unless its constructor takes a
+  > `StructuredLoggingJsonMembersCustomizer` and applies it to the members it writes. Spring Boot
+  > passes Stratum's redaction in only through that parameter.
 - **Your own Logback file:** Stratum ships no Logback XML, so it never clashes with yours. Most
   needs, such as levels, a log file or the format, are met with `logging.*` properties. If you need
   a `logback-spring.xml`, for example for an extra appender, start from Spring Boot's structured
