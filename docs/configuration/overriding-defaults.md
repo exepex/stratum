@@ -1,8 +1,9 @@
 # Overriding defaults
 
 **Status: Planned.** Only the Java configuration of [level 1](#set-the-same-values-in-java) is
-built, in `stratum-core`, and the logging and observability modules use it. Stratum's defaults suit most services, but never all of them. This page
-shows the four ways to change what Stratum does, from the lightest touch to the strongest.
+built, in `stratum-core`, and the logging and observability modules use it. Stratum's defaults suit
+most services, but never all of them. This page shows the four ways to change what Stratum does,
+from the lightest touch to the strongest.
 
 [← Documentation home](../README.md)
 

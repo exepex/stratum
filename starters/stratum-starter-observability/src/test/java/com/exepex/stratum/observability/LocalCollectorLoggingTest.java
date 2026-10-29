@@ -3,6 +3,7 @@ package com.exepex.stratum.observability;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -11,13 +12,18 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.bootstrap.DefaultBootstrapContext;
 import org.springframework.boot.context.event.ApplicationEnvironmentPreparedEvent;
 import org.springframework.boot.context.logging.LoggingApplicationListener;
+import org.springframework.boot.env.DefaultPropertiesPropertySource;
 import org.springframework.boot.support.EnvironmentPostProcessorApplicationListener;
+import org.springframework.core.env.MapPropertySource;
 import org.springframework.mock.env.MockEnvironment;
 
 @DisplayName("LocalCollectorLogging drops metrics quietly when the Collector is on this machine")
 class LocalCollectorLoggingTest {
 
   private static final String OFF = "off";
+
+  /** The level the service chose. */
+  private static final String SERVICE_LEVEL = "warn";
 
   /** Metrics addresses on this machine. */
   private static final List<String> LOCAL_ADDRESSES =
@@ -119,11 +125,30 @@ class LocalCollectorLoggingTest {
   void serviceLogLevelWins() {
     var environment =
         environmentWithModuleOn(LOCAL_ADDRESSES.getFirst())
-            .withProperty(LocalCollectorLogging.METRICS_EXPORT_LOG_LEVEL, "warn");
+            .withProperty(LocalCollectorLogging.METRICS_EXPORT_LOG_LEVEL, SERVICE_LEVEL);
 
     run(environment);
 
     assertThat(environment.getProperty(LocalCollectorLogging.METRICS_EXPORT_LOG_LEVEL))
-        .isEqualTo("warn");
+        .isEqualTo(SERVICE_LEVEL);
+  }
+
+  @Test
+  @DisplayName("a log level the service sets in Java default properties wins")
+  void serviceJavaLogLevelWins() {
+    var environment = environmentWithModuleOn(LOCAL_ADDRESSES.getFirst());
+    environment
+        .getPropertySources()
+        .addLast(
+            new MapPropertySource(
+                DefaultPropertiesPropertySource.NAME,
+                Map.of(LocalCollectorLogging.METRICS_EXPORT_LOG_LEVEL, SERVICE_LEVEL)));
+
+    run(environment);
+    // Spring Boot moves the default properties last once every listener has run.
+    DefaultPropertiesPropertySource.moveToEnd(environment);
+
+    assertThat(environment.getProperty(LocalCollectorLogging.METRICS_EXPORT_LOG_LEVEL))
+        .isEqualTo(SERVICE_LEVEL);
   }
 }

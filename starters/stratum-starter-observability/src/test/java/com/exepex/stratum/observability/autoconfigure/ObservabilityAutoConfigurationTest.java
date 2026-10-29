@@ -189,7 +189,7 @@ class ObservabilityAutoConfigurationTest {
                     .hasMessage(
                         "SX-CORE-1004: "
                             + CoreErrorCode.CUSTOMIZER_DECLARED_AS_BEAN.getDescription()
-                            + ": ObservabilityProperties customizer beans regionTagCustomizer"));
+                            + ": customizer beans regionTagCustomizer"));
   }
 
   @Test

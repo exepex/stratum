@@ -4,7 +4,6 @@ import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.properties.StratumCustomizers;
 import com.exepex.stratum.logging.LoggingConstants;
-import com.exepex.stratum.logging.LoggingProperties;
 import com.exepex.stratum.logging.workflow.ReactiveWorkflows;
 import com.exepex.stratum.logging.workflow.WorkflowAspect;
 import com.exepex.stratum.logging.workflow.Workflows;
@@ -34,7 +33,7 @@ public final class LoggingAutoConfiguration {
    * @param beanFactory the service's beans
    */
   public LoggingAutoConfiguration(ListableBeanFactory beanFactory) {
-    StratumCustomizers.rejectBeans(beanFactory, LoggingProperties.class);
+    StratumCustomizers.rejectBeans(beanFactory);
   }
 
   /**

@@ -5,7 +5,6 @@ import com.exepex.stratum.core.error.StratumException;
 import java.util.List;
 import lombok.experimental.UtilityClass;
 import org.springframework.beans.factory.ListableBeanFactory;
-import org.springframework.core.ResolvableType;
 import org.springframework.core.io.support.SpringFactoriesLoader;
 import org.springframework.util.ClassUtils;
 
@@ -30,24 +29,19 @@ public class StratumCustomizers {
   }
 
   /**
-   * Stops startup with {@code SX-CORE-1004} when the service declares a customizer of the settings
-   * as a bean. Modules read customizers from {@code spring.factories} only, so the bean would be
-   * silently ignored.
+   * Stops startup with {@code SX-CORE-1004} when the service declares any {@link
+   * StratumPropertiesCustomizer} as a bean, typed or not. Modules read customizers from {@code
+   * spring.factories} only, so the bean would be silently ignored.
    *
    * @param beanFactory the service's beans
-   * @param settingsType the module's settings type
    * @throws StratumException {@code SX-CORE-1004} naming the customizer beans
    */
-  public static void rejectBeans(ListableBeanFactory beanFactory, Class<?> settingsType) {
-    var customizerBeanNames =
-        beanFactory.getBeanNamesForType(
-            ResolvableType.forClassWithGenerics(StratumPropertiesCustomizer.class, settingsType));
+  public static void rejectBeans(ListableBeanFactory beanFactory) {
+    var customizerBeanNames = beanFactory.getBeanNamesForType(StratumPropertiesCustomizer.class);
     if (customizerBeanNames.length > 0) {
       throw new StratumException(
           CoreErrorCode.CUSTOMIZER_DECLARED_AS_BEAN,
-          settingsType.getSimpleName()
-              + " customizer beans "
-              + String.join(", ", customizerBeanNames));
+          "customizer beans " + String.join(", ", customizerBeanNames));
     }
   }
 }

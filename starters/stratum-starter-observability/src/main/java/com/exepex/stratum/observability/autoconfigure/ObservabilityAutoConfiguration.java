@@ -35,7 +35,7 @@ public final class ObservabilityAutoConfiguration {
    * @param beanFactory the service's beans
    */
   public ObservabilityAutoConfiguration(ListableBeanFactory beanFactory) {
-    StratumCustomizers.rejectBeans(beanFactory, ObservabilityProperties.class);
+    StratumCustomizers.rejectBeans(beanFactory);
   }
 
   /**

@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.context.properties.bind.Bindable;
+import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.boot.env.DefaultPropertiesPropertySource;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.mock.env.MockEnvironment;
@@ -54,5 +56,23 @@ class StratumDefaultsTest {
                 .precedenceOf(
                     environment.getPropertySources().get(DefaultPropertiesPropertySource.NAME)))
         .isEqualTo(environment.getPropertySources().size() - 1);
+  }
+
+  @Test
+  @DisplayName("a list the service set in Java as indexed keys wins over Stratum's whole value")
+  void serviceIndexedListWins() {
+    var environment = new MockEnvironment();
+    environment
+        .getPropertySources()
+        .addLast(
+            new MapPropertySource(
+                DefaultPropertiesPropertySource.NAME,
+                Map.of(EXPOSURE + "[0]", "health", EXPOSURE + "[1]", "loggers")));
+
+    StratumDefaults.addBelowServiceValues(environment, STRATUM_DEFAULTS);
+
+    assertThat(Binder.get(environment).bind(EXPOSURE, Bindable.listOf(String.class)).get())
+        .containsExactly("health", "loggers");
+    assertThat(environment.getProperty(HISTOGRAMS)).isEqualTo("true");
   }
 }

@@ -232,8 +232,8 @@ and then:
 - warn about unknown or deprecated keys.
 
 Each jar carries its own file, so with several starters on the classpath, a bundle included, the
-IDE shows the keys of all of them. NetBeans has no Spring Boot support of its own; a Spring Boot
-plugin that reads the same metadata gives it the same completion. If completion does not appear,
+IDE shows the keys of all of them. NetBeans needs a Spring Boot plugin that reads the same
+metadata; that has not been tested with Stratum. If completion does not appear,
 re-import the Maven project so the IDE sees the starter jars.
 
 ## Stratum properties and Spring Boot properties

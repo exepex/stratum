@@ -99,7 +99,21 @@ class LoggingAutoConfigurationTest {
                     .hasMessage(
                         "SX-CORE-1004: "
                             + CoreErrorCode.CUSTOMIZER_DECLARED_AS_BEAN.getDescription()
-                            + ": LoggingProperties customizer beans loggingCustomizer"));
+                            + ": customizer beans loggingCustomizer"));
+  }
+
+  @Test
+  @DisplayName("a customizer bean without its settings type also stops startup with SX-CORE-1004")
+  void untypedCustomizerBeanStopsStartup() {
+    contextRunner
+        .withPropertyValues(MODULE_ON)
+        .withBean("untypedCustomizer", StratumPropertiesCustomizer.class, this::keepSettings)
+        .run(
+            context ->
+                assertThat(context)
+                    .getFailure()
+                    .rootCause()
+                    .hasMessageEndingWith(": customizer beans untypedCustomizer"));
   }
 
   @Test
@@ -120,6 +134,11 @@ class LoggingAutoConfigurationTest {
                                 "ORDER_CHECKOUT",
                                 () -> currentObservationName(observationRegistry)))
                     .isEqualTo(LoggingConstants.WORKFLOW_OBSERVATION));
+  }
+
+  /** Returns a customizer, without its settings type, that keeps the settings it receives. */
+  private StratumPropertiesCustomizer keepSettings() {
+    return settings -> settings;
   }
 
   /** Returns the name of the observation running now in the registry. */
