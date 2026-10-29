@@ -17,8 +17,8 @@ SX-CORE-1002
 
 - **`SX-` is reserved for Stratum.** Your service uses its own prefix, such as `PAY-0001` or
   `ORD-0001`. If a service declares a code that starts with `SX-`, Stratum rejects every report
-  made from it, so a service can't declare one by mistake. The check ignores case and leading
-  spaces, and accepts a code only from a class in Stratum's package, `com.exepex.stratum`.
+  made from it, so a service can't declare one by mistake. Stratum accepts an `SX-` code only
+  from a class in its own package, `com.exepex.stratum`.
 - **Each module numbers its own codes.** Errors and warnings share one range of numbers, so a
   number is never used twice in a module.
 - **The code does not say how serious the problem is.** Each code has a separate `severity`,
