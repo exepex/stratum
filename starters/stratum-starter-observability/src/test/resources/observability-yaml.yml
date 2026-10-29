@@ -5,3 +5,5 @@ stratum:
   environment: staging
   observability:
     enabled: true
+    tags:
+      extra-forbidden: tenantId

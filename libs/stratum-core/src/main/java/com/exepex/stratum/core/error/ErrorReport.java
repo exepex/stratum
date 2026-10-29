@@ -34,13 +34,6 @@ public class ErrorReport implements Serializable {
   /** The package that every class allowed to declare a Stratum code lives in. */
   private static final String STRATUM_PACKAGE = "com.exepex.stratum.";
 
-  /**
-   * What a usable trace, span or correlation ID looks like: 1 to 128 letters, digits, {@code -},
-   * {@code _}, {@code .} or {@code :}. Anything else, such as a line break, could forge a log line
-   * or break a response, so the report leaves it out.
-   */
-  private static final Pattern USABLE_ID = Pattern.compile("[A-Za-z0-9._:-]{1,128}");
-
   /** Control characters and Unicode line and paragraph separators, which could forge a log line. */
   private static final Pattern CONTROL_CHARACTERS = Pattern.compile("[\\p{Cc}\\p{Zl}\\p{Zp}]");
 
@@ -148,6 +141,6 @@ public class ErrorReport implements Serializable {
   /** Reads an ID from the current thread's logging context and keeps it only if it is usable. */
   private static @Nullable String usableIdOrNull(String key) {
     var id = MDC.get(key);
-    return id != null && USABLE_ID.matcher(id).matches() ? id : null;
+    return id != null && LoggingContextConstants.USABLE_ID.matcher(id).matches() ? id : null;
   }
 }

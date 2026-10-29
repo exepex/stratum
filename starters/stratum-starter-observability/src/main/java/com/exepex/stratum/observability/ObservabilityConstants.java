@@ -10,6 +10,9 @@ public class ObservabilityConstants {
   /** The module's name, as in {@code stratum.observability.enabled}. */
   public static final String MODULE = "observability";
 
+  /** The prefix of the module's own settings. */
+  public static final String PREFIX = StratumModuleConstants.PREFIX + "." + MODULE;
+
   /** The switch that turns the module on. */
   public static final String ENABLED = StratumModuleConstants.enabledProperty(MODULE);
 
@@ -40,6 +43,19 @@ public class ObservabilityConstants {
   /** Spring Boot's OpenTelemetry resource attribute for the environment, sent with every span. */
   public static final String ENVIRONMENT_RESOURCE_ATTRIBUTE =
       "management.opentelemetry.resource-attributes[deployment.environment.name]";
+
+  /** Spring Boot's switch that stores every timer and distribution summary as a histogram. */
+  public static final String HISTOGRAM_FOR_EVERY_TIMING =
+      "management.metrics.distribution.percentiles-histogram.all";
+
+  /** Spring Boot's kind of histogram sent over OTLP. */
+  public static final String HISTOGRAM_FLAVOR = "management.otlp.metrics.export.histogram-flavor";
+
+  /**
+   * The histogram whose buckets grow by powers of two, so any percentile is accurate for one pod
+   * and for all pods together, with no bucket limits to choose.
+   */
+  public static final String EXPONENTIAL_HISTOGRAM = "base2-exponential-bucket-histogram";
 
   /** Spring Boot's switch for sending metrics over OTLP. */
   public static final String METRICS_EXPORT_ENABLED = "management.otlp.metrics.export.enabled";

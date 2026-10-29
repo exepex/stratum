@@ -87,6 +87,8 @@ always wins. Details are on each module page.
 | `management.endpoints.web.exposure.include` | `health,info` | observability |
 | `management.metrics.tags.application`, `.environment`, `.host` | `${spring.application.name}`, `${stratum.environment}`, `$HOSTNAME` | observability |
 | `management.opentelemetry.resource-attributes[deployment.environment.name]` | `${stratum.environment}` | observability |
+| `management.metrics.distribution.percentiles-histogram.all` | `true` | observability |
+| `management.otlp.metrics.export.histogram-flavor` | `base2-exponential-bucket-histogram` | observability |
 | `spring.jpa.open-in-view` | `false` | data |
 | `spring.jpa.hibernate.ddl-auto` | `validate` | data |
 | `spring.kafka.producer.acks` | `all` | kafka |

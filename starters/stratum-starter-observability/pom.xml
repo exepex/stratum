@@ -30,6 +30,18 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-opentelemetry</artifactId>
     </dependency>
+    <!-- Already brought at runtime by the OpenTelemetry starter, with the same exclusion; compiled
+         against because the correlation ID listens to its tracing context events. -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-tracing-bridge-otel</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>aopalliance</groupId>
+          <artifactId>aopalliance</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
     <!-- Parses the URLs recorded on HTTP client spans. Only present when the service uses Spring's HTTP
          clients, which are the only source of those spans. -->
     <dependency>

@@ -75,12 +75,17 @@ You never pass these IDs by hand. A report reads them, when it is made, from the
 | --- | --- | --- | --- |
 | Trace ID | `traceId` | Tracing (Micrometer Tracing) | Every step of one request, across services |
 | Span ID | `spanId` | Tracing (Micrometer Tracing) | One operation within the request |
-| Correlation ID | `correlationId` | Stratum (planned: the web and logging modules) | Every step of one business workflow, such as one order or one batch job, across many requests |
+| Correlation ID | `correlationId` | The observability module, while an operation is traced | Every step of one business workflow, such as one order or one batch job, across many requests |
 
 A report keeps an ID only if it is 1 to 128 characters long and holds nothing but letters, digits,
 `-`, `_`, `.` and `:`. Any other ID is left out, so that a value sent by a caller cannot forge a log
-line or break a response. **Planned:** the web module will read the correlation ID from the
-`X-Correlation-Id` header, or create one, and pass it on to the services it calls.
+line or break a response.
+
+With `stratum.observability.enabled=true`, the correlation ID is the `correlationId` entry of the
+tracing baggage when one is set, and otherwise the trace ID, which every service in the same trace
+shares ([observability module](../../starters/stratum-starter-observability/README.md#correlation-id)).
+**Planned:** the web module will read the correlation ID from the `X-Correlation-Id` header and set
+it in the baggage, and the logging module will pass it on to the services it calls.
 
 ## Using codes in your service
 
@@ -167,10 +172,11 @@ other invalid setting. The message names the rule `stratum.logging.max-field-len
 
 ## stratum-starter-observability
 
-This is an error that stops the application at startup, and only when
-`stratum.observability.enabled=true`. See the
+These apply only when `stratum.observability.enabled=true`. `SX-OBSERVABILITY-1001` is an error that
+stops the application at startup; `SX-OBSERVABILITY-1002` is a warning. See the
 [observability module](../../starters/stratum-starter-observability/README.md).
 
 | Code | Meaning | Fix |
 | --- | --- | --- |
 | `SX-OBSERVABILITY-1001` | With the module on, in any profile, metrics or traces are sent over OTLP but their address is not set, so they would be lost. The message names each missing property: `management.otlp.metrics.export.url`, `management.opentelemetry.tracing.export.otlp.endpoint` or both. | Set the named property to your OpenTelemetry Collector, such as `http://otel-collector:4318/v1/metrics`, or turn that export off with `management.otlp.metrics.export.enabled=false` or `management.tracing.export.enabled=false`. On a laptop without a Collector, use `http://localhost:4318/...`; the data is then dropped quietly. |
+| `SX-OBSERVABILITY-1002` | Warning, logged once per metric: a metric was dropped because one of its tags is named like an ID, such as `userId`, `trace_id` or a name in `stratum.observability.tags.extra-forbidden`. Each ID value would create a new time series. The message names the metric and the tag, never a value. | Remove the tag from the metric and put the ID in a log line or a span attribute instead. If the tag really holds a few fixed values, rename it so it no longer looks like an ID. |

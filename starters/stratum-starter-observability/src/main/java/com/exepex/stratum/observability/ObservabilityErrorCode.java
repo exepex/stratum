@@ -20,7 +20,16 @@ public enum ObservabilityErrorCode implements ErrorCode {
   EXPORT_ENDPOINT_MISSING(
       "SX-OBSERVABILITY-1001",
       Severity.ERROR,
-      "An OTLP export address is not set, so metrics or traces would be lost");
+      "An OTLP export address is not set, so metrics or traces would be lost"),
+
+  /**
+   * A metric was dropped because one of its tags is named like an ID, whose values would make a new
+   * time series each. The detail names the metric and the tag, never a value.
+   */
+  METRIC_WITH_ID_TAG_DROPPED(
+      "SX-OBSERVABILITY-1002",
+      Severity.WARNING,
+      "A metric was dropped because a tag holds an ID; put IDs in logs or span attributes");
 
   /** The code, such as {@code SX-OBSERVABILITY-1001}. */
   private final String code;
