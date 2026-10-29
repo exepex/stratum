@@ -85,6 +85,10 @@ service. With `stratum-parent`, or any parent that extends `spring-boot-starter-
 Boot's version property (see
 [Overriding one managed version](../modules/parent-and-bom.md#overriding-one-managed-version)), and
 remove it when you upgrade to a Stratum release that no longer lists the advisory.
+If your service imports `spring-boot-dependencies` as a BOM instead
+([company framework](company-framework.md)), the property does not reach it: import the library's
+own BOM at the patched version above the Spring Boot import. For the advisory below, that is
+`io.opentelemetry:opentelemetry-bom` 1.67.0.
 
 | Advisory | Library | Affected | Set in your service |
 | --- | --- | --- | --- |
