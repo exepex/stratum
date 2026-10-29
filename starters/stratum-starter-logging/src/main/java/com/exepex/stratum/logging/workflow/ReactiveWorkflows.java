@@ -127,22 +127,18 @@ public class ReactiveWorkflows {
   }
 
   /**
-   * Puts the run's fields and observation in the context of the work it runs. A logging context
-   * that a service carries whole in Reactor also gets the fields, so that restoring it in {@code
-   * auto} mode keeps them.
+   * Puts the run's fields and observation in the context of the work it runs. They also go in the
+   * whole logging context that a service may carry in Reactor, even when it is empty, so that
+   * restoring that context in {@code auto} mode keeps them.
    */
   private Context withWorkflow(
       Context context, Map<String, String> fields, Observation observation) {
-    var withRun =
-        context
-            .put(LoggingConstants.WORKFLOW_FIELDS, fields)
-            .put(ObservationThreadLocalAccessor.KEY, observation);
+    var loggingContext =
+        context.<Map<String, String>>getOrEmpty(Slf4jThreadLocalAccessor.KEY).orElseGet(Map::of);
     return context
-        .<Map<String, String>>getOrEmpty(Slf4jThreadLocalAccessor.KEY)
-        .map(
-            loggingContext ->
-                withRun.put(Slf4jThreadLocalAccessor.KEY, withFields(loggingContext, fields)))
-        .orElse(withRun);
+        .put(LoggingConstants.WORKFLOW_FIELDS, fields)
+        .put(ObservationThreadLocalAccessor.KEY, observation)
+        .put(Slf4jThreadLocalAccessor.KEY, withFields(loggingContext, fields));
   }
 
   /**
