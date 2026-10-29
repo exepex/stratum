@@ -125,13 +125,13 @@ class SecretRedactionTest {
       var details = WritableJson.of(out -> out.append("{\"password\":\"" + PASSWORD + "\"}"));
       var plain = WritableJson.of(out -> out.append("{\"id\":7}"));
 
-      assertThat(written("details", details)).isEqualTo("\"{\\\"password\\\":\\\"****\\\"}\"");
-      assertThat(written("details", plain)).isEqualTo("{\"id\":7}");
-      assertThat(written(SECRET_FIELD, plain)).isEqualTo("\"****\"");
+      assertThat(redactedJson("details", details)).isEqualTo("\"{\\\"password\\\":\\\"****\\\"}\"");
+      assertThat(redactedJson("details", plain)).isEqualTo("{\"id\":7}");
+      assertThat(redactedJson(SECRET_FIELD, plain)).isEqualTo("\"****\"");
     }
 
     /** Returns the JSON written for the value after redaction. */
-    private String written(String fieldName, WritableJson json) {
+    private String redactedJson(String fieldName, WritableJson json) {
       return ((WritableJson) DEFAULT_REDACTOR.redact(fieldName, json)).toJsonString();
     }
 
