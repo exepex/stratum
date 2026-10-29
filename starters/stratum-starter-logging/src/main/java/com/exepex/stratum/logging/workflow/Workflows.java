@@ -16,6 +16,9 @@ import org.slf4j.MDC;
  * workflow}, {@code root_workflow} (the outermost workflow) and, when given, {@code workflow_id}.
  * When the service has an {@code ObservationRegistry}, as with the observability starter, the work
  * is also timed and traced as one span. Use it where {@link Workflow @Workflow} does not apply.
+ *
+ * <p>Only work that finishes before it returns is timed and traced: work that returns a future or a
+ * {@code Mono} is timed until it returns, and its later failure is not recorded.
  */
 @RequiredArgsConstructor
 public class Workflows {

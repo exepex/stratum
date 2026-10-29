@@ -71,9 +71,14 @@ public final class ErrorCodeJsonMembersCustomizer
         .findFirst();
   }
 
-  /** Returns the field name for a format: GELF's own fields start with {@code _}. */
+  /**
+   * Returns the field name for a format: GELF's own fields start with {@code _}. Case is ignored,
+   * as Spring Boot ignores it.
+   */
   private String errorCodeFieldFor(String structuredFormat) {
-    return structuredFormat.equals(LogFormat.GELF.getStructuredFormat())
+    return String.CASE_INSENSITIVE_ORDER.compare(
+                structuredFormat, LogFormat.GELF.getStructuredFormat())
+            == 0
         ? LoggingConstants.GELF_ERROR_CODE
         : LoggingConstants.ERROR_CODE;
   }

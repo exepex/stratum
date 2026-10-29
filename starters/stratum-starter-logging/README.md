@@ -193,13 +193,18 @@ traced, with no extra code:
   the failures (tag `error`) and their durations. The observability starter stores durations as
   histograms, so a dashboard reads any percentile per workflow, for one pod or for all.
 - A span named after the workflow, with the ID as the `workflow_id` attribute, so a trace can be
-  found by an order number. A failure marks the span as failed.
+  found by an order number. A failure marks the span as failed. Log lines mask an ID that looks
+  like a card or national ID, but the span gets it as it is: use an order number or a similar
+  business ID, never personal data.
 
 Stratum records only how long a workflow took. It never labels a workflow slow or fast; your
 dashboards and alerts decide that. Without a registry, workflows only set the log fields.
 
-Workflows follow the work on its own thread. Carrying them into `@Async` methods, executors and
-other services is [planned](#planned).
+Workflows follow the work on its own thread, and time and trace only work that finishes before it
+returns. Work that returns a `CompletableFuture` or a `Mono` is timed only until it returns, its
+later failure is not recorded, and the fields are not on the lines it writes on other threads.
+Carrying workflows into `@Async` methods, futures, Reactor, executors and other services is
+[planned](#planned).
 
 ## Redaction
 
@@ -419,7 +424,7 @@ which keeps Spring Boot's default plain-text logging, with no checks and no reda
 
 | Feature | What it adds |
 | --- | --- |
-| Context hand-off | The same fields, trace and correlation IDs follow work into `@Async`, executors, `@Scheduled` jobs and Reactor, and across services |
+| Context hand-off | The same fields, trace and correlation IDs follow work into `@Async`, executors, `@Scheduled` jobs, futures and Reactor, and across services |
 | Management endpoint | Secured, timed switches for DEBUG on one logger, timing lines for one workflow, and unmasking personal data for a short time, each switching back by itself |
 | Trace and correlation IDs | `trace.id`, `span.id` and `correlation_id`, with the observability and web starters |
 | Body logging on demand | Request and response bodies in the logs when you need them, planned for the web and HTTP client starters rather than this one |

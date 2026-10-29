@@ -90,7 +90,7 @@ class ErrorCodeJsonMembersCustomizerTest {
   @DisplayName(
       "when the service sets GELF, the field is named _error_code, as GELF's own fields are")
   void usesGelfFieldName() {
-    moduleOn.setProperty(LoggingConstants.CONSOLE_FORMAT, "gelf");
+    moduleOn.setProperty(LoggingConstants.CONSOLE_FORMAT, "GELF");
 
     assertThat(writeLogLine(moduleOn, CODED_FAILURE))
         .endsWith(",\"_error_code\":\"" + CODE + "\"}");
