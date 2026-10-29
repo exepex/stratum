@@ -97,7 +97,7 @@ starter therefore never sends anything, not even to Spring Boot's default addres
 | Metrics | Spring Boot's metrics (HTTP server and client, JVM, connection pools, caches, `@Scheduled` jobs, Spring Batch jobs), pushed over OTLP every minute |
 | Tags on every metric | `application` from `spring.application.name`, `environment` from [`stratum.environment`](../../docs/configuration/reference.md#shared-properties), and `host` from the `HOSTNAME` environment variable, which in Kubernetes is the pod's name. Each is left out when its value is not set |
 | Timings as histograms | Every timer, such as HTTP server and client calls, `@Scheduled` jobs and Spring Batch steps, is sent as a base-2 exponential histogram ([below](#timings)) |
-| Tag guard | A metric with a tag named like an ID, such as `userId`, is dropped with one warning ([below](#tag-guard)) |
+| Tag guard | A metric with a tag named like an ID, such as `userId`, is dropped with one warning; the RabbitMQ routing key is removed from send timers ([below](#tag-guard)) |
 | Correlation ID | In the logging context of every traced operation, so log lines and error reports carry it ([below](#correlation-id)) |
 | Messages | Kafka, JMS (IBM MQ, ActiveMQ) and RabbitMQ: sending and handling a message are timed and traced, and the consumer joins the sender's trace and correlation ID ([below](#messages)) |
 | Traces | OpenTelemetry traces. W3C `traceparent` is read from incoming requests and sent on calls made with Spring's HTTP clients. Spring Boot keeps 10% of new traces, and always follows the caller's decision, so a trace is never half kept |
@@ -142,6 +142,10 @@ So `user_id`, `USER-ID` and `user.id` are dropped too. The first time a metric i
 logs
 [`SX-OBSERVABILITY-1002`](../../docs/guides/error-codes.md#stratum-starter-observability), naming
 the metric and the tag, never a value. Put such IDs in log lines or span attributes instead.
+
+The guard also removes the RabbitMQ routing-key tag, `messaging.rabbitmq.destination.routing_key`,
+from every metric and keeps the metric, because a routing key can hold an ID
+([messages](#messages)). `allowed` does not bring it back.
 
 Add your own names with `stratum.observability.tags.extra-forbidden`. To keep a built-in name, list
 it in `stratum.observability.tags.allowed`. Do that only when the tag has a small, known set of
@@ -214,11 +218,10 @@ Kafka and RabbitMQ timers carry the topic or queue name, such as `messaging.dest
 JMS timers do not: Micrometer keeps the JMS queue name on the span only. No timer carries a message
 ID or a Kafka record key.
 
-> [!WARNING]
-> The RabbitMQ send timer, `spring.rabbit.template`, carries the routing key in the
-> `messaging.rabbitmq.destination.routing_key` tag. Each routing key makes its own time series, so
-> never put an order, customer or other ID in a routing key. The [tag guard](#tag-guard) checks tag
-> names, not values, so it does not catch this.
+Spring also tags the RabbitMQ send timer, `spring.rabbit.template`, with the message's routing key
+(`messaging.rabbitmq.destination.routing_key`). A routing key can hold an ID, such as
+`order.42.created`, and each value would make its own time series, so the [tag guard](#tag-guard)
+always removes that tag. Sends are still timed per destination, just not per routing key.
 
 This works with the senders and listeners Spring Boot sets up, such as `KafkaTemplate`,
 `@KafkaListener`, `JmsTemplate` and `@JmsListener`. This starter adds no messaging library, so

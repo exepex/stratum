@@ -6,6 +6,7 @@ import static com.exepex.stratum.observability.testsupport.MetricTestData.counte
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.micrometer.core.instrument.Meter;
+import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.Tags;
 import io.micrometer.core.instrument.config.MeterFilterReply;
 import java.util.List;
@@ -64,6 +65,27 @@ class MetricTagGuardTest {
     assertThat(replyForTag("uri")).isEqualTo(MeterFilterReply.NEUTRAL);
     assertThat(guard.accept(new Meter.Id(METRIC_NAME, Tags.empty(), null, null, Meter.Type.TIMER)))
         .isEqualTo(MeterFilterReply.NEUTRAL);
+  }
+
+  @Test
+  @DisplayName("a RabbitMQ routing key is removed from a metric, which is kept with its other tags")
+  void removesRoutingKey() {
+    var rabbitSend =
+        new Meter.Id(
+            "spring.rabbit.template",
+            Tags.of(
+                ObservabilityConstants.RABBIT_ROUTING_KEY_TAG,
+                "order.42.created",
+                "messaging.destination.name",
+                "orders"),
+            null,
+            null,
+            Meter.Type.TIMER);
+
+    var kept = guard.map(rabbitSend);
+
+    assertThat(kept.getTags()).containsExactly(Tag.of("messaging.destination.name", "orders"));
+    assertThat(guard.accept(kept)).isEqualTo(MeterFilterReply.NEUTRAL);
   }
 
   @Test

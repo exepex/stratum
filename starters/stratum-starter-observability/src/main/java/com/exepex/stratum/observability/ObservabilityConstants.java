@@ -71,6 +71,12 @@ public class ObservabilityConstants {
           "spring.rabbitmq.listener.direct.observation-enabled",
           "spring.rabbitmq.listener.stream.observation-enabled");
 
+  /**
+   * The tag in which Spring puts a RabbitMQ message's routing key on its send timer. A routing key
+   * can hold an ID, so the tag guard removes it.
+   */
+  public static final String RABBIT_ROUTING_KEY_TAG = "messaging.rabbitmq.destination.routing_key";
+
   /** Spring Boot's switch for sending metrics over OTLP. */
   public static final String METRICS_EXPORT_ENABLED = "management.otlp.metrics.export.enabled";
 
