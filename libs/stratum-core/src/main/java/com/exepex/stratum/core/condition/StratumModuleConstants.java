@@ -27,6 +27,25 @@ public class StratumModuleConstants {
   public static final String PROPAGATE_TASK_CONTEXT = "spring.task.execution.propagate-context";
 
   /**
+   * Whether the logging and observability modules make Reactor carry their context into every
+   * operator, through {@link #REACTOR_CONTEXT_PROPAGATION}. Defaults to {@code true}.
+   */
+  public static final String PROPAGATE_CONTEXT_TO_EVERY_REACTOR_OPERATOR =
+      PREFIX + ".propagate-context-to-every-reactor-operator";
+
+  /**
+   * Spring Boot's setting for how Reactor carries the logging and tracing context: {@link
+   * #REACTOR_CONTEXT_IN_EVERY_OPERATOR} or {@link #REACTOR_CONTEXT_IN_HANDLE_AND_TAP_ONLY}.
+   */
+  public static final String REACTOR_CONTEXT_PROPAGATION = "spring.reactor.context-propagation";
+
+  /** Reactor puts the context on the thread of every operator, so every log line carries it. */
+  public static final String REACTOR_CONTEXT_IN_EVERY_OPERATOR = "auto";
+
+  /** Spring Boot's default: Reactor puts the context on the thread only in handle and tap. */
+  public static final String REACTOR_CONTEXT_IN_HANDLE_AND_TAP_ONLY = "limited";
+
+  /**
    * The {@code @AutoConfigureOrder} of every Stratum auto-configuration: later than the default, so
    * that a company framework's auto-configurations with no order run first and their beans win (ADR
    * 0001).

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.logging.LoggingErrorCode;
+import com.exepex.stratum.logging.workflow.ReactiveWorkflows;
 import com.exepex.stratum.logging.workflow.Workflow;
 import com.exepex.stratum.logging.workflow.Workflows;
 import java.util.concurrent.CompletableFuture;
@@ -18,6 +19,7 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.test.annotation.DirtiesContext;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.SynchronousSink;
 import reactor.core.scheduler.Schedulers;
@@ -35,6 +37,8 @@ class WorkflowIntegrationTest {
   @Autowired private CheckoutService checkoutService;
 
   @Autowired private Workflows workflows;
+
+  @Autowired private ReactiveWorkflows reactiveWorkflows;
 
   @Test
   @DisplayName("a line written in an @Workflow method carries the workflow and its root")
@@ -74,6 +78,35 @@ class WorkflowIntegrationTest {
     checkoutService.takePayment().block();
 
     assertThat(lineWith(output, "payment taken")).contains("\"workflow\":\"PAYMENT\"");
+  }
+
+  @Test
+  @DisplayName(
+      "a line written in map, after a Mono's work moved to another thread, carries the workflow")
+  void annotatedMonoMethodWritesWorkflowFieldsInMap(CapturedOutput output) {
+    checkoutService.reservePaymentAfterThreadChange().block();
+
+    assertThat(lineWith(output, "payment reserved in map"))
+        .contains("\"workflow\":\"PAYMENT_RESERVATION\"")
+        .doesNotContain("\"process.thread.name\":\"main\"");
+  }
+
+  @Test
+  @DisplayName(
+      "a line written in map, after a Flux's work moved to another thread, carries the workflow ID")
+  void reactiveWorkflowFluxWritesWorkflowFieldsInMap(CapturedOutput output) {
+    reactiveWorkflows
+        .flux(
+            "ORDER_SHIPPING",
+            "ORD-2044",
+            Flux.just("parcel-1")
+                .publishOn(Schedulers.parallel())
+                .map(checkoutService::logParcelShippedInMap))
+        .blockLast();
+
+    assertThat(lineWith(output, "parcel shipped in map"))
+        .contains("\"workflow\":\"ORDER_SHIPPING\"")
+        .contains("\"workflow_id\":\"ORD-2044\"");
   }
 
   @Test
@@ -131,6 +164,36 @@ class WorkflowIntegrationTest {
     @Workflow("PAYMENT")
     public Mono<String> takePayment() {
       return Mono.just("ORD-1042").publishOn(Schedulers.boundedElastic()).handle(this::logPayment);
+    }
+
+    /**
+     * Reserves the payment, as the {@code PAYMENT_RESERVATION} workflow, logging in {@code map} on
+     * another thread.
+     *
+     * @return the reservation, made when subscribed
+     */
+    @Workflow("PAYMENT_RESERVATION")
+    public Mono<String> reservePaymentAfterThreadChange() {
+      return Mono.just("ORD-3055")
+          .publishOn(Schedulers.boundedElastic())
+          .map(this::logPaymentReservedInMap);
+    }
+
+    /** Logs the reservation from a {@code map} operator and passes the order number on. */
+    private String logPaymentReservedInMap(String orderNumber) {
+      log.info("payment reserved in map");
+      return orderNumber;
+    }
+
+    /**
+     * Logs a shipped parcel from a {@code map} operator and passes it on.
+     *
+     * @param parcel the parcel
+     * @return the same parcel
+     */
+    public String logParcelShippedInMap(String parcel) {
+      log.info("parcel shipped in map");
+      return parcel;
     }
 
     /** Logs the payment, where Reactor gives the workflow fields to the logging context. */

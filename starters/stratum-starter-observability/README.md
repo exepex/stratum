@@ -181,11 +181,10 @@ try (var correlation = tracer.createBaggageInScope("correlationId", order.correl
 }
 ```
 
-Baggage travels with the trace: Spring's HTTP clients send it in the W3C `baggage` header on every
-outgoing call, to every host, third parties included, and Kafka, JMS and RabbitMQ senders put it in
-a `baggage` message header ([messages](#messages)). In reactive code, `WebClient` sends it only with
-`spring.reactor.context-propagation=auto` ([reactive code](#threads-and-reactive-code)). So the correlation ID set in baggage reaches
-every service you call or send a message to.
+Baggage travels with the trace: Spring's HTTP clients, `WebClient` in reactive code included, send it
+in the W3C `baggage` header on every outgoing call, to every host, third parties included, and
+Kafka, JMS and RabbitMQ senders put it in a `baggage` message header ([messages](#messages)). So the
+correlation ID set in baggage reaches every service you call or send a message to.
 
 > [!WARNING]
 > Never put a secret or personal data, such as a customer's name or email address, in the
@@ -239,20 +238,20 @@ one off, set its switch to `false`, for example `spring.kafka.listener.observati
 
 ### Threads and reactive code
 
-Stratum sets Spring Boot's `spring.task.execution.propagate-context=true`, so `@Async` methods,
-Spring Boot's task executor and executors built with its `ThreadPoolTaskExecutorBuilder` keep the
-caller's trace and correlation ID. Threads your code creates itself do not: an `ExecutorService`
-from `Executors`, `new Thread`, virtual threads you start, `new ThreadPoolTaskExecutor()` and
-`CompletableFuture.supplyAsync` without an executor. Wrap your own `ExecutorService` with
-Micrometer's `ContextExecutorService.wrap(executor, () -> snapshotFactory.captureAll())`, where
-`snapshotFactory` is `ContextSnapshotFactory.builder().build()`.
+Stratum sets Spring Boot's `spring.task.execution.propagate-context=true`, unless
+`stratum.propagate-context-to-async-threads=false`, so `@Async` methods, Spring Boot's task executor
+and executors built with its `ThreadPoolTaskExecutorBuilder` keep the caller's trace and correlation
+ID. Threads your code creates itself do not: an `ExecutorService` from `Executors`, `new Thread`,
+virtual threads you start, `new ThreadPoolTaskExecutor()` and `CompletableFuture.supplyAsync`
+without an executor. Wrap your own `ExecutorService` with Micrometer's `ContextExecutorService.wrap(
+executor, () -> ContextSnapshotFactory.builder().build().captureAll())`.
 
-In reactive code, Spring Boot's default `spring.reactor.context-propagation=limited` puts the trace
-and correlation ID only on lines written in `handle` and `tap` operators. Lines written in a WebFlux
-handler, or in `map`, `flatMap` or `doOnNext` after a thread change, have neither, and `WebClient`
-sends `traceparent` but no `baggage`. Set `spring.reactor.context-propagation=auto` to fix both, at a
-small cost per operator. The same setting carries the logging starter's
-[workflow fields](../stratum-starter-logging/README.md#async-and-reactive-work).
+In reactive code, Stratum sets Spring Boot's `spring.reactor.context-propagation=auto` and turns on
+Reactor's context propagation, even without WebFlux or WebClient. Every line in a WebFlux handler or
+any operator carries the request's trace and correlation ID, never another request's, and `WebClient`
+sends `baggage` like `RestClient`. `stratum.propagate-context-to-every-reactor-operator=false` keeps
+Spring Boot's `limited` mode, where only `handle` and `tap` lines carry them. The same setting
+carries the logging starter's [workflow fields](../stratum-starter-logging/README.md#async-and-reactive-work).
 
 ### URLs on spans and metrics
 
@@ -328,8 +327,8 @@ noticed. The service keeps running.
 | `stratum.observability.tags.allowed` | list of strings | empty | Tag names the [tag guard](#tag-guard) keeps even though they are refused by default, such as `customerId`. Compared like `extra-forbidden`. A blank name stops startup with `SX-CORE-1003`. |
 
 The shared [`stratum.environment`](../../docs/configuration/reference.md#shared-properties) sets the
-`environment` tag and the `deployment.environment.name` resource attribute, and the shared
-`stratum.propagate-context-to-async-threads` (default `true`) decides whether `@Async` work keeps the trace.
+`environment` tag and the `deployment.environment.name` resource attribute. The shared context
+switches are described in [threads and reactive code](#threads-and-reactive-code).
 
 Spring Boot properties this starter sets by default. A value you set wins, from any file, the
 environment, the command line or Java default properties:
@@ -346,6 +345,7 @@ environment, the command line or Java default properties:
 | `management.metrics.distribution.percentiles-histogram.all` | value of `stratum.observability.record-timings-as-histograms` |
 | `management.otlp.metrics.export.histogram-flavor` | `base2-exponential-bucket-histogram` |
 | `spring.task.execution.propagate-context` | value of `stratum.propagate-context-to-async-threads` ([threads](#threads-and-reactive-code)) |
+| `spring.reactor.context-propagation` | `auto`, or `limited` when `stratum.propagate-context-to-every-reactor-operator=false` |
 | `spring.kafka.template.observation-enabled`, `spring.kafka.listener.observation-enabled` | value of `stratum.observability.trace-kafka-and-rabbitmq-messages` |
 | `spring.rabbitmq.template.observation-enabled`, `spring.rabbitmq.listener.simple.observation-enabled`, `.direct.observation-enabled`, `.stream.observation-enabled` | value of `stratum.observability.trace-kafka-and-rabbitmq-messages` |
 

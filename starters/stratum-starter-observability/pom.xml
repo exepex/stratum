@@ -54,6 +54,23 @@
       <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- A WebFlux service and Spring's three HTTP clients, to prove that reactive and blocking code
+         carry the same trace and correlation ID. Services bring their own web libraries. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-webflux</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-webclient</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-restclient</artifactId>
+      <scope>test</scope>
+    </dependency>
     <!-- Kafka and JMS brokers that run inside the test JVM, to prove that traces, timings and the
          correlation ID cross a message. Services bring their own messaging libraries. -->
     <dependency>

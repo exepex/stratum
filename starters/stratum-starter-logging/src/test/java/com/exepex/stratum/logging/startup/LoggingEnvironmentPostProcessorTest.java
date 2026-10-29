@@ -132,6 +132,23 @@ class LoggingEnvironmentPostProcessorTest {
     }
 
     @Test
+    @DisplayName(
+        "every Reactor operator carries the context, unless"
+            + " stratum.propagate-context-to-every-reactor-operator is false")
+    void propagatesContextToEveryReactorOperator() {
+      var defaultEnvironment = runPostProcessor(environmentWithModuleOn());
+      var handleAndTapOnly =
+          runPostProcessor(
+              environmentWithModuleOn()
+                  .withProperty("stratum.propagate-context-to-every-reactor-operator", OFF));
+
+      assertThat(defaultEnvironment.getProperty("spring.reactor.context-propagation"))
+          .isEqualTo("auto");
+      assertThat(handleAndTapOnly.getProperty("spring.reactor.context-propagation"))
+          .isEqualTo("limited");
+    }
+
+    @Test
     @DisplayName("a stack trace can start with the exception the code caught")
     void outermostExceptionFirst() {
       var environment =

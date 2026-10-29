@@ -48,13 +48,35 @@ public class StratumDefaults {
    * set from {@code stratum.propagate-context-to-async-threads}, which defaults to {@code true}.
    *
    * @param environment the application's environment
-   * @return the switch and its value
+   * @return the settings and their values
    */
   public static Map<String, Object> asyncThreadContextPropagation(Environment environment) {
     return Map.of(
         StratumModuleConstants.PROPAGATE_TASK_CONTEXT,
         environment.getProperty(
             StratumModuleConstants.PROPAGATE_CONTEXT_TO_ASYNC_THREADS, Boolean.class, true));
+  }
+
+  /**
+   * Returns Spring Boot's setting that makes Reactor carry the logging and tracing context into
+   * every operator, so that log lines in WebFlux handlers and in operators such as {@code map} keep
+   * the trace and workflow fields and WebClient sends the correlation ID on, set from {@code
+   * stratum.propagate-context-to-every-reactor-operator}, which defaults to {@code true}.
+   *
+   * @param environment the application's environment
+   * @return the setting and its value
+   */
+  public static Map<String, Object> reactorOperatorContextPropagation(Environment environment) {
+    var everyReactorOperator =
+        environment.getProperty(
+            StratumModuleConstants.PROPAGATE_CONTEXT_TO_EVERY_REACTOR_OPERATOR,
+            Boolean.class,
+            true);
+    return Map.of(
+        StratumModuleConstants.REACTOR_CONTEXT_PROPAGATION,
+        everyReactorOperator
+            ? StratumModuleConstants.REACTOR_CONTEXT_IN_EVERY_OPERATOR
+            : StratumModuleConstants.REACTOR_CONTEXT_IN_HANDLE_AND_TAP_ONLY);
   }
 
   /** Returns whether the service's default properties hold the key or any element of it. */
