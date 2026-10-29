@@ -41,9 +41,9 @@ public final class Redactor {
   private static final IntPredicate NOT_WHITESPACE =
       character -> !Character.isWhitespace(character);
 
-  /** A character of a number written in groups, such as {@code 4111 1111}. */
+  /** A character of a number written in groups, such as {@code 4111 1111} or {@code 4111.1111}. */
   private static final IntPredicate DIGIT_OR_GROUP_SEPARATOR =
-      character -> Character.isDigit(character) || character == ' ' || character == '-';
+      character -> Character.isDigit(character) || " -./_".indexOf(character) >= 0;
 
   /** Masks values by field name. */
   private final SensitiveFieldNames fieldNames;
@@ -91,8 +91,12 @@ public final class Redactor {
         case Map<?, ?> _, Iterable<?> _, Object[] _ -> maskByName(fieldName, logValue);
         default -> redactOther(fieldName, logValue);
       };
-    } catch (IllegalArgumentException | IllegalStateException | IndexOutOfBoundsException _) {
-      // Fail closed: a value that could not be masked must never be written as it was.
+    } catch (IllegalArgumentException
+        | IllegalStateException
+        | IndexOutOfBoundsException
+        | StackOverflowError _) {
+      // Fail closed: a value that could not be masked must never be written as it was. A service's
+      // extra pattern can overflow the stack on long text, and must not stop the caller's thread.
       return REDACTION_FAILED;
     }
   }
@@ -102,9 +106,11 @@ public final class Redactor {
    * {@code toString()} with secrets. The value is kept as it is when its text needs no masking.
    */
   private Object redactOther(@Nullable String fieldName, Object logValue) {
-    var text = logValue.toString();
+    // A toString() that returns null is written as the text null: Spring Boot cannot write it.
+    var ownText = Optional.ofNullable(logValue.toString());
+    var text = ownText.orElse("null");
     var redacted = redactText(fieldName, truncateToMaxFieldLength(text));
-    return redacted.equals(text) ? logValue : redacted;
+    return ownText.filter(redacted::equals).isPresent() ? logValue : redacted;
   }
 
   /**

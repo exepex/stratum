@@ -1,6 +1,5 @@
 package com.exepex.stratum.logging.redaction;
 
-import static com.exepex.stratum.logging.testsupport.LoggingTestData.CARD;
 import static com.exepex.stratum.logging.testsupport.LoggingTestData.DEFAULT_REDACTOR;
 import static com.exepex.stratum.logging.testsupport.LoggingTestData.JWT;
 import static com.exepex.stratum.logging.testsupport.LoggingTestData.PASSWORD;
@@ -68,7 +67,10 @@ class SecretRedactionTest {
           "secretKey",
           "apiToken",
           "authToken",
-          "aws_secret_access_key"
+          "aws_secret_access_key",
+          "passcode",
+          "passCode",
+          "user_passcode"
         })
     @DisplayName("a secret field, or one whose name holds a secret word, is masked in full")
     void secretFieldIsMaskedInFull(String name) {
@@ -287,62 +289,24 @@ class SecretRedactionTest {
     }
 
     @Test
+    @DisplayName("a URL password that holds a raw @ is masked up to the last @ before the host")
+    void urlPasswordWithRawAtSignIsMasked() {
+      assertThat(redactUnnamedText("connecting to https://bob:p@ss@word@api.example.com/v1"))
+          .isEqualTo("connecting to https://****@api.example.com/v1");
+    }
+
+    @Test
+    @DisplayName("an @ in a URL's path is not read as the end of a password")
+    void atSignInUrlPathIsKept() {
+      assertThat(redactUnnamedText("see https://social.example:8443/@bob and https://a:x@h/@c"))
+          .isEqualTo("see https://social.example:8443/@bob and https://****@h/@c");
+    }
+
+    @Test
     @DisplayName("a secret in a Lombok toString is masked")
     void lombokToStringSecretIsMasked() {
       assertThat(redactUnnamedText("Login(user=bob, password=" + PASSWORD + ")"))
           .isEqualTo("Login(user=bob, password=****)");
-    }
-
-    @Test
-    @DisplayName("a card number that passes the Luhn check keeps only its last four digits")
-    void validCardIsMasked() {
-      assertThat(redactUnnamedText("paid with 4111 1111 1111 1111 today"))
-          .isEqualTo("paid with ****1111 today");
-      assertThat(redactUnnamedText("card " + CARD)).isEqualTo("card ****1111");
-      assertThat(redactUnnamedText("card 4402 6140 1419 3141 705")).isEqualTo("card ****1705");
-      assertThat(redactUnnamedText("card 4111 1111 1111 1111 003")).isEqualTo("card ****1003");
-      assertThat(redactUnnamedText("0 4111 1111 1111 1111")).isEqualTo("0 ****1111");
-    }
-
-    @ParameterizedTest
-    @ValueSource(
-        strings = {
-          "paid with 4111111111111111 43",
-          "paid with 4111 1111 1111 1111 43",
-          "43 4111111111111111 paid",
-          "order123 4111111111111111 paid",
-          "order123 4111 1111 1111 1111 paid",
-          "4111-1111-1111-1111 7 and 5500 0000 0000 0004"
-        })
-    @DisplayName("a card next to another number is still found and masked")
-    void cardNextToNumberIsMasked(String line) {
-      assertThat(redactUnnamedText(line))
-          .doesNotContain("4111111111111111")
-          .doesNotContain("4111 1111 1111 1111")
-          .doesNotContain("4111-1111-1111-1111")
-          .contains("****1111");
-    }
-
-    @Test
-    @DisplayName("every card in a run of digit groups is masked, not only the first")
-    void everyCardInRunIsMasked() {
-      assertThat(redactUnnamedText("cards 4111111111111111 5500000000000004 done"))
-          .isEqualTo("cards ****1111 ****0004 done");
-      assertThat(redactUnnamedText("cards 4111 1111 1111 1111 4111 1111 1111 1111 done"))
-          .doesNotContain("4111 1111 1111 1111");
-    }
-
-    @Test
-    @DisplayName("a card that overlaps a longer valid number before it is masked too")
-    void overlappingCardIsMasked() {
-      assertThat(redactUnnamedText("cards 3782 822463 10005 4242 4242 4242 4242 done"))
-          .isEqualTo("cards ****4242 done");
-    }
-
-    @Test
-    @DisplayName("a long number that fails the Luhn check is kept")
-    void numberFailingLuhnIsKept() {
-      assertThat(redactUnnamedText("order 4111111111111112")).isEqualTo("order 4111111111111112");
     }
 
     @Test

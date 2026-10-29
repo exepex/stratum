@@ -4,7 +4,6 @@ import com.exepex.stratum.logging.redaction.MaskedText.Replacement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -23,8 +22,11 @@ class CardNumberMasker {
 
   // Possessive, and needing nothing after the run, so a failed start scans at most 13 digits and
   // matching stays linear. It matches right after a word too, as in order123.
-  /** Digit groups separated by single spaces or dashes, with at least 13 digits in all. */
-  private static final Pattern CARD_GROUPS = Pattern.compile("\\d(?:[ -]?\\d){12,}+");
+  /**
+   * Digit groups separated by one space, dash, dot, slash or underscore, or by two spaces, with at
+   * least 13 digits in all.
+   */
+  private static final Pattern CARD_GROUPS = Pattern.compile("\\d(?:(?:[ ./_-]| {2})?\\d){12,}+");
 
   /** One group of digits. */
   private static final Pattern DIGIT_GROUP = Pattern.compile("\\d+");
@@ -53,8 +55,8 @@ class CardNumberMasker {
    * looked for, and the search goes on after the card it finds.
    */
   private static String maskRun(String digitGroupRun) {
-    var groups = DIGIT_GROUP.matcher(digitGroupRun).results().toList();
-    var runDigits = groups.stream().map(MatchResult::group).collect(Collectors.joining());
+    var groups = digitGroupsOf(digitGroupRun);
+    var runDigits = groups.stream().map(DigitGroup::digits).collect(Collectors.joining());
     var maskedCards = new ArrayList<Replacement>();
     var nextCard = longestCardsStartingIn(runDigits, groups, 0, groups.size()).findFirst();
     // A loop, because each search starts after the card that the previous one found.
@@ -78,7 +80,7 @@ class CardNumberMasker {
    * four digits it keeps could show the start of the next card, and the rest of that card would
    * stay visible.
    */
-  private static CardSpan withOverlaps(String runDigits, List<MatchResult> groups, CardSpan card) {
+  private static CardSpan withOverlaps(String runDigits, List<DigitGroup> groups, CardSpan card) {
     var extendedCard = card;
     var overlappingCard = overlappingCard(runDigits, groups, extendedCard);
     // A loop, because each extension can reach one more overlapping card.
@@ -91,7 +93,7 @@ class CardNumberMasker {
 
   /** Returns the card extended over the first valid card that starts inside it and ends after. */
   private static Optional<CardSpan> overlappingCard(
-      String runDigits, List<MatchResult> groups, CardSpan card) {
+      String runDigits, List<DigitGroup> groups, CardSpan card) {
     return longestCardsStartingIn(runDigits, groups, card.firstGroup() + 1, card.lastGroup() + 1)
         .filter(otherCard -> otherCard.lastGroup() > card.lastGroup())
         .findFirst()
@@ -103,16 +105,16 @@ class CardNumberMasker {
    * to {@code toGroupExclusive}. No card number starts with 0.
    */
   private static Stream<CardSpan> longestCardsStartingIn(
-      String runDigits, List<MatchResult> groups, int fromGroup, int toGroupExclusive) {
+      String runDigits, List<DigitGroup> groups, int fromGroup, int toGroupExclusive) {
     return IntStream.range(fromGroup, toGroupExclusive)
-        .filter(firstGroup -> runDigits.charAt(digitStart(groups, firstGroup)) != '0')
+        .filter(firstGroup -> !groups.get(firstGroup).digits().startsWith("0"))
         .mapToObj(firstGroup -> longestCard(runDigits, groups, firstGroup))
         .flatMap(Optional::stream);
   }
 
   /** Returns the longest valid card that starts at the group, if there is one. */
   private static Optional<CardSpan> longestCard(
-      String runDigits, List<MatchResult> groups, int firstGroup) {
+      String runDigits, List<DigitGroup> groups, int firstGroup) {
     var validCards =
         IntStream.range(firstGroup, groups.size())
             .takeWhile(lastGroup -> digitCount(groups, firstGroup, lastGroup) <= MAX_CARD_DIGITS)
@@ -126,7 +128,8 @@ class CardNumberMasker {
                         .lastGroup(lastGroup)
                         .digits(
                             runDigits.substring(
-                                digitStart(groups, firstGroup), digitEnd(groups, lastGroup)))
+                                groups.get(firstGroup).digitStart(),
+                                groups.get(lastGroup).digitEnd()))
                         .build())
             .filter(candidate -> LuhnCheckDigit.LUHN_CHECK_DIGIT.isValid(candidate.digits()))
             .toList();
@@ -134,19 +137,27 @@ class CardNumberMasker {
   }
 
   /** Returns how many digits the groups from first to last hold. */
-  private static int digitCount(List<MatchResult> groups, int firstGroup, int lastGroup) {
-    return digitEnd(groups, lastGroup) - digitStart(groups, firstGroup);
+  private static int digitCount(List<DigitGroup> groups, int firstGroup, int lastGroup) {
+    return groups.get(lastGroup).digitEnd() - groups.get(firstGroup).digitStart();
   }
 
-  /** Returns where the group's digits start in the run's digits. */
-  private static int digitStart(List<MatchResult> groups, int group) {
-    // Groups are one separator apart, so a group has as many separators before it as groups.
-    return groups.get(group).start() - group;
-  }
-
-  /** Returns where the group's digits end in the run's digits. */
-  private static int digitEnd(List<MatchResult> groups, int group) {
-    return groups.get(group).end() - group;
+  /** Returns the run's groups of digits, each with where its digits are in the run's digits. */
+  private static List<DigitGroup> digitGroupsOf(String digitGroupRun) {
+    var groups = new ArrayList<DigitGroup>();
+    var digitsBefore = 0;
+    var matcher = DIGIT_GROUP.matcher(digitGroupRun);
+    // A loop, because each group's digits start where the previous group's digits end.
+    while (matcher.find()) {
+      groups.add(
+          DigitGroup.builder()
+              .digits(matcher.group())
+              .start(matcher.start())
+              .end(matcher.end())
+              .digitStart(digitsBefore)
+              .build());
+      digitsBefore += matcher.group().length();
+    }
+    return groups;
   }
 
   /**
@@ -160,4 +171,21 @@ class CardNumberMasker {
    */
   @Builder(toBuilder = true)
   private record CardSpan(int start, int end, int firstGroup, int lastGroup, String digits) {}
+
+  /**
+   * One group of digits in a run, such as {@code 4111} in {@code 4111 1111}.
+   *
+   * @param digits the group's digits
+   * @param start where the group starts in the run
+   * @param end where the group ends in the run
+   * @param digitStart where its digits start in the run's digits, without separators
+   */
+  @Builder
+  private record DigitGroup(String digits, int start, int end, int digitStart) {
+
+    /** Returns where its digits end in the run's digits. */
+    private int digitEnd() {
+      return digitStart + digits.length();
+    }
+  }
 }

@@ -44,12 +44,14 @@ class ContentMaskingRules {
           "(?i)\\b(basic|bearer|digest|negotiate)\\s+"
               + "(?:[a-z]++=[^\\r\\n]++|[a-z0-9+/._=~-]{4,})");
 
+  // The password backtracks to the last @ before any / or space, so an @ inside it is masked and
+  // an @ in the URL's path is never reached. Each scan stops at the next URL's //, so it is linear.
   /**
-   * A password in a URL, with or without a user name, such as {@code https://user:secret@host} or
-   * {@code redis://:secret@host}.
+   * A password in a URL, with or without a user name, such as {@code https://user:secret@host},
+   * {@code redis://:secret@host} or {@code https://user:p@ss@host}.
    */
   private static final Pattern URL_CREDENTIALS =
-      Pattern.compile("(?i)(?<![a-z0-9+.-])([a-z][a-z0-9+.-]*+://)[^\\s/:@]*+:[^\\s/@]++@");
+      Pattern.compile("(?i)(?<![a-z0-9+.-])([a-z][a-z0-9+.-]*+://)[^\\s/:@]*+:[^\\s/@][^\\s/]*@");
 
   /** A US social security number. */
   private static final Pattern SSN = Pattern.compile("\\b\\d{3}-\\d{2}-\\d{4}\\b");
