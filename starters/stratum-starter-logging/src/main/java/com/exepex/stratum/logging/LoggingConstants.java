@@ -17,6 +17,12 @@ public class LoggingConstants {
   /** The switch that turns the module on. */
   public static final String ENABLED = StratumModuleConstants.enabledProperty(MODULE);
 
+  /** The module's log format, such as {@code ecs} or {@code text}. */
+  public static final String FORMAT = PREFIX + ".format";
+
+  /** The service's own regular expressions for values to mask. */
+  public static final String EXTRA_PATTERNS = PREFIX + ".redaction.extra-patterns";
+
   /** The service's name, written as {@code service.name} on every line. */
   public static final String APPLICATION_NAME = "spring.application.name";
 

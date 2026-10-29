@@ -77,7 +77,8 @@ public class LoggingEnvironmentPostProcessor implements EnvironmentPostProcessor
       logFactory
           .getLog(LoggingEnvironmentPostProcessor.class)
           .warn(
-              "stratum.logging.format=text writes plain text, which is not redacted."
+              LoggingConstants.FORMAT
+                  + "=text writes plain text, which is not redacted."
                   + " Use it only in the local or test profile.");
     }
   }

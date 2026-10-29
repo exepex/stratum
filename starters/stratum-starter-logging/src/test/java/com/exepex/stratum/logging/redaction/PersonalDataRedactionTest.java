@@ -7,11 +7,12 @@ import static com.exepex.stratum.logging.testsupport.LoggingTestData.PHONE;
 import static com.exepex.stratum.logging.testsupport.LoggingTestData.redactUnnamedText;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.FieldSource;
 
 @DisplayName("Personal data is masked")
 class PersonalDataRedactionTest {
@@ -20,31 +21,36 @@ class PersonalDataRedactionTest {
   @DisplayName("by field name")
   class ByFieldName {
 
+    /** Field names for personal data with no telltale shape, each masked in full. */
+    private static final List<String> PERSONAL_DATA_FIELD_NAMES =
+        List.of(
+            "first_name",
+            "lastName",
+            "middle_name",
+            "fullName",
+            "given_name",
+            "surname",
+            "username",
+            "display_name",
+            "dob",
+            "dateOfBirth",
+            "birth_date",
+            "address",
+            "street_address");
+
+    /** Field names for email addresses, phone numbers and IBANs, each keeping its last four. */
+    private static final List<String> PERSONAL_IDENTIFIER_FIELD_NAMES =
+        List.of("email", "phone", "mobile", "telephone", "fax", "cell", "msisdn", "iban");
+
     @ParameterizedTest(name = "{0}")
-    @ValueSource(
-        strings = {
-          "first_name",
-          "lastName",
-          "middle_name",
-          "fullName",
-          "given_name",
-          "surname",
-          "username",
-          "display_name",
-          "dob",
-          "dateOfBirth",
-          "birth_date",
-          "address",
-          "street_address"
-        })
+    @FieldSource("PERSONAL_DATA_FIELD_NAMES")
     @DisplayName("a name, birth date or address field is masked in full")
     void personalFieldIsMaskedInFull(String name) {
       assertThat(DEFAULT_REDACTOR.redact(name, "Jane")).isEqualTo(MaskedText.MASK);
     }
 
     @ParameterizedTest(name = "{0}")
-    @ValueSource(
-        strings = {"email", "phone", "mobile", "telephone", "fax", "cell", "msisdn", "iban"})
+    @FieldSource("PERSONAL_IDENTIFIER_FIELD_NAMES")
     @DisplayName("an email, phone or IBAN field keeps only its last four characters")
     void identifierFieldKeepsLastFour(String name) {
       assertThat(DEFAULT_REDACTOR.redact(name, "anything.com")).isEqualTo("****.com");

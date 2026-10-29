@@ -5,12 +5,13 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.core.error.StratumException;
 import jakarta.validation.ConstraintViolationException;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.context.properties.bind.BindException;
 import org.springframework.boot.logging.DeferredLogs;
@@ -75,6 +76,12 @@ class LoggingEnvironmentPostProcessorTest {
   @Nested
   @DisplayName("with the module on")
   class WithModuleOn {
+
+    /** Limits just below 1KB and just above 1MB, which stop startup. */
+    private static final List<String> MAX_FIELD_LENGTHS_OUT_OF_RANGE = List.of("1023B", "1025KB");
+
+    /** The smallest and largest allowed limits. */
+    private static final List<String> MAX_FIELD_LENGTHS_AT_THE_LIMITS = List.of("1KB", "1MB");
 
     @Test
     @DisplayName(
@@ -144,7 +151,7 @@ class LoggingEnvironmentPostProcessorTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"1023B", "1025KB"})
+    @FieldSource("MAX_FIELD_LENGTHS_OUT_OF_RANGE")
     @DisplayName("a max-field-length below 1KB or above 1MB stops startup with SX-CORE-1003")
     void maxFieldLengthOutOfRangeStopsStartup(String maxFieldLength) {
       var environment =
@@ -159,7 +166,7 @@ class LoggingEnvironmentPostProcessorTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"1KB", "1MB"})
+    @FieldSource("MAX_FIELD_LENGTHS_AT_THE_LIMITS")
     @DisplayName("a max-field-length of exactly 1KB or 1MB is allowed")
     void maxFieldLengthAtTheLimitsIsAllowed(String maxFieldLength) {
       var environment =
