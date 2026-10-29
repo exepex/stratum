@@ -12,7 +12,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.FieldSource;
 
-@DisplayName("TelemetryUrlFilter keeps tokens and passwords in URLs out of spans and metrics")
+@DisplayName("TelemetryUrlFilter keeps passwords and unbounded values out of spans and metrics")
 class TelemetryUrlFilterTest {
 
   /** What Spring records when a call has no URL or URI template. */
@@ -21,13 +21,13 @@ class TelemetryUrlFilterTest {
   /** URLs as Spring records them, each with the URL that must be kept. */
   private static final List<Arguments> URLS_AND_CLEANED_URLS =
       List.of(
-          Arguments.of("https://partner.com/rates?api_key=abc123", "https://partner.com/rates"),
+          Arguments.of(
+              "https://partner.com/rates?currency=EUR&page=2",
+              "https://partner.com/rates?currency=EUR&page=2"),
           Arguments.of("https://user:secret@partner.com/rates", "https://partner.com/rates"),
           Arguments.of(
-              "https://user:secret@partner.com:8443/rates?token=abc#top",
-              "https://partner.com:8443/rates"),
-          Arguments.of("https://partner.com?token=abc", "https://partner.com"),
-          Arguments.of("https://partner.com/rates?email=a@b.com", "https://partner.com/rates"),
+              "https://user:secret@partner.com:8443/rates?currency=EUR#top",
+              "https://partner.com:8443/rates?currency=EUR#top"),
           Arguments.of(
               "http://inventory_service:8080/items/42", "http://inventory_service:8080/items/42"),
           Arguments.of(NONE, NONE));
@@ -72,8 +72,8 @@ class TelemetryUrlFilterTest {
 
   @ParameterizedTest
   @FieldSource("URLS_AND_CLEANED_URLS")
-  @DisplayName("the query string, fragment and user info are removed; the rest is kept")
-  void removesQueryAndUserInfo(String url, String expected) {
+  @DisplayName("the span keeps the full URL, query string included, without its user info")
+  void removesUserInfo(String url, String expected) {
     assertThat(recordedUrl(url)).isEqualTo(expected);
   }
 
@@ -103,7 +103,7 @@ class TelemetryUrlFilterTest {
   @Test
   @DisplayName("a URL that cannot be parsed is replaced by a placeholder")
   void replacesUnparsableUrl() {
-    assertThat(recordedUrl("https://partner.com:port/rates?token=abc"))
+    assertThat(recordedUrl("https://partner.com:port/rates?currency=EUR"))
         .isEqualTo(TelemetryUrlFilter.UNPARSABLE_URL);
   }
 

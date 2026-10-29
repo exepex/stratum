@@ -19,10 +19,10 @@ import org.springframework.web.util.UriComponentsBuilder;
 public class ObservabilityAutoConfiguration {
 
   /**
-   * Removes query strings and user info from the URLs recorded on spans and metrics. Spring Boot
-   * applies every {@code ObservationFilter} bean to its observations and every {@code MeterFilter}
-   * bean to its meters. Without Spring's web classes the service makes no HTTP client spans or
-   * metrics, so the filter is not needed.
+   * Removes user info from span URLs and the query from the uri tag of spans and metrics. Spring
+   * Boot applies every {@code ObservationFilter} bean to its observations and every {@code
+   * MeterFilter} bean to its meters. Without Spring's web classes the service makes no HTTP client
+   * spans or metrics, so the filter is not needed.
    *
    * @return the filter
    */

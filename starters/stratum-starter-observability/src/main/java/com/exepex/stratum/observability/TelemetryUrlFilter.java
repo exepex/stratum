@@ -10,14 +10,16 @@ import java.util.regex.Pattern;
 import org.springframework.web.util.UriComponentsBuilder;
 
 /**
- * Removes the query string and user info from the URLs that Spring records for an outgoing HTTP
- * call, so that a token or password in a URL does not reach the trace or metrics backend. For
- * example, {@code https://user:secret@partner.com/rates?api_key=abc} is recorded as {@code
- * https://partner.com/rates} on the span, and its {@code uri} tag, on the span and on every metric,
- * as {@code /rates}. It is a {@link MeterFilter} as well as an {@link ObservationFilter}, because
- * Spring creates the {@code http.client.requests.active} metric when a call starts, before an
- * observation filter runs. It cannot clean the message of an exception: when a call fails, Spring's
- * message names the URL with its user info, and the span records that message.
+ * Keeps passwords and unbounded values out of the URLs that Spring records for an outgoing HTTP
+ * call. On the span's URL it removes only the user info, so {@code
+ * https://user:secret@partner.com/rates?currency=EUR} is recorded as {@code
+ * https://partner.com/rates?currency=EUR}; secrets belong in headers or the body, never in a URL.
+ * The {@code uri} tag, on the span and on every metric, loses its query, {@code /rates}, because
+ * each distinct value there would be a new time series. It is a {@link MeterFilter} as well as an
+ * {@link ObservationFilter}, because Spring creates the {@code http.client.requests.active} metric
+ * when a call starts, before an observation filter runs. It cannot clean the message of an
+ * exception: when a call fails, Spring's message names the URL with its user info, and the span
+ * records that message.
  */
 public class TelemetryUrlFilter implements ObservationFilter, MeterFilter {
 
@@ -28,8 +30,8 @@ public class TelemetryUrlFilter implements ObservationFilter, MeterFilter {
   private static final Pattern QUERY_OR_FRAGMENT = Pattern.compile("[?#]");
 
   /**
-   * Replaces the recorded URL and URI template, if the observation has them, with the same without
-   * their query string and user info.
+   * Removes the user info from the recorded URL and the query from the URI template, if the
+   * observation has them.
    *
    * @param context the observation's data, before it becomes a span and a metric
    * @return the same context
@@ -39,7 +41,7 @@ public class TelemetryUrlFilter implements ObservationFilter, MeterFilter {
     var url = context.getHighCardinalityKeyValue(ObservabilityConstants.HTTP_URL);
     if (url != null) {
       context.addHighCardinalityKeyValue(
-          KeyValue.of(ObservabilityConstants.HTTP_URL, withoutQueryAndUserInfo(url.getValue())));
+          KeyValue.of(ObservabilityConstants.HTTP_URL, withoutUserInfo(url.getValue())));
     }
     var uriTemplate = context.getLowCardinalityKeyValue(ObservabilityConstants.URI);
     if (uriTemplate != null) {
@@ -78,17 +80,12 @@ public class TelemetryUrlFilter implements ObservationFilter, MeterFilter {
   }
 
   /**
-   * Returns the URL without its user info, query string and fragment, or a placeholder if it cannot
-   * be parsed, so that a URL that could not be cleaned is never recorded.
+   * Returns the URL without its user info, or a placeholder if it cannot be parsed, so that a URL
+   * that could not be cleaned is never recorded.
    */
-  private String withoutQueryAndUserInfo(String url) {
+  private String withoutUserInfo(String url) {
     try {
-      return UriComponentsBuilder.fromUriString(url)
-          .userInfo(null)
-          .replaceQuery(null)
-          .fragment(null)
-          .build()
-          .toUriString();
+      return UriComponentsBuilder.fromUriString(url).userInfo(null).build().toUriString();
     } catch (IllegalArgumentException unparsableUrl) {
       return UNPARSABLE_URL;
     }

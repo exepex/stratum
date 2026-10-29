@@ -28,8 +28,8 @@ class ObservabilityStarterIntegrationTest {
   /** The path the test application calls, as if it were a partner's service. */
   private static final String PARTNER_PATH = "/rates";
 
-  /** A token in the partner's URL, which must not reach spans or metrics. */
-  private static final String API_KEY = "LEAK-api-key-3f9";
+  /** A query string, which the span keeps and the metrics leave out. */
+  private static final String QUERY = "?currency=EUR-7f3";
 
   /** A password in the partner's URL, which must not reach spans or metrics. */
   private static final String PASSWORD = "LEAK-password-7c2";
@@ -68,12 +68,10 @@ class ObservabilityStarterIntegrationTest {
     return Stream.concat(collectorArgs.stream(), List.of(args).stream()).toArray(String[]::new);
   }
 
-  /** Calls the partner with a password and a token in the URL, through Spring's RestClient. */
+  /** Calls the partner with a password and a query in the URL, through Spring's RestClient. */
   private void callPartner(ConfigurableApplicationContext context) {
     var partnerUrl =
-        collector
-            .url(PARTNER_PATH + "?api_key=" + API_KEY)
-            .replace("://", "://user:" + PASSWORD + "@");
+        collector.url(PARTNER_PATH + QUERY).replace("://", "://user:" + PASSWORD + "@");
     RestClient.builder()
         .observationRegistry(context.getBean(ObservationRegistry.class))
         .build()
@@ -84,7 +82,7 @@ class ObservabilityStarterIntegrationTest {
   }
 
   @Test
-  @DisplayName("sends its last metrics and spans when it stops, with the URL cleaned and tags set")
+  @DisplayName("sends its last metrics and spans when it stops, with URLs cleaned and tags set")
   void sendsDataOnExit() {
     try (var context =
         start(
@@ -99,8 +97,7 @@ class ObservabilityStarterIntegrationTest {
         .anySatisfy(
             spans ->
                 assertThat(spans)
-                    .contains(collector.url(PARTNER_PATH))
-                    .doesNotContain(API_KEY)
+                    .contains(collector.url(PARTNER_PATH + QUERY))
                     .doesNotContain(PASSWORD)
                     .contains("deployment.environment.name"));
     assertThat(collector.bodiesOf(CollectorStub.METRICS_PATH))
@@ -109,7 +106,7 @@ class ObservabilityStarterIntegrationTest {
                 assertThat(metrics)
                     .contains("http.client.requests")
                     .contains(PARTNER_PATH)
-                    .doesNotContain(API_KEY)
+                    .doesNotContain(QUERY)
                     .doesNotContain(PASSWORD)
                     .contains("application")
                     .contains("orders")

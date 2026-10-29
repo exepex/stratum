@@ -98,7 +98,7 @@ starter therefore never sends anything, not even to Spring Boot's default addres
 | Tags on every metric | `application` from `spring.application.name`, `environment` from [`stratum.environment`](../../docs/configuration/reference.md#shared-properties), and `host` from the `HOSTNAME` environment variable, which in Kubernetes is the pod's name. Each is left out when its value is not set |
 | Traces | OpenTelemetry traces. W3C `traceparent` is read from incoming requests and sent on calls made with Spring's HTTP clients. Spring Boot keeps 10% of new traces, and always follows the caller's decision, so a trace is never half kept |
 | Trace resource | `service.name` from `spring.application.name` (set by Spring Boot), and `deployment.environment.name` from `stratum.environment` |
-| No secrets in URLs | The query string, fragment and user info are removed from the URLs recorded on HTTP client spans and metrics ([below](#urls-on-spans-and-metrics)) |
+| URLs on spans | The full URL of each HTTP client call, query string included, is kept on its span; only the user info is removed. Metrics never carry the query ([below](#urls-on-spans-and-metrics)) |
 | Health | `/actuator/health`, with Spring Boot's Kubernetes `liveness` and `readiness` groups |
 | Safe exposure | Only `health` and `info` are reachable over HTTP |
 | Startup check | Outside the `local` and `test` profiles, startup stops if an export address is missing ([below](#startup-check)) |
@@ -114,24 +114,30 @@ service's environment to get the tag.
 
 ### URLs on spans and metrics
 
-Spring records the full URL of every outgoing HTTP call on its span, and the URI template, with
-its query string, in the `uri` tag of the span and of the `http.client.requests` metrics. Trace and
-metrics backends do not mask anything. Stratum removes the parts that can hold a secret:
+Spring records the full URL of every outgoing HTTP call on its span, and the URI template in the
+`uri` tag of the span and of the `http.client.requests` metrics. Stratum keeps the query string on
+the span, so you can see which values were sent, and changes two things:
 
 | Recorded by Spring | Kept on the span | Kept in the `uri` tag |
 | --- | --- | --- |
-| `https://partner.com/rates?api_key=abc123` | `https://partner.com/rates` | `/rates` |
-| `https://user:secret@partner.com:8443/rates#top` | `https://partner.com:8443/rates` | `/rates` |
+| `https://partner.com/rates?currency=EUR&page=2` | `https://partner.com/rates?currency=EUR&page=2` | `/rates` |
+| `https://user:secret@partner.com:8443/rates` | `https://partner.com:8443/rates` | `/rates` |
+
+- **User info is removed** from the span's URL, because it is a password.
+- **The `uri` tag loses its query**, on spans and metrics, because each distinct value would create
+  a new time series and can overload the metrics backend.
 
 A URL that cannot be parsed is recorded as `[UNPARSABLE_URL]`. This cannot be switched off. It
 applies when Spring's web classes are on the classpath, which is the only way Spring makes HTTP
 client spans and metrics.
 
 > [!WARNING]
-> When a call fails, Spring's error message names the URL with its user info, such as
+> Never put a secret or personal data, such as a token, an IBAN or a card number, in a URL's path
+> or query string. Trace backends store the URL as it is, and so do proxies and access logs on the
+> way. Send such values in a header or the request body. When a call fails, Spring's error message
+> also names the URL with its user info, such as
 > `I/O error on GET request for "https://user:secret@partner.com/rates"`, and the span records that
-> message. Stratum cannot change an exception's message, so never put a password in a URL: send it
-> in a header instead.
+> message.
 
 ### Startup check
 
