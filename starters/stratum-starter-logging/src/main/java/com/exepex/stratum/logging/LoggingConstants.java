@@ -42,6 +42,14 @@ public class LoggingConstants {
   /** Whether Spring Boot writes the root cause of a stack trace first or last. */
   public static final String STACK_TRACE_ROOT = "logging.structured.json.stacktrace.root";
 
+  /**
+   * Spring Boot's value of {@link #STACK_TRACE_ROOT} that starts a stack trace with its root cause.
+   */
+  public static final String ROOT_CAUSE_FIRST = "first";
+
+  /** Spring Boot's value of {@link #STACK_TRACE_ROOT} that starts with the outermost exception. */
+  public static final String OUTERMOST_EXCEPTION_FIRST = "last";
+
   /** The log field, and metric tag, with the name of the workflow a line belongs to. */
   public static final String WORKFLOW = "workflow";
 

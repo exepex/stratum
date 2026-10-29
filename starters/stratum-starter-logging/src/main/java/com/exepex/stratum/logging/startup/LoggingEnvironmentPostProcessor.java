@@ -99,12 +99,14 @@ public class LoggingEnvironmentPostProcessor implements EnvironmentPostProcessor
     if (StringUtils.hasText(serviceEnvironment)) {
       defaultProperties.put(LoggingConstants.ECS_ENVIRONMENT, serviceEnvironment);
     }
-    // Root cause first, so that a stack trace cut at the limit still shows why it failed.
     defaultProperties.put(
         LoggingConstants.STACK_TRACE_MAX_LENGTH, loggingProperties.maxFieldLength().toBytes());
-    defaultProperties.put(LoggingConstants.STACK_TRACE_ROOT, "first");
-    // So that @Async methods and work on Spring's executors keep the workflow and trace fields.
-    defaultProperties.put(StratumModuleConstants.PROPAGATE_TASK_CONTEXT, true);
+    defaultProperties.put(
+        LoggingConstants.STACK_TRACE_ROOT,
+        loggingProperties.stackTraceStartsWithRootCause()
+            ? LoggingConstants.ROOT_CAUSE_FIRST
+            : LoggingConstants.OUTERMOST_EXCEPTION_FIRST);
+    defaultProperties.putAll(StratumDefaults.asyncThreadContextPropagation(environment));
     return defaultProperties;
   }
 

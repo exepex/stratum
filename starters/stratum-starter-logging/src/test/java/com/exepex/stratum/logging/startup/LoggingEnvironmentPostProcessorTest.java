@@ -3,6 +3,7 @@ package com.exepex.stratum.logging.startup;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
+import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.logging.LoggingConstants;
 import jakarta.validation.ConstraintViolationException;
@@ -30,6 +31,12 @@ class LoggingEnvironmentPostProcessorTest {
   private static final String FORMAT = LoggingConstants.PREFIX + ".format";
 
   private static final String GELF = "gelf";
+
+  private static final String OFF = "false";
+
+  /** The published key, spelled out so a misspelt key in the module fails the test. */
+  private static final String PROPAGATE_CONTEXT_TO_ASYNC_THREADS =
+      "stratum.propagate-context-to-async-threads";
 
   private static final String NOT_REDACTED = "plain text, which is not redacted";
 
@@ -61,8 +68,7 @@ class LoggingEnvironmentPostProcessorTest {
     @DisplayName("it adds nothing and does not ask for a service name")
     void addsNothing() {
       var unset = runPostProcessor(new MockEnvironment());
-      var off =
-          runPostProcessor(new MockEnvironment().withProperty(LoggingConstants.ENABLED, "false"));
+      var off = runPostProcessor(new MockEnvironment().withProperty(LoggingConstants.ENABLED, OFF));
 
       assertThat(unset.getProperty(LoggingConstants.CONSOLE_FORMAT)).isNull();
       assertThat(off.getPropertySources().contains(DefaultPropertiesPropertySource.NAME)).isFalse();
@@ -109,6 +115,32 @@ class LoggingEnvironmentPostProcessorTest {
           runPostProcessor(environmentWithModuleOn().withProperty("stratum.environment", "prod"));
 
       assertThat(environment.getProperty(LoggingConstants.ECS_ENVIRONMENT)).isEqualTo("prod");
+    }
+
+    @Test
+    @DisplayName("Spring's executors carry the context unless the service turns it off")
+    void propagatesContext() {
+      var defaultEnvironment = runPostProcessor(environmentWithModuleOn());
+      var noPropagation =
+          runPostProcessor(
+              environmentWithModuleOn().withProperty(PROPAGATE_CONTEXT_TO_ASYNC_THREADS, OFF));
+
+      assertThat(defaultEnvironment.getProperty(StratumModuleConstants.PROPAGATE_TASK_CONTEXT))
+          .isEqualTo("true");
+      assertThat(noPropagation.getProperty(StratumModuleConstants.PROPAGATE_TASK_CONTEXT))
+          .isEqualTo(OFF);
+    }
+
+    @Test
+    @DisplayName("a stack trace can start with the exception the code caught")
+    void outermostExceptionFirst() {
+      var environment =
+          runPostProcessor(
+              environmentWithModuleOn()
+                  .withProperty(
+                      LoggingConstants.PREFIX + ".stack-trace-starts-with-root-cause", OFF));
+
+      assertThat(environment.getProperty(LoggingConstants.STACK_TRACE_ROOT)).isEqualTo("last");
     }
 
     @Test

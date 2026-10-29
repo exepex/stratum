@@ -220,7 +220,7 @@ customer's request at 3 a.m.
 
 ## IDE completion
 
-Each Stratum starter, and `stratum-core` for the shared `stratum.environment`, ships Spring Boot
+Each Stratum starter, and `stratum-core` for the shared properties, ships Spring Boot
 configuration metadata in its jar, as `META-INF/spring-configuration-metadata.json`. Every
 `stratum.*` key is in it, the module switches included. IntelliJ IDEA (Ultimate, or with the
 Spring plugin), VS Code (with the Spring Boot Tools extension) and Eclipse (Spring Tools) read it
@@ -230,6 +230,11 @@ and then:
 - show each property's description, type and default, and the allowed values where there is a
   fixed set, such as `stratum.logging.format`,
 - warn about unknown or deprecated keys.
+
+Most Spring Boot defaults that Stratum changes come from a Stratum key, such as
+`stratum.observability.actuator-endpoints-exposed-over-http` for `management.endpoints.web.exposure.include`, so the
+IDE shows Stratum's default and what it sets; each module page lists them. The Spring Boot key
+still wins if you set it.
 
 Each jar carries its own file, so with several starters on the classpath, a bundle included, the
 IDE shows the keys of all of them. NetBeans needs a Spring Boot plugin that reads the same

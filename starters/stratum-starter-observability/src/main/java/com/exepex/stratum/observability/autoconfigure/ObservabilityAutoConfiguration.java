@@ -3,28 +3,25 @@ package com.exepex.stratum.observability.autoconfigure;
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.properties.StratumCustomizers;
-import com.exepex.stratum.core.properties.StratumPropertiesResolver;
 import com.exepex.stratum.observability.CorrelationIdRecorder;
 import com.exepex.stratum.observability.MetricTagGuard;
 import com.exepex.stratum.observability.ObservabilityConstants;
 import com.exepex.stratum.observability.ObservabilityProperties;
 import com.exepex.stratum.observability.ObservabilityPropertiesCustomizer;
 import com.exepex.stratum.observability.TelemetryUrlFilter;
-import jakarta.validation.Validator;
 import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureOrder;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Fallback;
+import org.springframework.core.env.Environment;
 
 /** Creates the observability module's beans, when {@code stratum.observability.enabled=true}. */
 @AutoConfiguration
 @AutoConfigureOrder(StratumModuleConstants.AUTO_CONFIGURATION_ORDER)
 @ConditionalOnStratumModule(ObservabilityConstants.MODULE)
-@EnableConfigurationProperties(ObservabilityProperties.class)
 public final class ObservabilityAutoConfiguration {
 
   /**
@@ -55,24 +52,18 @@ public final class ObservabilityAutoConfiguration {
 
   /**
    * Drops metrics tagged with an ID. Spring Boot applies every {@code MeterFilter} bean to its
-   * meters. The tag names come from properties, changed by the service's {@link
-   * ObservabilityPropertiesCustomizer} classes in {@code META-INF/spring.factories}, which win.
+   * meters. The tag names come from {@link ObservabilityProperties#resolve}, so the service's
+   * {@link ObservabilityPropertiesCustomizer} classes win.
    *
-   * @param boundProperties the settings bound from {@code stratum.observability.*}
-   * @param validator checks the settings once Java configuration has run
+   * @param environment the application's environment
    * @return the guard
    */
   @Bean
   @Fallback
   @ConditionalOnMissingBean
-  public MetricTagGuard metricTagGuard(
-      ObservabilityProperties boundProperties, Validator validator) {
-    var properties =
-        new StratumPropertiesResolver(validator)
-            .resolve(
-                boundProperties,
-                StratumCustomizers.load(ObservabilityPropertiesCustomizer.class).stream());
-    return new MetricTagGuard(properties.tags().extraForbidden(), properties.tags().allowed());
+  public MetricTagGuard metricTagGuard(Environment environment) {
+    var tags = ObservabilityProperties.resolve(environment).tags();
+    return new MetricTagGuard(tags.extraForbidden(), tags.allowed());
   }
 
   /**

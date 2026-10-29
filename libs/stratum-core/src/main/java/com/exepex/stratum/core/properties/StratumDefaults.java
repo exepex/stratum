@@ -1,5 +1,6 @@
 package com.exepex.stratum.core.properties;
 
+import com.exepex.stratum.core.condition.StratumModuleConstants;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
@@ -9,6 +10,7 @@ import org.springframework.boot.context.properties.source.ConfigurationPropertyS
 import org.springframework.boot.context.properties.source.ConfigurationPropertyState;
 import org.springframework.boot.env.DefaultPropertiesPropertySource;
 import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.core.env.Environment;
 
 /**
  * Adds a module's defaults for Spring Boot properties so that every value the service sets wins,
@@ -38,6 +40,21 @@ public class StratumDefaults {
             .filter(defaultEntry -> !isSet(serviceDefaults, defaultEntry.getKey()))
             .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     DefaultPropertiesPropertySource.addOrMerge(unsetDefaults, propertySources);
+  }
+
+  /**
+   * Returns Spring Boot's switch that makes its executors carry the logging and tracing context, so
+   * that {@code @Async} methods and work on Spring's executors keep the trace and workflow fields,
+   * set from {@code stratum.propagate-context-to-async-threads}, which defaults to {@code true}.
+   *
+   * @param environment the application's environment
+   * @return the switch and its value
+   */
+  public static Map<String, Object> asyncThreadContextPropagation(Environment environment) {
+    return Map.of(
+        StratumModuleConstants.PROPAGATE_TASK_CONTEXT,
+        environment.getProperty(
+            StratumModuleConstants.PROPAGATE_CONTEXT_TO_ASYNC_THREADS, Boolean.class, true));
   }
 
   /** Returns whether the service's default properties hold the key or any element of it. */
