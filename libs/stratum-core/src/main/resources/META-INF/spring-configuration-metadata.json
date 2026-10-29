@@ -1,0 +1,15 @@
+{
+  "groups": [
+    {
+      "name": "stratum",
+      "description": "Settings that several Stratum modules share."
+    }
+  ],
+  "properties": [
+    {
+      "name": "stratum.environment",
+      "type": "java.lang.String",
+      "description": "The environment the service runs in, such as prod. The logging module writes it as service.environment and the observability module tags every metric and span with it."
+    }
+  ]
+}

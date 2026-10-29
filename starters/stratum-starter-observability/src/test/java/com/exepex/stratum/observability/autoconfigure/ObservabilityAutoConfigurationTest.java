@@ -2,17 +2,25 @@ package com.exepex.stratum.observability.autoconfigure;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.exepex.stratum.core.error.CoreErrorCode;
+import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.core.properties.StratumPropertiesCustomizer;
 import com.exepex.stratum.observability.CorrelationIdRecorder;
 import com.exepex.stratum.observability.MetricTagGuard;
 import com.exepex.stratum.observability.ObservabilityConstants;
 import com.exepex.stratum.observability.ObservabilityProperties;
 import com.exepex.stratum.observability.TelemetryUrlFilter;
+import com.exepex.stratum.observability.testsupport.JavaConfigurationTestData;
 import com.exepex.stratum.observability.testsupport.MetricTestData;
+import com.exepex.stratum.observability.testsupport.RegionTagObservabilitySettings;
 import io.micrometer.core.instrument.config.MeterFilterReply;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.FilteredClassLoader;
@@ -40,7 +48,7 @@ class ObservabilityAutoConfigurationTest {
   private static final String TENANT_TAG = "tenantId";
 
   /** The tag name the service sets in Java. */
-  private static final String REGION_TAG = "regionId";
+  private static final String REGION_TAG = RegionTagObservabilitySettings.REGION_TAG;
 
   private final ApplicationContextRunner contextRunner =
       new ApplicationContextRunner()
@@ -140,16 +148,48 @@ class ObservabilityAutoConfigurationTest {
   }
 
   @Test
-  @DisplayName("tag names set in Java win over the ones in properties")
-  void javaNamesWin() {
+  @DisplayName("tag names set in a customizer listed in spring.factories win over properties")
+  void javaNamesWin(@TempDir Path folder) throws IOException {
+    var replies =
+        JavaConfigurationTestData.withCustomizers(
+            folder, List.of(RegionTagObservabilitySettings.class), this::regionAndTenantReplies);
+
+    assertThat(replies).containsExactly(MeterFilterReply.DENY, MeterFilterReply.NEUTRAL);
+  }
+
+  /**
+   * Starts with {@code tenantId} refused in properties and returns what the guard answers for
+   * {@code regionId} and then {@code tenantId}.
+   */
+  private List<MeterFilterReply> regionAndTenantReplies() {
+    var replies = new ArrayList<MeterFilterReply>();
     contextRunner
         .withPropertyValues(MODULE_ON, EXTRA_FORBIDDEN + "=" + TENANT_TAG)
-        .withUserConfiguration(JavaTagNamesConfiguration.class)
         .run(
-            context -> {
-              assertThat(guardReplyForTag(context, REGION_TAG)).isEqualTo(MeterFilterReply.DENY);
-              assertThat(guardReplyForTag(context, TENANT_TAG)).isEqualTo(MeterFilterReply.NEUTRAL);
-            });
+            context ->
+                replies.addAll(
+                    List.of(
+                        guardReplyForTag(context, REGION_TAG),
+                        guardReplyForTag(context, TENANT_TAG))));
+    return replies;
+  }
+
+  @Test
+  @DisplayName("a customizer declared as a bean stops startup with SX-CORE-1004")
+  void customizerBeanStopsStartup() {
+    contextRunner
+        .withPropertyValues(MODULE_ON)
+        .withUserConfiguration(CustomizerAsBeanConfiguration.class)
+        .run(
+            context ->
+                assertThat(context)
+                    .getFailure()
+                    .rootCause()
+                    .isInstanceOf(StratumException.class)
+                    .hasMessage(
+                        "SX-CORE-1004: "
+                            + CoreErrorCode.CUSTOMIZER_DECLARED_AS_BEAN.getDescription()
+                            + ": ObservabilityProperties customizer beans regionTagCustomizer"));
   }
 
   @Test
@@ -254,21 +294,18 @@ class ObservabilityAutoConfigurationTest {
     }
   }
 
-  /** A service's Java configuration of the tag names. */
+  /** A service that declares its customizer as a bean, which Stratum ignores. */
   @Configuration(proxyBeanMethods = false)
-  static class JavaTagNamesConfiguration {
+  static class CustomizerAsBeanConfiguration {
 
     /**
-     * Replaces the extra tag names with {@code regionId}.
+     * Returns a customizer that would refuse {@code regionId}.
      *
      * @return the customizer
      */
     @Bean
     StratumPropertiesCustomizer<ObservabilityProperties> regionTagCustomizer() {
-      return properties ->
-          properties.toBuilder()
-              .tags(properties.tags().toBuilder().extraForbidden(List.of(REGION_TAG)).build())
-              .build();
+      return new RegionTagObservabilitySettings();
     }
   }
 }

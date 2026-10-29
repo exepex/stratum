@@ -2,7 +2,11 @@ package com.exepex.stratum.logging.autoconfigure;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.exepex.stratum.core.error.CoreErrorCode;
+import com.exepex.stratum.core.error.StratumException;
+import com.exepex.stratum.core.properties.StratumPropertiesCustomizer;
 import com.exepex.stratum.logging.LoggingConstants;
+import com.exepex.stratum.logging.LoggingProperties;
 import com.exepex.stratum.logging.workflow.ReactiveWorkflows;
 import com.exepex.stratum.logging.workflow.WorkflowAspect;
 import com.exepex.stratum.logging.workflow.Workflows;
@@ -78,6 +82,24 @@ class LoggingAutoConfigurationTest {
                 assertThat(context)
                     .doesNotHaveBean(ReactiveWorkflows.class)
                     .hasSingleBean(WorkflowAspect.class));
+  }
+
+  @Test
+  @DisplayName("a logging customizer declared as a bean stops startup with SX-CORE-1004")
+  void customizerBeanStopsStartup() {
+    contextRunner
+        .withPropertyValues(MODULE_ON)
+        .withUserConfiguration(CustomizerAsBeanConfiguration.class)
+        .run(
+            context ->
+                assertThat(context)
+                    .getFailure()
+                    .rootCause()
+                    .isInstanceOf(StratumException.class)
+                    .hasMessage(
+                        "SX-CORE-1004: "
+                            + CoreErrorCode.CUSTOMIZER_DECLARED_AS_BEAN.getDescription()
+                            + ": LoggingProperties customizer beans loggingCustomizer"));
   }
 
   @Test
@@ -227,6 +249,21 @@ class LoggingAutoConfigurationTest {
     @Bean
     ReactiveWorkflows companyReactiveWorkflows() {
       return REACTIVE_WORKFLOWS;
+    }
+  }
+
+  /** A service that declares its logging customizer as a bean, which comes too late. */
+  @Configuration(proxyBeanMethods = false)
+  static class CustomizerAsBeanConfiguration {
+
+    /**
+     * Returns a customizer that would switch to GELF.
+     *
+     * @return the customizer
+     */
+    @Bean
+    StratumPropertiesCustomizer<LoggingProperties> loggingCustomizer() {
+      return properties -> properties.toBuilder().format(LoggingProperties.LogFormat.GELF).build();
     }
   }
 }

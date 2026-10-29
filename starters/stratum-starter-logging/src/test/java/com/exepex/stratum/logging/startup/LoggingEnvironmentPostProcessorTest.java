@@ -7,6 +7,7 @@ import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.logging.LoggingConstants;
 import jakarta.validation.ConstraintViolationException;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -15,9 +16,11 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.context.properties.bind.BindException;
+import org.springframework.boot.env.DefaultPropertiesPropertySource;
 import org.springframework.boot.logging.DeferredLogs;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.core.env.MapPropertySource;
 import org.springframework.mock.env.MockEnvironment;
 
 @DisplayName("LoggingEnvironmentPostProcessor sets up logging before the application starts")
@@ -25,6 +28,8 @@ import org.springframework.mock.env.MockEnvironment;
 class LoggingEnvironmentPostProcessorTest {
 
   private static final String FORMAT = LoggingConstants.PREFIX + ".format";
+
+  private static final String GELF = "gelf";
 
   private static final String NOT_REDACTED = "plain text, which is not redacted";
 
@@ -60,8 +65,7 @@ class LoggingEnvironmentPostProcessorTest {
           runPostProcessor(new MockEnvironment().withProperty(LoggingConstants.ENABLED, "false"));
 
       assertThat(unset.getProperty(LoggingConstants.CONSOLE_FORMAT)).isNull();
-      assertThat(off.getPropertySources().contains(LoggingEnvironmentPostProcessor.DEFAULTS_SOURCE))
-          .isFalse();
+      assertThat(off.getPropertySources().contains(DefaultPropertiesPropertySource.NAME)).isFalse();
     }
 
     @Test
@@ -122,9 +126,28 @@ class LoggingEnvironmentPostProcessorTest {
     void serviceValuesWin() {
       var environment =
           runPostProcessor(
-              environmentWithModuleOn().withProperty(LoggingConstants.CONSOLE_FORMAT, "gelf"));
+              environmentWithModuleOn().withProperty(LoggingConstants.CONSOLE_FORMAT, GELF));
 
-      assertThat(environment.getProperty(LoggingConstants.CONSOLE_FORMAT)).isEqualTo("gelf");
+      assertThat(environment.getProperty(LoggingConstants.CONSOLE_FORMAT)).isEqualTo(GELF);
+    }
+
+    @Test
+    @DisplayName("a Spring Boot logging property the service sets in Java wins over Stratum's")
+    void serviceJavaDefaultWins() {
+      var environment = environmentWithModuleOn();
+      environment
+          .getPropertySources()
+          .addLast(
+              new MapPropertySource(
+                  DefaultPropertiesPropertySource.NAME,
+                  Map.of(LoggingConstants.CONSOLE_FORMAT, GELF)));
+
+      runPostProcessor(environment);
+      // Spring Boot moves the default properties last once every post-processor has run.
+      DefaultPropertiesPropertySource.moveToEnd(environment);
+
+      assertThat(environment.getProperty(LoggingConstants.CONSOLE_FORMAT)).isEqualTo(GELF);
+      assertThat(environment.getProperty(LoggingConstants.FILE_FORMAT)).isEqualTo("ecs");
     }
 
     @Test
@@ -175,10 +198,7 @@ class LoggingEnvironmentPostProcessorTest {
               environmentWithModuleOn()
                   .withProperty(LoggingConstants.PREFIX + ".max-field-length", maxFieldLength));
 
-      assertThat(
-              environment
-                  .getPropertySources()
-                  .contains(LoggingEnvironmentPostProcessor.DEFAULTS_SOURCE))
+      assertThat(environment.getPropertySources().contains(DefaultPropertiesPropertySource.NAME))
           .isTrue();
     }
   }

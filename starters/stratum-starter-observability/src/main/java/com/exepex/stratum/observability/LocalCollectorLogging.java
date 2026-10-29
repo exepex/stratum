@@ -1,6 +1,7 @@
 package com.exepex.stratum.observability;
 
 import com.exepex.stratum.core.condition.StratumModuleSwitch;
+import com.exepex.stratum.core.properties.StratumDefaults;
 import java.net.InetAddress;
 import java.net.URI;
 import java.util.Map;
@@ -9,7 +10,6 @@ import org.springframework.boot.context.event.ApplicationEnvironmentPreparedEven
 import org.springframework.boot.support.EnvironmentPostProcessorApplicationListener;
 import org.springframework.context.ApplicationListener;
 import org.springframework.core.Ordered;
-import org.springframework.core.env.MapPropertySource;
 
 /**
  * Drops metrics quietly when the module is on and their address is on this machine, such as {@code
@@ -19,9 +19,6 @@ import org.springframework.core.env.MapPropertySource;
  */
 public class LocalCollectorLogging
     implements ApplicationListener<ApplicationEnvironmentPreparedEvent>, Ordered {
-
-  /** The name of the property source that holds the quiet log level. */
-  static final String QUIET_LOGGING_SOURCE = "stratumObservabilityQuietLogging";
 
   /** The log level that hides Micrometer's warning when it cannot push metrics. */
   static final String METRICS_EXPORT_LOG_LEVEL =
@@ -52,10 +49,7 @@ public class LocalCollectorLogging
     var environment = event.getEnvironment();
     if (StratumModuleSwitch.isEnabled(environment, ObservabilityConstants.MODULE)
         && isLocal(environment.getProperty(ObservabilityConstants.METRICS_EXPORT_URL))) {
-      environment
-          .getPropertySources()
-          .addLast(
-              new MapPropertySource(QUIET_LOGGING_SOURCE, Map.of(METRICS_EXPORT_LOG_LEVEL, "off")));
+      StratumDefaults.addBelowServiceValues(environment, Map.of(METRICS_EXPORT_LOG_LEVEL, "off"));
     }
   }
 

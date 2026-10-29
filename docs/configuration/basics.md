@@ -218,14 +218,21 @@ customer's request at 3 a.m.
 
 ## IDE completion
 
-Each Stratum starter ships Spring Boot configuration metadata. IntelliJ IDEA (Ultimate, or with the
-Spring plugin), VS Code (with the Spring Boot Tools extension) and Eclipse (Spring Tools) then:
+Each Stratum starter, and `stratum-core` for the shared `stratum.environment`, ships Spring Boot
+configuration metadata in its jar, as `META-INF/spring-configuration-metadata.json`. Every
+`stratum.*` key is in it, the module switches included. IntelliJ IDEA (Ultimate, or with the
+Spring plugin), VS Code (with the Spring Boot Tools extension) and Eclipse (Spring Tools) read it
+and then:
 
 - complete `stratum.*` keys as you type, in both `.yml` and `.properties`,
-- show each property's description, type and default,
+- show each property's description, type and default, and the allowed values where there is a
+  fixed set, such as `stratum.logging.format`,
 - warn about unknown or deprecated keys.
 
-If completion does not appear, re-import the Maven project so the IDE sees the starter jars.
+Each jar carries its own file, so with several starters on the classpath, a bundle included, the
+IDE shows the keys of all of them. NetBeans has no Spring Boot support of its own; a Spring Boot
+plugin that reads the same metadata gives it the same completion. If completion does not appear,
+re-import the Maven project so the IDE sees the starter jars.
 
 ## Stratum properties and Spring Boot properties
 

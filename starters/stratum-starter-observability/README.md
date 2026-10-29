@@ -300,7 +300,8 @@ shared environment is noticed.
 The shared [`stratum.environment`](../../docs/configuration/reference.md#shared-properties) sets the
 `environment` tag and the `deployment.environment.name` resource attribute.
 
-Spring Boot properties this starter sets by default (your values win):
+Spring Boot properties this starter sets by default. A value you set wins, from any file, the
+environment, the command line or Java default properties:
 
 | Spring Boot property | Stratum default |
 | --- | --- |
@@ -397,25 +398,41 @@ management:
 
 ## Configure in Java
 
-The tag guard's names can also be set in Java, with a `StratumPropertiesCustomizer` bean. When a
-name list is set in both places, the Java one wins:
+The tag guard's names can also be set in Java, with a class that receives the settings from your
+files, with the defaults for anything unset. When a name list is set in both places, the Java one
+wins:
 
 ```java
-@Bean
-StratumPropertiesCustomizer<ObservabilityProperties> forbiddenTags() {
-  return properties ->
-      properties.toBuilder()
-          .tags(
-              properties.tags().toBuilder()
-                  .extraForbidden(List.of("tenantId", "deviceId"))
-                  .allowed(List.of("customerId"))
-                  .build())
-          .build();
+package com.acme.orders.config;
+
+public class OrdersObservabilitySettings implements ObservabilityPropertiesCustomizer {
+
+  @Override
+  public ObservabilityProperties customize(ObservabilityProperties properties) {
+    return properties.toBuilder()
+        .tags(
+            properties.tags().toBuilder()
+                .extraForbidden(List.of("tenantId", "deviceId"))
+                .allowed(List.of("customerId"))
+                .build())
+        .build();
+  }
 }
 ```
 
-The switch and the Spring Boot defaults above are read at startup, before any bean exists, so they
-can only be set in properties, YAML, environment variables or command-line arguments.
+List the class in `src/main/resources/META-INF/spring.factories`, the same way as for
+[logging](../stratum-starter-logging/README.md#configure-in-java):
+
+```properties
+com.exepex.stratum.observability.ObservabilityPropertiesCustomizer=com.acme.orders.config.OrdersObservabilitySettings
+```
+
+It needs a public no-argument constructor. Declared as a `@Bean` instead, it stops startup with
+`SX-CORE-1004`.
+
+The switch and the Spring Boot properties above are read at startup, before any bean exists. To set
+them in Java, use the application's
+[default properties](../../docs/configuration/overriding-defaults.md#switches-shared-properties-and-spring-boot-properties-in-java).
 
 ## Customize
 
@@ -428,6 +445,8 @@ can only be set in properties, YAML, environment variables or command-line argum
 - **Your own tag rule:** declare a `MetricTagGuard` bean; Stratum's then backs off.
 - **Your own correlation ID handling:** declare a `CorrelationIdRecorder` bean; Stratum's then
   backs off.
+- **Not replaceable:** the Spring Boot defaults, the export address check and the quiet local
+  logging run before any bean exists, so only `stratum.observability.enabled` turns them off.
 - **Custom health check:** implement `HealthIndicator`; add it to the readiness group with
   `management.endpoint.health.group.readiness.include`.
 

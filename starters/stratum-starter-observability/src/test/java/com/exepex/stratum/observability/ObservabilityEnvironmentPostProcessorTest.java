@@ -4,10 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.SpringApplication;
+import org.springframework.boot.env.DefaultPropertiesPropertySource;
+import org.springframework.core.env.MapPropertySource;
 import org.springframework.mock.env.MockEnvironment;
 
 @DisplayName("ObservabilityEnvironmentPostProcessor sets Spring Boot's defaults before startup")
@@ -35,6 +38,8 @@ class ObservabilityEnvironmentPostProcessorTest {
           "spring.rabbitmq.listener.simple.observation-enabled",
           "spring.rabbitmq.listener.direct.observation-enabled",
           "spring.rabbitmq.listener.stream.observation-enabled");
+
+  private static final String SERVICE_EXPOSURE = "health,loggers";
 
   private static final String ON = "true";
 
@@ -164,10 +169,30 @@ class ObservabilityEnvironmentPostProcessorTest {
       var environment =
           runPostProcessor(
               environmentWithModuleOn()
-                  .withProperty(ObservabilityConstants.WEB_EXPOSURE, "health,loggers"));
+                  .withProperty(ObservabilityConstants.WEB_EXPOSURE, SERVICE_EXPOSURE));
 
       assertThat(environment.getProperty(ObservabilityConstants.WEB_EXPOSURE))
-          .isEqualTo("health,loggers");
+          .isEqualTo(SERVICE_EXPOSURE);
+    }
+
+    @Test
+    @DisplayName("an exposure the service sets in Java wins over Stratum's")
+    void serviceJavaExposureWins() {
+      var environment = environmentWithModuleOn();
+      environment
+          .getPropertySources()
+          .addLast(
+              new MapPropertySource(
+                  DefaultPropertiesPropertySource.NAME,
+                  Map.of(ObservabilityConstants.WEB_EXPOSURE, SERVICE_EXPOSURE)));
+
+      runPostProcessor(environment);
+      // Spring Boot moves the default properties last once every post-processor has run.
+      DefaultPropertiesPropertySource.moveToEnd(environment);
+
+      assertThat(environment.getProperty(ObservabilityConstants.WEB_EXPOSURE))
+          .isEqualTo(SERVICE_EXPOSURE);
+      assertThat(environment.getProperty(KAFKA_LISTENER_SWITCH)).isEqualTo(ON);
     }
   }
 }

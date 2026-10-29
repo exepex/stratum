@@ -1,0 +1,33 @@
+{
+  "properties": [
+    {
+      "name": "stratum.logging.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether the logging module is on. Until it is true, the starter sets up nothing.",
+      "defaultValue": false
+    }
+  ],
+  "hints": [
+    {
+      "name": "stratum.logging.format",
+      "values": [
+        {
+          "value": "ecs",
+          "description": "Elastic Common Schema JSON, the default."
+        },
+        {
+          "value": "logstash",
+          "description": "Logstash JSON."
+        },
+        {
+          "value": "gelf",
+          "description": "Graylog Extended Log Format JSON."
+        },
+        {
+          "value": "text",
+          "description": "Plain text for a laptop. It is not redacted."
+        }
+      ]
+    }
+  ]
+}
