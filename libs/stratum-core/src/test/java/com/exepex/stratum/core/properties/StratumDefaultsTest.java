@@ -78,8 +78,8 @@ class StratumDefaultsTest {
   void eachSwitchTurnsItsPropagationOff() {
     var environment =
         new MockEnvironment()
-            .withProperty("stratum.propagate-context-to-async-threads", "false")
-            .withProperty("stratum.propagate-context-to-every-reactor-operator", "false");
+            .withProperty("stratum.context-propagation.async-threads", "false")
+            .withProperty("stratum.context-propagation.reactor", "false");
 
     assertThat(StratumDefaults.asyncThreadContextPropagation(environment))
         .containsExactlyEntriesOf(Map.of(TASK_CONTEXT_PROPAGATION, false));

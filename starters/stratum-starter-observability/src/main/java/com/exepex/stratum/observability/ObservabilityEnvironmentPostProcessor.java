@@ -2,8 +2,8 @@ package com.exepex.stratum.observability;
 
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.condition.StratumModuleSwitch;
-import com.exepex.stratum.core.properties.ReactorOperatorContextPropagation;
 import com.exepex.stratum.core.properties.StratumDefaults;
+import com.exepex.stratum.core.reactor.ReactorOperatorContextPropagation;
 import java.util.HashMap;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;

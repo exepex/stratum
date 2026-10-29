@@ -19,6 +19,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.env.DefaultPropertiesPropertySource;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.mock.env.MockEnvironment;
+import reactor.core.publisher.Hooks;
 
 @DisplayName("ObservabilityEnvironmentPostProcessor sets Spring Boot's defaults before startup")
 class ObservabilityEnvironmentPostProcessorTest {
@@ -36,7 +37,7 @@ class ObservabilityEnvironmentPostProcessorTest {
 
   /** The published key, spelled out so a misspelt key in the module fails the test. */
   private static final String PROPAGATE_CONTEXT_TO_ASYNC_THREADS =
-      "stratum.propagate-context-to-async-threads";
+      "stratum.context-propagation.async-threads";
 
   private static final String REACTOR_CONTEXT_PROPAGATION = "spring.reactor.context-propagation";
 
@@ -140,6 +141,25 @@ class ObservabilityEnvironmentPostProcessorTest {
 
       assertThat(environment.getProperty(PROPAGATE_TASK_CONTEXT)).isEqualTo(ON);
       assertThat(environment.getProperty(REACTOR_CONTEXT_PROPAGATION)).isEqualTo("auto");
+    }
+
+    @Test
+    @DisplayName(
+        "it turns on Reactor's context propagation itself, so a service that uses Reactor without"
+            + " WebFlux, such as R2DBC, keeps the trace after a thread change")
+    void turnsOnReactorContextPropagationWithoutWebFlux() {
+      // Reactor's switch is global, so the test starts from off and leaves it as it found it.
+      var propagationEnabledBeforeTest = Hooks.isAutomaticContextPropagationEnabled();
+      Hooks.disableAutomaticContextPropagation();
+      try {
+        runPostProcessor(environmentWithModuleOn());
+
+        assertThat(Hooks.isAutomaticContextPropagationEnabled()).isTrue();
+      } finally {
+        if (!propagationEnabledBeforeTest) {
+          Hooks.disableAutomaticContextPropagation();
+        }
+      }
     }
 
     @Test

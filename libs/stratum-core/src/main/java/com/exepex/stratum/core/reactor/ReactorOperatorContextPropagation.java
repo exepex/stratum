@@ -1,4 +1,4 @@
-package com.exepex.stratum.core.properties;
+package com.exepex.stratum.core.reactor;
 
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import lombok.experimental.UtilityClass;
@@ -17,7 +17,7 @@ import reactor.core.publisher.Hooks;
 public class ReactorOperatorContextPropagation {
 
   /** A Reactor class, present only when the service uses Reactor. */
-  private static final String REACTOR_HOOKS = "reactor.core.publisher.Hooks";
+  private static final String REACTOR_HOOKS_CLASS_NAME = "reactor.core.publisher.Hooks";
 
   /**
    * Turns on Reactor's context propagation in every operator when the service uses Reactor and the
@@ -27,12 +27,13 @@ public class ReactorOperatorContextPropagation {
    */
   public static void enableWhenSetToEveryOperator(Environment environment) {
     // Spring Boot reads the setting ignoring case.
-    var everyOperator =
+    var settingIsEveryReactorOperator =
         String.CASE_INSENSITIVE_ORDER.compare(
                 StratumModuleConstants.REACTOR_CONTEXT_IN_EVERY_OPERATOR,
                 environment.getProperty(StratumModuleConstants.REACTOR_CONTEXT_PROPAGATION, ""))
             == 0;
-    if (everyOperator && ClassUtils.isPresent(REACTOR_HOOKS, ClassUtils.getDefaultClassLoader())) {
+    if (settingIsEveryReactorOperator
+        && ClassUtils.isPresent(REACTOR_HOOKS_CLASS_NAME, ClassUtils.getDefaultClassLoader())) {
       Hooks.enableAutomaticContextPropagation();
     }
   }

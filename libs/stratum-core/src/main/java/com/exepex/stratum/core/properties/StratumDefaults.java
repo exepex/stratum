@@ -45,7 +45,7 @@ public class StratumDefaults {
   /**
    * Returns Spring Boot's switch that makes its executors carry the logging and tracing context, so
    * that {@code @Async} methods and work on Spring's executors keep the trace and workflow fields,
-   * set from {@code stratum.propagate-context-to-async-threads}, which defaults to {@code true}.
+   * set from {@code stratum.context-propagation.async-threads}, which defaults to {@code true}.
    *
    * @param environment the application's environment
    * @return the settings and their values
@@ -61,7 +61,7 @@ public class StratumDefaults {
    * Returns Spring Boot's setting that makes Reactor carry the logging and tracing context into
    * every operator, so that log lines in WebFlux handlers and in operators such as {@code map} keep
    * the trace and workflow fields and WebClient sends the correlation ID on, set from {@code
-   * stratum.propagate-context-to-every-reactor-operator}, which defaults to {@code true}.
+   * stratum.context-propagation.reactor}, which defaults to {@code true}.
    *
    * @param environment the application's environment
    * @return the setting and its value

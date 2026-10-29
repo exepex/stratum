@@ -239,19 +239,19 @@ one off, set its switch to `false`, for example `spring.kafka.listener.observati
 ### Threads and reactive code
 
 Stratum sets Spring Boot's `spring.task.execution.propagate-context=true`, unless
-`stratum.propagate-context-to-async-threads=false`, so `@Async` methods, Spring Boot's task executor
+`stratum.context-propagation.async-threads=false`, so `@Async` methods, Spring Boot's task executor
 and executors built with its `ThreadPoolTaskExecutorBuilder` keep the caller's trace and correlation
-ID. Threads your code creates itself do not: an `ExecutorService` from `Executors`, `new Thread`,
-virtual threads you start, `new ThreadPoolTaskExecutor()` and `CompletableFuture.supplyAsync`
-without an executor. Wrap your own `ExecutorService` with Micrometer's `ContextExecutorService.wrap(
-executor, () -> ContextSnapshotFactory.builder().build().captureAll())`.
+ID. Threads your code creates itself do not: `Executors` pools, `new Thread`, virtual threads you
+start, `new ThreadPoolTaskExecutor()` and `CompletableFuture.supplyAsync` without an executor. Wrap
+your own pool with `ContextExecutorService.wrap(executor, snapshotFactory::captureAll)`, where
+`snapshotFactory` is one shared `ContextSnapshotFactory.builder().build()`.
 
 In reactive code, Stratum sets Spring Boot's `spring.reactor.context-propagation=auto` and turns on
 Reactor's context propagation, even without WebFlux or WebClient. Every line in a WebFlux handler or
 any operator carries the request's trace and correlation ID, never another request's, and `WebClient`
-sends `baggage` like `RestClient`. `stratum.propagate-context-to-every-reactor-operator=false` keeps
-Spring Boot's `limited` mode, where only `handle` and `tap` lines carry them. The same setting
-carries the logging starter's [workflow fields](../stratum-starter-logging/README.md#async-and-reactive-work).
+sends `baggage` like `RestClient`. `stratum.context-propagation.reactor=false` keeps Spring Boot's
+`limited` mode, where only `handle` and `tap` lines carry them. The same setting carries the logging
+starter's [workflow fields](../stratum-starter-logging/README.md#async-and-reactive-work).
 
 ### URLs on spans and metrics
 
@@ -344,8 +344,8 @@ environment, the command line or Java default properties:
 | `management.opentelemetry.resource-attributes[deployment.environment.name]` | value of `stratum.environment` |
 | `management.metrics.distribution.percentiles-histogram.all` | value of `stratum.observability.record-timings-as-histograms` |
 | `management.otlp.metrics.export.histogram-flavor` | `base2-exponential-bucket-histogram` |
-| `spring.task.execution.propagate-context` | value of `stratum.propagate-context-to-async-threads` ([threads](#threads-and-reactive-code)) |
-| `spring.reactor.context-propagation` | `auto`, or `limited` when `stratum.propagate-context-to-every-reactor-operator=false` |
+| `spring.task.execution.propagate-context` | value of `stratum.context-propagation.async-threads` ([threads](#threads-and-reactive-code)) |
+| `spring.reactor.context-propagation` | `auto`, or `limited` when `stratum.context-propagation.reactor=false` |
 | `spring.kafka.template.observation-enabled`, `spring.kafka.listener.observation-enabled` | value of `stratum.observability.trace-kafka-and-rabbitmq-messages` |
 | `spring.rabbitmq.template.observation-enabled`, `spring.rabbitmq.listener.simple.observation-enabled`, `.direct.observation-enabled`, `.stream.observation-enabled` | value of `stratum.observability.trace-kafka-and-rabbitmq-messages` |
 

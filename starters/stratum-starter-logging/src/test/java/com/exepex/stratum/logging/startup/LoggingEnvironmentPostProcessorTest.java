@@ -36,7 +36,7 @@ class LoggingEnvironmentPostProcessorTest {
 
   /** The published key, spelled out so a misspelt key in the module fails the test. */
   private static final String PROPAGATE_CONTEXT_TO_ASYNC_THREADS =
-      "stratum.propagate-context-to-async-threads";
+      "stratum.context-propagation.async-threads";
 
   private static final String NOT_REDACTED = "plain text, which is not redacted";
 
@@ -134,13 +134,12 @@ class LoggingEnvironmentPostProcessorTest {
     @Test
     @DisplayName(
         "every Reactor operator carries the context, unless"
-            + " stratum.propagate-context-to-every-reactor-operator is false")
+            + " stratum.context-propagation.reactor is false")
     void propagatesContextToEveryReactorOperator() {
       var defaultEnvironment = runPostProcessor(environmentWithModuleOn());
       var handleAndTapOnly =
           runPostProcessor(
-              environmentWithModuleOn()
-                  .withProperty("stratum.propagate-context-to-every-reactor-operator", OFF));
+              environmentWithModuleOn().withProperty("stratum.context-propagation.reactor", OFF));
 
       assertThat(defaultEnvironment.getProperty("spring.reactor.context-propagation"))
           .isEqualTo("auto");

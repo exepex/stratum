@@ -53,5 +53,12 @@
       <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Reactor turns its context propagation on only when this library is present, as it is in
+         every service that runs the logging or observability starter. -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>context-propagation</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 </project>

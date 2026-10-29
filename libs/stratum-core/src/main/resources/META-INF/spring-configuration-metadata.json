@@ -12,13 +12,13 @@
       "description": "The environment the service runs in, such as prod. The logging module writes it as service.environment and the observability module tags every metric and span with it."
     },
     {
-      "name": "stratum.propagate-context-to-async-threads",
+      "name": "stratum.context-propagation.async-threads",
       "type": "java.lang.Boolean",
       "description": "Whether @Async methods and work on Spring Boot's executors keep the trace and workflow fields of the code that started them. Used by the logging and observability modules when they are on. Sets Spring Boot's spring.task.execution.propagate-context, which wins if the service sets it.",
       "defaultValue": true
     },
     {
-      "name": "stratum.propagate-context-to-every-reactor-operator",
+      "name": "stratum.context-propagation.reactor",
       "type": "java.lang.Boolean",
       "description": "Whether log lines written in every Reactor operator, such as map, flatMap and doOnNext, and in WebFlux handlers keep the trace, correlation ID and workflow fields, and WebClient sends the correlation ID on. Used by the logging and observability modules when they are on. Sets Spring Boot's spring.reactor.context-propagation to auto (true) or limited (false), which wins if the service sets it.",
       "defaultValue": true

@@ -18,7 +18,7 @@ public class StratumModuleConstants {
    * through {@link #PROPAGATE_TASK_CONTEXT}. Defaults to {@code true}.
    */
   public static final String PROPAGATE_CONTEXT_TO_ASYNC_THREADS =
-      PREFIX + ".propagate-context-to-async-threads";
+      PREFIX + ".context-propagation.async-threads";
 
   /**
    * Spring Boot's switch that makes its executors carry the logging and tracing context, which the
@@ -31,7 +31,7 @@ public class StratumModuleConstants {
    * operator, through {@link #REACTOR_CONTEXT_PROPAGATION}. Defaults to {@code true}.
    */
   public static final String PROPAGATE_CONTEXT_TO_EVERY_REACTOR_OPERATOR =
-      PREFIX + ".propagate-context-to-every-reactor-operator";
+      PREFIX + ".context-propagation.reactor";
 
   /**
    * Spring Boot's setting for how Reactor carries the logging and tracing context: {@link

@@ -25,8 +25,8 @@ class ConfigurationMetadataTest {
     assertThat(JsonPath.<List<String>>read(metadata, "$.properties[*].name"))
         .containsExactly(
             "stratum.environment",
-            "stratum.propagate-context-to-async-threads",
-            "stratum.propagate-context-to-every-reactor-operator");
+            "stratum.context-propagation.async-threads",
+            "stratum.context-propagation.reactor");
     assertThat(JsonPath.<List<String>>read(metadata, "$.properties[*].type"))
         .containsExactly("java.lang.String", "java.lang.Boolean", "java.lang.Boolean");
     assertThat(JsonPath.<List<String>>read(metadata, "$.properties[*].description"))
