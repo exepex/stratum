@@ -34,6 +34,10 @@ class ObservabilityEnvironmentPostProcessorTest {
 
   private static final String PROPAGATE_TASK_CONTEXT = "spring.task.execution.propagate-context";
 
+  /** The published key, spelled out so a misspelt key in the module fails the test. */
+  private static final String PROPAGATE_CONTEXT_TO_ASYNC_THREADS =
+      "stratum.propagate-context-to-async-threads";
+
   private static final String KAFKA_LISTENER_SWITCH = "spring.kafka.listener.observation-enabled";
 
   /**
@@ -182,7 +186,7 @@ class ObservabilityEnvironmentPostProcessorTest {
                       ObservabilityConstants.PREFIX + ".record-timings-as-histograms", OFF)
                   .withProperty(
                       ObservabilityConstants.PREFIX + ".trace-kafka-and-rabbitmq-messages", OFF)
-                  .withProperty(StratumModuleConstants.PROPAGATE_CONTEXT_TO_ASYNC_THREADS, OFF));
+                  .withProperty(PROPAGATE_CONTEXT_TO_ASYNC_THREADS, OFF));
 
       assertThat(environment.getProperty(ObservabilityConstants.WEB_EXPOSURE))
           .isEqualTo("health,prometheus");

@@ -17,7 +17,8 @@ public class StratumModuleConstants {
    * Whether the logging and observability modules make Spring Boot's executors carry their context,
    * through {@link #PROPAGATE_TASK_CONTEXT}. Defaults to {@code true}.
    */
-  public static final String PROPAGATE_CONTEXT_TO_ASYNC_THREADS = PREFIX + ".propagate-context";
+  public static final String PROPAGATE_CONTEXT_TO_ASYNC_THREADS =
+      PREFIX + ".propagate-context-to-async-threads";
 
   /**
    * Spring Boot's switch that makes its executors carry the logging and tracing context, which the

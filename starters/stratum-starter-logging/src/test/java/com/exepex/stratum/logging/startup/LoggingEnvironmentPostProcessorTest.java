@@ -34,6 +34,10 @@ class LoggingEnvironmentPostProcessorTest {
 
   private static final String OFF = "false";
 
+  /** The published key, spelled out so a misspelt key in the module fails the test. */
+  private static final String PROPAGATE_CONTEXT_TO_ASYNC_THREADS =
+      "stratum.propagate-context-to-async-threads";
+
   private static final String NOT_REDACTED = "plain text, which is not redacted";
 
   /** Holds the post-processor's log lines until the test writes them out. */
@@ -119,8 +123,7 @@ class LoggingEnvironmentPostProcessorTest {
       var defaultEnvironment = runPostProcessor(environmentWithModuleOn());
       var noPropagation =
           runPostProcessor(
-              environmentWithModuleOn()
-                  .withProperty(StratumModuleConstants.PROPAGATE_CONTEXT_TO_ASYNC_THREADS, OFF));
+              environmentWithModuleOn().withProperty(PROPAGATE_CONTEXT_TO_ASYNC_THREADS, OFF));
 
       assertThat(defaultEnvironment.getProperty(StratumModuleConstants.PROPAGATE_TASK_CONTEXT))
           .isEqualTo("true");
