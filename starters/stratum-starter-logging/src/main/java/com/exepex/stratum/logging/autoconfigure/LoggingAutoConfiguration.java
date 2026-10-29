@@ -3,6 +3,7 @@ package com.exepex.stratum.logging.autoconfigure;
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.logging.LoggingConstants;
+import com.exepex.stratum.logging.workflow.ReactiveWorkflows;
 import com.exepex.stratum.logging.workflow.WorkflowAspect;
 import com.exepex.stratum.logging.workflow.Workflows;
 import io.micrometer.observation.ObservationRegistry;
@@ -15,6 +16,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Fallback;
+import reactor.core.publisher.Mono;
 
 /** Creates the logging module's workflow beans, when {@code stratum.logging.enabled=true}. */
 @AutoConfiguration
@@ -48,13 +50,38 @@ public class LoggingAutoConfiguration {
      * Runs each {@code @Workflow} method as its workflow.
      *
      * @param workflows runs the workflows
+     * @param reactiveWorkflows runs the workflows of methods that return a {@code Mono} or {@code
+     *     Flux}, when Reactor is on the classpath
      * @return the aspect
      */
     @Bean
     @Fallback
     @ConditionalOnMissingBean
-    public WorkflowAspect workflowAspect(Workflows workflows) {
-      return new WorkflowAspect(workflows);
+    public WorkflowAspect workflowAspect(
+        Workflows workflows, ObjectProvider<ReactiveWorkflows> reactiveWorkflows) {
+      return new WorkflowAspect(workflows, reactiveWorkflows.getIfAvailable());
+    }
+  }
+
+  /**
+   * Runs a {@code Mono} or {@code Flux} as a workflow when Reactor is on the classpath. A nested
+   * class, so Reactor's types are only loaded then.
+   */
+  @Configuration(proxyBeanMethods = false)
+  @ConditionalOnClass(Mono.class)
+  public static class ReactiveWorkflowConfiguration {
+
+    /**
+     * Runs a {@code Mono} or {@code Flux} as a workflow.
+     *
+     * @param workflows gives each run its fields and its observation
+     * @return the reactive workflows
+     */
+    @Bean
+    @Fallback
+    @ConditionalOnMissingBean
+    public ReactiveWorkflows reactiveWorkflows(Workflows workflows) {
+      return new ReactiveWorkflows(workflows);
     }
   }
 }

@@ -3,6 +3,7 @@ package com.exepex.stratum.logging.autoconfigure;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.logging.LoggingConstants;
+import com.exepex.stratum.logging.workflow.ReactiveWorkflows;
 import com.exepex.stratum.logging.workflow.WorkflowAspect;
 import com.exepex.stratum.logging.workflow.Workflows;
 import io.micrometer.observation.ObservationRegistry;
@@ -16,6 +17,7 @@ import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import reactor.core.publisher.Mono;
 
 @DisplayName("LoggingAutoConfiguration creates the workflow beans")
 class LoggingAutoConfigurationTest {
@@ -27,7 +29,7 @@ class LoggingAutoConfigurationTest {
           .withConfiguration(AutoConfigurations.of(LoggingAutoConfiguration.class));
 
   @Test
-  @DisplayName("with the module on, the workflows and the @Workflow aspect are created")
+  @DisplayName("with the module on, the workflows, reactive workflows and aspect are created")
   void createsBeans() {
     contextRunner
         .withPropertyValues(MODULE_ON)
@@ -35,6 +37,7 @@ class LoggingAutoConfigurationTest {
             context ->
                 assertThat(context)
                     .hasSingleBean(Workflows.class)
+                    .hasSingleBean(ReactiveWorkflows.class)
                     .hasSingleBean(WorkflowAspect.class));
   }
 
@@ -62,6 +65,19 @@ class LoggingAutoConfigurationTest {
                 assertThat(context)
                     .hasSingleBean(Workflows.class)
                     .doesNotHaveBean(WorkflowAspect.class));
+  }
+
+  @Test
+  @DisplayName("without Reactor, there are no reactive workflows but the aspect still works")
+  void withoutReactorCreatesNoReactiveWorkflows() {
+    contextRunner
+        .withPropertyValues(MODULE_ON)
+        .withClassLoader(new FilteredClassLoader(Mono.class))
+        .run(
+            context ->
+                assertThat(context)
+                    .doesNotHaveBean(ReactiveWorkflows.class)
+                    .hasSingleBean(WorkflowAspect.class));
   }
 
   @Test
@@ -102,6 +118,8 @@ class LoggingAutoConfigurationTest {
               var serviceBeans = context.getBean(ServiceBeansConfiguration.class);
               assertThat(context.getBean(Workflows.class)).isSameAs(serviceBeans.workflows);
               assertThat(context.getBean(WorkflowAspect.class)).isSameAs(serviceBeans.aspect);
+              assertThat(context.getBean(ReactiveWorkflows.class))
+                  .isSameAs(serviceBeans.reactiveWorkflows);
             });
   }
 
@@ -119,6 +137,8 @@ class LoggingAutoConfigurationTest {
                   .isSameAs(CompanyBeansAutoConfiguration.WORKFLOWS);
               assertThat(context.getBean(WorkflowAspect.class))
                   .isSameAs(CompanyBeansAutoConfiguration.ASPECT);
+              assertThat(context.getBean(ReactiveWorkflows.class))
+                  .isSameAs(CompanyBeansAutoConfiguration.REACTIVE_WORKFLOWS);
             });
   }
 
@@ -129,8 +149,11 @@ class LoggingAutoConfigurationTest {
     /** The service's workflows. */
     final Workflows workflows = new Workflows(ObservationRegistry.NOOP);
 
+    /** The service's reactive workflows. */
+    final ReactiveWorkflows reactiveWorkflows = new ReactiveWorkflows(workflows);
+
     /** The service's aspect. */
-    final WorkflowAspect aspect = new WorkflowAspect(workflows);
+    final WorkflowAspect aspect = new WorkflowAspect(workflows, reactiveWorkflows);
 
     /**
      * Returns the service's workflows.
@@ -151,6 +174,16 @@ class LoggingAutoConfigurationTest {
     WorkflowAspect serviceWorkflowAspect() {
       return aspect;
     }
+
+    /**
+     * Returns the service's reactive workflows.
+     *
+     * @return the reactive workflows
+     */
+    @Bean
+    ReactiveWorkflows serviceReactiveWorkflows() {
+      return reactiveWorkflows;
+    }
   }
 
   /** A company framework's auto-configuration that declares no order. */
@@ -160,8 +193,11 @@ class LoggingAutoConfigurationTest {
     /** The company's workflows. */
     static final Workflows WORKFLOWS = new Workflows(ObservationRegistry.NOOP);
 
+    /** The company's reactive workflows. */
+    static final ReactiveWorkflows REACTIVE_WORKFLOWS = new ReactiveWorkflows(WORKFLOWS);
+
     /** The company's aspect. */
-    static final WorkflowAspect ASPECT = new WorkflowAspect(WORKFLOWS);
+    static final WorkflowAspect ASPECT = new WorkflowAspect(WORKFLOWS, REACTIVE_WORKFLOWS);
 
     /**
      * Returns the company's workflows.
@@ -181,6 +217,16 @@ class LoggingAutoConfigurationTest {
     @Bean
     WorkflowAspect companyWorkflowAspect() {
       return ASPECT;
+    }
+
+    /**
+     * Returns the company's reactive workflows.
+     *
+     * @return the reactive workflows
+     */
+    @Bean
+    ReactiveWorkflows companyReactiveWorkflows() {
+      return REACTIVE_WORKFLOWS;
     }
   }
 }

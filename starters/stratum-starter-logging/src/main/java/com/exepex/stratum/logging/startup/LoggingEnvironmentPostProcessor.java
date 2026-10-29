@@ -27,8 +27,9 @@ import org.springframework.util.StringUtils;
 
 /**
  * Sets up logging before the application starts, when {@code stratum.logging.enabled=true}: checks
- * that the service has a name and valid settings, and gives Spring Boot's structured logging
- * Stratum's defaults. A service's own {@code logging.*} values win, because these come last.
+ * that the service has a name and valid settings, and gives Spring Boot's structured logging and
+ * its executors Stratum's defaults. A service's own {@code logging.*} values win, because these
+ * come last.
  */
 @RequiredArgsConstructor
 public class LoggingEnvironmentPostProcessor implements EnvironmentPostProcessor, Ordered {
@@ -123,6 +124,8 @@ public class LoggingEnvironmentPostProcessor implements EnvironmentPostProcessor
     defaultProperties.put(
         LoggingConstants.STACK_TRACE_MAX_LENGTH, loggingProperties.maxFieldLength().toBytes());
     defaultProperties.put(LoggingConstants.STACK_TRACE_ROOT, "first");
+    // So that @Async methods and work on Spring's executors keep the workflow and trace fields.
+    defaultProperties.put(LoggingConstants.PROPAGATE_TASK_CONTEXT, true);
     return defaultProperties;
   }
 

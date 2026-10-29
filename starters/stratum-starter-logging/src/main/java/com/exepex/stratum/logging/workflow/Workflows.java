@@ -6,25 +6,28 @@ import io.micrometer.observation.Observation;
 import io.micrometer.observation.Observation.CheckedCallable;
 import io.micrometer.observation.Observation.CheckedRunnable;
 import io.micrometer.observation.ObservationRegistry;
-import java.util.Objects;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.CompletionStage;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
-import org.slf4j.MDC;
 
 /**
  * Runs a piece of work as a named workflow. While it runs, every log line it writes carries {@code
  * workflow}, {@code root_workflow} (the outermost workflow) and, when given, {@code workflow_id}.
  * When the service has an {@code ObservationRegistry}, as with the observability starter, the work
- * is also timed and traced as one span. Use it where {@link Workflow @Workflow} does not apply.
- *
- * <p>Only work that finishes before it returns is timed and traced: work that returns a future or a
- * {@code Mono} is timed until it returns, and its later failure is not recorded.
+ * is also timed and traced as one span. Use it where {@link Workflow @Workflow} does not apply, and
+ * {@link ReactiveWorkflows} for a {@code Mono} or {@code Flux}.
  */
 @RequiredArgsConstructor
 public class Workflows {
 
   /** Times and traces each workflow; {@link ObservationRegistry#NOOP} without observability. */
   private final ObservationRegistry observationRegistry;
+
+  /** Reads and writes the workflow fields of the logging context. */
+  private final WorkflowFieldsAccessor workflowFields = new WorkflowFieldsAccessor();
 
   /**
    * Runs the work as the named workflow.
@@ -53,11 +56,13 @@ public class Workflows {
    */
   public <E extends Throwable> void run(
       String name, @Nullable String workflowId, CheckedRunnable<E> work) throws E {
-    var restoreOuterWorkflow = enter(name, workflowId);
+    var outerFields = enter(name, workflowId);
+    var observation = observation(workflowFields.currentFields()).start();
     try {
-      observation(name).observeChecked(work);
+      observation.scopedChecked(work);
     } finally {
-      restoreOuterWorkflow.run();
+      observation.stop();
+      workflowFields.setValue(outerFields);
     }
   }
 
@@ -79,7 +84,8 @@ public class Workflows {
 
   /**
    * Runs the work as the named workflow, with an ID such as an order number, and returns its
-   * result.
+   * result. When the result is a {@code CompletableFuture} or another {@code CompletionStage}, the
+   * workflow ends when it completes, and its failure is recorded.
    *
    * @param name the workflow's fixed name; see {@link #run(String, CheckedRunnable)}
    * @param workflowId the workflow's ID, or {@code null} for none; see {@link #run(String, String,
@@ -93,74 +99,110 @@ public class Workflows {
    */
   public <T, E extends Throwable> @Nullable T call(
       String name, @Nullable String workflowId, CheckedCallable<T, E> work) throws E {
-    var restoreOuterWorkflow = enter(name, workflowId);
+    var outerFields = enter(name, workflowId);
+    var observation = observation(workflowFields.currentFields()).start();
+    @Nullable T result = null;
     try {
-      return observation(name).observeChecked(work);
+      result = observation.scopedChecked(work);
+      return result;
     } finally {
-      restoreOuterWorkflow.run();
+      // A failure leaves the result null; scopedChecked has recorded it.
+      stopWhenDone(observation, result);
+      workflowFields.setValue(outerFields);
     }
   }
 
   /**
-   * Puts the workflow's fields in the logging context and returns what puts back the outer
-   * workflow's fields when this one ends.
+   * Returns the fields of a workflow that runs inside the outer one: its own name, the outer root
+   * or else its own name, and its own ID when it is given one, else the outer ID.
+   *
+   * @param name the workflow's name, already checked
+   * @param workflowId the workflow's ID, or {@code null} for none
+   * @param outerFields the outer workflow's fields, with no entries outside a workflow
+   * @return the workflow's fields; an unsafe ID is left out rather than replaced by the outer one
    */
-  private Runnable enter(String name, @Nullable String workflowId) {
-    if (!isSafeForLogs(name)) {
-      throw new IllegalArgumentException(
-          "A workflow name must be 1 to 128 letters, digits, '-', '_', '.' or ':'");
-    }
-    // Read before anything is put, so the outer workflow's fields can be put back.
-    final var outerWorkflow = MDC.get(LoggingConstants.WORKFLOW);
-    final var outerRootWorkflow = MDC.get(LoggingConstants.ROOT_WORKFLOW);
-    final var outerWorkflowId = MDC.get(LoggingConstants.WORKFLOW_ID);
-    MDC.put(LoggingConstants.WORKFLOW, name);
-    if (outerRootWorkflow == null) {
-      MDC.put(LoggingConstants.ROOT_WORKFLOW, name);
-    }
+  Map<String, String> fieldsInside(
+      String name, @Nullable String workflowId, Map<String, String> outerFields) {
+    var fields = new HashMap<>(outerFields);
+    fields.put(LoggingConstants.WORKFLOW, name);
+    fields.putIfAbsent(LoggingConstants.ROOT_WORKFLOW, name);
     if (workflowId != null) {
-      // An unsafe ID is left out rather than letting the outer workflow's ID stand in for it.
-      putOrRemove(LoggingConstants.WORKFLOW_ID, isSafeForLogs(workflowId) ? workflowId : null);
+      fields.put(LoggingConstants.WORKFLOW_ID, isSafeForLogs(workflowId) ? workflowId : null);
     }
-    return () -> restore(outerWorkflow, outerRootWorkflow, outerWorkflowId);
-  }
-
-  /** Puts the outer workflow's fields back, removing those it did not have. */
-  private void restore(
-      @Nullable String outerWorkflow,
-      @Nullable String outerRootWorkflow,
-      @Nullable String outerWorkflowId) {
-    putOrRemove(LoggingConstants.WORKFLOW, outerWorkflow);
-    putOrRemove(LoggingConstants.ROOT_WORKFLOW, outerRootWorkflow);
-    putOrRemove(LoggingConstants.WORKFLOW_ID, outerWorkflowId);
-  }
-
-  /** Sets a logging context field, or removes it when the value is {@code null}. */
-  private void putOrRemove(String key, @Nullable String value) {
-    if (value == null) {
-      MDC.remove(key);
-    } else {
-      MDC.put(key, value);
-    }
+    return fields;
   }
 
   /**
-   * Returns the workflow's timer and span, tagged with its name and the outermost workflow's name.
-   * The ID, its own or the one it inherits, goes on the span only, because each ID value would make
-   * a new metric series. Called after {@link #enter}, so the logging context holds the effective
-   * values.
+   * Returns the timer and span of a workflow with these fields, tagged with its name and the
+   * outermost workflow's name. The ID goes on the span only, because each ID value would make a new
+   * metric series.
+   *
+   * @param fields the workflow's fields
+   * @return the observation, not started
    */
-  private Observation observation(String name) {
-    var rootWorkflow = Objects.requireNonNullElse(MDC.get(LoggingConstants.ROOT_WORKFLOW), name);
-    var workflowId = MDC.get(LoggingConstants.WORKFLOW_ID);
+  Observation observation(Map<String, String> fields) {
+    var name = fields.get(LoggingConstants.WORKFLOW);
+    var workflowId = fields.get(LoggingConstants.WORKFLOW_ID);
     var observation =
         Observation.createNotStarted(LoggingConstants.WORKFLOW_OBSERVATION, observationRegistry)
             .contextualName(name)
             .lowCardinalityKeyValue(LoggingConstants.WORKFLOW, name)
-            .lowCardinalityKeyValue(LoggingConstants.ROOT_WORKFLOW, rootWorkflow);
+            .lowCardinalityKeyValue(
+                LoggingConstants.ROOT_WORKFLOW, fields.get(LoggingConstants.ROOT_WORKFLOW));
     return workflowId == null
         ? observation
         : observation.highCardinalityKeyValue(LoggingConstants.WORKFLOW_ID, workflowId);
+  }
+
+  /**
+   * Refuses a workflow name that is not 1 to 128 safe characters.
+   *
+   * @param name the workflow's name
+   * @throws IllegalArgumentException if the name has another form
+   */
+  void requireSafeName(String name) {
+    if (!isSafeForLogs(name)) {
+      throw new IllegalArgumentException(
+          "A workflow name must be 1 to 128 letters, digits, '-', '_', '.' or ':'");
+    }
+  }
+
+  /**
+   * Puts the workflow's fields in the logging context and returns the outer workflow's fields, to
+   * put back when this one ends.
+   */
+  private Map<String, String> enter(String name, @Nullable String workflowId) {
+    requireSafeName(name);
+    var outerFields = workflowFields.currentFields();
+    workflowFields.setValue(fieldsInside(name, workflowId, outerFields));
+    return outerFields;
+  }
+
+  /**
+   * Stops the observation now, or when the result is a stage that has not completed yet. A stage's
+   * failure arrives wrapped in a {@code CompletionException} when the stage depends on another.
+   */
+  private void stopWhenDone(Observation observation, @Nullable Object result) {
+    if (result instanceof CompletionStage<?> stage) {
+      stage.whenComplete((value, failure) -> stop(observation, unwrap(failure)));
+    } else {
+      observation.stop();
+    }
+  }
+
+  /** Records the failure, if any, and stops the observation. */
+  private void stop(Observation observation, @Nullable Throwable failure) {
+    if (failure != null) {
+      observation.error(failure);
+    }
+    observation.stop();
+  }
+
+  /** Returns the cause of a {@code CompletionException}, or the failure itself. */
+  private @Nullable Throwable unwrap(@Nullable Throwable failure) {
+    return failure instanceof CompletionException wrapped && wrapped.getCause() != null
+        ? wrapped.getCause()
+        : failure;
   }
 
   /** Returns whether a name or ID can go in a log line as it is. */

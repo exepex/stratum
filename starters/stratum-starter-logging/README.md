@@ -3,8 +3,8 @@
 **Status: Partly built.** Structured JSON logs in one format across every service, with the service's
 name and environment on every line, and secrets and personal data masked before anything is written.
 Named [workflows](#workflows) put their name on every line they write, and are timed and traced when
-the service has observability. Context that follows a request across threads is
-[planned](#planned).
+the service has observability. They follow their work into `@Async` methods, executors, futures
+and Reactor.
 
 This page covers this module only. How Stratum works as a whole, its other modules and how
 configuration works in general are in the [documentation](../../docs/README.md).
@@ -81,8 +81,9 @@ replace it:
   setup is used. If you add a `logback-spring.xml`, your file takes over, and only its appenders
   that use Spring Boot's structured encoder are redacted ([Customize](#customize)).
 - At startup, before any bean exists, it sets a few of Spring Boot's `logging.structured.*`
-  properties, listed [below](#properties). A value you set in a configuration file, an environment
-  variable, a system property or a command-line argument wins over Stratum's.
+  properties and `spring.task.execution.propagate-context`, listed [below](#properties). A value
+  you set in a configuration file, an environment variable, a system property or a command-line
+  argument wins over Stratum's.
 - It adds redaction to Spring Boot's `ecs`, `logstash` and `gelf` formats, so every line in those
   formats is masked, on the console and in a log file.
 
@@ -200,11 +201,47 @@ traced, with no extra code:
 Stratum records only how long a workflow took. It never labels a workflow slow or fast; your
 dashboards and alerts decide that. Without a registry, workflows only set the log fields.
 
-Workflows follow the work on its own thread, and time and trace only work that finishes before it
-returns. Work that returns a `CompletableFuture` or a `Mono` is timed only until it returns, its
-later failure is not recorded, and the fields are not on the lines it writes on other threads.
-Carrying workflows into `@Async` methods, futures, Reactor, executors and other services is
-[planned](#planned).
+### Async and reactive work
+
+A workflow ends when its work has finished, even when that is after the call returns:
+
+- Work that returns a `CompletableFuture` or another `CompletionStage` is timed and traced until
+  the stage completes, and its failure is recorded.
+- A `@Workflow` method that returns a `Mono` or `Flux` only builds the work. The workflow runs
+  each time the result is subscribed, until it completes, fails or is cancelled. Lines written
+  while the method builds it are outside the workflow.
+
+Without `@Workflow`, run a `Mono` or `Flux` through `ReactiveWorkflows`, a bean that exists when
+Reactor is on the classpath. `flux` does the same for a `Flux`:
+
+```java
+@Service
+@RequiredArgsConstructor
+class PaymentService {
+
+  private final ReactiveWorkflows reactiveWorkflows;
+
+  Mono<Receipt> pay(Order order) {
+    return reactiveWorkflows.mono("PAYMENT", order.number(), gateway.charge(order));
+  }
+}
+```
+
+The fields follow the work to other threads:
+
+- **`@Async` methods and Spring Boot's executors.** The starter sets Spring Boot's
+  `spring.task.execution.propagate-context=true`, so work on Spring Boot's task executor and
+  scheduler keeps the fields, and the trace and correlation IDs when the service has
+  observability. An executor you create yourself does too when you build it with Spring Boot's
+  `ThreadPoolTaskExecutorBuilder` bean. Other threads, such as those of
+  `CompletableFuture.supplyAsync` without an executor, do not get them.
+- **Reactor.** The fields travel in the Reactor context. With Spring Boot's default,
+  `spring.reactor.context-propagation=limited`, they are on the lines written in `handle` and `tap`
+  operators. Set it to `auto` to have them on every operator's lines, at a small cost per operator.
+- **`@Scheduled` jobs.** Each run starts outside any workflow, as its own piece of work.
+
+The fields stay inside the service. With the observability starter, the trace ID reaches the
+services it calls; sending the workflow fields too is [planned](#planned).
 
 ## Redaction
 
@@ -283,6 +320,7 @@ Spring Boot properties this starter sets by default (your values win):
 | `logging.structured.ecs.service.environment` | value of `stratum.environment` |
 | `logging.structured.json.stacktrace.max-length` | value of `stratum.logging.max-field-length`, in bytes |
 | `logging.structured.json.stacktrace.root` | `first` |
+| `spring.task.execution.propagate-context` | `true`, so that `@Async` methods and Spring Boot's executors keep the workflow fields |
 
 ## Examples
 
@@ -385,8 +423,8 @@ A Stratum endpoint that switches DEBUG on for a limited time, and back off by it
 
 ## Customize
 
-- **Your own workflow handling:** declare a `Workflows` or `WorkflowAspect` bean; Stratum's then
-  backs off.
+- **Your own workflow handling:** declare a `Workflows`, `ReactiveWorkflows` or `WorkflowAspect`
+  bean; Stratum's then backs off.
 - **Different JSON fields:** Spring Boot's `StructuredLogFormatter` lets you write your own format;
   set `logging.structured.format.console` to its class name. Prefer the standard format so logs
   stay searchable across services.
@@ -424,7 +462,7 @@ which keeps Spring Boot's default plain-text logging, with no checks and no reda
 
 | Feature | What it adds |
 | --- | --- |
-| Context hand-off | The same fields, trace and correlation IDs follow work into `@Async`, executors, `@Scheduled` jobs, futures and Reactor, and across services |
+| Workflows across services | The workflow fields sent to the service's own downstream services, planned with the HTTP client starter |
 | Management endpoint | Secured, timed switches for DEBUG on one logger, timing lines for one workflow, and unmasking personal data for a short time, each switching back by itself |
 | Trace and correlation IDs | `trace.id`, `span.id` and `correlation_id`, with the observability and web starters |
 | Body logging on demand | Request and response bodies in the logs when you need them, planned for the web and HTTP client starters rather than this one |
