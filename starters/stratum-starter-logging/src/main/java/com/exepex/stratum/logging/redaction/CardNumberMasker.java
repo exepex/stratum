@@ -131,7 +131,6 @@ class CardNumberMasker {
         IntStream.range(firstGroup, groups.size())
             .takeWhile(lastGroup -> digitCount(groups, firstGroup, lastGroup) <= MAX_CARD_DIGITS)
             .filter(lastGroup -> digitCount(groups, firstGroup, lastGroup) >= MIN_CARD_DIGITS)
-            .filter(lastGroup -> hasCardLayout(groups.subList(firstGroup, lastGroup + 1)))
             .mapToObj(
                 lastGroup ->
                     CardSpan.builder()
@@ -145,6 +144,9 @@ class CardNumberMasker {
                                 groups.get(lastGroup).digitEnd()))
                         .build())
             .filter(candidate -> LuhnCheckDigit.LUHN_CHECK_DIGIT.isValid(candidate.digits()))
+            // After the Luhn check, which rejects most spans, as this check is the slower one.
+            .filter(
+                candidate -> hasCardLayout(groups.subList(firstGroup, candidate.lastGroup() + 1)))
             .toList();
     return validCards.isEmpty() ? Optional.empty() : Optional.of(validCards.getLast());
   }
@@ -154,10 +156,9 @@ class CardNumberMasker {
    * with the same separator between every group.
    */
   private static boolean hasCardLayout(List<DigitGroup> cardGroups) {
-    var separators =
-        cardGroups.stream().skip(1).map(DigitGroup::separatorBefore).collect(Collectors.toSet());
+    var separators = cardGroups.stream().skip(1).map(DigitGroup::separatorBefore).toList();
     return separators.stream().noneMatch(LAYOUT_ONLY_SEPARATORS::contains)
-        || separators.size() == 1
+        || separators.stream().allMatch(separators.getFirst()::equals)
             && CARD_LAYOUTS.contains(
                 cardGroups.stream().map(group -> group.digits().length()).toList());
   }

@@ -46,10 +46,9 @@ class ContentMaskingRules {
 
   // After the password's first part, the match backtracks to the last @ before any /, ?, # or
   // space, or any quote, <, >, comma, semicolon, & or = that ends a URL written in other text. So
-  // an
-  // @ inside the password is masked, while an @ in the path, the query or the next value is never
-  // reached, and a key such as password= is left for the key-value rule. Each scan stops at the
-  // next URL's //, so matching stays linear.
+  // an @ inside the password is masked, while an @ in the path, the query or the next value is
+  // never reached, and a key such as password= is left for the key-value rule. Each scan stops at
+  // the next URL's //, so matching stays linear.
   /**
    * A password in a URL, with or without a user name, such as {@code https://user:secret@host},
    * {@code redis://:secret@host} or {@code https://user:p@ss@host}.
@@ -94,15 +93,21 @@ class ContentMaskingRules {
                 text -> text.contains("://"),
                 maskingMatches(URL_CREDENTIALS, ContentMaskingRules::maskUrlCredentials)),
             guardedRule(ContentMaskingRules::mayHoldKeyValuePair, keyValuePairMasker::mask),
-            // Twice, because text next to a value can hide it from the first search, such as a
-            // card number right before an email address or a phone number, and masking that text
-            // shows it to the second.
-            ContentMaskingRules::maskPersonalData,
-            ContentMaskingRules::maskPersonalData);
+            ContentMaskingRules::maskPersonalDataTwice);
     var extraRules =
         extraPatterns.stream().map(pattern -> maskingMatches(pattern, match -> MaskedText.MASK));
     return Stream.concat(builtInRules, extraRules)
         .reduce(UnaryOperator.identity(), ContentMaskingRules::earlierThenLater);
+  }
+
+  /**
+   * Masks personal data twice, because text next to a value can hide it from the first search, such
+   * as a card number right before an email address or a phone number, and masking that text shows
+   * it to the second. Text that the first search left unchanged is not searched again.
+   */
+  private static String maskPersonalDataTwice(String logText) {
+    var maskedOnce = maskPersonalData(logText);
+    return maskedOnce.equals(logText) ? maskedOnce : maskPersonalData(maskedOnce);
   }
 
   /**
