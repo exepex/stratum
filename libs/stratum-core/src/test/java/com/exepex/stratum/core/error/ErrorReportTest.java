@@ -9,9 +9,9 @@ import static com.exepex.stratum.core.testsupport.TracingTestData.TRACE_ID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
-import com.example.orders.ImpostorErrorCode;
-import com.example.orders.LookalikeErrorCode;
-import com.example.orders.OrderErrorCode;
+import com.exepex.orders.ImpostorErrorCode;
+import com.exepex.orders.LookalikeErrorCode;
+import com.exepex.orders.OrderErrorCode;
 import com.exepex.stratum.core.testsupport.TracingTestData;
 import java.util.ArrayList;
 import java.util.List;
