@@ -197,9 +197,12 @@ With the module on, sending and handling a message are observed like an HTTP cal
   sender's trace ID and [correlation ID](#correlation-id).
 - **Timings.** Each send and each handled message is timed, as a [histogram](#timings) like every
   other timing.
-- **Errors.** A listener that throws marks its span as failed, and its timing is recorded with the
-  `error` tag set to the exception's class name, such as `IllegalStateException`. Every retry is
-  counted. A message handled without error has `error=none`.
+- **Errors.** A Kafka or RabbitMQ listener that throws records its timing with the `error` tag set
+  to an exception's class name: on Kafka the listener's own exception, such as
+  `IllegalStateException`; on RabbitMQ Spring's wrapper, `ListenerExecutionFailedException`. Every
+  retry is counted. A message handled without error has `error=none`. JMS timers do not show
+  failures: a `@JmsListener` that throws is still recorded with `error=none`, so count JMS failures
+  from your logs.
 
 | Technology | Timers | How it is switched on |
 | --- | --- | --- |
@@ -209,7 +212,13 @@ With the module on, sending and handling a message are observed like an HTTP cal
 
 Kafka and RabbitMQ timers carry the topic or queue name, such as `messaging.destination.name`.
 JMS timers do not: Micrometer keeps the JMS queue name on the span only. No timer carries a message
-ID or key.
+ID or a Kafka record key.
+
+> [!WARNING]
+> The RabbitMQ send timer, `spring.rabbit.template`, carries the routing key in the
+> `messaging.rabbitmq.destination.routing_key` tag. Each routing key makes its own time series, so
+> never put an order, customer or other ID in a routing key. The [tag guard](#tag-guard) checks tag
+> names, not values, so it does not catch this.
 
 This works with the senders and listeners Spring Boot sets up, such as `KafkaTemplate`,
 `@KafkaListener`, `JmsTemplate` and `@JmsListener`. This starter adds no messaging library, so
