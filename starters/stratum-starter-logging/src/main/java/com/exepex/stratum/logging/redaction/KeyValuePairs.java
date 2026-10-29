@@ -153,7 +153,7 @@ final class KeyValuePairs implements UnaryOperator<String> {
    * bracket, or the end of the text if it has none. Brackets inside strings are skipped.
    */
   private int containerEnd(String text, int start) {
-    // The stream never ends, so it always has a first match.
+    // Each step moves forward, so the scan reaches the end of the text if nothing closes it.
     var finishedScan =
         Stream.iterate(
                 ContainerScan.builder().position(start + 1).depth(1).build(),
