@@ -47,6 +47,18 @@
       <groupId>com.googlecode.libphonenumber</groupId>
       <artifactId>libphonenumber</artifactId>
     </dependency>
+    <!-- Carries the workflow fields into the threads that Spring's executors and Reactor move work
+         to, through Spring Boot's spring.task.execution.propagate-context and Reactor's context. -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>context-propagation</artifactId>
+    </dependency>
+    <!-- Makes a Mono or Flux run as a workflow. Optional: only a service that uses Reactor has it. -->
+    <dependency>
+      <groupId>io.projectreactor</groupId>
+      <artifactId>reactor-core</artifactId>
+      <optional>true</optional>
+    </dependency>
     <!-- Spring Boot's default logging backend; the error code field reads its log events. Optional,
          so a service that uses another backend does not get it. -->
     <dependency>

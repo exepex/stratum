@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
 import com.exepex.stratum.logging.LoggingConstants;
+import com.exepex.stratum.logging.testsupport.FinishedObservations;
 import io.micrometer.common.KeyValue;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationHandler;
@@ -12,6 +13,7 @@ import io.micrometer.observation.ObservationRegistry;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -32,8 +34,11 @@ class WorkflowsTest {
   /** An ID with a line break, which could forge a log line. */
   private static final String FORGING_ID = "ORD-1\n{\"level\":\"ERROR\"}";
 
+  /** The registry of the observed workflows, which keeps the observations it finishes. */
+  private final FinishedObservations observations = new FinishedObservations();
+
   /** The observations finished by the registry, in order. */
-  private final List<Observation.Context> finishedObservations = new ArrayList<>();
+  private final List<Observation.Context> finishedObservations = observations.getFinished();
 
   /** Runs workflows with no observability. */
   private final Workflows workflowsWithoutObservability = new Workflows(ObservationRegistry.NOOP);
@@ -53,9 +58,7 @@ class WorkflowsTest {
 
   /** Returns workflows whose registry keeps every finished observation. */
   private Workflows observedWorkflows() {
-    var observationRegistry = ObservationRegistry.create();
-    observationRegistry.observationConfig().observationHandler(new FinishedObservations());
-    return new Workflows(observationRegistry);
+    return new Workflows(observations.getRegistry());
   }
 
   /** Returns {@code workflow}, {@code root_workflow} and {@code workflow_id}, as they are now. */
@@ -164,17 +167,45 @@ class WorkflowsTest {
     assertThat(finishedObservations.getFirst().getError()).isSameAs(paymentDeclined);
   }
 
-  /** Keeps every observation the registry finishes. */
-  private final class FinishedObservations implements ObservationHandler<Observation.Context> {
+  @Test
+  @DisplayName("the fields are removed even when ending the observation fails")
+  void restoresFieldsWhenObservationFails() {
+    var observationRegistry = ObservationRegistry.create();
+    observationRegistry.observationConfig().observationHandler(new FailingObservationHandler());
+    var workflows = new Workflows(observationRegistry);
+
+    assertThatIllegalStateException().isThrownBy(() -> workflows.run(CHECKOUT, this::placeOrder));
+    assertThatIllegalStateException()
+        .isThrownBy(() -> workflows.call(CHECKOUT, this::workflowFields));
+    assertThat(workflowFields()).containsOnlyNulls();
+  }
+
+  @Test
+  @DisplayName("work that returns a future ends when the future completes, with its failure")
+  void endsWhenFutureCompletes() {
+    var payment = new CompletableFuture<String>();
+
+    observedWorkflows().call(CHECKOUT, () -> payment.thenApply(String::strip));
+    assertThat(finishedObservations).isEmpty();
+    payment.completeExceptionally(paymentDeclined);
+
+    assertThat(finishedObservations)
+        .singleElement()
+        .satisfies(checkout -> assertThat(checkout.getError()).isSameAs(paymentDeclined));
+  }
+
+  /** A service's observation handler that fails when an observation ends. */
+  private static final class FailingObservationHandler
+      implements ObservationHandler<Observation.Context> {
 
     /**
-     * Keeps the finished observation.
+     * Fails.
      *
      * @param context the observation's context
      */
     @Override
     public void onStop(Observation.Context context) {
-      finishedObservations.add(context);
+      throw new IllegalStateException("exporter down");
     }
 
     /**

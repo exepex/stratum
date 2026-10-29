@@ -9,8 +9,8 @@ import java.lang.annotation.Target;
 /**
  * Runs the annotated method as a named workflow, as {@link Workflows#call} does. It works only when
  * AspectJ is on the classpath and the method is called through its Spring bean; otherwise it is
- * ignored. As with {@link Workflows}, a method that returns a future or a {@code Mono} is timed
- * only until it returns.
+ * ignored. A method that returns a {@code CompletionStage} ends with it, and one that returns a
+ * {@code Mono} or {@code Flux} runs as the workflow each time it is subscribed.
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
