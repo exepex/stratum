@@ -18,6 +18,12 @@ class ReactorOperatorContextPropagationTest {
 
   private static final String REACTOR_CONTEXT_PROPAGATION = "spring.reactor.context-propagation";
 
+  /** Spring Boot's value for every operator, as documented. */
+  private static final String EVERY_OPERATOR = "auto";
+
+  /** The same value in capitals, which Spring Boot also accepts. */
+  private static final String EVERY_OPERATOR_IN_CAPITALS = "AUTO";
+
   /** Reactor's switch is global, so every test starts and ends with it off. */
   @BeforeEach
   @AfterEach
@@ -31,7 +37,7 @@ class ReactorOperatorContextPropagationTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"auto", "AUTO"})
+  @ValueSource(strings = {EVERY_OPERATOR, EVERY_OPERATOR_IN_CAPITALS})
   @DisplayName("when the setting is auto, in any case, as Spring Boot reads it")
   void turnsOnWhenSetToEveryOperator(String reactorSetting) {
     ReactorOperatorContextPropagation.enableWhenSetToEveryOperator(
@@ -57,7 +63,7 @@ class ReactorOperatorContextPropagationTest {
     try (var classLoaderWithoutReactor = new FilteredClassLoader(Hooks.class)) {
       thread.setContextClassLoader(classLoaderWithoutReactor);
       ReactorOperatorContextPropagation.enableWhenSetToEveryOperator(
-          environmentWithReactorSetting("auto"));
+          environmentWithReactorSetting(EVERY_OPERATOR));
     } finally {
       thread.setContextClassLoader(serviceClassLoader);
     }

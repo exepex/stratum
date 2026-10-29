@@ -37,8 +37,8 @@ class LoggingAutoConfigurationTest {
 
   @Test
   @DisplayName(
-      "Reactor carries the context into every operator only when the service's final setting is"
-          + " auto, so a limited set in a @PropertySource file wins")
+      "Reactor carries the context into every operator only when the setting it sees while beans"
+          + " are created is auto, so a service's own limited wins")
   void reactorContextPropagationFollowsFinalSetting() {
     Hooks.disableAutomaticContextPropagation();
     contextRunner

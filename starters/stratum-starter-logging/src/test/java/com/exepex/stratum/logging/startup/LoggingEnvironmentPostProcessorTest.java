@@ -23,6 +23,7 @@ import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.mock.env.MockEnvironment;
+import reactor.core.publisher.Hooks;
 
 @DisplayName("LoggingEnvironmentPostProcessor sets up logging before the application starts")
 @ExtendWith(OutputCaptureExtension.class)
@@ -145,6 +146,18 @@ class LoggingEnvironmentPostProcessorTest {
           .isEqualTo("auto");
       assertThat(handleAndTapOnly.getProperty("spring.reactor.context-propagation"))
           .isEqualTo("limited");
+    }
+
+    @Test
+    @DisplayName(
+        "it leaves Reactor's context propagation to the auto-configuration, so that a service's"
+            + " @PropertySource files, loaded later, can still turn it off")
+    void leavesReactorContextPropagationForLaterDecision() {
+      Hooks.disableAutomaticContextPropagation();
+
+      runPostProcessor(environmentWithModuleOn());
+
+      assertThat(Hooks.isAutomaticContextPropagationEnabled()).isFalse();
     }
 
     @Test
