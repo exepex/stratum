@@ -45,21 +45,28 @@ class ContentMaskingRules {
               + "(?:[a-z]++=[^\\r\\n]++|[a-z0-9+/._=~-]{4,})");
 
   // A URL ends at a space, /, ?, #, a quote, < or >. A comma, semicolon, & or = may be part of
-  // the password or start the next value, as in https://u:p@host,password=x@y, so when another @
-  // follows one of them, the rest of the line is masked: where the password ends is unclear, and
-  // masking less could show its end, or the key of the next secret and so its value. Otherwise the
-  // match backtracks to the last @ before any of them, so
-  // an @ inside the password is masked. Each scan is possessive or backtracks once, and stops at
-  // the next URL's //, so matching stays linear.
+  // the password or start the next value, as in https://u:p@host,password=x@y. Each scan is
+  // possessive or backtracks once, and stops at the next URL's //, so matching stays linear.
+  /**
+   * A password in a URL whose end is unclear, because another {@code @} follows a comma, semicolon,
+   * {@code &} or {@code =}, with the rest of the line. All of it is masked: masking less could show
+   * the password's end, or the key of the next secret and so its value.
+   */
+  private static final Pattern URL_PASSWORD_OF_UNCLEAR_END =
+      Pattern.compile(
+          "(?i)(?<![a-z0-9+.-])([a-z][a-z0-9+.-]*+://)[^\\s/:@]*+:[^\\s/@]++@"
+              + "(?=[^\\s/?#\"'<>,;&=]*+[,;&=][^\\s/?#\"'<>]*@)[^\\r\\n]*+");
+
   /**
    * A password in a URL, with or without a user name, such as {@code https://user:secret@host},
-   * {@code redis://:secret@host} or {@code https://user:p@ss@host}.
+   * {@code redis://:secret@host} or {@code https://user:p@ss@host}. The match backtracks to the
+   * last @ before the URL ends or a comma, semicolon, & or =, so an @ inside the password is
+   * masked.
    */
   private static final Pattern URL_CREDENTIALS =
       Pattern.compile(
           "(?i)(?<![a-z0-9+.-])([a-z][a-z0-9+.-]*+://)[^\\s/:@]*+:[^\\s/@]++"
-              + "(?:@(?=[^\\s/?#\"'<>,;&=]*+[,;&=][^\\s/?#\"'<>]*@)[^\\r\\n]*+"
-              + "|@[^\\s/?#\"'<>,;&=]*@|@)");
+              + "(?:@[^\\s/?#\"'<>,;&=]*@|@)");
 
   /** A US social security number. */
   private static final Pattern SSN = Pattern.compile("\\b\\d{3}-\\d{2}-\\d{4}\\b");
@@ -92,6 +99,10 @@ class ContentMaskingRules {
             guardedRule(
                 text -> text.contains(" "),
                 maskingMatches(AUTH_SCHEME, ContentMaskingRules::maskAuthScheme)),
+            guardedRule(
+                text -> text.contains("://"),
+                maskingMatches(
+                    URL_PASSWORD_OF_UNCLEAR_END, match -> match.group(1) + MaskedText.MASK)),
             guardedRule(
                 text -> text.contains("://"),
                 maskingMatches(URL_CREDENTIALS, ContentMaskingRules::maskUrlCredentials)),
@@ -185,12 +196,9 @@ class ContentMaskingRules {
     return match.group(1) + " " + MaskedText.MASK;
   }
 
-  /**
-   * Masks the user name and password of a URL, keeping its scheme, and its host unless the rest of
-   * the line was masked with them.
-   */
+  /** Masks the user name and password of a URL, keeping its scheme. */
   private static String maskUrlCredentials(MatchResult match) {
-    return match.group(1) + MaskedText.MASK + (match.group().endsWith("@") ? "@" : "");
+    return match.group(1) + MaskedText.MASK + "@";
   }
 
   /**
