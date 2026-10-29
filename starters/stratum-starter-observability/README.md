@@ -99,6 +99,7 @@ starter therefore never sends anything, not even to Spring Boot's default addres
 | Timings as histograms | Every timer, such as HTTP server and client calls, `@Scheduled` jobs and Spring Batch steps, is sent as a base-2 exponential histogram ([below](#timings)) |
 | Tag guard | A metric with a tag named like an ID, such as `userId`, is dropped with one warning ([below](#tag-guard)) |
 | Correlation ID | In the logging context of every traced operation, so log lines and error reports carry it ([below](#correlation-id)) |
+| Messages | Kafka, JMS (IBM MQ, ActiveMQ) and RabbitMQ: sending and handling a message are timed and traced, and the consumer joins the sender's trace and correlation ID ([below](#messages)) |
 | Traces | OpenTelemetry traces. W3C `traceparent` is read from incoming requests and sent on calls made with Spring's HTTP clients. Spring Boot keeps 10% of new traces, and always follows the caller's decision, so a trace is never half kept |
 | Trace resource | `service.name` from `spring.application.name` (set by Spring Boot), and `deployment.environment.name` from `stratum.environment` |
 | URLs on spans | The full URL of each HTTP client call, query string included, is kept on its span; only the user info is removed. Metrics never carry the query ([below](#urls-on-spans-and-metrics)) |
@@ -176,8 +177,9 @@ try (var correlation = tracer.createBaggageInScope("correlationId", order.correl
 ```
 
 Baggage travels with the trace: Spring's HTTP clients send it in the W3C `baggage` header on every
-outgoing call, to every host, third parties included. So the correlation ID set in baggage reaches
-every service you call.
+outgoing call, to every host, third parties included, and Kafka, JMS and RabbitMQ senders put it in
+a `baggage` message header ([messages](#messages)). So the correlation ID set in baggage reaches
+every service you call or send a message to.
 
 > [!WARNING]
 > Never put a secret or personal data, such as a customer's name or email address, in the
@@ -185,6 +187,36 @@ every service you call.
 
 **Planned:** the web starter will take the ID from the `X-Correlation-Id` header, and the logging
 starter will limit the baggage to your own hosts.
+
+### Messages
+
+With the module on, sending and handling a message are observed like an HTTP call:
+
+- **Traces.** The sender adds the W3C `traceparent` and `baggage` headers to the message. The
+  consumer reads them, so its span is part of the sender's trace, and its log lines carry the
+  sender's trace ID and [correlation ID](#correlation-id).
+- **Timings.** Each send and each handled message is timed, as a [histogram](#timings) like every
+  other timing.
+- **Errors.** A listener that throws marks its span as failed, and its timing is recorded with the
+  `error` tag set to the exception's class name, such as `IllegalStateException`. Every retry is
+  counted. A message handled without error has `error=none`.
+
+| Technology | Timers | How it is switched on |
+| --- | --- | --- |
+| Kafka (`spring-kafka`) | `spring.kafka.template` (send), `spring.kafka.listener` (handle) | Stratum sets `spring.kafka.template.observation-enabled` and `spring.kafka.listener.observation-enabled` to `true`; Spring Boot leaves them off |
+| JMS, such as IBM MQ or ActiveMQ | `jms.message.publish` (send), `jms.message.process` (handle) | Spring Boot observes `JmsTemplate` and `@JmsListener` on its own |
+| RabbitMQ (`spring-rabbit`) | `spring.rabbit.template` (send), `spring.rabbit.listener` (handle) | Stratum sets `spring.rabbitmq.template.observation-enabled` and `spring.rabbitmq.listener.{simple,direct,stream}.observation-enabled` to `true`; Spring Boot leaves them off |
+
+Kafka and RabbitMQ timers carry the topic or queue name, such as `messaging.destination.name`.
+JMS timers do not: Micrometer keeps the JMS queue name on the span only. No timer carries a message
+ID or key.
+
+This works with the senders and listeners Spring Boot sets up, such as `KafkaTemplate`,
+`@KafkaListener`, `JmsTemplate` and `@JmsListener`. This starter adds no messaging library, so
+Stratum's switches do nothing until your service brings Kafka or RabbitMQ.
+
+To turn one off, set its switch to `false`, for example
+`spring.kafka.listener.observation-enabled=false`.
 
 ### URLs on spans and metrics
 
@@ -269,6 +301,8 @@ Spring Boot properties this starter sets by default (your values win):
 | `management.opentelemetry.resource-attributes[deployment.environment.name]` | value of `stratum.environment` |
 | `management.metrics.distribution.percentiles-histogram.all` | `true` |
 | `management.otlp.metrics.export.histogram-flavor` | `base2-exponential-bucket-histogram` |
+| `spring.kafka.template.observation-enabled`, `spring.kafka.listener.observation-enabled` | `true` |
+| `spring.rabbitmq.template.observation-enabled`, `spring.rabbitmq.listener.simple.observation-enabled`, `.direct.observation-enabled`, `.stream.observation-enabled` | `true` |
 
 ## Examples
 
@@ -397,7 +431,8 @@ can only be set in properties, YAML, environment variables or command-line argum
 
 | Feature | What it adds |
 | --- | --- |
-| How each app type is observed | Docs for batch, command-line, messaging (Kafka, JMS, RabbitMQ) and reactive services |
+| How each app type is observed | Docs for batch, command-line and reactive services |
+| Cloud queues | Traces and timings for Amazon SQS, Azure Service Bus and Google Pub/Sub, with the cloud starters |
 | Vendor and cloud recipes | Collector setups for Datadog, New Relic, Splunk, Dynatrace, AWS, Azure and Google Cloud |
 | Profiling | The Pyroscope profiler, after a licence and overhead check |
 
@@ -408,6 +443,7 @@ can only be set in properties, YAML, environment variables or command-line argum
 | Startup stops with `SX-OBSERVABILITY-1001` | Set the property the message names to your Collector's address, or turn that export off. |
 | No metrics or traces arrive | `stratum.observability.enabled` is not `true`, or the Collector is not reachable at the configured address. Look for export errors in the log. |
 | Traces break between two services | The caller does not use Spring's `RestClient`, `WebClient` or `RestTemplate` from Spring Boot's builder, so no `traceparent` header is sent. |
+| A message's trace ends at the sender | The consumer service does not have this module on, or sets its listener's `observation-enabled` switch to `false` ([messages](#messages)). |
 | No `host` tag | `HOSTNAME` is not set in the service's environment. |
 | A metric is missing and the log shows `SX-OBSERVABILITY-1002` | One of its tags is named like an ID. Remove the tag, or rename it if it holds only a few fixed values. |
 | No percentiles in the metrics backend | It does not accept OTLP exponential histograms; see [Timings](#timings). |

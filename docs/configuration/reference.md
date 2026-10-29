@@ -89,6 +89,8 @@ always wins. Details are on each module page.
 | `management.opentelemetry.resource-attributes[deployment.environment.name]` | `${stratum.environment}` | observability |
 | `management.metrics.distribution.percentiles-histogram.all` | `true` | observability |
 | `management.otlp.metrics.export.histogram-flavor` | `base2-exponential-bucket-histogram` | observability |
+| `spring.kafka.template.observation-enabled`, `spring.kafka.listener.observation-enabled` | `true` | observability |
+| `spring.rabbitmq.template.observation-enabled`, `spring.rabbitmq.listener.simple.observation-enabled`, `.direct.observation-enabled`, `.stream.observation-enabled` | `true` | observability |
 | `spring.jpa.open-in-view` | `false` | data |
 | `spring.jpa.hibernate.ddl-auto` | `validate` | data |
 | `spring.kafka.producer.acks` | `all` | kafka |

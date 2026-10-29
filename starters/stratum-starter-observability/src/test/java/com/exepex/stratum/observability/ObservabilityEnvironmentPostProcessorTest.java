@@ -21,6 +21,8 @@ class ObservabilityEnvironmentPostProcessorTest {
   private static final String HOST_TAG =
       ObservabilityConstants.METRIC_TAGS + ObservabilityConstants.HOST_TAG;
 
+  private static final String KAFKA_LISTENER_SWITCH = "spring.kafka.listener.observation-enabled";
+
   private static final String ON = "true";
 
   private static final String OFF = "false";
@@ -59,6 +61,9 @@ class ObservabilityEnvironmentPostProcessorTest {
       assertThat(unset.getProperty(ObservabilityConstants.METRICS_EXPORT_ENABLED)).isEqualTo(OFF);
       assertThat(off.getProperty(ObservabilityConstants.TRACING_EXPORT_ENABLED)).isEqualTo(OFF);
       assertThat(unset.getProperty(ObservabilityConstants.WEB_EXPOSURE)).isNull();
+      assertThat(ObservabilityConstants.MESSAGING_OBSERVATION_SWITCHES)
+          .allSatisfy(
+              observationSwitch -> assertThat(unset.getProperty(observationSwitch)).isNull());
     }
 
     @Test
@@ -114,6 +119,20 @@ class ObservabilityEnvironmentPostProcessorTest {
           .isEqualTo(ON);
       assertThat(environment.getProperty(ObservabilityConstants.HISTOGRAM_FLAVOR))
           .isEqualTo(ObservabilityConstants.EXPONENTIAL_HISTOGRAM);
+    }
+
+    @Test
+    @DisplayName("Kafka and RabbitMQ messages are traced and timed, unless the service says no")
+    void observesMessaging() {
+      var environment =
+          runPostProcessor(environmentWithModuleOn().withProperty(KAFKA_LISTENER_SWITCH, OFF));
+
+      assertThat(ObservabilityConstants.MESSAGING_OBSERVATION_SWITCHES)
+          .filteredOn(observationSwitch -> !KAFKA_LISTENER_SWITCH.equals(observationSwitch))
+          .allSatisfy(
+              observationSwitch ->
+                  assertThat(environment.getProperty(observationSwitch)).isEqualTo(ON));
+      assertThat(environment.getProperty(KAFKA_LISTENER_SWITCH)).isEqualTo(OFF);
     }
 
     @Test
