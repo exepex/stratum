@@ -142,6 +142,7 @@ Every starter follows these rules:
   switches, shared properties and Spring Boot properties are set in Java through `SpringApplication`'s default
   properties; a module's defaults for Spring Boot properties are added with `StratumDefaults`, so that any value
   the service sets, there or anywhere else, wins.
+
 ## Java 25 and Spring Boot 4
 
 - **ST-ENG-39** Use what the JDK already provides before writing code: the functional interfaces in
