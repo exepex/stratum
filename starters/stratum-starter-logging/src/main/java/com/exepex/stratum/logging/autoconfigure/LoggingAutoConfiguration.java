@@ -5,6 +5,7 @@ import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.properties.StratumCustomizers;
 import com.exepex.stratum.core.reactor.ReactorOperatorContextPropagation;
 import com.exepex.stratum.logging.LoggingConstants;
+import com.exepex.stratum.logging.mdc.ServiceMdcFieldsPropagation;
 import com.exepex.stratum.logging.workflow.ReactiveWorkflows;
 import com.exepex.stratum.logging.workflow.WorkflowAspect;
 import com.exepex.stratum.logging.workflow.Workflows;
@@ -39,6 +40,18 @@ public final class LoggingAutoConfiguration {
   public LoggingAutoConfiguration(ListableBeanFactory beanFactory, Environment environment) {
     StratumCustomizers.rejectBeans(beanFactory);
     ReactorOperatorContextPropagation.enableWhenSetToEveryOperator(environment);
+  }
+
+  /**
+   * Carries the MDC fields the service puts itself, such as {@code customerId}, to the threads a
+   * request's work moves to, while the module is on.
+   *
+   * @return the registration, removed when the application stops
+   */
+  @Bean
+  @ConditionalOnMissingBean
+  public ServiceMdcFieldsPropagation serviceMdcFieldsPropagation() {
+    return new ServiceMdcFieldsPropagation();
   }
 
   /**

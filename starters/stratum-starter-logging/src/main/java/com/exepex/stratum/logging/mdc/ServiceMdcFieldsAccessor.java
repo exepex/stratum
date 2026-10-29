@@ -1,22 +1,27 @@
 package com.exepex.stratum.logging.mdc;
 
+import ch.qos.logback.classic.util.LogbackMDCAdapter;
 import com.exepex.stratum.core.error.LoggingContextConstants;
 import com.exepex.stratum.logging.LoggingConstants;
 import io.micrometer.context.ThreadLocalAccessor;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 import org.slf4j.MDC;
+import org.springframework.util.ClassUtils;
 
 /**
  * Reads and writes the MDC fields the service put itself, such as {@code customerId}, so that
  * Spring's executors and Reactor carry them to the threads a request's work moves to, and put back
  * what each thread held before once the work there ends. The trace, span and correlation IDs and
  * the workflow fields are left to tracing and the workflow accessor, which keep them in step with
- * each span and workflow. Registered with Micrometer's context propagation through {@code
- * META-INF/services}.
+ * each span and workflow. Registered with Micrometer's context propagation by {@link
+ * ServiceMdcFieldsPropagation} while the logging module is on.
+ *
+ * <p>Reactor calls it around every operator for every element, so it reads the MDC without copying
+ * it when the backend is Logback, and writes only when the fields differ. Its methods use loops
+ * rather than streams for the same reason.
  */
 public class ServiceMdcFieldsAccessor implements ThreadLocalAccessor<Map<String, String>> {
 
@@ -29,6 +34,11 @@ public class ServiceMdcFieldsAccessor implements ThreadLocalAccessor<Map<String,
           LoggingConstants.WORKFLOW,
           LoggingConstants.ROOT_WORKFLOW,
           LoggingConstants.WORKFLOW_ID);
+
+  /** Whether the MDC backend is Logback, Spring Boot's default, whose MDC can be read uncopied. */
+  private static final boolean LOGBACK_MDC_PRESENT =
+      ClassUtils.isPresent(
+          "ch.qos.logback.classic.util.LogbackMDCAdapter", ClassUtils.getDefaultClassLoader());
 
   /**
    * Returns the key under which the fields are carried.
@@ -52,13 +62,44 @@ public class ServiceMdcFieldsAccessor implements ThreadLocalAccessor<Map<String,
   }
 
   /**
-   * Replaces the service's own MDC fields on this thread with the carried ones.
+   * Returns the service's own MDC fields on this thread, never {@code null}.
+   *
+   * @return the fields, possibly none
+   */
+  Map<String, String> serviceFieldsOnThisThread() {
+    var loggingContext = loggingContextOnThisThread();
+    // Most threads hold no service fields, so count them before making a map.
+    var serviceFieldCount = 0;
+    for (var field : loggingContext.entrySet()) {
+      if (isServiceField(field.getKey(), field.getValue())) {
+        serviceFieldCount++;
+      }
+    }
+    if (serviceFieldCount == 0) {
+      return Map.of();
+    }
+    var serviceFields = HashMap.<String, String>newHashMap(serviceFieldCount);
+    for (var field : loggingContext.entrySet()) {
+      if (isServiceField(field.getKey(), field.getValue())) {
+        serviceFields.put(field.getKey(), field.getValue());
+      }
+    }
+    return serviceFields;
+  }
+
+  /**
+   * Replaces the service's own MDC fields on this thread with the carried ones, unless they are
+   * already the same.
    *
    * @param carriedFields the fields of the work that moved to this thread
    */
   @Override
   public void setValue(Map<String, String> carriedFields) {
-    removeServiceFieldsOnThisThread();
+    var loggingContext = loggingContextOnThisThread();
+    if (sameServiceFields(loggingContext, carriedFields)) {
+      return;
+    }
+    removeServiceFields(loggingContext);
     carriedFields.forEach(MDC::put);
   }
 
@@ -67,19 +108,48 @@ public class ServiceMdcFieldsAccessor implements ThreadLocalAccessor<Map<String,
    */
   @Override
   public void setValue() {
-    removeServiceFieldsOnThisThread();
+    removeServiceFields(loggingContextOnThisThread());
   }
 
-  /** Returns the MDC fields on this thread that neither tracing nor workflows manage. */
-  private Map<String, String> serviceFieldsOnThisThread() {
-    return Optional.ofNullable(MDC.getCopyOfContextMap()).orElseGet(Map::of).entrySet().stream()
-        .filter(field -> !FIELDS_MANAGED_ELSEWHERE.contains(field.getKey()))
-        .filter(field -> Objects.nonNull(field.getValue()))
-        .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue));
+  /** Returns whether the MDC field is one the service put itself. */
+  private static boolean isServiceField(String name, String value) {
+    return value != null && !FIELDS_MANAGED_ELSEWHERE.contains(name);
   }
 
-  /** Removes the MDC fields on this thread that neither tracing nor workflows manage. */
-  private void removeServiceFieldsOnThisThread() {
-    serviceFieldsOnThisThread().keySet().forEach(MDC::remove);
+  /** Returns whether the MDC holds exactly the carried fields as its service fields. */
+  private static boolean sameServiceFields(
+      Map<String, String> loggingContext, Map<String, String> carriedFields) {
+    var serviceFieldCount = 0;
+    for (var field : loggingContext.entrySet()) {
+      if (isServiceField(field.getKey(), field.getValue())) {
+        if (!field.getValue().equals(carriedFields.get(field.getKey()))) {
+          return false;
+        }
+        serviceFieldCount++;
+      }
+    }
+    return serviceFieldCount == carriedFields.size();
+  }
+
+  /** Removes from the MDC every service field that the given view of it holds. */
+  private static void removeServiceFields(Map<String, String> loggingContext) {
+    for (var field : loggingContext.entrySet()) {
+      if (isServiceField(field.getKey(), field.getValue())) {
+        MDC.remove(field.getKey());
+      }
+    }
+  }
+
+  /**
+   * Returns this thread's MDC. With Logback it is Logback's cached read-only copy, which later
+   * changes to the MDC leave as it is, so it can be read while fields are removed; otherwise a new
+   * copy.
+   */
+  private static Map<String, String> loggingContextOnThisThread() {
+    var loggingContext =
+        LOGBACK_MDC_PRESENT && MDC.getMDCAdapter() instanceof LogbackMDCAdapter logbackMdc
+            ? logbackMdc.getPropertyMap()
+            : MDC.getCopyOfContextMap();
+    return Objects.requireNonNullElse(loggingContext, Map.of());
   }
 }

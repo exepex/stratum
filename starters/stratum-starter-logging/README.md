@@ -392,8 +392,8 @@ logging.structured.json.add.team=payments
 ```
 
 Add a field to every line of one piece of work with the MDC. It follows the work to `@Async`
-methods, Spring Boot's executors and event listeners; in a `Mono` or `Flux`, add it with
-`ReactiveMdcFields` ([log fields across threads](../../docs/guides/context-across-threads.md)):
+methods, Spring Boot's executors, event listeners and Reactor's thread changes; `ReactiveMdcFields`
+also covers reactive steps outside Reactor ([across threads](../../docs/guides/context-across-threads.md)):
 
 ```java
 try (var ignored = MDC.putCloseable("tenant_id", tenantId)) {

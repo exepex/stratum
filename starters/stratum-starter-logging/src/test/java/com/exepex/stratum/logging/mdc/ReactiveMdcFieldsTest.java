@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
 import com.exepex.stratum.core.error.LoggingContextConstants;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -28,16 +30,23 @@ class ReactiveMdcFieldsTest {
   /** Another field of the service's own. */
   private static final String TENANT_ID = "tenantId";
 
-  /** Turns on Reactor's context propagation, as the logging starter does by default. */
+  /** Carries the service's own fields, as the logging module does while it is on. */
+  private ServiceMdcFieldsPropagation serviceMdcFieldsPropagation;
+
+  /**
+   * Turns on Reactor's context propagation and the fields' accessor, as the logging module does.
+   */
   @BeforeEach
   void propagateContextToEveryOperator() {
+    serviceMdcFieldsPropagation = new ServiceMdcFieldsPropagation();
     Hooks.enableAutomaticContextPropagation();
   }
 
-  /** Turns Reactor's global switch off again and clears the logging context. */
+  /** Turns Reactor's global switch and the accessor off again and clears the logging context. */
   @AfterEach
   void restoreReactorAndLoggingContext() {
     Hooks.disableAutomaticContextPropagation();
+    serviceMdcFieldsPropagation.close();
     MDC.clear();
   }
 
@@ -88,6 +97,24 @@ class ReactiveMdcFieldsTest {
   }
 
   @Test
+  @DisplayName(
+      "a field put with MDC.put is gone after a CompletableFuture, and kept when the chain is"
+          + " wrapped, which also carries the subscribing thread's fields")
+  void wrappedChainKeepsPutFieldsAfterCompletableFuture()
+      throws ExecutionException, InterruptedException {
+    MDC.put(CUSTOMER_ID, CUSTOMER);
+
+    var seenWithPutOnly = subscribeAndAwait(customerIdAfterCompletableFuture());
+    var seenWhenWrapped =
+        subscribeAndAwait(
+            ReactiveMdcFields.mono(
+                Map.of(TENANT_ID, "TENANT-3"), customerIdAfterCompletableFuture()));
+
+    assertThat(seenWithPutOnly).isEqualTo("null");
+    assertThat(seenWhenWrapped).isEqualTo(CUSTOMER);
+  }
+
+  @Test
   @DisplayName("the trace and workflow fields are refused, so they cannot fall out of step")
   void refusesFieldsManagedElsewhere() {
     var traceField = Map.of(LoggingContextConstants.TRACE_ID, "4bf92f3577b34da6a3ce929d0e0e4736");
@@ -95,5 +122,19 @@ class ReactiveMdcFieldsTest {
     assertThatIllegalArgumentException()
         .isThrownBy(() -> ReactiveMdcFields.mono(traceField, Mono.empty()))
         .withMessageContaining(LoggingContextConstants.TRACE_ID);
+  }
+
+  /** Returns a Mono that reads the customer ID after a CompletableFuture completes. */
+  private static Mono<String> customerIdAfterCompletableFuture() {
+    return Mono.fromFuture(() -> CompletableFuture.supplyAsync(() -> "ORD-1042"))
+        .map(orderNumber -> String.valueOf(MDC.get(CUSTOMER_ID)));
+  }
+
+  /** Subscribes without {@code block()}, which would pass the caller's fields itself. */
+  private static String subscribeAndAwait(Mono<String> work)
+      throws ExecutionException, InterruptedException {
+    var result = new CompletableFuture<String>();
+    work.subscribe(result::complete, result::completeExceptionally);
+    return result.get();
   }
 }

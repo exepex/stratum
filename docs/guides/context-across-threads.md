@@ -36,7 +36,7 @@ Every line written inside then carries `customerId`, on whichever of these threa
 
 | Where the work runs | Carried |
 | --- | --- |
-| The same thread, including `@EventListener` and `@TransactionalEventListener` methods | Yes |
+| The same thread, including `@EventListener` methods | Yes |
 | `@Async` methods, `@Async @EventListener` methods | Yes |
 | Spring Boot's task executor, and executors built with its `ThreadPoolTaskExecutorBuilder` | Yes |
 | An `ExecutorService` wrapped with `ContextExecutorService.wrap(pool)` | Yes |
@@ -64,27 +64,33 @@ carries the fields only when that executor is one of the carried kinds above.
 
 ## Reactive code
 
-A Reactor chain sets each operator's MDC from its subscription, not from what `MDC.put` did on the
-thread that built it. A field put with `MDC.put` in a WebFlux handler is gone after the first
-thread change. Add the field to the chain instead:
+A field put with `MDC.put` in a WebFlux handler, or anywhere before a `Mono` or `Flux` is
+subscribed, follows the chain across Reactor's own thread changes, such as `publishOn`,
+`subscribeOn` and `delayElement`: Reactor copies it to each task it schedules. Requests served
+side by side by the same server threads never see each other's fields.
+
+After a step that completes outside Reactor, such as `Mono.fromFuture(...)` with a
+`CompletableFuture`, Reactor resets the MDC from the subscription and the field is gone. Wrap the
+chain in `ReactiveMdcFields` to keep it there:
 
 ```java
 Mono<Receipt> place(Order order) {
-  return ReactiveMdcFields.mono(Map.of("customerId", order.customerId()), payments.charge(order));
+  return ReactiveMdcFields.mono(Map.of("orderId", order.id()), payments.charge(order));
 }
 ```
 
-Every operator inside `payments.charge(order)`, on any thread, then logs `customerId`.
-`ReactiveMdcFields.flux` does the same for a `Flux`. Fields of an enclosing call are kept, and a
-field set again takes the new value. `traceId`, `spanId`, `correlationId` and the workflow fields
-are refused with an `IllegalArgumentException`, because tracing and workflows keep those in step
-with each span and workflow.
+Every operator inside `payments.charge(order)`, on any thread, then logs `orderId`, and also the
+fields the subscribing thread held, such as a `customerId` the handler put. `ReactiveMdcFields.flux`
+does the same for a `Flux`. Fields of an enclosing call are kept, and a field set again takes the
+new value. `traceId`, `spanId`, `correlationId` and the workflow fields are refused with an
+`IllegalArgumentException`, because tracing and workflows keep those in step with each span and
+workflow.
 
 Blocking code that calls `block()` on a `Mono` passes its own MDC fields into the chain, so no
 helper is needed there.
 
-This relies on Reactor carrying the context into every operator, which the starter turns on by
-default (`stratum.context-propagation.reactor`). With it set to `false`, the fields appear only in
+This relies on Reactor's automatic context propagation, which the starter turns on by default
+(`stratum.context-propagation.reactor`). With it set to `false`, the fields appear only in
 `handle` and `tap`.
 
 ## Settings

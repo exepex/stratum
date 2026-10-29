@@ -2,6 +2,7 @@ package com.exepex.stratum.logging.mdc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ch.qos.logback.classic.util.LogbackMDCAdapter;
 import com.exepex.stratum.core.error.LoggingContextConstants;
 import com.exepex.stratum.logging.LoggingConstants;
 import io.micrometer.context.ContextExecutorService;
@@ -80,10 +81,27 @@ class ServiceMdcFieldsAccessorTest {
 
   @Test
   @DisplayName(
-      "in a pool wrapped with ContextExecutorService.wrap(pool), as the guide shows, a task sees"
-          + " the submitting thread's fields and the pool thread holds none afterwards")
+      "it leaves the MDC untouched when the fields are already the carried ones, so Logback keeps"
+          + " its cached copy for log lines")
+  void leavesLoggingContextUntouchedWhenFieldsAreUnchanged() {
+    MDC.put(CUSTOMER_ID, CUSTOMER);
+    MDC.put(LoggingContextConstants.TRACE_ID, TRACE_ID);
+    var logbackMdc = (LogbackMDCAdapter) MDC.getMDCAdapter();
+    var cachedCopyBefore = logbackMdc.getPropertyMap();
+
+    accessor.setValue(Map.of(CUSTOMER_ID, CUSTOMER));
+
+    assertThat(logbackMdc.getPropertyMap()).isSameAs(cachedCopyBefore);
+  }
+
+  @Test
+  @DisplayName(
+      "registered as the logging module does, in a pool wrapped with"
+          + " ContextExecutorService.wrap(pool), a task sees the submitting thread's fields and the"
+          + " pool thread holds none afterwards")
   void poolTaskSeesFieldsAndThreadIsClearedAfter() throws ExecutionException, InterruptedException {
-    try (var singleThreadPool = Executors.newSingleThreadExecutor();
+    try (var _ = new ServiceMdcFieldsPropagation();
+        var singleThreadPool = Executors.newSingleThreadExecutor();
         var contextCarryingPool = ContextExecutorService.wrap(singleThreadPool)) {
       MDC.put(CUSTOMER_ID, CUSTOMER);
 
