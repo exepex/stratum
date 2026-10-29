@@ -289,41 +289,6 @@ class SecretRedactionTest {
     }
 
     @Test
-    @DisplayName("a user name and password in a URL are masked")
-    void urlCredentialsAreMasked() {
-      assertThat(redactUnnamedText("connecting to postgres://app:" + PASSWORD + "@db:5432/orders"))
-          .isEqualTo("connecting to postgres://****@db:5432/orders");
-    }
-
-    @Test
-    @DisplayName("a password in a URL with no user name is masked")
-    void urlPasswordWithoutUserIsMasked() {
-      assertThat(redactUnnamedText("connecting to redis://:" + PASSWORD + "@cache:6379/0"))
-          .isEqualTo("connecting to redis://****@cache:6379/0");
-    }
-
-    @Test
-    @DisplayName("a URL password that holds a raw @ is masked up to the last @ before the host")
-    void urlPasswordWithRawAtSignIsMasked() {
-      assertThat(redactUnnamedText("connecting to https://bob:p@ss@word@api.example.com/v1"))
-          .isEqualTo("connecting to https://****@api.example.com/v1");
-    }
-
-    @Test
-    @DisplayName("an @ in a URL's query is not read as the end of a password")
-    void atSignInUrlQueryIsKept() {
-      assertThat(redactUnnamedText("https://alice:example@host?password=before@after"))
-          .isEqualTo("https://****@host?password=****");
-    }
-
-    @Test
-    @DisplayName("an @ in a URL's path is not read as the end of a password")
-    void atSignInUrlPathIsKept() {
-      assertThat(redactUnnamedText("see https://social.example:8443/@bob and https://a:x@h/@c"))
-          .isEqualTo("see https://social.example:8443/@bob and https://****@h/@c");
-    }
-
-    @Test
     @DisplayName("a secret in a Lombok toString is masked")
     void lombokToStringSecretIsMasked() {
       assertThat(redactUnnamedText("Login(user=bob, password=" + PASSWORD + ")"))

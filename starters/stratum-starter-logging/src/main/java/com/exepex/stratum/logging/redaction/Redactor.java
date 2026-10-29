@@ -6,6 +6,7 @@ import com.exepex.stratum.logging.LoggingProperties;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.IntPredicate;
 import java.util.function.UnaryOperator;
@@ -142,10 +143,13 @@ public final class Redactor {
 
   /**
    * Masks a map, a collection or an array by its field name only: Spring Boot passes the values
-   * inside it on one by one.
+   * inside it on one by one. A {@code toString()} that returns null is masked as the text null.
    */
   private Object maskByName(@Nullable String fieldName, Object logValue) {
-    return fieldNames.mask(fieldName, logValue::toString).map(Object.class::cast).orElse(logValue);
+    return fieldNames
+        .mask(fieldName, () -> Objects.requireNonNullElse(logValue.toString(), "null"))
+        .map(Object.class::cast)
+        .orElse(logValue);
   }
 
   /** Masks text by its field name, or else by its content. */

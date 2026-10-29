@@ -4,7 +4,7 @@ import com.exepex.stratum.logging.redaction.MaskedText.Replacement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.regex.Matcher;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -14,8 +14,8 @@ import lombok.experimental.UtilityClass;
 import org.apache.commons.validator.routines.checkdigit.LuhnCheckDigit;
 
 /**
- * Masks payment card numbers in text, keeping their last four digits: digit groups that hold 13 to
- * 19 digits and pass the Luhn check.
+ * Finds payment card numbers in text, to be masked keeping their last four digits: digit groups
+ * that hold 13 to 19 digits and pass the Luhn check.
  */
 @UtilityClass
 class CardNumberMasker {
@@ -38,23 +38,35 @@ class CardNumberMasker {
   private static final int MAX_CARD_DIGITS = 19;
 
   /**
-   * Masks every card number in the text.
-   *
-   * @param text the text to mask
-   * @return the text with each card number masked
+   * Separators that also split dates, file names, decimal numbers and columns of numbers, such as
+   * {@code 2026.10.29.07.39}, so a card may use them only in one of the {@link #CARD_LAYOUTS}.
    */
-  static String mask(String text) {
+  private static final Set<String> LAYOUT_ONLY_SEPARATORS = Set.of(".", "/", "_", "  ");
+
+  /** The lengths of the groups that cards are printed in: most cards, and American Express. */
+  private static final Set<List<Integer>> CARD_LAYOUTS =
+      Set.of(List.of(4, 4, 4, 4), List.of(4, 4, 4, 4, 3), List.of(4, 6, 5));
+
+  /**
+   * Returns every card number in the text, each with its masked form.
+   *
+   * @param text the text to search
+   * @return where each card number is and what to write in its place, in order
+   */
+  static List<Replacement> cardsIn(String text) {
     return CARD_GROUPS
         .matcher(text)
-        .replaceAll(digitGroupRun -> Matcher.quoteReplacement(maskRun(digitGroupRun.group())));
+        .results()
+        .flatMap(digitGroupRun -> cardsInRun(digitGroupRun.group(), digitGroupRun.start()))
+        .toList();
   }
 
   /**
-   * Masks the cards in one run of digit groups. A run such as {@code 4111 1111 1111 1111 43} can
+   * Returns the cards in one run of digit groups. A run such as {@code 4111 1111 1111 1111 43} can
    * hold a card next to other numbers, so the longest valid card that starts at each group is
    * looked for, and the search goes on after the card it finds.
    */
-  private static String maskRun(String digitGroupRun) {
+  private static Stream<Replacement> cardsInRun(String digitGroupRun, int runStart) {
     var groups = digitGroupsOf(digitGroupRun);
     var runDigits = groups.stream().map(DigitGroup::digits).collect(Collectors.joining());
     var maskedCards = new ArrayList<Replacement>();
@@ -64,15 +76,15 @@ class CardNumberMasker {
       var card = withOverlaps(runDigits, groups, nextCard.get());
       maskedCards.add(
           Replacement.builder()
-              .start(card.start())
-              .end(card.end())
+              .start(runStart + card.start())
+              .end(runStart + card.end())
               .text(MaskedText.keepingLastFour(card.digits()))
               .build());
       nextCard =
           longestCardsStartingIn(runDigits, groups, card.lastGroup() + 1, groups.size())
               .findFirst();
     }
-    return MaskedText.replace(digitGroupRun, maskedCards);
+    return maskedCards.stream();
   }
 
   /**
@@ -119,6 +131,7 @@ class CardNumberMasker {
         IntStream.range(firstGroup, groups.size())
             .takeWhile(lastGroup -> digitCount(groups, firstGroup, lastGroup) <= MAX_CARD_DIGITS)
             .filter(lastGroup -> digitCount(groups, firstGroup, lastGroup) >= MIN_CARD_DIGITS)
+            .filter(lastGroup -> hasCardLayout(groups.subList(firstGroup, lastGroup + 1)))
             .mapToObj(
                 lastGroup ->
                     CardSpan.builder()
@@ -136,6 +149,19 @@ class CardNumberMasker {
     return validCards.isEmpty() ? Optional.empty() : Optional.of(validCards.getLast());
   }
 
+  /**
+   * Returns whether the groups are split only by spaces and dashes, or else are in a card's layout
+   * with the same separator between every group.
+   */
+  private static boolean hasCardLayout(List<DigitGroup> cardGroups) {
+    var separators =
+        cardGroups.stream().skip(1).map(DigitGroup::separatorBefore).collect(Collectors.toSet());
+    return separators.stream().noneMatch(LAYOUT_ONLY_SEPARATORS::contains)
+        || separators.size() == 1
+            && CARD_LAYOUTS.contains(
+                cardGroups.stream().map(group -> group.digits().length()).toList());
+  }
+
   /** Returns how many digits the groups from first to last hold. */
   private static int digitCount(List<DigitGroup> groups, int firstGroup, int lastGroup) {
     return groups.get(lastGroup).digitEnd() - groups.get(firstGroup).digitStart();
@@ -146,14 +172,17 @@ class CardNumberMasker {
     var groups = new ArrayList<DigitGroup>();
     var digitsBefore = 0;
     var matcher = DIGIT_GROUP.matcher(digitGroupRun);
-    // A loop, because each group's digits start where the previous group's digits end.
+    // A loop, because each group's digits start where the previous group's digits end, and its
+    // separator starts where the previous group ends.
     while (matcher.find()) {
+      var previousEnd = groups.isEmpty() ? 0 : groups.getLast().end();
       groups.add(
           DigitGroup.builder()
               .digits(matcher.group())
               .start(matcher.start())
               .end(matcher.end())
               .digitStart(digitsBefore)
+              .separatorBefore(digitGroupRun.substring(previousEnd, matcher.start()))
               .build());
       digitsBefore += matcher.group().length();
     }
@@ -179,9 +208,11 @@ class CardNumberMasker {
    * @param start where the group starts in the run
    * @param end where the group ends in the run
    * @param digitStart where its digits start in the run's digits, without separators
+   * @param separatorBefore what splits it from the group before, empty for the first group
    */
   @Builder
-  private record DigitGroup(String digits, int start, int end, int digitStart) {
+  private record DigitGroup(
+      String digits, int start, int end, int digitStart, String separatorBefore) {
 
     /** Returns where its digits end in the run's digits. */
     private int digitEnd() {

@@ -8,6 +8,7 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.FieldSource;
 
 @DisplayName("Card numbers in text keep only their last four digits")
@@ -23,14 +24,34 @@ class CardNumberRedactionTest {
           "order123 4111 1111 1111 1111 paid",
           "4111-1111-1111-1111 7 and 5500 0000 0000 0004");
 
-  /** The test card with its groups split by each other separator, and by a mix of them. */
+  /** The test card with its groups split by each other separator. */
   private static final List<String> CARDS_WITH_OTHER_SEPARATORS =
       List.of(
           "4111.1111.1111.1111",
           "4111/1111/1111/1111",
           "4111_1111_1111_1111",
-          "4111  1111  1111  1111",
-          "4111 1111-1111.1111");
+          "4111  1111  1111  1111");
+
+  /** American Express and 19-digit cards in their own layouts, split by dots. */
+  private static final List<Arguments> OTHER_CARD_LAYOUTS_WITH_DOTS =
+      List.of(
+          Arguments.of("3782.822463.10005", "****0005"),
+          Arguments.of("4402.6140.1419.3141.705", "****1705"),
+          Arguments.of("4111.1111.1111.1111.003", "****1003"));
+
+  /**
+   * Digits that pass the Luhn check across a dot, underscore or mixed separators, but are not in a
+   * card's layout: timestamps, file names, decimal numbers and groups split by more than one kind
+   * of separator.
+   */
+  private static final List<String> LUHN_PASSING_NUMBERS_OUTSIDE_CARD_LAYOUTS =
+      List.of(
+          "at 2026.10.01.15.16.35.239",
+          "at 2026.12.28.10.34.57.585",
+          "export_20260604_010831_222.csv",
+          "path /2026/10/09/23/22/50/707",
+          "price 798.2872025584391",
+          "card 4111 1111-1111.1111 paid");
 
   @Test
   @DisplayName("a card number that passes the Luhn check keeps only its last four digits")
@@ -81,6 +102,20 @@ class CardNumberRedactionTest {
   @DisplayName("a card split by dots, slashes, underscores or two spaces is masked")
   void cardWithOtherSeparatorsIsMasked(String card) {
     assertThat(redactUnnamedText("card " + card + " paid")).isEqualTo("card ****1111 paid");
+  }
+
+  @ParameterizedTest
+  @FieldSource("OTHER_CARD_LAYOUTS_WITH_DOTS")
+  @DisplayName("an American Express or 19-digit card split by dots in its layout is masked")
+  void otherCardLayoutWithDotsIsMasked(String card, String maskedCard) {
+    assertThat(redactUnnamedText(card)).isEqualTo(maskedCard);
+  }
+
+  @ParameterizedTest
+  @FieldSource("LUHN_PASSING_NUMBERS_OUTSIDE_CARD_LAYOUTS")
+  @DisplayName("digits split by dots or underscores outside a card's layout are kept")
+  void numberOutsideCardLayoutIsKept(String line) {
+    assertThat(redactUnnamedText(line)).isEqualTo(line);
   }
 
   @Test
