@@ -8,11 +8,12 @@ import com.exepex.stratum.core.properties.fixture.GreetingAutoConfiguration.Gree
 import com.exepex.stratum.core.properties.fixture.GreetingAutoConfiguration.GreetingProperties;
 import com.exepex.stratum.core.properties.testsupport.GreetingTestData;
 import jakarta.validation.ConstraintViolationException;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.ConfigDataApplicationContextInitializer;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -43,8 +44,12 @@ class JavaConfigurationWinsTest {
   @DisplayName("with values in a configuration file")
   class FromFiles {
 
+    /** The same greeting settings, written once as properties and once as YAML. */
+    private static final List<String> GREETING_CONFIGURATION_FILES =
+        List.of("greeting/application.properties", "greeting/application.yml");
+
     @ParameterizedTest(name = "{0}")
-    @ValueSource(strings = {"greeting/application.properties", "greeting/application.yml"})
+    @FieldSource("GREETING_CONFIGURATION_FILES")
     @DisplayName("the module uses the values from application.properties and application.yml")
     void bindsValuesFromFile(String file) {
       contextRunner
@@ -61,7 +66,7 @@ class JavaConfigurationWinsTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @ValueSource(strings = {"greeting/application.properties", "greeting/application.yml"})
+    @FieldSource("GREETING_CONFIGURATION_FILES")
     @DisplayName("a value set in Java wins over the same value in the file")
     void javaValueWinsOverFileValue(String file) {
       contextRunner

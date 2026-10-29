@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.FieldSource;
 import org.slf4j.MDC;
 
 @DisplayName("ErrorReport records an error or warning for the logs")
@@ -37,6 +37,9 @@ class ErrorReportTest {
   @Nested
   @DisplayName("when it is made from a code")
   class FromCode {
+
+    /** Details that are blank or only control characters, which the message leaves out. */
+    private static final List<String> BLANK_DETAILS = List.of("", " ", "\n", "\u0000", "\u0085");
 
     @Test
     @DisplayName("without a detail, its message is the code's description")
@@ -61,7 +64,7 @@ class ErrorReportTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"", " ", "\n", "\u0000", "\u0085"})
+    @FieldSource("BLANK_DETAILS")
     @DisplayName("with a detail that is blank or only control characters, the message has no colon")
     void leavesOutBlankDetail(String detail) {
       var report = ErrorReport.of(OrderErrorCode.OUT_OF_STOCK, detail);
@@ -101,7 +104,7 @@ class ErrorReportTest {
                   + " Give the service's codes their own prefix.");
     }
 
-    @ParameterizedTest(name = "\"{0}\"")
+    @ParameterizedTest
     @EnumSource(LookalikeErrorCode.class)
     @DisplayName("a service's code that only looks like the SX- prefix is accepted and kept as is")
     void acceptsLookalikePrefixDeclaredOutsideStratum(LookalikeErrorCode lookalike) {
@@ -126,6 +129,14 @@ class ErrorReportTest {
   @DisplayName("when it records the trace, span and correlation IDs")
   class WithIds {
 
+    /** IDs made only of the allowed characters, which a report keeps. */
+    private static final List<String> USABLE_IDS =
+        List.of("c0a8012e-7f3d-4a8e-9a43-2f9b6f1c2d10", "order_42.step:3", "a");
+
+    /** IDs that are empty or hold any other character, which a report leaves out. */
+    private static final List<String> UNUSABLE_IDS =
+        List.of("", "order 42", "id\nforged log line", "id\r", "<script>", "ü");
+
     @Test
     @DisplayName("it takes them from the logging context")
     void readsIdsFromLoggingContext() {
@@ -149,7 +160,7 @@ class ErrorReportTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @ValueSource(strings = {"c0a8012e-7f3d-4a8e-9a43-2f9b6f1c2d10", "order_42.step:3", "a"})
+    @FieldSource("USABLE_IDS")
     @DisplayName("an ID of letters, digits, '-', '_', '.' and ':' is kept")
     void keepsUsableId(String id) {
       MDC.put(LoggingContextConstants.CORRELATION_ID, id);
@@ -157,8 +168,8 @@ class ErrorReportTest {
       assertThat(correlationIdOfNewReport()).isEqualTo(id);
     }
 
-    @ParameterizedTest(name = "\"{0}\"")
-    @ValueSource(strings = {"", "order 42", "id\nforged log line", "id\r", "<script>", "ü"})
+    @ParameterizedTest
+    @FieldSource("UNUSABLE_IDS")
     @DisplayName("an empty ID, or one with any other character, is left out")
     void leavesOutUnusableId(String id) {
       MDC.put(LoggingContextConstants.CORRELATION_ID, id);

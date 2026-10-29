@@ -7,13 +7,14 @@ import com.exepex.stratum.core.error.StratumException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.logging.LoggingSystemProperty;
@@ -25,6 +26,10 @@ import org.springframework.context.ConfigurableApplicationContext;
 @Slf4j
 @DisplayName("The logging starter's settings and checks at startup")
 class LoggingStartupIntegrationTest {
+
+  /** The same logging settings, written once as YAML and once as properties. */
+  private static final List<String> CONFIGURATION_NAMES =
+      List.of("logging-yaml", "logging-properties");
 
   /** Starts the test application with the given command-line arguments. */
   private ConfigurableApplicationContext start(String... args) {
@@ -56,7 +61,7 @@ class LoggingStartupIntegrationTest {
   }
 
   @ParameterizedTest(name = "{0}")
-  @ValueSource(strings = {"logging-yaml", "logging-properties"})
+  @FieldSource("CONFIGURATION_NAMES")
   @DisplayName("the same settings work from application.yml and application.properties")
   void settingsBindFromBothFormats(String configName, CapturedOutput output) {
     try (var _ = start("--spring.config.name=" + configName)) {

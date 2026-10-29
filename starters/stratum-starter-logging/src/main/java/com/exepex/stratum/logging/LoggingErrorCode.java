@@ -17,14 +17,14 @@ public enum LoggingErrorCode implements ErrorCode {
   APPLICATION_NAME_MISSING(
       "SX-LOGGING-1001",
       Severity.ERROR,
-      "spring.application.name is not set; the logging module writes it on every line as"
-          + " service.name"),
+      LoggingConstants.APPLICATION_NAME
+          + " is not set; the logging module writes it on every line as service.name"),
 
   /** A pattern in {@code stratum.logging.redaction.extra-patterns} cannot be compiled. */
   INVALID_REDACTION_PATTERN(
       "SX-LOGGING-1002",
       Severity.ERROR,
-      "A pattern in stratum.logging.redaction.extra-patterns is not a valid regular expression");
+      "A pattern in " + LoggingConstants.EXTRA_PATTERNS + " is not a valid regular expression");
 
   /** The code, such as {@code SX-LOGGING-1001}. */
   private final String code;
