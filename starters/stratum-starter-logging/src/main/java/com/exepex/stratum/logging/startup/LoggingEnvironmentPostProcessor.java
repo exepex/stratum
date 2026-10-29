@@ -104,7 +104,7 @@ public class LoggingEnvironmentPostProcessor implements EnvironmentPostProcessor
         LoggingConstants.STACK_TRACE_MAX_LENGTH, loggingProperties.maxFieldLength().toBytes());
     defaultProperties.put(LoggingConstants.STACK_TRACE_ROOT, "first");
     // So that @Async methods and work on Spring's executors keep the workflow and trace fields.
-    defaultProperties.put(LoggingConstants.PROPAGATE_TASK_CONTEXT, true);
+    defaultProperties.put(StratumModuleConstants.PROPAGATE_TASK_CONTEXT, true);
     return defaultProperties;
   }
 

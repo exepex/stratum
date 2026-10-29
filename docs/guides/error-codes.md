@@ -84,8 +84,9 @@ line or break a response.
 With `stratum.observability.enabled=true`, the correlation ID is the `correlationId` entry of the
 tracing baggage when one is set, and otherwise the trace ID, which every service in the same trace
 shares ([observability module](../../starters/stratum-starter-observability/README.md#correlation-id)).
-Baggage is sent on every outgoing call made with Spring's HTTP clients, to every host, so never put
-a secret or personal data in the correlation ID. **Planned:** the web module will read the
+Baggage is sent on every outgoing call made with Spring's HTTP clients, to every host (from
+reactive code only with `spring.reactor.context-propagation=auto`), so never put a secret or
+personal data in the correlation ID. **Planned:** the web module will read the
 correlation ID from the `X-Correlation-Id` header and set it in the baggage, and the logging module
 will limit the baggage to the service's own hosts.
 

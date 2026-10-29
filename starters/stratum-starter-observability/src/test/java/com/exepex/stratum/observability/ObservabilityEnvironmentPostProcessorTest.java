@@ -25,6 +25,8 @@ class ObservabilityEnvironmentPostProcessorTest {
   private static final String HOST_TAG =
       ObservabilityConstants.METRIC_TAGS + ObservabilityConstants.HOST_TAG;
 
+  private static final String PROPAGATE_TASK_CONTEXT = "spring.task.execution.propagate-context";
+
   private static final String KAFKA_LISTENER_SWITCH = "spring.kafka.listener.observation-enabled";
 
   /**
@@ -79,6 +81,7 @@ class ObservabilityEnvironmentPostProcessorTest {
       assertThat(unset.getProperty(ObservabilityConstants.METRICS_EXPORT_ENABLED)).isEqualTo(OFF);
       assertThat(off.getProperty(ObservabilityConstants.TRACING_EXPORT_ENABLED)).isEqualTo(OFF);
       assertThat(unset.getProperty(ObservabilityConstants.WEB_EXPOSURE)).isNull();
+      assertThat(unset.getProperty(PROPAGATE_TASK_CONTEXT)).isNull();
       assertThat(
               ObservabilityConstants.MESSAGING_OBSERVATION_SWITCHES.stream()
                   .map(unset::getProperty))
@@ -110,6 +113,14 @@ class ObservabilityEnvironmentPostProcessorTest {
       assertThat(environment.getProperty(ObservabilityConstants.WEB_EXPOSURE))
           .isEqualTo(ObservabilityConstants.SAFE_ENDPOINTS);
       assertThat(environment.getProperty(ObservabilityConstants.METRICS_EXPORT_ENABLED)).isNull();
+    }
+
+    @Test
+    @DisplayName("Spring Boot's executors carry the trace, so @Async work joins the caller's trace")
+    void executorsCarryTrace() {
+      var environment = runPostProcessor(environmentWithModuleOn());
+
+      assertThat(environment.getProperty(PROPAGATE_TASK_CONTEXT)).isEqualTo(ON);
     }
 
     @Test

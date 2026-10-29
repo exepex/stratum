@@ -14,6 +14,12 @@ public class StratumModuleConstants {
   public static final String SERVICE_ENVIRONMENT = PREFIX + ".environment";
 
   /**
+   * Spring Boot's switch that makes its executors carry the logging and tracing context, which the
+   * logging and observability modules both turn on.
+   */
+  public static final String PROPAGATE_TASK_CONTEXT = "spring.task.execution.propagate-context";
+
+  /**
    * The {@code @AutoConfigureOrder} of every Stratum auto-configuration: later than the default, so
    * that a company framework's auto-configurations with no order run first and their beans win (ADR
    * 0001).
