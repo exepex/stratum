@@ -1,7 +1,7 @@
 # Kafka: `stratum-starter-kafka`
 
 **Status: Planned.** Kafka producers and consumers with JSON messages, safe producer settings,
-retries, dead-letter topics and trace propagation.
+retries and dead-letter topics.
 
 [← Documentation home](../README.md) · Property prefix: `stratum.kafka`
 
@@ -14,7 +14,8 @@ end at the topic. This starter sets Spring for Apache Kafka up so that:
 - producers do not lose or duplicate messages on retry,
 - a failing message is retried a few times and then moved to a **dead-letter topic** (DLT), so the
   consumer keeps going and the message is kept for later,
-- the trace continues from the producer to the consumer.
+- the trace continues from the producer to the consumer, through the
+  [observability starter](../../starters/stratum-starter-observability/README.md#messages).
 
 ```mermaid
 flowchart LR
@@ -92,8 +93,7 @@ same partition and are processed in order.
 | Safe producer | Idempotence on, `acks=all`, so a retry never writes a duplicate and an acknowledged write is not lost |
 | Consumer retries | 3 attempts with growing backoff, then the message goes to `<topic>.dlt` |
 | Not retried | Messages that cannot be deserialised, and exceptions you mark as not retryable, go to the DLT at once |
-| Trace propagation | Trace context travels in message headers |
-| Correlation ID | Copied into a message header and back into the consumer's log context |
+| Traces, timings and correlation ID | Come from the [observability starter](../../starters/stratum-starter-observability/README.md#messages), which switches on Spring Kafka's observation |
 | Metrics | Producer and consumer metrics, including consumer lag |
 
 ## Properties
@@ -117,8 +117,6 @@ Spring Boot properties this starter sets by default (your values win):
 | `spring.kafka.consumer.group-id` | value of `spring.application.name` |
 | `spring.kafka.producer.acks` | `all` |
 | `spring.kafka.consumer.auto-offset-reset` | `earliest` |
-| `spring.kafka.template.observation-enabled` | `true` |
-| `spring.kafka.listener.observation-enabled` | `true` |
 
 ## Examples
 
@@ -177,4 +175,4 @@ message is retried 10 times and then skipped.
 | "The class is not in the trusted packages" | Add the event's package to `stratum.kafka.json.trusted-packages`. |
 | Consumer lag grows | Listeners are slow or failing. Check the DLT and the retry logs before adding consumers. |
 | Messages in the DLT | Read the `kafka_dlt-exception-message` header for the reason. Fix, then replay the messages from the DLT. |
-| Trace ends at the producer | The consumer service does not use the observability starter. |
+| Trace ends at the producer | The consumer service does not have the [observability starter](../../starters/stratum-starter-observability/README.md#messages) on. |

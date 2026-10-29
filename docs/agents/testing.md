@@ -52,7 +52,8 @@ conventions. Each rule has an ID so that reviews and judge verdicts can cite it.
   by adding the starter.
 - **ST-TEST-32** Real dependencies (PostgreSQL, Kafka, Redis, an OAuth2 server) run in Testcontainers provided by
   `stratum-test`. Image tags are pinned in one place; `latest` is never used. Containers are shared across a module's
-  tests where that is safe, to keep builds fast.
+  tests where that is safe, to keep builds fast. Where the library ships a real broker that runs inside the test JVM,
+  such as Spring Kafka's `@EmbeddedKafka` or embedded Artemis, a test may use it instead; it needs no Docker.
 - **ST-TEST-33** Connection details reach Spring through `@ServiceConnection` or `@DynamicPropertySource`, never as
   hardcoded hosts or ports.
 - **ST-TEST-34** Downstream HTTP services are stubbed, for example with WireMock. Tests cover their timeouts, error

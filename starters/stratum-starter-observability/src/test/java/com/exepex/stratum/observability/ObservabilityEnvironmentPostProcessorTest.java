@@ -3,6 +3,7 @@ package com.exepex.stratum.observability;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.condition.StratumModuleConstants;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -20,6 +21,20 @@ class ObservabilityEnvironmentPostProcessorTest {
 
   private static final String HOST_TAG =
       ObservabilityConstants.METRIC_TAGS + ObservabilityConstants.HOST_TAG;
+
+  private static final String KAFKA_LISTENER_SWITCH = "spring.kafka.listener.observation-enabled";
+
+  /**
+   * Spring Boot's Kafka and RabbitMQ observation switches other than the Kafka listener's, spelled
+   * out here so a misspelt key in the module fails the test.
+   */
+  private static final List<String> OTHER_MESSAGING_SWITCHES =
+      List.of(
+          "spring.kafka.template.observation-enabled",
+          "spring.rabbitmq.template.observation-enabled",
+          "spring.rabbitmq.listener.simple.observation-enabled",
+          "spring.rabbitmq.listener.direct.observation-enabled",
+          "spring.rabbitmq.listener.stream.observation-enabled");
 
   private static final String ON = "true";
 
@@ -59,6 +74,10 @@ class ObservabilityEnvironmentPostProcessorTest {
       assertThat(unset.getProperty(ObservabilityConstants.METRICS_EXPORT_ENABLED)).isEqualTo(OFF);
       assertThat(off.getProperty(ObservabilityConstants.TRACING_EXPORT_ENABLED)).isEqualTo(OFF);
       assertThat(unset.getProperty(ObservabilityConstants.WEB_EXPOSURE)).isNull();
+      assertThat(
+              ObservabilityConstants.MESSAGING_OBSERVATION_SWITCHES.stream()
+                  .map(unset::getProperty))
+          .containsOnlyNulls();
     }
 
     @Test
@@ -114,6 +133,16 @@ class ObservabilityEnvironmentPostProcessorTest {
           .isEqualTo(ON);
       assertThat(environment.getProperty(ObservabilityConstants.HISTOGRAM_FLAVOR))
           .isEqualTo(ObservabilityConstants.EXPONENTIAL_HISTOGRAM);
+    }
+
+    @Test
+    @DisplayName("Kafka and RabbitMQ messages are traced and timed, unless the service says no")
+    void observesMessaging() {
+      var environment =
+          runPostProcessor(environmentWithModuleOn().withProperty(KAFKA_LISTENER_SWITCH, OFF));
+
+      assertThat(OTHER_MESSAGING_SWITCHES.stream().map(environment::getProperty)).containsOnly(ON);
+      assertThat(environment.getProperty(KAFKA_LISTENER_SWITCH)).isEqualTo(OFF);
     }
 
     @Test

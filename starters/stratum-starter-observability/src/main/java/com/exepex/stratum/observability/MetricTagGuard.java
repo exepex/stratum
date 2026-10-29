@@ -17,7 +17,8 @@ import lombok.extern.slf4j.Slf4j;
  * Drops every metric with a tag named like an ID, such as {@code userId} or {@code trace_id},
  * because each ID value would make a new time series and can overload the metrics backend. Names
  * are compared ignoring case, {@code _}, {@code -} and {@code .}. Each dropped metric is reported
- * once, with {@code SX-OBSERVABILITY-1002}.
+ * once, with {@code SX-OBSERVABILITY-1002}. The RabbitMQ routing-key tag, which can also hold an
+ * ID, is removed and its metric kept.
  */
 @Slf4j
 public class MetricTagGuard implements MeterFilter {
@@ -41,6 +42,10 @@ public class MetricTagGuard implements MeterFilter {
   /** The built-in names and the service's own, less the allowed ones, written as compared. */
   private final Set<String> forbiddenTagNames;
 
+  /** Removes the RabbitMQ routing-key tag from every metric. */
+  private final MeterFilter routingKeyRemover =
+      MeterFilter.ignoreTags(ObservabilityConstants.RABBIT_ROUTING_KEY_TAG);
+
   /** The names of the metrics already reported, so each is reported once. */
   private final Set<String> reportedMetricNames = ConcurrentHashMap.newKeySet();
 
@@ -60,6 +65,17 @@ public class MetricTagGuard implements MeterFilter {
         Stream.concat(ID_TAG_NAMES.stream(), extraForbiddenTagNames.stream().map(this::comparable))
             .filter(tagName -> !comparableAllowedTagNames.contains(tagName))
             .collect(Collectors.toUnmodifiableSet());
+  }
+
+  /**
+   * Removes the RabbitMQ routing-key tag, so RabbitMQ sends are still timed, per destination.
+   *
+   * @param id the metric's name and tags
+   * @return the same metric without that tag
+   */
+  @Override
+  public Meter.Id map(Meter.Id id) {
+    return routingKeyRemover.map(id);
   }
 
   /**

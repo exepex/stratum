@@ -1,6 +1,7 @@
 package com.exepex.stratum.observability;
 
 import com.exepex.stratum.core.condition.StratumModuleConstants;
+import java.util.List;
 import lombok.experimental.UtilityClass;
 
 /** The property keys, tag names and span attributes the observability module uses (ST-ENG-45). */
@@ -56,6 +57,25 @@ public class ObservabilityConstants {
    * and for all pods together, with no bucket limits to choose.
    */
   public static final String EXPONENTIAL_HISTOGRAM = "base2-exponential-bucket-histogram";
+
+  /**
+   * Spring Boot's switches that trace and time Kafka and RabbitMQ messages, which it leaves off.
+   * JMS needs none: Spring Boot observes it whenever metrics or tracing are set up.
+   */
+  public static final List<String> MESSAGING_OBSERVATION_SWITCHES =
+      List.of(
+          "spring.kafka.template.observation-enabled",
+          "spring.kafka.listener.observation-enabled",
+          "spring.rabbitmq.template.observation-enabled",
+          "spring.rabbitmq.listener.simple.observation-enabled",
+          "spring.rabbitmq.listener.direct.observation-enabled",
+          "spring.rabbitmq.listener.stream.observation-enabled");
+
+  /**
+   * The tag in which Spring puts a RabbitMQ message's routing key on its send timer. A routing key
+   * can hold an ID, so the tag guard removes it.
+   */
+  public static final String RABBIT_ROUTING_KEY_TAG = "messaging.rabbitmq.destination.routing_key";
 
   /** Spring Boot's switch for sending metrics over OTLP. */
   public static final String METRICS_EXPORT_ENABLED = "management.otlp.metrics.export.enabled";
