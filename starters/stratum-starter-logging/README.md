@@ -250,7 +250,7 @@ The fields stay inside the service. With the observability starter, the trace ID
 services it calls; sending the workflow fields too is [planned](#planned). The observability
 starter also puts `traceId`, `spanId` and `correlationId` on the lines written inside a traced
 operation, reactive code included; threads the service creates itself need
-[wrapping](../stratum-starter-observability/README.md#threads-and-reactive-code).
+[wrapping](../../docs/guides/context-across-threads.md#blocking-code).
 
 ## Redaction
 
@@ -391,7 +391,9 @@ logging:
 logging.structured.json.add.team=payments
 ```
 
-Add a field to every line of one piece of work with the MDC:
+Add a field to every line of one piece of work with the MDC. It follows the work to `@Async`
+methods, Spring Boot's executors and event listeners; in a `Mono` or `Flux`, add it with
+`ReactiveMdcFields` ([log fields across threads](../../docs/guides/context-across-threads.md)):
 
 ```java
 try (var ignored = MDC.putCloseable("tenant_id", tenantId)) {

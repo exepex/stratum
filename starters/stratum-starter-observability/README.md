@@ -243,8 +243,8 @@ Stratum sets Spring Boot's `spring.task.execution.propagate-context=true`, unles
 and executors built with its `ThreadPoolTaskExecutorBuilder` keep the caller's trace and correlation
 ID. Threads your code creates itself do not: `Executors` pools, `new Thread`, virtual threads you
 start, `new ThreadPoolTaskExecutor()` and `CompletableFuture.supplyAsync` without an executor. Wrap
-your own pool with `ContextExecutorService.wrap(executor, snapshotFactory::captureAll)`, where
-`snapshotFactory` is one shared `ContextSnapshotFactory.builder().build()`.
+your own pool with `ContextExecutorService.wrap(pool)`; [log fields across
+threads](../../docs/guides/context-across-threads.md) lists every case.
 
 In reactive code, Stratum sets Spring Boot's `spring.reactor.context-propagation=auto` and turns on
 Reactor's context propagation, even without WebFlux or WebClient. Every line in a WebFlux handler or
