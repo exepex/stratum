@@ -57,7 +57,9 @@ stratum:
     enabled: true
 ```
 
-Modules you leave unset stay off and set nothing up.
+Modules you leave unset stay off and set nothing up. Some modules need one more setting once they
+are on, such as the observability module's Collector addresses
+([installation](../getting-started/installation.md)).
 
 > [!WARNING]
 > Once the security starter is built (it is planned), the microservice and web-ui bundles will bring

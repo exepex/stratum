@@ -137,6 +137,10 @@ stratum.http-client.clients.inventory.base-url=http://localhost:8081
 stratum.http-client.clients.inventory.read-timeout=2s
 ```
 
+Outside the `local` and `test` profiles, the observability module also needs your OpenTelemetry
+Collector's addresses, or it stops at startup; run with `--spring.profiles.active=local` to try it
+without one ([Observability](../../starters/stratum-starter-observability/README.md#startup-check)).
+
 **What Stratum did:** it switched on the four modules (each is off until its `enabled` property
 is `true`) and registered an HTTP client group named `inventory`. Everything you did not
 set (connect timeout, trace propagation, correlation header, logging) uses Stratum's defaults. See

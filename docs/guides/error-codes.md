@@ -164,3 +164,13 @@ Each of these is an error that stops the application at startup, and only when
 
 A `stratum.logging.max-field-length` outside 1KB to 1MB stops startup with `SX-CORE-1003`, like any
 other invalid setting. The message names the rule `stratum.logging.max-field-length-in-range`.
+
+## stratum-starter-observability
+
+This is an error that stops the application at startup, and only when
+`stratum.observability.enabled=true`. See the
+[observability module](../../starters/stratum-starter-observability/README.md).
+
+| Code | Meaning | Fix |
+| --- | --- | --- |
+| `SX-OBSERVABILITY-1001` | Outside the `local` and `test` profiles, metrics or traces are sent over OTLP but their address is not set, so they would be lost. The message names each missing property: `management.otlp.metrics.export.url`, `management.opentelemetry.tracing.export.otlp.endpoint` or both. | Set the named property to your OpenTelemetry Collector, such as `http://otel-collector:4318/v1/metrics`, or turn that export off with `management.otlp.metrics.export.enabled=false` or `management.tracing.export.enabled=false`. |

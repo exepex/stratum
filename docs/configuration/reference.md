@@ -36,7 +36,7 @@ stratum.environment=prod
 | --- | --- | --- | --- |
 | `stratum.web.*` | `stratum-starter-web` | [Web → Properties](../modules/web.md#properties) | none |
 | `stratum.logging.*` | `stratum-starter-logging` | [Logging → Properties](../../starters/stratum-starter-logging/README.md#properties) | none |
-| `stratum.observability.*` | `stratum-starter-observability` | [Observability → Properties](../modules/observability.md#properties) | none |
+| `stratum.observability.*` | `stratum-starter-observability` | [Observability → Properties](../../starters/stratum-starter-observability/README.md#properties) | Collector addresses, outside `local` and `test` |
 | `stratum.security.*` | `stratum-starter-security` | [Security → Properties](../modules/security.md#properties) | `resource-server.issuer-uri` |
 | `stratum.oauth2-client.*` | `stratum-starter-oauth2-client` | [OAuth2 client → Properties](../modules/oauth2-client.md#properties) | a `spring.security.oauth2.client.registration.<name>` |
 | `stratum.http-client.*` | `stratum-starter-http-client` | [HTTP client → Properties](../modules/http-client.md#properties) | `clients.<name>.base-url` |
@@ -82,9 +82,11 @@ always wins. Details are on each module page.
 | `logging.structured.ecs.service.environment` | `${stratum.environment}` | logging |
 | `logging.structured.json.stacktrace.max-length` | `16384` (from `stratum.logging.max-field-length`) | logging |
 | `logging.structured.json.stacktrace.root` | `first` | logging |
-| `management.endpoints.web.exposure.include` | `health,info,prometheus` | observability |
-| `management.endpoint.health.probes.enabled` | `true` | observability |
-| `management.tracing.sampling.probability` | `0.1` | observability |
+| `management.otlp.metrics.export.enabled` | `false` while the module is off | observability |
+| `management.tracing.export.enabled` | `false` while the module is off | observability |
+| `management.endpoints.web.exposure.include` | `health,info` | observability |
+| `management.metrics.tags.application`, `.environment`, `.host` | `${spring.application.name}`, `${stratum.environment}`, `$HOSTNAME` | observability |
+| `management.opentelemetry.resource-attributes[deployment.environment.name]` | `${stratum.environment}` | observability |
 | `spring.jpa.open-in-view` | `false` | data |
 | `spring.jpa.hibernate.ddl-auto` | `validate` | data |
 | `spring.kafka.producer.acks` | `all` | kafka |
@@ -103,6 +105,17 @@ spring:
     username: orders
     password: ${ORDERS_DB_PASSWORD}
 
+management:
+  otlp:
+    metrics:
+      export:
+        url: http://otel-collector:4318/v1/metrics
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          endpoint: http://otel-collector:4318/v1/traces
+
 stratum:
   environment: prod
   security:
@@ -112,10 +125,6 @@ stratum:
       audiences: [order-service]
   observability:
     enabled: true
-    tracing:
-      sampling-probability: 0.05
-      export:
-        endpoint: http://otel-collector:4318/v1/traces
   http-client:
     enabled: true
     clients:
@@ -139,6 +148,8 @@ spring.application.name=order-service
 spring.datasource.url=jdbc:postgresql://orders-db:5432/orders
 spring.datasource.username=orders
 spring.datasource.password=${ORDERS_DB_PASSWORD}
+management.otlp.metrics.export.url=http://otel-collector:4318/v1/metrics
+management.opentelemetry.tracing.export.otlp.endpoint=http://otel-collector:4318/v1/traces
 
 stratum.environment=prod
 stratum.security.enabled=true
@@ -147,8 +158,6 @@ stratum.http-client.enabled=true
 stratum.resilience.enabled=true
 stratum.security.resource-server.issuer-uri=https://idp.acme.com/realms/acme
 stratum.security.resource-server.audiences=order-service
-stratum.observability.tracing.sampling-probability=0.05
-stratum.observability.tracing.export.endpoint=http://otel-collector:4318/v1/traces
 stratum.http-client.clients.inventory.base-url=http://inventory-service
 stratum.http-client.clients.inventory.token-relay=true
 stratum.http-client.clients.payments.base-url=http://payments-service

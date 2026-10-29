@@ -47,7 +47,7 @@ Add `stratum-starter-observability`. Remove:
 - Micrometer and OpenTelemetry dependencies you added by hand;
 - `MeterRegistryCustomizer` beans that only add the `application` tag.
 
-Check: `/actuator/prometheus` works and traces reach your tracing backend. Dashboards that used old
+Check: metrics and traces reach your OpenTelemetry Collector and its backends. Dashboards that used old
 metric names or tags may need updating.
 
 ## Step 4: web

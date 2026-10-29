@@ -140,8 +140,9 @@ See [Profiles and environments](../configuration/profiles-and-environments.md).
 ## Actuator
 
 **Spring Boot Actuator** adds operational endpoints to your service, such as `/actuator/health`
-(is the service up?) and `/actuator/prometheus` (metrics for Prometheus). Stratum's observability
-starter switches Actuator on with a safe, standard set of endpoints.
+(is the service up?) and `/actuator/info`. Stratum's observability starter switches Actuator on with
+only those two endpoints reachable over HTTP, and sends metrics and traces to an OpenTelemetry
+Collector.
 
 ## How Stratum fits in
 

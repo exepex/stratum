@@ -44,12 +44,13 @@ stratum:
 `application-local.yml`:
 
 ```yaml
+management:
+  tracing:
+    sampling:
+      probability: 1.0       # trace every request while developing
 stratum:
   logging:
     format: text             # easy to read in a terminal
-  observability:
-    tracing:
-      sampling-probability: 1.0   # trace every request while developing
   http-client:
     clients:
       inventory:
@@ -60,7 +61,7 @@ Or, as `application-local.properties`:
 
 ```properties
 stratum.logging.format=text
-stratum.observability.tracing.sampling-probability=1.0
+management.tracing.sampling.probability=1.0
 stratum.http-client.clients.inventory.base-url=http://localhost:8081
 ```
 
