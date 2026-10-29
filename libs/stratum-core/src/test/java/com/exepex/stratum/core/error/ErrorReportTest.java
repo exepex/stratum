@@ -10,6 +10,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 import com.example.orders.ImpostorErrorCode;
+import com.example.orders.LookalikeErrorCode;
 import com.example.orders.OrderErrorCode;
 import com.exepex.stratum.core.testsupport.TracingTestData;
 import java.util.ArrayList;
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.slf4j.MDC;
 
@@ -97,6 +99,15 @@ class ErrorReportTest {
                   + impostor.getCode()
                   + ", but the prefix SX- is reserved for Stratum."
                   + " Give the service's codes their own prefix.");
+    }
+
+    @ParameterizedTest(name = "\"{0}\"")
+    @EnumSource(LookalikeErrorCode.class)
+    @DisplayName("a service's code that only looks like the SX- prefix is accepted and kept as is")
+    void acceptsLookalikePrefixDeclaredOutsideStratum(LookalikeErrorCode lookalike) {
+      var report = ErrorReport.of(lookalike);
+
+      assertThat(report.getExternal().code()).isEqualTo(lookalike.getCode());
     }
 
     @Test
