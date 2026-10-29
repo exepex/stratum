@@ -6,6 +6,7 @@ import io.micrometer.core.instrument.Tags;
 import io.micrometer.core.instrument.config.MeterFilter;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationFilter;
+import java.util.regex.Pattern;
 import org.springframework.web.util.UriComponentsBuilder;
 
 /**
@@ -22,6 +23,9 @@ public class TelemetryUrlFilter implements ObservationFilter, MeterFilter {
 
   /** Recorded in place of a URL that cannot be parsed. */
   static final String UNPARSABLE_URL = "[UNPARSABLE_URL]";
+
+  /** The start of a query string or fragment, compiled once because it runs on every call. */
+  private static final Pattern QUERY_OR_FRAGMENT = Pattern.compile("[?#]");
 
   /**
    * Replaces the recorded URL and URI template, if the observation has them, with the same without
@@ -54,11 +58,14 @@ public class TelemetryUrlFilter implements ObservationFilter, MeterFilter {
   @Override
   public Meter.Id map(Meter.Id id) {
     var uriTemplate = id.getTag(ObservabilityConstants.URI);
-    return uriTemplate == null
+    if (uriTemplate == null) {
+      return id;
+    }
+    var cleanedUriTemplate = withoutQuery(uriTemplate);
+    return cleanedUriTemplate.equals(uriTemplate)
         ? id
         : id.replaceTags(
-            Tags.of(id.getTagsAsIterable())
-                .and(ObservabilityConstants.URI, withoutQuery(uriTemplate)));
+            Tags.of(id.getTagsAsIterable()).and(ObservabilityConstants.URI, cleanedUriTemplate));
   }
 
   /**
@@ -66,7 +73,8 @@ public class TelemetryUrlFilter implements ObservationFilter, MeterFilter {
    * scheme, host and user info, so the template is a path, such as {@code /rates?api_key=abc}.
    */
   private String withoutQuery(String uriTemplate) {
-    return uriTemplate.split("[?#]", 2)[0];
+    var queryOrFragment = QUERY_OR_FRAGMENT.matcher(uriTemplate);
+    return queryOrFragment.find() ? uriTemplate.substring(0, queryOrFragment.start()) : uriTemplate;
   }
 
   /**
