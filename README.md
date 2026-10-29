@@ -227,7 +227,7 @@ standard error responses.
 ## Modules
 
 All modules are **Planned**, except two that are partly built: `stratum-starter-logging` (JSON logs
-with the service's name and environment, and redaction) and `stratum-starter-observability`
+with the service's name and environment, redaction, and named workflows) and `stratum-starter-observability`
 (metrics, traces and health sent over OTLP, with safe defaults). Each links to its full page: what it sets up,
 every property with its default, examples in YAML and properties, how to override it and how to
 troubleshoot it.

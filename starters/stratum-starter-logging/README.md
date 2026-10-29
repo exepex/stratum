@@ -2,7 +2,8 @@
 
 **Status: Partly built.** Structured JSON logs in one format across every service, with the service's
 name and environment on every line, and secrets and personal data masked before anything is written.
-Trace IDs, workflow names and context that follows a request across threads are
+Named [workflows](#workflows) put their name on every line they write, and are timed and traced when
+the service has observability. Context that follows a request across threads is
 [planned](#planned).
 
 This page covers this module only. How Stratum works as a whole, its other modules and how
@@ -112,10 +113,93 @@ The line above comes out as one JSON object in the
 | `service.environment` | [`stratum.environment`](../../docs/configuration/reference.md#shared-properties), when set |
 | `service.version` | Your jar's manifest, when it has a version |
 | `error.type`, `error.message`, `error.stack_trace` | The exception you pass to the log call. The root cause comes first, so a cut stack trace still shows why it failed. |
+| `error.code` | The code of a `StratumException`, such as `SX-CORE-1003` or your own `PAY-0001`, when it is the exception you log or one of its causes ([error codes](../../docs/guides/error-codes.md)). Search and count errors by this field. In GELF it is `_error_code`. |
+| `workflow`, `root_workflow`, `workflow_id` | The [workflow](#workflows) the line was written in |
 | Your own fields | Key-value pairs (`addKeyValue`) and MDC entries, at the top level |
 
 Elastic reads ECS as it is; Grafana Loki and Datadog parse any JSON line. If your platform needs
 another layout, set `stratum.logging.format` to `logstash` or `gelf`.
+
+## Workflows
+
+A workflow is a named piece of business work, such as checking out an order. Name it once, and
+every log line written while it runs carries its name, so a dashboard can show the load and the
+failures of each workflow in every service.
+
+With AspectJ on the classpath, put `@Workflow` on a method of a Spring bean:
+
+```java
+@Service
+class CheckoutService {
+
+  @Workflow("ORDER_CHECKOUT")
+  public Receipt checkOut(Order order) {
+    log.info("Order checked out"); // carries "workflow":"ORDER_CHECKOUT"
+    return paymentService.pay(order); // its own @Workflow("PAYMENT") is nested inside
+  }
+}
+```
+
+AspectJ is the library Spring uses to run code around annotated methods. Add it with Spring Boot's
+starter; Stratum does not bring it:
+
+```xml
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-aspectj</artifactId>
+</dependency>
+```
+
+Without AspectJ, `@Workflow` is ignored. Spring also skips it on a private method, and when a
+method calls another method of the same class. In those cases, and to give a workflow an ID such
+as an order number, inject `Workflows` and run the work through it:
+
+```java
+@Service
+@RequiredArgsConstructor
+class RefundService {
+
+  private final Workflows workflows;
+
+  void refund(Order order) {
+    workflows.run("ORDER_REFUND", order.number(), () -> sendRefund(order));
+  }
+
+  Receipt price(Order order) {
+    return workflows.call("ORDER_PRICING", () -> priceList.price(order));
+  }
+}
+```
+
+`run` is for work that returns nothing and `call` for work that returns a value. Both pass on any
+exception the work throws, unchanged.
+
+| Field | Value |
+| --- | --- |
+| `workflow` | The name of the workflow the line was written in: the innermost one when workflows are nested |
+| `root_workflow` | The name of the outermost workflow, so `ORDER_CHECKOUT` failures can be counted even when they happen inside `PAYMENT` |
+| `workflow_id` | The ID given to `Workflows`, kept by the workflows nested inside it. Left out when none was given, or when it is not 1 to 128 letters, digits, `-`, `_`, `.` or `:`, so it cannot forge a log line |
+
+When the workflow ends, the outer workflow's fields come back, or the fields are removed. A name is
+a fixed word of 1 to 128 letters, digits, `-`, `_`, `.` or `:`, such as `ORDER_CHECKOUT`; any other
+name throws an `IllegalArgumentException`. Never build a name from data, such as an order number:
+that is what the ID is for.
+
+When the service has an `ObservationRegistry`, as with the
+[observability starter](../stratum-starter-observability/README.md), each workflow is also timed and
+traced, with no extra code:
+
+- A timer named `stratum.workflow`, tagged with `workflow` and `root_workflow`, counts the calls,
+  the failures (tag `error`) and their durations. The observability starter stores durations as
+  histograms, so a dashboard reads any percentile per workflow, for one pod or for all.
+- A span named after the workflow, with the ID as the `workflow_id` attribute, so a trace can be
+  found by an order number. A failure marks the span as failed.
+
+Stratum records only how long a workflow took. It never labels a workflow slow or fast; your
+dashboards and alerts decide that. Without a registry, workflows only set the log fields.
+
+Workflows follow the work on its own thread. Carrying them into `@Async` methods, executors and
+other services is [planned](#planned).
 
 ## Redaction
 
@@ -296,6 +380,8 @@ A Stratum endpoint that switches DEBUG on for a limited time, and back off by it
 
 ## Customize
 
+- **Your own workflow handling:** declare a `Workflows` or `WorkflowAspect` bean; Stratum's then
+  backs off.
 - **Different JSON fields:** Spring Boot's `StructuredLogFormatter` lets you write your own format;
   set `logging.structured.format.console` to its class name. Prefer the standard format so logs
   stay searchable across services.
@@ -333,7 +419,6 @@ which keeps Spring Boot's default plain-text logging, with no checks and no reda
 
 | Feature | What it adds |
 | --- | --- |
-| Workflows | `@Workflow` on a method, or `Workflows.start` without AOP, names a piece of work; `workflow`, `root_workflow` and an optional `workflow_id` go on every line, and errors carry `error.code` |
 | Context hand-off | The same fields, trace and correlation IDs follow work into `@Async`, executors, `@Scheduled` jobs and Reactor, and across services |
 | Management endpoint | Secured, timed switches for DEBUG on one logger, timing lines for one workflow, and unmasking personal data for a short time, each switching back by itself |
 | Trace and correlation IDs | `trace.id`, `span.id` and `correlation_id`, with the observability and web starters |

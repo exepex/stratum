@@ -374,7 +374,9 @@ can only be set in properties, YAML, environment variables or command-line argum
 ## Customize
 
 - **Your own metrics and spans:** use Micrometer's `MeterRegistry` or `@Observed` (which needs
-  AspectJ on the classpath and `management.observations.annotations.enabled=true`).
+  AspectJ on the classpath and `management.observations.annotations.enabled=true`). For a business
+  workflow, use the logging module's
+  [`@Workflow`](../stratum-starter-logging/README.md#workflows), which also names its log lines.
 - **Rename or drop metrics, change tags:** declare a Micrometer `MeterFilter` bean.
 - **Your own URL cleaning:** declare a `TelemetryUrlFilter` bean; Stratum's then backs off.
 - **Your own tag rule:** declare a `MetricTagGuard` bean; Stratum's then backs off.
