@@ -33,14 +33,14 @@ class LoggingEnvironmentPostProcessorTest {
       new LoggingEnvironmentPostProcessor(logs);
 
   /** Returns an environment with the module on and a service name. */
-  private MockEnvironment enabled() {
+  private MockEnvironment environmentWithModuleOn() {
     return new MockEnvironment()
         .withProperty(LoggingConstants.ENABLED, "true")
         .withProperty(LoggingConstants.APPLICATION_NAME, "orders");
   }
 
   /** Runs the post-processor on the environment and returns it. */
-  private MockEnvironment process(MockEnvironment environment) {
+  private MockEnvironment runPostProcessor(MockEnvironment environment) {
     postProcessor.postProcessEnvironment(environment, new SpringApplication());
     logs.switchOverAll();
     return environment;
@@ -48,13 +48,14 @@ class LoggingEnvironmentPostProcessorTest {
 
   @Nested
   @DisplayName("with the module unset or off")
-  class Off {
+  class WithModuleOff {
 
     @Test
     @DisplayName("it adds nothing and does not ask for a service name")
     void addsNothing() {
-      var unset = process(new MockEnvironment());
-      var off = process(new MockEnvironment().withProperty(LoggingConstants.ENABLED, "false"));
+      var unset = runPostProcessor(new MockEnvironment());
+      var off =
+          runPostProcessor(new MockEnvironment().withProperty(LoggingConstants.ENABLED, "false"));
 
       assertThat(unset.getProperty(LoggingConstants.CONSOLE_FORMAT)).isNull();
       assertThat(off.getPropertySources().contains(LoggingEnvironmentPostProcessor.DEFAULTS_SOURCE))
@@ -66,19 +67,20 @@ class LoggingEnvironmentPostProcessorTest {
     void invalidSwitchStopsStartup() {
       var environment = new MockEnvironment().withProperty(LoggingConstants.ENABLED, "maybe");
 
-      assertThatExceptionOfType(BindException.class).isThrownBy(() -> process(environment));
+      assertThatExceptionOfType(BindException.class)
+          .isThrownBy(() -> runPostProcessor(environment));
     }
   }
 
   @Nested
   @DisplayName("with the module on")
-  class On {
+  class WithModuleOn {
 
     @Test
     @DisplayName(
         "ECS JSON is the default for console and file; stack traces are root first, cut at 16KB")
     void setsDefaults() {
-      var environment = process(enabled());
+      var environment = runPostProcessor(environmentWithModuleOn());
 
       assertThat(environment.getProperty(LoggingConstants.CONSOLE_FORMAT)).isEqualTo("ecs");
       assertThat(environment.getProperty(LoggingConstants.FILE_FORMAT)).isEqualTo("ecs");
@@ -91,7 +93,8 @@ class LoggingEnvironmentPostProcessorTest {
     @Test
     @DisplayName("stratum.environment becomes service.environment")
     void setsServiceEnvironment() {
-      var environment = process(enabled().withProperty("stratum.environment", "prod"));
+      var environment =
+          runPostProcessor(environmentWithModuleOn().withProperty("stratum.environment", "prod"));
 
       assertThat(environment.getProperty(LoggingConstants.ECS_ENVIRONMENT)).isEqualTo("prod");
     }
@@ -99,7 +102,8 @@ class LoggingEnvironmentPostProcessorTest {
     @Test
     @DisplayName("another JSON format is passed to Spring Boot")
     void setsChosenFormat() {
-      var environment = process(enabled().withProperty(FORMAT, "logstash"));
+      var environment =
+          runPostProcessor(environmentWithModuleOn().withProperty(FORMAT, "logstash"));
 
       assertThat(environment.getProperty(LoggingConstants.CONSOLE_FORMAT)).isEqualTo("logstash");
       assertThat(environment.getProperty(LoggingConstants.FILE_FORMAT)).isEqualTo("logstash");
@@ -108,7 +112,9 @@ class LoggingEnvironmentPostProcessorTest {
     @Test
     @DisplayName("the service's own Spring Boot logging properties win over Stratum's")
     void serviceValuesWin() {
-      var environment = process(enabled().withProperty(LoggingConstants.CONSOLE_FORMAT, "gelf"));
+      var environment =
+          runPostProcessor(
+              environmentWithModuleOn().withProperty(LoggingConstants.CONSOLE_FORMAT, "gelf"));
 
       assertThat(environment.getProperty(LoggingConstants.CONSOLE_FORMAT)).isEqualTo("gelf");
     }
@@ -117,22 +123,23 @@ class LoggingEnvironmentPostProcessorTest {
     @DisplayName("a missing or blank service name stops startup with SX-LOGGING-1001")
     void missingNameStopsStartup() {
       var missing = new MockEnvironment().withProperty(LoggingConstants.ENABLED, "true");
-      var blank = enabled().withProperty(LoggingConstants.APPLICATION_NAME, " ");
+      var blank = environmentWithModuleOn().withProperty(LoggingConstants.APPLICATION_NAME, " ");
 
       assertThatExceptionOfType(StratumException.class)
-          .isThrownBy(() -> process(missing))
+          .isThrownBy(() -> runPostProcessor(missing))
           .withMessageStartingWith("SX-LOGGING-1001: ");
-      assertThatExceptionOfType(StratumException.class).isThrownBy(() -> process(blank));
+      assertThatExceptionOfType(StratumException.class).isThrownBy(() -> runPostProcessor(blank));
     }
 
     @Test
     @DisplayName("an invalid redaction pattern stops startup with SX-LOGGING-1002")
     void invalidPatternStopsStartup() {
       var environment =
-          enabled().withProperty("stratum.logging.redaction.extra-patterns[0]", "(unclosed");
+          environmentWithModuleOn()
+              .withProperty("stratum.logging.redaction.extra-patterns[0]", "(unclosed");
 
       assertThatExceptionOfType(StratumException.class)
-          .isThrownBy(() -> process(environment))
+          .isThrownBy(() -> runPostProcessor(environment))
           .withMessageStartingWith("SX-LOGGING-1002: ");
     }
 
@@ -141,10 +148,11 @@ class LoggingEnvironmentPostProcessorTest {
     @DisplayName("a max-field-length below 1KB or above 1MB stops startup with SX-CORE-1003")
     void maxFieldLengthOutOfRangeStopsStartup(String maxFieldLength) {
       var environment =
-          enabled().withProperty(LoggingConstants.PREFIX + ".max-field-length", maxFieldLength);
+          environmentWithModuleOn()
+              .withProperty(LoggingConstants.PREFIX + ".max-field-length", maxFieldLength);
 
       assertThatExceptionOfType(ConstraintViolationException.class)
-          .isThrownBy(() -> process(environment))
+          .isThrownBy(() -> runPostProcessor(environment))
           .withMessage(
               "SX-CORE-1003: Invalid settings: stratum.logging.max-field-length-in-range breaks"
                   + " @AssertTrue");
@@ -155,8 +163,8 @@ class LoggingEnvironmentPostProcessorTest {
     @DisplayName("a max-field-length of exactly 1KB or 1MB is allowed")
     void maxFieldLengthAtTheLimitsIsAllowed(String maxFieldLength) {
       var environment =
-          process(
-              enabled()
+          runPostProcessor(
+              environmentWithModuleOn()
                   .withProperty(LoggingConstants.PREFIX + ".max-field-length", maxFieldLength));
 
       assertThat(
@@ -174,7 +182,7 @@ class LoggingEnvironmentPostProcessorTest {
     @Test
     @DisplayName("no JSON format is set, and a warning says the lines are not redacted")
     void warnsOutsideLocalProfiles(CapturedOutput output) {
-      var environment = process(enabled().withProperty(FORMAT, "text"));
+      var environment = runPostProcessor(environmentWithModuleOn().withProperty(FORMAT, "text"));
 
       assertThat(environment.getProperty(LoggingConstants.CONSOLE_FORMAT)).isNull();
       assertThat(output).contains(NOT_REDACTED);
@@ -183,10 +191,10 @@ class LoggingEnvironmentPostProcessorTest {
     @Test
     @DisplayName("in the local or test profile only, there is no warning")
     void noWarningInLocalProfiles(CapturedOutput output) {
-      var environment = enabled().withProperty(FORMAT, "text");
+      var environment = environmentWithModuleOn().withProperty(FORMAT, "text");
       environment.setActiveProfiles("local", "test");
 
-      process(environment);
+      runPostProcessor(environment);
 
       assertThat(output).doesNotContain(NOT_REDACTED);
     }
@@ -194,10 +202,10 @@ class LoggingEnvironmentPostProcessorTest {
     @Test
     @DisplayName("a local profile next to another profile still warns")
     void warnsWithMixedProfiles(CapturedOutput output) {
-      var environment = enabled().withProperty(FORMAT, "text");
+      var environment = environmentWithModuleOn().withProperty(FORMAT, "text");
       environment.setActiveProfiles("local", "prod");
 
-      process(environment);
+      runPostProcessor(environment);
 
       assertThat(output).contains(NOT_REDACTED);
     }

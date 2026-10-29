@@ -16,7 +16,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param code a code of at most 3 characters
  */
 @ConfigurationProperties("stratum.coded")
-public record CodedSettings(@CodedSettings.ShortCode(region = "us") String code) {
+public record CodedProperties(@CodedProperties.ShortCode(region = "us") String code) {
 
   /** A code of at most 3 characters, declared without public access. */
   @Constraint(validatedBy = {})

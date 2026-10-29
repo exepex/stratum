@@ -18,23 +18,24 @@ import org.springframework.util.unit.DataSize;
 class RedactorTest {
 
   /** The smallest allowed limit, 1KB, in characters. */
-  private static final int SMALLEST_LIMIT = 1024;
+  private static final int SMALLEST_MAX_FIELD_LENGTH = 1024;
 
   /** The field that holds a log line's message. */
   private static final String MESSAGE = "message";
 
   @Nested
   @DisplayName("when it is made")
-  class Settings {
+  class WhenBuiltFromProperties {
 
     @ParameterizedTest
     @ValueSource(strings = {"secret-(\\d+", "\\p{secret-name}", "(?<secret>a)(?<secret>b)"})
     @DisplayName("an invalid extra pattern stops startup with SX-LOGGING-1002, with no part of it")
     void invalidPatternIsRejected(String invalid) {
-      var settings = LoggingTestData.withRedaction(List.of(), List.of("ok-\\d+", invalid));
+      var properties =
+          LoggingTestData.withRedaction(List.of(), List.of("ok-\\d+", invalid)).build();
 
       assertThatExceptionOfType(StratumException.class)
-          .isThrownBy(() -> Redactor.from(settings))
+          .isThrownBy(() -> Redactor.from(properties))
           .withMessageStartingWith("SX-LOGGING-1002: ")
           .withMessageContaining("pattern 2")
           .withMessageNotContaining("secret");
@@ -43,7 +44,7 @@ class RedactorTest {
 
   @Nested
   @DisplayName("when it masks a value")
-  class Values {
+  class WhenMaskingValues {
 
     private final Redactor redactor =
         Redactor.from(LoggingTestData.defaults().maxFieldLength(DataSize.ofKilobytes(1)).build());
@@ -51,19 +52,20 @@ class RedactorTest {
     @Test
     @DisplayName("a value even one character longer than the limit is cut and marked")
     void longValueIsCut() {
-      var words = "word ".repeat(SMALLEST_LIMIT / "word ".length() + 1);
-      var cut = (String) redactor.redact(MESSAGE, words.substring(0, SMALLEST_LIMIT + 1));
+      var words = "word ".repeat(SMALLEST_MAX_FIELD_LENGTH / "word ".length() + 1);
+      var cut =
+          (String) redactor.redact(MESSAGE, words.substring(0, SMALLEST_MAX_FIELD_LENGTH + 1));
 
       assertThat(cut)
-          .hasSize(SMALLEST_LIMIT + Redactor.TRUNCATION_MARKER.length())
+          .hasSize(SMALLEST_MAX_FIELD_LENGTH + Redactor.TRUNCATION_MARKER.length())
           .endsWith(Redactor.TRUNCATION_MARKER);
     }
 
     @Test
     @DisplayName("a card or token that crosses the limit is dropped, not left half visible")
     void secretAcrossTheLimitIsDropped() {
-      var beforeCard = "y".repeat(SMALLEST_LIMIT - "4111 1111 1".length()) + " ";
-      var beforeToken = "z".repeat(SMALLEST_LIMIT - "opaque".length()) + " ";
+      var beforeCard = "y".repeat(SMALLEST_MAX_FIELD_LENGTH - "4111 1111 1".length()) + " ";
+      var beforeToken = "z".repeat(SMALLEST_MAX_FIELD_LENGTH - "opaque".length()) + " ";
 
       assertThat(redactor.redact(MESSAGE, beforeCard + "4111 1111 1111 1111"))
           .isEqualTo(beforeCard.strip() + Redactor.TRUNCATION_MARKER);
@@ -74,14 +76,14 @@ class RedactorTest {
     @Test
     @DisplayName("a value with no space that is over the limit is dropped whole")
     void longWordIsDroppedWhole() {
-      assertThat(redactor.redact(MESSAGE, "x".repeat(SMALLEST_LIMIT + 1)))
+      assertThat(redactor.redact(MESSAGE, "x".repeat(SMALLEST_MAX_FIELD_LENGTH + 1)))
           .isEqualTo(Redactor.TRUNCATION_MARKER);
     }
 
     @Test
     @DisplayName("a value of exactly the limit is kept whole")
     void valueAtTheLimitIsKept() {
-      var value = "x".repeat(SMALLEST_LIMIT);
+      var value = "x".repeat(SMALLEST_MAX_FIELD_LENGTH);
 
       assertThat(redactor.redact(MESSAGE, value)).isEqualTo(value);
     }

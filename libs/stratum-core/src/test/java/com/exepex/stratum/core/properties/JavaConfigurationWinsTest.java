@@ -35,8 +35,8 @@ class JavaConfigurationWinsTest {
   void usesDefaultsWhenNothingIsSet() {
     contextRunner.run(
         context ->
-            assertThat(context.getBean(Greeter.class).settings())
-                .isEqualTo(GreetingTestData.defaults()));
+            assertThat(context.getBean(Greeter.class).properties())
+                .isEqualTo(GreetingTestData.defaults().build()));
   }
 
   @Nested
@@ -52,7 +52,7 @@ class JavaConfigurationWinsTest {
           .withPropertyValues("spring.config.location=classpath:" + file)
           .run(
               context ->
-                  assertThat(context.getBean(Greeter.class).settings())
+                  assertThat(context.getBean(Greeter.class).properties())
                       .isEqualTo(
                           GreetingProperties.builder()
                               .message("Hi from a file")
@@ -70,7 +70,7 @@ class JavaConfigurationWinsTest {
           .withUserConfiguration(JavaTimeout.class)
           .run(
               context ->
-                  assertThat(context.getBean(Greeter.class).settings())
+                  assertThat(context.getBean(Greeter.class).properties())
                       .isEqualTo(
                           GreetingProperties.builder()
                               .message("Hi from a file")
@@ -102,7 +102,7 @@ class JavaConfigurationWinsTest {
           .withUserConfiguration(JavaMessage.class)
           .run(
               context ->
-                  assertThat(context.getBean(Greeter.class).settings().message())
+                  assertThat(context.getBean(Greeter.class).properties().message())
                       .isEqualTo("Hi from Java"));
     }
   }
@@ -118,7 +118,7 @@ class JavaConfigurationWinsTest {
           .withUserConfiguration(OrderedCustomizers.class)
           .run(
               context ->
-                  assertThat(context.getBean(Greeter.class).settings().message())
+                  assertThat(context.getBean(Greeter.class).properties().message())
                       .isEqualTo("second"));
     }
 
@@ -137,13 +137,13 @@ class JavaConfigurationWinsTest {
 
     @Test
     @DisplayName("a customizer for another module's settings is ignored")
-    void ignoresCustomizerForOtherSettings() {
+    void ignoresCustomizerForOtherProperties() {
       contextRunner
           .withUserConfiguration(OtherModule.class)
           .run(
               context ->
-                  assertThat(context.getBean(Greeter.class).settings())
-                      .isEqualTo(GreetingTestData.defaults()));
+                  assertThat(context.getBean(Greeter.class).properties())
+                      .isEqualTo(GreetingTestData.defaults().build()));
     }
 
     @Test

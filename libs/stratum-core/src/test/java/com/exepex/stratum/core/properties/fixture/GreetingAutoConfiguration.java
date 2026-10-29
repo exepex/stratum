@@ -52,7 +52,7 @@ public class GreetingAutoConfiguration {
   /**
    * The bean the test module builds from its settings.
    *
-   * @param settings the settings the module resolved and uses
+   * @param properties the properties the module resolved and uses
    */
-  public record Greeter(GreetingProperties settings) {}
+  public record Greeter(GreetingProperties properties) {}
 }

@@ -10,8 +10,7 @@ import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validation;
 import jakarta.validation.ValidatorFactory;
 import java.util.stream.Stream;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -23,22 +22,14 @@ class StratumPropertiesResolverTest {
   private static final String BROKEN_CUSTOMIZER =
       "SX-CORE-1002: A StratumPropertiesCustomizer is broken: ";
 
-  private static ValidatorFactory validatorFactory;
+  /** Hibernate Validator, as Spring Boot uses it; JUnit closes it after the last test. */
+  @AutoClose
+  private static final ValidatorFactory VALIDATOR_FACTORY =
+      Validation.buildDefaultValidatorFactory();
 
-  private static StratumPropertiesResolver resolver;
-
-  /** Builds one resolver for every test, backed by Hibernate Validator. */
-  @BeforeAll
-  static void createResolver() {
-    validatorFactory = Validation.buildDefaultValidatorFactory();
-    resolver = new StratumPropertiesResolver(validatorFactory.getValidator());
-  }
-
-  /** Releases the validator factory's resources. */
-  @AfterAll
-  static void closeValidatorFactory() {
-    validatorFactory.close();
-  }
+  /** Resolves the test module's settings. */
+  private final StratumPropertiesResolver resolver =
+      new StratumPropertiesResolver(VALIDATOR_FACTORY.getValidator());
 
   @Nested
   @DisplayName("when the service has no Java configuration")
@@ -46,8 +37,8 @@ class StratumPropertiesResolverTest {
 
     @Test
     @DisplayName("it returns the settings bound from properties unchanged")
-    void returnsBoundSettingsWhenNoCustomizerExists() {
-      var bound = GreetingTestData.defaults();
+    void returnsBoundPropertiesWhenNoCustomizerExists() {
+      var bound = GreetingTestData.defaults().build();
 
       assertThat(resolver.resolve(bound, Stream.empty())).isSameAs(bound);
     }
@@ -61,7 +52,8 @@ class StratumPropertiesResolverTest {
     @DisplayName("the value set in Java wins over the value bound from properties")
     void javaValueWinsOverBoundValue() {
       var resolved =
-          resolver.resolve(GreetingTestData.defaults(), Stream.of(GreetingTestData.javaTimeout()));
+          resolver.resolve(
+              GreetingTestData.defaults().build(), Stream.of(GreetingTestData.javaTimeout()));
 
       assertThat(resolved.timeout()).isEqualTo(GreetingTestData.JAVA_TIMEOUT);
       assertThat(resolved.message()).isEqualTo("Hello");
@@ -72,7 +64,7 @@ class StratumPropertiesResolverTest {
     void appliesCustomizersInTheGivenOrder() {
       var resolved =
           resolver.resolve(
-              GreetingTestData.defaults(),
+              GreetingTestData.defaults().build(),
               Stream.of(
                   GreetingTestData.javaMessage("first"),
                   GreetingTestData.javaTimeout(),
@@ -88,8 +80,8 @@ class StratumPropertiesResolverTest {
 
     @Test
     @DisplayName("a customizer that returns its input leaves the settings unchanged")
-    void keepsSettingsWhenCustomizerReturnsItsInput() {
-      var bound = GreetingTestData.defaults();
+    void keepsPropertiesWhenCustomizerReturnsItsInput() {
+      var bound = GreetingTestData.defaults().build();
       StratumPropertiesCustomizer<GreetingProperties> unchanged = properties -> properties;
 
       assertThat(resolver.resolve(bound, Stream.of(unchanged))).isSameAs(bound);
@@ -106,7 +98,8 @@ class StratumPropertiesResolverTest {
       StratumPropertiesCustomizer<GreetingProperties> broken = new ReturnsNull();
 
       assertThatExceptionOfType(StratumException.class)
-          .isThrownBy(() -> resolver.resolve(GreetingTestData.defaults(), Stream.of(broken)))
+          .isThrownBy(
+              () -> resolver.resolve(GreetingTestData.defaults().build(), Stream.of(broken)))
           .withMessageStartingWith(BROKEN_CUSTOMIZER + ReturnsNull.class.getName())
           .withMessageContaining("returned null");
     }
@@ -114,12 +107,14 @@ class StratumPropertiesResolverTest {
     @Test
     @DisplayName(
         "a customizer written for other settings stops startup and is named in the message")
-    void rejectsCustomizerForOtherSettings() {
-      StratumPropertiesCustomizer<Object> forStrings = settings -> ((String) settings).strip();
+    void rejectsCustomizerForOtherProperties() {
+      StratumPropertiesCustomizer<Object> forStrings = properties -> ((String) properties).strip();
 
       assertThatExceptionOfType(StratumException.class)
           .isThrownBy(
-              () -> resolver.resolve((Object) GreetingTestData.defaults(), Stream.of(forStrings)))
+              () ->
+                  resolver.resolve(
+                      (Object) GreetingTestData.defaults().build(), Stream.of(forStrings)))
           .withMessageStartingWith(
               BROKEN_CUSTOMIZER + StratumPropertiesResolverTest.class.getName())
           .withMessageContaining("StratumPropertiesCustomizer<GreetingProperties>")
@@ -134,7 +129,7 @@ class StratumPropertiesResolverTest {
           properties -> properties.toBuilder().message(((Integer) text).toString()).build();
 
       assertThatExceptionOfType(StratumException.class)
-          .isThrownBy(() -> resolver.resolve(GreetingTestData.defaults(), Stream.of(buggy)))
+          .isThrownBy(() -> resolver.resolve(GreetingTestData.defaults().build(), Stream.of(buggy)))
           .withMessageStartingWith(BROKEN_CUSTOMIZER)
           .withMessageContaining("Otherwise see the cause")
           .withCauseInstanceOf(ClassCastException.class);
@@ -147,7 +142,9 @@ class StratumPropertiesResolverTest {
 
       assertThatExceptionOfType(StratumException.class)
           .isThrownBy(
-              () -> resolver.resolve((Object) GreetingTestData.defaults(), Stream.of(wrongResult)))
+              () ->
+                  resolver.resolve(
+                      (Object) GreetingTestData.defaults().build(), Stream.of(wrongResult)))
           .withMessageStartingWith(BROKEN_CUSTOMIZER)
           .withMessageContaining("returned null or settings of another type")
           .withMessageContaining("declare it as StratumPropertiesCustomizer<GreetingProperties>")
@@ -163,7 +160,8 @@ class StratumPropertiesResolverTest {
           .isThrownBy(
               () ->
                   resolver.resolve(
-                      GreetingTestData.defaults(), Stream.of(GreetingTestData.javaMessage(blank))))
+                      GreetingTestData.defaults().build(),
+                      Stream.of(GreetingTestData.javaMessage(blank))))
           .withMessage("SX-CORE-1003: Invalid settings: stratum.greeting.message breaks @NotBlank")
           .satisfies(failure -> assertThat(failure.getConstraintViolations()).hasSize(1));
     }
@@ -177,7 +175,9 @@ class StratumPropertiesResolverTest {
 
       assertThatExceptionOfType(ConstraintViolationException.class)
           .isThrownBy(
-              () -> resolver.resolve(GreetingTestData.defaults(), Stream.of(noTimeout, blank)))
+              () ->
+                  resolver.resolve(
+                      GreetingTestData.defaults().build(), Stream.of(noTimeout, blank)))
           .withMessage(
               "SX-CORE-1003: Invalid settings: stratum.greeting.message breaks @NotBlank;"
                   + " stratum.greeting.timeout breaks @NotNull");

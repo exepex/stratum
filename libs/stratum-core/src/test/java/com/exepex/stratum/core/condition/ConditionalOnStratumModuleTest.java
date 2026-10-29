@@ -26,6 +26,9 @@ class ConditionalOnStratumModuleTest {
   /** The name of the main bean of the test module. */
   private static final String GREETING = "greeting";
 
+  /** The name of the test module's second bean. */
+  private static final String GREETING_FORMAT = "greetingFormat";
+
   private final ApplicationContextRunner contextRunner =
       new ApplicationContextRunner().withUserConfiguration(GreetingModule.class);
 
@@ -62,7 +65,7 @@ class ConditionalOnStratumModuleTest {
             assertThat(context)
                 .hasNotFailed()
                 .doesNotHaveBean(GREETING)
-                .doesNotHaveBean("greetingFormat"));
+                .doesNotHaveBean(GREETING_FORMAT));
   }
 
   @Nested
@@ -74,7 +77,7 @@ class ConditionalOnStratumModuleTest {
     void trueSwitchesModuleOn() {
       contextRunner
           .withPropertyValues("stratum.greeting.enabled=true")
-          .run(context -> assertThat(context).hasBean(GREETING).hasBean("greetingFormat"));
+          .run(context -> assertThat(context).hasBean(GREETING).hasBean(GREETING_FORMAT));
     }
 
     @Test
@@ -103,7 +106,7 @@ class ConditionalOnStratumModuleTest {
                   assertThat(context)
                       .hasNotFailed()
                       .doesNotHaveBean(GREETING)
-                      .doesNotHaveBean("greetingFormat"));
+                      .doesNotHaveBean(GREETING_FORMAT));
     }
 
     @Test

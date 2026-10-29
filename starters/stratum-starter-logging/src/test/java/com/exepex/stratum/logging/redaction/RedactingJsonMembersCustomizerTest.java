@@ -5,7 +5,6 @@ import static com.exepex.stratum.logging.testsupport.LoggingTestData.PASSWORD;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.logging.LoggingConstants;
-import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.json.JsonWriter;
@@ -15,29 +14,32 @@ import org.springframework.mock.env.MockEnvironment;
 @DisplayName("RedactingJsonMembersCustomizer masks every value of a JSON log line")
 class RedactingJsonMembersCustomizerTest {
 
-  /** A log line with a card in its message, a secret field and an ordinary field. */
-  private static final Map<String, String> LINE =
-      Map.of("message", "paid with " + CARD, "password", PASSWORD, "service", "orders");
+  /** The log line's message, which holds a card number. */
+  private static final String MESSAGE = "paid with " + CARD;
 
-  /** Writes the line through a JSON writer that the customizer has customized. */
-  @SuppressWarnings("unchecked")
-  private String write(MockEnvironment environment) {
+  /** The log line's ordinary field. */
+  private static final String SERVICE = "orders";
+
+  /** Writes the log line through a JSON writer that the customizer has customized. */
+  private String writeLogLine(MockEnvironment environment) {
     var customizer = new RedactingJsonMembersCustomizer(environment);
-    JsonWriter<Map<String, String>> writer =
-        JsonWriter.of(
-            members -> {
-              members.add("message", line -> line.get("message"));
-              members.add("password", line -> line.get("password"));
-              members.add("service", line -> line.get("service"));
-              customizer.customize((Members<Object>) (Members<?>) members);
-            });
-    return writer.writeToString(LINE);
+    JsonWriter<Object> writer = JsonWriter.of(members -> addLogLine(members, customizer));
+    // The members hold fixed values, so the object written is never read.
+    return writer.writeToString(new Object());
+  }
+
+  /** Adds the log line's fields, a message, a secret and an ordinary one, then customizes them. */
+  private void addLogLine(Members<Object> members, RedactingJsonMembersCustomizer customizer) {
+    members.add("message", MESSAGE);
+    members.add("password", PASSWORD);
+    members.add("service", SERVICE);
+    customizer.customize(members);
   }
 
   @Test
   @DisplayName("with the module on, the message and secret field are masked and the rest is kept")
   void masksWhenModuleIsOn() {
-    var json = write(new MockEnvironment().withProperty(LoggingConstants.ENABLED, "true"));
+    var json = writeLogLine(new MockEnvironment().withProperty(LoggingConstants.ENABLED, "true"));
 
     assertThat(json)
         .doesNotContain(CARD)
@@ -50,8 +52,8 @@ class RedactingJsonMembersCustomizerTest {
   @Test
   @DisplayName("with the module unset or off, the line is written unchanged")
   void leavesLineAloneWhenModuleIsOff() {
-    assertThat(write(new MockEnvironment())).contains(CARD).contains(PASSWORD);
-    assertThat(write(new MockEnvironment().withProperty(LoggingConstants.ENABLED, "false")))
+    assertThat(writeLogLine(new MockEnvironment())).contains(CARD).contains(PASSWORD);
+    assertThat(writeLogLine(new MockEnvironment().withProperty(LoggingConstants.ENABLED, "false")))
         .contains(PASSWORD);
   }
 }
