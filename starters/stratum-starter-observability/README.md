@@ -212,7 +212,8 @@ With the module on, sending and handling a message are observed like an HTTP cal
 - **Kafka batch listeners.** Spring Kafka observes listeners that take one record at a time. A
   `@KafkaListener` with `batch = "true"` does not join the sender's trace and has no correlation ID,
   and its `spring.kafka.listener` timer carries Spring Kafka's older tags, `name`, `result` and
-  `exception`, instead of the ones below.
+  `exception`, instead of the ones below. Spring Kafka can observe each record of a batch, if you
+  turn on `setRecordObservationsInBatch(true)` on the listener container's properties.
 
 | Technology | Timers | How it is switched on |
 | --- | --- | --- |
@@ -309,10 +310,11 @@ export whose address is on this machine (`localhost`, `127.0.0.1` or `[::1]`), S
 the log of a failed send: Micrometer's warning for metrics and OpenTelemetry's error for spans, each
 of which would otherwise print a stack trace at every attempt. The data is dropped quietly. To see
 them again, set `logging.level.io.micrometer.registry.otlp.OtlpMeterRegistry=warn` or
-`logging.level.io.opentelemetry.exporter.internal.http.HttpExporter=error`. Any other address, such
-as `http://otel-collector:4318`, keeps both: a warning with a stack trace at every metrics push,
-every minute by default, and an error with a stack trace for each batch of spans that cannot be
-sent, so a broken Collector in a shared environment is noticed. The service keeps running.
+`logging.level.io.opentelemetry.exporter.internal.http.HttpExporter=error` (`...grpc.GrpcExporter`
+with the gRPC transport). Any other address, such as `http://otel-collector:4318`, keeps both: a
+warning with a stack trace at every metrics push, every minute by default, and an error with a stack
+trace for each batch of spans that cannot be sent, so a broken Collector in a shared environment is
+noticed. The service keeps running.
 
 ## Properties
 

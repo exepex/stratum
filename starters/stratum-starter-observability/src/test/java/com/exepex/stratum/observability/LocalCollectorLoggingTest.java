@@ -37,6 +37,16 @@ class LocalCollectorLoggingTest {
           "http://local host/v1/metrics",
           "");
 
+  /**
+   * The loggers OpenTelemetry uses for failed span sends over HTTP and gRPC, spelled out here so a
+   * misspelt logger in the module fails the test.
+   */
+  private static final String SPAN_HTTP_EXPORT_LOG_LEVEL =
+      "logging.level.io.opentelemetry.exporter.internal.http.HttpExporter";
+
+  private static final String SPAN_GRPC_EXPORT_LOG_LEVEL =
+      "logging.level.io.opentelemetry.exporter.internal.grpc.GrpcExporter";
+
   /** A span address on this machine. */
   private static final String LOCAL_SPAN_ADDRESS = "http://localhost:4318/v1/traces";
 
@@ -119,7 +129,8 @@ class LocalCollectorLoggingTest {
 
     run(environment);
 
-    assertThat(environment.getProperty(LocalCollectorLogging.SPAN_EXPORT_LOG_LEVEL)).isEqualTo(OFF);
+    assertThat(environment.getProperty(SPAN_HTTP_EXPORT_LOG_LEVEL)).isEqualTo(OFF);
+    assertThat(environment.getProperty(SPAN_GRPC_EXPORT_LOG_LEVEL)).isEqualTo(OFF);
     assertThat(environment.getProperty(LocalCollectorLogging.METRICS_EXPORT_LOG_LEVEL)).isNull();
   }
 
@@ -134,7 +145,8 @@ class LocalCollectorLoggingTest {
 
     assertThat(environment.getProperty(LocalCollectorLogging.METRICS_EXPORT_LOG_LEVEL))
         .isEqualTo(OFF);
-    assertThat(environment.getProperty(LocalCollectorLogging.SPAN_EXPORT_LOG_LEVEL)).isNull();
+    assertThat(environment.getProperty(SPAN_HTTP_EXPORT_LOG_LEVEL)).isNull();
+    assertThat(environment.getProperty(SPAN_GRPC_EXPORT_LOG_LEVEL)).isNull();
   }
 
   @Test

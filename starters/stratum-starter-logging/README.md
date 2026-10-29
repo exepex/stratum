@@ -246,8 +246,9 @@ The fields follow the work to other threads:
 
 The fields stay inside the service. With the observability starter, the trace ID reaches the
 services it calls; sending the workflow fields too is [planned](#planned). The observability
-starter also puts `traceId`, `spanId` and `correlationId` on every line written inside a traced
-operation.
+starter also puts `traceId`, `spanId` and `correlationId` on the lines written inside a traced
+operation, with the same limits for Reactor and the service's own threads
+([observability](../stratum-starter-observability/README.md#threads-and-reactive-code)).
 
 ## Redaction
 

@@ -7,11 +7,14 @@ import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.observability.MetricTagGuard;
 import com.exepex.stratum.observability.testsupport.MetricTestData;
 import io.micrometer.core.instrument.config.MeterFilterReply;
+import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.registry.otlp.HistogramFlavor;
 import io.micrometer.registry.otlp.OtlpConfig;
+import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -55,6 +58,21 @@ class ObservabilityStarterIntegrationTest {
   /** Micrometer's warning when it cannot push metrics. */
   private static final String PUSH_FAILED = "Failed to publish metrics";
 
+  /** The loggers of OpenTelemetry's span exporters, over HTTP and gRPC. */
+  private static final List<String> SPAN_EXPORT_LOGGERS =
+      List.of(
+          "io.opentelemetry.exporter.internal.http.HttpExporter",
+          "io.opentelemetry.exporter.internal.grpc.GrpcExporter");
+
+  /** OpenTelemetry's error when it cannot send spans. */
+  private static final String SPAN_EXPORT_FAILED = "Failed to export spans";
+
+  /** How long to wait for spans to be sent. */
+  private static final long FLUSH_TIMEOUT_SECONDS = 15;
+
+  /** The ways Spring Boot can send spans over OTLP. */
+  private static final List<String> SPAN_TRANSPORTS = List.of("http", "grpc");
+
   /** Receives what the application sends, and answers the partner call. */
   private final CollectorStub collector = new CollectorStub();
 
@@ -72,7 +90,9 @@ class ObservabilityStarterIntegrationTest {
   @AfterEach
   void stopCollectorAndResetLogLevel() {
     collector.close();
-    LoggingSystem.get(ClassUtils.getDefaultClassLoader()).setLogLevel(METRICS_EXPORT_LOGGER, null);
+    var loggingSystem = LoggingSystem.get(ClassUtils.getDefaultClassLoader());
+    Stream.concat(Stream.of(METRICS_EXPORT_LOGGER), SPAN_EXPORT_LOGGERS.stream())
+        .forEach(logger -> loggingSystem.setLogLevel(logger, null));
   }
 
   /** Starts the test application with the given command-line arguments. */
@@ -210,5 +230,43 @@ class ObservabilityStarterIntegrationTest {
     runWithMetricsAddress("http://otel-collector.invalid:1/v1/metrics");
 
     assertThat(output).contains(PUSH_FAILED);
+  }
+
+  /**
+   * Starts the application with the module on and only spans sent, to an address over a transport,
+   * makes one span and sends it while the application still runs.
+   */
+  private void runWithSpanAddress(String spanAddress, String transport) {
+    try (var context =
+        start(
+            MODULE_ON,
+            "--management.otlp.metrics.export.enabled=false",
+            "--management.opentelemetry.tracing.export.otlp.endpoint=" + spanAddress,
+            "--management.opentelemetry.tracing.export.otlp.transport=" + transport,
+            "--management.tracing.sampling.probability=1.0")) {
+      Observation.start("place-order", context.getBean(ObservationRegistry.class)).stop();
+      context
+          .getBean(SdkTracerProvider.class)
+          .forceFlush()
+          .join(FLUSH_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    }
+  }
+
+  @ParameterizedTest
+  @FieldSource("SPAN_TRANSPORTS")
+  @DisplayName("with no Collector on localhost, spans are dropped without an error")
+  void localhostWithoutCollectorDropsSpansQuietly(String transport, CapturedOutput output) {
+    runWithSpanAddress("http://localhost:1", transport);
+
+    assertThat(output).doesNotContain(SPAN_EXPORT_FAILED);
+  }
+
+  @ParameterizedTest
+  @FieldSource("SPAN_TRANSPORTS")
+  @DisplayName("with no Collector at another address, the failed span send is logged")
+  void otherAddressWithoutCollectorLogsSpanError(String transport, CapturedOutput output) {
+    runWithSpanAddress("http://otel-collector.invalid:1", transport);
+
+    assertThat(output).contains(SPAN_EXPORT_FAILED);
   }
 }

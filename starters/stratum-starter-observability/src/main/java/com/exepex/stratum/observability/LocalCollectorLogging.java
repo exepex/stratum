@@ -3,7 +3,9 @@ package com.exepex.stratum.observability;
 import com.exepex.stratum.core.condition.StratumModuleSwitch;
 import java.net.InetAddress;
 import java.net.URI;
+import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.event.ApplicationEnvironmentPreparedEvent;
@@ -28,15 +30,21 @@ public class LocalCollectorLogging
   static final String METRICS_EXPORT_LOG_LEVEL =
       "logging.level.io.micrometer.registry.otlp.OtlpMeterRegistry";
 
-  /** The log level that hides OpenTelemetry's error when it cannot send spans. */
-  static final String SPAN_EXPORT_LOG_LEVEL =
+  /** The log level that hides OpenTelemetry's error when it cannot send spans over HTTP. */
+  static final String SPAN_HTTP_EXPORT_LOG_LEVEL =
       "logging.level.io.opentelemetry.exporter.internal.http.HttpExporter";
 
-  /** Each export address, with the log level that hides its failed sends. */
-  private static final Map<String, String> LOG_LEVEL_BY_ADDRESS =
+  /** The log level that hides OpenTelemetry's error when it cannot send spans over gRPC. */
+  static final String SPAN_GRPC_EXPORT_LOG_LEVEL =
+      "logging.level.io.opentelemetry.exporter.internal.grpc.GrpcExporter";
+
+  /** Each export address, with the log levels that hide its failed sends. */
+  private static final Map<String, List<String>> LOG_LEVELS_BY_ADDRESS =
       Map.of(
-          ObservabilityConstants.METRICS_EXPORT_URL, METRICS_EXPORT_LOG_LEVEL,
-          ObservabilityConstants.TRACING_EXPORT_ENDPOINT, SPAN_EXPORT_LOG_LEVEL);
+          ObservabilityConstants.METRICS_EXPORT_URL,
+          List.of(METRICS_EXPORT_LOG_LEVEL),
+          ObservabilityConstants.TRACING_EXPORT_ENDPOINT,
+          List.of(SPAN_HTTP_EXPORT_LOG_LEVEL, SPAN_GRPC_EXPORT_LOG_LEVEL));
 
   /** The level that turns a logger off. */
   private static final String OFF = "off";
@@ -68,9 +76,10 @@ public class LocalCollectorLogging
       return;
     }
     Map<String, Object> quietLogLevels =
-        LOG_LEVEL_BY_ADDRESS.entrySet().stream()
-            .filter(addressLogLevel -> isLocal(environment.getProperty(addressLogLevel.getKey())))
-            .collect(Collectors.toMap(Map.Entry::getValue, addressLogLevel -> OFF));
+        LOG_LEVELS_BY_ADDRESS.entrySet().stream()
+            .filter(addressLogLevels -> isLocal(environment.getProperty(addressLogLevels.getKey())))
+            .flatMap(addressLogLevels -> addressLogLevels.getValue().stream())
+            .collect(Collectors.toMap(Function.identity(), logLevel -> OFF));
     if (!quietLogLevels.isEmpty()) {
       environment
           .getPropertySources()
