@@ -218,6 +218,13 @@ class SecretRedactionTest {
           .isEqualTo("{\"secret\":****,\"id\":7}");
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"password=[", "{\"secret\":{", "password={\"a\":\"\\"})
+    @DisplayName("a bracket that opens a secret value at the end of the text is masked")
+    void bracketAtEndOfTextIsMasked(String line) {
+      assertThat(text(line)).endsWith(Redactor.MASK);
+    }
+
     @Test
     @DisplayName("a JSON Web Token cut after its second part is still masked")
     void cutJwtIsMasked() {
