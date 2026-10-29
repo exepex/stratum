@@ -51,6 +51,12 @@ public class LoggingConstants {
   /** The log field, and span attribute, with the ID the service gave its workflow. */
   public static final String WORKFLOW_ID = "workflow_id";
 
+  /** The log field with the code of a logged {@code StratumException}. */
+  public static final String ERROR_CODE = "error.code";
+
+  /** The same field in GELF, whose own fields start with {@code _}. */
+  public static final String GELF_ERROR_CODE = "_error_code";
+
   /** The name of the timer and span of every workflow. */
   public static final String WORKFLOW_OBSERVATION = "stratum.workflow";
 

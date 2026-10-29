@@ -62,22 +62,19 @@ public record LoggingProperties(
   public enum LogFormat {
 
     /** Elastic Common Schema, the default: the same field names in every service. */
-    ECS("ecs", "error.code"),
+    ECS("ecs"),
 
     /** The Logstash JSON format. */
-    LOGSTASH("logstash", "error.code"),
+    LOGSTASH("logstash"),
 
-    /** The Graylog Extended Log Format, whose own fields start with {@code _}. */
-    GELF("gelf", "_error_code"),
+    /** The Graylog Extended Log Format. */
+    GELF("gelf"),
 
     /** Plain text for people to read on a laptop. It is not redacted. */
-    TEXT(null, null);
+    TEXT(null);
 
     /** Spring Boot's name for the format; {@code null} for plain text. */
     private final @Nullable String structuredFormat;
-
-    /** The field that holds a logged exception's error code; {@code null} for plain text. */
-    private final @Nullable String errorCodeField;
   }
 
   /**

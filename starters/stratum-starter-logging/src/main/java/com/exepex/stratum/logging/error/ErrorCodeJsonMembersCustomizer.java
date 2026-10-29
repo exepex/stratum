@@ -6,8 +6,9 @@ import ch.qos.logback.classic.spi.ThrowableProxy;
 import com.exepex.stratum.core.condition.StratumModuleSwitch;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.logging.LoggingConstants;
-import com.exepex.stratum.logging.LoggingProperties;
+import com.exepex.stratum.logging.LoggingProperties.LogFormat;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.json.JsonWriter.Members;
@@ -17,10 +18,11 @@ import org.springframework.util.ClassUtils;
 
 /**
  * Writes the code of a logged {@link StratumException}, such as {@code SX-CORE-1003} or a service's
- * {@code PAY-0001}, in its own field, so errors can be searched and counted by code. The exception
- * is the logged one or the first of its causes that has a code. Spring Boot's logging loads it from
- * {@code META-INF/spring.factories}. It does nothing unless {@code stratum.logging.enabled=true},
- * and needs Logback, Spring Boot's default.
+ * {@code PAY-0001}, in its own field, so errors can be searched and counted by code: {@code
+ * error.code}, or {@code _error_code} in GELF. The exception is the logged one or the first of its
+ * causes that has a code. Spring Boot's logging loads it from {@code META-INF/spring.factories}. It
+ * does nothing unless {@code stratum.logging.enabled=true}, and needs Logback, Spring Boot's
+ * default.
  */
 public final class ErrorCodeJsonMembersCustomizer
     implements StructuredLoggingJsonMembersCustomizer<Object> {
@@ -28,9 +30,7 @@ public final class ErrorCodeJsonMembersCustomizer
   /** Logback's log event, the only one this customizer reads. */
   private static final String LOGBACK_EVENT = "ch.qos.logback.classic.spi.ILoggingEvent";
 
-  /**
-   * The field the code goes in, which depends on the format; {@code null} when the module is off.
-   */
+  /** The field the code goes in; {@code null} when the module is off or logs are plain text. */
   private final @Nullable String errorCodeField;
 
   /**
@@ -42,7 +42,7 @@ public final class ErrorCodeJsonMembersCustomizer
     this.errorCodeField =
         StratumModuleSwitch.isEnabled(environment, LoggingConstants.MODULE)
                 && ClassUtils.isPresent(LOGBACK_EVENT, null)
-            ? LoggingProperties.bind(environment).format().getErrorCodeField()
+            ? structuredFormat(environment).map(this::errorCodeFieldFor).orElse(null)
             : null;
   }
 
@@ -57,6 +57,25 @@ public final class ErrorCodeJsonMembersCustomizer
     if (enabledErrorCodeField != null) {
       members.add(enabledErrorCodeField, this::errorCode).whenNotNull();
     }
+  }
+
+  /**
+   * Returns the structured format Spring Boot writes, the console's first and then the file's,
+   * including a service's own choice over Stratum's default. A customizer is not told which output
+   * it customizes, so when only one of the two is GELF, the console's format decides the name.
+   */
+  private Optional<String> structuredFormat(Environment environment) {
+    return Stream.of(LoggingConstants.CONSOLE_FORMAT, LoggingConstants.FILE_FORMAT)
+        .map(environment::getProperty)
+        .filter(Objects::nonNull)
+        .findFirst();
+  }
+
+  /** Returns the field name for a format: GELF's own fields start with {@code _}. */
+  private String errorCodeFieldFor(String structuredFormat) {
+    return structuredFormat.equals(LogFormat.GELF.getStructuredFormat())
+        ? LoggingConstants.GELF_ERROR_CODE
+        : LoggingConstants.ERROR_CODE;
   }
 
   /**

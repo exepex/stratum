@@ -32,9 +32,11 @@ class ErrorCodeJsonMembersCustomizerTest {
   /** The code of {@link #CODED_FAILURE}. */
   private static final String CODE = "SX-LOGGING-1001";
 
-  /** The logging environment with the module on, in the default ECS format. */
+  /** The environment with the module on, after it has set the default ECS format. */
   private final MockEnvironment moduleOn =
-      new MockEnvironment().withProperty(LoggingConstants.ENABLED, "true");
+      new MockEnvironment()
+          .withProperty(LoggingConstants.ENABLED, "true")
+          .withProperty(LoggingConstants.CONSOLE_FORMAT, "ecs");
 
   /** Writes a log line with the exception through a writer the customizer has customized. */
   private String writeLogLine(MockEnvironment environment, @Nullable Throwable exception) {
@@ -85,12 +87,25 @@ class ErrorCodeJsonMembersCustomizerTest {
   }
 
   @Test
-  @DisplayName("in GELF, the field is named _error_code, as GELF's own fields are")
+  @DisplayName(
+      "when the service sets GELF, the field is named _error_code, as GELF's own fields are")
   void usesGelfFieldName() {
-    moduleOn.setProperty(LoggingConstants.FORMAT, "gelf");
+    moduleOn.setProperty(LoggingConstants.CONSOLE_FORMAT, "gelf");
 
     assertThat(writeLogLine(moduleOn, CODED_FAILURE))
         .endsWith(",\"_error_code\":\"" + CODE + "\"}");
+  }
+
+  @Test
+  @DisplayName("with a plain-text console and a JSON file, the file's lines get the field")
+  void writesCodeForStructuredFile() {
+    var textConsoleJsonFile =
+        new MockEnvironment()
+            .withProperty(LoggingConstants.ENABLED, "true")
+            .withProperty(LoggingConstants.FORMAT, "text")
+            .withProperty(LoggingConstants.FILE_FORMAT, "ecs");
+
+    assertThat(writeLogLine(textConsoleJsonFile, CODED_FAILURE)).contains(CODE);
   }
 
   @Test
