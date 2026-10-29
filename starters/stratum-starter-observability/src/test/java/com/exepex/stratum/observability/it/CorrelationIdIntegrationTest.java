@@ -93,16 +93,22 @@ class CorrelationIdIntegrationTest {
       var tracer = context.getBean(Tracer.class);
       var executor = context.getBean(APPLICATION_TASK_EXECUTOR, AsyncTaskExecutor.class);
       Observation.createNotStarted("place-order", context.getBean(ObservationRegistry.class))
-          .observeChecked(
-              () -> {
-                var callerTraceId = tracer.currentSpan().context().traceId();
-                var correlationIdOnExecutor =
-                    executor
-                        .submit(() -> MDC.get(LoggingContextConstants.CORRELATION_ID))
-                        .get(EXECUTOR_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-                assertThat(correlationIdOnExecutor).isEqualTo(callerTraceId);
-              });
+          .observeChecked(() -> assertExecutorKeepsCorrelationId(tracer, executor));
     }
+  }
+
+  /**
+   * Checks that work on the executor sees the caller's correlation ID, which is its trace ID when
+   * no baggage is set.
+   */
+  private void assertExecutorKeepsCorrelationId(Tracer tracer, AsyncTaskExecutor executor)
+      throws Exception {
+    var callerTraceId = tracer.currentSpan().context().traceId();
+    var correlationIdOnExecutor =
+        executor
+            .submit(() -> MDC.get(LoggingContextConstants.CORRELATION_ID))
+            .get(EXECUTOR_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    assertThat(correlationIdOnExecutor).isEqualTo(callerTraceId);
   }
 
   @Test
