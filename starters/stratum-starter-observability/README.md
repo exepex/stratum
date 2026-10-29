@@ -98,7 +98,7 @@ starter therefore never sends anything, not even to Spring Boot's default addres
 | Tags on every metric | `application` from `spring.application.name`, `environment` from [`stratum.environment`](../../docs/configuration/reference.md#shared-properties), and `host` from the `HOSTNAME` environment variable, which in Kubernetes is the pod's name. Each is left out when its value is not set |
 | Traces | OpenTelemetry traces. W3C `traceparent` is read from incoming requests and sent on calls made with Spring's HTTP clients. Spring Boot keeps 10% of new traces, and always follows the caller's decision, so a trace is never half kept |
 | Trace resource | `service.name` from `spring.application.name` (set by Spring Boot), and `deployment.environment.name` from `stratum.environment` |
-| No secrets in span URLs | The query string, fragment and user info are removed from the URL recorded on HTTP client spans ([below](#urls-on-spans)) |
+| No secrets in URLs | The query string, fragment and user info are removed from the URLs recorded on HTTP client spans and metrics ([below](#urls-on-spans-and-metrics)) |
 | Health | `/actuator/health`, with Spring Boot's Kubernetes `liveness` and `readiness` groups |
 | Safe exposure | Only `health` and `info` are reachable over HTTP |
 | Startup check | Outside the `local` and `test` profiles, startup stops if an export address is missing ([below](#startup-check)) |
@@ -112,30 +112,41 @@ Every metric carries the `host` tag, so a dashboard can show one pod alone or al
 one pod out of ten is slow, filter on `host` to see it. Outside Kubernetes, set `HOSTNAME` in the
 service's environment to get the tag.
 
-### URLs on spans
+### URLs on spans and metrics
 
-Spring records the full URL of every outgoing HTTP call on its span, and trace backends do not mask
-anything. Stratum removes the parts that can hold a secret:
+Spring records the full URL of every outgoing HTTP call on its span, and the URI template, with
+its query string, in the `uri` tag of the span and of the `http.client.requests` metrics. Trace and
+metrics backends do not mask anything. Stratum removes the parts that can hold a secret:
 
-| Recorded by Spring | Kept on the span |
-| --- | --- |
-| `https://partner.com/rates?api_key=abc123` | `https://partner.com/rates` |
-| `https://user:secret@partner.com:8443/rates#top` | `https://partner.com:8443/rates` |
+| Recorded by Spring | Kept on the span | Kept in the `uri` tag |
+| --- | --- | --- |
+| `https://partner.com/rates?api_key=abc123` | `https://partner.com/rates` | `/rates` |
+| `https://user:secret@partner.com:8443/rates#top` | `https://partner.com:8443/rates` | `/rates` |
 
 A URL that cannot be parsed is recorded as `[UNPARSABLE_URL]`. This cannot be switched off. It
 applies when Spring's web classes are on the classpath, which is the only way Spring makes HTTP
-client spans.
+client spans and metrics.
+
+> [!WARNING]
+> When a call fails, Spring's error message names the URL with its user info, such as
+> `I/O error on GET request for "https://user:secret@partner.com/rates"`, and the span records that
+> message. Stratum cannot change an exception's message, so never put a password in a URL: send it
+> in a header instead.
 
 ### Startup check
 
 Outside the `local` and `test` profiles, with the module on, startup stops with
 [`SX-OBSERVABILITY-1001`](../../docs/guides/error-codes.md#stratum-starter-observability) if:
 
-- metrics are sent over OTLP (`management.otlp.metrics.export.enabled`, `true` by default) and
-  `management.otlp.metrics.export.url` is not set; or
-- traces are sent over OTLP (`management.tracing.export.enabled` and
-  `management.tracing.export.otlp.enabled`, both `true` by default) and
-  `management.opentelemetry.tracing.export.otlp.endpoint` is not set.
+- metrics are sent over OTLP and `management.otlp.metrics.export.url` is not set; or
+- traces are sent over OTLP and `management.opentelemetry.tracing.export.otlp.endpoint` is not set.
+
+Whether an export is on follows Spring Boot: `management.otlp.metrics.export.enabled` decides for
+metrics, or `management.defaults.metrics.export.enabled` when it is not set;
+`management.tracing.export.otlp.enabled` decides for traces, or `management.tracing.export.enabled`
+when it is not set. With none of them set, both exports are on. An address or switch that Spring
+Boot reads from the standard OpenTelemetry environment variables, such as
+`OTEL_EXPORTER_OTLP_ENDPOINT`, counts.
 
 Without the check, metrics would go to `localhost:4318` and traces nowhere, and nobody would notice.
 Both `http` and `https` addresses are accepted, because most Collectors run inside the cluster. The
@@ -214,7 +225,7 @@ environment variables or command-line arguments.
 - **Your own metrics and spans:** use Micrometer's `MeterRegistry` or `@Observed` (which needs
   AspectJ on the classpath and `management.observations.annotations.enabled=true`).
 - **Rename or drop metrics, change tags:** declare a Micrometer `MeterFilter` bean.
-- **Your own URL cleaning:** declare a `SpanUrlFilter` bean; Stratum's then backs off.
+- **Your own URL cleaning:** declare a `TelemetryUrlFilter` bean; Stratum's then backs off.
 - **Custom health check:** implement `HealthIndicator`; add it to the readiness group with
   `management.endpoint.health.group.readiness.include`.
 

@@ -3,7 +3,7 @@ package com.exepex.stratum.observability.autoconfigure;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.observability.ObservabilityConstants;
-import com.exepex.stratum.observability.SpanUrlFilter;
+import com.exepex.stratum.observability.TelemetryUrlFilter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -28,16 +28,16 @@ class ObservabilityAutoConfigurationTest {
   void createsFilter() {
     contextRunner
         .withPropertyValues(MODULE_ON)
-        .run(context -> assertThat(context).hasSingleBean(SpanUrlFilter.class));
+        .run(context -> assertThat(context).hasSingleBean(TelemetryUrlFilter.class));
   }
 
   @Test
   @DisplayName("with the module unset or off, nothing is created")
   void moduleOffCreatesNothing() {
-    contextRunner.run(context -> assertThat(context).doesNotHaveBean(SpanUrlFilter.class));
+    contextRunner.run(context -> assertThat(context).doesNotHaveBean(TelemetryUrlFilter.class));
     contextRunner
         .withPropertyValues(ObservabilityConstants.ENABLED + "=false")
-        .run(context -> assertThat(context).doesNotHaveBean(SpanUrlFilter.class));
+        .run(context -> assertThat(context).doesNotHaveBean(TelemetryUrlFilter.class));
   }
 
   @Test
@@ -46,7 +46,7 @@ class ObservabilityAutoConfigurationTest {
     contextRunner
         .withPropertyValues(MODULE_ON)
         .withClassLoader(new FilteredClassLoader(UriComponentsBuilder.class))
-        .run(context -> assertThat(context).doesNotHaveBean(SpanUrlFilter.class));
+        .run(context -> assertThat(context).doesNotHaveBean(TelemetryUrlFilter.class));
   }
 
   @Test
@@ -58,7 +58,7 @@ class ObservabilityAutoConfigurationTest {
         .run(
             context ->
                 assertThat(context)
-                    .getBean(SpanUrlFilter.class)
+                    .getBean(TelemetryUrlFilter.class)
                     .isSameAs(context.getBean(ServiceFilterConfiguration.class).filter));
   }
 
@@ -73,7 +73,7 @@ class ObservabilityAutoConfigurationTest {
         .run(
             context ->
                 assertThat(context)
-                    .getBean(SpanUrlFilter.class)
+                    .getBean(TelemetryUrlFilter.class)
                     .isSameAs(CompanyFilterAutoConfiguration.FILTER));
   }
 
@@ -82,7 +82,7 @@ class ObservabilityAutoConfigurationTest {
   static class ServiceFilterConfiguration {
 
     /** The service's filter. */
-    final SpanUrlFilter filter = new SpanUrlFilter();
+    final TelemetryUrlFilter filter = new TelemetryUrlFilter();
 
     /**
      * Returns the service's filter.
@@ -90,7 +90,7 @@ class ObservabilityAutoConfigurationTest {
      * @return the filter
      */
     @Bean
-    SpanUrlFilter serviceSpanUrlFilter() {
+    TelemetryUrlFilter serviceTelemetryUrlFilter() {
       return filter;
     }
   }
@@ -100,7 +100,7 @@ class ObservabilityAutoConfigurationTest {
   static class CompanyFilterAutoConfiguration {
 
     /** The company's filter. */
-    static final SpanUrlFilter FILTER = new SpanUrlFilter();
+    static final TelemetryUrlFilter FILTER = new TelemetryUrlFilter();
 
     /**
      * Returns the company's filter.
@@ -108,7 +108,7 @@ class ObservabilityAutoConfigurationTest {
      * @return the filter
      */
     @Bean
-    SpanUrlFilter companySpanUrlFilter() {
+    TelemetryUrlFilter companyTelemetryUrlFilter() {
       return FILTER;
     }
   }

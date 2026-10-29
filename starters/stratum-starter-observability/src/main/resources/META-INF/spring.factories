@@ -1,2 +1,4 @@
 org.springframework.boot.EnvironmentPostProcessor=\
 com.exepex.stratum.observability.ObservabilityEnvironmentPostProcessor
+org.springframework.context.ApplicationListener=\
+com.exepex.stratum.observability.ObservabilityExportAddressCheck

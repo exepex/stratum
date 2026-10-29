@@ -48,10 +48,14 @@ public class ObservabilityConstants {
   /** Spring Boot's switch for sending metrics over OTLP. */
   public static final String METRICS_EXPORT_ENABLED = "management.otlp.metrics.export.enabled";
 
+  /** Spring Boot's switch for every metrics export that has no switch of its own set. */
+  public static final String METRICS_DEFAULT_EXPORT_ENABLED =
+      "management.defaults.metrics.export.enabled";
+
   /** Spring Boot's OTLP address for metrics. */
   public static final String METRICS_EXPORT_URL = "management.otlp.metrics.export.url";
 
-  /** Spring Boot's switch for sending spans to any tracing backend. */
+  /** Spring Boot's switch for sending spans to any tracing backend that has no switch set. */
   public static final String TRACING_EXPORT_ENABLED = "management.tracing.export.enabled";
 
   /** Spring Boot's switch for sending spans over OTLP. */
@@ -63,4 +67,7 @@ public class ObservabilityConstants {
 
   /** The span attribute in which Spring puts the full URL of an outgoing HTTP call. */
   public static final String HTTP_URL = "http.url";
+
+  /** The tag, on spans and metrics, in which Spring puts the URI template of an HTTP call. */
+  public static final String URI = "uri";
 }

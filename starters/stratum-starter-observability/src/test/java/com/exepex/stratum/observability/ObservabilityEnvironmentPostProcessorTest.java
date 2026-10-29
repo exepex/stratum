@@ -1,15 +1,11 @@
 package com.exepex.stratum.observability;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.core.condition.StratumModuleConstants;
-import com.exepex.stratum.core.error.StratumException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.SpringApplication;
 import org.springframework.mock.env.MockEnvironment;
 
@@ -35,17 +31,12 @@ class ObservabilityEnvironmentPostProcessorTest {
 
   private static final String POD_NAME = "orders-7d9f-x2k";
 
-  private static final String COLLECTOR = "http://otel-collector:4318";
-
   private final ObservabilityEnvironmentPostProcessor postProcessor =
       new ObservabilityEnvironmentPostProcessor();
 
-  /** Returns an environment with the module on and both export addresses set. */
+  /** Returns an environment with the module on and no export address set. */
   private MockEnvironment environmentWithModuleOn() {
-    return new MockEnvironment()
-        .withProperty(ObservabilityConstants.ENABLED, ON)
-        .withProperty(ObservabilityConstants.METRICS_EXPORT_URL, COLLECTOR + "/v1/metrics")
-        .withProperty(ObservabilityConstants.TRACING_EXPORT_ENDPOINT, COLLECTOR + "/v1/traces");
+    return new MockEnvironment().withProperty(ObservabilityConstants.ENABLED, ON);
   }
 
   /** Runs the post-processor on the environment and returns it. */
@@ -137,76 +128,6 @@ class ObservabilityEnvironmentPostProcessorTest {
 
       assertThat(environment.getProperty(ObservabilityConstants.WEB_EXPOSURE))
           .isEqualTo("health,loggers");
-    }
-  }
-
-  @Nested
-  @DisplayName("with the module on and an export address missing")
-  class WithAddressMissing {
-
-    @Test
-    @DisplayName("startup stops with SX-OBSERVABILITY-1001, naming both missing properties")
-    void bothMissingStopStartup() {
-      var environment = new MockEnvironment().withProperty(ObservabilityConstants.ENABLED, ON);
-
-      assertThatExceptionOfType(StratumException.class)
-          .isThrownBy(() -> runPostProcessor(environment))
-          .withMessage(
-              "SX-OBSERVABILITY-1001: An OTLP export address is not set, so metrics or traces"
-                  + " would be lost: set management.opentelemetry.tracing.export.otlp.endpoint"
-                  + " and management.otlp.metrics.export.url, or turn that export off");
-    }
-
-    @Test
-    @DisplayName("a blank metrics address stops startup and names only that property")
-    void blankMetricsAddressStopsStartup() {
-      var environment =
-          environmentWithModuleOn().withProperty(ObservabilityConstants.METRICS_EXPORT_URL, " ");
-
-      assertThatExceptionOfType(StratumException.class)
-          .isThrownBy(() -> runPostProcessor(environment))
-          .withMessageEndingWith(
-              ": set management.otlp.metrics.export.url, or turn that export off");
-    }
-
-    @ParameterizedTest
-    @ValueSource(
-        strings = {
-          ObservabilityConstants.TRACING_EXPORT_ENABLED,
-          ObservabilityConstants.TRACING_OTLP_EXPORT_ENABLED
-        })
-    @DisplayName("an export the service turned off needs no address")
-    void exportTurnedOffNeedsNoAddress(String exportSwitch) {
-      var environment =
-          new MockEnvironment()
-              .withProperty(ObservabilityConstants.ENABLED, ON)
-              .withProperty(ObservabilityConstants.METRICS_EXPORT_ENABLED, OFF)
-              .withProperty(exportSwitch, OFF);
-
-      assertThat(runPostProcessor(environment).getProperty(ObservabilityConstants.WEB_EXPOSURE))
-          .isEqualTo(ObservabilityConstants.SAFE_ENDPOINTS);
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {"local", "test", "local,test"})
-    @DisplayName("in the local and test profiles no address is needed")
-    void localProfilesNeedNoAddress(String profiles) {
-      var environment = new MockEnvironment().withProperty(ObservabilityConstants.ENABLED, ON);
-      environment.setActiveProfiles(profiles.split(","));
-
-      assertThat(runPostProcessor(environment).getProperty(ObservabilityConstants.WEB_EXPOSURE))
-          .isEqualTo(ObservabilityConstants.SAFE_ENDPOINTS);
-    }
-
-    @Test
-    @DisplayName("a test profile next to another profile still needs the addresses")
-    void mixedProfilesNeedAddresses() {
-      var environment = new MockEnvironment().withProperty(ObservabilityConstants.ENABLED, ON);
-      environment.setActiveProfiles("test", PROD);
-
-      assertThatExceptionOfType(StratumException.class)
-          .isThrownBy(() -> runPostProcessor(environment))
-          .withMessageStartingWith("SX-OBSERVABILITY-1001: ");
     }
   }
 }

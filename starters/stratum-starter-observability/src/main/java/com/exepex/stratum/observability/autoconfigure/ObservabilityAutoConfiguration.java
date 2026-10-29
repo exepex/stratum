@@ -3,7 +3,7 @@ package com.exepex.stratum.observability.autoconfigure;
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.observability.ObservabilityConstants;
-import com.exepex.stratum.observability.SpanUrlFilter;
+import com.exepex.stratum.observability.TelemetryUrlFilter;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureOrder;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -19,9 +19,10 @@ import org.springframework.web.util.UriComponentsBuilder;
 public class ObservabilityAutoConfiguration {
 
   /**
-   * Removes query strings and user info from the URLs recorded on spans. Spring Boot applies every
-   * {@code ObservationFilter} bean to its observations. Without Spring's web classes the service
-   * makes no HTTP client spans, so the filter is not needed.
+   * Removes query strings and user info from the URLs recorded on spans and metrics. Spring Boot
+   * applies every {@code ObservationFilter} bean to its observations and every {@code MeterFilter}
+   * bean to its meters. Without Spring's web classes the service makes no HTTP client spans or
+   * metrics, so the filter is not needed.
    *
    * @return the filter
    */
@@ -29,7 +30,7 @@ public class ObservabilityAutoConfiguration {
   @Fallback
   @ConditionalOnMissingBean
   @ConditionalOnClass(UriComponentsBuilder.class)
-  public SpanUrlFilter spanUrlFilter() {
-    return new SpanUrlFilter();
+  public TelemetryUrlFilter telemetryUrlFilter() {
+    return new TelemetryUrlFilter();
   }
 }
