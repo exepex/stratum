@@ -1,8 +1,8 @@
 # Observability: `stratum-starter-observability`
 
 **Status: Partly built.** Metrics, traces and health for every service, sent over OTLP to an
-OpenTelemetry Collector, with safe defaults. A guard on metric tags, duration histograms and the
-correlation ID on spans are [planned](#planned).
+OpenTelemetry Collector, with safe defaults. Docs per app type, vendor recipes and profiling are
+[planned](#planned).
 
 This page covers this module only. How Stratum works as a whole, its other modules and how
 configuration works in general are in the [documentation](../../docs/README.md).
@@ -96,6 +96,9 @@ starter therefore never sends anything, not even to Spring Boot's default addres
 | --- | --- |
 | Metrics | Spring Boot's metrics (HTTP server and client, JVM, connection pools, caches, `@Scheduled` jobs, Spring Batch jobs), pushed over OTLP every minute |
 | Tags on every metric | `application` from `spring.application.name`, `environment` from [`stratum.environment`](../../docs/configuration/reference.md#shared-properties), and `host` from the `HOSTNAME` environment variable, which in Kubernetes is the pod's name. Each is left out when its value is not set |
+| Timings as histograms | Every timer, such as HTTP server and client calls, `@Scheduled` jobs and Spring Batch steps, is sent as a base-2 exponential histogram ([below](#timings)) |
+| Tag guard | A metric with a tag named like an ID, such as `userId`, is dropped with one warning ([below](#tag-guard)) |
+| Correlation ID | In the logging context of every traced operation, so log lines and error reports carry it ([below](#correlation-id)) |
 | Traces | OpenTelemetry traces. W3C `traceparent` is read from incoming requests and sent on calls made with Spring's HTTP clients. Spring Boot keeps 10% of new traces, and always follows the caller's decision, so a trace is never half kept |
 | Trace resource | `service.name` from `spring.application.name` (set by Spring Boot), and `deployment.environment.name` from `stratum.environment` |
 | URLs on spans | The full URL of each HTTP client call, query string included, is kept on its span; only the user info is removed. Metrics never carry the query ([below](#urls-on-spans-and-metrics)) |
@@ -112,6 +115,76 @@ Spring Boot sends the last metrics and traces when the application stops.
 Every metric carries the `host` tag, so a dashboard can show one pod alone or all pods together. If
 one pod out of ten is slow, filter on `host` to see it. Outside Kubernetes, set `HOSTNAME` in the
 service's environment to get the tag.
+
+### Timings
+
+Stratum records how long things take and never decides what is slow. Each timing is sent as a
+**base-2 exponential histogram**: a count of calls per duration range, where the ranges grow by
+powers of two. From it, your metrics backend works out any percentile, such as P50 or P99, for one
+pod or for all pods added together, which percentiles computed inside each pod cannot do. There are
+no bucket limits to choose. Dashboards and alerts decide what counts as too slow.
+
+Check that your metrics backend, or the Collector exporter in front of it, accepts OTLP
+exponential histograms. If it does not, send classic fixed buckets instead with
+`management.otlp.metrics.export.histogram-flavor=explicit-bucket-histogram`.
+
+### Tag guard
+
+Each distinct value of a metric tag creates a new time series, so a tag that holds an ID, such as a
+user or order ID, can overload the metrics backend. Stratum drops every metric that has a tag with
+one of these names, ignoring case, `_`, `-` and `.`:
+
+`userId`, `customerId`, `accountId`, `orderId`, `sessionId`, `requestId`, `transactionId`,
+`traceId`, `spanId`, `correlationId`, `email`, `ipAddress`
+
+So `user_id`, `USER-ID` and `user.id` are dropped too. The first time a metric is dropped, Stratum
+logs
+[`SX-OBSERVABILITY-1002`](../../docs/guides/error-codes.md#stratum-starter-observability), naming
+the metric and the tag, never a value. Put such IDs in log lines or span attributes instead.
+
+Add your own names with `stratum.observability.tags.extra-forbidden`. To keep a built-in name, list
+it in `stratum.observability.tags.allowed`. Do that only when the tag has a small, known set of
+values, such as `userId` in an internal tool with a few dozen users. The guard is about the cost of
+metrics, not about privacy: whether an ID may appear in logs is up to the logging starter's
+redaction. To change the rule itself, declare your own `MetricTagGuard` bean, and Stratum's backs
+off.
+
+### Correlation ID
+
+The correlation ID ties together every step of one business workflow, such as one order. While an
+operation is traced, Stratum keeps it in the logging context (SLF4J's MDC) under `correlationId`,
+so every log line and every [error report](../../docs/guides/error-codes.md#the-trace-span-and-correlation-ids)
+carries it:
+
+- If the tracing **baggage** (values that travel with the trace) has a `correlationId` entry, that
+  is the ID. Stratum also records it on each new span, so a trace can be found by it.
+- Otherwise the ID is the **trace ID**. Every service in the same trace has the same trace ID, so
+  the correlation ID is the same across them too.
+
+A baggage value is used only if it is 1 to 128 letters, digits, `-`, `_`, `.` or `:`; anything
+else, such as a line break, is ignored and the trace ID is used, so a caller cannot forge a log
+line. Outside a traced operation Stratum sets no correlation ID. Stratum owns the `correlationId`
+key while tracing: a value your code puts in the MDC directly is replaced or removed when the
+current span changes, so use the baggage instead.
+
+To set a correlation ID in your own code, put it in the baggage with Micrometer's `Tracer`:
+
+```java
+try (var correlation = tracer.createBaggageInScope("correlationId", order.correlationId())) {
+  // log lines, error reports and new spans here carry the order's correlation ID
+}
+```
+
+Baggage travels with the trace: Spring's HTTP clients send it in the W3C `baggage` header on every
+outgoing call, to every host, third parties included. So the correlation ID set in baggage reaches
+every service you call.
+
+> [!WARNING]
+> Never put a secret or personal data, such as a customer's name or email address, in the
+> correlation ID or any other baggage entry. Every host your service calls receives it.
+
+**Planned:** the web starter will take the ID from the `X-Correlation-Id` header, and the logging
+starter will limit the baggage to your own hosts.
 
 ### URLs on spans and metrics
 
@@ -177,6 +250,8 @@ shared environment is noticed.
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
 | `stratum.observability.enabled` | boolean | `false` | Switches the whole starter on. Until it is `true`, the starter sets up nothing and turns export off. |
+| `stratum.observability.tags.extra-forbidden` | list of strings | empty | More tag names the [tag guard](#tag-guard) refuses, added to the built-in ones. Case, `_`, `-` and `.` are ignored. A blank name stops startup with `SX-CORE-1003`. |
+| `stratum.observability.tags.allowed` | list of strings | empty | Tag names the [tag guard](#tag-guard) keeps even though they are refused by default, such as `customerId`. Compared like `extra-forbidden`. A blank name stops startup with `SX-CORE-1003`. |
 
 The shared [`stratum.environment`](../../docs/configuration/reference.md#shared-properties) sets the
 `environment` tag and the `deployment.environment.name` resource attribute.
@@ -192,8 +267,29 @@ Spring Boot properties this starter sets by default (your values win):
 | `management.metrics.tags.environment` | value of `stratum.environment` |
 | `management.metrics.tags.host` | value of the `HOSTNAME` environment variable |
 | `management.opentelemetry.resource-attributes[deployment.environment.name]` | value of `stratum.environment` |
+| `management.metrics.distribution.percentiles-histogram.all` | `true` |
+| `management.otlp.metrics.export.histogram-flavor` | `base2-exponential-bucket-histogram` |
 
 ## Examples
+
+Refuse tags that hold tenant and device IDs, as well as the built-in ones, and keep `customerId`
+for a business-to-business service with a few dozen customers:
+
+```properties
+stratum.observability.tags.extra-forbidden=tenantId,deviceId
+stratum.observability.tags.allowed=customerId
+```
+
+```yaml
+stratum:
+  observability:
+    tags:
+      extra-forbidden:
+        - tenantId
+        - deviceId
+      allowed:
+        - customerId
+```
 
 Keep every trace while you develop, in `application-local.properties` or `application-local.yml`.
 Point the exports at `localhost`; start a Collector on your laptop if you want to see the data, or
@@ -222,11 +318,15 @@ management:
 ```
 
 Send metrics to Prometheus by scraping instead of pushing. Add `io.micrometer:micrometer-registry-prometheus`
-(its version comes from Spring Boot), expose the endpoint, and turn OTLP metrics off:
+(its version comes from Spring Boot), expose the endpoint, and turn OTLP metrics off. With Stratum's
+histograms on, each timer becomes about 70 `_bucket` series per set of tags in the scrape. The last
+line below turns the histograms off, leaving count, sum and max; to keep them for one
+metric, also set `management.metrics.distribution.percentiles-histogram.<metric-name>=true`.
 
 ```properties
 management.endpoints.web.exposure.include=health,info,prometheus
 management.otlp.metrics.export.enabled=false
+management.metrics.distribution.percentiles-histogram.all=false
 ```
 
 ```yaml
@@ -239,6 +339,10 @@ management:
     metrics:
       export:
         enabled: false
+  metrics:
+    distribution:
+      percentiles-histogram:
+        all: false
 ```
 
 > [!CAUTION]
@@ -247,9 +351,25 @@ management:
 
 ## Configure in Java
 
-Nothing to configure in Java yet. The module's only setting is its switch, and every default it sets
-is a Spring Boot property, read at startup before any bean exists. Set them in properties, YAML,
-environment variables or command-line arguments.
+The tag guard's names can also be set in Java, with a `StratumPropertiesCustomizer` bean. When a
+name list is set in both places, the Java one wins:
+
+```java
+@Bean
+StratumPropertiesCustomizer<ObservabilityProperties> forbiddenTags() {
+  return properties ->
+      properties.toBuilder()
+          .tags(
+              properties.tags().toBuilder()
+                  .extraForbidden(List.of("tenantId", "deviceId"))
+                  .allowed(List.of("customerId"))
+                  .build())
+          .build();
+}
+```
+
+The switch and the Spring Boot defaults above are read at startup, before any bean exists, so they
+can only be set in properties, YAML, environment variables or command-line arguments.
 
 ## Customize
 
@@ -257,13 +377,16 @@ environment variables or command-line arguments.
   AspectJ on the classpath and `management.observations.annotations.enabled=true`).
 - **Rename or drop metrics, change tags:** declare a Micrometer `MeterFilter` bean.
 - **Your own URL cleaning:** declare a `TelemetryUrlFilter` bean; Stratum's then backs off.
+- **Your own tag rule:** declare a `MetricTagGuard` bean; Stratum's then backs off.
+- **Your own correlation ID handling:** declare a `CorrelationIdRecorder` bean; Stratum's then
+  backs off.
 - **Custom health check:** implement `HealthIndicator`; add it to the readiness group with
   `management.endpoint.health.group.readiness.include`.
 
 > [!WARNING]
-> Never put unbounded values (user IDs, order IDs, URLs with IDs) into metric **tags**. Each
-> distinct value creates a new time series and can overload the metrics backend. Put such values in
-> logs or span attributes instead.
+> Never put unbounded values (user IDs, order IDs, URLs with IDs) into metric **tags**. The
+> [tag guard](#tag-guard) catches common ID names, but not every name: a tag called `customer` that
+> holds IDs gets through. Put such values in logs or span attributes instead.
 
 ## Switch it on or off
 
@@ -274,9 +397,6 @@ environment variables or command-line arguments.
 
 | Feature | What it adds |
 | --- | --- |
-| Tag guard | A metric tagged with an ID, such as `userId` or `trace_id`, is dropped with one warning; a service can add names to the list |
-| Duration histograms | HTTP, workflow and job durations stored as histograms, so P50 and P99 are correct for one pod and for all pods |
-| Correlation ID on spans | The correlation ID copied onto spans, so a trace can be found by it |
 | How each app type is observed | Docs for batch, command-line, messaging (Kafka, JMS, RabbitMQ) and reactive services |
 | Vendor and cloud recipes | Collector setups for Datadog, New Relic, Splunk, Dynatrace, AWS, Azure and Google Cloud |
 | Profiling | The Pyroscope profiler, after a licence and overhead check |
@@ -289,5 +409,7 @@ environment variables or command-line arguments.
 | No metrics or traces arrive | `stratum.observability.enabled` is not `true`, or the Collector is not reachable at the configured address. Look for export errors in the log. |
 | Traces break between two services | The caller does not use Spring's `RestClient`, `WebClient` or `RestTemplate` from Spring Boot's builder, so no `traceparent` header is sent. |
 | No `host` tag | `HOSTNAME` is not set in the service's environment. |
+| A metric is missing and the log shows `SX-OBSERVABILITY-1002` | One of its tags is named like an ID. Remove the tag, or rename it if it holds only a few fixed values. |
+| No percentiles in the metrics backend | It does not accept OTLP exponential histograms; see [Timings](#timings). |
 | `/actuator/prometheus` returns 404 | Prometheus is not set up; see the [example](#examples). |
 | Readiness stays `DOWN` | Open `/actuator/health/readiness` as an authorised caller to see which component fails. |

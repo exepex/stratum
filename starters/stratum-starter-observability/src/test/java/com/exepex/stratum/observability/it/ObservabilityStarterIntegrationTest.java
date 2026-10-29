@@ -4,7 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.core.error.StratumException;
+import com.exepex.stratum.observability.MetricTagGuard;
+import com.exepex.stratum.observability.testsupport.MetricTestData;
+import io.micrometer.core.instrument.config.MeterFilterReply;
 import io.micrometer.observation.ObservationRegistry;
+import io.micrometer.registry.otlp.HistogramFlavor;
+import io.micrometer.registry.otlp.OtlpConfig;
 import java.io.IOException;
 import java.util.List;
 import java.util.stream.Stream;
@@ -102,13 +107,15 @@ class ObservabilityStarterIntegrationTest {
   }
 
   @Test
-  @DisplayName("sends its last metrics and spans when it stops, with URLs cleaned and tags set")
+  @DisplayName("sends its last metrics, as exponential histograms, and spans when it stops")
   void sendsDataOnExit() {
     try (var context =
         start(
             withCollector(
                 "--spring.application.name=orders", "--stratum.environment=prod", MODULE_ON))) {
       callPartner(context);
+      assertThat(context.getBean(OtlpConfig.class).histogramFlavor())
+          .isEqualTo(HistogramFlavor.BASE2_EXPONENTIAL_BUCKET_HISTOGRAM);
     }
 
     assertThat(collector.bodiesOf(CollectorStub.TRACES_PATH))
@@ -165,9 +172,14 @@ class ObservabilityStarterIntegrationTest {
 
   @ParameterizedTest
   @FieldSource("CONFIGURATION_NAMES")
-  @DisplayName("the switch works from application.yml and application.properties")
-  void switchBindsFromBothFormats(String configName) {
+  @DisplayName("the settings work from application.yml and application.properties")
+  void settingsBindFromBothFormats(String configName) {
     try (var context = start(withCollector("--spring.config.name=" + configName))) {
+      var guard = context.getBean(MetricTagGuard.class);
+      assertThat(guard.accept(MetricTestData.counterTaggedWith("tenantId")))
+          .isEqualTo(MeterFilterReply.DENY);
+      assertThat(guard.accept(MetricTestData.counterTaggedWith("orderId")))
+          .isEqualTo(MeterFilterReply.NEUTRAL);
       assertThat(context.getEnvironment().getProperty("management.endpoints.web.exposure.include"))
           .isEqualTo("health,info");
       assertThat(context.getEnvironment().getProperty("management.metrics.tags.environment"))

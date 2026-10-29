@@ -106,6 +106,17 @@ class ObservabilityEnvironmentPostProcessorTest {
     }
 
     @Test
+    @DisplayName("every timing is stored as a base-2 exponential histogram")
+    void storesTimingsAsExponentialHistograms() {
+      var environment = runPostProcessor(environmentWithModuleOn());
+
+      assertThat(environment.getProperty(ObservabilityConstants.HISTOGRAM_FOR_EVERY_TIMING))
+          .isEqualTo(ON);
+      assertThat(environment.getProperty(ObservabilityConstants.HISTOGRAM_FLAVOR))
+          .isEqualTo(ObservabilityConstants.EXPONENTIAL_HISTOGRAM);
+    }
+
+    @Test
     @DisplayName("a tag whose value is unset or blank is left out")
     void leavesOutUnsetTags() {
       var environment =
