@@ -209,8 +209,9 @@ A workflow ends when its work has finished, even when that is after the call ret
   the stage completes, and its failure is recorded.
 - A `@Workflow` method that returns a `Mono` or `Flux` only builds the work. The workflow runs
   each time the result is subscribed, until it completes, fails or is cancelled. Lines written
-  while the method builds it are outside the workflow. The method's declared return type decides,
-  so declare `Mono` or `Flux`, not `Publisher` or a type variable.
+  while the method builds it are outside the workflow, and so is an exception it throws instead of
+  returning one: it passes on unchanged, but is not timed. The method's declared return type
+  decides, so declare `Mono` or `Flux`, not `Publisher` or a type variable.
 
 Without `@Workflow`, run a `Mono` or `Flux` through `ReactiveWorkflows`, a bean that exists when
 Reactor is on the classpath. `flux` does the same for a `Flux`:
@@ -221,6 +222,7 @@ Reactor is on the classpath. `flux` does the same for a `Flux`:
 class PaymentService {
 
   private final ReactiveWorkflows reactiveWorkflows;
+  private final PaymentGateway gateway;
 
   Mono<Receipt> pay(Order order) {
     return reactiveWorkflows.mono("PAYMENT", order.number(), gateway.charge(order));

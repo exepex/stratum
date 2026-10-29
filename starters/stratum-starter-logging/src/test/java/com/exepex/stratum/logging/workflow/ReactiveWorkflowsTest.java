@@ -14,6 +14,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
+import org.springframework.aop.aspectj.annotation.AspectJProxyFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.SynchronousSink;
@@ -124,6 +125,22 @@ class ReactiveWorkflowsTest {
   }
 
   @Test
+  @DisplayName("an @Workflow method's failing Flux runs as the workflow and records its failure")
+  void annotatedFluxMethodRecordsFailure() {
+    var proxyFactory = new AspectJProxyFactory(new RefundService());
+    proxyFactory.setProxyTargetClass(true);
+    proxyFactory.addAspect(new WorkflowAspect(workflows, reactiveWorkflows));
+    RefundService refundService = proxyFactory.getProxy();
+
+    var refunds = refundService.refunds();
+    assertThat(observations.getFinished()).isEmpty();
+    assertThatIllegalStateException().isThrownBy(refunds::blockLast);
+
+    await().untilAsserted(() -> assertThat(observations.getFinished()).hasSize(1));
+    assertThat(observationNamed(CHECKOUT).getError()).isSameAs(paymentDeclined);
+  }
+
+  @Test
   @DisplayName("a name that is not 1 to 128 safe characters is refused when the work is built")
   void refusesUnsafeName() {
     assertThatIllegalArgumentException()
@@ -136,5 +153,19 @@ class ReactiveWorkflowsTest {
         .filter(finished -> name.equals(finished.getContextualName()))
         .findFirst()
         .orElseThrow();
+  }
+
+  /** A service whose workflow method returns a {@code Flux} that fails. */
+  class RefundService {
+
+    /**
+     * Returns the order's refunds, as the {@code ORDER_CHECKOUT} workflow.
+     *
+     * @return refunds that fail with the declined payment
+     */
+    @Workflow(CHECKOUT)
+    public Flux<String> refunds() {
+      return Flux.error(paymentDeclined);
+    }
   }
 }
