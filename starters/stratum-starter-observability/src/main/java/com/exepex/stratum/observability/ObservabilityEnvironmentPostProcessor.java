@@ -16,10 +16,10 @@ import org.springframework.util.StringUtils;
 /**
  * Gives Spring Boot's actuator, metrics and tracing Stratum's defaults before the application
  * starts. With {@code stratum.observability.enabled=true} it exposes only {@code health} and {@code
- * info}, tags every metric, stores timings as histograms and traces Kafka and RabbitMQ messages;
- * otherwise it turns export off, so a bundle that brings this starter sends nothing. A service's
- * own values win, because these come last. {@link ObservabilityExportAddressCheck} checks the
- * export addresses.
+ * info}, tags every metric, stores timings as histograms, carries traces into Spring Boot's
+ * executors and traces Kafka and RabbitMQ messages; otherwise it turns export off, so a bundle that
+ * brings this starter sends nothing. A service's own values win, because these come last. {@link
+ * ObservabilityExportAddressCheck} checks the export addresses.
  */
 public class ObservabilityEnvironmentPostProcessor implements EnvironmentPostProcessor, Ordered {
 
@@ -60,7 +60,7 @@ public class ObservabilityEnvironmentPostProcessor implements EnvironmentPostPro
     environment.getPropertySources().addLast(new MapPropertySource(DEFAULTS_SOURCE, defaults));
   }
 
-  /** Returns the exposure, histogram, messaging, tag and resource defaults. */
+  /** Returns the exposure, histogram, executor, messaging, tag and resource defaults. */
   private Map<String, Object> defaultsWithModuleOn(ConfigurableEnvironment environment) {
     var serviceEnvironment = environment.getProperty(StratumModuleConstants.SERVICE_ENVIRONMENT);
     var defaults = new HashMap<String, Object>();
@@ -81,6 +81,7 @@ public class ObservabilityEnvironmentPostProcessor implements EnvironmentPostPro
     defaults.put(ObservabilityConstants.HISTOGRAM_FOR_EVERY_TIMING, true);
     defaults.put(
         ObservabilityConstants.HISTOGRAM_FLAVOR, ObservabilityConstants.EXPONENTIAL_HISTOGRAM);
+    defaults.put(StratumModuleConstants.PROPAGATE_TASK_CONTEXT, true);
     ObservabilityConstants.MESSAGING_OBSERVATION_SWITCHES.forEach(
         observationSwitch -> defaults.put(observationSwitch, true));
     return defaults;

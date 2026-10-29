@@ -63,9 +63,6 @@ public class LoggingConstants {
   /** The key under which executors and Reactor carry the workflow fields to other threads. */
   public static final String WORKFLOW_FIELDS = "stratum.workflow.fields";
 
-  /** Spring Boot's switch that makes its executors carry the logging and tracing context. */
-  public static final String PROPAGATE_TASK_CONTEXT = "spring.task.execution.propagate-context";
-
   /** The profiles in which plain-text logs are expected. */
   public static final Set<String> LOCAL_PROFILES = Set.of("local", "test");
 }

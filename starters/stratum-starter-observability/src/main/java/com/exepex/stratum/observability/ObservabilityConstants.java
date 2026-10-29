@@ -108,4 +108,11 @@ public class ObservabilityConstants {
 
   /** The tag, on spans and metrics, in which Spring puts the URI template of an HTTP call. */
   public static final String URI = "uri";
+
+  /**
+   * Spring's URL parser, named as text so that a service without Spring's web classes can still
+   * read the condition that needs it.
+   */
+  public static final String URI_COMPONENTS_BUILDER =
+      "org.springframework.web.util.UriComponentsBuilder";
 }

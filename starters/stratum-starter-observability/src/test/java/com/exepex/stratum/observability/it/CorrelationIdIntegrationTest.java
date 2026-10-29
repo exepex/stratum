@@ -5,8 +5,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.exepex.stratum.core.error.ErrorReport;
 import com.exepex.stratum.core.error.LoggingContextConstants;
 import com.exepex.stratum.observability.ObservabilityErrorCode;
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.tracing.Tracer;
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,6 +17,7 @@ import org.slf4j.MDC;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.core.task.AsyncTaskExecutor;
 
 @DisplayName("The correlation ID in an application with the observability starter")
 class CorrelationIdIntegrationTest {
@@ -23,6 +27,12 @@ class CorrelationIdIntegrationTest {
 
   /** A correlation ID with a line break, which could forge a log line. */
   private static final String UNSAFE_CORRELATION_ID = "order-42\nlevel=ERROR";
+
+  /** The name of Spring Boot's task executor, which also runs {@code @Async} methods. */
+  private static final String APPLICATION_TASK_EXECUTOR = "applicationTaskExecutor";
+
+  /** How long to wait for work on the executor. */
+  private static final long EXECUTOR_TIMEOUT_SECONDS = 10;
 
   /** Receives the spans the application sends. */
   private final CollectorStub collector = new CollectorStub();
@@ -74,6 +84,31 @@ class CorrelationIdIntegrationTest {
       }
       assertThat(MDC.get(LoggingContextConstants.CORRELATION_ID)).isNull();
     }
+  }
+
+  @Test
+  @DisplayName("work on Spring Boot's task executor keeps the caller's trace and correlation ID")
+  void taskExecutorKeepsTrace() throws Exception {
+    try (var context = start()) {
+      var tracer = context.getBean(Tracer.class);
+      var executor = context.getBean(APPLICATION_TASK_EXECUTOR, AsyncTaskExecutor.class);
+      Observation.createNotStarted("place-order", context.getBean(ObservationRegistry.class))
+          .observeChecked(() -> assertExecutorKeepsCorrelationId(tracer, executor));
+    }
+  }
+
+  /**
+   * Checks that work on the executor sees the caller's correlation ID, which is its trace ID when
+   * no baggage is set.
+   */
+  private void assertExecutorKeepsCorrelationId(Tracer tracer, AsyncTaskExecutor executor)
+      throws Exception {
+    var callerTraceId = tracer.currentSpan().context().traceId();
+    var correlationIdOnExecutor =
+        executor
+            .submit(() -> MDC.get(LoggingContextConstants.CORRELATION_ID))
+            .get(EXECUTOR_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    assertThat(correlationIdOnExecutor).isEqualTo(callerTraceId);
   }
 
   @Test

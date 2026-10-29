@@ -262,7 +262,7 @@ Every starter is off until its `stratum.<module>.enabled` property is `true`.
 | Starter | In one sentence | Property prefix |
 | --- | --- | --- |
 | [`stratum-starter-web`](docs/modules/web.md) | REST defaults: error format, correlation IDs, request logging, JSON settings. | `stratum.web` |
-| [`stratum-starter-logging`](starters/stratum-starter-logging/README.md) | Structured JSON logs with secrets and personal data redacted; trace context planned. | `stratum.logging` |
+| [`stratum-starter-logging`](starters/stratum-starter-logging/README.md) | Structured JSON logs with secrets and personal data redacted, and trace IDs with observability. | `stratum.logging` |
 | [`stratum-starter-observability`](starters/stratum-starter-observability/README.md) | Metrics, traces and health, sent over OTLP to an OpenTelemetry Collector. | `stratum.observability` |
 | [`stratum-starter-security`](docs/modules/security.md) | OAuth2 resource server: JWT validation, roles, public paths, CORS. | `stratum.security` |
 | [`stratum-starter-oauth2-client`](docs/modules/oauth2-client.md) | Gets and refreshes tokens for calls to other services. | `stratum.oauth2-client` |

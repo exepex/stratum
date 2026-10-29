@@ -18,7 +18,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Fallback;
-import org.springframework.web.util.UriComponentsBuilder;
 
 /** Creates the observability module's beans, when {@code stratum.observability.enabled=true}. */
 @AutoConfiguration
@@ -38,7 +37,7 @@ public class ObservabilityAutoConfiguration {
   @Bean
   @Fallback
   @ConditionalOnMissingBean
-  @ConditionalOnClass(UriComponentsBuilder.class)
+  @ConditionalOnClass(name = ObservabilityConstants.URI_COMPONENTS_BUILDER)
   public TelemetryUrlFilter telemetryUrlFilter() {
     return new TelemetryUrlFilter();
   }

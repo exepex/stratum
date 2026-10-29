@@ -3,7 +3,10 @@ package com.exepex.stratum.observability;
 import com.exepex.stratum.core.condition.StratumModuleSwitch;
 import java.net.InetAddress;
 import java.net.URI;
+import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.event.ApplicationEnvironmentPreparedEvent;
 import org.springframework.boot.support.EnvironmentPostProcessorApplicationListener;
@@ -12,10 +15,10 @@ import org.springframework.core.Ordered;
 import org.springframework.core.env.MapPropertySource;
 
 /**
- * Drops metrics quietly when the module is on and their address is on this machine, such as {@code
- * http://localhost:4318/v1/metrics}. A developer often runs without a Collector, and Micrometer
- * would otherwise log a warning with a stack trace at every push. A service's own {@code
- * logging.level} wins. Span export is not changed.
+ * Drops metrics and spans quietly when the module is on and their address is on this machine, such
+ * as {@code http://localhost:4318/v1/metrics}. A developer often runs without a Collector, and
+ * Micrometer and OpenTelemetry would otherwise log a stack trace at every failed send. Each address
+ * is checked on its own, and a service's own {@code logging.level} wins.
  */
 public class LocalCollectorLogging
     implements ApplicationListener<ApplicationEnvironmentPreparedEvent>, Ordered {
@@ -26,6 +29,25 @@ public class LocalCollectorLogging
   /** The log level that hides Micrometer's warning when it cannot push metrics. */
   static final String METRICS_EXPORT_LOG_LEVEL =
       "logging.level.io.micrometer.registry.otlp.OtlpMeterRegistry";
+
+  /** The log level that hides OpenTelemetry's error when it cannot send spans over HTTP. */
+  static final String SPAN_HTTP_EXPORT_LOG_LEVEL =
+      "logging.level.io.opentelemetry.exporter.internal.http.HttpExporter";
+
+  /** The log level that hides OpenTelemetry's error when it cannot send spans over gRPC. */
+  static final String SPAN_GRPC_EXPORT_LOG_LEVEL =
+      "logging.level.io.opentelemetry.exporter.internal.grpc.GrpcExporter";
+
+  /** Each export address, with the log levels that hide its failed sends. */
+  private static final Map<String, List<String>> LOG_LEVELS_BY_ADDRESS =
+      Map.of(
+          ObservabilityConstants.METRICS_EXPORT_URL,
+          List.of(METRICS_EXPORT_LOG_LEVEL),
+          ObservabilityConstants.TRACING_EXPORT_ENDPOINT,
+          List.of(SPAN_HTTP_EXPORT_LOG_LEVEL, SPAN_GRPC_EXPORT_LOG_LEVEL));
+
+  /** The level that turns a logger off. */
+  private static final String OFF = "off";
 
   /** The name of this machine; an IP address is checked as a loopback address instead. */
   private static final String LOCALHOST = "localhost";
@@ -43,19 +65,25 @@ public class LocalCollectorLogging
   }
 
   /**
-   * Turns off Micrometer's push warning when the metrics address is on this machine.
+   * Turns off the failed-send logging of each export whose address is on this machine.
    *
    * @param event the event that carries the application's environment
    */
   @Override
   public void onApplicationEvent(ApplicationEnvironmentPreparedEvent event) {
     var environment = event.getEnvironment();
-    if (StratumModuleSwitch.isEnabled(environment, ObservabilityConstants.MODULE)
-        && isLocal(environment.getProperty(ObservabilityConstants.METRICS_EXPORT_URL))) {
+    if (!StratumModuleSwitch.isEnabled(environment, ObservabilityConstants.MODULE)) {
+      return;
+    }
+    Map<String, Object> quietLogLevels =
+        LOG_LEVELS_BY_ADDRESS.entrySet().stream()
+            .filter(addressLogLevels -> isLocal(environment.getProperty(addressLogLevels.getKey())))
+            .flatMap(addressLogLevels -> addressLogLevels.getValue().stream())
+            .collect(Collectors.toMap(Function.identity(), logLevel -> OFF));
+    if (!quietLogLevels.isEmpty()) {
       environment
           .getPropertySources()
-          .addLast(
-              new MapPropertySource(QUIET_LOGGING_SOURCE, Map.of(METRICS_EXPORT_LOG_LEVEL, "off")));
+          .addLast(new MapPropertySource(QUIET_LOGGING_SOURCE, quietLogLevels));
     }
   }
 
