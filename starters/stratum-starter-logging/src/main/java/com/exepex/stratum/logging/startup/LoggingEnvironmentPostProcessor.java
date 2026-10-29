@@ -3,18 +3,16 @@ package com.exepex.stratum.logging.startup;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.condition.StratumModuleSwitch;
 import com.exepex.stratum.core.error.StratumException;
-import com.exepex.stratum.core.properties.StratumPropertiesResolver;
+import com.exepex.stratum.core.properties.StratumDefaults;
 import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.LoggingErrorCode;
 import com.exepex.stratum.logging.LoggingProperties;
 import com.exepex.stratum.logging.LoggingProperties.LogFormat;
 import com.exepex.stratum.logging.redaction.Redactor;
 import jakarta.validation.ConstraintViolationException;
-import jakarta.validation.Validation;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.EnvironmentPostProcessor;
 import org.springframework.boot.SpringApplication;
@@ -22,20 +20,16 @@ import org.springframework.boot.context.config.ConfigDataEnvironmentPostProcesso
 import org.springframework.boot.logging.DeferredLogFactory;
 import org.springframework.core.Ordered;
 import org.springframework.core.env.ConfigurableEnvironment;
-import org.springframework.core.env.MapPropertySource;
 import org.springframework.util.StringUtils;
 
 /**
  * Sets up logging before the application starts, when {@code stratum.logging.enabled=true}: checks
  * that the service has a name and valid settings, and gives Spring Boot's structured logging and
- * its executors Stratum's defaults. A service's own {@code logging.*} values win, because these
- * come last.
+ * its executors Stratum's defaults. Every value the service sets for those properties wins, Java
+ * default properties included.
  */
 @RequiredArgsConstructor
 public class LoggingEnvironmentPostProcessor implements EnvironmentPostProcessor, Ordered {
-
-  /** The name of the property source that holds Stratum's logging defaults. */
-  static final String DEFAULTS_SOURCE = "stratumLoggingDefaults";
 
   /** Gives the log for the plain-text warning, which waits until logging is ready. */
   private final DeferredLogFactory logFactory;
@@ -69,14 +63,10 @@ public class LoggingEnvironmentPostProcessor implements EnvironmentPostProcessor
     if (!StringUtils.hasText(environment.getProperty(LoggingConstants.APPLICATION_NAME))) {
       throw new StratumException(LoggingErrorCode.APPLICATION_NAME_MISSING);
     }
-    var loggingProperties = LoggingProperties.bind(environment);
-    validate(loggingProperties);
+    var loggingProperties = LoggingProperties.resolve(environment);
     requireValidRedactionPatterns(loggingProperties);
-    environment
-        .getPropertySources()
-        .addLast(
-            new MapPropertySource(
-                DEFAULTS_SOURCE, stratumLoggingDefaults(loggingProperties, environment)));
+    StratumDefaults.addBelowServiceValues(
+        environment, stratumLoggingDefaults(loggingProperties, environment));
     if (loggingProperties.format() == LogFormat.TEXT && !onlyLocalProfiles(environment)) {
       logFactory
           .getLog(LoggingEnvironmentPostProcessor.class)
@@ -84,17 +74,6 @@ public class LoggingEnvironmentPostProcessor implements EnvironmentPostProcessor
               LoggingConstants.FORMAT
                   + "=text writes plain text, which is not redacted."
                   + " Use it only in the local or test profile.");
-    }
-  }
-
-  /**
-   * Stops startup with {@code SX-CORE-1003} when a setting breaks its rules, in the same way as
-   * every other module. Logging starts before any bean exists, so it makes its own validator.
-   */
-  private void validate(LoggingProperties loggingProperties) {
-    try (var validatorFactory = Validation.buildDefaultValidatorFactory()) {
-      new StratumPropertiesResolver(validatorFactory.getValidator())
-          .resolve(loggingProperties, Stream.empty());
     }
   }
 

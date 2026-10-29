@@ -28,7 +28,17 @@ public enum CoreErrorCode implements ErrorCode {
   CUSTOMIZER_BROKEN("SX-CORE-1002", Severity.ERROR, "A StratumPropertiesCustomizer is broken"),
 
   /** A module's settings break their rules; the detail names each property key and rule. */
-  INVALID_SETTINGS("SX-CORE-1003", Severity.ERROR, "Invalid settings");
+  INVALID_SETTINGS("SX-CORE-1003", Severity.ERROR, "Invalid settings"),
+
+  /**
+   * A module's customizer is declared as a bean, but modules read customizers only from {@code
+   * META-INF/spring.factories}. The detail names the beans.
+   */
+  CUSTOMIZER_DECLARED_AS_BEAN(
+      "SX-CORE-1004",
+      Severity.ERROR,
+      "A StratumPropertiesCustomizer is declared as a bean, which Stratum ignores; list its class"
+          + " in META-INF/spring.factories under the module's customizer interface instead");
 
   /** The code, such as {@code SX-CORE-1001}. */
   private final String code;

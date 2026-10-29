@@ -112,28 +112,36 @@ Every starter follows these rules:
   property key, so components are not renamed with Spring Boot's `@Name`: the startup error of ST-ENG-31 names
   each property from its component name.
 - **ST-ENG-31** `spring-boot-configuration-processor` generates metadata for every property so IDEs can complete
-  `stratum.*` keys. Properties carry Bean Validation constraints, so a bad value stops the application at startup
-  rather than failing on the first request. The settings record is not `@Validated`: `StratumPropertiesResolver`
-  validates the settings after the Java configuration has run, so Java can correct or supply a value (ST-ENG-34).
-  `stratum-core` depends on `spring-boot-starter-validation` for this, so every starter that depends on
-  `stratum-core` brings Hibernate Validator and Spring Boot's `Validator` bean; a starter does not declare it again.
-  A field that holds nested settings, such as a pool or a map of clients, is annotated `@Valid`; without it the
-  nested constraints are never checked. The startup error names each property by its key, such as
+  `stratum.*` keys. A key read outside the settings record, such as the module switch, is declared in the module's
+  `META-INF/additional-spring-configuration-metadata.json`; the shared keys of `stratum-core`, which has no settings
+  record, are in its hand-written `META-INF/spring-configuration-metadata.json`. A test reads each module's generated
+  file and checks that every key is there. Properties carry Bean Validation constraints, so a bad value stops the
+  application at startup rather than failing on the first request. The settings record is not `@Validated`:
+  `StratumPropertiesResolver` validates the settings after the Java configuration has run, so Java can correct or
+  supply a value (ST-ENG-34). `stratum-core` depends on `spring-boot-starter-validation` for this, so every starter
+  that depends on `stratum-core` brings Hibernate Validator and Spring Boot's `Validator` bean; a starter does not
+  declare it again. A field that holds nested settings, such as a pool or a map of clients, is annotated `@Valid`;
+  without it the nested constraints are never checked. The startup error names each property by its key, such as
   `stratum.http-client.pool.max-size`, and each rule with its limits, such as `@Size(max=10)`. It never shows a
   value, a map key, a list index or a constraint message, because any of them can be a secret. A cross-field check on
-  a method, such as `@AssertTrue boolean isPoolLargeEnough()`, is named after the method (`pool-large-enough`),
-  which is not a key a service sets; name such methods for the rule they check.
+  a method, such as `@AssertTrue boolean isPoolLargeEnough()`, is named after the method (`pool-large-enough`), which
+  is not a key a service sets; name such methods for the rule they check.
 - **ST-ENG-32** Every property works the same from `application.properties` and `application.yml`. Property names use
   kebab-case, Spring Boot's canonical form. Tests for property binding cover both formats.
 - **ST-ENG-33** Every tunable value (pool size, timeout, limit, TTL, retry count) is a property. None is hardcoded.
 - **ST-ENG-34** Every setting can also be set in Java, for services whose configuration files would grow too large.
-  Each module offers a customizer bean or a builder on its public API that sets the same options, with the same
-  names and defaults as the properties. When a setting is given in both places, the Java configuration wins, and
-  the module's documentation says so. The shared mechanism is in `stratum-core`: a service declares
-  `StratumPropertiesCustomizer<P>` beans for the module's settings record `P`, and the module's auto-configuration
-  builds its beans only from `StratumPropertiesResolver.resolve(bound, customizers.orderedStream())`, never from the
-  bound record directly. Spring matches a customizer to its module by the generic type, so tests and examples
-  register customizers with their full type, as the return type of a `@Bean` method.
+  Each module offers a customizer interface on its public API that sets the same options, with the same names and
+  defaults as the properties. When a setting is given in both places, the Java configuration wins, and the module's
+  documentation says so. The shared mechanism is in `stratum-core`, and every module uses it the same way: the module
+  declares `<Module>PropertiesCustomizer extends StratumPropertiesCustomizer<P>` for its settings record `P`; a
+  service lists its customizer classes in `META-INF/spring.factories` under that interface; and the module builds
+  its settings only from `StratumPropertiesResolver.resolve(bound, StratumCustomizers.load(...).stream())`, never
+  from the bound record directly. Customizers are classes, not beans, because some modules, such as logging, need
+  their settings before any bean exists. The module's auto-configuration calls `StratumCustomizers.rejectBeans`, so
+  a customizer declared as a bean stops startup with `SX-CORE-1004` instead of being silently ignored. The module
+  switches, shared properties and Spring Boot properties are set in Java through `SpringApplication`'s default
+  properties; a module's defaults for Spring Boot properties are added with `StratumDefaults`, so that any value
+  the service sets, there or anywhere else, wins.
 
 ## Java 25 and Spring Boot 4
 
@@ -167,7 +175,7 @@ Every starter follows these rules:
 - **ST-ENG-47** Logic and state belong in injected beans, not static methods. Static methods live only in Lombok
   `@UtilityClass` classes of pure helpers and constants. A Spring bean, a record or any other class that is
   instantiated uses instance methods, private helpers included. Two exceptions: a static factory that creates the
-  type itself, such as `ErrorReport.of`, `Redactor.from` or `LoggingProperties.bind`, with the private helpers it
+  type itself, such as `ErrorReport.of`, `Redactor.from` or `LoggingProperties.resolve`, with the private helpers it
   calls; and the static methods JUnit requires (`@BeforeAll`, `@AfterAll` and `@MethodSource` factories).
   `ErrorReport.of` reads the trace, span and correlation IDs from SLF4J's `MDC`, so that any code, injected or not,
   can report an error without passing the IDs by hand.

@@ -4,11 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.core.error.StratumException;
+import com.exepex.stratum.logging.testsupport.LockerCodeLoggingSettings;
+import com.exepex.stratum.logging.testsupport.LoggingTestData;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -89,5 +92,35 @@ class LoggingStartupIntegrationTest {
     assertThat(Files.readString(file))
         .contains("\"message\":\"file line password=****\"")
         .doesNotContain("fake-unmasked");
+  }
+
+  @Test
+  @DisplayName("a customizer class in spring.factories wins over the files")
+  void javaConfigurationWinsFromTheFirstLine(@TempDir Path folder, CapturedOutput output)
+      throws IOException {
+    // Spring Boot keeps the console format as a JVM system property, so clear an earlier test's.
+    System.clearProperty(
+        LoggingSystemProperty.CONSOLE_STRUCTURED_FORMAT.getEnvironmentVariableName());
+    var consoleFormat =
+        LoggingTestData.withCustomizers(
+            folder, List.of(LockerCodeLoggingSettings.class), this::logLockerLineInTextFormat);
+
+    assertThat(consoleFormat).isEqualTo("ecs");
+    assertThat(output)
+        .contains("\"message\":\"locker opened\"")
+        .contains("\"locker_code\":\"****\"")
+        .doesNotContain("L-1234");
+  }
+
+  /** Starts with the text format in the files, logs one line and returns the console format. */
+  private @Nullable String logLockerLineInTextFormat() {
+    try (var context =
+        start(
+            "--spring.application.name=orders",
+            "--stratum.logging.enabled=true",
+            "--stratum.logging.format=text")) {
+      log.atInfo().addKeyValue("locker_code", "L-1234").log("locker opened");
+      return context.getEnvironment().getProperty("logging.structured.format.console");
+    }
   }
 }

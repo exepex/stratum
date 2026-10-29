@@ -2,6 +2,7 @@ package com.exepex.stratum.observability;
 
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.condition.StratumModuleSwitch;
+import com.exepex.stratum.core.properties.StratumDefaults;
 import java.util.HashMap;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
@@ -10,7 +11,6 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.context.config.ConfigDataEnvironmentPostProcessor;
 import org.springframework.core.Ordered;
 import org.springframework.core.env.ConfigurableEnvironment;
-import org.springframework.core.env.MapPropertySource;
 import org.springframework.util.StringUtils;
 
 /**
@@ -18,13 +18,10 @@ import org.springframework.util.StringUtils;
  * starts. With {@code stratum.observability.enabled=true} it exposes only {@code health} and {@code
  * info}, tags every metric, stores timings as histograms, carries traces into Spring Boot's
  * executors and traces Kafka and RabbitMQ messages; otherwise it turns export off, so a bundle that
- * brings this starter sends nothing. A service's own values win, because these come last. {@link
- * ObservabilityExportAddressCheck} checks the export addresses.
+ * brings this starter sends nothing. Every value the service sets for those properties wins, Java
+ * default properties included. {@link ObservabilityExportAddressCheck} checks the export addresses.
  */
 public class ObservabilityEnvironmentPostProcessor implements EnvironmentPostProcessor, Ordered {
-
-  /** The name of the property source that holds Stratum's observability defaults. */
-  static final String DEFAULTS_SOURCE = "stratumObservabilityDefaults";
 
   /** Turns off sending metrics and spans, for a module that is off. */
   private static final Map<String, Object> EXPORT_OFF =
@@ -57,7 +54,7 @@ public class ObservabilityEnvironmentPostProcessor implements EnvironmentPostPro
         StratumModuleSwitch.isEnabled(environment, ObservabilityConstants.MODULE)
             ? defaultsWithModuleOn(environment)
             : EXPORT_OFF;
-    environment.getPropertySources().addLast(new MapPropertySource(DEFAULTS_SOURCE, defaults));
+    StratumDefaults.addBelowServiceValues(environment, defaults);
   }
 
   /** Returns the exposure, histogram, executor, messaging, tag and resource defaults. */

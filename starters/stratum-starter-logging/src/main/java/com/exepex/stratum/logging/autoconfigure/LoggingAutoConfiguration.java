@@ -2,12 +2,14 @@ package com.exepex.stratum.logging.autoconfigure;
 
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
+import com.exepex.stratum.core.properties.StratumCustomizers;
 import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.workflow.ReactiveWorkflows;
 import com.exepex.stratum.logging.workflow.WorkflowAspect;
 import com.exepex.stratum.logging.workflow.Workflows;
 import io.micrometer.observation.ObservationRegistry;
 import org.aspectj.weaver.Advice;
+import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureOrder;
@@ -22,7 +24,17 @@ import reactor.core.publisher.Mono;
 @AutoConfiguration
 @AutoConfigureOrder(StratumModuleConstants.AUTO_CONFIGURATION_ORDER)
 @ConditionalOnStratumModule(LoggingConstants.MODULE)
-public class LoggingAutoConfiguration {
+public final class LoggingAutoConfiguration {
+
+  /**
+   * Stops startup with {@code SX-CORE-1004} when the service declares a logging customizer as a
+   * bean, which would be silently ignored.
+   *
+   * @param beanFactory the service's beans
+   */
+  public LoggingAutoConfiguration(ListableBeanFactory beanFactory) {
+    StratumCustomizers.rejectBeans(beanFactory);
+  }
 
   /**
    * Runs workflows; they are timed and traced only when the service has an {@code

@@ -1,5 +1,8 @@
 package com.exepex.stratum.logging;
 
+import com.exepex.stratum.core.properties.StratumCustomizers;
+import com.exepex.stratum.core.properties.StratumPropertiesResolver;
+import jakarta.validation.Validation;
 import jakarta.validation.constraints.AssertTrue;
 import java.util.List;
 import lombok.Builder;
@@ -13,13 +16,15 @@ import org.springframework.core.env.Environment;
 import org.springframework.util.unit.DataSize;
 
 /**
- * The settings of the logging module, bound to {@code stratum.logging.*}. Logging starts before any
- * bean exists, so they are read straight from the environment, never from Java configuration.
+ * The settings of the logging module, bound to {@code stratum.logging.*} and then changed by the
+ * service's {@link LoggingPropertiesCustomizer} classes, which win. The descriptions of the
+ * components are what IDEs show, so they are plain sentences.
  *
- * @param format how console and file lines are written. Defaults to {@code ecs}.
- * @param maxFieldLength the longest a single value or stack trace may be; anything longer is cut.
- *     Defaults to 16KB; from 1KB to 1MB.
- * @param redaction what is masked on top of Stratum's built-in rules
+ * @param format How console and file lines are written: ecs, logstash, gelf or text. Defaults to
+ *     ecs. Text is plain and not redacted.
+ * @param maxFieldLength The longest a single value or stack trace may be; anything longer is cut.
+ *     From 1KB to 1MB. Defaults to 16KB.
+ * @param redaction What is masked on top of Stratum's built-in rules.
  */
 @Builder(toBuilder = true)
 @ConfigurationProperties(prefix = LoggingConstants.PREFIX)
@@ -35,13 +40,24 @@ public record LoggingProperties(
   private static final DataSize MAX_FIELD_LENGTH = DataSize.ofMegabytes(1);
 
   /**
-   * Binds {@code stratum.logging.*}, with the defaults for anything unset.
+   * Returns the settings the module uses: {@code stratum.logging.*} with the defaults for anything
+   * unset, changed by every {@link LoggingPropertiesCustomizer} in {@code
+   * META-INF/spring.factories}, then validated. Logging starts before any bean exists, so this
+   * makes its own validator.
    *
    * @param environment the application's environment
    * @return the settings
+   * @throws jakarta.validation.ConstraintViolationException {@code SX-CORE-1003} if a setting
+   *     breaks its rules
    */
-  public static LoggingProperties bind(Environment environment) {
-    return Binder.get(environment).bindOrCreate(LoggingConstants.PREFIX, LoggingProperties.class);
+  public static LoggingProperties resolve(Environment environment) {
+    var boundProperties =
+        Binder.get(environment).bindOrCreate(LoggingConstants.PREFIX, LoggingProperties.class);
+    var customizers = StratumCustomizers.load(LoggingPropertiesCustomizer.class);
+    try (var validatorFactory = Validation.buildDefaultValidatorFactory()) {
+      return new StratumPropertiesResolver(validatorFactory.getValidator())
+          .resolve(boundProperties, customizers.stream());
+    }
   }
 
   /**
@@ -81,8 +97,9 @@ public record LoggingProperties(
    * The service's own redaction rules, added to Stratum's built-in ones, which cannot be removed.
    * What these rules find is always masked.
    *
-   * @param extraKeys more field and key names whose values are masked, such as {@code iban-hash}
-   * @param extraPatterns more regular expressions whose matches are masked
+   * @param extraKeys More field and key names whose values are masked, such as iban-hash. Defaults
+   *     to none.
+   * @param extraPatterns More regular expressions whose matches are masked. Defaults to none.
    */
   @Builder(toBuilder = true)
   public record Redaction(

@@ -178,11 +178,12 @@ java -jar order-service.jar --stratum.logging.format=text --server.port=9090
 
 ## Which value wins
 
-When the same property is set in several places, the source higher in this list wins. Items 2 to 7
+When the same property is set in several places, the source higher in this list wins. Items 2 to 8
 are simplified from Spring Boot's full order:
 
-1. **Java configuration**: a `StratumPropertiesCustomizer` bean in your code. It is applied after
-   every file and argument below has been read, so it wins over all of them. See
+1. **Java configuration**: a class that implements the module's customizer interface, such as
+   `LoggingPropertiesCustomizer`, listed in `META-INF/spring.factories`. It is applied after every
+   file and argument below has been read, so it wins over all of them. See
    [Set the same values in Java](overriding-defaults.md#set-the-same-values-in-java).
 2. Command-line arguments (`--key=value`)
 3. Environment variables
@@ -190,7 +191,8 @@ are simplified from Spring Boot's full order:
 5. `application.properties` / `application.yml` outside the jar
 6. Profile-specific files inside the jar (`src/main/resources/application-prod.yml`)
 7. `application.properties` / `application.yml` inside the jar
-8. **Stratum's built-in defaults** (always last, so anything you set wins)
+8. Default properties set in Java with `SpringApplication.setDefaultProperties`
+9. **Stratum's built-in defaults** (always last, so anything you set wins)
 
 For profiles and per-environment setups, see
 [Profiles and environments](profiles-and-environments.md).
@@ -218,14 +220,21 @@ customer's request at 3 a.m.
 
 ## IDE completion
 
-Each Stratum starter ships Spring Boot configuration metadata. IntelliJ IDEA (Ultimate, or with the
-Spring plugin), VS Code (with the Spring Boot Tools extension) and Eclipse (Spring Tools) then:
+Each Stratum starter, and `stratum-core` for the shared `stratum.environment`, ships Spring Boot
+configuration metadata in its jar, as `META-INF/spring-configuration-metadata.json`. Every
+`stratum.*` key is in it, the module switches included. IntelliJ IDEA (Ultimate, or with the
+Spring plugin), VS Code (with the Spring Boot Tools extension) and Eclipse (Spring Tools) read it
+and then:
 
 - complete `stratum.*` keys as you type, in both `.yml` and `.properties`,
-- show each property's description, type and default,
+- show each property's description, type and default, and the allowed values where there is a
+  fixed set, such as `stratum.logging.format`,
 - warn about unknown or deprecated keys.
 
-If completion does not appear, re-import the Maven project so the IDE sees the starter jars.
+Each jar carries its own file, so with several starters on the classpath, a bundle included, the
+IDE shows the keys of all of them. NetBeans needs a Spring Boot plugin that reads the same
+metadata; that has not been tested with Stratum. If completion does not appear,
+re-import the Maven project so the IDE sees the starter jars.
 
 ## Stratum properties and Spring Boot properties
 

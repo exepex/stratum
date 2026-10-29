@@ -29,7 +29,7 @@ public final class RedactingJsonMembersCustomizer
   public RedactingJsonMembersCustomizer(Environment environment) {
     this.redactor =
         StratumModuleSwitch.isEnabled(environment, LoggingConstants.MODULE)
-            ? Redactor.from(LoggingProperties.bind(environment))
+            ? Redactor.from(LoggingProperties.resolve(environment))
             : null;
   }
 

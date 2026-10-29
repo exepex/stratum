@@ -86,6 +86,35 @@ On your laptop (the `local` profile exposes these endpoints) you can inspect the
 | Connection pool exhausted | [Data → Troubleshooting](../modules/data-jpa.md#troubleshooting) |
 | Messages in a dead-letter topic | [Kafka → Troubleshooting](../modules/kafka.md#troubleshooting) |
 
+### Change a log level without a redeploy
+
+Log levels are set with Spring Boot's `logging.level.*` properties. To change one without a
+redeploy, use Spring Boot Actuator's `loggers` endpoint. It is not exposed over HTTP by default;
+expose it only on the management port, behind authentication:
+
+```properties
+management.server.port=8081
+management.endpoints.web.exposure.include=health,loggers
+```
+
+```yaml
+management:
+  server:
+    port: 8081
+  endpoints:
+    web:
+      exposure:
+        include: health,loggers
+```
+
+```bash
+curl -X POST -H 'Content-Type: application/json' -d '{"configuredLevel":"DEBUG"}' \
+  http://localhost:8081/actuator/loggers/com.acme.orders
+```
+
+A Stratum endpoint that switches DEBUG on for a limited time, and back off by itself, is
+[planned](../../starters/stratum-starter-logging/README.md#planned).
+
 ## Getting help
 
 When you ask for help, include:

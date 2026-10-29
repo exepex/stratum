@@ -318,7 +318,8 @@ as the console.
 The shared [`stratum.environment`](../../docs/configuration/reference.md#shared-properties) sets
 `service.environment`.
 
-Spring Boot properties this starter sets by default (your values win):
+Spring Boot properties this starter sets by default. A value you set wins, from any file, the
+environment, the command line or Java default properties:
 
 | Spring Boot property | Stratum default |
 | --- | --- |
@@ -394,44 +395,48 @@ try (var ignored = MDC.putCloseable("tenant_id", tenantId)) {
 
 ## Configure in Java
 
-Not possible for this module. Logging starts before Spring creates any bean, so a
-`StratumPropertiesCustomizer<LoggingProperties>` bean would come too late to change it. Set these
-properties in `application.properties`, `application.yml`, environment variables or command-line
-arguments.
+Logging starts before Spring creates any bean, so the Java configuration is a class rather than a
+bean. It receives the settings from your files, with the defaults for anything unset, and its
+values win:
+
+```java
+package com.acme.orders.config;
+
+public class OrdersLoggingSettings implements LoggingPropertiesCustomizer {
+
+  @Override
+  public LoggingProperties customize(LoggingProperties properties) {
+    return properties.toBuilder()
+        .format(LogFormat.GELF)
+        .maxFieldLength(DataSize.ofKilobytes(32))
+        .redaction(properties.redaction().toBuilder().extraKeys(List.of("iban-hash")).build())
+        .build();
+  }
+}
+```
+
+List the class in `src/main/resources/META-INF/spring.factories`:
+
+```properties
+com.exepex.stratum.logging.LoggingPropertiesCustomizer=com.acme.orders.config.OrdersLoggingSettings
+```
+
+It needs a public no-argument constructor and may run more than once at startup. Declared as a
+`@Bean` instead, it stops startup with `SX-CORE-1004`. To set the switch in Java, see
+[default properties](../../docs/configuration/overriding-defaults.md#switches-shared-properties-and-spring-boot-properties-in-java).
 
 ## Change log levels at runtime
 
-Log levels are set with Spring Boot's `logging.level.*` properties. To change one without a
-redeploy, use Spring Boot Actuator's `loggers` endpoint. It is not exposed over HTTP by default;
-expose it only on the management port, behind authentication:
-
-```properties
-management.server.port=8081
-management.endpoints.web.exposure.include=health,loggers
-```
-
-```yaml
-management:
-  server:
-    port: 8081
-  endpoints:
-    web:
-      exposure:
-        include: health,loggers
-```
-
-```bash
-curl -X POST -H 'Content-Type: application/json' -d '{"configuredLevel":"DEBUG"}' \
-  http://localhost:8081/actuator/loggers/com.acme.orders
-```
-
-A Stratum endpoint that switches DEBUG on for a limited time, and back off by itself, is
-[planned](#planned).
+Use Spring Boot Actuator's `loggers` endpoint, exposed only on the management port and behind
+authentication, as [Troubleshooting](../../docs/guides/troubleshooting.md#change-a-log-level-without-a-redeploy)
+shows. A Stratum endpoint that switches DEBUG on for a limited time is [planned](#planned).
 
 ## Customize
 
 - **Your own workflow handling:** declare a `Workflows`, `ReactiveWorkflows` or `WorkflowAspect`
   bean; Stratum's then backs off.
+- **Not replaceable:** the startup checks, the redaction and the `error.code` field run before any
+  bean exists, so only `stratum.logging.enabled` turns them off.
 - **Different JSON fields:** Spring Boot's `StructuredLogFormatter` lets you write your own format;
   set `logging.structured.format.console` to its class name. Prefer the standard format so logs
   stay searchable across services.
@@ -479,6 +484,7 @@ which keeps Spring Boot's default plain-text logging, with no checks and no reda
 | Symptom | Likely cause and fix |
 | --- | --- |
 | Startup stops with `SX-LOGGING-1001` | Set `spring.application.name`. |
+| Startup stops with `SX-CORE-1004` | A logging customizer is a `@Bean`; list its class in `META-INF/spring.factories` instead. |
 | Startup stops with `SX-LOGGING-1002` | An `extra-patterns` entry is not a valid regular expression; the message gives its position, never the pattern. |
 | Logs are plain text in production | `stratum.logging.enabled` is not `true`, or `stratum.logging.format=text` is set somewhere. Look for the startup warning. |
 | A secret still appears in logs | Add its key to `extra-keys` or its shape to `extra-patterns`, then rotate the secret. Report the format so it can be added to the built-in list. |

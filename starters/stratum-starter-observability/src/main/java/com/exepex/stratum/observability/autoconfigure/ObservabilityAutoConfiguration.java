@@ -2,15 +2,16 @@ package com.exepex.stratum.observability.autoconfigure;
 
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
-import com.exepex.stratum.core.properties.StratumPropertiesCustomizer;
+import com.exepex.stratum.core.properties.StratumCustomizers;
 import com.exepex.stratum.core.properties.StratumPropertiesResolver;
 import com.exepex.stratum.observability.CorrelationIdRecorder;
 import com.exepex.stratum.observability.MetricTagGuard;
 import com.exepex.stratum.observability.ObservabilityConstants;
 import com.exepex.stratum.observability.ObservabilityProperties;
+import com.exepex.stratum.observability.ObservabilityPropertiesCustomizer;
 import com.exepex.stratum.observability.TelemetryUrlFilter;
 import jakarta.validation.Validator;
-import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureOrder;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -24,7 +25,17 @@ import org.springframework.context.annotation.Fallback;
 @AutoConfigureOrder(StratumModuleConstants.AUTO_CONFIGURATION_ORDER)
 @ConditionalOnStratumModule(ObservabilityConstants.MODULE)
 @EnableConfigurationProperties(ObservabilityProperties.class)
-public class ObservabilityAutoConfiguration {
+public final class ObservabilityAutoConfiguration {
+
+  /**
+   * Stops startup with {@code SX-CORE-1004} when the service declares an observability customizer
+   * as a bean, which would be silently ignored.
+   *
+   * @param beanFactory the service's beans
+   */
+  public ObservabilityAutoConfiguration(ListableBeanFactory beanFactory) {
+    StratumCustomizers.rejectBeans(beanFactory);
+  }
 
   /**
    * Removes user info from span URLs and the query from the uri tag of spans and metrics. Spring
@@ -44,10 +55,10 @@ public class ObservabilityAutoConfiguration {
 
   /**
    * Drops metrics tagged with an ID. Spring Boot applies every {@code MeterFilter} bean to its
-   * meters.
+   * meters. The tag names come from properties, changed by the service's {@link
+   * ObservabilityPropertiesCustomizer} classes in {@code META-INF/spring.factories}, which win.
    *
    * @param boundProperties the settings bound from {@code stratum.observability.*}
-   * @param customizers the service's Java configuration of the settings, which wins
    * @param validator checks the settings once Java configuration has run
    * @return the guard
    */
@@ -55,12 +66,12 @@ public class ObservabilityAutoConfiguration {
   @Fallback
   @ConditionalOnMissingBean
   public MetricTagGuard metricTagGuard(
-      ObservabilityProperties boundProperties,
-      ObjectProvider<StratumPropertiesCustomizer<ObservabilityProperties>> customizers,
-      Validator validator) {
+      ObservabilityProperties boundProperties, Validator validator) {
     var properties =
         new StratumPropertiesResolver(validator)
-            .resolve(boundProperties, customizers.orderedStream());
+            .resolve(
+                boundProperties,
+                StratumCustomizers.load(ObservabilityPropertiesCustomizer.class).stream());
     return new MetricTagGuard(properties.tags().extraForbidden(), properties.tags().allowed());
   }
 

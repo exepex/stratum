@@ -52,7 +52,7 @@ public final class StratumPropertiesResolver {
    *
    * @param boundProperties the settings bound from {@code stratum.<module>.*} properties
    * @param customizers the service's customizers for these settings, in the order to apply them; an
-   *     auto-configuration passes {@code ObjectProvider.orderedStream()}
+   *     module passes the classes {@link StratumCustomizers#load} finds
    * @param <P> the module's settings type
    * @return the settings after every customizer has run
    * @throws StratumException {@code SX-CORE-1002} if a customizer is broken
@@ -121,13 +121,11 @@ public final class StratumPropertiesResolver {
     return customized;
   }
 
-  /**
-   * Tells the developer how to declare a customizer so that Spring gives it to the right module.
-   */
+  /** Tells the developer how to declare a customizer so that it reaches the right module. */
   private String declareWithType(String settingsType) {
     return "declare it as StratumPropertiesCustomizer<"
         + settingsType
-        + ">, for example as the return type of a @Bean method.";
+        + ">, by implementing the module's customizer interface for these settings.";
   }
 
   /**

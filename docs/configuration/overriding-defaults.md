@@ -1,14 +1,15 @@
 # Overriding defaults
 
 **Status: Planned.** Only the Java configuration of [level 1](#set-the-same-values-in-java) is
-built, in `stratum-core`. Stratum's defaults suit most services, but never all of them. This page
-shows the four ways to change what Stratum does, from the lightest touch to the strongest.
+built, in `stratum-core`, and the logging and observability modules use it. Stratum's defaults suit
+most services, but never all of them. This page shows the four ways to change what Stratum does,
+from the lightest touch to the strongest.
 
 [← Documentation home](../README.md)
 
 | Level | You want to | You do | Effort |
 | --- | --- | --- | --- |
-| 1 | Change a value | Set a property, or the same value in Java | One line, or a small bean |
+| 1 | Change a value | Set a property, or the same value in Java | One line, or a small class |
 | 2 | Adjust a bean Stratum built | Declare a customizer bean | A few lines |
 | 3 | Replace a bean entirely | Declare your own bean of the same type | You own that bean from now on |
 | 4 | Turn a module on or off | `stratum.<module>.enabled=true` or `false` | One line |
@@ -45,70 +46,97 @@ configuration files would otherwise grow too large, or a value worked out in cod
 set in both places, **the Java value wins**.
 
 Each module binds its `stratum.<module>.*` properties to one settings type, a Java record with a
-builder. To set values in Java, declare a bean of type `StratumPropertiesCustomizer<the settings
-type>`. It receives the settings already read from your files, with Stratum's defaults for anything
-you did not set, and returns the settings the module should use. Call `toBuilder()` on what it
-receives, change only what you need, and `build()`: every other value is kept.
+builder, and has a customizer interface for it, such as `LoggingPropertiesCustomizer` for
+`LoggingProperties`. To set values in Java, write a class that implements that interface. It
+receives the settings already read from your files, with Stratum's defaults for anything you did
+not set, and returns the settings the module should use. Call `toBuilder()` on what it receives,
+change only what you need, and `build()`: every other value is kept.
 
-The logging module is the one exception: logging starts before Spring creates any bean, so its
-`stratum.logging.*` values can be set only in files, environment variables or command-line
-arguments. See [Logging → Configure in Java](../../starters/stratum-starter-logging/README.md#configure-in-java).
+The customizer is a plain class, not a bean. List it in your service's
+`src/main/resources/META-INF/spring.factories`, under the interface's name. Spring Boot reads that
+file at the very start, so the same customizer works for a module that needs its settings before
+any bean exists, such as logging, and for every other module.
 
-The settings types of the modules are planned; each module page will name its own. The example
-below uses a module called `example` with two settings, `message` and `timeout`. The same values,
-set three ways:
+The same values, set three ways, for the logging module:
 
 ```properties
-stratum.example.message=Hello
-stratum.example.timeout=5s
+stratum.logging.format=gelf
+stratum.logging.max-field-length=32KB
 ```
 
 ```yaml
 stratum:
-  example:
-    message: Hello
-    timeout: 5s
+  logging:
+    format: gelf
+    max-field-length: 32KB
 ```
 
 ```java
-@Configuration
-class ExampleConfig {
+package com.acme.orders.config;
 
-  @Bean
-  StratumPropertiesCustomizer<ExampleProperties> exampleSettings() {
-    return properties ->
-        properties.toBuilder().message("Hello").timeout(Duration.ofSeconds(5)).build();
+public class OrdersLoggingSettings implements LoggingPropertiesCustomizer {
+
+  @Override
+  public LoggingProperties customize(LoggingProperties properties) {
+    return properties.toBuilder()
+        .format(LogFormat.GELF)
+        .maxFieldLength(DataSize.ofKilobytes(32))
+        .build();
   }
 }
 ```
 
-With all three in place, the module uses the values from the Java bean. To set only the timeout in
-Java and keep the message from your files, leave the message out:
-
-```java
-@Bean
-StratumPropertiesCustomizer<ExampleProperties> exampleTimeout() {
-  return properties -> properties.toBuilder().timeout(Duration.ofSeconds(5)).build();
-}
+```properties
+# src/main/resources/META-INF/spring.factories
+com.exepex.stratum.logging.LoggingPropertiesCustomizer=com.acme.orders.config.OrdersLoggingSettings
 ```
+
+With all three in place, the module uses the values from the Java class. To set only the field
+length in Java and keep the format from your files, leave the format out. Several classes go on
+one line, separated by commas.
 
 Rules that apply to every module:
 
 - Several customizers for the same settings run in `@Order` order. Each receives the result of the
   one before, so the last one wins.
+- A customizer needs a public constructor with no arguments, and may run more than once at
+  startup, so it only works out settings and has no side effects.
 - A customizer must not return `null`. To leave the settings unchanged, return what it received.
   A `null` stops the application at startup with a message naming the customizer.
 - The settings are checked once, after your customizers have run. So a customizer can correct or
-  supply a value the files leave invalid or unset. A bad value from either place, such as a blank
-  message or a missing timeout, stops the application at startup. The message names the property
-  key and the rule it breaks, never the value, which might be a secret.
-- Declare the customizer with its settings type, as the return type of a `@Bean` method like the
-  examples above. Spring uses that type to give each customizer to its own module. A customizer
-  registered without it, for example with `registerBean(StratumPropertiesCustomizer.class, ...)`,
-  stops the application at startup with a message naming it.
+  supply a value the files leave invalid or unset. A bad value from either place stops the
+  application at startup. The message names the property key and the rule it breaks, never the
+  value, which might be a secret.
+- A customizer declared as a `@Bean` would be ignored, so it stops the application at startup with
+  `SX-CORE-1004`, naming the bean.
 
 `StratumPropertiesCustomizer` is in `stratum-core`, in the package
-`com.exepex.stratum.core.properties`. Every starter will bring it with it.
+`com.exepex.stratum.core.properties`. Every starter brings it, and each module page names its own
+customizer interface.
+
+### Switches, shared properties and Spring Boot properties in Java
+
+The module switches (`stratum.<module>.enabled`), the shared `stratum.environment` and any Spring
+Boot property can be set in Java as default properties of the application, in its `main` method.
+They are read before any bean exists, so a customizer cannot set them:
+
+```java
+public static void main(String[] args) {
+  var application = new SpringApplication(OrdersApplication.class);
+  application.setDefaultProperties(
+      Map.of(
+          "stratum.logging.enabled", true,
+          "stratum.observability.enabled", true,
+          "stratum.environment", "prod",
+          "management.endpoints.web.exposure.include", "health,info,prometheus"));
+  application.run(args);
+}
+```
+
+Default properties come last, so the same key in a file, an environment variable or a command-line
+argument wins over them. Each module page lists the Spring Boot properties Stratum sets by default.
+Stratum gives those only to keys you leave unset, so a value you set anywhere, default properties
+included, wins over Stratum's.
 
 ## Level 2: adjust a bean with a customizer
 
@@ -200,7 +228,8 @@ useful for a test profile, or while you migrate one concern at a time. If you ne
 module, remove the starter from your `pom.xml`, or exclude it from the bundle, instead.
 
 The switch is read from properties only, not from a `StratumPropertiesCustomizer`: Spring decides
-which beans to create before any customizer runs.
+which beans to create before any customizer runs. To set it in Java, use the application's
+[default properties](#switches-shared-properties-and-spring-boot-properties-in-java).
 
 A module's own switches, such as `stratum.web.correlation.enabled`, apply only once the module is
 on. Their defaults, often `true`, mean that a module you switch on comes with all its parts.

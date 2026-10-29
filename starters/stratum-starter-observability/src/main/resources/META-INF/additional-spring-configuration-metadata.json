@@ -1,0 +1,10 @@
+{
+  "properties": [
+    {
+      "name": "stratum.observability.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether the observability module is on. Until it is true, the starter only turns off sending metrics and spans.",
+      "defaultValue": false
+    }
+  ]
+}
