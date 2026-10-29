@@ -1,9 +1,12 @@
-package com.exepex.stratum.logging;
+package com.exepex.stratum.logging.startup;
 
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.condition.StratumModuleSwitch;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.core.properties.StratumPropertiesResolver;
+import com.exepex.stratum.logging.LoggingConstants;
+import com.exepex.stratum.logging.LoggingErrorCode;
+import com.exepex.stratum.logging.LoggingProperties;
 import com.exepex.stratum.logging.LoggingProperties.LogFormat;
 import com.exepex.stratum.logging.redaction.Redactor;
 import jakarta.validation.ConstraintViolationException;
