@@ -49,6 +49,12 @@
       <artifactId>spring-web</artifactId>
       <optional>true</optional>
     </dependency>
+    <!-- Runs a Mono or Flux as linked work. Optional: only a service that uses Reactor has it. -->
+    <dependency>
+      <groupId>io.projectreactor</groupId>
+      <artifactId>reactor-core</artifactId>
+      <optional>true</optional>
+    </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>

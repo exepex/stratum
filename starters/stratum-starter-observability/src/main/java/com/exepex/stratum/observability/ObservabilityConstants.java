@@ -112,4 +112,10 @@ public class ObservabilityConstants {
    */
   public static final String URI_COMPONENTS_BUILDER =
       "org.springframework.web.util.UriComponentsBuilder";
+
+  /** The name of the timer and span of every run of linked work. */
+  public static final String LINKED_WORK_OBSERVATION = "stratum.linked.work";
+
+  /** The tag, on the timer and span of linked work, that holds the work's fixed name. */
+  public static final String LINKED_WORK_TAG = "work";
 }
