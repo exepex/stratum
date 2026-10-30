@@ -3,6 +3,7 @@ package com.exepex.stratum.webflux.it;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.error.LoggingContextConstants;
+import com.exepex.stratum.test.StarterTestSupport;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebErrorCode;
 import com.jayway.jsonpath.JsonPath;
@@ -28,9 +29,6 @@ class ErrorResponsesIntegrationTest {
 
   /** The member of the error body that holds the trace ID. */
   private static final String TRACE_ID_PATH = "$." + LoggingContextConstants.TRACE_ID;
-
-  /** The member of the error body that holds the code. */
-  private static final String CODE_PATH = "$." + WebConstants.CODE;
 
   /** The path that fails with a code the service maps to 409. */
   private static final String DUPLICATE_PATH = "/orders/duplicate";
@@ -69,7 +67,7 @@ class ErrorResponsesIntegrationTest {
     var path = DUPLICATE_PATH;
     var response = get(path, MediaType.APPLICATION_JSON);
 
-    assertProblem(response, HttpStatus.CONFLICT, "ORD-0001");
+    StarterTestSupport.checkProblemDetails(response, HttpStatus.CONFLICT.value(), "ORD-0001");
     assertThat(JsonPath.<String>read(response.body(), "$.detail"))
         .isEqualTo("Order already exists: order 42");
     assertThat(JsonPath.<String>read(response.body(), "$.severity")).isEqualTo("ERROR");
@@ -92,9 +90,9 @@ class ErrorResponsesIntegrationTest {
   @Test
   @DisplayName("an unmapped StratumException gets 500 with its own code")
   void unmappedStratumException() throws Exception {
-    assertProblem(
+    StarterTestSupport.checkProblemDetails(
         get("/orders/unpriced", MediaType.APPLICATION_JSON),
-        HttpStatus.INTERNAL_SERVER_ERROR,
+        HttpStatus.INTERNAL_SERVER_ERROR.value(),
         "ORD-0003");
   }
 
@@ -109,7 +107,8 @@ class ErrorResponsesIntegrationTest {
                     HttpRequest.BodyPublishers.ofString(
                         "{\"quantity\":0,\"account\":\"" + OrdersApplication.IBAN + "\"}")));
 
-    assertProblem(response, HttpStatus.BAD_REQUEST, WebErrorCode.INVALID_FIELDS.getCode());
+    StarterTestSupport.checkProblemDetails(
+        response, HttpStatus.BAD_REQUEST.value(), WebErrorCode.INVALID_FIELDS.getCode());
     assertThat(JsonPath.<Object>read(response.body(), "$.details[*].field").toString())
         .contains("quantity", "account");
     assertThat(response.body()).doesNotContain(OrdersApplication.IBAN);
@@ -120,34 +119,35 @@ class ErrorResponsesIntegrationTest {
   void invalidParameter() throws Exception {
     var response = get("/orders/search?quantity=0", MediaType.APPLICATION_JSON);
 
-    assertProblem(response, HttpStatus.BAD_REQUEST, WebErrorCode.INVALID_FIELDS.getCode());
+    StarterTestSupport.checkProblemDetails(
+        response, HttpStatus.BAD_REQUEST.value(), WebErrorCode.INVALID_FIELDS.getCode());
     assertThat(JsonPath.<Object>read(response.body(), "$.details[0].field")).isEqualTo("quantity");
   }
 
   @Test
   @DisplayName("a path variable of the wrong type gets SX-WEB-1002")
   void unreadableRequest() throws Exception {
-    assertProblem(
+    StarterTestSupport.checkProblemDetails(
         get("/orders/abc", MediaType.APPLICATION_JSON),
-        HttpStatus.BAD_REQUEST,
+        HttpStatus.BAD_REQUEST.value(),
         WebErrorCode.UNREADABLE_REQUEST.getCode());
   }
 
   @Test
   @DisplayName("an unknown path gets SX-WEB-1003 with the trace ID")
   void unknownPath() throws Exception {
-    assertProblem(
+    StarterTestSupport.checkProblemDetails(
         get("/no-such-path", MediaType.APPLICATION_JSON),
-        HttpStatus.NOT_FOUND,
+        HttpStatus.NOT_FOUND.value(),
         WebErrorCode.NOT_FOUND.getCode());
   }
 
   @Test
   @DisplayName("an exception with @ResponseStatus gets its status and SX-WEB-1004")
   void responseStatusException() throws Exception {
-    assertProblem(
+    StarterTestSupport.checkProblemDetails(
         get("/orders/gone", MediaType.APPLICATION_JSON),
-        HttpStatus.GONE,
+        HttpStatus.GONE.value(),
         WebErrorCode.REQUEST_FAILED.getCode());
   }
 
@@ -156,8 +156,8 @@ class ErrorResponsesIntegrationTest {
   void unexpectedException() throws Exception {
     var response = get("/orders/broken", MediaType.APPLICATION_JSON);
 
-    assertProblem(
-        response, HttpStatus.INTERNAL_SERVER_ERROR, WebErrorCode.INTERNAL_ERROR.getCode());
+    StarterTestSupport.checkProblemDetails(
+        response, HttpStatus.INTERNAL_SERVER_ERROR.value(), WebErrorCode.INTERNAL_ERROR.getCode());
     assertThat(response.body())
         .doesNotContain(OrdersApplication.INTERNAL_DETAIL, "IllegalStateException", "\tat ");
   }
@@ -198,7 +198,8 @@ class ErrorResponsesIntegrationTest {
   @Test
   @DisplayName("a caller that accepts anything gets the Problem Details body")
   void anyMediaTypeGetsProblemDetails() throws Exception {
-    assertProblem(get(DUPLICATE_PATH, MediaType.ALL), HttpStatus.CONFLICT, "ORD-0001");
+    StarterTestSupport.checkProblemDetails(
+        get(DUPLICATE_PATH, MediaType.ALL), HttpStatus.CONFLICT.value(), "ORD-0001");
   }
 
   @Test
@@ -215,28 +216,18 @@ class ErrorResponsesIntegrationTest {
   void failingFilterKeepsTraceId() throws Exception {
     var response = get(OrdersApplication.FailingFilter.FAILING_PATH, MediaType.APPLICATION_JSON);
 
-    assertProblem(
-        response, HttpStatus.INTERNAL_SERVER_ERROR, WebErrorCode.INTERNAL_ERROR.getCode());
+    StarterTestSupport.checkProblemDetails(
+        response, HttpStatus.INTERNAL_SERVER_ERROR.value(), WebErrorCode.INTERNAL_ERROR.getCode());
     assertThat(response.body()).doesNotContain(OrdersApplication.INTERNAL_DETAIL);
   }
 
   @Test
   @DisplayName("a web filter that rejects the caller with 401 gets SX-WEB-1004 with the trace ID")
   void rejectingFilterKeepsTraceId() throws Exception {
-    assertProblem(
+    StarterTestSupport.checkProblemDetails(
         get(OrdersApplication.FailingFilter.REJECTING_PATH, MediaType.APPLICATION_JSON),
-        HttpStatus.UNAUTHORIZED,
+        HttpStatus.UNAUTHORIZED.value(),
         WebErrorCode.REQUEST_FAILED.getCode());
-  }
-
-  /** Checks a Problem Details answer: its status, media type, code and trace ID. */
-  private void assertProblem(HttpResponse<String> response, HttpStatus status, String code) {
-    assertThat(response.statusCode()).isEqualTo(status.value());
-    assertThat(response.headers().firstValue(HttpHeaders.CONTENT_TYPE))
-        .hasValue(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
-    assertThat(JsonPath.<String>read(response.body(), CODE_PATH)).isEqualTo(code);
-    assertThat(JsonPath.<Integer>read(response.body(), "$.status")).isEqualTo(status.value());
-    assertThat(JsonPath.<String>read(response.body(), TRACE_ID_PATH)).matches("\\p{XDigit}{32}");
   }
 
   /** Sends a GET that accepts the given media type. */

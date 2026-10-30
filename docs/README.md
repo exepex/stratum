@@ -48,6 +48,7 @@ Each module page follows the same layout so you always know where to look:
 | Bundle starters (one dependency per kind of application) | [bundles.md](modules/bundles.md) |
 | Web, for Spring MVC and WebFlux (errors, request logs, correlation IDs, timeouts) | [web.md](modules/web.md) |
 | Web MVC (error responses for Spring MVC services) | [stratum-starter-webmvc/README.md](../starters/stratum-starter-webmvc/README.md) |
+| WebFlux (error responses for reactive services) | [stratum-starter-webflux/README.md](../starters/stratum-starter-webflux/README.md) |
 | Logging | [stratum-starter-logging/README.md](../starters/stratum-starter-logging/README.md) |
 | Observability (metrics, tracing, health) | [stratum-starter-observability/README.md](../starters/stratum-starter-observability/README.md) |
 | Security (resource server, JWT) | [security.md](modules/security.md) |

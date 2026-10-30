@@ -2,6 +2,8 @@ package com.exepex.stratum.test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.exepex.stratum.core.error.CoreErrorCode;
 import com.exepex.stratum.core.error.ErrorCode;
@@ -11,9 +13,12 @@ import com.exepex.stratum.test.fixture.autoconfigure.GreetingAutoConfiguration;
 import com.exepex.stratum.test.fixture.autoconfigure.GreetingFormatter;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import java.io.IOException;
+import java.net.http.HttpHeaders;
+import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.DisplayName;
@@ -127,5 +132,53 @@ class StarterTestSupportTest {
     private final Severity severity;
 
     private final String description;
+  }
+
+  @Nested
+  @DisplayName("checkProblemDetails")
+  class CheckProblemDetails {
+
+    /** The body of a web starter's answer for an unknown path. */
+    private static final String NOT_FOUND_BODY =
+        "{\"status\":404,\"code\":\"SX-WEB-1003\","
+            + "\"traceId\":\"4bf92f3577b34da6a3ce929d0e0e4736\"}";
+
+    /** The status of an unknown path. */
+    private static final int NOT_FOUND = 404;
+
+    @Test
+    @DisplayName("passes an answer with the status, media type, code and a trace ID")
+    void passesProblemDetails() {
+      StarterTestSupport.checkProblemDetails(
+          answer("application/problem+json", NOT_FOUND_BODY), NOT_FOUND, "SX-WEB-1003");
+    }
+
+    @Test
+    @DisplayName("fails an answer with another media type or another code")
+    void failsOtherAnswers() {
+      assertThatExceptionOfType(AssertionError.class)
+          .isThrownBy(
+              () ->
+                  StarterTestSupport.checkProblemDetails(
+                      answer("application/json", NOT_FOUND_BODY), NOT_FOUND, "SX-WEB-1003"));
+      assertThatExceptionOfType(AssertionError.class)
+          .isThrownBy(
+              () ->
+                  StarterTestSupport.checkProblemDetails(
+                      answer("application/problem+json", NOT_FOUND_BODY),
+                      NOT_FOUND,
+                      "SX-WEB-1005"));
+    }
+
+    /** Returns an answer with status 404, the media type and the body. */
+    private HttpResponse<String> answer(String mediaType, String body) {
+      HttpResponse<String> response = mock();
+      when(response.statusCode()).thenReturn(NOT_FOUND);
+      when(response.headers())
+          .thenReturn(
+              HttpHeaders.of(Map.of("Content-Type", List.of(mediaType)), (name, value) -> true));
+      when(response.body()).thenReturn(body);
+      return response;
+    }
   }
 }

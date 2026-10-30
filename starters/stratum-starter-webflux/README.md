@@ -124,6 +124,7 @@ Reference: 4bf92f3577b34da6a3ce929d0e0e4736. Quote it to support so they can fin
 Your own error templates, such as `templates/error/404.html` or `templates/error/4xx.html`, and
 static pages such as `static/error/404.html`, win, as in Spring Boot.
 `spring.web.error.whitelabel.enabled=false` turns Stratum's page off, as it turns off Spring Boot's.
+A browser then gets the JSON error body, with the same status an API caller gets.
 
 ## Your own error handling
 

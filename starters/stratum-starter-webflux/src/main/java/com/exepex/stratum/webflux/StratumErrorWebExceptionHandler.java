@@ -64,7 +64,26 @@ public class StratumErrorWebExceptionHandler extends DefaultErrorWebExceptionHan
   }
 
   /**
-   * Returns Stratum's reference page, which replaces Spring Boot's whitelabel page.
+   * Returns the service's error page for a browser, as Spring Boot does, or Stratum's body when
+   * there is none and Spring Boot's default page is off, so the mapped status of a {@code
+   * StratumException} is kept. Spring Boot would answer that case with 500.
+   *
+   * @param request the failed request
+   * @return the response
+   */
+  @Override
+  protected Mono<ServerResponse> renderErrorView(ServerRequest request) {
+    var page = super.renderErrorView(request);
+    if (!stratumBodies) {
+      return page;
+    }
+    var failure = getError(request);
+    return page.onErrorResume(failure::equals, pageFailure -> renderErrorResponse(request));
+  }
+
+  /**
+   * Returns Stratum's reference page, which replaces Spring Boot's whitelabel page. The page needs
+   * Stratum's body, so a service's own {@link ErrorAttributes} keep Spring Boot's page.
    *
    * @param responseBody the response with its status set
    * @param error the error body's members
@@ -73,6 +92,9 @@ public class StratumErrorWebExceptionHandler extends DefaultErrorWebExceptionHan
   @Override
   protected Mono<ServerResponse> renderDefaultErrorView(
       ServerResponse.BodyBuilder responseBody, Map<String, Object> error) {
+    if (!stratumBodies) {
+      return super.renderDefaultErrorView(responseBody, error);
+    }
     return responseBody
         .contentType(MediaType.parseMediaType(ReferencePage.CONTENT_TYPE))
         .bodyValue(ReferencePage.of(error));
