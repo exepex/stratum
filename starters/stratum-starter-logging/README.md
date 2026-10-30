@@ -233,12 +233,11 @@ class PaymentService {
 
 The fields follow the work to other threads:
 
-- **`@Async` methods and Spring Boot's executors.** The starter sets Spring Boot's
-  `spring.task.execution.propagate-context=true`, so work on Spring Boot's task executor and
-  scheduler keeps the fields, and the trace and correlation IDs when the service has
-  observability. An executor you create yourself does too when you build it with Spring Boot's
-  `ThreadPoolTaskExecutorBuilder` bean. Other threads, such as those of
-  `CompletableFuture.supplyAsync` without an executor, do not get them.
+- **`@Async` methods and executors.** With `spring.task.execution.propagate-context=true`, which the
+  starter sets, Spring Boot's task executor and scheduler, executors built with its
+  `ThreadPoolTaskExecutorBuilder`, and beans you declare as `ExecutorService` or
+  `ScheduledExecutorService` keep the fields, and the trace and correlation IDs with observability.
+  Pools you create in code outside a bean, and `CompletableFuture.supplyAsync` alone, do not.
 - **Reactor.** The fields travel in the Reactor context. The starter sets Spring Boot's
   `spring.reactor.context-propagation=auto` and turns on Reactor's context propagation, also without
   WebFlux or WebClient, so the lines written in every operator, such as `map` after a thread change,
@@ -249,8 +248,8 @@ The fields follow the work to other threads:
 The fields stay inside the service. With the observability starter, the trace ID reaches the
 services it calls; sending the workflow fields too is [planned](#planned). The observability
 starter also puts `traceId`, `spanId` and `correlationId` on the lines written inside a traced
-operation, reactive code included; threads the service creates itself need
-[wrapping](../../docs/guides/context-across-threads.md#blocking-code).
+operation, reactive code included; [threads](../../docs/guides/context-across-threads.md) lists
+every case.
 
 ## Redaction
 
@@ -319,9 +318,10 @@ as the console.
 | `stratum.logging.redaction.extra-patterns` | list of regex | *(empty)* | More patterns whose matches are masked in full. An invalid pattern stops startup with `SX-LOGGING-1002`; the message gives its position in the list, never the pattern. |
 
 The shared [`stratum.environment`](../../docs/configuration/reference.md#shared-properties) sets
-`service.environment`, and the shared `stratum.context-propagation.async-threads` and
-`stratum.context-propagation.reactor` (both default `true`) decide whether `@Async` methods, Spring
-Boot's executors and Reactor operators keep the workflow fields.
+`service.environment`. The shared booleans `stratum.context-propagation.async-threads`,
+`stratum.context-propagation.executor-beans` and `stratum.context-propagation.reactor` (all default
+`true`) decide whether `@Async` methods and Spring Boot's executors, your `ExecutorService` and
+`ScheduledExecutorService` beans, and Reactor operators keep the workflow fields.
 
 Spring Boot properties this starter sets by default. A value you set wins, from any file, the
 environment, the command line or Java default properties:
