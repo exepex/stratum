@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 import com.exepex.stratum.core.error.LoggingContextConstants;
+import io.micrometer.context.ContextRegistry;
+import io.micrometer.context.integration.Slf4jThreadLocalAccessor;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -26,6 +28,9 @@ class ReactiveMdcFieldsTest {
 
   /** The customer whose request the tests run. */
   private static final String CUSTOMER = "CUST-7";
+
+  /** The order each chain works on. */
+  private static final String ORDER_NUMBER = "ORD-1042";
 
   /** Another field of the service's own. */
   private static final String TENANT_ID = "tenantId";
@@ -56,7 +61,7 @@ class ReactiveMdcFieldsTest {
     var seenAfterThreadChange =
         ReactiveMdcFields.mono(
                 Map.of(CUSTOMER_ID, CUSTOMER),
-                Mono.just("ORD-1042")
+                Mono.just(ORDER_NUMBER)
                     .publishOn(Schedulers.boundedElastic())
                     .map(orderNumber -> MDC.get(CUSTOMER_ID)))
             .block();
@@ -70,7 +75,7 @@ class ReactiveMdcFieldsTest {
     MDC.put(CUSTOMER_ID, CUSTOMER);
 
     var seenAfterThreadChange =
-        Mono.just("ORD-1042")
+        Mono.just(ORDER_NUMBER)
             .publishOn(Schedulers.boundedElastic())
             .map(orderNumber -> String.valueOf(MDC.get(CUSTOMER_ID)))
             .block();
@@ -115,6 +120,25 @@ class ReactiveMdcFieldsTest {
   }
 
   @Test
+  @DisplayName("the fields survive a service's own accessor for the whole logging context")
+  void fieldsSurviveWholeLoggingContextAccessor() {
+    ContextRegistry.getInstance().registerThreadLocalAccessor(new Slf4jThreadLocalAccessor());
+    try {
+      var seenAfterThreadChange =
+          ReactiveMdcFields.mono(
+                  Map.of(CUSTOMER_ID, CUSTOMER),
+                  Mono.just(ORDER_NUMBER)
+                      .publishOn(Schedulers.boundedElastic())
+                      .map(orderNumber -> String.valueOf(MDC.get(CUSTOMER_ID))))
+              .block();
+
+      assertThat(seenAfterThreadChange).isEqualTo(CUSTOMER);
+    } finally {
+      ContextRegistry.getInstance().removeThreadLocalAccessor(Slf4jThreadLocalAccessor.KEY);
+    }
+  }
+
+  @Test
   @DisplayName("the trace and workflow fields are refused, so they cannot fall out of step")
   void refusesFieldsManagedElsewhere() {
     var traceField = Map.of(LoggingContextConstants.TRACE_ID, "4bf92f3577b34da6a3ce929d0e0e4736");
@@ -126,7 +150,7 @@ class ReactiveMdcFieldsTest {
 
   /** Returns a Mono that reads the customer ID after a CompletableFuture completes. */
   private static Mono<String> customerIdAfterCompletableFuture() {
-    return Mono.fromFuture(() -> CompletableFuture.supplyAsync(() -> "ORD-1042"))
+    return Mono.fromFuture(() -> CompletableFuture.supplyAsync(() -> ORDER_NUMBER))
         .map(orderNumber -> String.valueOf(MDC.get(CUSTOMER_ID)));
   }
 

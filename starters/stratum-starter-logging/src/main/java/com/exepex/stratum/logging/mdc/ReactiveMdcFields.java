@@ -1,6 +1,7 @@
 package com.exepex.stratum.logging.mdc;
 
 import com.exepex.stratum.logging.LoggingConstants;
+import io.micrometer.context.integration.Slf4jThreadLocalAccessor;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.experimental.UtilityClass;
@@ -65,7 +66,8 @@ public class ReactiveMdcFields {
 
   /**
    * Returns the context with the fields added to those the subscribing thread holds, which include
-   * any put with {@code MDC.put}, and to those of any enclosing call.
+   * any put with {@code MDC.put}, and to those of any enclosing call. They also go in the whole
+   * logging context that a service may carry in Reactor, so that restoring it keeps them.
    */
   private static Context withServiceFields(Context context, Map<String, String> fields) {
     var serviceFields = new HashMap<>(SERVICE_MDC_FIELDS_ACCESSOR.serviceFieldsOnThisThread());
@@ -74,6 +76,14 @@ public class ReactiveMdcFields {
             .<Map<String, String>>getOrEmpty(LoggingConstants.SERVICE_MDC_FIELDS)
             .orElseGet(Map::of));
     serviceFields.putAll(fields);
-    return context.put(LoggingConstants.SERVICE_MDC_FIELDS, Map.copyOf(serviceFields));
+    var wholeLoggingContext =
+        new HashMap<>(
+            context
+                .<Map<String, String>>getOrEmpty(Slf4jThreadLocalAccessor.KEY)
+                .orElseGet(Map::of));
+    wholeLoggingContext.putAll(fields);
+    return context
+        .put(LoggingConstants.SERVICE_MDC_FIELDS, Map.copyOf(serviceFields))
+        .put(Slf4jThreadLocalAccessor.KEY, Map.copyOf(wholeLoggingContext));
   }
 }
