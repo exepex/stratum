@@ -73,6 +73,13 @@
       <artifactId>aspectjweaver</artifactId>
       <optional>true</optional>
     </dependency>
+    <!-- Cleans the MDC when each request of a servlet application ends. Optional: the servlet
+         container comes with the service's web starter. -->
+    <dependency>
+      <groupId>jakarta.servlet</groupId>
+      <artifactId>jakarta.servlet-api</artifactId>
+      <optional>true</optional>
+    </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>

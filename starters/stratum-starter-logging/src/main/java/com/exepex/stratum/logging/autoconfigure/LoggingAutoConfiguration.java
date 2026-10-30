@@ -7,10 +7,15 @@ import com.exepex.stratum.core.properties.StratumCustomizers;
 import com.exepex.stratum.core.reactor.ReactorOperatorContextPropagation;
 import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.mdc.ServiceMdcFieldsPropagation;
+import com.exepex.stratum.logging.mdc.ServletRequestMdcCleanupFilter;
+import com.exepex.stratum.logging.mdc.ServletRequestMdcCleanupListener;
 import com.exepex.stratum.logging.workflow.ReactiveWorkflows;
 import com.exepex.stratum.logging.workflow.WorkflowAspect;
 import com.exepex.stratum.logging.workflow.Workflows;
 import io.micrometer.observation.ObservationRegistry;
+import jakarta.servlet.DispatcherType;
+import jakarta.servlet.Filter;
+import java.util.EnumSet;
 import org.aspectj.weaver.Advice;
 import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -18,16 +23,21 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureOrder;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingFilterBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.autoconfigure.task.TaskExecutionAutoConfiguration;
 import org.springframework.boot.autoconfigure.task.TaskSchedulingAutoConfiguration;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.boot.web.servlet.ServletListenerRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Fallback;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.Ordered;
 import org.springframework.core.env.Environment;
 import reactor.core.publisher.Mono;
 
-/** Creates the logging module's workflow beans, when {@code stratum.logging.enabled=true}. */
+/** Creates the logging module's beans, when {@code stratum.logging.enabled=true}. */
 @AutoConfiguration(
     after = TaskExecutionAutoConfiguration.class,
     before = TaskSchedulingAutoConfiguration.class)
@@ -120,6 +130,48 @@ public final class LoggingAutoConfiguration {
     @ConditionalOnMissingBean
     public ReactiveWorkflows reactiveWorkflows(Workflows workflows) {
       return new ReactiveWorkflows(workflows);
+    }
+  }
+
+  /**
+   * Cleans the MDC after each request in a servlet application. A nested class, so the servlet
+   * types are only loaded then.
+   */
+  @Configuration(proxyBeanMethods = false)
+  @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
+  @ConditionalOnClass(Filter.class)
+  public static class ServletRequestMdcCleanupConfiguration {
+
+    /**
+     * Runs the cleanup first and ends it last, so it also removes what other filters put, and on
+     * async and error dispatches, which run outside the first pass through the filters.
+     *
+     * @return the filter's registration
+     */
+    @Bean
+    @Fallback
+    @ConditionalOnMissingFilterBean(ServletRequestMdcCleanupFilter.class)
+    public FilterRegistrationBean<ServletRequestMdcCleanupFilter> servletRequestMdcCleanupFilter() {
+      var registration = new FilterRegistrationBean<>(new ServletRequestMdcCleanupFilter());
+      registration.setDispatcherTypes(
+          EnumSet.of(DispatcherType.REQUEST, DispatcherType.ASYNC, DispatcherType.ERROR));
+      registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
+      return registration;
+    }
+
+    /**
+     * Cleans the MDC after a failed request once the server has logged the failure.
+     *
+     * @return the listener's registration
+     */
+    @Bean
+    @Fallback
+    @ConditionalOnMissingBean(
+        value = ServletRequestMdcCleanupListener.class,
+        parameterizedContainer = ServletListenerRegistrationBean.class)
+    public ServletListenerRegistrationBean<ServletRequestMdcCleanupListener>
+        servletRequestMdcCleanupListener() {
+      return new ServletListenerRegistrationBean<>(new ServletRequestMdcCleanupListener());
     }
   }
 }
