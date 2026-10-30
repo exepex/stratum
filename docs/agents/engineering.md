@@ -111,7 +111,12 @@ Every starter follows these rules:
 
 - **ST-ENG-20** Auto-configuration classes are annotated `@AutoConfiguration` and listed in
   `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`. Starters do not use component
-  scanning.
+  scanning. A service's own scan can still reach Stratum's packages, for example a service whose main class sits in
+  `com.exepex`. So every Stratum class that a scan picks up, which is any class annotated with `@Component` directly
+  or through another annotation such as `@Configuration` or `@ControllerAdvice`, carries
+  `@ConditionalOnStratumModule` and the other conditions of the auto-configuration that creates it. A class that
+  serves more than one module, such as one that several auto-configurations `@Import`, carries no such annotation.
+  `stratum-core` has none. The ArchUnit tests check this (ST-TEST-21).
 - **ST-ENG-21** Every bean has conditions: `@ConditionalOnMissingBean` so a service or another framework can supply
   its own, `@ConditionalOnClass` when it needs an optional library, and every auto-configuration of a module carries
   `@ConditionalOnStratumModule("<module>")` from `stratum-core`, so the whole module stays off until the service sets

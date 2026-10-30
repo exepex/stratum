@@ -1,10 +1,13 @@
 package com.exepex.stratum.webmvc;
 
+import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.core.error.LoggingContextConstants;
 import com.exepex.stratum.web.ErrorResponseFactory;
+import com.exepex.stratum.web.WebConstants;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.MDC;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
@@ -23,6 +26,8 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
  * application/problem+json}, as every other error has.
  */
 @ControllerAdvice
+@ConditionalOnStratumModule(WebConstants.MODULE)
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @RequiredArgsConstructor
 public class ErrorBodyAdvice implements ResponseBodyAdvice<Object> {
 

@@ -242,6 +242,14 @@ exactly as in setup B.
 merge stays small only if the fork changes nothing but the parent and the coordinates. For that
 reason, setup B is recommended unless the team needs a single parent.
 
+## The service's own package
+
+Stratum works in a service of any package, such as `com.acme.orders`, with any parent. Spring Boot
+finds Stratum's starters through the list of auto-configurations inside each Stratum jar, not by
+scanning the service's package. A service whose own component scan reaches Stratum's packages, for
+example one whose main class sits in `com.exepex`, gets nothing extra: every Stratum class that a
+scan picks up stays off until its module is switched on.
+
 ## Common problems
 
 | Problem | Likely cause | Fix |

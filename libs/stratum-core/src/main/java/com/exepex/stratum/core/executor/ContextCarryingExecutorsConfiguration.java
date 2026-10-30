@@ -11,8 +11,8 @@ import org.springframework.boot.task.SimpleAsyncTaskExecutorBuilder;
 import org.springframework.boot.task.ThreadPoolTaskExecutorBuilder;
 import org.springframework.boot.thread.Threading;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Fallback;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.core.task.TaskExecutor;
@@ -23,8 +23,10 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
  * Makes the service's own thread pools carry the logging and tracing context. Imported by the
  * logging and observability auto-configurations, so it applies while either module is on, and
  * evaluated after Spring Boot's task execution auto-configuration and before its task scheduling.
+ * It and its nested class have no {@code @Configuration}, so a service whose component scan reaches
+ * Stratum's packages does not pick them up while both modules are off.
  */
-@Configuration(proxyBeanMethods = false)
+@Import(ContextCarryingExecutorsConfiguration.AsyncExecutorConfiguration.class)
 public class ContextCarryingExecutorsConfiguration {
 
   /**
@@ -55,7 +57,6 @@ public class ContextCarryingExecutorsConfiguration {
    * because {@code @Async} then uses the service's choice. The modules order this before Spring
    * Boot's task scheduling, so its scheduler does not count as the service's own task executor.
    */
-  @Configuration(proxyBeanMethods = false)
   @ConditionalOnBooleanProperty(StratumModuleConstants.PROPAGATE_TASK_CONTEXT)
   @ConditionalOnMissingBean(
       value = {TaskExecutor.class, AsyncConfigurer.class},

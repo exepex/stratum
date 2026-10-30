@@ -1,8 +1,10 @@
 package com.exepex.stratum.webmvc;
 
+import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.core.error.LoggingContextConstants;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.web.ErrorResponseFactory;
+import com.exepex.stratum.web.WebConstants;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -10,6 +12,7 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.MDC;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.MediaType;
@@ -26,6 +29,8 @@ import org.springframework.web.context.request.ServletWebRequest;
  * service's own handlers win.
  */
 @RestControllerAdvice
+@ConditionalOnStratumModule(WebConstants.MODULE)
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @Order(Ordered.LOWEST_PRECEDENCE)
 @RequiredArgsConstructor
 public class StratumExceptionHandler {
