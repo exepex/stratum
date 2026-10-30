@@ -8,6 +8,7 @@ import com.exepex.stratum.core.reactor.ReactorOperatorContextPropagation;
 import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.mdc.ServiceMdcFieldsPropagation;
 import com.exepex.stratum.logging.mdc.ServletRequestMdcCleanupFilter;
+import com.exepex.stratum.logging.mdc.ServletRequestMdcCleanupListener;
 import com.exepex.stratum.logging.workflow.ReactiveWorkflows;
 import com.exepex.stratum.logging.workflow.WorkflowAspect;
 import com.exepex.stratum.logging.workflow.Workflows;
@@ -27,6 +28,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 import org.springframework.boot.autoconfigure.task.TaskExecutionAutoConfiguration;
 import org.springframework.boot.autoconfigure.task.TaskSchedulingAutoConfiguration;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.boot.web.servlet.ServletListenerRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Fallback;
@@ -155,6 +157,21 @@ public final class LoggingAutoConfiguration {
           EnumSet.of(DispatcherType.REQUEST, DispatcherType.ASYNC, DispatcherType.ERROR));
       registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
       return registration;
+    }
+
+    /**
+     * Cleans the MDC after a failed request once the server has logged the failure.
+     *
+     * @return the listener's registration
+     */
+    @Bean
+    @Fallback
+    @ConditionalOnMissingBean(
+        value = ServletRequestMdcCleanupListener.class,
+        parameterizedContainer = ServletListenerRegistrationBean.class)
+    public ServletListenerRegistrationBean<ServletRequestMdcCleanupListener>
+        servletRequestMdcCleanupListener() {
+      return new ServletListenerRegistrationBean<>(new ServletRequestMdcCleanupListener());
     }
   }
 }

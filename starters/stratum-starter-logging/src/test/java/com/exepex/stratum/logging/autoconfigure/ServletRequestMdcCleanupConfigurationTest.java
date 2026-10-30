@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.mdc.ServletRequestMdcCleanupFilter;
+import com.exepex.stratum.logging.mdc.ServletRequestMdcCleanupListener;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.Filter;
 import org.junit.jupiter.api.DisplayName;
@@ -14,6 +15,7 @@ import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.boot.web.servlet.ServletListenerRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.Ordered;
 
@@ -29,7 +31,7 @@ class ServletRequestMdcCleanupConfigurationTest {
   @Test
   @DisplayName(
       "with the module on, a servlet application gets the filter, first in the chain and on"
-          + " request, async and error dispatches")
+          + " request, async and error dispatches, and its listener")
   void registersFilterInServletApplications() {
     servletContextRunner
         .withPropertyValues(MODULE_ON)
@@ -42,6 +44,8 @@ class ServletRequestMdcCleanupConfigurationTest {
               assertThat(registration.determineDispatcherTypes())
                   .containsExactlyInAnyOrder(
                       DispatcherType.REQUEST, DispatcherType.ASYNC, DispatcherType.ERROR);
+              assertThat(context.getBean(ServletListenerRegistrationBean.class).getListener())
+                  .isInstanceOf(ServletRequestMdcCleanupListener.class);
             });
   }
 
@@ -49,10 +53,17 @@ class ServletRequestMdcCleanupConfigurationTest {
   @DisplayName("with the module unset or off, there is no filter")
   void moduleOffRegistersNoFilter() {
     servletContextRunner.run(
-        context -> assertThat(context).doesNotHaveBean(FilterRegistrationBean.class));
+        context ->
+            assertThat(context)
+                .doesNotHaveBean(FilterRegistrationBean.class)
+                .doesNotHaveBean(ServletListenerRegistrationBean.class));
     servletContextRunner
         .withPropertyValues(LoggingConstants.ENABLED + "=false")
-        .run(context -> assertThat(context).doesNotHaveBean(FilterRegistrationBean.class));
+        .run(
+            context ->
+                assertThat(context)
+                    .doesNotHaveBean(FilterRegistrationBean.class)
+                    .doesNotHaveBean(ServletListenerRegistrationBean.class));
   }
 
   @Test
@@ -81,6 +92,23 @@ class ServletRequestMdcCleanupConfigurationTest {
               assertThat(context.getBean(ServletRequestMdcCleanupFilter.class))
                   .isSameAs(serviceFilter);
             });
+  }
+
+  @Test
+  @DisplayName("the service's own listener registration replaces Stratum's")
+  void serviceListenerWins() {
+    var serviceListener =
+        new ServletListenerRegistrationBean<>(new ServletRequestMdcCleanupListener());
+    servletContextRunner
+        .withPropertyValues(MODULE_ON)
+        .withBean(
+            "serviceMdcCleanupListener",
+            ServletListenerRegistrationBean.class,
+            () -> serviceListener)
+        .run(
+            context ->
+                assertThat(context.getBean(ServletListenerRegistrationBean.class))
+                    .isSameAs(serviceListener));
   }
 
   @Test

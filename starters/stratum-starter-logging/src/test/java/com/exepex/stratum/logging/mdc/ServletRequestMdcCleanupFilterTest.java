@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequestEvent;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -11,8 +12,9 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.mock.web.MockServletContext;
 
-@DisplayName("ServletRequestMdcCleanupFilter leaves the MDC as each request found it")
+@DisplayName("The servlet MDC cleanup leaves the MDC as each request found it")
 class ServletRequestMdcCleanupFilterTest {
 
   /** A field the service puts while it handles a request. */
@@ -20,6 +22,12 @@ class ServletRequestMdcCleanupFilterTest {
 
   /** A field the thread held before the request. */
   private static final String TENANT_ID = "tenantId";
+
+  /** The tenant the thread held before the request. */
+  private static final String TENANT = "TENANT-3";
+
+  /** The customer whose request leaves its field behind. */
+  private static final String CUSTOMER = "CUST-A";
 
   private final ServletRequestMdcCleanupFilter filter = new ServletRequestMdcCleanupFilter();
 
@@ -37,10 +45,10 @@ class ServletRequestMdcCleanupFilterTest {
     filter.doFilter(
         new MockHttpServletRequest(),
         new MockHttpServletResponse(),
-        (request, response) -> MDC.put(CUSTOMER_ID, "CUST-A"));
+        (request, response) -> MDC.put(CUSTOMER_ID, CUSTOMER));
     assertThat(MDC.getCopyOfContextMap()).isNullOrEmpty();
 
-    MDC.put(TENANT_ID, "TENANT-3");
+    MDC.put(TENANT_ID, TENANT);
     filter.doFilter(
         new MockHttpServletRequest(),
         new MockHttpServletResponse(),
@@ -48,23 +56,42 @@ class ServletRequestMdcCleanupFilterTest {
           MDC.remove(TENANT_ID);
           MDC.put(CUSTOMER_ID, "CUST-B");
         });
-    assertThat(MDC.getCopyOfContextMap()).containsExactlyEntriesOf(Map.of(TENANT_ID, "TENANT-3"));
+    assertThat(MDC.getCopyOfContextMap()).containsExactlyEntriesOf(Map.of(TENANT_ID, TENANT));
   }
 
   @Test
-  @DisplayName("the MDC is restored when the request fails too")
-  void restoresTheMdcWhenTheRequestFails() {
+  @DisplayName(
+      "when the request fails, its fields stay for the server's failure line, and the listener"
+          + " restores the MDC when the request ends")
+  void keepsFieldsOfFailedRequestUntilItEnds() {
+    var request = new MockHttpServletRequest();
     assertThatThrownBy(
             () ->
                 filter.doFilter(
-                    new MockHttpServletRequest(),
+                    request,
                     new MockHttpServletResponse(),
-                    (request, response) -> {
-                      MDC.put(CUSTOMER_ID, "CUST-A");
+                    (failingRequest, response) -> {
+                      MDC.put(CUSTOMER_ID, CUSTOMER);
                       throw new ServletException("handler failed");
                     }))
         .isInstanceOf(ServletException.class);
+    assertThat(MDC.get(CUSTOMER_ID)).isEqualTo(CUSTOMER);
+
+    new ServletRequestMdcCleanupListener()
+        .requestDestroyed(new ServletRequestEvent(new MockServletContext(), request));
 
     assertThat(MDC.getCopyOfContextMap()).isNullOrEmpty();
+  }
+
+  @Test
+  @DisplayName("the listener leaves the MDC alone after a request that did not fail")
+  void listenerIgnoresRequestsThatDidNotFail() {
+    MDC.put(TENANT_ID, TENANT);
+
+    new ServletRequestMdcCleanupListener()
+        .requestDestroyed(
+            new ServletRequestEvent(new MockServletContext(), new MockHttpServletRequest()));
+
+    assertThat(MDC.get(TENANT_ID)).isEqualTo(TENANT);
   }
 }

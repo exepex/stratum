@@ -25,9 +25,12 @@ nothing. The next request served by the same pool thread starts clean.
 The server's own request threads are cleaned too. In a servlet application, the logging starter
 registers `ServletRequestMdcCleanupFilter` first in the filter chain, and it puts the MDC back as it
 was when each request ends, also on async and error dispatches. A field a handler puts and forgets
-to remove therefore never shows up in the next request on that thread. To replace it, declare a
-`FilterRegistrationBean<ServletRequestMdcCleanupFilter>` with the same order and dispatcher types;
-a plain `ServletRequestMdcCleanupFilter` bean also replaces it, but Spring Boot then runs it last
+to remove therefore never shows up in the next request on that thread. When a request fails with an
+exception nothing handles, the fields stay until the server has logged it, so that line still names
+the request, and `ServletRequestMdcCleanupListener` cleans them when the request ends.
+
+To replace the filter, declare a `FilterRegistrationBean<ServletRequestMdcCleanupFilter>` with the
+same order and dispatcher types, and keep the listener registered; a plain `ServletRequestMdcCleanupFilter` bean also replaces it, but Spring Boot then runs it last
 and on the first dispatch only, so fields set on async and error dispatches stay behind. WebFlux
 needs no filter, because Reactor resets the MDC for each piece of work it runs.
 
