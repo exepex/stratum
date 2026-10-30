@@ -54,10 +54,16 @@ class LinkedWorkTest {
 
   private final LinkedWork linkedWork = new LinkedWork(observationRegistry, tracer);
 
-  /** Closes the SDK. */
+  /** Whether Reactor's JVM-wide context propagation was on before the test, to put it back. */
+  private final boolean reactorPropagationWasOn = Hooks.isAutomaticContextPropagationEnabled();
+
+  /** Closes the SDK and puts Reactor's JVM-wide context propagation back as it was. */
   @AfterEach
   void closeTracerProvider() {
     tracerProvider.close();
+    if (reactorPropagationWasOn) {
+      Hooks.enableAutomaticContextPropagation();
+    }
   }
 
   /** Returns Micrometer's tracer over the SDK, with the correlation ID as baggage. */
