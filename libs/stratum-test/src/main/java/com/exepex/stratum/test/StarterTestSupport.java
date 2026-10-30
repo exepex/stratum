@@ -25,6 +25,7 @@ import java.util.function.Supplier;
 import java.util.regex.MatchResult;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 
 /**
@@ -86,10 +87,14 @@ public class StarterTestSupport {
    * (ST-TEST-21). A failure lists every class that breaks a rule.
    *
    * @param classInStarterPackage any class in the starter's top package, such as its constants
+   * @param sharedLibraryPackages the packages of the Stratum libraries the starter is built on,
+   *     besides {@code stratum-core}, such as {@code com.exepex.stratum.web} for a web starter
    */
-  public static void checkStarterArchitecture(Class<?> classInStarterPackage) {
+  public static void checkStarterArchitecture(
+      Class<?> classInStarterPackage, String... sharedLibraryPackages) {
     checkModuleClasses(
-        starterArchitecture(classInStarterPackage.getPackageName()), classInStarterPackage);
+        starterArchitecture(classInStarterPackage.getPackageName(), sharedLibraryPackages),
+        classInStarterPackage);
   }
 
   /**
@@ -130,13 +135,21 @@ public class StarterTestSupport {
 
   /**
    * Returns Stratum's architecture rules for a starter: its autoconfigure package only creates and
-   * wires beans (ST-ENG-23), it uses no class of another starter, and its packages have no cycles.
+   * wires beans (ST-ENG-23), it uses no class of another starter, only of {@code stratum-core} and
+   * the shared libraries it is built on, and its packages have no cycles.
    *
    * @param starterPackage the starter's top package, such as {@code com.exepex.stratum.logging}
+   * @param sharedLibraryPackages the packages of the Stratum libraries the starter is built on
    * @return the rules, as one rule
    */
-  static ArchRule starterArchitecture(String starterPackage) {
+  static ArchRule starterArchitecture(String starterPackage, String... sharedLibraryPackages) {
     var autoconfigurePackage = starterPackage + ".autoconfigure";
+    var allowedStratumPackages =
+        Stream.concat(
+                Stream.of(starterPackage, "com.exepex.stratum.core"),
+                Arrays.stream(sharedLibraryPackages))
+            .map(stratumPackage -> stratumPackage + "..")
+            .toArray(String[]::new);
     return CompositeArchRule.of(
             classes()
                 .that()
@@ -157,9 +170,7 @@ public class StarterTestSupport {
                 .should()
                 .onlyDependOnClassesThat(
                     resideOutsideOfPackage("com.exepex.stratum..")
-                        .or(
-                            resideInAnyPackage(
-                                starterPackage + "..", "com.exepex.stratum.core.."))))
+                        .or(resideInAnyPackage(allowedStratumPackages))))
         .and(slices().matching("com.exepex.stratum.(**)").should().beFreeOfCycles())
         .and(safeToScan());
   }
