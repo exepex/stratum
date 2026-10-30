@@ -98,7 +98,7 @@ class ServiceMdcFieldsWebFluxIntegrationTest {
             .build();
     return caller
         .sendAsync(request, HttpResponse.BodyHandlers.ofString())
-        .thenApply(ServiceMdcFieldsWebFluxIntegrationTest::requireSuccess);
+        .thenApply(this::requireSuccess);
   }
 
   /** Checks what a request saw at every place, given whether its handler put the customer ID. */
@@ -116,11 +116,11 @@ class ServiceMdcFieldsWebFluxIntegrationTest {
   }
 
   /** Returns what tasks run later on Reactor's two shared schedulers see. */
-  private static List<String> serviceFieldsOnIdleReactorThreads() {
+  private List<String> serviceFieldsOnIdleReactorThreads() {
     return Flux.range(0, TASKS_PER_IDLE_SCHEDULER * 2)
         .flatMap(
             taskIndex ->
-                Mono.fromCallable(ReactiveOrdersController::serviceFieldsOnThisThread)
+                Mono.fromCallable(reactiveOrdersController::serviceFieldsOnThisThread)
                     .subscribeOn(
                         taskIndex % 2 == 0 ? Schedulers.parallel() : Schedulers.boundedElastic()))
         .collectList()
@@ -128,7 +128,7 @@ class ServiceMdcFieldsWebFluxIntegrationTest {
   }
 
   /** Fails unless the service answered the request successfully. */
-  private static HttpResponse<String> requireSuccess(HttpResponse<String> response) {
+  private HttpResponse<String> requireSuccess(HttpResponse<String> response) {
     if (response.statusCode() != HttpURLConnection.HTTP_OK) {
       throw new UncheckedIOException(new IOException("HTTP " + response.statusCode()));
     }
@@ -208,7 +208,7 @@ class ServiceMdcFieldsWebFluxIntegrationTest {
      *
      * @return the fields, with {@code null} for a field that is not set
      */
-    static String serviceFieldsOnThisThread() {
+    String serviceFieldsOnThisThread() {
       return MDC.get(CUSTOMER_ID) + "/" + MDC.get(ORDER_ID);
     }
 

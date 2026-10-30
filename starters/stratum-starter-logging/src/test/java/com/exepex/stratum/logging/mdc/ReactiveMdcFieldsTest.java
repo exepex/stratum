@@ -153,13 +153,13 @@ class ReactiveMdcFieldsTest {
   }
 
   /** Returns a Mono that reads the customer ID after a CompletableFuture completes. */
-  private static Mono<String> customerIdAfterCompletableFuture() {
+  private Mono<String> customerIdAfterCompletableFuture() {
     return Mono.fromFuture(() -> CompletableFuture.supplyAsync(() -> ORDER_NUMBER))
         .map(orderNumber -> String.valueOf(MDC.get(CUSTOMER_ID)));
   }
 
   /** Subscribes without {@code block()}, which would pass the caller's fields itself. */
-  private static String subscribeAndAwait(Mono<String> work)
+  private String subscribeAndAwait(Mono<String> work)
       throws ExecutionException, InterruptedException {
     var result = new CompletableFuture<String>();
     work.subscribe(result::complete, result::completeExceptionally);
