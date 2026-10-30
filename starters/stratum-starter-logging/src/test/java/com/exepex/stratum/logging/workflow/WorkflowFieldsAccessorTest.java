@@ -48,6 +48,20 @@ class WorkflowFieldsAccessorTest {
   }
 
   @Test
+  @DisplayName("clearing removes the workflow fields and keeps the trace ID")
+  void clearsWorkflowFieldsOnly() {
+    MDC.put(LoggingConstants.WORKFLOW, ORDER_CHECKOUT);
+    MDC.put(LoggingConstants.ROOT_WORKFLOW, ORDER_CHECKOUT);
+    MDC.put(LoggingConstants.WORKFLOW_ID, "wf-41");
+    MDC.put(LoggingContextConstants.TRACE_ID, TRACE_ID);
+
+    accessor.setValue();
+
+    assertThat(MDC.getCopyOfContextMap())
+        .containsExactlyEntriesOf(Map.of(LoggingContextConstants.TRACE_ID, TRACE_ID));
+  }
+
+  @Test
   @DisplayName(
       "unchanged fields, and clearing when no workflow field is set, leave the MDC untouched, so"
           + " Logback keeps its cached copy for log lines")

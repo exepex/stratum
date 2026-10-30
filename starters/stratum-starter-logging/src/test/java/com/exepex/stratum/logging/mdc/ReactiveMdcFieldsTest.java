@@ -120,19 +120,23 @@ class ReactiveMdcFieldsTest {
   }
 
   @Test
-  @DisplayName("the fields survive a service's own accessor for the whole logging context")
-  void fieldsSurviveWholeLoggingContextAccessor() {
+  @DisplayName(
+      "the added and the subscribing thread's fields survive a service's own accessor for the"
+          + " whole logging context")
+  void fieldsSurviveWholeLoggingContextAccessor() throws ExecutionException, InterruptedException {
     ContextRegistry.getInstance().registerThreadLocalAccessor(new Slf4jThreadLocalAccessor());
     try {
+      MDC.put(CUSTOMER_ID, CUSTOMER);
+
       var seenAfterThreadChange =
-          ReactiveMdcFields.mono(
-                  Map.of(CUSTOMER_ID, CUSTOMER),
+          subscribeAndAwait(
+              ReactiveMdcFields.mono(
+                  Map.of(TENANT_ID, "TENANT-3"),
                   Mono.just(ORDER_NUMBER)
                       .publishOn(Schedulers.boundedElastic())
-                      .map(orderNumber -> String.valueOf(MDC.get(CUSTOMER_ID))))
-              .block();
+                      .map(orderNumber -> MDC.get(TENANT_ID) + "/" + MDC.get(CUSTOMER_ID))));
 
-      assertThat(seenAfterThreadChange).isEqualTo(CUSTOMER);
+      assertThat(seenAfterThreadChange).isEqualTo("TENANT-3/" + CUSTOMER);
     } finally {
       ContextRegistry.getInstance().removeThreadLocalAccessor(Slf4jThreadLocalAccessor.KEY);
     }

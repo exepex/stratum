@@ -112,12 +112,12 @@ public class ServiceMdcFieldsAccessor implements ThreadLocalAccessor<Map<String,
   }
 
   /** Returns whether the MDC field is one the service put itself. */
-  private static boolean isServiceField(String name, String value) {
+  private boolean isServiceField(String name, String value) {
     return value != null && !FIELDS_MANAGED_ELSEWHERE.contains(name);
   }
 
   /** Returns whether the MDC holds exactly the carried fields as its service fields. */
-  private static boolean sameServiceFields(
+  private boolean sameServiceFields(
       Map<String, String> loggingContext, Map<String, String> carriedFields) {
     var serviceFieldCount = 0;
     for (var field : loggingContext.entrySet()) {
@@ -132,7 +132,7 @@ public class ServiceMdcFieldsAccessor implements ThreadLocalAccessor<Map<String,
   }
 
   /** Removes from the MDC every service field that the given view of it holds. */
-  private static void removeServiceFields(Map<String, String> loggingContext) {
+  private void removeServiceFields(Map<String, String> loggingContext) {
     for (var field : loggingContext.entrySet()) {
       if (isServiceField(field.getKey(), field.getValue())) {
         MDC.remove(field.getKey());
@@ -145,7 +145,7 @@ public class ServiceMdcFieldsAccessor implements ThreadLocalAccessor<Map<String,
    * changes to the MDC leave as it is, so it can be read while fields are removed; otherwise a new
    * copy.
    */
-  private static Map<String, String> loggingContextOnThisThread() {
+  private Map<String, String> loggingContextOnThisThread() {
     var loggingContext =
         LOGBACK_MDC_PRESENT && MDC.getMDCAdapter() instanceof LogbackMDCAdapter logbackMdc
             ? logbackMdc.getPropertyMap()
