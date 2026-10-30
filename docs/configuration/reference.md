@@ -37,7 +37,7 @@ stratum.environment=prod
 
 | Prefix | Module | Full table | Required settings |
 | --- | --- | --- | --- |
-| `stratum.web.*` | `stratum-starter-web` | [Web → Properties](../modules/web.md#properties) | none |
+| `stratum.web.*` | `stratum-starter-webmvc`, `stratum-starter-webflux` | [Web → Properties](../modules/web.md#properties) | none |
 | `stratum.logging.*` | `stratum-starter-logging` | [Logging → Properties](../../starters/stratum-starter-logging/README.md#properties) | none |
 | `stratum.observability.*` | `stratum-starter-observability` | [Observability → Properties](../../starters/stratum-starter-observability/README.md#properties) | Collector addresses, once enabled |
 | `stratum.security.*` | `stratum-starter-security` | [Security → Properties](../modules/security.md#properties) | `resource-server.issuer-uri` |

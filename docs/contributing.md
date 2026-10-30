@@ -33,7 +33,7 @@ Use the Maven Wrapper (`./mvnw`, or `mvnw.cmd` on Windows): it runs the Maven ve
 tested with. Run whole phases up to at least `package` from the repository root, such as
 `./mvnw verify`. The Checkstyle, PMD and Enforcer rules are read from the `stratum-build-rules` jar,
 which a shorter run, such as `./mvnw validate`, does not build. To build one module and the modules
-it needs, use `./mvnw -pl starters/stratum-starter-web -am verify`.
+it needs, use `./mvnw -pl starters/stratum-starter-webmvc -am verify`.
 
 Stratum's version is set once, as `revision` in `.mvn/maven.config`. To change it, edit that line.
 

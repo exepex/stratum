@@ -161,7 +161,7 @@ each module it brings.
 <dependencies>
   <dependency>
     <groupId>com.exepex.stratum</groupId>
-    <artifactId>stratum-starter-web</artifactId>
+    <artifactId>stratum-starter-webmvc</artifactId>
   </dependency>
   <dependency>
     <groupId>com.exepex.stratum</groupId>
@@ -250,8 +250,9 @@ asks for a login. See [Security](docs/modules/security.md).
 
 | Bundle | Single starters it adds |
 | --- | --- |
-| `stratum-starter-microservice` | web, logging, observability, http-client, resilience, security |
-| `stratum-starter-web-ui` | web, logging, observability, security |
+| `stratum-starter-microservice` | webmvc, logging, observability, http-client, resilience, security |
+| `stratum-starter-reactive-microservice` | webflux, logging, observability, http-client, resilience, security |
+| `stratum-starter-web-ui` | webmvc, logging, observability, security |
 | `stratum-starter-batch` | data-jpa, logging, observability |
 | `stratum-starter-cli` | logging |
 
@@ -261,7 +262,7 @@ Every starter is off until its `stratum.<module>.enabled` property is `true`.
 
 | Starter | In one sentence | Property prefix |
 | --- | --- | --- |
-| [`stratum-starter-web`](docs/modules/web.md) | REST defaults: error format, correlation IDs, request logging, JSON settings. | `stratum.web` |
+| [`stratum-starter-webmvc`, `stratum-starter-webflux`](docs/modules/web.md) | Spring MVC or WebFlux with one error format, request logs, correlation IDs and timeouts. | `stratum.web` |
 | [`stratum-starter-logging`](starters/stratum-starter-logging/README.md) | Structured JSON logs with secrets and personal data redacted, and trace IDs with observability. | `stratum.logging` |
 | [`stratum-starter-observability`](starters/stratum-starter-observability/README.md) | Metrics, traces and health, sent over OTLP to an OpenTelemetry Collector. | `stratum.observability` |
 | [`stratum-starter-security`](docs/modules/security.md) | OAuth2 resource server: JWT validation, roles, public paths, CORS. | `stratum.security` |

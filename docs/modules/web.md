@@ -1,26 +1,44 @@
-# Web: `stratum-starter-web`
+# Web: `stratum-starter-webmvc` and `stratum-starter-webflux`
 
-**Status: Planned.** REST API defaults that every Stratum service shares: one error format,
-correlation IDs, request logging, validation and JSON settings.
+**Status: Planned.** Both starters exist and bring their Spring web stack, but Stratum's own web
+features below are not built yet. This page describes the agreed design.
 
-[← Documentation home](../README.md) · Property prefix: `stratum.web`
+[← Documentation home](../README.md) · Property prefix: `stratum.web` · Decision record:
+[ADR 0006](../adr/0006-separate-mvc-and-webflux-starters.md)
 
 ## What it does
 
-Without this starter each service decides for itself what an error looks like, whether requests
-carry an ID and how JSON is written. Clients of your API then need special handling per service.
-With it, every service answers the same way.
+Without these starters each service decides for itself what an error looks like, what a log line
+of a request holds and how long a request may run. Callers then need special handling per service,
+and support cannot find one request across services. With them, every service answers and logs the
+same way, whether it is reactive or not.
 
-## Add it
+## Pick your starter
+
+Spring has two web stacks, and Stratum has one starter for each. Add exactly one:
+
+| Your service | Add | It brings |
+| --- | --- | --- |
+| Is written the usual way, with methods that return values (most services) | `stratum-starter-webmvc` | Spring MVC on Tomcat |
+| Is reactive, with methods that return `Mono` or `Flux` | `stratum-starter-webflux` | Spring WebFlux on Netty |
 
 ```xml
 <dependency>
   <groupId>com.exepex.stratum</groupId>
-  <artifactId>stratum-starter-web</artifactId>
+  <artifactId>stratum-starter-webmvc</artifactId>
 </dependency>
 ```
 
-The starter does nothing until you switch it on, in `application.properties`:
+Do not add `spring-boot-starter-webmvc` or `spring-boot-starter-webflux` as well: the starter
+already brings it. Never add both Stratum web starters to one service. With both stacks on the
+classpath, Spring Boot starts Spring MVC and ignores WebFlux.
+
+The [bundles](bundles.md) choose for you: `stratum-starter-microservice` and
+`stratum-starter-web-ui` bring `stratum-starter-webmvc`, and
+`stratum-starter-reactive-microservice` brings `stratum-starter-webflux`.
+
+Both starters are the module `web`. They do nothing until you switch them on, in
+`application.properties`:
 
 ```properties
 stratum.web.enabled=true
@@ -34,168 +52,80 @@ stratum:
     enabled: true
 ```
 
-It brings Spring MVC (servlet stack, embedded Tomcat) and Jakarta Bean Validation. Do not add
-`spring-boot-starter-web` or `spring-boot-starter-webmvc` as well.
+Both read the same `stratum.web.*` settings, so a service that moves from one stack to the other
+keeps its configuration.
 
-## What you get
+## What you will get
 
-| Feature | Behaviour | Bean type |
-| --- | --- | --- |
-| Error responses | Every error is [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457) JSON with `traceId` and `correlationId` added | `StratumExceptionHandler` (`@RestControllerAdvice`) |
-| Validation errors | `400` with one entry per invalid field | Part of the exception handler |
-| Correlation ID | Read from the request header or generated, stored in the log context, returned in the response | `CorrelationIdFilter` |
-| Request logging | One log line per request: method, path, status, duration | `RequestLoggingFilter` |
-| JSON | ISO-8601 dates, unknown fields ignored, `null` fields left out | `JsonMapperBuilderCustomizer` |
+Every feature works the same on both stacks.
+
+| Feature | Behaviour |
+| --- | --- |
+| Error responses | Every error is [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457) JSON with a code, the trace ID and the correlation ID. Never a stack trace, exception message or class name |
+| HTML error page | A browser gets an HTML page with a reference number (the trace ID) that the user can quote to support |
+| Request fields in logs | Every log line written during a request carries its method, route, path, query, client IP and caller, as separate fields |
+| Request log | One JSON line when each request ends, with its status and duration. Health checks and static files are left out |
+| Headers in logs | The request and response headers a team names are logged as fields. `Authorization`, `Cookie`, `Set-Cookie` and `X-Api-Key` never are |
+| Token payload in logs | When a team turns it on, the payload of the caller's JWT is logged. The token's header and signature never are |
+| Correlation ID | Taken from the caller's `X-Correlation-Id` header when it has a safe format, otherwise the trace ID; always returned in the response header |
+| Timeouts | A request that runs longer than its limit (10 seconds by default) is answered with `503` |
+| Body size limit | A request body larger than the limit is refused with `413` |
+
+Response times and error counts per API come from the
+[observability starter](../../starters/stratum-starter-observability/README.md), which records
+every request already.
 
 ### The error format
-
-Every error, whether thrown by your code, by validation or by Spring, looks like this:
 
 ```json
 {
   "type": "about:blank",
-  "title": "Bad Request",
-  "status": 400,
-  "detail": "Validation failed for 2 fields",
-  "instance": "/orders",
+  "title": "Conflict",
+  "status": 409,
+  "detail": "Order already exists: order 42",
+  "code": "ORD-0001",
+  "severity": "ERROR",
   "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
-  "correlationId": "c0a8012e-7f3d-4a8e-9a43-2f9b6f1c2d10",
-  "details": [
-    { "field": "sku", "message": "must not be blank" },
-    { "field": "quantity", "message": "must be greater than 0" }
-  ]
+  "correlationId": "checkout-777"
 }
 ```
 
-| Your code throws | Status returned |
-| --- | --- |
-| `ErrorResponseException` (Spring) or a subclass | The status it carries |
-| Exception annotated `@ResponseStatus(...)` | That status |
-| `MethodArgumentNotValidException`, `ConstraintViolationException` | `400`, with `details` |
-| `AccessDeniedException` / missing or invalid token | `403` / `401` (with the security starter) |
-| Downstream timeout or connection failure (with the http-client starter) | `503` or `504` |
-| Anything else | `500`, with a generic `detail`; the real message and stack trace go to the log only |
+A validation error has the status `400` and adds a `details` list, with one entry per invalid
+field. The codes are listed in [Error and warning codes](../guides/error-codes.md).
 
-Internal details such as stack traces, SQL or class names are **never** sent to the caller.
+### Your own error handling
 
-**Planned:** the body will also carry the fields of Stratum's external error object, which every
-kind of application shares: `code`, `severity` and `correlationId`. See
-[Error and warning codes](../guides/error-codes.md).
-
-### How correlation IDs work
-
-```mermaid
-sequenceDiagram
-    participant C as Caller
-    participant A as Your service
-    participant B as Downstream
-    C->>A: request (X-Correlation-Id: abc, or none)
-    Note over A: use abc, or generate a new UUID<br/>put it in the log context
-    A->>B: call (X-Correlation-Id: abc)
-    A-->>C: response (X-Correlation-Id: abc)
-```
-
-The correlation ID is separate from the trace ID: it can be set by a caller outside your tracing
-system (a partner, a mobile app) and still be found in every log line.
+- **Your own `@RestControllerAdvice` always wins.** Stratum handles only what your handlers leave,
+  and never changes a body your handler returns. If your handler returns Spring's `ProblemDetail`,
+  Stratum only adds `traceId` and `correlationId` to it.
+- **`StratumException` with your own code:** you map each code to an HTTP status in
+  `stratum.web.error.statuses`. A code with no status is answered with `500` and logged, so a
+  missing mapping shows up in testing.
+- **An exception annotated `@ResponseStatus`** gets that status and Stratum's error body.
+- **Anything else** is answered with `500` and a fixed message; the real error goes to the log
+  only.
 
 ## Properties
 
+The settings decided so far. Each will work from `.properties`, `.yml` and Java.
+
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.web.enabled` | boolean | `false` | Switches the whole starter on. Until it is `true`, the starter sets up nothing. |
-| `stratum.web.correlation.enabled` | boolean | `true` | Handles correlation IDs. |
-| `stratum.web.correlation.header` | string | `X-Correlation-Id` | Header that carries the ID in and out. |
-| `stratum.web.correlation.generate-if-missing` | boolean | `true` | Creates an ID when the request has none. |
-| `stratum.web.correlation.return-in-response` | boolean | `true` | Adds the ID to the response headers. |
-| `stratum.web.error.type-base-uri` | URI | `about:blank` | Base URI for the Problem Details `type` field, e.g. `https://errors.acme.com/`. |
-| `stratum.web.error.include-trace-id` | boolean | `true` | Adds `traceId` to error bodies. |
-| `stratum.web.error.include-correlation-id` | boolean | `true` | Adds `correlationId` to error bodies. |
-| `stratum.web.request-logging.enabled` | boolean | `true` | Logs one line per request. |
-| `stratum.web.request-logging.include-query-string` | boolean | `false` | Adds the query string to the line (redacted). |
-| `stratum.web.request-logging.slow-threshold` | duration | `2s` | Requests slower than this are logged at `WARN`. |
-| `stratum.web.request-logging.exclude-paths` | list | `/actuator/**` | Paths that are never logged. |
-| `stratum.web.json.include-nulls` | boolean | `false` | Writes fields whose value is `null`. |
-| `stratum.web.json.fail-on-unknown-properties` | boolean | `false` | Rejects requests with unknown JSON fields. |
-
-Spring Boot properties this starter sets by default (your values win):
-
-| Spring Boot property | Stratum default |
-| --- | --- |
-| `spring.mvc.problemdetails.enabled` | `true` |
-| `server.error.include-stacktrace` | `never` |
-| `server.error.include-message` | `never` |
-| `server.shutdown` | `graceful` |
-
-## Examples
-
-Use your own error catalogue URI and a different correlation header:
-
-```yaml
-stratum:
-  web:
-    correlation:
-      header: X-Request-Id
-    error:
-      type-base-uri: https://errors.acme.com/
-    request-logging:
-      slow-threshold: 500ms
-      exclude-paths:
-        - /actuator/**
-        - /favicon.ico
-```
-
-```properties
-stratum.web.correlation.header=X-Request-Id
-stratum.web.error.type-base-uri=https://errors.acme.com/
-stratum.web.request-logging.slow-threshold=500ms
-stratum.web.request-logging.exclude-paths=/actuator/**,/favicon.ico
-```
-
-Throw a business error with its own type and status:
-
-```java
-class OutOfStockException extends ErrorResponseException {
-
-  OutOfStockException(String sku) {
-    super(HttpStatus.CONFLICT, problem(sku), null);
-  }
-
-  private static ProblemDetail problem(String sku) {
-    var problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "Not enough stock for " + sku);
-    problem.setType(URI.create("https://errors.acme.com/out-of-stock"));
-    problem.setProperty("sku", sku);
-    return problem;
-  }
-}
-```
+| `stratum.web.enabled` | boolean | `false` | Switches the module on. Until it is `true`, the starter sets up nothing of its own. |
+| `stratum.web.error.statuses` | map of code to status | empty | The HTTP status of each of your error codes, such as `ORD-0001: 409`. |
+| `stratum.web.correlation.accept-from-caller` | boolean | `true` | Whether a caller's `X-Correlation-Id` is used. Set it to `false` on a service that faces the internet, to always use the trace ID. |
+| `stratum.web.timeout.default` | duration | `10s` | How long any request may run. |
+| `stratum.web.timeout.status` | HTTP status | `503` | The status of a request that ran out of time. |
+| `stratum.web.request-log.enabled` | boolean | `true` | Whether each request writes one log line when it ends. |
+| `stratum.web.request-log.skip-paths` | list | `/actuator/**` and static files | Paths whose requests write no log line. |
 
 ## Configure in Java
 
-**Planned.** You will also be able to set every property on this page in Java code, through this module's
-customizer or builder, with the same names and defaults. This section will show how once that API is designed.
-
-## Customize
-
-- **Add a field to every error body:** declare a `StratumErrorResponseCustomizer` bean.
-- **Handle one exception type yourself:** write a normal `@ExceptionHandler` in your own
-  `@RestControllerAdvice`. Yours runs before Stratum's, which handles only what is left.
-- **Change JSON settings:** declare a `JsonMapperBuilderCustomizer` bean, or use Spring Boot's
-  `spring.jackson.*` properties.
-
-See [Overriding defaults](../configuration/overriding-defaults.md).
+**Planned.** Every setting will also be settable in Java through a `WebPropertiesCustomizer` class
+listed in `META-INF/spring.factories`, as for the other modules, and Java will win. A single API
+will also be able to set its own timeout with an annotation on its method.
 
 ## Switch it on or off
 
-`stratum.web.enabled=true` switches the starter on.
-Leaving it unset is the same as `false`.
-
-`stratum.web.enabled=false` removes Stratum's handler, filters and JSON settings. Spring MVC itself
-stays.
-
-## Troubleshooting
-
-| Symptom | Likely cause and fix |
-| --- | --- |
-| Errors come back as HTML or Spring's default JSON | Another `@RestControllerAdvice` handles everything first. Narrow it to the exceptions it really owns. |
-| No correlation ID in logs | `stratum-starter-logging` is missing, or `stratum.web.correlation.enabled=false`. |
-| A request field is silently ignored | Unknown fields are ignored by default. Set `stratum.web.json.fail-on-unknown-properties=true` to reject them. |
+`stratum.web.enabled=true` switches the module on. Leaving it unset is the same as `false`. With
+the module off, the starter still brings its web stack, so the service runs as plain Spring Boot.

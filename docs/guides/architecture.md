@@ -46,13 +46,15 @@ stratum/
 │   ├── stratum-starter-http-client/
 │   ├── stratum-starter-kafka/
 │   ├── stratum-starter-logging/
-│   ├── stratum-starter-microservice/ # bundle: web, logging, observability, http-client, resilience, security
+│   ├── stratum-starter-microservice/ # bundle: webmvc, logging, observability, http-client, resilience, security
 │   ├── stratum-starter-oauth2-client/
 │   ├── stratum-starter-observability/
+│   ├── stratum-starter-reactive-microservice/ # bundle: webflux, logging, observability, http-client, resilience, security
 │   ├── stratum-starter-resilience/
 │   ├── stratum-starter-security/
-│   ├── stratum-starter-web/
-│   └── stratum-starter-web-ui/     # bundle: web, logging, observability, security
+│   ├── stratum-starter-web-ui/     # bundle: webmvc, logging, observability, security
+│   ├── stratum-starter-webflux/
+│   └── stratum-starter-webmvc/
 └── docs/                           # this documentation
 ```
 

@@ -42,7 +42,7 @@ The pull request description contains a **Claims** section, written by the imple
 2. **Requirements.** Every requirement in the request, one per line. Each is either **met**, with its evidence, or
    **out of scope**, with the reason and the owner's agreement if the owner decided it. Evidence is a `file:line`
    for the code, the test that proves it, and the command that was run with its result, for example
-   `mvn -pl starters/stratum-starter-web -am verify` → `BUILD SUCCESS, Tests run: 42, Failures: 0`.
+   `mvn -pl starters/stratum-starter-webmvc -am verify` → `BUILD SUCCESS, Tests run: 42, Failures: 0`.
 3. **Broken-code proof.** For each requirement with code, the fault the implementer planted and the test that
    caught it.
 4. **Not done or not verified.** Anything left open, stated plainly.
