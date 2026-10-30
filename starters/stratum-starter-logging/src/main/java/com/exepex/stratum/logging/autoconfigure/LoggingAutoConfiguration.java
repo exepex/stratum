@@ -19,6 +19,7 @@ import org.springframework.boot.autoconfigure.AutoConfigureOrder;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.task.TaskExecutionAutoConfiguration;
+import org.springframework.boot.autoconfigure.task.TaskSchedulingAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Fallback;
@@ -27,7 +28,9 @@ import org.springframework.core.env.Environment;
 import reactor.core.publisher.Mono;
 
 /** Creates the logging module's workflow beans, when {@code stratum.logging.enabled=true}. */
-@AutoConfiguration(after = TaskExecutionAutoConfiguration.class)
+@AutoConfiguration(
+    after = TaskExecutionAutoConfiguration.class,
+    before = TaskSchedulingAutoConfiguration.class)
 @AutoConfigureOrder(StratumModuleConstants.AUTO_CONFIGURATION_ORDER)
 @ConditionalOnStratumModule(LoggingConstants.MODULE)
 @Import(ContextCarryingExecutorsConfiguration.class)

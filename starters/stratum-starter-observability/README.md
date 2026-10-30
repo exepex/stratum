@@ -241,7 +241,7 @@ one off, set its switch to `false`, for example `spring.kafka.listener.observati
 Stratum sets Spring Boot's `spring.task.execution.propagate-context=true`, unless
 `stratum.context-propagation.async-threads=false`, so `@Async` methods, Spring Boot's task executor
 and executors built with its `ThreadPoolTaskExecutorBuilder` keep the caller's trace and correlation
-ID. Beans you declare as `ExecutorService` or `ScheduledExecutorService` are wrapped so they keep
+ID. Pools you declare as `Executor`, `ExecutorService` or `ScheduledExecutorService` beans keep
 them too, unless `stratum.context-propagation.executor-beans=false` (boolean, default `true`). Pools
 created in code outside a bean, `new Thread` and `CompletableFuture.supplyAsync` without an executor
 do not; [log fields across threads](../../docs/guides/context-across-threads.md) lists every case.

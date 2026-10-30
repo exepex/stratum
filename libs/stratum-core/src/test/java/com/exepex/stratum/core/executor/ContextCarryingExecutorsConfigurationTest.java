@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.autoconfigure.task.TaskExecutionAutoConfiguration;
+import org.springframework.boot.autoconfigure.task.TaskSchedulingAutoConfiguration;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
@@ -22,7 +23,9 @@ import org.springframework.context.annotation.Import;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.core.task.SyncTaskExecutor;
 import org.springframework.core.task.TaskExecutor;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.annotation.AsyncConfigurer;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 @DisplayName(
@@ -37,17 +40,22 @@ class ContextCarryingExecutorsConfigurationTest {
   /** The name {@code @Async} looks for when there are several task executors. */
   private static final String ASYNC_TASK_EXECUTOR = "taskExecutor";
 
+  /** The name of the executor Spring Boot makes, and Stratum makes in its place. */
+  private static final String APPLICATION_TASK_EXECUTOR = "applicationTaskExecutor";
+
   private final ApplicationContextRunner contextRunner =
       new ApplicationContextRunner()
           .withPropertyValues(PROPAGATE_TASK_CONTEXT)
           .withConfiguration(
               AutoConfigurations.of(
-                  TaskExecutionAutoConfiguration.class, ModuleAutoConfiguration.class));
+                  TaskExecutionAutoConfiguration.class,
+                  TaskSchedulingAutoConfiguration.class,
+                  ModuleAutoConfiguration.class));
 
   @Test
   @DisplayName(
-      "a bean declared as ExecutorService or ScheduledExecutorService is wrapped; one declared as"
-          + " ThreadPoolExecutor is left alone, so code that injects that class still starts")
+      "a pool declared as Executor, ExecutorService or ScheduledExecutorService is wrapped once;"
+          + " one declared as ThreadPoolExecutor is left alone, so code injecting it still starts")
   void wrapsOnlyBeansDeclaredAsTheInterfaces() {
     contextRunner
         .withUserConfiguration(ServicePools.class)
@@ -57,7 +65,10 @@ class ContextCarryingExecutorsConfigurationTest {
                   .isInstanceOf(ContextExecutorService.class);
               assertThat(context.getBean("reminderScheduler"))
                   .isInstanceOf(ContextScheduledExecutorService.class);
+              assertThat(context.getBean("auditPool")).isInstanceOf(ContextExecutorService.class);
               assertThat(context.getBean("reportingPool")).isInstanceOf(ThreadPoolExecutor.class);
+              assertThat(context.getBean("prewrappedPool"))
+                  .isSameAs(context.getBean(ServicePools.class).poolWrappedByService);
             });
   }
 
@@ -75,18 +86,44 @@ class ContextCarryingExecutorsConfigurationTest {
 
   @Test
   @DisplayName(
-      "when the service's only executor is an ExecutorService, @Async gets Spring Boot's pool under"
-          + " both names it looks for")
+      "when the service's only executors are its own pools, @Async gets the pool Spring Boot"
+          + " would have made")
   void addsAsyncPoolWhenServiceHasOnlyExecutorService() {
     contextRunner
         .withUserConfiguration(ServicePools.class)
         .run(
             context -> {
               assertThat(context).hasSingleBean(TaskExecutor.class);
-              assertThat(context.getBean(ASYNC_TASK_EXECUTOR))
+              assertThat(context.getBean(AsyncConfigurer.class).getAsyncExecutor())
                   .isInstanceOf(ThreadPoolTaskExecutor.class)
-                  .isSameAs(context.getBean("applicationTaskExecutor"));
+                  .isSameAs(context.getBean(APPLICATION_TASK_EXECUTOR));
             });
+  }
+
+  @Test
+  @DisplayName(
+      "with @EnableScheduling, @Async still gets that pool, not the @Scheduled jobs' scheduler")
+  void addsAsyncPoolNextToScheduler() {
+    contextRunner
+        .withUserConfiguration(SinglePoolService.class, SchedulingEnabled.class)
+        .run(
+            context -> {
+              assertThat(context).hasSingleBean(TaskScheduler.class);
+              assertThat(context.getBean(AsyncConfigurer.class).getAsyncExecutor())
+                  .isSameAs(context.getBean(APPLICATION_TASK_EXECUTOR));
+            });
+  }
+
+  @Test
+  @DisplayName(
+      "code that injects an Executor by type still gets the service's only pool, not Stratum's")
+  void serviceCodeStillGetsItsOwnPoolByType() {
+    contextRunner
+        .withUserConfiguration(SinglePoolService.class)
+        .run(
+            context ->
+                assertThat(context.getBean(Executor.class))
+                    .isSameAs(context.getBean("invoiceRenderingPool")));
   }
 
   @Test
@@ -97,7 +134,7 @@ class ContextCarryingExecutorsConfigurationTest {
         .withUserConfiguration(ServicePools.class)
         .run(
             context ->
-                assertThat(context.getBean(ASYNC_TASK_EXECUTOR))
+                assertThat(context.getBean(APPLICATION_TASK_EXECUTOR))
                     .isInstanceOf(SimpleAsyncTaskExecutor.class));
   }
 
@@ -120,7 +157,7 @@ class ContextCarryingExecutorsConfigurationTest {
   void addsNoPoolWhenServiceChoseOne() {
     contextRunner
         .withUserConfiguration(ServiceTaskExecutor.class)
-        .run(context -> assertThat(context).doesNotHaveBean("applicationTaskExecutor"));
+        .run(context -> assertThat(context).doesNotHaveBean(APPLICATION_TASK_EXECUTOR));
     contextRunner
         .withUserConfiguration(ServiceExecutorNamedTaskExecutor.class)
         .run(this::assertNoPoolAdded);
@@ -140,18 +177,44 @@ class ContextCarryingExecutorsConfigurationTest {
 
   /** Checks that Stratum added no {@code @Async} pool. */
   private void assertNoPoolAdded(AssertableApplicationContext context) {
-    assertThat(context).doesNotHaveBean("applicationTaskExecutor");
+    assertThat(context).doesNotHaveBean(APPLICATION_TASK_EXECUTOR);
     assertThat(context).doesNotHaveBean(TaskExecutor.class);
   }
 
-  /** Imports the configuration after Spring Boot's task execution, as the modules do. */
-  @AutoConfiguration(after = TaskExecutionAutoConfiguration.class)
+  /** Imports the configuration in the order the modules use. */
+  @AutoConfiguration(
+      after = TaskExecutionAutoConfiguration.class,
+      before = TaskSchedulingAutoConfiguration.class)
   @Import(ContextCarryingExecutorsConfiguration.class)
   static class ModuleAutoConfiguration {}
 
   /** Pools a service declares, each as a different type. */
   @Configuration(proxyBeanMethods = false)
   static class ServicePools {
+
+    /** A pool the service wraps itself, which must not be wrapped again. */
+    final ExecutorService poolWrappedByService =
+        ContextExecutorService.wrap(Executors.newSingleThreadExecutor());
+
+    /**
+     * Returns the pool the service wrapped itself.
+     *
+     * @return the pool
+     */
+    @Bean
+    ExecutorService prewrappedPool() {
+      return poolWrappedByService;
+    }
+
+    /**
+     * Returns a pool declared as {@code Executor}.
+     *
+     * @return the pool
+     */
+    @Bean
+    Executor auditPool() {
+      return Executors.newSingleThreadExecutor();
+    }
 
     /**
      * Returns a pool declared as {@code ExecutorService}.
@@ -181,6 +244,26 @@ class ContextCarryingExecutorsConfigurationTest {
     @Bean
     ThreadPoolExecutor reportingPool() {
       return (ThreadPoolExecutor) Executors.newFixedThreadPool(1);
+    }
+  }
+
+  /** Turns on {@code @Scheduled} jobs, which brings Spring Boot's scheduler. */
+  @Configuration(proxyBeanMethods = false)
+  @EnableScheduling
+  static class SchedulingEnabled {}
+
+  /** A service with one pool of its own. */
+  @Configuration(proxyBeanMethods = false)
+  static class SinglePoolService {
+
+    /**
+     * Returns the service's pool.
+     *
+     * @return the pool
+     */
+    @Bean
+    ExecutorService invoiceRenderingPool() {
+      return Executors.newSingleThreadExecutor();
     }
   }
 

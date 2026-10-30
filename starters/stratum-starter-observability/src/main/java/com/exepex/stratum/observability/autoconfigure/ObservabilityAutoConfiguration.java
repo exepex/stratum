@@ -17,13 +17,16 @@ import org.springframework.boot.autoconfigure.AutoConfigureOrder;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.task.TaskExecutionAutoConfiguration;
+import org.springframework.boot.autoconfigure.task.TaskSchedulingAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Fallback;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.env.Environment;
 
 /** Creates the observability module's beans, when {@code stratum.observability.enabled=true}. */
-@AutoConfiguration(after = TaskExecutionAutoConfiguration.class)
+@AutoConfiguration(
+    after = TaskExecutionAutoConfiguration.class,
+    before = TaskSchedulingAutoConfiguration.class)
 @AutoConfigureOrder(StratumModuleConstants.AUTO_CONFIGURATION_ORDER)
 @ConditionalOnStratumModule(ObservabilityConstants.MODULE)
 @Import(ContextCarryingExecutorsConfiguration.class)

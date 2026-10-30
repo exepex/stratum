@@ -14,7 +14,7 @@
     {
       "name": "stratum.context-propagation.async-threads",
       "type": "java.lang.Boolean",
-      "description": "Whether @Async methods and work on Spring Boot's executors keep the trace and workflow fields of the code that started them. Used by the logging and observability modules when they are on. Sets Spring Boot's spring.task.execution.propagate-context, which wins if the service sets it. When the service declares only a plain ExecutorService, which stops Spring Boot from creating its task executor, Stratum creates that executor for @Async methods.",
+      "description": "Whether @Async methods and work on Spring Boot's executors keep the trace and workflow fields of the code that started them. Used by the logging and observability modules when they are on. Sets Spring Boot's spring.task.execution.propagate-context, which wins if the service sets it. When the service's own pool beans stop Spring Boot from creating its task executor, Stratum creates that executor and points @Async methods at it.",
       "defaultValue": true
     },
     {
@@ -26,7 +26,7 @@
     {
       "name": "stratum.context-propagation.executor-beans",
       "type": "java.lang.Boolean",
-      "description": "Whether ExecutorService and ScheduledExecutorService beans the service declares are wrapped, so that their tasks keep the trace, correlation ID, workflow fields and the service's own MDC fields of the code that submitted them. Only beans declared as those interfaces are wrapped. Used by the logging and observability modules when they are on.",
+      "description": "Whether the pool beans the service declares as Executor, ExecutorService or ScheduledExecutorService are wrapped, so that their tasks keep the trace, correlation ID, workflow fields and the service's own MDC fields of the code that submitted them. A bean declared as a class, such as ThreadPoolExecutor, is not wrapped. Used by the logging and observability modules when they are on.",
       "defaultValue": true
     }
   ]

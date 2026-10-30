@@ -234,10 +234,10 @@ class PaymentService {
 The fields follow the work to other threads:
 
 - **`@Async` methods and executors.** With `spring.task.execution.propagate-context=true`, which the
-  starter sets, Spring Boot's task executor and scheduler, executors built with its
-  `ThreadPoolTaskExecutorBuilder`, and beans you declare as `ExecutorService` or
-  `ScheduledExecutorService` keep the fields, and the trace and correlation IDs with observability.
-  Pools you create in code outside a bean, and `CompletableFuture.supplyAsync` alone, do not.
+  starter sets, Spring Boot's task executor and scheduler, executors built with its builder, and
+  pools you declare as `Executor`, `ExecutorService` or `ScheduledExecutorService` beans keep the
+  fields, and the trace and correlation IDs with observability. Pools you create in code outside a
+  bean, and `CompletableFuture.supplyAsync` alone, do not.
 - **Reactor.** The fields travel in the Reactor context. The starter sets Spring Boot's
   `spring.reactor.context-propagation=auto` and turns on Reactor's context propagation, also without
   WebFlux or WebClient, so the lines written in every operator, such as `map` after a thread change,
@@ -320,8 +320,8 @@ as the console.
 The shared [`stratum.environment`](../../docs/configuration/reference.md#shared-properties) sets
 `service.environment`. The shared booleans `stratum.context-propagation.async-threads`,
 `stratum.context-propagation.executor-beans` and `stratum.context-propagation.reactor` (all default
-`true`) decide whether `@Async` methods and Spring Boot's executors, your `ExecutorService` and
-`ScheduledExecutorService` beans, and Reactor operators keep the workflow fields.
+`true`) decide whether `@Async` methods and Spring Boot's executors, the pool beans you declare,
+and Reactor operators keep the workflow fields.
 
 Spring Boot properties this starter sets by default. A value you set wins, from any file, the
 environment, the command line or Java default properties:

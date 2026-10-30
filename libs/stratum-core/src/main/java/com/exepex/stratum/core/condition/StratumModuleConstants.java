@@ -34,9 +34,9 @@ public class StratumModuleConstants {
       PREFIX + ".context-propagation.reactor";
 
   /**
-   * Whether the logging and observability modules wrap the {@code ExecutorService} beans the
-   * service declares, so that their tasks keep the logging and tracing context. Defaults to {@code
-   * true}.
+   * Whether the logging and observability modules wrap the pool beans the service declares, such as
+   * an {@code ExecutorService}, so that their tasks keep the logging and tracing context. Defaults
+   * to {@code true}.
    */
   public static final String CONTEXT_PROPAGATION_EXECUTOR_BEANS =
       PREFIX + ".context-propagation.executor-beans";

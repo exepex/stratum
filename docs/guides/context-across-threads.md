@@ -39,7 +39,7 @@ Every line written inside then carries `customerId`, on whichever of these threa
 | The same thread, including `@EventListener` methods | Yes |
 | `@Async` methods, `@Async @EventListener` methods | Yes |
 | Spring Boot's task executor, and executors built with its `ThreadPoolTaskExecutorBuilder` | Yes |
-| A bean you declare as `ExecutorService` or `ScheduledExecutorService` | Yes |
+| A pool bean you declare as `Executor`, `ExecutorService` or `ScheduledExecutorService` | Yes |
 | An `ExecutorService` wrapped with `ContextExecutorService.wrap(pool)` | Yes |
 | A bean declared as its class, such as `ThreadPoolExecutor` | No |
 | `Executors.newFixedThreadPool(...)` and other pools you create in code without wrapping | No |
@@ -47,8 +47,8 @@ Every line written inside then carries `customerId`, on whichever of these threa
 | `new Thread(...)`, `Thread.ofVirtual().start(...)` | No |
 | `CompletableFuture.supplyAsync(task)` without an executor (the JVM's common pool) | No |
 
-Stratum wraps every bean you declare as `ExecutorService` or `ScheduledExecutorService` for you,
-so this pool carries the fields as it is:
+Stratum wraps every pool bean you declare as `Executor`, `ExecutorService` or
+`ScheduledExecutorService` for you, so this pool carries the fields as it is:
 
 ```java
 @Bean
@@ -63,12 +63,17 @@ instead. A pool you create in code, outside a bean, needs wrapping once with Mic
 `ContextExecutorService` or `ContextScheduledExecutorService`, which the logging starter brings:
 `ContextExecutorService.wrap(Executors.newFixedThreadPool(4))`.
 
-Declaring an `ExecutorService` bean stops Spring Boot from creating its own task executor, which
-would leave `@Async` methods on a new thread per call with no fields. Stratum then creates the
-executor Spring Boot would have made, with the same `spring.task.execution.*` settings, under the
-names `applicationTaskExecutor` and `taskExecutor`. It does not when your service has its own
-`TaskExecutor`, a bean named `taskExecutor` or an `AsyncConfigurer`, because `@Async` then uses
-your choice, or when `stratum.context-propagation.async-threads` is `false`.
+Declaring a pool bean stops Spring Boot from creating its own task executor, which would leave
+`@Async` methods on a new thread per call with no fields, or on the single thread of the
+`@Scheduled` jobs. Stratum then creates the executor Spring Boot would have made, named
+`applicationTaskExecutor`, with the same `spring.task.execution.*` settings, and points `@Async` at
+it, as Spring Boot does for its own. Code that injects an `Executor` by type still gets your pool.
+Stratum does not do this when your service has its own `TaskExecutor`, a bean named `taskExecutor`
+or an `AsyncConfigurer`, because `@Async` then uses your choice, or when
+`stratum.context-propagation.async-threads` is `false`.
+
+A wrapped pool is Micrometer's wrapper, so code that casts it to `ThreadPoolExecutor` fails; inject
+it as declared.
 
 Give `CompletableFuture` methods an executor instead of using the common pool:
 `CompletableFuture.supplyAsync(task, invoiceRenderingPool)`. Nothing can reach a bare

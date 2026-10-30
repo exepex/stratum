@@ -9,11 +9,12 @@ import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 
 /**
- * Wraps the {@code ExecutorService} and {@code ScheduledExecutorService} beans the service declares
- * with Micrometer's context-carrying wrappers, so that each task keeps the logging and tracing
- * context of the code that submitted it. Only a bean declared as one of those interfaces is
- * wrapped: the wrapper is not, for example, a {@code ThreadPoolExecutor}, so wrapping a bean
- * declared as that class would break the code that injects it.
+ * Wraps the pools the service declares as beans with Micrometer's context-carrying wrappers, so
+ * that each task keeps the logging and tracing context of the code that submitted it. A pool is
+ * wrapped when its bean is declared as a type the wrapper also has, such as {@code Executor},
+ * {@code ExecutorService} or {@code ScheduledExecutorService}. A bean declared as a class, such as
+ * {@code ThreadPoolExecutor}, is left alone, because the wrapper is not that class and the code
+ * that injects it would break.
  */
 @RequiredArgsConstructor
 public class ContextCarryingExecutorServiceBeans implements BeanPostProcessor {
@@ -22,8 +23,8 @@ public class ContextCarryingExecutorServiceBeans implements BeanPostProcessor {
   private final ConfigurableListableBeanFactory beanFactory;
 
   /**
-   * Returns the bean wrapped when it is declared as {@code ExecutorService} or {@code
-   * ScheduledExecutorService} and is not wrapped yet, or the bean unchanged.
+   * Returns the pool wrapped when its declared type allows it and it is not wrapped yet, or the
+   * bean unchanged.
    *
    * @param bean the bean
    * @param beanName its name
@@ -34,21 +35,23 @@ public class ContextCarryingExecutorServiceBeans implements BeanPostProcessor {
     return switch (bean) {
       case ContextExecutorService<?> alreadyWrapped -> alreadyWrapped;
       case ScheduledExecutorService scheduledPool
-          when isDeclaredAs(beanName, ScheduledExecutorService.class) ->
+          when isDeclaredAsTypeOf(beanName, ContextScheduledExecutorService.class) ->
           ContextScheduledExecutorService.wrap(scheduledPool);
-      case ExecutorService pool when isDeclaredAs(beanName, ExecutorService.class) ->
+      case ExecutorService pool when isDeclaredAsTypeOf(beanName, ContextExecutorService.class) ->
           ContextExecutorService.wrap(pool);
       default -> bean;
     };
   }
 
   /**
-   * Returns whether the bean's definition declares exactly this type, as a factory method's return
-   * type does.
+   * Returns whether the type the bean's definition declares, as a factory method's return type
+   * does, is one the wrapper has, so the wrapped bean can still be injected where it is used.
    */
-  private boolean isDeclaredAs(String beanName, Class<?> declaredType) {
-    return beanFactory.containsBeanDefinition(beanName)
-        && declaredType.equals(
-            beanFactory.getMergedBeanDefinition(beanName).getResolvableType().resolve());
+  private boolean isDeclaredAsTypeOf(String beanName, Class<?> wrapperType) {
+    if (!beanFactory.containsBeanDefinition(beanName)) {
+      return false;
+    }
+    var declaredType = beanFactory.getMergedBeanDefinition(beanName).getResolvableType().resolve();
+    return declaredType != null && declaredType.isAssignableFrom(wrapperType);
   }
 }

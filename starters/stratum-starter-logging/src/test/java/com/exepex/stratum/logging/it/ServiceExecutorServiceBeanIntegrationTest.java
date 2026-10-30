@@ -16,6 +16,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.test.annotation.DirtiesContext;
 
 @SpringBootTest(
@@ -59,11 +60,20 @@ class ServiceExecutorServiceBeanIntegrationTest {
   }
 
   @Test
-  @DisplayName("an @Async method still sees the request's field when the service has its own pool")
+  @DisplayName(
+      "an @Async method still sees the request's field when the service has its own pool and"
+          + " @Scheduled jobs")
   void asyncMethodCarriesFieldNextToServicePool() {
     MDC.put(CUSTOMER_ID, CUSTOMER);
 
     assertThat(receiptSender.customerIdSeenInAsyncMethod().join()).isEqualTo(CUSTOMER);
+  }
+
+  @Test
+  @DisplayName(
+      "an @Async method runs on Spring Boot's task pool, not on the @Scheduled jobs' thread")
+  void asyncMethodRunsOnTaskPoolNotScheduler() {
+    assertThat(receiptSender.threadOfAsyncMethod().join()).startsWith("task-");
   }
 
   /** The pools the service declares itself. */
@@ -81,8 +91,9 @@ class ServiceExecutorServiceBeanIntegrationTest {
     }
   }
 
-  /** A service bean with an {@code @Async} method. */
+  /** A service bean with {@code @Async} methods, in a service that also has scheduled jobs. */
   @EnableAsync
+  @EnableScheduling
   static class ReceiptSender {
 
     /**
@@ -93,6 +104,16 @@ class ServiceExecutorServiceBeanIntegrationTest {
     @Async
     public CompletableFuture<@Nullable String> customerIdSeenInAsyncMethod() {
       return CompletableFuture.completedFuture(MDC.get(CUSTOMER_ID));
+    }
+
+    /**
+     * Returns the name of the thread Spring runs this method on.
+     *
+     * @return the thread's name
+     */
+    @Async
+    public CompletableFuture<String> threadOfAsyncMethod() {
+      return CompletableFuture.completedFuture(Thread.currentThread().getName());
     }
   }
 }
