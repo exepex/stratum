@@ -1,8 +1,9 @@
 # Bundle starters: one dependency per kind of application
 
 **Status: Built as POMs, not released.** The five bundles exist and pass `mvn verify`. Of the
-single starters they list, only logging and observability are built so far; the others are still
-planned and add nothing yet.
+single starters they list, logging and observability are built. The web starters bring their Spring
+web stack, Spring MVC or WebFlux, so a bundle starts a web server, but Stratum's own web features
+are still planned. The other starters are planned and add nothing yet.
 
 [← Documentation home](../README.md) · Decision record: [ADR 0003](../adr/0003-bundle-starters-and-module-switches.md)
 
