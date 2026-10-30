@@ -7,9 +7,11 @@ import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.observability.CorrelationIdRecorder;
 import com.exepex.stratum.observability.MetricTagGuard;
 import com.exepex.stratum.observability.ObservabilityConstants;
+import com.exepex.stratum.observability.ObservabilityPropertiesCustomizer;
 import com.exepex.stratum.observability.TelemetryUrlFilter;
 import com.exepex.stratum.observability.testsupport.ObservabilityTestData;
 import com.exepex.stratum.observability.testsupport.RegionTagObservabilitySettings;
+import com.exepex.stratum.test.StarterTestSupport;
 import io.micrometer.context.ContextExecutorService;
 import io.micrometer.core.instrument.config.MeterFilterReply;
 import java.io.IOException;
@@ -188,8 +190,11 @@ class ObservabilityAutoConfigurationTest {
     @DisplayName("tag names set in a customizer listed in spring.factories win over properties")
     void javaNamesWin(@TempDir Path folder) throws IOException {
       var replies =
-          ObservabilityTestData.withCustomizers(
-              folder, List.of(RegionTagObservabilitySettings.class), this::regionAndTenantReplies);
+          StarterTestSupport.withCustomizers(
+              folder,
+              ObservabilityPropertiesCustomizer.class,
+              List.of(RegionTagObservabilitySettings.class),
+              this::regionAndTenantReplies);
 
       assertThat(replies).containsExactly(MeterFilterReply.DENY, MeterFilterReply.NEUTRAL);
     }

@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.observability.testsupport.ObservabilityTestData;
 import com.exepex.stratum.observability.testsupport.PrometheusEndpointObservabilitySettings;
+import com.exepex.stratum.test.StarterTestSupport;
 import jakarta.validation.ConstraintViolationException;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -218,8 +219,9 @@ class ObservabilityEnvironmentPostProcessorTest {
     @DisplayName("settings from a customizer listed in spring.factories win before startup")
     void javaSettingsWin(@TempDir Path folder) throws IOException {
       var environment =
-          ObservabilityTestData.withCustomizers(
+          StarterTestSupport.withCustomizers(
               folder,
+              ObservabilityPropertiesCustomizer.class,
               List.of(PrometheusEndpointObservabilitySettings.class),
               () ->
                   runPostProcessor(

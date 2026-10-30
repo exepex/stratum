@@ -4,8 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.core.error.StratumException;
+import com.exepex.stratum.logging.LoggingPropertiesCustomizer;
 import com.exepex.stratum.logging.testsupport.LockerCodeLoggingSettings;
-import com.exepex.stratum.logging.testsupport.LoggingTestData;
+import com.exepex.stratum.test.StarterTestSupport;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -102,8 +103,11 @@ class LoggingStartupIntegrationTest {
     System.clearProperty(
         LoggingSystemProperty.CONSOLE_STRUCTURED_FORMAT.getEnvironmentVariableName());
     var consoleFormat =
-        LoggingTestData.withCustomizers(
-            folder, List.of(LockerCodeLoggingSettings.class), this::logLockerLineInTextFormat);
+        StarterTestSupport.withCustomizers(
+            folder,
+            LoggingPropertiesCustomizer.class,
+            List.of(LockerCodeLoggingSettings.class),
+            this::logLockerLineInTextFormat);
 
     assertThat(consoleFormat).isEqualTo("ecs");
     assertThat(output)
