@@ -95,8 +95,8 @@ A failed validation adds `details`, one entry per invalid field:
 A validation message that quotes the rejected value, through `${validatedValue}` in the
 annotation or in `ValidationMessages.properties`, is replaced with `is not valid`, so an IBAN or a
 password typed into the wrong field never comes back in the body. A map key in a field path, which
-the caller chose, is shown as `[*]`, as in `quantitiesByCustomer[*]`; list positions stay. The body
-never holds a stack trace, an exception message, a class name or the request path,
+the caller chose, is shown as `[*]`, as in `quantitiesByCustomer[*]`; list positions stay. Stratum's
+body never holds a stack trace, an exception message, a class name or the request path,
 whatever `spring.web.error.include-*` says.
 
 ### What each failure gets
@@ -156,7 +156,9 @@ class OrderErrorHandlers {
 ```
 
 - **Your handler returns a `ProblemDetail`:** it is sent as you made it, and Stratum adds only
-  `traceId` and `correlationId` when it does not have them.
+  `traceId` and `correlationId` when it does not have them. As in plain Spring, Spring sets its
+  `instance` to the request path when you leave it empty; set it yourself if your paths can hold
+  personal data.
 - **Your handler returns any other body:** it is sent untouched.
 - **Your handler handles `StratumException` itself:** yours is used, and the mapping in
   `stratum.web.error.statuses` is not.
@@ -277,3 +279,4 @@ The agreed design of each is in [Web](../../docs/modules/web.md).
 | A failure gets Spring Boot's default body | The module is off, or the service declares its own `ErrorAttributes` bean. |
 | Your handler is not used for an exception | Another advice handles it first. Advice runs in `@Order` order; Stratum's runs last. |
 | A bad `@RequestParam` gets `500` instead of `400` | The controller class has `@Validated`, which makes Spring check parameters its old way, as in plain Spring Boot. Remove `@Validated` from the class; Spring MVC checks constraints on parameters without it. |
+| Spring's own failures, such as an invalid body, get a body without `code`, and with the request path as `instance` | The service sets `spring.mvc.problemdetails.enabled=true`, so Spring's own handler answers them before Stratum's. Remove the property, which is off by default, to get Stratum's body. |

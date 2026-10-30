@@ -14,6 +14,7 @@ import java.util.Map;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -184,8 +185,11 @@ public class OrdersApplication {
 
   /**
    * A filter of the service that stops a request before it reaches a controller: it throws on one
-   * path and rejects the caller with {@code 401}, as a security filter does, on another.
+   * path and rejects the caller with {@code 401}, as a security filter does, on another. It runs at
+   * {@code -100}, the order of Spring Security's filter chain, so the test fails if Stratum's
+   * request IDs filter ever runs after security.
    */
+  @Order(-100)
   static class FailingFilter extends OncePerRequestFilter {
 
     /** The path on which it throws. */
