@@ -10,6 +10,7 @@ import com.exepex.stratum.logging.LoggingProperties;
 import com.exepex.stratum.logging.workflow.ReactiveWorkflows;
 import com.exepex.stratum.logging.workflow.WorkflowAspect;
 import com.exepex.stratum.logging.workflow.Workflows;
+import io.micrometer.context.ContextRegistry;
 import io.micrometer.observation.ObservationRegistry;
 import java.util.Objects;
 import org.aspectj.weaver.Advice;
@@ -34,6 +35,25 @@ class LoggingAutoConfigurationTest {
   private final ApplicationContextRunner contextRunner =
       new ApplicationContextRunner()
           .withConfiguration(AutoConfigurations.of(LoggingAutoConfiguration.class));
+
+  @Test
+  @DisplayName(
+      "the service's own MDC fields travel only while the module is on, and stop when the"
+          + " application stops")
+  void serviceMdcFieldsTravelOnlyWithModuleOn() {
+    contextRunner.run(_ -> assertThat(serviceMdcFieldsAccessorRegistered()).isFalse());
+    contextRunner
+        .withPropertyValues(MODULE_ON)
+        .run(_ -> assertThat(serviceMdcFieldsAccessorRegistered()).isTrue());
+
+    assertThat(serviceMdcFieldsAccessorRegistered()).isFalse();
+  }
+
+  /** Returns whether Micrometer's context propagation carries the service's own MDC fields. */
+  private boolean serviceMdcFieldsAccessorRegistered() {
+    return ContextRegistry.getInstance().getThreadLocalAccessors().stream()
+        .anyMatch(accessor -> LoggingConstants.SERVICE_MDC_FIELDS.equals(accessor.key()));
+  }
 
   @Test
   @DisplayName(

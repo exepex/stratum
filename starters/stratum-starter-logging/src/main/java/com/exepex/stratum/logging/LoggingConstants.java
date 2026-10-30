@@ -71,6 +71,9 @@ public class LoggingConstants {
   /** The key under which executors and Reactor carry the workflow fields to other threads. */
   public static final String WORKFLOW_FIELDS = "stratum.workflow.fields";
 
+  /** The key under which executors and Reactor carry the MDC fields the service put itself. */
+  public static final String SERVICE_MDC_FIELDS = "stratum.service.mdc.fields";
+
   /** The profiles in which plain-text logs are expected. */
   public static final Set<String> LOCAL_PROFILES = Set.of("local", "test");
 }
