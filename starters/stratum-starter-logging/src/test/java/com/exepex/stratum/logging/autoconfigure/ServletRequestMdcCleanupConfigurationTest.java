@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.mdc.ServletRequestMdcCleanupFilter;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.Filter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,6 +15,7 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.Ordered;
 
 @DisplayName("A servlet application gets the filter that cleans the MDC after each request")
 class ServletRequestMdcCleanupConfigurationTest {
@@ -25,14 +27,22 @@ class ServletRequestMdcCleanupConfigurationTest {
           .withConfiguration(AutoConfigurations.of(LoggingAutoConfiguration.class));
 
   @Test
-  @DisplayName("with the module on, a servlet application gets the filter")
+  @DisplayName(
+      "with the module on, a servlet application gets the filter, first in the chain and on"
+          + " request, async and error dispatches")
   void registersFilterInServletApplications() {
     servletContextRunner
         .withPropertyValues(MODULE_ON)
         .run(
-            context ->
-                assertThat(context.getBean(FilterRegistrationBean.class).getFilter())
-                    .isInstanceOf(ServletRequestMdcCleanupFilter.class));
+            context -> {
+              var registration = context.getBean(FilterRegistrationBean.class);
+              assertThat(registration.getFilter())
+                  .isInstanceOf(ServletRequestMdcCleanupFilter.class);
+              assertThat(registration.getOrder()).isEqualTo(Ordered.HIGHEST_PRECEDENCE);
+              assertThat(registration.determineDispatcherTypes())
+                  .containsExactlyInAnyOrder(
+                      DispatcherType.REQUEST, DispatcherType.ASYNC, DispatcherType.ERROR);
+            });
   }
 
   @Test
