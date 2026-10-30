@@ -84,6 +84,32 @@ class ServletRequestMdcCleanupFilterTest {
   }
 
   @Test
+  @DisplayName(
+      "after a failure, the error page's dispatch restores the MDC from before the failure when it"
+          + " ends, on the failed request's thread")
+  void errorDispatchRestoresTheMdcFromBeforeTheFailure() throws Exception {
+    var request = new MockHttpServletRequest();
+    assertThatThrownBy(
+            () ->
+                filter.doFilter(
+                    request,
+                    new MockHttpServletResponse(),
+                    (failingRequest, response) -> {
+                      MDC.put(CUSTOMER_ID, CUSTOMER);
+                      throw new ServletException("handler failed");
+                    }))
+        .isInstanceOf(ServletException.class);
+
+    filter.doFilter(
+        request,
+        new MockHttpServletResponse(),
+        (errorRequest, response) -> MDC.put(TENANT_ID, TENANT));
+
+    assertThat(MDC.getCopyOfContextMap()).isNullOrEmpty();
+    assertThat(request.getAttribute(ServletRequestMdcCleanupFilter.RESTORE_MDC_ATTRIBUTE)).isNull();
+  }
+
+  @Test
   @DisplayName("the listener leaves the MDC alone after a request that did not fail")
   void listenerIgnoresRequestsThatDidNotFail() {
     MDC.put(TENANT_ID, TENANT);

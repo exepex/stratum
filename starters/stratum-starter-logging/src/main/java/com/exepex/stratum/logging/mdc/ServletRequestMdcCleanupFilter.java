@@ -19,7 +19,8 @@ public class ServletRequestMdcCleanupFilter implements Filter {
 
   /**
    * The request attribute that holds a {@link Runnable} putting the MDC back as it was before a
-   * request that failed, run by {@link ServletRequestMdcCleanupListener} when the request ends.
+   * request that failed. The error page's dispatch runs it when it ends, or {@link
+   * ServletRequestMdcCleanupListener} when the request ends without one.
    */
   public static final String RESTORE_MDC_ATTRIBUTE =
       ServletRequestMdcCleanupFilter.class.getName() + ".RESTORE_MDC";
@@ -44,14 +45,35 @@ public class ServletRequestMdcCleanupFilter implements Filter {
       chain.doFilter(request, response);
       dispatchCompleted = true;
     } finally {
-      if (dispatchCompleted) {
+      if (!dispatchCompleted) {
+        keepFieldsUntilFailureIsLogged(request, mdcBeforeDispatch);
+      } else if (request.getAttribute(RESTORE_MDC_ATTRIBUTE) instanceof Runnable restoreMdc) {
+        // The error page ran after the server logged the failure, so restore the MDC from before
+        // the failure now, on this thread, before the thread can go back to the pool.
+        request.removeAttribute(RESTORE_MDC_ATTRIBUTE);
+        restoreMdc.run();
+      } else {
         MDC.setContextMap(mdcBeforeDispatch);
-      } else if (request.getAttribute(RESTORE_MDC_ATTRIBUTE) == null) {
-        // Only the first failure's state is kept: a later failure, such as one in the error page,
-        // starts from the fields this one left.
-        request.setAttribute(
-            RESTORE_MDC_ATTRIBUTE, (Runnable) () -> MDC.setContextMap(mdcBeforeDispatch));
       }
+    }
+  }
+
+  /**
+   * Leaves the failed request's fields on the thread and stores how to restore the MDC, unless an
+   * earlier failure of the same request already did. The restore only acts on this thread.
+   */
+  private void keepFieldsUntilFailureIsLogged(
+      ServletRequest request, Map<String, String> mdcBeforeDispatch) {
+    if (request.getAttribute(RESTORE_MDC_ATTRIBUTE) == null) {
+      var failedThreadId = Thread.currentThread().threadId();
+      request.setAttribute(
+          RESTORE_MDC_ATTRIBUTE,
+          (Runnable)
+              () -> {
+                if (Thread.currentThread().threadId() == failedThreadId) {
+                  MDC.setContextMap(mdcBeforeDispatch);
+                }
+              });
     }
   }
 }
