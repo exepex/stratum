@@ -1,0 +1,10 @@
+{
+  "properties": [
+    {
+      "name": "stratum.web.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether the web module is on, in stratum-starter-webmvc or stratum-starter-webflux. Until it is true, the starter only brings its Spring web stack.",
+      "defaultValue": false
+    }
+  ]
+}

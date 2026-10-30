@@ -1,0 +1,6 @@
+stratum:
+  web:
+    error:
+      statuses:
+        ORD-0001: 409
+        ORD-0002: 503
