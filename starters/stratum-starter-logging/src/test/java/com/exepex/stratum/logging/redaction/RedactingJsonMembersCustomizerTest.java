@@ -5,6 +5,7 @@ import static com.exepex.stratum.logging.testsupport.LoggingTestData.PASSWORD;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.logging.LoggingConstants;
+import com.exepex.stratum.logging.testsupport.LoggingTestData;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.json.JsonWriter;
@@ -39,7 +40,7 @@ class RedactingJsonMembersCustomizerTest {
   @Test
   @DisplayName("with the module on, the message and secret field are masked and the rest is kept")
   void masksWhenModuleIsOn() {
-    var json = writeLogLine(new MockEnvironment().withProperty(LoggingConstants.ENABLED, "true"));
+    var json = writeLogLine(LoggingTestData.environmentWithModuleOn());
 
     assertThat(json)
         .doesNotContain(CARD)

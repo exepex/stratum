@@ -18,6 +18,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.aspectj.weaver.Advice;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -39,253 +40,238 @@ class LoggingAutoConfigurationTest {
       new ApplicationContextRunner()
           .withConfiguration(AutoConfigurations.of(LoggingAutoConfiguration.class));
 
-  @Test
-  @DisplayName(
-      "the service's own MDC fields travel only while the module is on, and stop when the"
-          + " application stops")
-  void serviceMdcFieldsTravelOnlyWithModuleOn() {
-    contextRunner.run(_ -> assertThat(serviceMdcFieldsAccessorRegistered()).isFalse());
-    contextRunner
-        .withPropertyValues(MODULE_ON)
-        .run(_ -> assertThat(serviceMdcFieldsAccessorRegistered()).isTrue());
+  @Nested
+  @DisplayName("with the module switched on or off")
+  class ModuleSwitch {
 
-    assertThat(serviceMdcFieldsAccessorRegistered()).isFalse();
-  }
-
-  /** Returns whether Micrometer's context propagation carries the service's own MDC fields. */
-  private boolean serviceMdcFieldsAccessorRegistered() {
-    return ContextRegistry.getInstance().getThreadLocalAccessors().stream()
-        .anyMatch(accessor -> LoggingConstants.SERVICE_MDC_FIELDS.equals(accessor.key()));
-  }
-
-  @Test
-  @DisplayName(
-      "a service's ExecutorService bean is wrapped so its tasks keep the context, unless"
-          + " stratum.context-propagation.executor-beans is false")
-  void wrapsServiceExecutorServiceBeans() {
-    contextRunner
-        .withPropertyValues(MODULE_ON)
-        .withUserConfiguration(ServiceExecutorServiceBean.class)
-        .run(
-            context ->
-                assertThat(context.getBean(ExecutorService.class))
-                    .isInstanceOf(ContextExecutorService.class));
-    contextRunner
-        .withPropertyValues(MODULE_ON, "stratum.context-propagation.executor-beans=false")
-        .withUserConfiguration(ServiceExecutorServiceBean.class)
-        .run(
-            context ->
-                assertThat(context.getBean(ExecutorService.class))
-                    .isNotInstanceOf(ContextExecutorService.class));
-  }
-
-  @Test
-  @DisplayName(
-      "Reactor carries the context into every operator only when the setting it sees while beans"
-          + " are created is auto, so a service's own limited wins")
-  void reactorContextPropagationFollowsFinalSetting() {
-    Hooks.disableAutomaticContextPropagation();
-    contextRunner
-        .withPropertyValues(MODULE_ON, REACTOR_CONTEXT_PROPAGATION + "=limited")
-        .run(_ -> assertThat(Hooks.isAutomaticContextPropagationEnabled()).isFalse());
-    contextRunner
-        .withPropertyValues(MODULE_ON, REACTOR_CONTEXT_PROPAGATION + "=auto")
-        .run(_ -> assertThat(Hooks.isAutomaticContextPropagationEnabled()).isTrue());
-    Hooks.disableAutomaticContextPropagation();
-  }
-
-  @Test
-  @DisplayName("with the module on, the workflows, reactive workflows and aspect are created")
-  void createsBeans() {
-    contextRunner
-        .withPropertyValues(MODULE_ON)
-        .run(
-            context ->
-                assertThat(context)
-                    .hasSingleBean(Workflows.class)
-                    .hasSingleBean(ReactiveWorkflows.class)
-                    .hasSingleBean(WorkflowAspect.class));
-  }
-
-  @Test
-  @DisplayName("with the module unset or off, nothing is created")
-  void moduleOffCreatesNothing() {
-    contextRunner.run(context -> assertThat(context).doesNotHaveBean(Workflows.class));
-    contextRunner
-        .withPropertyValues(LoggingConstants.ENABLED + "=false")
-        .run(
-            context ->
-                assertThat(context)
-                    .doesNotHaveBean(Workflows.class)
-                    .doesNotHaveBean(WorkflowAspect.class));
-  }
-
-  @Test
-  @DisplayName("without AspectJ, there is no aspect but the workflows still work")
-  void withoutAspectjCreatesNoAspect() {
-    contextRunner
-        .withPropertyValues(MODULE_ON)
-        .withClassLoader(new FilteredClassLoader(Advice.class))
-        .run(
-            context ->
-                assertThat(context)
-                    .hasSingleBean(Workflows.class)
-                    .doesNotHaveBean(WorkflowAspect.class));
-  }
-
-  @Test
-  @DisplayName("without Reactor, there are no reactive workflows but the aspect still works")
-  void withoutReactorCreatesNoReactiveWorkflows() {
-    contextRunner
-        .withPropertyValues(MODULE_ON)
-        .withClassLoader(new FilteredClassLoader(Mono.class))
-        .run(
-            context ->
-                assertThat(context)
-                    .doesNotHaveBean(ReactiveWorkflows.class)
-                    .hasSingleBean(WorkflowAspect.class));
-  }
-
-  @Test
-  @DisplayName("a logging customizer declared as a bean stops startup with SX-CORE-1004")
-  void customizerBeanStopsStartup() {
-    contextRunner
-        .withPropertyValues(MODULE_ON)
-        .withUserConfiguration(CustomizerAsBeanConfiguration.class)
-        .run(
-            context ->
-                assertThat(context)
-                    .getFailure()
-                    .rootCause()
-                    .isInstanceOf(StratumException.class)
-                    .hasMessage(
-                        "SX-CORE-1004: "
-                            + CoreErrorCode.CUSTOMIZER_DECLARED_AS_BEAN.getDescription()
-                            + ": customizer beans loggingCustomizer"));
-  }
-
-  @Test
-  @DisplayName("a customizer bean without its settings type also stops startup with SX-CORE-1004")
-  void untypedCustomizerBeanStopsStartup() {
-    contextRunner
-        .withPropertyValues(MODULE_ON)
-        .withBean("untypedCustomizer", StratumPropertiesCustomizer.class, this::keepSettings)
-        .run(
-            context ->
-                assertThat(context)
-                    .getFailure()
-                    .rootCause()
-                    .hasMessageEndingWith(": customizer beans untypedCustomizer"));
-  }
-
-  @Test
-  @DisplayName("with an ObservationRegistry, each workflow is observed in it")
-  void usesServiceRegistry() {
-    var observationRegistry = ObservationRegistry.create();
-    observationRegistry.observationConfig().observationHandler(context -> true);
-
-    contextRunner
-        .withPropertyValues(MODULE_ON)
-        .withBean(ObservationRegistry.class, () -> observationRegistry)
-        .run(
-            context ->
-                assertThat(
-                        context
-                            .getBean(Workflows.class)
-                            .call(
-                                "ORDER_CHECKOUT",
-                                () -> currentObservationName(observationRegistry)))
-                    .isEqualTo(LoggingConstants.WORKFLOW_OBSERVATION));
-  }
-
-  /** Returns a customizer, without its settings type, that keeps the settings it receives. */
-  private StratumPropertiesCustomizer keepSettings() {
-    return settings -> settings;
-  }
-
-  /** Returns the name of the observation running now in the registry. */
-  private String currentObservationName(ObservationRegistry observationRegistry) {
-    return Objects.requireNonNull(observationRegistry.getCurrentObservation())
-        .getContext()
-        .getName();
-  }
-
-  @Test
-  @DisplayName("the service's own beans replace Stratum's")
-  void serviceBeansWin() {
-    contextRunner
-        .withPropertyValues(MODULE_ON)
-        .withUserConfiguration(ServiceBeansConfiguration.class)
-        .run(
-            context -> {
-              var serviceBeans = context.getBean(ServiceBeansConfiguration.class);
-              assertThat(context.getBean(Workflows.class)).isSameAs(serviceBeans.workflows);
-              assertThat(context.getBean(WorkflowAspect.class)).isSameAs(serviceBeans.aspect);
-              assertThat(context.getBean(ReactiveWorkflows.class))
-                  .isSameAs(serviceBeans.reactiveWorkflows);
-            });
-  }
-
-  @Test
-  @DisplayName("a company framework's auto-configuration with no order wins over Stratum's")
-  void companyBeansWin() {
-    new ApplicationContextRunner()
-        .withPropertyValues(MODULE_ON)
-        .withConfiguration(
-            AutoConfigurations.of(
-                LoggingAutoConfiguration.class, CompanyBeansAutoConfiguration.class))
-        .run(
-            context -> {
-              assertThat(context.getBean(Workflows.class))
-                  .isSameAs(CompanyBeansAutoConfiguration.WORKFLOWS);
-              assertThat(context.getBean(WorkflowAspect.class))
-                  .isSameAs(CompanyBeansAutoConfiguration.ASPECT);
-              assertThat(context.getBean(ReactiveWorkflows.class))
-                  .isSameAs(CompanyBeansAutoConfiguration.REACTIVE_WORKFLOWS);
-            });
-  }
-
-  /** A service's configuration with its own beans. */
-  @Configuration(proxyBeanMethods = false)
-  static class ServiceBeansConfiguration {
-
-    /** The service's workflows. */
-    final Workflows workflows = new Workflows(ObservationRegistry.NOOP);
-
-    /** The service's reactive workflows. */
-    final ReactiveWorkflows reactiveWorkflows = new ReactiveWorkflows(workflows);
-
-    /** The service's aspect. */
-    final WorkflowAspect aspect = new WorkflowAspect(workflows, reactiveWorkflows);
-
-    /**
-     * Returns the service's workflows.
-     *
-     * @return the workflows
-     */
-    @Bean
-    Workflows serviceWorkflows() {
-      return workflows;
+    @Test
+    @DisplayName("with the module on, the workflows, reactive workflows and aspect are created")
+    void createsBeans() {
+      contextRunner
+          .withPropertyValues(MODULE_ON)
+          .run(
+              context ->
+                  assertThat(context)
+                      .hasSingleBean(Workflows.class)
+                      .hasSingleBean(ReactiveWorkflows.class)
+                      .hasSingleBean(WorkflowAspect.class));
     }
 
-    /**
-     * Returns the service's aspect.
-     *
-     * @return the aspect
-     */
-    @Bean
-    WorkflowAspect serviceWorkflowAspect() {
-      return aspect;
+    @Test
+    @DisplayName("with the module unset or off, nothing is created")
+    void moduleOffCreatesNothing() {
+      contextRunner.run(context -> assertThat(context).doesNotHaveBean(Workflows.class));
+      contextRunner
+          .withPropertyValues(LoggingConstants.ENABLED + "=false")
+          .run(
+              context ->
+                  assertThat(context)
+                      .doesNotHaveBean(Workflows.class)
+                      .doesNotHaveBean(WorkflowAspect.class));
     }
 
-    /**
-     * Returns the service's reactive workflows.
-     *
-     * @return the reactive workflows
-     */
-    @Bean
-    ReactiveWorkflows serviceReactiveWorkflows() {
-      return reactiveWorkflows;
+    @Test
+    @DisplayName("with an ObservationRegistry, each workflow is observed in it")
+    void usesServiceRegistry() {
+      var observationRegistry = ObservationRegistry.create();
+      observationRegistry.observationConfig().observationHandler(context -> true);
+
+      contextRunner
+          .withPropertyValues(MODULE_ON)
+          .withBean(ObservationRegistry.class, () -> observationRegistry)
+          .run(
+              context ->
+                  assertThat(
+                          context
+                              .getBean(Workflows.class)
+                              .call(
+                                  "ORDER_CHECKOUT",
+                                  () -> currentObservationName(observationRegistry)))
+                      .isEqualTo(LoggingConstants.WORKFLOW_OBSERVATION));
+    }
+
+    /** Returns the name of the observation running now in the registry. */
+    private String currentObservationName(ObservationRegistry observationRegistry) {
+      return Objects.requireNonNull(observationRegistry.getCurrentObservation())
+          .getContext()
+          .getName();
+    }
+  }
+
+  @Nested
+  @DisplayName("when the service or a company framework has its own beans")
+  class BackingOff {
+
+    @Test
+    @DisplayName("the service's own beans replace Stratum's")
+    void serviceBeansWin() {
+      var serviceWorkflows = new Workflows(ObservationRegistry.NOOP);
+      var serviceReactiveWorkflows = new ReactiveWorkflows(serviceWorkflows);
+      var serviceAspect = new WorkflowAspect(serviceWorkflows, serviceReactiveWorkflows);
+      contextRunner
+          .withPropertyValues(MODULE_ON)
+          .withBean(Workflows.class, () -> serviceWorkflows)
+          .withBean(ReactiveWorkflows.class, () -> serviceReactiveWorkflows)
+          .withBean(WorkflowAspect.class, () -> serviceAspect)
+          .run(
+              context -> {
+                assertThat(context.getBean(Workflows.class)).isSameAs(serviceWorkflows);
+                assertThat(context.getBean(WorkflowAspect.class)).isSameAs(serviceAspect);
+                assertThat(context.getBean(ReactiveWorkflows.class))
+                    .isSameAs(serviceReactiveWorkflows);
+              });
+    }
+
+    @Test
+    @DisplayName("a company framework's auto-configuration with no order wins over Stratum's")
+    void companyBeansWin() {
+      new ApplicationContextRunner()
+          .withPropertyValues(MODULE_ON)
+          .withConfiguration(
+              AutoConfigurations.of(
+                  LoggingAutoConfiguration.class, CompanyBeansAutoConfiguration.class))
+          .run(
+              context -> {
+                assertThat(context.getBean(Workflows.class))
+                    .isSameAs(CompanyBeansAutoConfiguration.WORKFLOWS);
+                assertThat(context.getBean(WorkflowAspect.class))
+                    .isSameAs(CompanyBeansAutoConfiguration.ASPECT);
+                assertThat(context.getBean(ReactiveWorkflows.class))
+                    .isSameAs(CompanyBeansAutoConfiguration.REACTIVE_WORKFLOWS);
+              });
+    }
+  }
+
+  @Nested
+  @DisplayName("when an optional library is missing")
+  class OptionalLibraries {
+
+    @Test
+    @DisplayName("without AspectJ, there is no aspect but the workflows still work")
+    void withoutAspectjCreatesNoAspect() {
+      contextRunner
+          .withPropertyValues(MODULE_ON)
+          .withClassLoader(new FilteredClassLoader(Advice.class))
+          .run(
+              context ->
+                  assertThat(context)
+                      .hasSingleBean(Workflows.class)
+                      .doesNotHaveBean(WorkflowAspect.class));
+    }
+
+    @Test
+    @DisplayName("without Reactor, there are no reactive workflows but the aspect still works")
+    void withoutReactorCreatesNoReactiveWorkflows() {
+      contextRunner
+          .withPropertyValues(MODULE_ON)
+          .withClassLoader(new FilteredClassLoader(Mono.class))
+          .run(
+              context ->
+                  assertThat(context)
+                      .doesNotHaveBean(ReactiveWorkflows.class)
+                      .hasSingleBean(WorkflowAspect.class));
+    }
+  }
+
+  @Nested
+  @DisplayName("with a customizer declared as a bean")
+  class JavaConfiguration {
+
+    @Test
+    @DisplayName("a logging customizer declared as a bean stops startup with SX-CORE-1004")
+    void customizerBeanStopsStartup() {
+      contextRunner
+          .withPropertyValues(MODULE_ON)
+          .withUserConfiguration(CustomizerAsBeanConfiguration.class)
+          .run(
+              context ->
+                  assertThat(context)
+                      .getFailure()
+                      .rootCause()
+                      .isInstanceOf(StratumException.class)
+                      .hasMessage(
+                          "SX-CORE-1004: "
+                              + CoreErrorCode.CUSTOMIZER_DECLARED_AS_BEAN.getDescription()
+                              + ": customizer beans loggingCustomizer"));
+    }
+
+    @Test
+    @DisplayName("a customizer bean without its settings type also stops startup with SX-CORE-1004")
+    void untypedCustomizerBeanStopsStartup() {
+      contextRunner
+          .withPropertyValues(MODULE_ON)
+          .withBean("untypedCustomizer", StratumPropertiesCustomizer.class, this::keepSettings)
+          .run(
+              context ->
+                  assertThat(context)
+                      .getFailure()
+                      .rootCause()
+                      .hasMessageEndingWith(": customizer beans untypedCustomizer"));
+    }
+
+    /** Returns a customizer, without its settings type, that keeps the settings it receives. */
+    private StratumPropertiesCustomizer keepSettings() {
+      return settings -> settings;
+    }
+  }
+
+  @Nested
+  @DisplayName("when work moves to another thread")
+  class ContextPropagation {
+
+    @Test
+    @DisplayName(
+        "the service's own MDC fields travel only while the module is on, and stop when the"
+            + " application stops")
+    void serviceMdcFieldsTravelOnlyWithModuleOn() {
+      contextRunner.run(_ -> assertThat(serviceMdcFieldsAccessorRegistered()).isFalse());
+      contextRunner
+          .withPropertyValues(MODULE_ON)
+          .run(_ -> assertThat(serviceMdcFieldsAccessorRegistered()).isTrue());
+
+      assertThat(serviceMdcFieldsAccessorRegistered()).isFalse();
+    }
+
+    /** Returns whether Micrometer's context propagation carries the service's own MDC fields. */
+    private boolean serviceMdcFieldsAccessorRegistered() {
+      return ContextRegistry.getInstance().getThreadLocalAccessors().stream()
+          .anyMatch(accessor -> LoggingConstants.SERVICE_MDC_FIELDS.equals(accessor.key()));
+    }
+
+    @Test
+    @DisplayName(
+        "a service's ExecutorService bean is wrapped so its tasks keep the context, unless"
+            + " stratum.context-propagation.executor-beans is false")
+    void wrapsServiceExecutorServiceBeans() {
+      contextRunner
+          .withPropertyValues(MODULE_ON)
+          .withUserConfiguration(ServiceExecutorServiceBean.class)
+          .run(
+              context ->
+                  assertThat(context.getBean(ExecutorService.class))
+                      .isInstanceOf(ContextExecutorService.class));
+      contextRunner
+          .withPropertyValues(MODULE_ON, "stratum.context-propagation.executor-beans=false")
+          .withUserConfiguration(ServiceExecutorServiceBean.class)
+          .run(
+              context ->
+                  assertThat(context.getBean(ExecutorService.class))
+                      .isNotInstanceOf(ContextExecutorService.class));
+    }
+
+    @Test
+    @DisplayName(
+        "Reactor carries the context into every operator only when the setting it sees while beans"
+            + " are created is auto, so a service's own limited wins")
+    void reactorContextPropagationFollowsFinalSetting() {
+      Hooks.disableAutomaticContextPropagation();
+      contextRunner
+          .withPropertyValues(MODULE_ON, REACTOR_CONTEXT_PROPAGATION + "=limited")
+          .run(_ -> assertThat(Hooks.isAutomaticContextPropagationEnabled()).isFalse());
+      contextRunner
+          .withPropertyValues(MODULE_ON, REACTOR_CONTEXT_PROPAGATION + "=auto")
+          .run(_ -> assertThat(Hooks.isAutomaticContextPropagationEnabled()).isTrue());
+      Hooks.disableAutomaticContextPropagation();
     }
   }
 

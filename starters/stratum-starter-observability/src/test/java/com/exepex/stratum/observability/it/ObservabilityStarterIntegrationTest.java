@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.observability.MetricTagGuard;
-import com.exepex.stratum.observability.testsupport.MetricTestData;
+import com.exepex.stratum.observability.testsupport.ObservabilityTestData;
 import io.micrometer.core.instrument.config.MeterFilterReply;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
@@ -102,17 +102,6 @@ class ObservabilityStarterIntegrationTest {
         .run(args);
   }
 
-  /** Returns the arguments that point both exports at the collector stub. */
-  private String[] withCollector(String... args) {
-    var collectorArgs =
-        List.of(
-            "--management.otlp.metrics.export.url=" + collector.url(CollectorStub.METRICS_PATH),
-            "--management.opentelemetry.tracing.export.otlp.endpoint="
-                + collector.url(CollectorStub.TRACES_PATH),
-            "--management.tracing.sampling.probability=1.0");
-    return Stream.concat(collectorArgs.stream(), List.of(args).stream()).toArray(String[]::new);
-  }
-
   /** Calls the partner with a password and a query in the URL, through Spring's RestClient. */
   private void callPartner(ConfigurableApplicationContext context) {
     var partnerUrl =
@@ -131,7 +120,7 @@ class ObservabilityStarterIntegrationTest {
   void sendsDataOnExit() {
     try (var context =
         start(
-            withCollector(
+            collector.withExportsSentHere(
                 "--spring.application.name=orders", "--stratum.environment=prod", MODULE_ON))) {
       callPartner(context);
       assertThat(context.getBean(OtlpConfig.class).histogramFlavor())
@@ -161,7 +150,7 @@ class ObservabilityStarterIntegrationTest {
   @Test
   @DisplayName("with the module unset, sends nothing even though the starter is present")
   void moduleOffSendsNothing() {
-    try (var context = start(withCollector("--spring.application.name=orders"))) {
+    try (var context = start(collector.withExportsSentHere("--spring.application.name=orders"))) {
       callPartner(context);
     }
 
@@ -194,11 +183,11 @@ class ObservabilityStarterIntegrationTest {
   @FieldSource("CONFIGURATION_NAMES")
   @DisplayName("the settings work from application.yml and application.properties")
   void settingsBindFromBothFormats(String configName) {
-    try (var context = start(withCollector("--spring.config.name=" + configName))) {
+    try (var context = start(collector.withExportsSentHere("--spring.config.name=" + configName))) {
       var guard = context.getBean(MetricTagGuard.class);
-      assertThat(guard.accept(MetricTestData.counterTaggedWith("tenantId")))
+      assertThat(guard.accept(ObservabilityTestData.counterTaggedWith("tenantId")))
           .isEqualTo(MeterFilterReply.DENY);
-      assertThat(guard.accept(MetricTestData.counterTaggedWith("orderId")))
+      assertThat(guard.accept(ObservabilityTestData.counterTaggedWith("orderId")))
           .isEqualTo(MeterFilterReply.NEUTRAL);
       assertThat(context.getEnvironment().getProperty("management.endpoints.web.exposure.include"))
           .isEqualTo("health,info");

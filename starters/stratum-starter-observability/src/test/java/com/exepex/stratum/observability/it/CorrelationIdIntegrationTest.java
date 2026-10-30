@@ -10,7 +10,7 @@ import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.tracing.Tracer;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
@@ -35,7 +35,7 @@ class CorrelationIdIntegrationTest {
   private static final long EXECUTOR_TIMEOUT_SECONDS = 10;
 
   /** Receives the spans the application sends. */
-  private final CollectorStub collector = new CollectorStub();
+  @AutoClose private final CollectorStub collector = new CollectorStub();
 
   /**
    * Starts the collector stub for one test.
@@ -44,22 +44,11 @@ class CorrelationIdIntegrationTest {
    */
   CorrelationIdIntegrationTest() throws IOException {}
 
-  /** Stops the collector stub after each test. */
-  @AfterEach
-  void stopCollector() {
-    collector.close();
-  }
-
   /** Starts the test application with the module on, sending every span to the stub. */
   private ConfigurableApplicationContext start() {
     return new SpringApplicationBuilder(OrdersApplication.class)
         .web(WebApplicationType.NONE)
-        .run(
-            "--stratum.observability.enabled=true",
-            "--management.otlp.metrics.export.url=" + collector.url(CollectorStub.METRICS_PATH),
-            "--management.opentelemetry.tracing.export.otlp.endpoint="
-                + collector.url(CollectorStub.TRACES_PATH),
-            "--management.tracing.sampling.probability=1.0");
+        .run(collector.withExportsSentHere("--stratum.observability.enabled=true"));
   }
 
   /** Returns the correlation ID of an error report made now, as a caller would see it. */

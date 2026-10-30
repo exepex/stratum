@@ -3,14 +3,14 @@ package com.exepex.stratum.core.condition;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.error.StratumException;
+import java.util.List;
 import java.util.Map;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.boot.autoconfigure.condition.ConditionEvaluationReport;
 import org.springframework.boot.context.properties.bind.BindException;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
@@ -149,8 +149,20 @@ class ConditionalOnStratumModuleTest {
   @DisplayName("with a module name that is not in kebab-case")
   class WithBadModuleName {
 
+    /** Each badly named module with its name. */
+    private static final List<Arguments> BADLY_NAMED_MODULES =
+        List.of(
+            Arguments.of(BadlyNamedModule.class, "Http_Client"),
+            Arguments.of(DottedModule.class, "http.client"),
+            Arguments.of(IndexedModule.class, "web[0]"),
+            Arguments.of(UnnamedModule.class, ""),
+            Arguments.of(BracketedModule.class, "[web]"),
+            Arguments.of(LeadingHyphenModule.class, "-http"),
+            Arguments.of(TrailingHyphenModule.class, "http-"),
+            Arguments.of(DoubleHyphenModule.class, "http--client"));
+
     @ParameterizedTest(name = "{1}")
-    @MethodSource("badlyNamedModules")
+    @FieldSource("BADLY_NAMED_MODULES")
     @DisplayName("startup stops and names the bad module name")
     void badModuleNameStopsStartup(Class<?> module, String name) {
       new ApplicationContextRunner()
@@ -163,23 +175,6 @@ class ConditionalOnStratumModuleTest {
                       .isInstanceOf(StratumException.class)
                       .hasMessageStartingWith("SX-CORE-1001: ")
                       .hasMessageContaining("\"" + name + "\""));
-    }
-
-    /**
-     * Returns each badly named module with its name.
-     *
-     * @return the module classes and their names
-     */
-    static Stream<Arguments> badlyNamedModules() {
-      return Stream.of(
-          Arguments.of(BadlyNamedModule.class, "Http_Client"),
-          Arguments.of(DottedModule.class, "http.client"),
-          Arguments.of(IndexedModule.class, "web[0]"),
-          Arguments.of(UnnamedModule.class, ""),
-          Arguments.of(BracketedModule.class, "[web]"),
-          Arguments.of(LeadingHyphenModule.class, "-http"),
-          Arguments.of(TrailingHyphenModule.class, "http-"),
-          Arguments.of(DoubleHyphenModule.class, "http--client"));
     }
   }
 

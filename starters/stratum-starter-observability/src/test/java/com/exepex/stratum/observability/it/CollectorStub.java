@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.stream.Stream;
 
 /**
  * Stands in for an OpenTelemetry Collector and for a service the application calls: accepts every
@@ -57,6 +58,22 @@ class CollectorStub implements AutoCloseable {
    */
   String url(String path) {
     return "http://localhost:" + server.getAddress().getPort() + path;
+  }
+
+  /**
+   * Returns the application's arguments, preceded by the ones that send every metric and span to
+   * this stub.
+   *
+   * @param applicationArgs the application's other arguments
+   * @return all the arguments
+   */
+  String[] withExportsSentHere(String... applicationArgs) {
+    var exportArgs =
+        List.of(
+            "--management.otlp.metrics.export.url=" + url(METRICS_PATH),
+            "--management.opentelemetry.tracing.export.otlp.endpoint=" + url(TRACES_PATH),
+            "--management.tracing.sampling.probability=1.0");
+    return Stream.concat(exportArgs.stream(), Stream.of(applicationArgs)).toArray(String[]::new);
   }
 
   /**

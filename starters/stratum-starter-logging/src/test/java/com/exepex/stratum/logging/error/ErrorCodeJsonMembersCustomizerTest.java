@@ -8,6 +8,7 @@ import ch.qos.logback.classic.spi.LoggingEvent;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.LoggingErrorCode;
+import com.exepex.stratum.logging.testsupport.LoggingTestData;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,8 +35,7 @@ class ErrorCodeJsonMembersCustomizerTest {
 
   /** The environment with the module on, after it has set the default ECS format. */
   private final MockEnvironment moduleOn =
-      new MockEnvironment()
-          .withProperty(LoggingConstants.ENABLED, "true")
+      LoggingTestData.environmentWithModuleOn()
           .withProperty(LoggingConstants.CONSOLE_FORMAT, "ecs");
 
   /** Writes a log line with the exception through a writer the customizer has customized. */
@@ -100,8 +100,7 @@ class ErrorCodeJsonMembersCustomizerTest {
   @DisplayName("with a plain-text console and a JSON file, the file's lines get the field")
   void writesCodeForStructuredFile() {
     var textConsoleJsonFile =
-        new MockEnvironment()
-            .withProperty(LoggingConstants.ENABLED, "true")
+        LoggingTestData.environmentWithModuleOn()
             .withProperty(LoggingConstants.FORMAT, "text")
             .withProperty(LoggingConstants.FILE_FORMAT, "ecs");
 

@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
@@ -71,7 +71,7 @@ class ReactiveAndBlockingCodeIntegrationTest {
   private static final String BLOCKING_WEB_CLIENT_PATH = "/downstream/blocking-web-client";
 
   /** Receives the spans, and stands in for the downstream service. */
-  private final CollectorStub collectorAndDownstream = new CollectorStub();
+  @AutoClose private final CollectorStub collectorAndDownstream = new CollectorStub();
 
   /** Sends requests to the reactive service, as its caller. */
   private final HttpClient caller = HttpClient.newHttpClient();
@@ -83,26 +83,16 @@ class ReactiveAndBlockingCodeIntegrationTest {
    */
   ReactiveAndBlockingCodeIntegrationTest() throws IOException {}
 
-  /** Stops the stub after each test. */
-  @AfterEach
-  void stopStub() {
-    collectorAndDownstream.close();
-  }
-
   /** Starts an application with the module on, every span kept, and the given web type. */
   private ConfigurableApplicationContext startApplication(
       Class<?> application, WebApplicationType webApplicationType) {
     return new SpringApplicationBuilder(application)
         .web(webApplicationType)
         .run(
-            "--stratum.observability.enabled=true",
-            "--server.port=0",
-            "--orders.downstream-url=" + collectorAndDownstream.url(REACTIVE_WEB_CLIENT_PATH),
-            "--management.otlp.metrics.export.url="
-                + collectorAndDownstream.url(CollectorStub.METRICS_PATH),
-            "--management.opentelemetry.tracing.export.otlp.endpoint="
-                + collectorAndDownstream.url(CollectorStub.TRACES_PATH),
-            "--management.tracing.sampling.probability=1.0");
+            collectorAndDownstream.withExportsSentHere(
+                "--stratum.observability.enabled=true",
+                "--server.port=0",
+                "--orders.downstream-url=" + collectorAndDownstream.url(REACTIVE_WEB_CLIENT_PATH)));
   }
 
   /**

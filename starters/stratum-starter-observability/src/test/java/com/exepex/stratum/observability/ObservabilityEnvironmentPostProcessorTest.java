@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.core.condition.StratumModuleConstants;
-import com.exepex.stratum.observability.testsupport.JavaConfigurationTestData;
+import com.exepex.stratum.observability.testsupport.ObservabilityTestData;
 import com.exepex.stratum.observability.testsupport.PrometheusEndpointObservabilitySettings;
 import jakarta.validation.ConstraintViolationException;
 import java.io.IOException;
@@ -73,11 +73,6 @@ class ObservabilityEnvironmentPostProcessorTest {
   private final ObservabilityEnvironmentPostProcessor postProcessor =
       new ObservabilityEnvironmentPostProcessor();
 
-  /** Returns an environment with the module on and no export address set. */
-  private MockEnvironment environmentWithModuleOn() {
-    return new MockEnvironment().withProperty(ObservabilityConstants.ENABLED, ON);
-  }
-
   /** Runs the post-processor on the environment and returns it. */
   private MockEnvironment runPostProcessor(MockEnvironment environment) {
     postProcessor.postProcessEnvironment(environment, new SpringApplication());
@@ -125,7 +120,7 @@ class ObservabilityEnvironmentPostProcessorTest {
     @Test
     @DisplayName("only health and info are exposed, and export stays Spring Boot's default")
     void exposesSafeEndpoints() {
-      var environment = runPostProcessor(environmentWithModuleOn());
+      var environment = runPostProcessor(ObservabilityTestData.environmentWithModuleOn());
 
       assertThat(environment.getProperty(ObservabilityConstants.WEB_EXPOSURE))
           .isEqualTo("health,info");
@@ -137,7 +132,7 @@ class ObservabilityEnvironmentPostProcessorTest {
         "Spring Boot's executors and every Reactor operator carry the trace, so @Async work and"
             + " reactive code join the caller's trace")
     void executorsAndReactorCarryTrace() {
-      var environment = runPostProcessor(environmentWithModuleOn());
+      var environment = runPostProcessor(ObservabilityTestData.environmentWithModuleOn());
 
       assertThat(environment.getProperty(PROPAGATE_TASK_CONTEXT)).isEqualTo(ON);
       assertThat(environment.getProperty(REACTOR_CONTEXT_PROPAGATION)).isEqualTo("auto");
@@ -150,7 +145,7 @@ class ObservabilityEnvironmentPostProcessorTest {
     void leavesReactorContextPropagationForLaterDecision() {
       Hooks.disableAutomaticContextPropagation();
 
-      runPostProcessor(environmentWithModuleOn());
+      runPostProcessor(ObservabilityTestData.environmentWithModuleOn());
 
       assertThat(Hooks.isAutomaticContextPropagationEnabled()).isFalse();
     }
@@ -160,7 +155,7 @@ class ObservabilityEnvironmentPostProcessorTest {
     void tagsEveryMetric() {
       var environment =
           runPostProcessor(
-              environmentWithModuleOn()
+              ObservabilityTestData.environmentWithModuleOn()
                   .withProperty(ObservabilityConstants.APPLICATION_NAME, SERVICE_NAME)
                   .withProperty(StratumModuleConstants.SERVICE_ENVIRONMENT, PROD)
                   .withProperty(ObservabilityConstants.HOSTNAME, POD_NAME));
@@ -175,7 +170,7 @@ class ObservabilityEnvironmentPostProcessorTest {
     @Test
     @DisplayName("every timing is stored as a base-2 exponential histogram")
     void storesTimingsAsExponentialHistograms() {
-      var environment = runPostProcessor(environmentWithModuleOn());
+      var environment = runPostProcessor(ObservabilityTestData.environmentWithModuleOn());
 
       assertThat(environment.getProperty(ObservabilityConstants.HISTOGRAM_FOR_EVERY_TIMING))
           .isEqualTo(ON);
@@ -187,7 +182,9 @@ class ObservabilityEnvironmentPostProcessorTest {
     @DisplayName("Kafka and RabbitMQ messages are traced and timed, unless the service says no")
     void observesMessaging() {
       var environment =
-          runPostProcessor(environmentWithModuleOn().withProperty(KAFKA_LISTENER_SWITCH, OFF));
+          runPostProcessor(
+              ObservabilityTestData.environmentWithModuleOn()
+                  .withProperty(KAFKA_LISTENER_SWITCH, OFF));
 
       assertThat(OTHER_MESSAGING_SWITCHES.stream().map(environment::getProperty)).containsOnly(ON);
       assertThat(environment.getProperty(KAFKA_LISTENER_SWITCH)).isEqualTo(OFF);
@@ -198,7 +195,7 @@ class ObservabilityEnvironmentPostProcessorTest {
     void stratumSettingsChangeDefaults() {
       var environment =
           runPostProcessor(
-              environmentWithModuleOn()
+              ObservabilityTestData.environmentWithModuleOn()
                   .withProperty(ACTUATOR_ENDPOINTS_EXPOSED_OVER_HTTP, "health,prometheus")
                   .withProperty(
                       ObservabilityConstants.PREFIX + ".record-timings-as-histograms", OFF)
@@ -221,12 +218,12 @@ class ObservabilityEnvironmentPostProcessorTest {
     @DisplayName("settings from a customizer listed in spring.factories win before startup")
     void javaSettingsWin(@TempDir Path folder) throws IOException {
       var environment =
-          JavaConfigurationTestData.withCustomizers(
+          ObservabilityTestData.withCustomizers(
               folder,
               List.of(PrometheusEndpointObservabilitySettings.class),
               () ->
                   runPostProcessor(
-                      environmentWithModuleOn()
+                      ObservabilityTestData.environmentWithModuleOn()
                           .withProperty(ACTUATOR_ENDPOINTS_EXPOSED_OVER_HTTP, "health")));
 
       assertThat(environment.getProperty(ObservabilityConstants.WEB_EXPOSURE))
@@ -239,7 +236,8 @@ class ObservabilityEnvironmentPostProcessorTest {
     @DisplayName("a blank exposed endpoint stops startup")
     void blankEndpointStopsStartup() {
       var environment =
-          environmentWithModuleOn().withProperty(ACTUATOR_ENDPOINTS_EXPOSED_OVER_HTTP, "health, ");
+          ObservabilityTestData.environmentWithModuleOn()
+              .withProperty(ACTUATOR_ENDPOINTS_EXPOSED_OVER_HTTP, "health, ");
 
       assertThatExceptionOfType(ConstraintViolationException.class)
           .isThrownBy(() -> runPostProcessor(environment))
@@ -251,7 +249,7 @@ class ObservabilityEnvironmentPostProcessorTest {
     void leavesOutUnsetTags() {
       var environment =
           runPostProcessor(
-              environmentWithModuleOn()
+              ObservabilityTestData.environmentWithModuleOn()
                   .withProperty(StratumModuleConstants.SERVICE_ENVIRONMENT, " "));
 
       assertThat(environment.getProperty(APPLICATION_TAG)).isNull();
@@ -264,7 +262,7 @@ class ObservabilityEnvironmentPostProcessorTest {
     void serviceExposureWins() {
       var environment =
           runPostProcessor(
-              environmentWithModuleOn()
+              ObservabilityTestData.environmentWithModuleOn()
                   .withProperty(ACTUATOR_ENDPOINTS_EXPOSED_OVER_HTTP, "health,prometheus")
                   .withProperty(ObservabilityConstants.WEB_EXPOSURE, SERVICE_EXPOSURE));
 
@@ -275,7 +273,7 @@ class ObservabilityEnvironmentPostProcessorTest {
     @Test
     @DisplayName("an exposure the service sets in Java wins over Stratum's")
     void serviceJavaExposureWins() {
-      var environment = environmentWithModuleOn();
+      var environment = ObservabilityTestData.environmentWithModuleOn();
       environment
           .getPropertySources()
           .addLast(
