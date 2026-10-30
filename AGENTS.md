@@ -35,14 +35,14 @@ Two facts shape every rule below:
 Every agent, whatever its role, reads this file and all six topic files in full before it starts:
 [engineering](docs/agents/engineering.md), [testing](docs/agents/testing.md), [security](docs/agents/security.md),
 [documentation](docs/agents/documentation.md), [review](docs/agents/review.md) and [judge](docs/agents/judge.md).
-The six topic files add about 500 lines to this one. An agent states in its report that it has read them.
+The six topic files add about 600 lines to this one. An agent states in its report that it has read them.
 
 Each role then has these duties:
 
 | Role | Duties |
 |---|---|
 | Implementer | Builds the change, its tests and its documentation; writes the Claims; asks for the judge |
-| Tester | Writes or reviews tests; proves each test fails when the code it covers is broken |
+| Tester | Writes or reviews tests; proves each test fails when the code it covers is broken; keeps test data, fixtures, assertion helpers and `@Nested` groups in use |
 | Documentation | Keeps the documents true to the code at every commit |
 | Security | Reviews the change against every security rule |
 | Reviewer | Reviews a change and reports findings; does not edit it |
@@ -109,6 +109,11 @@ topic file wins.
   (ST-ENG-05). Keep Javadoc brief, functional and logical (ST-ENG-15).
 - SOLID, KISS, DRY and clean code: clear names, small classes and methods with one purpose, no duplication, no dead
   code, no abstraction without a second use. Comments explain why, not what.
+- **One job per class, whatever its length.** When a class holds a second job, move that job into a helper, utility
+  or mapper class, even if the file is far below 400 lines. Logic written in two places moves into one. Use a design
+  pattern where it removes branching or copying (ST-ENG-07, ST-ENG-16 to ST-ENG-18).
+- Tests get the same care: shared data and setup in `testsupport`, repeated checks in assertion helpers and related
+  tests grouped with `@Nested` (ST-TEST-13 to ST-TEST-17).
 - Each starter owns one cross-cutting concern and is optional. Code depends on interfaces, and every external
   system sits behind one. Before writing something new, use the Stratum module that already does it.
 - A service can replace every bean Stratum defines (`@ConditionalOnMissingBean`) and change every default through a

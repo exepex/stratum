@@ -18,14 +18,28 @@ cite it.
   provider) sits behind an interface, so replacing it takes one new class and its wiring.
 - **ST-ENG-05 Simplest code that works.** Write the plainest code that meets today's need and scales. Add no type,
   interface, helper, option or branch without a use that exists today. Prefer one type with a field to a hierarchy,
-  inline code to a one-call helper, and the JDK, Spring or Lombok to hand-written code. No clever tricks, and no
-  handling for cases that cannot happen. When a rule or tool pushes toward more structure, ask the owner first.
-  Tunable values are still properties (ST-ENG-33).
-- **ST-ENG-06 No duplication.** Do not copy logic. Before writing cross-cutting behaviour (headers, HTTP clients,
-  error responses, retries, logging, test containers), find the Stratum module that already provides it and use it.
-- **ST-ENG-07 Patterns where they remove complexity.** Strategy for behaviour that varies by type, Factory for
-  conditional construction, Template Method for a shared sequence with varying steps, Facade for a subsystem,
-  Builder for objects with several fields. Use one only when it removes branching or coupling.
+  inline code to a one-call helper that does part of the same job, and the JDK, Spring or Lombok to hand-written
+  code. No clever tricks, and no handling for cases that cannot happen. When a rule or tool pushes toward more
+  structure, ask the owner first. Moving a second job or copied logic into its own class is not new structure: do it
+  without asking (ST-ENG-16). Tunable values are still properties (ST-ENG-33).
+- **ST-ENG-06 No duplication.** Do not copy logic, within a module or across modules. Before writing cross-cutting
+  behaviour (headers, HTTP clients, error responses, retries, logging, test containers), find the Stratum module that
+  already provides it and use it. When the same lines appear in a second place, move them into one method or class
+  that both call. When a rule would have every module repeat the same code, the rule names a shared method for the
+  modules to call instead. When two modules need the same test code and no shared place for it exists yet, ask the
+  owner where it goes instead of copying it; a copy the owner has approved is not a finding.
+- **ST-ENG-07 Patterns where they remove complexity.** Before writing an `if` or `switch` chain, copying a sequence
+  of steps or adding a constructor with many arguments, check whether one of these fits:
+  - Strategy, for behaviour that varies by type or setting;
+  - Pipeline, for a fixed series of steps that each change the result, such as the masking rules of
+    `ContentMaskingRules`;
+  - Decorator, to add behaviour around an existing object, such as the executors that carry the logging context;
+  - Template Method, for a shared sequence with varying steps;
+  - Factory, for conditional construction, such as `ErrorReport.of`;
+  - Builder, for objects with several fields;
+  - Facade, for a subsystem.
+
+  Use one when it removes branching, copying or coupling, not to show a pattern.
 - **ST-ENG-08 Clean code.** A method does one thing. Avoid deep nesting, long parameter lists and boolean
   parameters that switch behaviour. Remove dead and commented-out code. Comments inside a method explain a reason or
   constraint, never what the next line does. Names and Javadoc follow ST-ENG-13 to ST-ENG-15.
@@ -68,6 +82,25 @@ for the service, not how it is built.
 - **ST-ENG-15 Short, functional Javadoc.** One or two plain sentences on what the element does for the service and,
   if it isn't obvious, why. Name units and defaults. Don't explain internals, restate the name or signature, or
   justify design choices; a note a maintainer needs goes in a short `//` comment.
+
+## Helper, utility and mapper classes
+
+- **ST-ENG-16 Move a second job out.** A class keeps one job even when its file is short. When a class also does a
+  second job, such as parsing, matching, formatting, converting or checking a value, move that job into its own
+  class. Signs of a second job: in a class that has fields, a group of private methods that use none of them; a
+  block that needs its own heading comment; or logic worth testing on its own. Choose the kind of class by whether
+  the job needs state, and name it for what it does, such as `CardNumberMasker`, not `MaskingHelper`:
+  - a **helper class** is an ordinary class, or a bean, for a job that keeps state or needs other objects, such as
+    `KeyValuePairMasker`;
+  - a **utility class** is a Lombok `@UtilityClass` for a job made only of pure functions and constants, such as
+    `CardNumberMasker` (ST-ENG-47);
+  - a **mapper** is a MapStruct interface that converts one type into another (ST-ENG-42). Field-by-field copying is
+    never written by hand.
+- **ST-ENG-17 Merge only one job.** Two classes become one only when they do the same job and change together, such
+  as two small test data classes for one module. Never merge to reduce the number of classes if the result does two
+  jobs.
+- **ST-ENG-18 Reuse before you write.** Before adding a method or class, search the module, `stratum-core` and the
+  `testsupport` packages for one that already does the job, and use it.
 
 ## Auto-configuration and beans
 
@@ -159,7 +192,8 @@ Every starter follows these rules:
 - **ST-ENG-41** Every package has a `package-info.java` annotated `@NullMarked` (JSpecify). Values that may be null are
   annotated `@Nullable`.
 - **ST-ENG-42** Do not hand-write code that a library can generate. Use Lombok for loggers (`@Slf4j`), constructors
-  (`@RequiredArgsConstructor`, `@AllArgsConstructor`), accessors (`@Getter`, `@Setter`), builders (`@Builder`) and
+  (`@RequiredArgsConstructor`, `@AllArgsConstructor`), accessors (`@Getter`, `@Setter`), builders (`@Builder`, on
+  every record or value class with three or more fields) and
   classes of static helpers (`@UtilityClass`). Use MapStruct for mapping one type to another. Prefer a record over a
   Lombok value class. Never put `@Data` or `@ToString` on a type that holds a secret or personal data. In Stratum's
   libraries and starters, PMD fails the build on a hand-written getter, setter, builder, logger, `equals`,
@@ -178,7 +212,8 @@ Every starter follows these rules:
   `@UtilityClass` classes of pure helpers and constants. A Spring bean, a record or any other class that is
   instantiated uses instance methods, private helpers included. Two exceptions: a static factory that creates the
   type itself, such as `ErrorReport.of`, `Redactor.from` or `LoggingProperties.resolve`, with the private helpers it
-  calls; and the static methods JUnit requires (`@BeforeAll`, `@AfterAll` and `@MethodSource` factories).
+  calls; and the static methods JUnit requires (`@BeforeAll` and `@AfterAll`). Test data for parameterized tests is
+  a constant, not a method (ST-TEST-15).
   `ErrorReport.of` reads the trace, span and correlation IDs from SLF4J's `MDC`, so that any code, injected or not,
   can report an error without passing the IDs by hand.
 - **ST-ENG-48** Every `AutoCloseable` that a method opens is closed with try-with-resources. Do not close resources

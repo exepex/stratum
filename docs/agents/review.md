@@ -32,8 +32,11 @@ Every finding, from a reviewer, the security role or the judge, uses one of thre
    dependency down, a service replacing the bean, a property unset.
 4. For Spring code, check proxies (`@Transactional`, `@Async` and caching do not apply to calls within the same
    class), bean scope and shared state, and thread safety under virtual threads.
-5. Keep a finding only when you can name the input or state that triggers it and the wrong result it causes. Drop
-   anything you cannot show.
+5. Check structure: each changed class does one job, no logic is copied from elsewhere, existing helpers and
+   `testsupport` methods are used, and a design pattern is used where it would remove branching or copying
+   (ST-ENG-06, ST-ENG-07, ST-ENG-16 to ST-ENG-18, ST-TEST-13 to ST-TEST-17). Name the second job or the copied lines.
+6. Keep a finding only when you can name the input or state that triggers it and the wrong result it causes, or, for
+   structure, the lines that do a second job or are copied. Drop anything you cannot show.
 
 ## Reporting
 

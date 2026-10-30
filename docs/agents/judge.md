@@ -70,8 +70,12 @@ A claim without evidence counts as not made.
 6. Check the change against every rule: [AGENTS.md](../../AGENTS.md), [engineering](engineering.md),
    [testing](testing.md), [security](security.md), [documentation](documentation.md) and [review](review.md).
    Check the line count of every changed file against the limits in AGENTS.md.
-7. Check simplicity: for each new type, method, option and branch, name its use today. One with no use, or Javadoc
-   that explains internals or restates the code, is a should-fix finding (ST-ENG-05, ST-ENG-15).
+7. Check simplicity in both directions. For each new type, method, option and branch, name its use today. One with
+   no use, or Javadoc that explains internals or restates the code, is a should-fix finding (ST-ENG-05, ST-ENG-15).
+   Then check that each changed class does one job, that no logic is copied within the change or from existing code
+   in any module, that an existing helper or `testsupport` method was not bypassed, and that tests follow ST-TEST-13
+   to ST-TEST-17. A class with a second job, copied logic or repeated test setup is a should-fix finding (ST-ENG-01,
+   ST-ENG-06, ST-ENG-16 to ST-ENG-18).
 8. Give the verdict: **PASS**, or **FAIL** with numbered findings, each **blocking**, **should fix** or **minor**
    (as defined in [review](review.md)), with evidence and the fix expected. A change passes only when no blocking
    or should-fix finding remains.
