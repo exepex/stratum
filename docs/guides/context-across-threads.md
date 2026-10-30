@@ -115,6 +115,13 @@ This relies on Reactor's automatic context propagation, which the starter turns 
 (`stratum.context-propagation.reactor`). With it set to `false`, the fields appear only in
 `handle` and `tap`.
 
+## Scheduled jobs and work saved for later
+
+A `@Scheduled` job never takes the fields of a request, even on a thread a request used before:
+each run starts its own trace with an empty MDC. Work a request saves for a job to finish later,
+such as a report written to S3, is linked back to the request with the observability starter's
+`LinkedWork`; [linking work that runs later](linking-later-work.md) says when to link and how.
+
 ## Settings
 
 | Property | Default | Effect |
