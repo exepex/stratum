@@ -95,27 +95,32 @@ public class FieldErrorDetails {
     }
     var violation =
         error.contains(ConstraintViolation.class) ? error.unwrap(ConstraintViolation.class) : null;
-    return new ErrorDetail(field, safeMessage(error, violation));
+    var rejectedValue =
+        error instanceof FieldError fieldError ? fieldError.getRejectedValue() : null;
+    return new ErrorDetail(field, safeMessage(error, violation, rejectedValue));
   }
 
-  /** Returns the error's message, or fixed text when the message quotes the rejected value. */
-  private static String safeMessage(MessageSourceResolvable error, @Nullable Object source) {
-    var message = Objects.requireNonNullElse(error.getDefaultMessage(), NOT_VALID);
-    return source instanceof ConstraintViolation<?> violation
-            && quotesRejectedValue(violation, message)
-        ? NOT_VALID
-        : message;
+  /** Returns the message of a parameter's error, checked against the parameter's rejected value. */
+  private static String safeMessage(
+      MessageSourceResolvable error, @Nullable ConstraintViolation<?> violation) {
+    return safeMessage(error, violation, violation == null ? null : violation.getInvalidValue());
   }
 
   /**
-   * Returns whether a message quotes the rejected value: through its template, or as text found in
-   * it, which also catches a template read from a resource bundle such as {@code
-   * ValidationMessages.properties}.
+   * Returns the error's message, or fixed text when the message quotes the rejected value: through
+   * a Bean Validation template that names it, or as text found in the message. The second also
+   * catches a template read from {@code ValidationMessages.properties} and a message a Spring
+   * {@code Validator} wrote with {@code rejectValue}.
    */
-  private static boolean quotesRejectedValue(ConstraintViolation<?> violation, String message) {
-    return violation.getMessageTemplate().contains(QUOTES_REJECTED_VALUE)
-        || violation.getInvalidValue() instanceof CharSequence value
-            && !value.isEmpty()
-            && message.contains(value);
+  private static String safeMessage(
+      MessageSourceResolvable error,
+      @Nullable ConstraintViolation<?> violation,
+      @Nullable Object rejectedValue) {
+    var message = Objects.requireNonNullElse(error.getDefaultMessage(), NOT_VALID);
+    var templateQuotesValue =
+        violation != null && violation.getMessageTemplate().contains(QUOTES_REJECTED_VALUE);
+    var messageQuotesValue =
+        rejectedValue instanceof CharSequence value && !value.isEmpty() && message.contains(value);
+    return templateQuotesValue || messageQuotesValue ? NOT_VALID : message;
   }
 }

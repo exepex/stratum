@@ -126,6 +126,19 @@ class FieldErrorDetailsTest {
   }
 
   @Test
+  @DisplayName("a Spring Validator's message that quotes the rejected value gets fixed text")
+  void springValidatorMessageQuotingValueGetsFixedText() {
+    var binder = new DataBinder(new OrderForm(), "orderForm");
+    binder.bind(new MutablePropertyValues().add(ACCOUNT, IBAN));
+    binder
+        .getBindingResult()
+        .rejectValue(ACCOUNT, "account.unknown", "Account " + IBAN + " is not known");
+
+    assertThat(FieldErrorDetails.of(new BindException(binder.getBindingResult())))
+        .contains(List.of(new ErrorDetail(ACCOUNT, FieldErrorDetails.NOT_VALID)));
+  }
+
+  @Test
   @DisplayName("a map key in the field path, which the caller chose, becomes [*]")
   void mapKeyIsHidden() {
     var failure =
