@@ -88,7 +88,9 @@ for the service, not how it is built.
 - **ST-ENG-16 Move a second job out.** A class keeps one job even when its file is short. When a class also does a
   second job, such as parsing, matching, formatting, converting or checking a value, move that job into its own
   class. Signs of a second job: in a class that has fields, a group of private methods that use none of them; a
-  block that needs its own heading comment; or logic worth testing on its own. Choose the kind of class by whether
+  block that needs its own heading comment; or logic worth testing on its own. Move it only when it is real work of
+  its own: a new class that would hold just one or two small methods splits the code too finely, so put such methods
+  in an existing class that does the same job, as `MaskedText.keepingLastFourAt` is. Choose the kind of class by whether
   the job needs state, and name it for what it does, such as `CardNumberMasker`, not `MaskingHelper`:
   - a **helper class** is an ordinary class, or a bean, for a job that keeps state or needs other objects, such as
     `KeyValuePairMasker`;
@@ -170,13 +172,14 @@ Every starter follows these rules:
   service lists its customizer classes in `META-INF/spring.factories` under that interface; and the module gets
   its settings only from one call, `StratumCustomizers.resolveSettings(environment, prefix, P.class,
   <Module>PropertiesCustomizer.class)`, never from the bound record directly. Customizers are classes, not beans,
-  because some modules, such as logging, need their settings before any bean exists. The module's auto-configuration calls `StratumCustomizers.rejectBeans`, so
-  a customizer declared as a bean stops startup with `SX-CORE-1004` instead of being silently ignored. The module
-  switches, shared properties and Spring Boot properties are set in Java through `SpringApplication`'s default
-  properties; a module's defaults for Spring Boot properties are added with `StratumDefaults`, so that any value
-  the service sets, there or anywhere else, wins. A Spring Boot default that Stratum changes comes from a setting
-  of the module, or a shared `stratum.*` key, such as `stratum.observability.actuator-endpoints-exposed-over-http`, so the IDE shows
-  it with Stratum's default and a customizer can change it.
+  because some modules, such as logging, need their settings before any bean exists. The module's auto-configuration
+  calls `StratumCustomizers.rejectBeans`, so a customizer declared as a bean stops startup with `SX-CORE-1004` instead
+  of being silently ignored. The module switches, shared properties and Spring Boot properties are set in Java through
+  `SpringApplication`'s default properties; a module's defaults for Spring Boot properties are added with
+  `StratumDefaults`, so that any value the service sets, there or anywhere else, wins. A Spring Boot default that
+  Stratum changes comes from a setting of the module, or a shared `stratum.*` key, such as
+  `stratum.observability.actuator-endpoints-exposed-over-http`, so the IDE shows it with Stratum's default and a
+  customizer can change it.
 
 ## Java 25 and Spring Boot 4
 
