@@ -124,12 +124,15 @@ public final class WebMvcErrorResponsesAutoConfiguration {
   }
 
   /**
-   * Stratum's HTML error page, when the service has no error template of its own and has not turned
-   * Spring Boot's default page off with {@code spring.web.error.whitelabel.enabled=false}.
+   * Stratum's HTML error page, when the service has no error template of its own, has not turned
+   * Spring Boot's default page off with {@code spring.web.error.whitelabel.enabled=false}, and has
+   * no {@link ErrorAttributes} of its own, whose body the page could not show. This nested class is
+   * read before the outer class's beans, so the condition sees only the service's own.
    */
   @Configuration(proxyBeanMethods = false)
   @ConditionalOnBooleanProperty(name = "spring.web.error.whitelabel.enabled", matchIfMissing = true)
   @Conditional(ErrorTemplateMissingCondition.class)
+  @ConditionalOnMissingBean(value = ErrorAttributes.class, search = SearchStrategy.CURRENT)
   public static class ReferenceErrorPageConfiguration {
 
     /**

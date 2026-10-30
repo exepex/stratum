@@ -61,7 +61,7 @@ class ServiceErrorHandlingIntegrationTest {
   @Test
   @DisplayName("its StratumException handler's status and body are sent, not the mapped status")
   void serviceHandlerWins() throws Exception {
-    var response = get("/orders");
+    var response = get("/orders", MediaType.APPLICATION_JSON);
 
     assertThat(response.statusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT.value());
     assertThat(response.body()).isEqualTo("{\"failed\":\"ORD-0001\"}");
@@ -70,7 +70,7 @@ class ServiceErrorHandlingIntegrationTest {
   @Test
   @DisplayName("its own error attributes keep their body and the plain JSON media type")
   void serviceErrorAttributesKeepTheirMediaType() throws Exception {
-    var response = get("/no-such-path");
+    var response = get("/no-such-path", MediaType.APPLICATION_JSON);
 
     assertThat(response.statusCode()).isEqualTo(HttpStatus.NOT_FOUND.value());
     assertThat(response.headers().firstValue(HttpHeaders.CONTENT_TYPE))
@@ -78,13 +78,23 @@ class ServiceErrorHandlingIntegrationTest {
     assertThat(response.body()).isEqualTo("{\"legacy\":\"error\"}");
   }
 
-  /** Sends a GET that accepts JSON and reads the body as text. */
-  private HttpResponse<String> get(String path) throws IOException, InterruptedException {
+  @Test
+  @DisplayName("its own error attributes give a browser Spring Boot's page, not Stratum's")
+  void serviceErrorAttributesKeepBootPage() throws Exception {
+    var response = get("/no-such-path", MediaType.TEXT_HTML);
+
+    assertThat(response.statusCode()).isEqualTo(HttpStatus.NOT_FOUND.value());
+    assertThat(response.body()).contains("Whitelabel Error Page").doesNotContain("Reference:");
+  }
+
+  /** Sends a GET that accepts the given media type and reads the body as text. */
+  private HttpResponse<String> get(String path, MediaType accepted)
+      throws IOException, InterruptedException {
     var port = ((WebServerApplicationContext) service).getWebServer().getPort();
     return HttpClient.newHttpClient()
         .send(
             HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
-                .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
+                .header(HttpHeaders.ACCEPT, accepted.toString())
                 .build(),
             HttpResponse.BodyHandlers.ofString());
   }

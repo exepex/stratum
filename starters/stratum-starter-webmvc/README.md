@@ -245,7 +245,7 @@ Each bean below is Stratum's only until you declare your own:
 | Your bean | What it replaces |
 | --- | --- |
 | `ErrorResponseFactory` | How every error body is made and how a `StratumException` is logged |
-| `ErrorAttributes` | The body of failures outside your controllers, such as `404`; yours gets Spring Boot's error controller as before |
+| `ErrorAttributes` | The body of failures outside your controllers, such as `404`; yours gets Spring Boot's error controller and HTML page as before |
 | A `View` named `error` | The HTML error page |
 | `StratumExceptionHandler` or `ErrorBodyAdvice` | The handler of `StratumException`, or the advice that adds the IDs and the media type |
 | A bean named `stratumRequestIdsFilter` | The filter that keeps each request's IDs for its error page, which runs after tracing has ended |
