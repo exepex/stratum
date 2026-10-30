@@ -29,7 +29,7 @@ conventions. Each rule has an ID so that reviews and judge verdicts can cite it.
 - **ST-TEST-15 Test data as constants.** Data for a parameterized test is a documented `private static final`
   constant fed with `@FieldSource`, not an inline `@ValueSource` list or a `@MethodSource` method. Inside a `@Nested`
   class the constant sits at the top of that class. Data that is large to hold, such as megabyte-long inputs, is a
-  `Supplier` constant, so it is built only when the test runs.
+  `Supplier<Stream<...>>` constant, so it is built only when the test runs.
 - **ST-TEST-16 Fixtures and assertion helpers.** Setup used by two or more test classes, such as an environment with
   the module switched on, a context runner or a stub server, is one method in `testsupport`. When the same group of
   assertions appears in two or more tests, move it into a named assertion method, such as

@@ -18,18 +18,19 @@ cite it.
   provider) sits behind an interface, so replacing it takes one new class and its wiring.
 - **ST-ENG-05 Simplest code that works.** Write the plainest code that meets today's need and scales. Add no type,
   interface, helper, option or branch without a use that exists today. Prefer one type with a field to a hierarchy,
-  inline code to a one-call helper, and the JDK, Spring or Lombok to hand-written code. No clever tricks, and no
+  inline code to a one-call helper that does part of the same job, and the JDK, Spring or Lombok to hand-written code. No clever tricks, and no
   handling for cases that cannot happen. When a rule or tool pushes toward more structure, ask the owner first.
-  Moving a second job or copied logic out of existing code into its own class is not new structure: do it without
-  asking (ST-ENG-16). Tunable values are still properties (ST-ENG-33).
+  Moving a second job or copied logic into its own class is not new structure: do it without asking (ST-ENG-16). Tunable values are still properties (ST-ENG-33).
 - **ST-ENG-06 No duplication.** Do not copy logic, within a module or across modules. Before writing cross-cutting
   behaviour (headers, HTTP clients, error responses, retries, logging, test containers), find the Stratum module that
   already provides it and use it. When the same lines appear in a second place, move them into one method or class
-  that both call. A rule that tells every module to repeat the same code points to a shared method instead.
+  that both call. When a rule would have every module repeat the same code, the rule names a shared method for the
+  modules to call instead. When two modules need the same test code and no shared place for it exists yet, ask the
+  owner where it goes instead of copying it; a copy the owner has approved is not a finding.
 - **ST-ENG-07 Patterns where they remove complexity.** Before writing an `if` or `switch` chain, copying a sequence
   of steps or adding a constructor with many arguments, check whether one of these fits:
   - Strategy, for behaviour that varies by type or setting;
-  - Chain of responsibility, for a series of steps that each may act, such as the masking rules of
+  - Pipeline, for a fixed series of steps that each change the result, such as the masking rules of
     `ContentMaskingRules`;
   - Decorator, to add behaviour around an existing object, such as the executors that carry the logging context;
   - Template Method, for a shared sequence with varying steps;
@@ -190,7 +191,7 @@ Every starter follows these rules:
   annotated `@Nullable`.
 - **ST-ENG-42** Do not hand-write code that a library can generate. Use Lombok for loggers (`@Slf4j`), constructors
   (`@RequiredArgsConstructor`, `@AllArgsConstructor`), accessors (`@Getter`, `@Setter`), builders (`@Builder`, on
-  every type with three or more fields, records included) and
+  every record or value class with three or more fields) and
   classes of static helpers (`@UtilityClass`). Use MapStruct for mapping one type to another. Prefer a record over a
   Lombok value class. Never put `@Data` or `@ToString` on a type that holds a secret or personal data. In Stratum's
   libraries and starters, PMD fails the build on a hand-written getter, setter, builder, logger, `equals`,
