@@ -18,9 +18,10 @@ cite it.
   provider) sits behind an interface, so replacing it takes one new class and its wiring.
 - **ST-ENG-05 Simplest code that works.** Write the plainest code that meets today's need and scales. Add no type,
   interface, helper, option or branch without a use that exists today. Prefer one type with a field to a hierarchy,
-  inline code to a one-call helper that does part of the same job, and the JDK, Spring or Lombok to hand-written code. No clever tricks, and no
-  handling for cases that cannot happen. When a rule or tool pushes toward more structure, ask the owner first.
-  Moving a second job or copied logic into its own class is not new structure: do it without asking (ST-ENG-16). Tunable values are still properties (ST-ENG-33).
+  inline code to a one-call helper that does part of the same job, and the JDK, Spring or Lombok to hand-written
+  code. No clever tricks, and no handling for cases that cannot happen. When a rule or tool pushes toward more
+  structure, ask the owner first. Moving a second job or copied logic into its own class is not new structure: do it
+  without asking (ST-ENG-16). Tunable values are still properties (ST-ENG-33).
 - **ST-ENG-06 No duplication.** Do not copy logic, within a module or across modules. Before writing cross-cutting
   behaviour (headers, HTTP clients, error responses, retries, logging, test containers), find the Stratum module that
   already provides it and use it. When the same lines appear in a second place, move them into one method or class
@@ -86,12 +87,13 @@ for the service, not how it is built.
 
 - **ST-ENG-16 Move a second job out.** A class keeps one job even when its file is short. When a class also does a
   second job, such as parsing, matching, formatting, converting or checking a value, move that job into its own
-  class. Signs of a second job: a group of private methods that use none of the class's fields, a block that needs
-  its own heading comment, or logic worth testing on its own. Choose the kind of class by what the job needs:
-  - a **helper class** is an ordinary class, or a bean, that does one job, named for what it does, such as
-    `CardNumberMasker`, not `MaskingHelper`;
-  - a **utility class** is a Lombok `@UtilityClass` of pure static functions and constants used from two or more
-    places (ST-ENG-47);
+  class. Signs of a second job: in a class that has fields, a group of private methods that use none of them; a
+  block that needs its own heading comment; or logic worth testing on its own. Choose the kind of class by whether
+  the job needs state, and name it for what it does, such as `CardNumberMasker`, not `MaskingHelper`:
+  - a **helper class** is an ordinary class, or a bean, for a job that keeps state or needs other objects, such as
+    `KeyValuePairMasker`;
+  - a **utility class** is a Lombok `@UtilityClass` for a job made only of pure functions and constants, such as
+    `CardNumberMasker` (ST-ENG-47);
   - a **mapper** is a MapStruct interface that converts one type into another (ST-ENG-42). Field-by-field copying is
     never written by hand.
 - **ST-ENG-17 Merge only one job.** Two classes become one only when they do the same job and change together, such
