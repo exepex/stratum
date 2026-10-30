@@ -107,8 +107,6 @@ public class CorrelationIdRecorder implements EventListener, SpanProcessor {
   /** Returns the baggage correlation ID, if one is set and is safe for logs. */
   private Optional<String> correlationIdFromBaggage(Baggage baggage) {
     return Optional.ofNullable(baggage.getEntryValue(LoggingContextConstants.CORRELATION_ID))
-        .filter(
-            correlationId ->
-                LoggingContextConstants.ID_FORMAT_SAFE_FOR_LOGS.matcher(correlationId).matches());
+        .filter(LoggingContextConstants::isSafeForLogs);
   }
 }

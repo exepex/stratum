@@ -141,8 +141,6 @@ public class ErrorReport implements Serializable {
   /** Reads an ID from the current thread's logging context, or null if it is not safe for logs. */
   private static @Nullable String safeIdOrNull(String key) {
     var id = MDC.get(key);
-    return id != null && LoggingContextConstants.ID_FORMAT_SAFE_FOR_LOGS.matcher(id).matches()
-        ? id
-        : null;
+    return LoggingContextConstants.isSafeForLogs(id) ? id : null;
   }
 }

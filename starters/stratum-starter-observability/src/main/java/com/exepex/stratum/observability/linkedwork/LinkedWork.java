@@ -41,11 +41,12 @@ public class LinkedWork {
     return Optional.ofNullable(tracer.currentSpan())
         .map(
             span ->
-                new WorkOrigin(
-                    span.context().traceId(),
-                    span.context().spanId(),
-                    Boolean.TRUE.equals(span.context().sampled()),
-                    correlationIdOrElse(span.context().traceId())));
+                WorkOrigin.builder()
+                    .traceId(span.context().traceId())
+                    .spanId(span.context().spanId())
+                    .sampled(Boolean.TRUE.equals(span.context().sampled()))
+                    .correlationId(correlationIdOrElse(span.context().traceId()))
+                    .build());
   }
 
   /**
@@ -110,7 +111,7 @@ public class LinkedWork {
    * @throws IllegalArgumentException if the name has another form
    */
   void requireSafeName(String workName) {
-    if (!LoggingContextConstants.ID_FORMAT_SAFE_FOR_LOGS.matcher(workName).matches()) {
+    if (!LoggingContextConstants.isSafeForLogs(workName)) {
       throw new IllegalArgumentException(
           "A linked work name must be 1 to 128 letters, digits, '-', '_', '.' or ':'");
     }
@@ -120,9 +121,7 @@ public class LinkedWork {
   private String correlationIdOrElse(String fallback) {
     return Optional.ofNullable(tracer.getBaggage(LoggingContextConstants.CORRELATION_ID))
         .map(BaggageView::get)
-        .filter(
-            correlationId ->
-                LoggingContextConstants.ID_FORMAT_SAFE_FOR_LOGS.matcher(correlationId).matches())
+        .filter(LoggingContextConstants::isSafeForLogs)
         .orElse(fallback);
   }
 }

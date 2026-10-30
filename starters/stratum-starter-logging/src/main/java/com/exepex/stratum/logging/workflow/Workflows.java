@@ -120,7 +120,9 @@ public class Workflows {
     fields.put(LoggingConstants.WORKFLOW, name);
     fields.putIfAbsent(LoggingConstants.ROOT_WORKFLOW, name);
     if (workflowId != null) {
-      fields.put(LoggingConstants.WORKFLOW_ID, isSafeForLogs(workflowId) ? workflowId : null);
+      fields.put(
+          LoggingConstants.WORKFLOW_ID,
+          LoggingContextConstants.isSafeForLogs(workflowId) ? workflowId : null);
     }
     return fields;
   }
@@ -154,7 +156,7 @@ public class Workflows {
    * @throws IllegalArgumentException if the name has another form
    */
   void requireSafeName(String name) {
-    if (!isSafeForLogs(name)) {
+    if (!LoggingContextConstants.isSafeForLogs(name)) {
       throw new IllegalArgumentException(
           "A workflow name must be 1 to 128 letters, digits, '-', '_', '.' or ':'");
     }
@@ -210,10 +212,5 @@ public class Workflows {
     return failure instanceof CompletionException wrapped && wrapped.getCause() != null
         ? wrapped.getCause()
         : failure;
-  }
-
-  /** Returns whether a name or ID can go in a log line as it is. */
-  private boolean isSafeForLogs(String nameOrId) {
-    return LoggingContextConstants.ID_FORMAT_SAFE_FOR_LOGS.matcher(nameOrId).matches();
   }
 }
