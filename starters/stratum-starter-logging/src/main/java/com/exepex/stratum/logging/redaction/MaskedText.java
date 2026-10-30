@@ -32,6 +32,19 @@ class MaskedText {
   }
 
   /**
+   * Returns a replacement that masks a part of a text, keeping the last four characters of the
+   * value found there.
+   *
+   * @param start where the part starts
+   * @param end where the part ends
+   * @param value the value found in the part, such as a card number without its spaces
+   * @return the replacement
+   */
+  static Replacement keepingLastFourAt(int start, int end, String value) {
+    return Replacement.builder().start(start).end(end).text(keepingLastFour(value)).build();
+  }
+
+  /**
    * Returns the text with each replacement written in place of the part it covers.
    *
    * @param text the text

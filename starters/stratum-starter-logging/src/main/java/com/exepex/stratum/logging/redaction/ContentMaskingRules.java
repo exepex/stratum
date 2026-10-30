@@ -3,10 +3,7 @@ package com.exepex.stratum.logging.redaction;
 import com.exepex.stratum.logging.redaction.MaskedText.Replacement;
 import com.google.i18n.phonenumbers.PhoneNumberUtil;
 import com.google.i18n.phonenumbers.PhoneNumberUtil.Leniency;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
-import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
@@ -17,7 +14,6 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import lombok.experimental.UtilityClass;
 import org.apache.commons.validator.routines.EmailValidator;
-import org.apache.commons.validator.routines.IBANValidator;
 
 /**
  * The rules that mask secrets and personal data by what the text looks like. A pattern only finds
@@ -74,10 +70,6 @@ class ContentMaskingRules {
   /** A possible email address. */
   private static final Pattern EMAIL =
       Pattern.compile("(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]++@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}");
-
-  /** A possible IBAN, with optional spaces between groups. */
-  private static final Pattern IBAN =
-      Pattern.compile("(?i)\\b[a-z]{2}\\d{2}(?:\\s?[a-z0-9]){10,30}\\b");
 
   /** Google's phone number library, which knows every country's numbering plan. */
   private static final PhoneNumberUtil PHONE_NUMBER_PARSER = PhoneNumberUtil.getInstance();
@@ -138,7 +130,7 @@ class ContentMaskingRules {
                 guardedFinder(
                     text -> text.contains("@"),
                     keepingLastFourOf(EMAIL, EmailValidator.getInstance()::isValid)),
-                guardedFinder(ContentMaskingRules::hasDigit, ContentMaskingRules::ibansIn),
+                guardedFinder(ContentMaskingRules::hasDigit, IbanMasker::ibansIn),
                 guardedFinder(text -> text.contains("+"), ContentMaskingRules::phoneNumbersIn))
             .flatMap(finder -> finder.apply(logText).stream())
             .toList();
@@ -159,13 +151,7 @@ class ContentMaskingRules {
             .matcher(text)
             .results()
             .filter(match -> isReal.test(match.group()))
-            .map(
-                match ->
-                    Replacement.builder()
-                        .start(match.start())
-                        .end(match.end())
-                        .text(MaskedText.keepingLastFour(match.group()))
-                        .build())
+            .map(match -> MaskedText.keepingLastFourAt(match.start(), match.end(), match.group()))
             .toList();
   }
 
@@ -202,78 +188,6 @@ class ContentMaskingRules {
   }
 
   /**
-   * Returns every valid IBAN, each keeping its last four characters. The pattern can take in words
-   * after an IBAN, including the start of the next one, so the search goes on after the IBAN
-   * itself.
-   */
-  private static List<Replacement> ibansIn(String text) {
-    var candidates = IBAN.matcher(text);
-    var maskedIbans = new ArrayList<Replacement>();
-    var searchFrom = 0;
-    // A loop, because after a candidate that holds no IBAN the search goes on from its second
-    // word, where an IBAN may start after an IBAN-shaped word.
-    while (candidates.find(searchFrom)) {
-      var candidate = candidates.toMatchResult();
-      var maskedIban = validIbanAtStart(candidate);
-      maskedIban.ifPresent(maskedIbans::add);
-      searchFrom = maskedIban.isPresent() ? maskedIban.get().end() : secondWordStart(candidate);
-    }
-    return maskedIbans;
-  }
-
-  /** Returns where a candidate's second word starts, or its end if it is one word. */
-  private static int secondWordStart(MatchResult candidate) {
-    var firstWordLength =
-        (int)
-            candidate
-                .group()
-                .chars()
-                .takeWhile(character -> !Character.isWhitespace(character))
-                .count();
-    return firstWordLength < candidate.group().length()
-        ? candidate.start() + firstWordLength + 1
-        : candidate.end();
-  }
-
-  /**
-   * Returns the masked IBAN at the start of a candidate. Words are dropped from the candidate's end
-   * until what is left is a valid IBAN. Only the words that give its country's IBAN length are
-   * checked, and a candidate whose first letters are no IBAN country is rejected at once.
-   */
-  private static Optional<Replacement> validIbanAtStart(MatchResult candidate) {
-    var ibanValidator = IBANValidator.getInstance();
-    return Optional.ofNullable(ibanValidator.getValidator(ibanWithoutSpaces(candidate.group())))
-        .flatMap(
-            countryIbanFormat ->
-                Stream.iterate(
-                        candidate.group(),
-                        words -> !words.isEmpty(),
-                        ContentMaskingRules::withoutLastWord)
-                    .filter(
-                        words ->
-                            ibanWithoutSpaces(words).length() == countryIbanFormat.getIbanLength())
-                    .filter(words -> ibanValidator.isValid(ibanWithoutSpaces(words)))
-                    .findFirst())
-        .map(
-            iban ->
-                Replacement.builder()
-                    .start(candidate.start())
-                    .end(candidate.start() + iban.length())
-                    .text(MaskedText.keepingLastFour(ibanWithoutSpaces(iban)))
-                    .build());
-  }
-
-  /** Returns the words without the last one, or an empty string if there is only one. */
-  private static String withoutLastWord(String words) {
-    return words.substring(0, Math.max(words.lastIndexOf(' '), 0));
-  }
-
-  /** Returns an IBAN without spaces, in upper case. */
-  private static String ibanWithoutSpaces(String iban) {
-    return iban.replace(" ", "").toUpperCase(Locale.ROOT);
-  }
-
-  /**
    * Returns every phone number with a country code, such as {@code +44 20 7946 0958}, each keeping
    * its last four digits.
    */
@@ -282,11 +196,8 @@ class ContentMaskingRules {
     return StreamSupport.stream(phoneNumbers.spliterator(), false)
         .map(
             phoneNumber ->
-                Replacement.builder()
-                    .start(phoneNumber.start())
-                    .end(phoneNumber.end())
-                    .text(MaskedText.keepingLastFour(phoneNumber.rawString()))
-                    .build())
+                MaskedText.keepingLastFourAt(
+                    phoneNumber.start(), phoneNumber.end(), phoneNumber.rawString()))
         .toList();
   }
 
