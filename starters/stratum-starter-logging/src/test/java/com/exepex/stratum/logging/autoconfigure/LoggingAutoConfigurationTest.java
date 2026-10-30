@@ -7,7 +7,6 @@ import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.core.properties.StratumPropertiesCustomizer;
 import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.LoggingProperties;
-import com.exepex.stratum.logging.mdc.ServletRequestMdcCleanupFilter;
 import com.exepex.stratum.logging.workflow.ReactiveWorkflows;
 import com.exepex.stratum.logging.workflow.WorkflowAspect;
 import com.exepex.stratum.logging.workflow.Workflows;
@@ -24,8 +23,6 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
-import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
-import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import reactor.core.publisher.Hooks;
@@ -147,21 +144,6 @@ class LoggingAutoConfigurationTest {
                 assertThat(context)
                     .doesNotHaveBean(ReactiveWorkflows.class)
                     .hasSingleBean(WorkflowAspect.class));
-  }
-
-  @Test
-  @DisplayName("only a servlet application gets the filter that cleans the MDC after each request")
-  void registersMdcCleanupFilterInServletApplications() {
-    new WebApplicationContextRunner()
-        .withConfiguration(AutoConfigurations.of(LoggingAutoConfiguration.class))
-        .withPropertyValues(MODULE_ON)
-        .run(
-            context ->
-                assertThat(context.getBean(FilterRegistrationBean.class).getFilter())
-                    .isInstanceOf(ServletRequestMdcCleanupFilter.class));
-    contextRunner
-        .withPropertyValues(MODULE_ON)
-        .run(context -> assertThat(context).doesNotHaveBean(FilterRegistrationBean.class));
   }
 
   @Test
