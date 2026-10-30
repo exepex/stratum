@@ -22,6 +22,13 @@ services you call; your own MDC fields never do.
 When the work on another thread ends, that thread's MDC goes back to what it held before, normally
 nothing. The next request served by the same pool thread starts clean.
 
+The server's own request threads are cleaned too. In a servlet application, the logging starter
+registers `ServletRequestMdcCleanupFilter` first in the filter chain, and it puts the MDC back as it
+was when each request ends, also on async and error dispatches. A field a handler puts and forgets
+to remove therefore never shows up in the next request on that thread. A service can replace it by
+declaring its own `ServletRequestMdcCleanupFilter` bean or registration. WebFlux needs no filter,
+because Reactor resets the MDC for each piece of work it runs.
+
 ## Blocking code
 
 Put the field once, where the request starts, and remove it when the request ends:
