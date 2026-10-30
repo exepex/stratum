@@ -40,8 +40,8 @@ class OrderService {
 </dependency>
 ```
 
-Every bundle starter (`stratum-starter-microservice`, `-web-ui`, `-batch` and `-cli`) already
-includes it, so add it on its own only when your service uses no bundle. The version comes from
+Every bundle starter (`stratum-starter-microservice`, `-reactive-microservice`, `-web-ui`, `-batch`
+and `-cli`) includes it, so add it on its own only when your service uses no bundle. The version comes from
 Stratum's parent or BOM ([installation](../../docs/getting-started/installation.md)).
 
 The starter does nothing until you switch it on. It also needs the service's name, which it writes

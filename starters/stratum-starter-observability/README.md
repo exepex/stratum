@@ -39,9 +39,9 @@ Collector's configuration, not your service.
 </dependency>
 ```
 
-The `stratum-starter-microservice`, `-web-ui` and `-batch` bundles already include it. The
-`-cli` bundle does not: a command-line tool adds it on its own when it needs it. The version comes
-from Stratum's parent or BOM ([installation](../../docs/getting-started/installation.md)).
+The `stratum-starter-microservice`, `-reactive-microservice`, `-web-ui` and `-batch` bundles
+include it; `-cli` does not, so a command-line tool adds it on its own when it needs it. The version
+comes from Stratum's parent or BOM ([installation](../../docs/getting-started/installation.md)).
 
 The starter does nothing until you switch it on, and once it is on it needs your Collector's
 addresses, in every profile. In `application.properties`:
