@@ -61,9 +61,10 @@ class ErrorResponsesIntegrationTest {
 
   @Test
   @DisplayName(
-      "a mapped StratumException gets its status and code, the trace ID and no stack trace")
+      "a mapped StratumException gets its status, code and trace ID, and no stack trace or path")
   void mappedStratumException() throws Exception {
-    var response = get("/orders/duplicate", MediaType.APPLICATION_JSON);
+    var path = "/orders/duplicate";
+    var response = get(path, MediaType.APPLICATION_JSON);
 
     assertProblem(response, HttpStatus.CONFLICT, "ORD-0001");
     assertThat(JsonPath.<String>read(response.body(), "$.detail"))
@@ -72,6 +73,7 @@ class ErrorResponsesIntegrationTest {
     assertThat(
             JsonPath.<String>read(response.body(), "$." + LoggingContextConstants.CORRELATION_ID))
         .isNotBlank();
+    assertThat(response.body()).doesNotContain(path);
   }
 
   @Test
