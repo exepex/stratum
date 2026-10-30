@@ -14,14 +14,30 @@
   <artifactId>stratum-starter-webmvc</artifactId>
 
   <name>Stratum starter: web MVC</name>
-  <description>Spring MVC for a service that is not reactive. Planned: error format, request fields, request log and timeouts.</description>
+  <description>Spring MVC with Stratum's error format, for a service that is not reactive. Planned: request fields, request log and timeouts.</description>
 
   <dependencies>
+    <dependency>
+      <groupId>com.exepex.stratum</groupId>
+      <artifactId>stratum-web</artifactId>
+    </dependency>
     <!-- The service's web server: Spring MVC on Tomcat. A reactive service uses
          stratum-starter-webflux instead, so the two stacks never meet in one service. -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-webmvc</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Puts trace and correlation IDs in the logging context, to prove that error bodies carry
+         them. Services add it themselves. -->
+    <dependency>
+      <groupId>com.exepex.stratum</groupId>
+      <artifactId>stratum-starter-observability</artifactId>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 </project>

@@ -37,7 +37,7 @@ stratum.environment=prod
 
 | Prefix | Module | Full table | Required settings |
 | --- | --- | --- | --- |
-| `stratum.web.*` | `stratum-starter-webmvc`, `stratum-starter-webflux` | [Web → Properties](../modules/web.md#properties) | none |
+| `stratum.web.*` | `stratum-starter-webmvc`, `stratum-starter-webflux` | [Web MVC → Properties](../../starters/stratum-starter-webmvc/README.md#properties), planned ones in [Web](../modules/web.md#properties) | none |
 | `stratum.logging.*` | `stratum-starter-logging` | [Logging → Properties](../../starters/stratum-starter-logging/README.md#properties) | none |
 | `stratum.observability.*` | `stratum-starter-observability` | [Observability → Properties](../../starters/stratum-starter-observability/README.md#properties) | Collector addresses, once enabled |
 | `stratum.security.*` | `stratum-starter-security` | [Security → Properties](../modules/security.md#properties) | `resource-server.issuer-uri` |
@@ -54,11 +54,11 @@ stratum.environment=prod
 
 Every module is off until you switch it on with one property. All default to `false`, so adding a
 starter, or a [bundle](../modules/bundles.md), sets nothing up by itself. A module's own switches,
-such as `stratum.web.correlation.enabled`, apply only once the module is on.
+such as `stratum.web.request-log.enabled`, apply only once the module is on.
 
 | Property | Switches on |
 | --- | --- |
-| `stratum.web.enabled` | Error format, correlation IDs, request logging, JSON settings |
+| `stratum.web.enabled` | Error format; planned: request fields, request log, correlation IDs, timeouts |
 | `stratum.logging.enabled` | Structured format and redaction |
 | `stratum.observability.enabled` | Stratum's metrics, tracing and health settings |
 | `stratum.security.enabled` | Stratum's security chain (Spring Security's defaults then apply) |
@@ -78,9 +78,6 @@ it and shows what it does. Details are on each module page.
 
 | Spring Boot property | Stratum default | Set by |
 | --- | --- | --- |
-| `spring.mvc.problemdetails.enabled` | `true` | web |
-| `server.error.include-stacktrace` | `never` | web |
-| `server.shutdown` | `graceful` | web |
 | `logging.structured.format.console` | `ecs` | logging |
 | `logging.structured.format.file` | `ecs` | logging |
 | `logging.structured.ecs.service.environment` | `${stratum.environment}` | logging |

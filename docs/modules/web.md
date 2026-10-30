@@ -1,7 +1,8 @@
 # Web: `stratum-starter-webmvc` and `stratum-starter-webflux`
 
-**Status: Planned.** Both starters exist and bring their Spring web stack, but Stratum's own web
-features below are not built yet. This page describes the agreed design.
+**Status: Partly built.** Error responses are built for Spring MVC, in `stratum-starter-webmvc`;
+see its [README](../../starters/stratum-starter-webmvc/README.md). Everything else on this page,
+and every feature of `stratum-starter-webflux`, is the agreed design and not built yet.
 
 [← Documentation home](../README.md) · Property prefix: `stratum.web` · Decision record:
 [ADR 0006](../adr/0006-separate-mvc-and-webflux-starters.md)
@@ -61,8 +62,8 @@ Every feature works the same on both stacks.
 
 | Feature | Behaviour |
 | --- | --- |
-| Error responses | Every error is [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457) JSON with a code, the trace ID and the correlation ID. Never a stack trace, exception message or class name |
-| HTML error page | A browser gets an HTML page with a reference number (the trace ID) that the user can quote to support |
+| Error responses (built for Spring MVC) | Every error is [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457) JSON with a code, the trace ID and the correlation ID. Never a stack trace, exception message or class name |
+| HTML error page (built for Spring MVC) | A browser gets an HTML page with a reference number (the trace ID) that the user can quote to support |
 | Request fields in logs | Every log line written during a request carries its method, route, path, query, client IP and caller, as separate fields |
 | Request log | One JSON line when each request ends, with its status and duration. Health checks and static files are left out |
 | Headers in logs | The request and response headers a team names are logged as fields. `Authorization`, `Cookie`, `Set-Cookie` and `X-Api-Key` never are |
@@ -107,7 +108,8 @@ field. The codes are listed in [Error and warning codes](../guides/error-codes.m
 
 ## Properties
 
-The settings decided so far. Each will work from `.properties`, `.yml` and Java.
+The settings decided so far. Each works from `.properties`, `.yml` and Java. The first two are
+built for Spring MVC; the others are planned.
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
@@ -121,9 +123,11 @@ The settings decided so far. Each will work from `.properties`, `.yml` and Java.
 
 ## Configure in Java
 
-**Planned.** Every setting will also be settable in Java through a `WebPropertiesCustomizer` class
-listed in `META-INF/spring.factories`, as for the other modules, and Java will win. A single API
-will also be able to set its own timeout with an annotation on its method.
+Every setting can also be set in Java, through a `WebPropertiesCustomizer` class listed in
+`META-INF/spring.factories`, as for the other modules, and Java wins. The
+[web MVC starter's README](../../starters/stratum-starter-webmvc/README.md#configure-in-java) shows
+an example. A single API will also be able to set its own timeout with an annotation on its method;
+that is planned.
 
 ## Switch it on or off
 

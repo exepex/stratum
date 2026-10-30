@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.exepex.stratum</groupId>
+    <artifactId>stratum-library-parent</artifactId>
+    <version>${revision}</version>
+    <relativePath>../../platform/stratum-library-parent/pom.xml</relativePath>
+  </parent>
+
+  <artifactId>stratum-web</artifactId>
+
+  <name>Stratum web</name>
+  <description>What stratum-starter-webmvc and stratum-starter-webflux share: the web settings and the error format.</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.exepex.stratum</groupId>
+      <artifactId>stratum-core</artifactId>
+    </dependency>
+    <!-- Spring's HTTP types that both web stacks use, such as ProblemDetail. Each starter brings its
+         own stack on top of it. -->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>

@@ -37,7 +37,8 @@ stratum/
 │   └── stratum-parent/             # parent POM for services: adds the executable jar and build info
 ├── libs/
 │   ├── stratum-core/               # shared internals: constants, property defaults
-│   └── stratum-test/               # test support for services
+│   ├── stratum-test/               # test support for services
+│   └── stratum-web/                # what both web starters share: settings, error format
 ├── starters/
 │   ├── stratum-starter-batch/      # bundle: data-jpa, logging, observability
 │   ├── stratum-starter-cache/

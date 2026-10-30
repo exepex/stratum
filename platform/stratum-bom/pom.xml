@@ -120,6 +120,11 @@
         <version>${project.version}</version>
       </dependency>
       <dependency>
+        <groupId>com.exepex.stratum</groupId>
+        <artifactId>stratum-web</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
         <groupId>com.googlecode.libphonenumber</groupId>
         <artifactId>libphonenumber</artifactId>
         <version>${libphonenumber.version}</version>

@@ -47,6 +47,7 @@ Each module page follows the same layout so you always know where to look:
 | Parent POM and BOM | [parent-and-bom.md](modules/parent-and-bom.md) |
 | Bundle starters (one dependency per kind of application) | [bundles.md](modules/bundles.md) |
 | Web, for Spring MVC and WebFlux (errors, request logs, correlation IDs, timeouts) | [web.md](modules/web.md) |
+| Web MVC (error responses for Spring MVC services) | [stratum-starter-webmvc/README.md](../starters/stratum-starter-webmvc/README.md) |
 | Logging | [stratum-starter-logging/README.md](../starters/stratum-starter-logging/README.md) |
 | Observability (metrics, tracing, health) | [stratum-starter-observability/README.md](../starters/stratum-starter-observability/README.md) |
 | Security (resource server, JWT) | [security.md](modules/security.md) |

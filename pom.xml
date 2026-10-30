@@ -41,6 +41,7 @@
     <!-- Shared libraries -->
     <module>libs/stratum-core</module>
     <module>libs/stratum-test</module>
+    <module>libs/stratum-web</module>
 
     <!-- Starters -->
     <module>starters/stratum-starter-batch</module>
