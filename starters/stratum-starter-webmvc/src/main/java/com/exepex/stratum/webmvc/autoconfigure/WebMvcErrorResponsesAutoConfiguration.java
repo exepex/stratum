@@ -128,6 +128,8 @@ public final class WebMvcErrorResponsesAutoConfiguration {
    * Spring Boot's default page off with {@code spring.web.error.whitelabel.enabled=false}.
    */
   @Configuration(proxyBeanMethods = false)
+  @ConditionalOnStratumModule(WebConstants.MODULE)
+  @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
   @ConditionalOnBooleanProperty(name = "spring.web.error.whitelabel.enabled", matchIfMissing = true)
   @Conditional(ErrorTemplateMissingCondition.class)
   public static class ReferenceErrorPageConfiguration {

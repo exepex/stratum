@@ -7,6 +7,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.core.error.ErrorCode;
 import com.exepex.stratum.core.properties.StratumPropertiesCustomizer;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
@@ -42,6 +43,9 @@ public class StarterTestSupport {
 
   /** The annotation every method in a starter's autoconfigure package carries (ST-ENG-23). */
   private static final String BEAN = "org.springframework.context.annotation.Bean";
+
+  /** The annotation behind every class a component scan picks up, such as {@code @Service}. */
+  private static final String COMPONENT = "org.springframework.stereotype.Component";
 
   /**
    * Runs the work with the customizers listed in a {@code META-INF/spring.factories}, as a
@@ -84,11 +88,19 @@ public class StarterTestSupport {
    * @param classInStarterPackage any class in the starter's top package, such as its constants
    */
   public static void checkStarterArchitecture(Class<?> classInStarterPackage) {
-    starterArchitecture(classInStarterPackage.getPackageName())
-        .check(
-            new ClassFileImporter()
-                .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
-                .importPackagesOf(classInStarterPackage));
+    checkModuleClasses(
+        starterArchitecture(classInStarterPackage.getPackageName()), classInStarterPackage);
+  }
+
+  /**
+   * Checks that a module's classes stay off while the module is off, even when a service's
+   * component scan reaches Stratum's packages (ST-ENG-20). A starter gets this check from {@link
+   * #checkStarterArchitecture}; a library calls it itself.
+   *
+   * @param classInModulePackage any class in the module's top package, such as its constants
+   */
+  public static void checkSafeToScan(Class<?> classInModulePackage) {
+    checkModuleClasses(safeToScan(), classInModulePackage);
   }
 
   /**
@@ -148,6 +160,30 @@ public class StarterTestSupport {
                         .or(
                             resideInAnyPackage(
                                 starterPackage + "..", "com.exepex.stratum.core.."))))
-        .and(slices().matching("com.exepex.stratum.(**)").should().beFreeOfCycles());
+        .and(slices().matching("com.exepex.stratum.(**)").should().beFreeOfCycles())
+        .and(safeToScan());
+  }
+
+  /**
+   * Returns the rule that every class a component scan would pick up carries the module's switch. A
+   * module with no such class passes.
+   *
+   * @return the rule
+   */
+  static ArchRule safeToScan() {
+    return classes()
+        .that()
+        .areMetaAnnotatedWith(COMPONENT)
+        .should()
+        .beAnnotatedWith(ConditionalOnStratumModule.class)
+        .allowEmptyShould(true);
+  }
+
+  /** Checks the rule against the module's own classes, without its tests. */
+  private static void checkModuleClasses(ArchRule rule, Class<?> classInModulePackage) {
+    rule.check(
+        new ClassFileImporter()
+            .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+            .importPackagesOf(classInModulePackage));
   }
 }

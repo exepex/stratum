@@ -32,6 +32,11 @@
       <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>com.exepex.stratum</groupId>
+      <artifactId>stratum-test</artifactId>
+      <scope>test</scope>
+    </dependency>
     <!-- Puts trace and correlation IDs in the logging context, to prove that error bodies carry
          them. Services add it themselves. -->
     <dependency>

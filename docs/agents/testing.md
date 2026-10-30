@@ -53,8 +53,10 @@ conventions. Each rule has an ID so that reviews and judge verdicts can cite it.
   - the same settings applied through the Java configuration (ST-ENG-34), and the Java value winning when both are
     set.
 - **ST-TEST-21** ArchUnit tests (`*ArchTest`) check that the `autoconfigure` package only wires beans, that no
-  starter uses another starter's internal classes, and that packages have no cycles. A starter checks these with
-  `StarterTestSupport.checkStarterArchitecture`, and its codes with `StarterTestSupport.checkErrorCodes`.
+  starter uses another starter's internal classes, that packages have no cycles, and that every class a component
+  scan picks up carries the module switch (ST-ENG-20). A starter checks these with
+  `StarterTestSupport.checkStarterArchitecture`, and its codes with `StarterTestSupport.checkErrorCodes`. A library
+  other than `stratum-core` checks the switch rule with `StarterTestSupport.checkSafeToScan`.
 
 ## Integration tests
 

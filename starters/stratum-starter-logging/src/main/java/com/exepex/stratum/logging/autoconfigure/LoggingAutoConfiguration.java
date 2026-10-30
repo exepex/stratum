@@ -91,6 +91,7 @@ public final class LoggingAutoConfiguration {
    * uses to apply aspects. A nested class, so the aspect's AspectJ types are only loaded then.
    */
   @Configuration(proxyBeanMethods = false)
+  @ConditionalOnStratumModule(LoggingConstants.MODULE)
   @ConditionalOnClass(Advice.class)
   public static class WorkflowAnnotationConfiguration {
 
@@ -116,6 +117,7 @@ public final class LoggingAutoConfiguration {
    * class, so Reactor's types are only loaded then.
    */
   @Configuration(proxyBeanMethods = false)
+  @ConditionalOnStratumModule(LoggingConstants.MODULE)
   @ConditionalOnClass(Mono.class)
   public static class ReactiveWorkflowConfiguration {
 
@@ -138,6 +140,7 @@ public final class LoggingAutoConfiguration {
    * types are only loaded then.
    */
   @Configuration(proxyBeanMethods = false)
+  @ConditionalOnStratumModule(LoggingConstants.MODULE)
   @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
   @ConditionalOnClass(Filter.class)
   public static class ServletRequestMdcCleanupConfiguration {

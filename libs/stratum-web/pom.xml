@@ -32,5 +32,10 @@
       <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>com.exepex.stratum</groupId>
+      <artifactId>stratum-test</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 </project>

@@ -6,6 +6,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 
+import com.exepex.stratum.test.StarterTestSupport;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.ArchRule;
@@ -64,6 +65,12 @@ class WebMvcArchTest {
   @DisplayName("The starter's packages have no cycles")
   void packagesHaveNoCycles() {
     checkStarterClasses(slices().matching("com.exepex.stratum.(**)").should().beFreeOfCycles());
+  }
+
+  @Test
+  @DisplayName("Every class a component scan picks up carries the module switch")
+  void safeToScan() {
+    StarterTestSupport.checkSafeToScan(StratumExceptionHandler.class);
   }
 
   /** Checks the rule against the starter's own classes, without its tests. */

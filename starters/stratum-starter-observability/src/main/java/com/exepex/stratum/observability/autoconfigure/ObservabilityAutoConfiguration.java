@@ -137,6 +137,7 @@ public final class ObservabilityAutoConfiguration {
    * class, so Reactor's types are only loaded then.
    */
   @Configuration(proxyBeanMethods = false)
+  @ConditionalOnStratumModule(ObservabilityConstants.MODULE)
   @ConditionalOnClass(Mono.class)
   public static class ReactiveLinkedWorkConfiguration {
 

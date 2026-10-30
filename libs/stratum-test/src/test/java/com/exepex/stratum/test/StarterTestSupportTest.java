@@ -7,6 +7,7 @@ import com.exepex.stratum.core.error.CoreErrorCode;
 import com.exepex.stratum.core.error.ErrorCode;
 import com.exepex.stratum.core.error.Severity;
 import com.exepex.stratum.core.properties.StratumPropertiesCustomizer;
+import com.exepex.stratum.test.fixture.UnswitchedGreeter;
 import com.exepex.stratum.test.fixture.autoconfigure.GreetingAutoConfiguration;
 import com.exepex.stratum.test.fixture.autoconfigure.GreetingFormatter;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
@@ -100,6 +101,17 @@ class StarterTestSupportTest {
 
       assertThat(result.getFailureReport().getDetails())
           .anyMatch(detail -> detail.contains(GreetingFormatter.class.getName()));
+    }
+
+    @Test
+    @DisplayName("fail for a class a component scan picks up without the module switch")
+    void failForScannableClassWithoutModuleSwitch() {
+      var result =
+          StarterTestSupport.safeToScan()
+              .evaluate(new ClassFileImporter().importClasses(UnswitchedGreeter.class));
+
+      assertThat(result.getFailureReport().getDetails())
+          .anyMatch(detail -> detail.contains(UnswitchedGreeter.class.getName()));
     }
   }
 
