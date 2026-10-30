@@ -49,6 +49,7 @@ public final class LoggingAutoConfiguration {
    * @return the registration, removed when the application stops
    */
   @Bean
+  @Fallback
   @ConditionalOnMissingBean
   public ServiceMdcFieldsPropagation serviceMdcFieldsPropagation() {
     return new ServiceMdcFieldsPropagation();
