@@ -20,7 +20,7 @@
   <artifactId>stratum-starter-web-ui</artifactId>
 
   <name>Stratum bundle: web-ui</name>
-  <description>Bundle for a server-rendered web application: web, logging, observability and security.</description>
+  <description>Bundle for a server-rendered web application: web MVC, logging, observability and security.</description>
 
   <!-- Keep the starters sorted by name. -->
   <dependencies>
@@ -38,7 +38,7 @@
     </dependency>
     <dependency>
       <groupId>com.exepex.stratum</groupId>
-      <artifactId>stratum-starter-web</artifactId>
+      <artifactId>stratum-starter-webmvc</artifactId>
     </dependency>
   </dependencies>
 </project>

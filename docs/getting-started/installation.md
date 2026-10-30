@@ -89,13 +89,13 @@ What each option contains in detail: [Parent POM and BOM](../modules/parent-and-
 ## Step 2: add the starters you need
 
 The quickest way is one [bundle starter](../modules/bundles.md) for your kind of application:
-`stratum-starter-microservice`, `stratum-starter-web-ui`, `stratum-starter-batch` or
-`stratum-starter-cli`. Or pick single starters that match what your service does. You can add more
-later.
+`stratum-starter-microservice`, `stratum-starter-reactive-microservice`, `stratum-starter-web-ui`,
+`stratum-starter-batch` or `stratum-starter-cli`. Or pick single starters that match what your
+service does. You can add more later.
 
 | Your service... | Add |
 | --- | --- |
-| Exposes a REST API | `stratum-starter-web`, `stratum-starter-observability`, `stratum-starter-logging` |
+| Exposes a REST API | `stratum-starter-webmvc` (or `stratum-starter-webflux` if it is reactive), `stratum-starter-observability`, `stratum-starter-logging` |
 | Requires a valid token on its API | `stratum-starter-security` |
 | Calls other services over HTTP | `stratum-starter-http-client` (and `stratum-starter-resilience` for retries and circuit breakers) |
 | Calls secured services | `stratum-starter-oauth2-client` |
@@ -111,7 +111,7 @@ A typical REST service that calls one other service:
 <dependencies>
   <dependency>
     <groupId>com.exepex.stratum</groupId>
-    <artifactId>stratum-starter-web</artifactId>
+    <artifactId>stratum-starter-webmvc</artifactId>
   </dependency>
   <dependency>
     <groupId>com.exepex.stratum</groupId>
@@ -146,7 +146,7 @@ Rules that keep you out of trouble:
 - **Never write a `<version>`** for a Stratum starter or for a library Stratum manages. The parent or
   BOM decides it. A hard-coded version is the most common cause of startup errors after an upgrade.
 - **Do not add the Spring Boot starter as well** when a Stratum starter covers it. For example,
-  `stratum-starter-web` already brings Spring MVC.
+  `stratum-starter-webmvc` already brings Spring MVC.
 - **Need a library Stratum does not manage?** Add it with a version as usual. If several services
   need it, propose it for the BOM (see [Contributing](../contributing.md)).
 

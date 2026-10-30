@@ -53,10 +53,12 @@
     <module>starters/stratum-starter-microservice</module>
     <module>starters/stratum-starter-oauth2-client</module>
     <module>starters/stratum-starter-observability</module>
+    <module>starters/stratum-starter-reactive-microservice</module>
     <module>starters/stratum-starter-resilience</module>
     <module>starters/stratum-starter-security</module>
-    <module>starters/stratum-starter-web</module>
     <module>starters/stratum-starter-web-ui</module>
+    <module>starters/stratum-starter-webflux</module>
+    <module>starters/stratum-starter-webmvc</module>
   </modules>
 
   <properties>

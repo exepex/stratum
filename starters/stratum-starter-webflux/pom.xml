@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.exepex.stratum</groupId>
+    <artifactId>stratum-library-parent</artifactId>
+    <version>${revision}</version>
+    <relativePath>../../platform/stratum-library-parent/pom.xml</relativePath>
+  </parent>
+
+  <artifactId>stratum-starter-webflux</artifactId>
+
+  <name>Stratum starter: WebFlux</name>
+  <description>Spring WebFlux for a reactive service. Planned: error format, request fields, request log and timeouts.</description>
+
+  <dependencies>
+    <!-- The service's web server: Spring WebFlux on Netty. A service that is not reactive uses
+         stratum-starter-webmvc instead, so the two stacks never meet in one service. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-webflux</artifactId>
+    </dependency>
+  </dependencies>
+</project>

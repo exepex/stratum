@@ -86,6 +86,11 @@
       </dependency>
       <dependency>
         <groupId>com.exepex.stratum</groupId>
+        <artifactId>stratum-starter-reactive-microservice</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.exepex.stratum</groupId>
         <artifactId>stratum-starter-resilience</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -96,12 +101,17 @@
       </dependency>
       <dependency>
         <groupId>com.exepex.stratum</groupId>
-        <artifactId>stratum-starter-web</artifactId>
+        <artifactId>stratum-starter-web-ui</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
         <groupId>com.exepex.stratum</groupId>
-        <artifactId>stratum-starter-web-ui</artifactId>
+        <artifactId>stratum-starter-webflux</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.exepex.stratum</groupId>
+        <artifactId>stratum-starter-webmvc</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>

@@ -1,8 +1,9 @@
 # Bundle starters: one dependency per kind of application
 
-**Status: Built as POMs, not released.** The four bundles exist and pass `mvn verify`. Of the
-single starters they list, only logging and observability are built so far; the others are still
-planned and add nothing yet.
+**Status: Built as POMs, not released.** The five bundles exist and pass `mvn verify`. Of the
+single starters they list, logging and observability are built. The web starters bring their Spring
+web stack, Spring MVC or WebFlux, so a bundle starts a web server, but Stratum's own web features
+are still planned. The other starters are planned and add nothing yet.
 
 [← Documentation home](../README.md) · Decision record: [ADR 0003](../adr/0003-bundle-starters-and-module-switches.md)
 
@@ -20,8 +21,9 @@ classpath. A single starter never pulls in another unrelated starter.
 
 | Bundle | For | Single starters it adds |
 | --- | --- | --- |
-| `stratum-starter-microservice` | A REST service that other services call | web, logging, observability, http-client, resilience, security |
-| `stratum-starter-web-ui` | A server-rendered web application | web, logging, observability, security |
+| `stratum-starter-microservice` | A REST service that other services call | webmvc, logging, observability, http-client, resilience, security |
+| `stratum-starter-reactive-microservice` | The same, written with WebFlux (`Mono` and `Flux`) | webflux, logging, observability, http-client, resilience, security |
+| `stratum-starter-web-ui` | A server-rendered web application | webmvc, logging, observability, security |
 | `stratum-starter-batch` | A batch job that reads and writes a database | data-jpa, logging, observability |
 | `stratum-starter-cli` | A command-line application | logging |
 
@@ -63,7 +65,7 @@ are on, such as the observability module's Collector addresses
 ([installation](../getting-started/installation.md)).
 
 > [!WARNING]
-> Once the security starter is built (it is planned), the microservice and web-ui bundles will bring
+> Once the security starter is built (it is planned), the microservice, reactive microservice and web-ui bundles will bring
 > Spring Security with it. While `stratum.security.enabled` is unset, Spring Boot's default will
 > apply and every endpoint will ask for a login. Switch security on and set its issuer, as
 > [Security](security.md) shows, or exclude the starter as in

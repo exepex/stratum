@@ -53,7 +53,7 @@ order-service/
   <dependencies>
     <dependency>
       <groupId>com.exepex.stratum</groupId>
-      <artifactId>stratum-starter-web</artifactId>
+      <artifactId>stratum-starter-webmvc</artifactId>
     </dependency>
     <dependency>
       <groupId>com.exepex.stratum</groupId>
@@ -234,8 +234,8 @@ class OutOfStockException extends RuntimeException {
 
 | You get | Because of |
 | --- | --- |
-| Invalid input returns `400` with a list of field errors | `stratum-starter-web` validation and error handling |
-| `OutOfStockException` returns `409` as Problem Details JSON | `stratum-starter-web` error handling |
+| Invalid input returns `400` with a list of field errors | `stratum-starter-webmvc` validation and error handling |
+| `OutOfStockException` returns `409` as Problem Details JSON | `stratum-starter-webmvc` error handling |
 | Every log line carries `trace.id`, `span.id` and `correlation_id` | `stratum-starter-logging` |
 | The call to inventory carries the trace and correlation headers | `stratum-starter-http-client` |
 | The call to inventory times out after 2 s instead of hanging | Your `read-timeout` plus Stratum's connect timeout |

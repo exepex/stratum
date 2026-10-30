@@ -52,7 +52,7 @@ metric names or tags may need updating.
 
 ## Step 4: web
 
-Add `stratum-starter-web`. Remove:
+Add `stratum-starter-webmvc`, or `stratum-starter-webflux` for a reactive service. Remove:
 
 - a global `@RestControllerAdvice` that only formats errors (keep handlers for your business
   exceptions, or turn those exceptions into `ErrorResponseException`);
@@ -102,7 +102,7 @@ tests to `*IntegrationTest.java` so they run in `mvn verify`.
 | Removed | Replaced by |
 | --- | --- |
 | Logback XML, encoders, MDC filters | `stratum-starter-logging` |
-| Error advice, correlation filter | `stratum-starter-web` |
+| Error advice, correlation filter | `stratum-starter-webmvc` or `stratum-starter-webflux` |
 | `SecurityFilterChain`, `JwtDecoder`, converters | `stratum-starter-security` |
 | `RestTemplate` beans, interceptors, timeout config | `stratum-starter-http-client` |
 | Retry loops, circuit breaker config | `stratum-starter-resilience` |
