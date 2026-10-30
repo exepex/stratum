@@ -7,6 +7,7 @@ import com.exepex.stratum.logging.mdc.ServletRequestMdcCleanupFilter;
 import com.exepex.stratum.logging.mdc.ServletRequestMdcCleanupListener;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.Filter;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -17,6 +18,7 @@ import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.boot.web.servlet.ServletListenerRegistrationBean;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 
 @DisplayName("A servlet application gets the filter that cleans the MDC after each request")
@@ -97,18 +99,16 @@ class ServletRequestMdcCleanupConfigurationTest {
   @Test
   @DisplayName("the service's own listener registration replaces Stratum's")
   void serviceListenerWins() {
-    var serviceListener =
-        new ServletListenerRegistrationBean<>(new ServletRequestMdcCleanupListener());
     servletContextRunner
         .withPropertyValues(MODULE_ON)
-        .withBean(
-            "serviceMdcCleanupListener",
-            ServletListenerRegistrationBean.class,
-            () -> serviceListener)
+        .withUserConfiguration(ServiceListenerConfiguration.class)
         .run(
             context ->
-                assertThat(context.getBean(ServletListenerRegistrationBean.class))
-                    .isSameAs(serviceListener));
+                assertThat(context.getBeansOfType(ServletListenerRegistrationBean.class))
+                    .containsExactly(
+                        Map.entry(
+                            "serviceMdcCleanupListener",
+                            ServiceListenerConfiguration.REGISTRATION)));
   }
 
   @Test
@@ -140,6 +140,25 @@ class ServletRequestMdcCleanupConfigurationTest {
      */
     @Bean
     FilterRegistrationBean<ServletRequestMdcCleanupFilter> companyMdcCleanupFilter() {
+      return REGISTRATION;
+    }
+  }
+
+  /** A service's configuration with its own registration of the listener. */
+  @Configuration(proxyBeanMethods = false)
+  static class ServiceListenerConfiguration {
+
+    /** The service's registration of the listener. */
+    static final ServletListenerRegistrationBean<ServletRequestMdcCleanupListener> REGISTRATION =
+        new ServletListenerRegistrationBean<>(new ServletRequestMdcCleanupListener());
+
+    /**
+     * Returns the service's registration.
+     *
+     * @return the registration
+     */
+    @Bean
+    ServletListenerRegistrationBean<ServletRequestMdcCleanupListener> serviceMdcCleanupListener() {
       return REGISTRATION;
     }
   }

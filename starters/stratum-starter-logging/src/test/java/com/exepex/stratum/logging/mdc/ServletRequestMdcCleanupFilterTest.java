@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRequestEvent;
 import java.util.Map;
+import java.util.concurrent.Executors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -107,6 +108,65 @@ class ServletRequestMdcCleanupFilterTest {
 
     assertThat(MDC.getCopyOfContextMap()).isNullOrEmpty();
     assertThat(request.getAttribute(ServletRequestMdcCleanupFilter.RESTORE_MDC_ATTRIBUTE)).isNull();
+  }
+
+  @Test
+  @DisplayName(
+      "when the error page fails too, the listener still restores the MDC from before the first"
+          + " failure")
+  void failingErrorPageKeepsTheFirstFailuresRestore() {
+    var request = new MockHttpServletRequest();
+    failWithCustomer(request, CUSTOMER);
+    failWithCustomer(request, "CUST-BOOM");
+
+    new ServletRequestMdcCleanupListener()
+        .requestDestroyed(new ServletRequestEvent(new MockServletContext(), request));
+
+    assertThat(MDC.getCopyOfContextMap()).isNullOrEmpty();
+  }
+
+  /** Runs a dispatch of the request that puts the customer and then fails. */
+  private void failWithCustomer(MockHttpServletRequest request, String customer) {
+    assertThatThrownBy(
+            () ->
+                filter.doFilter(
+                    request,
+                    new MockHttpServletResponse(),
+                    (failingRequest, response) -> {
+                      MDC.put(CUSTOMER_ID, customer);
+                      throw new ServletException("handler failed");
+                    }))
+        .isInstanceOf(ServletException.class);
+  }
+
+  @Test
+  @DisplayName("the stored restore leaves the MDC of any thread but the failed one alone")
+  void storedRestoreActsOnlyOnTheFailedThread() throws Exception {
+    var request = new MockHttpServletRequest();
+    assertThatThrownBy(
+            () ->
+                filter.doFilter(
+                    request,
+                    new MockHttpServletResponse(),
+                    (failingRequest, response) -> {
+                      throw new ServletException("handler failed");
+                    }))
+        .isInstanceOf(ServletException.class);
+    var restoreMdc =
+        (Runnable) request.getAttribute(ServletRequestMdcCleanupFilter.RESTORE_MDC_ATTRIBUTE);
+
+    try (var otherThread = Executors.newSingleThreadExecutor()) {
+      var otherThreadMdc =
+          otherThread
+              .submit(
+                  () -> {
+                    MDC.put(TENANT_ID, TENANT);
+                    restoreMdc.run();
+                    return MDC.getCopyOfContextMap();
+                  })
+              .get();
+      assertThat(otherThreadMdc).containsExactlyEntriesOf(Map.of(TENANT_ID, TENANT));
+    }
   }
 
   @Test

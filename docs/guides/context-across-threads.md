@@ -25,9 +25,12 @@ nothing. The next request served by the same pool thread starts clean.
 The server's own request threads are cleaned too. In a servlet application, the logging starter
 registers `ServletRequestMdcCleanupFilter` first in the filter chain, and it puts the MDC back as it
 was when each request ends, also on async and error dispatches. A field a handler puts and forgets
-to remove therefore never shows up in the next request on that thread. When a request fails with an
-exception nothing handles, the fields stay until the server has logged it, so that line still names
-the request, and `ServletRequestMdcCleanupListener` cleans them when the request ends.
+to remove therefore never shows up in the next request on that thread.
+
+When a request fails with an exception nothing handles, the fields stay until Tomcat has logged the
+failure, so that line still names the request. They are then cleaned by the error page's dispatch,
+or by `ServletRequestMdcCleanupListener` when there is no error page. Jetty writes its line after
+the request ends, so on Jetty that line has no request fields; nothing leaks there either.
 
 To replace the filter, declare a `FilterRegistrationBean<ServletRequestMdcCleanupFilter>` with the
 same order and dispatcher types, and keep the listener registered; a plain `ServletRequestMdcCleanupFilter` bean also replaces it, but Spring Boot then runs it last

@@ -49,8 +49,10 @@ public class ServletRequestMdcCleanupFilter implements Filter {
         keepFieldsUntilFailureIsLogged(request, mdcBeforeDispatch);
       } else if (request.getAttribute(RESTORE_MDC_ATTRIBUTE) instanceof Runnable restoreMdc) {
         // The error page ran after the server logged the failure, so restore the MDC from before
-        // the failure now, on this thread, before the thread can go back to the pool.
+        // the failure now, before the thread can go back to the pool. The stored restore only acts
+        // on the failed request's thread; on any other, this dispatch's own snapshot stands.
         request.removeAttribute(RESTORE_MDC_ATTRIBUTE);
+        MDC.setContextMap(mdcBeforeDispatch);
         restoreMdc.run();
       } else {
         MDC.setContextMap(mdcBeforeDispatch);
