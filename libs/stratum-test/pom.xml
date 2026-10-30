@@ -14,5 +14,29 @@
   <artifactId>stratum-test</artifactId>
 
   <name>Stratum test</name>
-  <description>Planned: Test support for services: JUnit 5, AssertJ, Mockito, Testcontainers, HTTP stubs and JWT helpers.</description>
+  <description>Test support: the checks every Stratum starter's tests share today, and, planned, test support for services: JUnit 5, AssertJ, Mockito, Testcontainers, HTTP stubs and JWT helpers.</description>
+
+  <!-- Teams add this module in test scope only, so its libraries never reach a running service. -->
+  <dependencies>
+    <dependency>
+      <groupId>com.exepex.stratum</groupId>
+      <artifactId>stratum-core</artifactId>
+    </dependency>
+    <!-- The starter architecture rules (ST-TEST-21). The parent adds ArchUnit for tests only; the
+         checks here need it at compile time. -->
+    <dependency>
+      <groupId>com.tngtech.archunit</groupId>
+      <artifactId>archunit</artifactId>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
 </project>

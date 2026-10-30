@@ -5,8 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.logging.LoggingProperties.LogFormat;
 import com.exepex.stratum.logging.testsupport.LockerCodeLoggingSettings;
-import com.exepex.stratum.logging.testsupport.LoggingTestData;
 import com.exepex.stratum.logging.testsupport.OversizedFieldLoggingSettings;
+import com.exepex.stratum.test.StarterTestSupport;
 import jakarta.validation.ConstraintViolationException;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -29,8 +29,9 @@ class LoggingPropertiesTest {
   @DisplayName("a customizer listed in spring.factories wins over the files")
   void javaConfigurationWins(@TempDir Path folder) throws IOException {
     var properties =
-        LoggingTestData.withCustomizers(
+        StarterTestSupport.withCustomizers(
             folder,
+            LoggingPropertiesCustomizer.class,
             List.of(LockerCodeLoggingSettings.class),
             () -> LoggingProperties.resolve(environment));
 
@@ -54,8 +55,9 @@ class LoggingPropertiesTest {
     assertThatExceptionOfType(ConstraintViolationException.class)
         .isThrownBy(
             () ->
-                LoggingTestData.withCustomizers(
+                StarterTestSupport.withCustomizers(
                     folder,
+                    LoggingPropertiesCustomizer.class,
                     List.of(OversizedFieldLoggingSettings.class),
                     () -> LoggingProperties.resolve(environment)))
         .withMessage(

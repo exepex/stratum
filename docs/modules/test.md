@@ -2,6 +2,8 @@
 
 **Status: Planned.** One test dependency with everything a Stratum service needs for unit, mock and
 integration tests: JUnit 5, AssertJ, Mockito, Testcontainers, HTTP stubs and security helpers.
+Today the module holds only `StarterTestSupport`, the checks that Stratum's own starters' tests share;
+a service has no use for it yet.
 
 [← Documentation home](../README.md) · Property prefix: `stratum.test`
 

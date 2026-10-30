@@ -26,8 +26,9 @@ cite it.
   behaviour (headers, HTTP clients, error responses, retries, logging, test containers), find the Stratum module that
   already provides it and use it. When the same lines appear in a second place, move them into one method or class
   that both call. When a rule would have every module repeat the same code, the rule names a shared method for the
-  modules to call instead. When two modules need the same test code and no shared place for it exists yet, ask the
-  owner where it goes instead of copying it; a copy the owner has approved is not a finding.
+  modules to call instead. Test code that several starters need goes into `StarterTestSupport` in `stratum-test`,
+  which the starters use in test scope; for any other shared test code with no shared place yet, ask the owner where
+  it goes instead of copying it. A copy the owner has approved is not a finding.
 - **ST-ENG-07 Patterns where they remove complexity.** Before writing an `if` or `switch` chain, copying a sequence
   of steps or adding a constructor with many arguments, check whether one of these fits:
   - Strategy, for behaviour that varies by type or setting;
@@ -101,8 +102,8 @@ for the service, not how it is built.
 - **ST-ENG-17 Merge only one job.** Two classes become one only when they do the same job and change together, such
   as two small test data classes for one module. Never merge to reduce the number of classes if the result does two
   jobs.
-- **ST-ENG-18 Reuse before you write.** Before adding a method or class, search the module, `stratum-core` and the
-  `testsupport` packages for one that already does the job, and use it.
+- **ST-ENG-18 Reuse before you write.** Before adding a method or class, search the module, `stratum-core`,
+  `stratum-test` and the `testsupport` packages for one that already does the job, and use it.
 
 ## Auto-configuration and beans
 
