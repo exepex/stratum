@@ -1,0 +1,95 @@
+package com.exepex.stratum.webflux;
+
+import com.exepex.stratum.core.error.StratumException;
+import com.exepex.stratum.web.ReferencePage;
+import java.util.Map;
+import org.springframework.boot.autoconfigure.web.ErrorProperties;
+import org.springframework.boot.autoconfigure.web.WebProperties.Resources;
+import org.springframework.boot.web.error.ErrorAttributeOptions;
+import org.springframework.boot.webflux.autoconfigure.error.DefaultErrorWebExceptionHandler;
+import org.springframework.boot.webflux.error.ErrorAttributes;
+import org.springframework.context.ApplicationContext;
+import org.springframework.http.MediaType;
+import org.springframework.web.reactive.function.server.ServerRequest;
+import org.springframework.web.reactive.function.server.ServerResponse;
+import reactor.core.publisher.Mono;
+
+/**
+ * Spring Boot's error handler for WebFlux, which answers every request that failed outside the
+ * service's own exception handlers, with three changes: Stratum's body is sent as {@code
+ * application/problem+json}, a browser's default page is Stratum's {@link ReferencePage}, and a
+ * {@code StratumException} is not logged a second time. The service's error templates, such as
+ * {@code templates/error/404.html}, still win, as in Spring Boot.
+ */
+public class StratumErrorWebExceptionHandler extends DefaultErrorWebExceptionHandler {
+
+  /**
+   * Whether the bodies are Stratum's, so that a service's own {@link ErrorAttributes} keep Spring
+   * Boot's media type.
+   */
+  private final boolean stratumBodies;
+
+  /**
+   * Makes the handler, as Spring Boot makes its own.
+   *
+   * @param errorAttributes the error attributes, Stratum's or the service's
+   * @param resources where static error pages are looked for
+   * @param errorProperties Spring Boot's error settings, such as whether the default page is on
+   * @param applicationContext the application's context, where error templates are looked for
+   */
+  public StratumErrorWebExceptionHandler(
+      ErrorAttributes errorAttributes,
+      Resources resources,
+      ErrorProperties errorProperties,
+      ApplicationContext applicationContext) {
+    super(errorAttributes, resources, errorProperties, applicationContext);
+    this.stratumBodies = errorAttributes instanceof StratumErrorAttributes;
+  }
+
+  /**
+   * Returns the error body as JSON, with the Problem Details media type when the body is Stratum's.
+   *
+   * @param request the failed request
+   * @return the response
+   */
+  @Override
+  protected Mono<ServerResponse> renderErrorResponse(ServerRequest request) {
+    if (!stratumBodies) {
+      return super.renderErrorResponse(request);
+    }
+    var body = getErrorAttributes(request, ErrorAttributeOptions.defaults());
+    return ServerResponse.status(getHttpStatus(body))
+        .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+        .bodyValue(body);
+  }
+
+  /**
+   * Returns Stratum's reference page, which replaces Spring Boot's whitelabel page.
+   *
+   * @param responseBody the response with its status set
+   * @param error the error body's members
+   * @return the response
+   */
+  @Override
+  protected Mono<ServerResponse> renderDefaultErrorView(
+      ServerResponse.BodyBuilder responseBody, Map<String, Object> error) {
+    return responseBody
+        .contentType(MediaType.parseMediaType(ReferencePage.CONTENT_TYPE))
+        .bodyValue(ReferencePage.of(error));
+  }
+
+  /**
+   * Logs the failure as Spring Boot does, except a {@code StratumException} that Stratum's error
+   * attributes answered, which logged it already.
+   *
+   * @param request the failed request
+   * @param response the response
+   * @param throwable what the request failed with
+   */
+  @Override
+  protected void logError(ServerRequest request, ServerResponse response, Throwable throwable) {
+    if (!(stratumBodies && throwable instanceof StratumException)) {
+      super.logError(request, response, throwable);
+    }
+  }
+}

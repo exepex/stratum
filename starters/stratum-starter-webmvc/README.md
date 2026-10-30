@@ -6,8 +6,9 @@ and the correlation ID, and never a stack trace or an exception message. Browser
 with a reference to quote to support. Request fields in logs, the request log, timeouts and the body
 size limit are [planned](#planned).
 
-This page covers this starter only. The design both web starters share, and the reactive starter,
-are in [Web](../../docs/modules/web.md). How Stratum works as a whole is in the
+This page covers this starter only. The design both web starters share is in
+[Web](../../docs/modules/web.md), and the reactive starter in
+[WebFlux](../stratum-starter-webflux/README.md). How Stratum works as a whole is in the
 [documentation](../../docs/README.md).
 
 [← Documentation home](../../docs/README.md) · Property prefix: `stratum.web`
@@ -111,7 +112,7 @@ whatever `spring.web.error.include-*` says.
 | Any other status, such as `405` or an exception annotated `@ResponseStatus` | that status | `SX-WEB-1004` |
 | Any other exception | `500` | `SX-WEB-1005`, with a fixed message |
 
-The codes, with how to fix each, are in [Error and warning codes](../../docs/guides/error-codes.md#stratum-starter-webmvc).
+The codes, with how to fix each, are in [Error and warning codes](../../docs/guides/error-codes.md#stratum-starter-webmvc-and-stratum-starter-webflux).
 
 ### What is logged
 

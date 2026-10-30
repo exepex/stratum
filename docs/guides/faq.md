@@ -52,8 +52,10 @@ you can turn off any Stratum module that overlaps. See
 [Using Stratum with a company framework](company-framework.md).
 
 **Can I use WebFlux (reactive) instead of Spring MVC?**
-Not in the first release. The web and security starters target the servlet stack, which on Java 25
-handles high concurrency well with virtual threads. Reactive support may follow if services need it.
+Yes. Add `stratum-starter-webflux` in place of `stratum-starter-webmvc`, or use the
+`stratum-starter-reactive-microservice` bundle. Both web starters read the same `stratum.web.*`
+settings and send the same error body, and logs, traces and correlation IDs work the same in
+reactive code. See [Web](../modules/web.md).
 
 ## Versions
 
