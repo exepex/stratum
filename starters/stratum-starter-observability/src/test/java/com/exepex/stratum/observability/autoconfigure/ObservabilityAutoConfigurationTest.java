@@ -13,22 +13,29 @@ import com.exepex.stratum.observability.TelemetryUrlFilter;
 import com.exepex.stratum.observability.testsupport.JavaConfigurationTestData;
 import com.exepex.stratum.observability.testsupport.MetricTestData;
 import com.exepex.stratum.observability.testsupport.RegionTagObservabilitySettings;
+import io.micrometer.context.ContextExecutorService;
 import io.micrometer.core.instrument.config.MeterFilterReply;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.autoconfigure.task.TaskExecutionAutoConfiguration;
+import org.springframework.boot.autoconfigure.task.TaskSchedulingAutoConfiguration;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.validation.autoconfigure.ValidationAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.AsyncConfigurer;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Hooks;
 
@@ -62,6 +69,44 @@ class ObservabilityAutoConfigurationTest {
   /** Returns what the context's guard answers for a metric with one tag. */
   private MeterFilterReply guardReplyForTag(AssertableApplicationContext context, String tagName) {
     return context.getBean(MetricTagGuard.class).accept(MetricTestData.counterTaggedWith(tagName));
+  }
+
+  @Test
+  @DisplayName("with @EnableScheduling, @Async gets the pool Stratum adds, not Boot's scheduler")
+  void asyncGetsPoolNotSchedulerWithScheduling() {
+    new ApplicationContextRunner()
+        .withConfiguration(
+            AutoConfigurations.of(
+                TaskExecutionAutoConfiguration.class,
+                TaskSchedulingAutoConfiguration.class,
+                ObservabilityAutoConfiguration.class))
+        .withPropertyValues(MODULE_ON, "spring.task.execution.propagate-context=true")
+        .withUserConfiguration(ServiceExecutorServiceBean.class, SchedulingEnabled.class)
+        .run(
+            context ->
+                assertThat(context.getBean(AsyncConfigurer.class).getAsyncExecutor())
+                    .isSameAs(context.getBean("applicationTaskExecutor")));
+  }
+
+  @Test
+  @DisplayName(
+      "a service's ExecutorService bean is wrapped so its tasks keep the context, unless"
+          + " stratum.context-propagation.executor-beans is false")
+  void wrapsServiceExecutorServiceBeans() {
+    contextRunner
+        .withPropertyValues(MODULE_ON)
+        .withUserConfiguration(ServiceExecutorServiceBean.class)
+        .run(
+            context ->
+                assertThat(context.getBean(ExecutorService.class))
+                    .isInstanceOf(ContextExecutorService.class));
+    contextRunner
+        .withPropertyValues(MODULE_ON, "stratum.context-propagation.executor-beans=false")
+        .withUserConfiguration(ServiceExecutorServiceBean.class)
+        .run(
+            context ->
+                assertThat(context.getBean(ExecutorService.class))
+                    .isNotInstanceOf(ContextExecutorService.class));
   }
 
   @Test
@@ -326,4 +371,24 @@ class ObservabilityAutoConfigurationTest {
       return new RegionTagObservabilitySettings();
     }
   }
+
+  /** A pool the service declares as an {@code ExecutorService} bean. */
+  @Configuration(proxyBeanMethods = false)
+  static class ServiceExecutorServiceBean {
+
+    /**
+     * Returns the service's pool.
+     *
+     * @return the pool
+     */
+    @Bean
+    ExecutorService invoiceRenderingPool() {
+      return Executors.newSingleThreadExecutor();
+    }
+  }
+
+  /** Turns on {@code @Scheduled} jobs, which brings Spring Boot's scheduler. */
+  @Configuration(proxyBeanMethods = false)
+  @EnableScheduling
+  static class SchedulingEnabled {}
 }

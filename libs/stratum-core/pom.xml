@@ -48,16 +48,17 @@
       <artifactId>reactor-core</artifactId>
       <optional>true</optional>
     </dependency>
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-test</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <!-- Reactor turns its context propagation on only when this library is present, as it is in
-         every service that runs the logging or observability starter. -->
+    <!-- Wraps the service's ExecutorService beans so their tasks keep the logging and tracing
+         context. Optional: the logging and observability starters bring it; Reactor also needs it
+         to turn its context propagation on. -->
     <dependency>
       <groupId>io.micrometer</groupId>
       <artifactId>context-propagation</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

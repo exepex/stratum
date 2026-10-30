@@ -34,6 +34,20 @@ public class StratumModuleConstants {
       PREFIX + ".context-propagation.reactor";
 
   /**
+   * Whether the logging and observability modules wrap the pool beans the service declares, such as
+   * an {@code ExecutorService}, so that their tasks keep the logging and tracing context. Defaults
+   * to {@code true}.
+   */
+  public static final String CONTEXT_PROPAGATION_EXECUTOR_BEANS =
+      PREFIX + ".context-propagation.executor-beans";
+
+  /** The name of the executor Spring Boot makes for {@code @Async} methods and other tasks. */
+  public static final String APPLICATION_TASK_EXECUTOR = "applicationTaskExecutor";
+
+  /** The bean name {@code @Async} looks for when the service has several task executors. */
+  public static final String ASYNC_TASK_EXECUTOR = "taskExecutor";
+
+  /**
    * Spring Boot's setting for how Reactor carries the logging and tracing context: {@link
    * #REACTOR_CONTEXT_IN_EVERY_OPERATOR} or {@link #REACTOR_CONTEXT_IN_HANDLE_AND_TAP_ONLY}.
    */

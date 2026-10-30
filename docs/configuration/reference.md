@@ -16,8 +16,9 @@ These are not tied to one module.
 | --- | --- | --- | --- | --- |
 | `spring.application.name` | string | **required** | All modules | The service's name: in logs, metrics, traces, cache keys and the Kafka consumer group. Spring Boot property. |
 | `stratum.environment` | string | *(none)* | logging, observability | Environment name such as `dev`, `staging` or `prod`; written to logs as `service.environment` and to metrics as the `environment` tag. |
-| `stratum.context-propagation.async-threads` | boolean | `true` | logging, observability | Whether `@Async` methods and work on Spring Boot's executors keep the trace and workflow fields of the code that started them. Sets `spring.task.execution.propagate-context`. |
+| `stratum.context-propagation.async-threads` | boolean | `true` | logging, observability | Whether `@Async` methods and work on Spring Boot's executors keep the trace and workflow fields of the code that started them. Sets `spring.task.execution.propagate-context`. When the service's only executors are its own pool beans, Stratum also creates the task executor Spring Boot would have made and points `@Async` at it, so `@Async` keeps them ([details](../guides/context-across-threads.md)). |
 | `stratum.context-propagation.reactor` | boolean | `true` | logging, observability | Whether log lines in WebFlux handlers and every Reactor operator keep the trace, correlation ID and workflow fields, and `WebClient` sends the correlation ID on. Sets `spring.reactor.context-propagation` to `auto` (or `limited` when `false`). |
+| `stratum.context-propagation.executor-beans` | boolean | `true` | logging, observability | Whether the pool beans the service declares as `Executor`, `ExecutorService` or `ScheduledExecutorService` are wrapped so their tasks keep the trace, correlation ID, workflow and service MDC fields of the code that submitted them. |
 
 ```yaml
 spring:

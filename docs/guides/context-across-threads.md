@@ -39,21 +39,43 @@ Every line written inside then carries `customerId`, on whichever of these threa
 | The same thread, including `@EventListener` methods | Yes |
 | `@Async` methods, `@Async @EventListener` methods | Yes |
 | Spring Boot's task executor, and executors built with its `ThreadPoolTaskExecutorBuilder` | Yes |
+| A pool bean you declare as `Executor`, `ExecutorService` or `ScheduledExecutorService` | Yes |
 | An `ExecutorService` wrapped with `ContextExecutorService.wrap(pool)` | Yes |
-| `Executors.newFixedThreadPool(...)` and other pools you create without wrapping | No |
+| A bean declared as its class, such as `ThreadPoolExecutor` | No |
+| `Executors.newFixedThreadPool(...)` and other pools you create in code without wrapping | No |
 | `new ThreadPoolTaskExecutor()` without Spring Boot's builder | No |
 | `new Thread(...)`, `Thread.ofVirtual().start(...)` | No |
 | `CompletableFuture.supplyAsync(task)` without an executor (the JVM's common pool) | No |
 
-For your own pools, wrap them once with Micrometer's `ContextExecutorService` or
-`ContextScheduledExecutorService`, which the logging starter brings:
+Stratum wraps every pool bean you declare as `Executor`, `ExecutorService` or
+`ScheduledExecutorService` for you, so this pool carries the fields as it is:
 
 ```java
 @Bean
 ExecutorService invoiceRenderingPool() {
-  return ContextExecutorService.wrap(Executors.newFixedThreadPool(4));
+  return Executors.newFixedThreadPool(4);
 }
 ```
+
+A bean declared as its class, such as `ThreadPoolExecutor`, is left alone, because the wrapper is
+not that class and code that injects it would fail to start. Declare it as `ExecutorService`
+instead. A pool you create in code, outside a bean, needs wrapping once with Micrometer's
+`ContextExecutorService` or `ContextScheduledExecutorService`, which the logging starter brings:
+`ContextExecutorService.wrap(Executors.newFixedThreadPool(4))`.
+
+Declaring a pool bean stops Spring Boot from creating its own task executor, which would leave
+`@Async` methods on a new thread per call with no fields, or on the single thread of the
+`@Scheduled` jobs. Stratum then creates the executor Spring Boot would have made, named
+`applicationTaskExecutor`, with the same `spring.task.execution.*` settings, and points `@Async` at
+it, as Spring Boot does for its own. Code that injects an `Executor` by type still gets your pool.
+Stratum does not do this when your service has its own `TaskExecutor`, a bean named `taskExecutor`
+or an `AsyncConfigurer`, because `@Async` then uses your choice, or when
+`stratum.context-propagation.async-threads` is `false`. For this, the logging and observability
+modules run before Spring Boot's task scheduling: its scheduler is also a task executor, and would
+otherwise count as yours.
+
+A wrapped pool is Micrometer's wrapper, so code that casts it to `ThreadPoolExecutor` fails; inject
+it as declared.
 
 Give `CompletableFuture` methods an executor instead of using the common pool:
 `CompletableFuture.supplyAsync(task, invoiceRenderingPool)`. Nothing can reach a bare
@@ -99,5 +121,6 @@ This relies on Reactor's automatic context propagation, which the starter turns 
 | --- | --- | --- |
 | `stratum.context-propagation.async-threads` | `true` | Spring Boot's executors and `@Async` carry the fields. |
 | `stratum.context-propagation.reactor` | `true` | Every Reactor operator carries the fields. |
+| `stratum.context-propagation.executor-beans` | `true` | Your `ExecutorService` and `ScheduledExecutorService` beans carry the fields. |
 
-Both are in the [configuration reference](../configuration/reference.md).
+All three are in the [configuration reference](../configuration/reference.md).

@@ -241,10 +241,10 @@ one off, set its switch to `false`, for example `spring.kafka.listener.observati
 Stratum sets Spring Boot's `spring.task.execution.propagate-context=true`, unless
 `stratum.context-propagation.async-threads=false`, so `@Async` methods, Spring Boot's task executor
 and executors built with its `ThreadPoolTaskExecutorBuilder` keep the caller's trace and correlation
-ID. Threads your code creates itself do not: `Executors` pools, `new Thread`, virtual threads you
-start, `new ThreadPoolTaskExecutor()` and `CompletableFuture.supplyAsync` without an executor. Wrap
-your own pool with `ContextExecutorService.wrap(pool)`; [log fields across
-threads](../../docs/guides/context-across-threads.md) lists every case.
+ID. Pools you declare as `Executor`, `ExecutorService` or `ScheduledExecutorService` beans keep them
+too, unless `stratum.context-propagation.executor-beans=false` (boolean, default `true`); pools made
+in code outside a bean do not. The module runs before Spring Boot's task scheduling; [log fields
+across threads](../../docs/guides/context-across-threads.md) explains why and lists every case.
 
 In reactive code, Stratum sets Spring Boot's `spring.reactor.context-propagation=auto` and turns on
 Reactor's context propagation, even without WebFlux or WebClient. Every line in a WebFlux handler or

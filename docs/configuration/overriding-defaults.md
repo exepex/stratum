@@ -117,8 +117,9 @@ customizer interface.
 ### Switches, shared properties and Spring Boot properties in Java
 
 The module switches (`stratum.<module>.enabled`), the shared properties (`stratum.environment`,
-`stratum.context-propagation.async-threads`, `stratum.context-propagation.reactor`) and any Spring
-Boot property can be set in Java as default properties of the application, in its `main` method.
+`stratum.context-propagation.async-threads`, `stratum.context-propagation.executor-beans`,
+`stratum.context-propagation.reactor`) and any Spring Boot property can be set in Java as default
+properties of the application, in its `main` method.
 They are read before any bean exists, so a customizer cannot set them:
 
 ```java
