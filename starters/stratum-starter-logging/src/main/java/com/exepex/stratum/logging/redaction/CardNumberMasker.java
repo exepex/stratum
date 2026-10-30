@@ -75,11 +75,8 @@ class CardNumberMasker {
     while (nextCard.isPresent()) {
       var card = withOverlaps(runDigits, groups, nextCard.get());
       maskedCards.add(
-          Replacement.builder()
-              .start(runStart + card.start())
-              .end(runStart + card.end())
-              .text(MaskedText.keepingLastFour(card.digits()))
-              .build());
+          MaskedText.keepingLastFourAt(
+              runStart + card.start(), runStart + card.end(), card.digits()));
       nextCard =
           longestCardsStartingIn(runDigits, groups, card.lastGroup() + 1, groups.size())
               .findFirst();
