@@ -252,6 +252,10 @@ Each bean below is Stratum's only until you declare your own:
 `stratum.web.enabled=true` switches the module on. Leaving it unset is the same as `false`: the
 service runs on plain Spring MVC, with Spring Boot's own error handling.
 
+Shutdown is graceful, as in Spring Boot (`server.shutdown=graceful`): requests already running get up
+to 30 seconds to finish. Stratum does not change it; set `spring.lifecycle.timeout-per-shutdown-phase`
+to change the wait.
+
 ## Planned
 
 | Feature | What it adds |
