@@ -4,6 +4,7 @@ import com.exepex.stratum.core.error.LoggingContextConstants;
 import io.micrometer.observation.Observation;
 import io.micrometer.tracing.Link;
 import io.micrometer.tracing.Span;
+import io.micrometer.tracing.TraceContext;
 import io.micrometer.tracing.Tracer;
 import io.micrometer.tracing.handler.TracingObservationHandler;
 import lombok.Getter;
@@ -80,7 +81,7 @@ public class LinkedWorkTracingHandler implements TracingObservationHandler<Linke
   }
 
   /** Returns the trace context of the request an origin names, for a link. */
-  private io.micrometer.tracing.TraceContext traceContextOf(WorkOrigin origin) {
+  private TraceContext traceContextOf(WorkOrigin origin) {
     return tracer
         .traceContextBuilder()
         .traceId(origin.traceId())

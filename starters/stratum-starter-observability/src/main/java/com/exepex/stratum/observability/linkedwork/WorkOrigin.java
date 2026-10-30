@@ -8,8 +8,8 @@ import java.util.regex.Pattern;
  * correlation ID. A service stores {@link #toText()} with the work, such as in a database row, and
  * gives {@link #fromText(String)} back to {@link LinkedWork} when it runs the work later.
  *
- * @param traceId the request's trace ID, 32 lowercase hexadecimal characters
- * @param spanId the request's span ID, 16 lowercase hexadecimal characters
+ * @param traceId the request's trace ID, 32 lowercase hexadecimal characters, not all zeros
+ * @param spanId the request's span ID, 16 lowercase hexadecimal characters, not all zeros
  * @param sampled whether the request's trace was sampled
  * @param correlationId the request's correlation ID, 1 to 128 characters safe for logs
  */
@@ -20,6 +20,9 @@ public record WorkOrigin(String traceId, String spanId, boolean sampled, String 
 
   /** A span ID as W3C trace context writes it. */
   private static final Pattern SPAN_ID = Pattern.compile("[0-9a-f]{16}");
+
+  /** An ID of zeros only, which W3C trace context defines as invalid. */
+  private static final Pattern ALL_ZEROS = Pattern.compile("0+");
 
   /** The stored form: a W3C {@code traceparent}, a space, then the correlation ID. */
   private static final Pattern STORED_FORM =
@@ -41,11 +44,13 @@ public record WorkOrigin(String traceId, String spanId, boolean sampled, String 
   public WorkOrigin {
     if (!TRACE_ID.matcher(traceId).matches()
         || !SPAN_ID.matcher(spanId).matches()
+        || ALL_ZEROS.matcher(traceId).matches()
+        || ALL_ZEROS.matcher(spanId).matches()
         || !LoggingContextConstants.ID_FORMAT_SAFE_FOR_LOGS.matcher(correlationId).matches()) {
       throw new IllegalArgumentException(
           "A work origin needs a 32-character trace ID and a 16-character span ID, both lowercase"
-              + " hexadecimal, and a correlation ID of 1 to 128 letters, digits, '-', '_', '.' or"
-              + " ':'");
+              + " hexadecimal and not all zeros, and a correlation ID of 1 to 128 letters, digits,"
+              + " '-', '_', '.' or ':'");
     }
   }
 

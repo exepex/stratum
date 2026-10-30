@@ -31,13 +31,7 @@ public class ReactiveLinkedWork {
   public <T> Mono<T> mono(String workName, Collection<WorkOrigin> origins, Mono<T> work) {
     linkedWork.requireSafeName(workName);
     return Mono.deferContextual(
-        outerContext -> {
-          var observation = start(workName, origins, outerContext);
-          return work.contextWrite(
-                  context -> context.put(ObservationThreadLocalAccessor.KEY, observation))
-              .doOnError(observation::error)
-              .doFinally(signal -> observation.stop());
-        });
+        outerContext -> observeUntilDone(start(workName, origins, outerContext), work));
   }
 
   /**
@@ -53,13 +47,23 @@ public class ReactiveLinkedWork {
   public <T> Flux<T> flux(String workName, Collection<WorkOrigin> origins, Flux<T> work) {
     linkedWork.requireSafeName(workName);
     return Flux.deferContextual(
-        outerContext -> {
-          var observation = start(workName, origins, outerContext);
-          return work.contextWrite(
-                  context -> context.put(ObservationThreadLocalAccessor.KEY, observation))
-              .doOnError(observation::error)
-              .doFinally(signal -> observation.stop());
-        });
+        outerContext -> observeUntilDone(start(workName, origins, outerContext), work));
+  }
+
+  /** Runs the Mono inside the observation, which records a failure and stops when it ends. */
+  private <T> Mono<T> observeUntilDone(Observation observation, Mono<T> work) {
+    return work.contextWrite(
+            context -> context.put(ObservationThreadLocalAccessor.KEY, observation))
+        .doOnError(observation::error)
+        .doFinally(signal -> observation.stop());
+  }
+
+  /** Runs the Flux inside the observation, which records a failure and stops when it ends. */
+  private <T> Flux<T> observeUntilDone(Observation observation, Flux<T> work) {
+    return work.contextWrite(
+            context -> context.put(ObservationThreadLocalAccessor.KEY, observation))
+        .doOnError(observation::error)
+        .doFinally(signal -> observation.stop());
   }
 
   /** Starts a run's observation, inside the observation of the Reactor context if it has one. */

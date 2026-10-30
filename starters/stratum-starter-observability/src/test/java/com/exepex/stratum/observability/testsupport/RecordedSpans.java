@@ -1,4 +1,4 @@
-package com.exepex.stratum.observability.it;
+package com.exepex.stratum.observability.testsupport;
 
 import static org.awaitility.Awaitility.await;
 
@@ -16,7 +16,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * Keeps every span that ends, so a test can read its parent and links. Spring Boot passes every
  * {@code SpanProcessor} bean to OpenTelemetry.
  */
-class RecordedSpans implements SpanProcessor {
+public class RecordedSpans implements SpanProcessor {
 
   /** How long a test waits for a span to end. */
   private static final Duration SPAN_END_TIMEOUT = Duration.ofSeconds(5);
@@ -32,7 +32,7 @@ class RecordedSpans implements SpanProcessor {
    * @return the span
    * @throws org.awaitility.core.ConditionTimeoutException if no span with the name ends in time
    */
-  SpanData named(String name) {
+  public SpanData named(String name) {
     return await()
         .atMost(SPAN_END_TIMEOUT)
         .until(

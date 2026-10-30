@@ -1,16 +1,19 @@
 package com.exepex.stratum.observability.it;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.exepex.stratum.core.error.LoggingContextConstants;
 import com.exepex.stratum.observability.linkedwork.LinkedWork;
 import com.exepex.stratum.observability.linkedwork.ReactiveLinkedWork;
 import com.exepex.stratum.observability.linkedwork.WorkOrigin;
+import com.exepex.stratum.observability.testsupport.RecordedSpans;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.observation.contextpropagation.ObservationThreadLocalAccessor;
 import io.micrometer.tracing.Tracer;
 import io.opentelemetry.api.trace.SpanContext;
+import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.sdk.trace.data.LinkData;
 import io.opentelemetry.sdk.trace.data.SpanData;
 import java.time.Duration;
@@ -38,8 +41,14 @@ class LinkedWorkIntegrationTest {
   /** The fixed name of the work. */
   private static final String INVOICE_EXPORT = "invoice-export";
 
+  /** The fixed name of the reactive work. */
+  private static final String RECEIPT_EXPORT = "receipt-export";
+
   /** How long reactive work may take. */
   private static final Duration REACTIVE_TIMEOUT = Duration.ofSeconds(10);
+
+  /** How often the endless receipt Flux emits, until it is cancelled. */
+  private static final Duration RECEIPT_INTERVAL = Duration.ofMillis(10);
 
   /** Clears the logging context, so no test sees fields left by another. */
   @AfterEach
@@ -180,7 +189,7 @@ class LinkedWorkIntegrationTest {
       var idsInFlux =
           reactiveLinkedWork
               .flux(
-                  "receipt-export",
+                  RECEIPT_EXPORT,
                   List.of(origin),
                   Flux.just("receipt")
                       .publishOn(Schedulers.boundedElastic())
@@ -193,11 +202,43 @@ class LinkedWorkIntegrationTest {
           .containsEntry(LoggingContextConstants.CORRELATION_ID, ORDER_CORRELATION_ID);
       assertThat(idsInFlux)
           .containsEntry(
-              LoggingContextConstants.TRACE_ID, endedSpan(context, "receipt-export").getTraceId())
+              LoggingContextConstants.TRACE_ID, endedSpan(context, RECEIPT_EXPORT).getTraceId())
           .containsEntry(LoggingContextConstants.CORRELATION_ID, ORDER_CORRELATION_ID);
       assertThat(endedSpan(context, INVOICE_EXPORT).getLinks()).hasSize(1);
       assertThat(endedSpan(context, INVOICE_EXPORT).getParentSpanId())
           .isEqualTo(endedSpan(context, "nightly-export").getSpanId());
+    }
+  }
+
+  @Test
+  @DisplayName(
+      "a failing Mono records its failure on the span, a cancelled Flux still ends its span, and"
+          + " the calling thread's trace and correlation ID are left as they were")
+  void reactiveWorkEndsSpanOnFailureAndCancel() {
+    try (var context = start()) {
+      var tracer = context.getBean(Tracer.class);
+      var origin = originOfRequest(context, ORDER_CORRELATION_ID);
+      var reactiveLinkedWork = context.getBean(ReactiveLinkedWork.class);
+      var exportFailure = new IllegalStateException("export target refused the file");
+
+      var failingWork =
+          reactiveLinkedWork.mono(
+              INVOICE_EXPORT,
+              List.of(origin),
+              Mono.error(exportFailure).publishOn(Schedulers.boundedElastic()));
+      assertThatThrownBy(() -> failingWork.block(REACTIVE_TIMEOUT)).isSameAs(exportFailure);
+      reactiveLinkedWork
+          .flux(RECEIPT_EXPORT, List.of(origin), Flux.interval(RECEIPT_INTERVAL))
+          .take(1)
+          .blockLast(REACTIVE_TIMEOUT);
+
+      var failedSpan = endedSpan(context, INVOICE_EXPORT);
+      assertThat(failedSpan.getStatus().getStatusCode()).isEqualTo(StatusCode.ERROR);
+      assertThat(failedSpan.getEvents())
+          .anySatisfy(event -> assertThat(event.getName()).isEqualTo("exception"));
+      assertThat(endedSpan(context, RECEIPT_EXPORT).getLinks()).hasSize(1);
+      assertThat(tracer.currentSpan()).isNull();
+      assertThat(MDC.get(LoggingContextConstants.CORRELATION_ID)).isNull();
     }
   }
 

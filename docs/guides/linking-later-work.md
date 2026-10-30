@@ -28,8 +28,9 @@ the start of a job.
 
 ## Saving work for later
 
-`LinkedWork` is a bean of the observability starter. While handling the request, store where the
-work came from next to the work itself:
+`LinkedWork` is a bean of the observability starter, created when the module is on
+(`stratum.observability.enabled=true`). While handling the request, store where the work came from
+next to the work itself:
 
 ```java
 @PostMapping("/invoices/export")
@@ -76,6 +77,9 @@ linkedWork.run("daily-statement", origins, () -> statements.sendAll(rows));
 
 With more than one origin the run cannot pick one correlation ID, so its lines carry the trace ID of
 its own trace as `correlationId`, as any other job does. The links still lead to every request.
+
+OpenTelemetry keeps at most 128 links on a span by default, and drops the rest without a warning. For
+a batch of more requests, run the work in chunks of up to 128 origins, or once per request.
 
 `WorkOrigin.fromText` throws `IllegalArgumentException` for text in any other form, and the message
 never shows the text. Decide what a bad row means for your job: skip it, or run the work with no
