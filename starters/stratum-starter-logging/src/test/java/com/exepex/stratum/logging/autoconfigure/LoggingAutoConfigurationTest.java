@@ -10,9 +10,12 @@ import com.exepex.stratum.logging.LoggingProperties;
 import com.exepex.stratum.logging.workflow.ReactiveWorkflows;
 import com.exepex.stratum.logging.workflow.WorkflowAspect;
 import com.exepex.stratum.logging.workflow.Workflows;
+import io.micrometer.context.ContextExecutorService;
 import io.micrometer.context.ContextRegistry;
 import io.micrometer.observation.ObservationRegistry;
 import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.aspectj.weaver.Advice;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -53,6 +56,27 @@ class LoggingAutoConfigurationTest {
   private boolean serviceMdcFieldsAccessorRegistered() {
     return ContextRegistry.getInstance().getThreadLocalAccessors().stream()
         .anyMatch(accessor -> LoggingConstants.SERVICE_MDC_FIELDS.equals(accessor.key()));
+  }
+
+  @Test
+  @DisplayName(
+      "a service's ExecutorService bean is wrapped so its tasks keep the context, unless"
+          + " stratum.context-propagation.executor-beans is false")
+  void wrapsServiceExecutorServiceBeans() {
+    contextRunner
+        .withPropertyValues(MODULE_ON)
+        .withUserConfiguration(ServiceExecutorServiceBean.class)
+        .run(
+            context ->
+                assertThat(context.getBean(ExecutorService.class))
+                    .isInstanceOf(ContextExecutorService.class));
+    contextRunner
+        .withPropertyValues(MODULE_ON, "stratum.context-propagation.executor-beans=false")
+        .withUserConfiguration(ServiceExecutorServiceBean.class)
+        .run(
+            context ->
+                assertThat(context.getBean(ExecutorService.class))
+                    .isNotInstanceOf(ContextExecutorService.class));
   }
 
   @Test
@@ -321,6 +345,21 @@ class LoggingAutoConfigurationTest {
     @Bean
     StratumPropertiesCustomizer<LoggingProperties> loggingCustomizer() {
       return properties -> properties.toBuilder().format(LoggingProperties.LogFormat.GELF).build();
+    }
+  }
+
+  /** A pool the service declares as an {@code ExecutorService} bean. */
+  @Configuration(proxyBeanMethods = false)
+  static class ServiceExecutorServiceBean {
+
+    /**
+     * Returns the service's pool.
+     *
+     * @return the pool
+     */
+    @Bean
+    ExecutorService invoiceRenderingPool() {
+      return Executors.newSingleThreadExecutor();
     }
   }
 }

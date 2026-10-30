@@ -14,13 +14,19 @@
     {
       "name": "stratum.context-propagation.async-threads",
       "type": "java.lang.Boolean",
-      "description": "Whether @Async methods and work on Spring Boot's executors keep the trace and workflow fields of the code that started them. Used by the logging and observability modules when they are on. Sets Spring Boot's spring.task.execution.propagate-context, which wins if the service sets it.",
+      "description": "Whether @Async methods and work on Spring Boot's executors keep the trace and workflow fields of the code that started them. Used by the logging and observability modules when they are on. Sets Spring Boot's spring.task.execution.propagate-context, which wins if the service sets it. When the service declares only a plain ExecutorService, which stops Spring Boot from creating its task executor, Stratum creates that executor for @Async methods.",
       "defaultValue": true
     },
     {
       "name": "stratum.context-propagation.reactor",
       "type": "java.lang.Boolean",
       "description": "Whether log lines written in every Reactor operator, such as map, flatMap and doOnNext, and in WebFlux handlers keep the trace, correlation ID and workflow fields, and WebClient sends the correlation ID on. Used by the logging and observability modules when they are on. Sets Spring Boot's spring.reactor.context-propagation to auto (true) or limited (false), which wins if the service sets it.",
+      "defaultValue": true
+    },
+    {
+      "name": "stratum.context-propagation.executor-beans",
+      "type": "java.lang.Boolean",
+      "description": "Whether ExecutorService and ScheduledExecutorService beans the service declares are wrapped, so that their tasks keep the trace, correlation ID, workflow fields and the service's own MDC fields of the code that submitted them. Only beans declared as those interfaces are wrapped. Used by the logging and observability modules when they are on.",
       "defaultValue": true
     }
   ]

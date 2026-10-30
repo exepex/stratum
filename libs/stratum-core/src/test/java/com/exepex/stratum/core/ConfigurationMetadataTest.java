@@ -26,13 +26,15 @@ class ConfigurationMetadataTest {
         .containsExactly(
             "stratum.environment",
             "stratum.context-propagation.async-threads",
-            "stratum.context-propagation.reactor");
+            "stratum.context-propagation.reactor",
+            "stratum.context-propagation.executor-beans");
     assertThat(JsonPath.<List<String>>read(metadata, "$.properties[*].type"))
-        .containsExactly("java.lang.String", "java.lang.Boolean", "java.lang.Boolean");
+        .containsExactly(
+            "java.lang.String", "java.lang.Boolean", "java.lang.Boolean", "java.lang.Boolean");
     assertThat(JsonPath.<List<String>>read(metadata, "$.properties[*].description"))
         .doesNotContainNull()
         .hasSameSizeAs(JsonPath.<List<String>>read(metadata, "$.properties[*].name"));
     assertThat(JsonPath.<List<Boolean>>read(metadata, "$.properties[1:].defaultValue"))
-        .containsExactly(true, true);
+        .containsExactly(true, true, true);
   }
 }
