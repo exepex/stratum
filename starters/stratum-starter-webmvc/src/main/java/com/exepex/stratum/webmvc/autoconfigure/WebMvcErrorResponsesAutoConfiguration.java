@@ -10,6 +10,7 @@ import com.exepex.stratum.web.WebPropertiesCustomizer;
 import com.exepex.stratum.webmvc.ErrorBodyAdvice;
 import com.exepex.stratum.webmvc.ErrorTemplateMissingCondition;
 import com.exepex.stratum.webmvc.ReferenceErrorPage;
+import com.exepex.stratum.webmvc.RequestIdsFilter;
 import com.exepex.stratum.webmvc.StratumErrorAttributes;
 import com.exepex.stratum.webmvc.StratumExceptionHandler;
 import org.springframework.beans.factory.ListableBeanFactory;
@@ -19,6 +20,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProp
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.autoconfigure.condition.SearchStrategy;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.boot.webmvc.autoconfigure.error.ErrorMvcAutoConfiguration;
 import org.springframework.boot.webmvc.error.ErrorAttributes;
 import org.springframework.context.annotation.Bean;
@@ -89,6 +91,21 @@ public final class WebMvcErrorResponsesAutoConfiguration {
   @ConditionalOnMissingBean
   public ErrorBodyAdvice errorBodyAdvice(ErrorResponseFactory errorResponseFactory) {
     return new ErrorBodyAdvice(errorResponseFactory);
+  }
+
+  /**
+   * Keeps each request's trace and correlation IDs for its error page, which runs after tracing's
+   * scope has closed.
+   *
+   * @return the filter's registration, just inside Spring Boot's tracing filter
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean(name = "stratumRequestIdsFilter")
+  public FilterRegistrationBean<RequestIdsFilter> stratumRequestIdsFilter() {
+    var registration = new FilterRegistrationBean<>(new RequestIdsFilter());
+    registration.setOrder(RequestIdsFilter.ORDER);
+    return registration;
   }
 
   /**

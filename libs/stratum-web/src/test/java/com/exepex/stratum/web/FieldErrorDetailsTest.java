@@ -8,6 +8,8 @@ import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.Getter;
 import lombok.Setter;
 import org.junit.jupiter.api.DisplayName;
@@ -41,6 +43,13 @@ class FieldErrorDetailsTest {
     /** The account to pay from; its message quotes the rejected value, as some services do. */
     @Pattern(regexp = "[A-Z]{2}", message = "${validatedValue} is not a country")
     private String account = "DE";
+
+    /** A second account; its message comes from ValidationMessages.properties and quotes it. */
+    @Pattern(regexp = "[A-Z]{2}", message = "{orders.backup-account.invalid}")
+    private String backupAccount = "DE";
+
+    /** How many items each customer orders, keyed by the customer's reference. */
+    private Map<String, @Min(1) Integer> quantitiesByCustomer = new ConcurrentHashMap<>();
 
     /**
      * A rule on the whole form: an account of {@code XX} is never allowed.
@@ -105,5 +114,26 @@ class FieldErrorDetailsTest {
   @DisplayName("an error that is not a failed validation gives nothing")
   void otherErrorGivesNothing() {
     assertThat(FieldErrorDetails.of(new IllegalStateException("broken"))).isEmpty();
+  }
+
+  @Test
+  @DisplayName("a message from a resource bundle that quotes the rejected value gets fixed text")
+  void bundleMessageQuotingValueGetsFixedText() {
+    var failure = failedBinding(new MutablePropertyValues().add("backupAccount", IBAN));
+
+    assertThat(FieldErrorDetails.of(failure))
+        .contains(List.of(new ErrorDetail("backupAccount", FieldErrorDetails.NOT_VALID)));
+  }
+
+  @Test
+  @DisplayName("a map key in the field path, which the caller chose, becomes [*]")
+  void mapKeyIsHidden() {
+    var failure =
+        failedBinding(new MutablePropertyValues().add("quantitiesByCustomer[customer-4711]", "0"));
+
+    assertThat(FieldErrorDetails.of(failure))
+        .contains(
+            List.of(
+                new ErrorDetail("quantitiesByCustomer[*]", "must be greater than or equal to 1")));
   }
 }

@@ -92,9 +92,11 @@ A failed validation adds `details`, one entry per invalid field:
 }
 ```
 
-A validation message that would quote the rejected value, through `${validatedValue}`, is replaced
-with `is not valid`, so an IBAN or a password typed into the wrong field never comes back in the
-body. The body never holds a stack trace, an exception message, a class name or the request path,
+A validation message that quotes the rejected value, through `${validatedValue}` in the
+annotation or in `ValidationMessages.properties`, is replaced with `is not valid`, so an IBAN or a
+password typed into the wrong field never comes back in the body. A map key in a field path, which
+the caller chose, is shown as `[*]`, as in `quantitiesByCustomer[*]`; list positions stay. The body
+never holds a stack trace, an exception message, a class name or the request path,
 whatever `spring.web.error.include-*` says.
 
 ### What each failure gets
@@ -123,8 +125,9 @@ The codes, with how to fix each, are in [Error and warning codes](../../docs/gui
 
 ### The HTML error page
 
-A browser, or any caller that asks for `text/html`, gets a short page with the status and a
-reference, which is the trace ID. A user can quote it, and support finds the request in the logs:
+A browser, or any caller whose `Accept` header names `text/html`, gets a short page with the status
+and a reference, which is the trace ID. That includes your `StratumException`, with its mapped
+status. A user can quote it, and support finds the request in the logs:
 
 ```text
 Not Found
@@ -242,6 +245,7 @@ Each bean below is Stratum's only until you declare your own:
 | `ErrorAttributes` | The body of failures outside your controllers, such as `404`; yours gets Spring Boot's error controller as before |
 | A `View` named `error` | The HTML error page |
 | `StratumExceptionHandler` or `ErrorBodyAdvice` | The handler of `StratumException`, or the advice that adds the IDs and the media type |
+| A bean named `stratumRequestIdsFilter` | The filter that keeps each request's IDs for its error page, which runs after tracing has ended |
 
 ## Switch it on or off
 
@@ -268,3 +272,4 @@ The agreed design of each is in [Web](../../docs/modules/web.md).
 | The body has no `traceId` | Tracing is off. Add the observability starter and set `stratum.observability.enabled=true`. |
 | A failure gets Spring Boot's default body | The module is off, or the service declares its own `ErrorAttributes` bean. |
 | Your handler is not used for an exception | Another advice handles it first. Advice runs in `@Order` order; Stratum's runs last. |
+| A bad `@RequestParam` gets `500` instead of `400` | The controller class has `@Validated`, which makes Spring check parameters its old way, as in plain Spring Boot. Remove `@Validated` from the class; Spring MVC checks constraints on parameters without it. |

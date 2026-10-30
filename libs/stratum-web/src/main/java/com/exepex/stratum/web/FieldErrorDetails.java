@@ -5,6 +5,7 @@ import jakarta.validation.ConstraintViolation;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 import org.jspecify.annotations.Nullable;
@@ -30,6 +31,16 @@ public class FieldErrorDetails {
 
   /** The marker of a Bean Validation message template that quotes the rejected value. */
   private static final String QUOTES_REJECTED_VALUE = "validatedValue";
+
+  /**
+   * A map key in a field path, such as {@code [customer-4711]} in {@code
+   * quantities[customer-4711]}: any index that is not a list position. The caller chose the key,
+   * and it can be personal data.
+   */
+  private static final Pattern MAP_KEY = Pattern.compile("\\[(?!\\d+])[^]]*]");
+
+  /** What a map key in a field path becomes. */
+  private static final String ANY_KEY = "[*]";
 
   /** The field name of a problem with the whole object, such as a class-level constraint. */
   private static final String WHOLE_OBJECT = "";
@@ -75,7 +86,10 @@ public class FieldErrorDetails {
 
   /** Returns the detail of one error of a bound object. */
   private static ErrorDetail detailOf(ObjectError error) {
-    var field = error instanceof FieldError fieldError ? fieldError.getField() : WHOLE_OBJECT;
+    var field =
+        error instanceof FieldError fieldError
+            ? MAP_KEY.matcher(fieldError.getField()).replaceAll(ANY_KEY)
+            : WHOLE_OBJECT;
     if (error instanceof FieldError fieldError && fieldError.isBindingFailure()) {
       return new ErrorDetail(field, WRONG_TYPE);
     }
@@ -84,16 +98,24 @@ public class FieldErrorDetails {
     return new ErrorDetail(field, safeMessage(error, violation));
   }
 
-  /**
-   * Returns the error's message, or fixed text when its Bean Validation template quotes the
-   * rejected value.
-   */
+  /** Returns the error's message, or fixed text when the message quotes the rejected value. */
   private static String safeMessage(MessageSourceResolvable error, @Nullable Object source) {
-    var quotesValue =
-        source instanceof ConstraintViolation<?> violation
-            && violation.getMessageTemplate().contains(QUOTES_REJECTED_VALUE);
-    return quotesValue
+    var message = Objects.requireNonNullElse(error.getDefaultMessage(), NOT_VALID);
+    return source instanceof ConstraintViolation<?> violation
+            && quotesRejectedValue(violation, message)
         ? NOT_VALID
-        : Objects.requireNonNullElse(error.getDefaultMessage(), NOT_VALID);
+        : message;
+  }
+
+  /**
+   * Returns whether a message quotes the rejected value: through its template, or as text found in
+   * it, which also catches a template read from a resource bundle such as {@code
+   * ValidationMessages.properties}.
+   */
+  private static boolean quotesRejectedValue(ConstraintViolation<?> violation, String message) {
+    return violation.getMessageTemplate().contains(QUOTES_REJECTED_VALUE)
+        || violation.getInvalidValue() instanceof CharSequence value
+            && !value.isEmpty()
+            && message.contains(value);
   }
 }

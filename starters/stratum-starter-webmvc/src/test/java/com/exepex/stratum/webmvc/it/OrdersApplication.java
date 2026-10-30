@@ -2,9 +2,13 @@ package com.exepex.stratum.webmvc.it;
 
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.webmvc.testsupport.OrderErrorCode;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
+import java.io.IOException;
 import java.io.Serial;
 import java.util.Map;
 import org.springframework.boot.SpringBootConfiguration;
@@ -21,11 +25,16 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 /** A service with the web MVC starter, whose endpoints fail in every way a real one can. */
 @SpringBootConfiguration
 @EnableAutoConfiguration
-@Import({OrdersApplication.OrdersController.class, OrdersApplication.ServiceErrorHandlers.class})
+@Import({
+  OrdersApplication.OrdersController.class,
+  OrdersApplication.ServiceErrorHandlers.class,
+  OrdersApplication.FailingFilter.class
+})
 public class OrdersApplication {
 
   /** An IBAN that a validation message would leak if it quoted the rejected value. */
@@ -159,6 +168,47 @@ public class OrdersApplication {
     @GetMapping("/orders/legacy")
     String legacy() {
       throw new LegacyClientException();
+    }
+
+    /**
+     * Answers 404 itself, without throwing, as some controllers do.
+     *
+     * @param response the response
+     * @throws IOException if the error cannot be sent
+     */
+    @GetMapping("/orders/missing")
+    void missing(HttpServletResponse response) throws IOException {
+      response.sendError(HttpServletResponse.SC_NOT_FOUND);
+    }
+  }
+
+  /**
+   * A filter of the service that stops a request before it reaches a controller: it throws on one
+   * path and rejects the caller with {@code 401}, as a security filter does, on another.
+   */
+  static class FailingFilter extends OncePerRequestFilter {
+
+    /** The path on which it throws. */
+    static final String FAILING_PATH = "/orders/filtered";
+
+    /** The path on which it rejects the caller. */
+    static final String REJECTING_PATH = "/orders/rejected";
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+      return !FAILING_PATH.equals(request.getRequestURI())
+          && !REJECTING_PATH.equals(request.getRequestURI());
+    }
+
+    @Override
+    protected void doFilterInternal(
+        HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+        throws IOException {
+      if (REJECTING_PATH.equals(request.getRequestURI())) {
+        response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+        return;
+      }
+      throw new IllegalStateException(INTERNAL_DETAIL);
     }
   }
 

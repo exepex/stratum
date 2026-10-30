@@ -180,6 +180,49 @@ class ErrorResponsesIntegrationTest {
     assertThat(response.body()).contains("Not Found").containsPattern("Reference: <code>\\w{32}");
   }
 
+  @Test
+  @DisplayName("a caller that accepts anything gets the Problem Details body")
+  void anyMediaTypeGetsProblemDetails() throws Exception {
+    assertProblem(get("/orders/duplicate", MediaType.ALL), HttpStatus.CONFLICT, "ORD-0001");
+  }
+
+  @Test
+  @DisplayName("a browser gets the HTML page with the mapped status for a StratumException")
+  void browserGetsReferencePageForStratumException() throws Exception {
+    var response = get("/orders/duplicate", MediaType.TEXT_HTML);
+
+    assertThat(response.statusCode()).isEqualTo(HttpStatus.CONFLICT.value());
+    assertThat(response.body()).contains("Conflict").containsPattern("Reference: <code>\\w{32}");
+  }
+
+  @Test
+  @DisplayName("a controller's own sendError gets the error body with the trace ID")
+  void sendErrorKeepsTraceId() throws Exception {
+    assertProblem(
+        get("/orders/missing", MediaType.APPLICATION_JSON),
+        HttpStatus.NOT_FOUND,
+        WebErrorCode.NOT_FOUND.getCode());
+  }
+
+  @Test
+  @DisplayName("a filter that fails gets SX-WEB-1005 with the trace ID and none of its message")
+  void failingFilterKeepsTraceId() throws Exception {
+    var response = get(OrdersApplication.FailingFilter.FAILING_PATH, MediaType.APPLICATION_JSON);
+
+    assertProblem(
+        response, HttpStatus.INTERNAL_SERVER_ERROR, WebErrorCode.INTERNAL_ERROR.getCode());
+    assertThat(response.body()).doesNotContain(OrdersApplication.INTERNAL_DETAIL);
+  }
+
+  @Test
+  @DisplayName("a filter that rejects the caller with 401 gets SX-WEB-1004 with the trace ID")
+  void rejectingFilterKeepsTraceId() throws Exception {
+    assertProblem(
+        get(OrdersApplication.FailingFilter.REJECTING_PATH, MediaType.APPLICATION_JSON),
+        HttpStatus.UNAUTHORIZED,
+        WebErrorCode.REQUEST_FAILED.getCode());
+  }
+
   /** Checks a Problem Details answer: its status, media type, code and trace ID. */
   private void assertProblem(HttpResponse<String> response, HttpStatus status, String code) {
     assertThat(response.statusCode()).isEqualTo(status.value());
