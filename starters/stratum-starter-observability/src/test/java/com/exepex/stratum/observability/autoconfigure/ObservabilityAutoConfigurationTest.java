@@ -4,14 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.error.CoreErrorCode;
 import com.exepex.stratum.core.error.StratumException;
-import com.exepex.stratum.core.properties.StratumPropertiesCustomizer;
 import com.exepex.stratum.observability.CorrelationIdRecorder;
 import com.exepex.stratum.observability.MetricTagGuard;
 import com.exepex.stratum.observability.ObservabilityConstants;
-import com.exepex.stratum.observability.ObservabilityProperties;
 import com.exepex.stratum.observability.TelemetryUrlFilter;
-import com.exepex.stratum.observability.testsupport.JavaConfigurationTestData;
-import com.exepex.stratum.observability.testsupport.MetricTestData;
+import com.exepex.stratum.observability.testsupport.ObservabilityTestData;
 import com.exepex.stratum.observability.testsupport.RegionTagObservabilitySettings;
 import io.micrometer.context.ContextExecutorService;
 import io.micrometer.core.instrument.config.MeterFilterReply;
@@ -22,6 +19,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -68,248 +66,242 @@ class ObservabilityAutoConfigurationTest {
 
   /** Returns what the context's guard answers for a metric with one tag. */
   private MeterFilterReply guardReplyForTag(AssertableApplicationContext context, String tagName) {
-    return context.getBean(MetricTagGuard.class).accept(MetricTestData.counterTaggedWith(tagName));
+    return context
+        .getBean(MetricTagGuard.class)
+        .accept(ObservabilityTestData.counterTaggedWith(tagName));
   }
 
-  @Test
-  @DisplayName("with @EnableScheduling, @Async gets the pool Stratum adds, not Boot's scheduler")
-  void asyncGetsPoolNotSchedulerWithScheduling() {
-    new ApplicationContextRunner()
-        .withConfiguration(
-            AutoConfigurations.of(
-                TaskExecutionAutoConfiguration.class,
-                TaskSchedulingAutoConfiguration.class,
-                ObservabilityAutoConfiguration.class))
-        .withPropertyValues(MODULE_ON, "spring.task.execution.propagate-context=true")
-        .withUserConfiguration(ServiceExecutorServiceBean.class, SchedulingEnabled.class)
-        .run(
-            context ->
-                assertThat(context.getBean(AsyncConfigurer.class).getAsyncExecutor())
-                    .isSameAs(context.getBean("applicationTaskExecutor")));
+  @Nested
+  @DisplayName("with the module switched on or off")
+  class ModuleSwitch {
+
+    @Test
+    @DisplayName("with the module on, every bean is created")
+    void createsBeans() {
+      contextRunner
+          .withPropertyValues(MODULE_ON)
+          .run(
+              context ->
+                  assertThat(context)
+                      .hasSingleBean(TelemetryUrlFilter.class)
+                      .hasSingleBean(MetricTagGuard.class)
+                      .hasSingleBean(CorrelationIdRecorder.class));
+    }
+
+    @Test
+    @DisplayName("with the module unset or off, nothing is created")
+    void moduleOffCreatesNothing() {
+      contextRunner.run(context -> assertThat(context).doesNotHaveBean(MetricTagGuard.class));
+      contextRunner
+          .withPropertyValues(ObservabilityConstants.ENABLED + "=false")
+          .run(
+              context ->
+                  assertThat(context)
+                      .doesNotHaveBean(TelemetryUrlFilter.class)
+                      .doesNotHaveBean(MetricTagGuard.class)
+                      .doesNotHaveBean(CorrelationIdRecorder.class));
+    }
   }
 
-  @Test
-  @DisplayName(
-      "a service's ExecutorService bean is wrapped so its tasks keep the context, unless"
-          + " stratum.context-propagation.executor-beans is false")
-  void wrapsServiceExecutorServiceBeans() {
-    contextRunner
-        .withPropertyValues(MODULE_ON)
-        .withUserConfiguration(ServiceExecutorServiceBean.class)
-        .run(
-            context ->
-                assertThat(context.getBean(ExecutorService.class))
-                    .isInstanceOf(ContextExecutorService.class));
-    contextRunner
-        .withPropertyValues(MODULE_ON, "stratum.context-propagation.executor-beans=false")
-        .withUserConfiguration(ServiceExecutorServiceBean.class)
-        .run(
-            context ->
-                assertThat(context.getBean(ExecutorService.class))
-                    .isNotInstanceOf(ContextExecutorService.class));
+  @Nested
+  @DisplayName("when the service or a company framework has its own beans")
+  class BackingOff {
+
+    @Test
+    @DisplayName("the service's own beans replace Stratum's")
+    void serviceBeansWin() {
+      var serviceFilter = new TelemetryUrlFilter();
+      var serviceGuard = new MetricTagGuard(List.of(), List.of());
+      // The recorder is a span processor, which is closeable; the context closes it too.
+      try (var serviceRecorder = new CorrelationIdRecorder()) {
+        contextRunner
+            .withPropertyValues(MODULE_ON)
+            .withBean(TelemetryUrlFilter.class, () -> serviceFilter)
+            .withBean(MetricTagGuard.class, () -> serviceGuard)
+            .withBean(CorrelationIdRecorder.class, () -> serviceRecorder)
+            .run(
+                context -> {
+                  assertThat(context.getBean(TelemetryUrlFilter.class)).isSameAs(serviceFilter);
+                  assertThat(context.getBean(MetricTagGuard.class)).isSameAs(serviceGuard);
+                  assertThat(context.getBean(CorrelationIdRecorder.class))
+                      .isSameAs(serviceRecorder);
+                });
+      }
+    }
+
+    @Test
+    @DisplayName("a company framework's auto-configuration with no order wins over Stratum's")
+    void companyBeansWin() {
+      new ApplicationContextRunner()
+          .withPropertyValues(MODULE_ON)
+          .withConfiguration(
+              AutoConfigurations.of(
+                  ValidationAutoConfiguration.class,
+                  ObservabilityAutoConfiguration.class,
+                  CompanyBeansAutoConfiguration.class))
+          .run(
+              context -> {
+                assertThat(context.getBean(TelemetryUrlFilter.class))
+                    .isSameAs(CompanyBeansAutoConfiguration.FILTER);
+                assertThat(context.getBean(MetricTagGuard.class))
+                    .isSameAs(CompanyBeansAutoConfiguration.GUARD);
+                assertThat(context.getBean(CorrelationIdRecorder.class))
+                    .isSameAs(CompanyBeansAutoConfiguration.RECORDER);
+              });
+    }
   }
 
-  @Test
-  @DisplayName(
-      "Reactor carries the context into every operator only when the setting it sees while beans"
-          + " are created is auto, so a service's own limited wins")
-  void reactorContextPropagationFollowsFinalSetting() {
-    Hooks.disableAutomaticContextPropagation();
-    contextRunner
-        .withPropertyValues(MODULE_ON, REACTOR_CONTEXT_PROPAGATION + "=limited")
-        .run(_ -> assertThat(Hooks.isAutomaticContextPropagationEnabled()).isFalse());
-    contextRunner
-        .withPropertyValues(MODULE_ON, REACTOR_CONTEXT_PROPAGATION + "=auto")
-        .run(_ -> assertThat(Hooks.isAutomaticContextPropagationEnabled()).isTrue());
-    Hooks.disableAutomaticContextPropagation();
+  @Nested
+  @DisplayName("when an optional library is missing")
+  class OptionalLibraries {
+
+    @Test
+    @DisplayName(
+        "without Spring's web classes, which make HTTP client spans, no URL filter is made")
+    void withoutSpringWebCreatesNoFilter() {
+      contextRunner
+          .withPropertyValues(MODULE_ON)
+          .withClassLoader(new FilteredClassLoader(UriComponentsBuilder.class))
+          .run(context -> assertThat(context).doesNotHaveBean(TelemetryUrlFilter.class));
+    }
   }
 
-  @Test
-  @DisplayName("with the module on, every bean is created")
-  void createsBeans() {
-    contextRunner
-        .withPropertyValues(MODULE_ON)
-        .run(
-            context ->
-                assertThat(context)
-                    .hasSingleBean(TelemetryUrlFilter.class)
-                    .hasSingleBean(MetricTagGuard.class)
-                    .hasSingleBean(CorrelationIdRecorder.class));
-  }
+  @Nested
+  @DisplayName("with tag settings from properties and Java")
+  class Settings {
 
-  @Test
-  @DisplayName("with the module unset or off, nothing is created")
-  void moduleOffCreatesNothing() {
-    contextRunner.run(context -> assertThat(context).doesNotHaveBean(MetricTagGuard.class));
-    contextRunner
-        .withPropertyValues(ObservabilityConstants.ENABLED + "=false")
-        .run(
-            context ->
-                assertThat(context)
-                    .doesNotHaveBean(TelemetryUrlFilter.class)
-                    .doesNotHaveBean(MetricTagGuard.class)
-                    .doesNotHaveBean(CorrelationIdRecorder.class));
-  }
+    @Test
+    @DisplayName("the guard refuses and keeps the tag names set in properties")
+    void guardUsesPropertyNames() {
+      contextRunner
+          .withPropertyValues(
+              MODULE_ON, EXTRA_FORBIDDEN + "=" + TENANT_TAG, ALLOWED + "=" + ORDER_TAG)
+          .run(
+              context -> {
+                assertThat(guardReplyForTag(context, TENANT_TAG)).isEqualTo(MeterFilterReply.DENY);
+                assertThat(guardReplyForTag(context, ORDER_TAG))
+                    .isEqualTo(MeterFilterReply.NEUTRAL);
+              });
+    }
 
-  @Test
-  @DisplayName("without Spring's web classes, which make HTTP client spans, no URL filter is made")
-  void withoutSpringWebCreatesNoFilter() {
-    contextRunner
-        .withPropertyValues(MODULE_ON)
-        .withClassLoader(new FilteredClassLoader(UriComponentsBuilder.class))
-        .run(context -> assertThat(context).doesNotHaveBean(TelemetryUrlFilter.class));
-  }
+    @Test
+    @DisplayName("tag names set in a customizer listed in spring.factories win over properties")
+    void javaNamesWin(@TempDir Path folder) throws IOException {
+      var replies =
+          ObservabilityTestData.withCustomizers(
+              folder, List.of(RegionTagObservabilitySettings.class), this::regionAndTenantReplies);
 
-  @Test
-  @DisplayName("the service's own beans replace Stratum's")
-  void serviceBeansWin() {
-    contextRunner
-        .withPropertyValues(MODULE_ON)
-        .withUserConfiguration(ServiceBeansConfiguration.class)
-        .run(
-            context -> {
-              var serviceBeans = context.getBean(ServiceBeansConfiguration.class);
-              assertThat(context.getBean(TelemetryUrlFilter.class)).isSameAs(serviceBeans.filter);
-              assertThat(context.getBean(MetricTagGuard.class)).isSameAs(serviceBeans.guard);
-              assertThat(context.getBean(CorrelationIdRecorder.class))
-                  .isSameAs(serviceBeans.recorder);
-            });
-  }
+      assertThat(replies).containsExactly(MeterFilterReply.DENY, MeterFilterReply.NEUTRAL);
+    }
 
-  @Test
-  @DisplayName("a company framework's auto-configuration with no order wins over Stratum's")
-  void companyBeansWin() {
-    new ApplicationContextRunner()
-        .withPropertyValues(MODULE_ON)
-        .withConfiguration(
-            AutoConfigurations.of(
-                ValidationAutoConfiguration.class,
-                ObservabilityAutoConfiguration.class,
-                CompanyBeansAutoConfiguration.class))
-        .run(
-            context -> {
-              assertThat(context.getBean(TelemetryUrlFilter.class))
-                  .isSameAs(CompanyBeansAutoConfiguration.FILTER);
-              assertThat(context.getBean(MetricTagGuard.class))
-                  .isSameAs(CompanyBeansAutoConfiguration.GUARD);
-              assertThat(context.getBean(CorrelationIdRecorder.class))
-                  .isSameAs(CompanyBeansAutoConfiguration.RECORDER);
-            });
-  }
+    @Test
+    @DisplayName("a customizer declared as a bean stops startup with SX-CORE-1004")
+    void customizerBeanStopsStartup() {
+      contextRunner
+          .withPropertyValues(MODULE_ON)
+          .withBean(
+              "regionTagCustomizer",
+              RegionTagObservabilitySettings.class,
+              RegionTagObservabilitySettings::new)
+          .run(
+              context ->
+                  assertThat(context)
+                      .getFailure()
+                      .rootCause()
+                      .isInstanceOf(StratumException.class)
+                      .hasMessage(
+                          "SX-CORE-1004: "
+                              + CoreErrorCode.CUSTOMIZER_DECLARED_AS_BEAN.getDescription()
+                              + ": customizer beans regionTagCustomizer"));
+    }
 
-  @Test
-  @DisplayName("the guard refuses and keeps the tag names set in properties")
-  void guardUsesPropertyNames() {
-    contextRunner
-        .withPropertyValues(
-            MODULE_ON, EXTRA_FORBIDDEN + "=" + TENANT_TAG, ALLOWED + "=" + ORDER_TAG)
-        .run(
-            context -> {
-              assertThat(guardReplyForTag(context, TENANT_TAG)).isEqualTo(MeterFilterReply.DENY);
-              assertThat(guardReplyForTag(context, ORDER_TAG)).isEqualTo(MeterFilterReply.NEUTRAL);
-            });
-  }
-
-  @Test
-  @DisplayName("tag names set in a customizer listed in spring.factories win over properties")
-  void javaNamesWin(@TempDir Path folder) throws IOException {
-    var replies =
-        JavaConfigurationTestData.withCustomizers(
-            folder, List.of(RegionTagObservabilitySettings.class), this::regionAndTenantReplies);
-
-    assertThat(replies).containsExactly(MeterFilterReply.DENY, MeterFilterReply.NEUTRAL);
-  }
-
-  /**
-   * Starts with {@code tenantId} refused in properties and returns what the guard answers for
-   * {@code regionId} and then {@code tenantId}.
-   */
-  private List<MeterFilterReply> regionAndTenantReplies() {
-    var replies = new ArrayList<MeterFilterReply>();
-    contextRunner
-        .withPropertyValues(MODULE_ON, EXTRA_FORBIDDEN + "=" + TENANT_TAG)
-        .run(
-            context ->
-                replies.addAll(
-                    List.of(
-                        guardReplyForTag(context, REGION_TAG),
-                        guardReplyForTag(context, TENANT_TAG))));
-    return replies;
-  }
-
-  @Test
-  @DisplayName("a customizer declared as a bean stops startup with SX-CORE-1004")
-  void customizerBeanStopsStartup() {
-    contextRunner
-        .withPropertyValues(MODULE_ON)
-        .withUserConfiguration(CustomizerAsBeanConfiguration.class)
-        .run(
-            context ->
-                assertThat(context)
-                    .getFailure()
-                    .rootCause()
-                    .isInstanceOf(StratumException.class)
-                    .hasMessage(
-                        "SX-CORE-1004: "
-                            + CoreErrorCode.CUSTOMIZER_DECLARED_AS_BEAN.getDescription()
-                            + ": customizer beans regionTagCustomizer"));
-  }
-
-  @Test
-  @DisplayName("a blank tag name stops startup with SX-CORE-1003, naming the property")
-  void blankTagNameStopsStartup() {
-    contextRunner
-        .withPropertyValues(MODULE_ON, EXTRA_FORBIDDEN + "[0]=")
-        .run(
-            context ->
-                assertThat(context)
-                    .getFailure()
-                    .rootCause()
-                    .hasMessageStartingWith("SX-CORE-1003")
-                    .hasMessageContaining(EXTRA_FORBIDDEN));
-  }
-
-  /** A service's configuration with its own beans. */
-  @Configuration(proxyBeanMethods = false)
-  static class ServiceBeansConfiguration {
-
-    /** The service's URL filter. */
-    final TelemetryUrlFilter filter = new TelemetryUrlFilter();
-
-    /** The service's tag guard. */
-    final MetricTagGuard guard = new MetricTagGuard(List.of(), List.of());
-
-    /** The service's correlation ID recorder. */
-    final CorrelationIdRecorder recorder = new CorrelationIdRecorder();
-
-    /**
-     * Returns the service's URL filter.
-     *
-     * @return the filter
-     */
-    @Bean
-    TelemetryUrlFilter serviceTelemetryUrlFilter() {
-      return filter;
+    @Test
+    @DisplayName("a blank tag name stops startup with SX-CORE-1003, naming the property")
+    void blankTagNameStopsStartup() {
+      contextRunner
+          .withPropertyValues(MODULE_ON, EXTRA_FORBIDDEN + "[0]=")
+          .run(
+              context ->
+                  assertThat(context)
+                      .getFailure()
+                      .rootCause()
+                      .hasMessageStartingWith("SX-CORE-1003")
+                      .hasMessageContaining(EXTRA_FORBIDDEN));
     }
 
     /**
-     * Returns the service's tag guard.
-     *
-     * @return the guard
+     * Starts with {@code tenantId} refused in properties and returns what the guard answers for
+     * {@code regionId} and then {@code tenantId}.
      */
-    @Bean
-    MetricTagGuard serviceMetricTagGuard() {
-      return guard;
+    private List<MeterFilterReply> regionAndTenantReplies() {
+      var replies = new ArrayList<MeterFilterReply>();
+      contextRunner
+          .withPropertyValues(MODULE_ON, EXTRA_FORBIDDEN + "=" + TENANT_TAG)
+          .run(
+              context ->
+                  replies.addAll(
+                      List.of(
+                          guardReplyForTag(context, REGION_TAG),
+                          guardReplyForTag(context, TENANT_TAG))));
+      return replies;
+    }
+  }
+
+  @Nested
+  @DisplayName("when work moves to another thread")
+  class ContextPropagation {
+
+    @Test
+    @DisplayName("with @EnableScheduling, @Async gets the pool Stratum adds, not Boot's scheduler")
+    void asyncGetsPoolNotSchedulerWithScheduling() {
+      new ApplicationContextRunner()
+          .withConfiguration(
+              AutoConfigurations.of(
+                  TaskExecutionAutoConfiguration.class,
+                  TaskSchedulingAutoConfiguration.class,
+                  ObservabilityAutoConfiguration.class))
+          .withPropertyValues(MODULE_ON, "spring.task.execution.propagate-context=true")
+          .withUserConfiguration(ServiceExecutorServiceBean.class, SchedulingEnabled.class)
+          .run(
+              context ->
+                  assertThat(context.getBean(AsyncConfigurer.class).getAsyncExecutor())
+                      .isSameAs(context.getBean("applicationTaskExecutor")));
     }
 
-    /**
-     * Returns the service's correlation ID recorder.
-     *
-     * @return the recorder
-     */
-    @Bean
-    CorrelationIdRecorder serviceCorrelationIdRecorder() {
-      return recorder;
+    @Test
+    @DisplayName(
+        "a service's ExecutorService bean is wrapped so its tasks keep the context, unless"
+            + " stratum.context-propagation.executor-beans is false")
+    void wrapsServiceExecutorServiceBeans() {
+      contextRunner
+          .withPropertyValues(MODULE_ON)
+          .withUserConfiguration(ServiceExecutorServiceBean.class)
+          .run(
+              context ->
+                  assertThat(context.getBean(ExecutorService.class))
+                      .isInstanceOf(ContextExecutorService.class));
+      contextRunner
+          .withPropertyValues(MODULE_ON, "stratum.context-propagation.executor-beans=false")
+          .withUserConfiguration(ServiceExecutorServiceBean.class)
+          .run(
+              context ->
+                  assertThat(context.getBean(ExecutorService.class))
+                      .isNotInstanceOf(ContextExecutorService.class));
+    }
+
+    @Test
+    @DisplayName(
+        "Reactor carries the context into every operator only when the setting it sees while beans"
+            + " are created is auto, so a service's own limited wins")
+    void reactorContextPropagationFollowsFinalSetting() {
+      Hooks.disableAutomaticContextPropagation();
+      contextRunner
+          .withPropertyValues(MODULE_ON, REACTOR_CONTEXT_PROPAGATION + "=limited")
+          .run(_ -> assertThat(Hooks.isAutomaticContextPropagationEnabled()).isFalse());
+      contextRunner
+          .withPropertyValues(MODULE_ON, REACTOR_CONTEXT_PROPAGATION + "=auto")
+          .run(_ -> assertThat(Hooks.isAutomaticContextPropagationEnabled()).isTrue());
+      Hooks.disableAutomaticContextPropagation();
     }
   }
 
@@ -354,21 +346,6 @@ class ObservabilityAutoConfigurationTest {
     @Bean
     CorrelationIdRecorder companyCorrelationIdRecorder() {
       return RECORDER;
-    }
-  }
-
-  /** A service that declares its customizer as a bean, which Stratum ignores. */
-  @Configuration(proxyBeanMethods = false)
-  static class CustomizerAsBeanConfiguration {
-
-    /**
-     * Returns a customizer that would refuse {@code regionId}.
-     *
-     * @return the customizer
-     */
-    @Bean
-    StratumPropertiesCustomizer<ObservabilityProperties> regionTagCustomizer() {
-      return new RegionTagObservabilitySettings();
     }
   }
 

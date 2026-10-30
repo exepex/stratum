@@ -10,7 +10,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.function.Consumer;
 import org.jspecify.annotations.Nullable;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.WebApplicationType;
@@ -33,7 +33,7 @@ class MessagingIntegrationTest {
   private static final String TRACE_ID = "traceId";
 
   /** Receives the spans and metrics the application sends. */
-  private final CollectorStub collector = new CollectorStub();
+  @AutoClose private final CollectorStub collector = new CollectorStub();
 
   /**
    * Starts the collector stub for one test.
@@ -42,24 +42,15 @@ class MessagingIntegrationTest {
    */
   MessagingIntegrationTest() throws IOException {}
 
-  /** Stops the collector stub after each test. */
-  @AfterEach
-  void stopCollector() {
-    collector.close();
-  }
-
   /** Starts the test application with the module on and Kafka at the embedded broker. */
   private ConfigurableApplicationContext start(EmbeddedKafkaBroker kafkaBroker) {
     return new SpringApplicationBuilder(OrderEventsApplication.class)
         .web(WebApplicationType.NONE)
         .run(
-            "--stratum.observability.enabled=true",
-            "--management.otlp.metrics.export.url=" + collector.url(CollectorStub.METRICS_PATH),
-            "--management.opentelemetry.tracing.export.otlp.endpoint="
-                + collector.url(CollectorStub.TRACES_PATH),
-            "--management.tracing.sampling.probability=1.0",
-            "--spring.kafka.bootstrap-servers=" + kafkaBroker.getBrokersAsString(),
-            "--spring.kafka.consumer.auto-offset-reset=earliest");
+            collector.withExportsSentHere(
+                "--stratum.observability.enabled=true",
+                "--spring.kafka.bootstrap-servers=" + kafkaBroker.getBrokersAsString(),
+                "--spring.kafka.consumer.auto-offset-reset=earliest"));
   }
 
   /**

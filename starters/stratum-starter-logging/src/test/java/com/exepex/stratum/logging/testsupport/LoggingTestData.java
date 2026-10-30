@@ -1,5 +1,6 @@
 package com.exepex.stratum.logging.testsupport;
 
+import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.LoggingProperties;
 import com.exepex.stratum.logging.LoggingProperties.LogFormat;
 import com.exepex.stratum.logging.LoggingPropertiesCustomizer;
@@ -13,6 +14,7 @@ import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
+import org.springframework.mock.env.MockEnvironment;
 import org.springframework.util.unit.DataSize;
 
 /**
@@ -89,6 +91,15 @@ public class LoggingTestData {
                 .extraKeys(extraKeys)
                 .extraPatterns(extraPatterns)
                 .build());
+  }
+
+  /**
+   * Returns an environment with the module switched on and nothing else set.
+   *
+   * @return the environment, which a test can add properties to
+   */
+  public static MockEnvironment environmentWithModuleOn() {
+    return new MockEnvironment().withProperty(LoggingConstants.ENABLED, "true");
   }
 
   /**

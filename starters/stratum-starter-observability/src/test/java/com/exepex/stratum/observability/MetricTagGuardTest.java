@@ -1,8 +1,8 @@
 package com.exepex.stratum.observability;
 
-import static com.exepex.stratum.observability.testsupport.MetricTestData.METRIC_NAME;
-import static com.exepex.stratum.observability.testsupport.MetricTestData.TAG_VALUE;
-import static com.exepex.stratum.observability.testsupport.MetricTestData.counterTaggedWith;
+import static com.exepex.stratum.observability.testsupport.ObservabilityTestData.METRIC_NAME;
+import static com.exepex.stratum.observability.testsupport.ObservabilityTestData.TAG_VALUE;
+import static com.exepex.stratum.observability.testsupport.ObservabilityTestData.counterTaggedWith;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.micrometer.core.instrument.Meter;

@@ -2,6 +2,7 @@ package com.exepex.stratum.observability;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.exepex.stratum.observability.testsupport.ObservabilityTestData;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -68,8 +69,7 @@ class LocalCollectorLoggingTest {
    * @return the environment
    */
   private MockEnvironment environmentWithModuleOn(String metricsAddress) {
-    return new MockEnvironment()
-        .withProperty(ObservabilityConstants.ENABLED, "true")
+    return ObservabilityTestData.environmentWithModuleOn()
         .withProperty(ObservabilityConstants.METRICS_EXPORT_URL, metricsAddress);
   }
 
@@ -118,7 +118,7 @@ class LocalCollectorLoggingTest {
   @Test
   @DisplayName("with no metrics address, the warning is kept")
   void missingAddressKeepsWarning() {
-    var environment = new MockEnvironment().withProperty(ObservabilityConstants.ENABLED, "true");
+    var environment = ObservabilityTestData.environmentWithModuleOn();
 
     run(environment);
 
@@ -129,8 +129,7 @@ class LocalCollectorLoggingTest {
   @DisplayName("a span address on this machine turns OpenTelemetry's send error off")
   void localSpanAddressTurnsErrorOff() {
     var environment =
-        new MockEnvironment()
-            .withProperty(ObservabilityConstants.ENABLED, "true")
+        ObservabilityTestData.environmentWithModuleOn()
             .withProperty(ObservabilityConstants.TRACING_EXPORT_ENDPOINT, LOCAL_SPAN_ADDRESS);
 
     run(environment);

@@ -5,10 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 import com.exepex.stratum.logging.testsupport.LoggingTestData;
 import java.time.Duration;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.util.unit.DataSize;
 
 @DisplayName("Redaction stays fast on hostile text, up to the largest allowed size")
@@ -33,26 +34,28 @@ class HostileInputRedactionSpeedTest {
   private final Redactor largestRedactor =
       Redactor.from(LoggingTestData.defaults().maxFieldLength(DataSize.ofMegabytes(1)).build());
 
-  /** Texts of about 16KB that would be slow to mask if a pattern rescanned the rest of the text. */
-  private static Stream<String> hostileInputs() {
-    return Stream.concat(
-        Stream.of(
-            "a".repeat(DEFAULT_LENGTH) + "@",
-            filled("a", DEFAULT_LENGTH).substring(DEFAULT_LENGTH / 2)
-                + "@"
-                + filled("a.", DEFAULT_LENGTH).substring(DEFAULT_LENGTH / 2),
-            filled("a.", DEFAULT_LENGTH).substring(DEFAULT_LENGTH / 2)
-                + "@"
-                + filled("b-", DEFAULT_LENGTH).substring(DEFAULT_LENGTH / 2),
-            "password=" + filled("word ", DEFAULT_LENGTH),
-            filled("+1 ", DEFAULT_LENGTH)),
-        largeHostileInputs(DEFAULT_LENGTH));
-  }
+  /**
+   * Texts of about 16KB that would be slow to mask if a pattern rescanned the rest of the text,
+   * built only when the test runs.
+   */
+  private static final Supplier<Stream<String>> HOSTILE_INPUTS =
+      () ->
+          Stream.concat(
+              Stream.of(
+                  "a".repeat(DEFAULT_LENGTH) + "@",
+                  filled("a", DEFAULT_LENGTH).substring(DEFAULT_LENGTH / 2)
+                      + "@"
+                      + filled("a.", DEFAULT_LENGTH).substring(DEFAULT_LENGTH / 2),
+                  filled("a.", DEFAULT_LENGTH).substring(DEFAULT_LENGTH / 2)
+                      + "@"
+                      + filled("b-", DEFAULT_LENGTH).substring(DEFAULT_LENGTH / 2),
+                  "password=" + filled("word ", DEFAULT_LENGTH),
+                  filled("+1 ", DEFAULT_LENGTH)),
+              largeHostileInputs(DEFAULT_LENGTH));
 
-  /** The same kinds of text at about 1MB. */
-  private static Stream<String> largestHostileInputs() {
-    return largeHostileInputs(LARGEST_LENGTH);
-  }
+  /** The same kinds of text at about 1MB, built only when the test runs. */
+  private static final Supplier<Stream<String>> LARGEST_HOSTILE_INPUTS =
+      () -> largeHostileInputs(LARGEST_LENGTH);
 
   /** Hostile texts that are also checked at the largest allowed size. */
   private static Stream<String> largeHostileInputs(int length) {
@@ -79,7 +82,7 @@ class HostileInputRedactionSpeedTest {
   }
 
   @ParameterizedTest
-  @MethodSource("hostileInputs")
+  @FieldSource("HOSTILE_INPUTS")
   @DisplayName("each 16KB input is masked within a second")
   void hostileInputIsFast(String input) {
     var masked =
@@ -90,7 +93,7 @@ class HostileInputRedactionSpeedTest {
   }
 
   @ParameterizedTest
-  @MethodSource("largestHostileInputs")
+  @FieldSource("LARGEST_HOSTILE_INPUTS")
   @DisplayName("each 1MB input is masked in linear time")
   void largestHostileInputIsLinear(String input) {
     var masked =
