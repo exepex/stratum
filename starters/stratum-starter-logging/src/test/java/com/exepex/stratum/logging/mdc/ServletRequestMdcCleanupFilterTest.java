@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRequestEvent;
 import java.util.Map;
-import java.util.concurrent.Executors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -66,16 +65,7 @@ class ServletRequestMdcCleanupFilterTest {
           + " restores the MDC when the request ends")
   void keepsFieldsOfFailedRequestUntilItEnds() {
     var request = new MockHttpServletRequest();
-    assertThatThrownBy(
-            () ->
-                filter.doFilter(
-                    request,
-                    new MockHttpServletResponse(),
-                    (failingRequest, response) -> {
-                      MDC.put(CUSTOMER_ID, CUSTOMER);
-                      throw new ServletException("handler failed");
-                    }))
-        .isInstanceOf(ServletException.class);
+    failWithCustomer(request, CUSTOMER);
     assertThat(MDC.get(CUSTOMER_ID)).isEqualTo(CUSTOMER);
 
     new ServletRequestMdcCleanupListener()
@@ -87,19 +77,10 @@ class ServletRequestMdcCleanupFilterTest {
   @Test
   @DisplayName(
       "after a failure, the error page's dispatch restores the MDC from before the failure when it"
-          + " ends, on the failed request's thread")
+          + " ends")
   void errorDispatchRestoresTheMdcFromBeforeTheFailure() throws Exception {
     var request = new MockHttpServletRequest();
-    assertThatThrownBy(
-            () ->
-                filter.doFilter(
-                    request,
-                    new MockHttpServletResponse(),
-                    (failingRequest, response) -> {
-                      MDC.put(CUSTOMER_ID, CUSTOMER);
-                      throw new ServletException("handler failed");
-                    }))
-        .isInstanceOf(ServletException.class);
+    failWithCustomer(request, CUSTOMER);
 
     filter.doFilter(
         request,
@@ -125,6 +106,18 @@ class ServletRequestMdcCleanupFilterTest {
     assertThat(MDC.getCopyOfContextMap()).isNullOrEmpty();
   }
 
+  @Test
+  @DisplayName("the listener leaves the MDC alone after a request that did not fail")
+  void listenerIgnoresRequestsThatDidNotFail() {
+    MDC.put(TENANT_ID, TENANT);
+
+    new ServletRequestMdcCleanupListener()
+        .requestDestroyed(
+            new ServletRequestEvent(new MockServletContext(), new MockHttpServletRequest()));
+
+    assertThat(MDC.get(TENANT_ID)).isEqualTo(TENANT);
+  }
+
   /** Runs a dispatch of the request that puts the customer and then fails. */
   private void failWithCustomer(MockHttpServletRequest request, String customer) {
     assertThatThrownBy(
@@ -137,47 +130,5 @@ class ServletRequestMdcCleanupFilterTest {
                       throw new ServletException("handler failed");
                     }))
         .isInstanceOf(ServletException.class);
-  }
-
-  @Test
-  @DisplayName("the stored restore leaves the MDC of any thread but the failed one alone")
-  void storedRestoreActsOnlyOnTheFailedThread() throws Exception {
-    var request = new MockHttpServletRequest();
-    assertThatThrownBy(
-            () ->
-                filter.doFilter(
-                    request,
-                    new MockHttpServletResponse(),
-                    (failingRequest, response) -> {
-                      throw new ServletException("handler failed");
-                    }))
-        .isInstanceOf(ServletException.class);
-    var restoreMdc =
-        (Runnable) request.getAttribute(ServletRequestMdcCleanupFilter.RESTORE_MDC_ATTRIBUTE);
-
-    try (var otherThread = Executors.newSingleThreadExecutor()) {
-      var otherThreadMdc =
-          otherThread
-              .submit(
-                  () -> {
-                    MDC.put(TENANT_ID, TENANT);
-                    restoreMdc.run();
-                    return MDC.getCopyOfContextMap();
-                  })
-              .get();
-      assertThat(otherThreadMdc).containsExactlyEntriesOf(Map.of(TENANT_ID, TENANT));
-    }
-  }
-
-  @Test
-  @DisplayName("the listener leaves the MDC alone after a request that did not fail")
-  void listenerIgnoresRequestsThatDidNotFail() {
-    MDC.put(TENANT_ID, TENANT);
-
-    new ServletRequestMdcCleanupListener()
-        .requestDestroyed(
-            new ServletRequestEvent(new MockServletContext(), new MockHttpServletRequest()));
-
-    assertThat(MDC.get(TENANT_ID)).isEqualTo(TENANT);
   }
 }

@@ -49,10 +49,8 @@ public class ServletRequestMdcCleanupFilter implements Filter {
         keepFieldsUntilFailureIsLogged(request, mdcBeforeDispatch);
       } else if (request.getAttribute(RESTORE_MDC_ATTRIBUTE) instanceof Runnable restoreMdc) {
         // The error page ran after the server logged the failure, so restore the MDC from before
-        // the failure now, before the thread can go back to the pool. The stored restore only acts
-        // on the failed request's thread; on any other, this dispatch's own snapshot stands.
+        // the failure now, before the thread can go back to the pool.
         request.removeAttribute(RESTORE_MDC_ATTRIBUTE);
-        MDC.setContextMap(mdcBeforeDispatch);
         restoreMdc.run();
       } else {
         MDC.setContextMap(mdcBeforeDispatch);
@@ -62,20 +60,13 @@ public class ServletRequestMdcCleanupFilter implements Filter {
 
   /**
    * Leaves the failed request's fields on the thread and stores how to restore the MDC, unless an
-   * earlier failure of the same request already did. The restore only acts on this thread.
+   * earlier failure of the same request, such as the one the error page is handling, already did.
    */
   private void keepFieldsUntilFailureIsLogged(
       ServletRequest request, Map<String, String> mdcBeforeDispatch) {
     if (request.getAttribute(RESTORE_MDC_ATTRIBUTE) == null) {
-      var failedThreadId = Thread.currentThread().threadId();
       request.setAttribute(
-          RESTORE_MDC_ATTRIBUTE,
-          (Runnable)
-              () -> {
-                if (Thread.currentThread().threadId() == failedThreadId) {
-                  MDC.setContextMap(mdcBeforeDispatch);
-                }
-              });
+          RESTORE_MDC_ATTRIBUTE, (Runnable) () -> MDC.setContextMap(mdcBeforeDispatch));
     }
   }
 }
