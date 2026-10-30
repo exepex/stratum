@@ -70,7 +70,9 @@ Declaring a pool bean stops Spring Boot from creating its own task executor, whi
 it, as Spring Boot does for its own. Code that injects an `Executor` by type still gets your pool.
 Stratum does not do this when your service has its own `TaskExecutor`, a bean named `taskExecutor`
 or an `AsyncConfigurer`, because `@Async` then uses your choice, or when
-`stratum.context-propagation.async-threads` is `false`.
+`stratum.context-propagation.async-threads` is `false`. For this, the logging and observability
+modules run before Spring Boot's task scheduling: its scheduler is also a task executor, and would
+otherwise count as yours.
 
 A wrapped pool is Micrometer's wrapper, so code that casts it to `ThreadPoolExecutor` fails; inject
 it as declared.

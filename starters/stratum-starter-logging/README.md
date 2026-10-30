@@ -248,8 +248,8 @@ The fields follow the work to other threads:
 The fields stay inside the service. With the observability starter, the trace ID reaches the
 services it calls; sending the workflow fields too is [planned](#planned). The observability
 starter also puts `traceId`, `spanId` and `correlationId` on the lines written inside a traced
-operation, reactive code included; [threads](../../docs/guides/context-across-threads.md) lists
-every case.
+operation, reactive code included. The module runs before Spring Boot's task scheduling;
+[threads](../../docs/guides/context-across-threads.md) explains why and lists every case.
 
 ## Redaction
 

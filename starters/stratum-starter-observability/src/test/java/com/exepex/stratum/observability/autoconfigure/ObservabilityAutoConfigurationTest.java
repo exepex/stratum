@@ -26,12 +26,16 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.autoconfigure.task.TaskExecutionAutoConfiguration;
+import org.springframework.boot.autoconfigure.task.TaskSchedulingAutoConfiguration;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.validation.autoconfigure.ValidationAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.AsyncConfigurer;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Hooks;
 
@@ -65,6 +69,23 @@ class ObservabilityAutoConfigurationTest {
   /** Returns what the context's guard answers for a metric with one tag. */
   private MeterFilterReply guardReplyForTag(AssertableApplicationContext context, String tagName) {
     return context.getBean(MetricTagGuard.class).accept(MetricTestData.counterTaggedWith(tagName));
+  }
+
+  @Test
+  @DisplayName("with @EnableScheduling, @Async gets the pool Stratum adds, not Boot's scheduler")
+  void asyncGetsPoolNotSchedulerWithScheduling() {
+    new ApplicationContextRunner()
+        .withConfiguration(
+            AutoConfigurations.of(
+                TaskExecutionAutoConfiguration.class,
+                TaskSchedulingAutoConfiguration.class,
+                ObservabilityAutoConfiguration.class))
+        .withPropertyValues(MODULE_ON, "spring.task.execution.propagate-context=true")
+        .withUserConfiguration(ServiceExecutorServiceBean.class, SchedulingEnabled.class)
+        .run(
+            context ->
+                assertThat(context.getBean(AsyncConfigurer.class).getAsyncExecutor())
+                    .isSameAs(context.getBean("applicationTaskExecutor")));
   }
 
   @Test
@@ -365,4 +386,9 @@ class ObservabilityAutoConfigurationTest {
       return Executors.newSingleThreadExecutor();
     }
   }
+
+  /** Turns on {@code @Scheduled} jobs, which brings Spring Boot's scheduler. */
+  @Configuration(proxyBeanMethods = false)
+  @EnableScheduling
+  static class SchedulingEnabled {}
 }
