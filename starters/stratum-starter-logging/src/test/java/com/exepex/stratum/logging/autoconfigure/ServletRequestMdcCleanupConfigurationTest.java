@@ -112,7 +112,7 @@ class ServletRequestMdcCleanupConfigurationTest {
   }
 
   @Test
-  @DisplayName("a company framework's registration with no order wins over Stratum's")
+  @DisplayName("a company framework's registrations with no order win over Stratum's")
   void companyRegistrationWins() {
     new WebApplicationContextRunner()
         .withPropertyValues(MODULE_ON)
@@ -120,9 +120,15 @@ class ServletRequestMdcCleanupConfigurationTest {
             AutoConfigurations.of(
                 LoggingAutoConfiguration.class, CompanyFilterAutoConfiguration.class))
         .run(
-            context ->
-                assertThat(context.getBean(FilterRegistrationBean.class))
-                    .isSameAs(CompanyFilterAutoConfiguration.REGISTRATION));
+            context -> {
+              assertThat(context.getBean(FilterRegistrationBean.class))
+                  .isSameAs(CompanyFilterAutoConfiguration.REGISTRATION);
+              assertThat(context.getBeansOfType(ServletListenerRegistrationBean.class))
+                  .containsExactly(
+                      Map.entry(
+                          "companyMdcCleanupListener",
+                          CompanyFilterAutoConfiguration.LISTENER_REGISTRATION));
+            });
   }
 
   /** A company framework's auto-configuration that declares no order. */
@@ -141,6 +147,21 @@ class ServletRequestMdcCleanupConfigurationTest {
     @Bean
     FilterRegistrationBean<ServletRequestMdcCleanupFilter> companyMdcCleanupFilter() {
       return REGISTRATION;
+    }
+
+    /** The company's registration of the listener. */
+    static final ServletListenerRegistrationBean<ServletRequestMdcCleanupListener>
+        LISTENER_REGISTRATION =
+            new ServletListenerRegistrationBean<>(new ServletRequestMdcCleanupListener());
+
+    /**
+     * Returns the company's listener registration.
+     *
+     * @return the registration
+     */
+    @Bean
+    ServletListenerRegistrationBean<ServletRequestMdcCleanupListener> companyMdcCleanupListener() {
+      return LISTENER_REGISTRATION;
     }
   }
 
