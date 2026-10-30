@@ -1,8 +1,6 @@
 package com.exepex.stratum.logging;
 
 import com.exepex.stratum.core.properties.StratumCustomizers;
-import com.exepex.stratum.core.properties.StratumPropertiesResolver;
-import jakarta.validation.Validation;
 import jakarta.validation.constraints.AssertTrue;
 import java.util.List;
 import lombok.Builder;
@@ -10,7 +8,6 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.core.env.Environment;
 import org.springframework.util.unit.DataSize;
@@ -57,13 +54,11 @@ public record LoggingProperties(
    *     breaks its rules
    */
   public static LoggingProperties resolve(Environment environment) {
-    var boundProperties =
-        Binder.get(environment).bindOrCreate(LoggingConstants.PREFIX, LoggingProperties.class);
-    var customizers = StratumCustomizers.load(LoggingPropertiesCustomizer.class);
-    try (var validatorFactory = Validation.buildDefaultValidatorFactory()) {
-      return new StratumPropertiesResolver(validatorFactory.getValidator())
-          .resolve(boundProperties, customizers.stream());
-    }
+    return StratumCustomizers.resolveSettings(
+        environment,
+        LoggingConstants.PREFIX,
+        LoggingProperties.class,
+        LoggingPropertiesCustomizer.class);
   }
 
   /**

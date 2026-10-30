@@ -1,14 +1,11 @@
 package com.exepex.stratum.observability;
 
 import com.exepex.stratum.core.properties.StratumCustomizers;
-import com.exepex.stratum.core.properties.StratumPropertiesResolver;
 import jakarta.validation.Valid;
-import jakarta.validation.Validation;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import lombok.Builder;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.core.env.Environment;
 
@@ -55,14 +52,11 @@ public record ObservabilityProperties(
    *     breaks its rules
    */
   public static ObservabilityProperties resolve(Environment environment) {
-    var boundProperties =
-        Binder.get(environment)
-            .bindOrCreate(ObservabilityConstants.PREFIX, ObservabilityProperties.class);
-    var customizers = StratumCustomizers.load(ObservabilityPropertiesCustomizer.class);
-    try (var validatorFactory = Validation.buildDefaultValidatorFactory()) {
-      return new StratumPropertiesResolver(validatorFactory.getValidator())
-          .resolve(boundProperties, customizers.stream());
-    }
+    return StratumCustomizers.resolveSettings(
+        environment,
+        ObservabilityConstants.PREFIX,
+        ObservabilityProperties.class,
+        ObservabilityPropertiesCustomizer.class);
   }
 
   /**

@@ -167,9 +167,9 @@ Every starter follows these rules:
   defaults as the properties. When a setting is given in both places, the Java configuration wins, and the module's
   documentation says so. The shared mechanism is in `stratum-core`, and every module uses it the same way: the module
   declares `<Module>PropertiesCustomizer extends StratumPropertiesCustomizer<P>` for its settings record `P`; a
-  service lists its customizer classes in `META-INF/spring.factories` under that interface; and the module builds
-  its settings only from `StratumPropertiesResolver.resolve(bound, StratumCustomizers.load(...).stream())`, never
-  from the bound record directly. Customizers are classes, not beans, because some modules, such as logging, need
+  service lists its customizer classes in `META-INF/spring.factories` under that interface; and the module gets
+  its settings only from one call, `StratumCustomizers.resolveSettings(environment, prefix, P.class,
+  <Module>PropertiesCustomizer.class)`, never from the bound record directly. Customizers are classes, not beans, because some modules, such as logging, need
   their settings before any bean exists. The module's auto-configuration calls `StratumCustomizers.rejectBeans`, so
   a customizer declared as a bean stops startup with `SX-CORE-1004` instead of being silently ignored. The module
   switches, shared properties and Spring Boot properties are set in Java through `SpringApplication`'s default

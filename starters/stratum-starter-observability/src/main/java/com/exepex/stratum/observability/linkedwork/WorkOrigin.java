@@ -2,6 +2,7 @@ package com.exepex.stratum.observability.linkedwork;
 
 import com.exepex.stratum.core.error.LoggingContextConstants;
 import java.util.regex.Pattern;
+import lombok.Builder;
 
 /**
  * Where a piece of work came from: the trace and span of the request that caused it, and its
@@ -13,6 +14,7 @@ import java.util.regex.Pattern;
  * @param sampled whether the request's trace was sampled
  * @param correlationId the request's correlation ID, 1 to 128 characters safe for logs
  */
+@Builder
 public record WorkOrigin(String traceId, String spanId, boolean sampled, String correlationId) {
 
   /** A trace ID as W3C trace context writes it. */
@@ -46,7 +48,7 @@ public record WorkOrigin(String traceId, String spanId, boolean sampled, String 
         || !SPAN_ID.matcher(spanId).matches()
         || ALL_ZEROS.matcher(traceId).matches()
         || ALL_ZEROS.matcher(spanId).matches()
-        || !LoggingContextConstants.ID_FORMAT_SAFE_FOR_LOGS.matcher(correlationId).matches()) {
+        || !LoggingContextConstants.isSafeForLogs(correlationId)) {
       throw new IllegalArgumentException(
           "A work origin needs a 32-character trace ID and a 16-character span ID, both lowercase"
               + " hexadecimal and not all zeros, and a correlation ID of 1 to 128 letters, digits,"
@@ -67,11 +69,12 @@ public record WorkOrigin(String traceId, String spanId, boolean sampled, String 
       throw new IllegalArgumentException(
           "A stored work origin must be a W3C traceparent, a space and a correlation ID");
     }
-    return new WorkOrigin(
-        matcher.group("traceId"),
-        matcher.group("spanId"),
-        SAMPLED_FLAGS.equals(matcher.group("flags")),
-        matcher.group("correlationId"));
+    return WorkOrigin.builder()
+        .traceId(matcher.group("traceId"))
+        .spanId(matcher.group("spanId"))
+        .sampled(SAMPLED_FLAGS.equals(matcher.group("flags")))
+        .correlationId(matcher.group("correlationId"))
+        .build();
   }
 
   /**
