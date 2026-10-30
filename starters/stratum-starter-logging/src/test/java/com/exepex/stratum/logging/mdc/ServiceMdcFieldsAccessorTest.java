@@ -13,6 +13,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
+import org.slf4j.helpers.BasicMDCAdapter;
 
 @DisplayName("ServiceMdcFieldsAccessor carries the service's own MDC fields to other threads")
 class ServiceMdcFieldsAccessorTest {
@@ -22,6 +23,11 @@ class ServiceMdcFieldsAccessorTest {
 
   /** The customer whose request the tests run. */
   private static final String CUSTOMER = "CUST-7";
+
+  /** Another field of the service's own, and its value. */
+  private static final String TENANT_ID = "tenantId";
+
+  private static final String TENANT = "TENANT-3";
 
   /** The trace ID tracing put in the MDC. */
   private static final String TRACE_ID = "4bf92f3577b34da6a3ce929d0e0e4736";
@@ -56,7 +62,7 @@ class ServiceMdcFieldsAccessorTest {
   @DisplayName(
       "setting the carried fields replaces the thread's own, and leaves trace fields alone")
   void replacesServiceFieldsOnly() {
-    MDC.put("tenantId", "TENANT-3");
+    MDC.put(TENANT_ID, TENANT);
     MDC.put(LoggingContextConstants.CORRELATION_ID, "order-flow-7001");
 
     accessor.setValue(Map.of(CUSTOMER_ID, CUSTOMER));
@@ -92,6 +98,29 @@ class ServiceMdcFieldsAccessorTest {
     accessor.setValue(Map.of(CUSTOMER_ID, CUSTOMER));
 
     assertThat(logbackMdc.getPropertyMap()).isSameAs(cachedCopyBefore);
+  }
+
+  @Test
+  @DisplayName(
+      "with an SLF4J backend other than Logback, it reads, replaces and clears the service's own"
+          + " fields the same way")
+  void worksWithBackendOtherThanLogback() {
+    var otherBackendMdc = new BasicMDCAdapter();
+    var otherBackendAccessor = new ServiceMdcFieldsAccessor(otherBackendMdc);
+    otherBackendMdc.put(CUSTOMER_ID, CUSTOMER);
+    otherBackendMdc.put(LoggingContextConstants.TRACE_ID, TRACE_ID);
+
+    var readFields = otherBackendAccessor.getValue();
+    otherBackendAccessor.setValue(Map.of(TENANT_ID, TENANT));
+    var afterReplace = otherBackendMdc.getCopyOfContextMap();
+    otherBackendAccessor.setValue();
+
+    assertThat(readFields).containsExactlyEntriesOf(Map.of(CUSTOMER_ID, CUSTOMER));
+    assertThat(afterReplace)
+        .containsExactlyInAnyOrderEntriesOf(
+            Map.of(TENANT_ID, TENANT, LoggingContextConstants.TRACE_ID, TRACE_ID));
+    assertThat(otherBackendMdc.getCopyOfContextMap())
+        .containsExactlyEntriesOf(Map.of(LoggingContextConstants.TRACE_ID, TRACE_ID));
   }
 
   @Test

@@ -8,7 +8,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.MDC;
+import org.slf4j.spi.MDCAdapter;
 import org.springframework.util.ClassUtils;
 
 /**
@@ -23,6 +26,7 @@ import org.springframework.util.ClassUtils;
  * it when the backend is Logback, and writes only when the fields differ. Its methods use loops
  * rather than streams for the same reason.
  */
+@RequiredArgsConstructor(access = AccessLevel.PACKAGE)
 public class ServiceMdcFieldsAccessor implements ThreadLocalAccessor<Map<String, String>> {
 
   /** The MDC fields that tracing and workflows set, which this accessor never copies or removes. */
@@ -39,6 +43,17 @@ public class ServiceMdcFieldsAccessor implements ThreadLocalAccessor<Map<String,
   private static final boolean LOGBACK_MDC_PRESENT =
       ClassUtils.isPresent(
           "ch.qos.logback.classic.util.LogbackMDCAdapter", ClassUtils.getDefaultClassLoader());
+
+  /**
+   * The SLF4J backend's MDC, which this accessor reads and writes; given directly only by tests of
+   * a backend other than Logback.
+   */
+  private final MDCAdapter mdcAdapter;
+
+  /** Creates the accessor for the MDC of the SLF4J backend the service runs on. */
+  public ServiceMdcFieldsAccessor() {
+    this(MDC.getMDCAdapter());
+  }
 
   /**
    * Returns the key under which the fields are carried.
@@ -100,7 +115,7 @@ public class ServiceMdcFieldsAccessor implements ThreadLocalAccessor<Map<String,
       return;
     }
     removeServiceFields(loggingContext);
-    carriedFields.forEach(MDC::put);
+    carriedFields.forEach(mdcAdapter::put);
   }
 
   /**
@@ -135,7 +150,7 @@ public class ServiceMdcFieldsAccessor implements ThreadLocalAccessor<Map<String,
   private void removeServiceFields(Map<String, String> loggingContext) {
     for (var field : loggingContext.entrySet()) {
       if (isServiceField(field.getKey(), field.getValue())) {
-        MDC.remove(field.getKey());
+        mdcAdapter.remove(field.getKey());
       }
     }
   }
@@ -147,9 +162,9 @@ public class ServiceMdcFieldsAccessor implements ThreadLocalAccessor<Map<String,
    */
   private Map<String, String> loggingContextOnThisThread() {
     var loggingContext =
-        LOGBACK_MDC_PRESENT && MDC.getMDCAdapter() instanceof LogbackMDCAdapter logbackMdc
+        LOGBACK_MDC_PRESENT && mdcAdapter instanceof LogbackMDCAdapter logbackMdc
             ? logbackMdc.getPropertyMap()
-            : MDC.getCopyOfContextMap();
+            : mdcAdapter.getCopyOfContextMap();
     return Objects.requireNonNullElse(loggingContext, Map.of());
   }
 }
