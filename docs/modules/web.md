@@ -1,10 +1,11 @@
 # Web: `stratum-starter-webmvc` and `stratum-starter-webflux`
 
-**Status: Partly built.** Error responses, request fields in logs, the correlation ID and the
-request log are built for both stacks; the error responses are described in the READMEs of
+**Status: Partly built.** Error responses, request fields in logs, the correlation ID, the request
+log and timeouts are built for both stacks; the error responses are described in the READMEs of
 [`stratum-starter-webmvc`](../../starters/stratum-starter-webmvc/README.md) and
-[`stratum-starter-webflux`](../../starters/stratum-starter-webflux/README.md), and the rest on this
-page. Timeouts and the body size limit are the agreed design and not built yet.
+[`stratum-starter-webflux`](../../starters/stratum-starter-webflux/README.md), timeouts in
+[Response timeouts](web-timeouts.md), and the rest on this page. The body size limit is the agreed
+design and not built yet.
 
 [← Documentation home](../README.md) · Property prefix: `stratum.web` · Decision record:
 [ADR 0006](../adr/0006-separate-mvc-and-webflux-starters.md)
@@ -71,7 +72,7 @@ Every feature works the same on both stacks.
 | Headers in logs (built) | The request and response headers a team names are logged as fields. `Authorization`, `Cookie`, `Set-Cookie` and `X-Api-Key` never are |
 | Token claims in logs (built) | When a team turns it on, the claims it lists from the caller's JWT, such as `sub` and `scope`, are logged. Other claims, the token's header and its signature never are |
 | Correlation ID (built) | Taken from the caller's `X-Correlation-Id` header when it has a safe format, otherwise the trace ID; returned in the response header. Needs the observability starter |
-| Timeouts | A request that runs longer than its limit (10 seconds by default) is answered with `503` |
+| Timeouts (built) | A request whose response has not started within its limit, 10 seconds by default, is answered with `503`. One API can have its own limit. See [Response timeouts](web-timeouts.md) |
 | Body size limit | A request body larger than the limit is refused with `413` |
 
 Response times and error counts per API come from the
@@ -379,8 +380,7 @@ route with `httpStatus` 500 or above, or with a large `durationMs`; each line ca
 
 ## Properties
 
-Each works from `.properties`, `.yml` and Java, and your IDE completes it. The built ones work on
-both stacks; the others are planned.
+Each works from `.properties`, `.yml` and Java, and your IDE completes it, on both stacks.
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
@@ -393,8 +393,9 @@ both stacks; the others are planned.
 | `stratum.web.user-agent.request-client-hints` | boolean | `false` | Whether responses ask browsers for their device model and full OS version. Only used when `parse` is `true`. |
 | `stratum.web.client-location.database` | file path | none | Your MaxMind City or Country `.mmdb` file. Unset, no country or city is logged. |
 | `stratum.web.request-fields.max-value-length` | integer, 16 to 8192 | `512` | The most characters a request field keeps. |
-| `stratum.web.timeout.default` (planned) | duration | `10s` | How long any request may run. |
-| `stratum.web.timeout.status` (planned) | HTTP status | `503` | The status of a request that ran out of time. |
+| `stratum.web.timeout.default-limit` | duration | `10s` | How long any request may take until its response starts. `0` means no limit. |
+| `stratum.web.timeout.routes` | map of path pattern to duration | empty | The limit of the requests whose path matches a pattern, such as `/reports/**`. The most specific pattern wins. |
+| `stratum.web.timeout.status` | HTTP status, `400` to `599` | `503` | The status a request that ran out of time is answered with. |
 | `stratum.web.request-log.enabled` | boolean | `true` | Whether each request writes one log line when it is answered. |
 | `stratum.web.request-log.skip-paths` | list of path patterns | `/actuator/**` | Paths whose requests write no log line. Replaces the default; static files are always skipped. |
 | `stratum.web.request-log.request-headers` | map of header to field name | empty | The request headers written in the line, and the field each is written as. |
@@ -457,8 +458,8 @@ public class OrdersWebSettings implements WebPropertiesCustomizer {
 ```
 
 The [web MVC starter's README](../../starters/stratum-starter-webmvc/README.md#configure-in-java)
-shows how to list the class, which is the same for WebFlux. A single API will also be able to set
-its own timeout with an annotation on its method; that is planned.
+shows how to list the class, which is the same for WebFlux. A single API can also set its own
+timeout with `@ResponseTimeout` on its method; see [Response timeouts](web-timeouts.md).
 
 ## Switch it on or off
 

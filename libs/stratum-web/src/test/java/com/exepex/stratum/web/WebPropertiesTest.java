@@ -10,6 +10,7 @@ import com.exepex.stratum.web.testsupport.GoneOrderWebSettings;
 import jakarta.validation.ConstraintViolationException;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -24,6 +25,9 @@ import org.springframework.mock.env.MockEnvironment;
 
 @DisplayName("WebProperties come from properties, changed by Java configuration, which wins")
 class WebPropertiesTest {
+
+  /** How every message about a broken setting starts. */
+  private static final String INVALID_SETTINGS = "SX-CORE-1003: Invalid settings: ";
 
   /** The code of a duplicate order. */
   private static final String DUPLICATE_ORDER = OrderErrorCode.DUPLICATE_ORDER.getCode();
@@ -50,10 +54,7 @@ class WebPropertiesTest {
   @Test
   @DisplayName("statuses are read from a .yml file, with the code as written")
   void statusesFromYaml() throws IOException {
-    var environment = new StandardEnvironment();
-    new YamlPropertySourceLoader()
-        .load("web-yaml", new ClassPathResource("web-yaml.yml"))
-        .forEach(environment.getPropertySources()::addFirst);
+    var environment = yamlEnvironment();
 
     assertThat(WebProperties.resolve(environment).error().statuses())
         .isEqualTo(
@@ -87,7 +88,7 @@ class WebPropertiesTest {
 
     assertThatExceptionOfType(ConstraintViolationException.class)
         .isThrownBy(() -> WebProperties.resolve(environment))
-        .withMessageStartingWith("SX-CORE-1003: Invalid settings: " + WebConstants.ERROR_STATUSES)
+        .withMessageStartingWith(INVALID_SETTINGS + WebConstants.ERROR_STATUSES)
         .withMessageNotContaining(DUPLICATE_ORDER);
   }
 
@@ -150,10 +151,7 @@ class WebPropertiesTest {
     @Test
     @DisplayName("are read from a .yml file")
     void fromYaml() throws IOException {
-      var environment = new StandardEnvironment();
-      new YamlPropertySourceLoader()
-          .load("web-yaml", new ClassPathResource("web-yaml.yml"))
-          .forEach(environment.getPropertySources()::addFirst);
+      var environment = yamlEnvironment();
 
       var settings = WebProperties.resolve(environment);
 
@@ -188,8 +186,7 @@ class WebPropertiesTest {
 
       assertThatExceptionOfType(ConstraintViolationException.class)
           .isThrownBy(() -> WebProperties.resolve(environment))
-          .withMessageStartingWith(
-              "SX-CORE-1003: Invalid settings: " + WebConstants.REQUEST_FIELDS_MAX_VALUE_LENGTH);
+          .withMessageStartingWith(INVALID_SETTINGS + WebConstants.REQUEST_FIELDS_MAX_VALUE_LENGTH);
     }
   }
 
@@ -240,10 +237,7 @@ class WebPropertiesTest {
     @Test
     @DisplayName("are read from a .yml file")
     void fromYaml() throws IOException {
-      var environment = new StandardEnvironment();
-      new YamlPropertySourceLoader()
-          .load("web-yaml", new ClassPathResource("web-yaml.yml"))
-          .forEach(environment.getPropertySources()::addFirst);
+      var environment = yamlEnvironment();
 
       var requestLog = WebProperties.resolve(environment).requestLog();
 
@@ -261,8 +255,92 @@ class WebPropertiesTest {
 
       assertThatExceptionOfType(ConstraintViolationException.class)
           .isThrownBy(() -> WebProperties.resolve(environment))
-          .withMessageStartingWith(
-              "SX-CORE-1003: Invalid settings: " + WebConstants.REQUEST_LOG_REQUEST_HEADERS);
+          .withMessageStartingWith(INVALID_SETTINGS + WebConstants.REQUEST_LOG_REQUEST_HEADERS);
     }
+  }
+
+  @Nested
+  @DisplayName("the timeout settings")
+  class TimeoutSettings {
+
+    /** The limit of a request when nothing is set. */
+    private static final Duration DEFAULT_LIMIT = Duration.ofSeconds(10);
+
+    /** The default limit the files set. */
+    private static final Duration FILE_LIMIT = Duration.ofSeconds(5);
+
+    /** The limit of the report paths that the files set. */
+    private static final Map<String, Duration> REPORT_ROUTES =
+        Map.of("/reports/**", Duration.ofSeconds(60));
+
+    @Test
+    @DisplayName("with nothing set, every request has 10 seconds and is answered with 503")
+    void defaults() {
+      assertThat(WebProperties.resolve(new MockEnvironment()).timeout())
+          .isEqualTo(
+              new WebProperties.TimeoutSettings(
+                  DEFAULT_LIMIT, Map.of(), HttpStatus.SERVICE_UNAVAILABLE.value()));
+    }
+
+    @Test
+    @DisplayName("are read from a .properties file, with the routes as path patterns")
+    void fromProperties() {
+      var environment =
+          new MockEnvironment()
+              .withProperty(WebConstants.TIMEOUT_DEFAULT_LIMIT, "5s")
+              .withProperty(WebConstants.TIMEOUT_ROUTES + "[/reports/**]", "60s")
+              .withProperty(WebConstants.TIMEOUT_STATUS, "504");
+
+      assertThat(WebProperties.resolve(environment).timeout())
+          .isEqualTo(
+              new WebProperties.TimeoutSettings(
+                  FILE_LIMIT, REPORT_ROUTES, HttpStatus.GATEWAY_TIMEOUT.value()));
+    }
+
+    @Test
+    @DisplayName("are read from a .yml file")
+    void fromYaml() throws IOException {
+      var environment = yamlEnvironment();
+
+      assertThat(WebProperties.resolve(environment).timeout())
+          .isEqualTo(
+              new WebProperties.TimeoutSettings(
+                  FILE_LIMIT, REPORT_ROUTES, HttpStatus.GATEWAY_TIMEOUT.value()));
+    }
+
+    @Test
+    @DisplayName("a customizer listed in spring.factories wins over the files")
+    void javaConfigurationWins(@TempDir Path folder) throws IOException {
+      var environment =
+          new MockEnvironment().withProperty(WebConstants.TIMEOUT_DEFAULT_LIMIT, "5s");
+
+      var properties =
+          StarterTestSupport.withCustomizers(
+              folder,
+              WebPropertiesCustomizer.class,
+              List.of(EdgeServiceWebSettings.class),
+              () -> WebProperties.resolve(environment));
+
+      assertThat(properties.timeout().defaultLimit()).isEqualTo(Duration.ofSeconds(2));
+    }
+
+    @Test
+    @DisplayName("a status that is not an error stops startup with SX-CORE-1003")
+    void nonErrorStatusIsRejected() {
+      var environment = new MockEnvironment().withProperty(WebConstants.TIMEOUT_STATUS, "200");
+
+      assertThatExceptionOfType(ConstraintViolationException.class)
+          .isThrownBy(() -> WebProperties.resolve(environment))
+          .withMessageStartingWith(INVALID_SETTINGS + WebConstants.TIMEOUT_STATUS);
+    }
+  }
+
+  /** Returns an environment holding the settings of web-yaml.yml, as a service's file does. */
+  private static StandardEnvironment yamlEnvironment() throws IOException {
+    var environment = new StandardEnvironment();
+    new YamlPropertySourceLoader()
+        .load("web-yaml", new ClassPathResource("web-yaml.yml"))
+        .forEach(environment.getPropertySources()::addFirst);
+    return environment;
   }
 }

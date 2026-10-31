@@ -10,6 +10,7 @@ import com.exepex.stratum.core.error.Severity;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.test.OrderErrorCode;
 import com.exepex.stratum.web.testsupport.WebTestData;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -108,6 +109,20 @@ class ErrorResponseFactoryTest {
 
       assertThat(body.getStatus()).isEqualTo(HttpStatus.BAD_GATEWAY.value());
       assertThat(body.getProperties()).containsEntry(WebConstants.CODE, "ORD-0001");
+    }
+
+    @Test
+    @DisplayName("answers a request that ran out of time with SX-WEB-1007 and its status")
+    void timedOutRequestGetsItsCode() {
+      var body =
+          factory.forFailedRequest(
+              HttpStatus.GATEWAY_TIMEOUT,
+              new RequestTimedOutException(HttpStatus.GATEWAY_TIMEOUT, Duration.ofMinutes(1)));
+
+      assertThat(body.getStatus()).isEqualTo(HttpStatus.GATEWAY_TIMEOUT.value());
+      assertThat(body.getDetail()).isEqualTo("The request ran out of time");
+      assertThat(body.getProperties())
+          .containsEntry(WebConstants.CODE, WebErrorCode.REQUEST_TIMED_OUT.getCode());
     }
 
     @Test

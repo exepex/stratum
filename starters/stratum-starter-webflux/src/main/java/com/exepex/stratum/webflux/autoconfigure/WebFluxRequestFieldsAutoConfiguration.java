@@ -5,13 +5,17 @@ import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.web.CorrelationIdChooser;
 import com.exepex.stratum.web.RequestFieldsReader;
 import com.exepex.stratum.web.RequestLogWriter;
+import com.exepex.stratum.web.ResponseTimeouts;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.autoconfigure.RequestFieldsConfiguration;
 import com.exepex.stratum.webflux.CorrelationIdBaggageDecorator;
 import com.exepex.stratum.webflux.CorrelationIdWebFilter;
+import com.exepex.stratum.webflux.HandlerStartAdapter;
+import com.exepex.stratum.webflux.HandlerStartListener;
 import com.exepex.stratum.webflux.RequestFieldsWebFilter;
 import com.exepex.stratum.webflux.RequestLogWebFilter;
-import com.exepex.stratum.webflux.RequestRouteHandlerAdapter;
+import com.exepex.stratum.webflux.RequestRouteListener;
+import com.exepex.stratum.webflux.ResponseTimeoutWebFilter;
 import io.micrometer.tracing.Tracer;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -26,8 +30,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.web.reactive.HandlerAdapter;
 
 /**
- * Gives every log line of a reactive request its fields, every request its correlation ID and one
- * closing log line, when {@code stratum.web.enabled=true}.
+ * Gives every log line of a reactive request its fields, every request its correlation ID, one
+ * closing log line and a time limit, when {@code stratum.web.enabled=true}.
  */
 @AutoConfiguration
 @AutoConfigureOrder(StratumModuleConstants.AUTO_CONFIGURATION_ORDER)
@@ -63,17 +67,45 @@ public final class WebFluxRequestFieldsAutoConfiguration {
   }
 
   /**
+   * Answers a request that ran out of time with the timeout status, and gives each request the
+   * limit of its handler's {@code @ResponseTimeout}.
+   *
+   * @param responseTimeouts decides each request's limit
+   * @return the filter
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean
+  public ResponseTimeoutWebFilter responseTimeoutWebFilter(ResponseTimeouts responseTimeouts) {
+    return new ResponseTimeoutWebFilter(responseTimeouts);
+  }
+
+  /**
    * Adds the matched route to the logging context before the handler runs.
    *
+   * @return the listener
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean
+  public RequestRouteListener requestRouteListener() {
+    return new RequestRouteListener();
+  }
+
+  /**
+   * Tells the listeners, such as the route and the timeout, that a handler is about to run.
+   *
    * @param handlerAdapters Spring WebFlux's adapters, which call the handlers
+   * @param handlerStartListeners what is told
    * @return the adapter
    */
   @Bean
   @Fallback
   @ConditionalOnMissingBean
-  public RequestRouteHandlerAdapter requestRouteHandlerAdapter(
-      ObjectProvider<HandlerAdapter> handlerAdapters) {
-    return new RequestRouteHandlerAdapter(handlerAdapters);
+  public HandlerStartAdapter handlerStartAdapter(
+      ObjectProvider<HandlerAdapter> handlerAdapters,
+      ObjectProvider<HandlerStartListener> handlerStartListeners) {
+    return new HandlerStartAdapter(handlerAdapters, handlerStartListeners);
   }
 
   /**

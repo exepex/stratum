@@ -65,6 +65,22 @@ public class StratumErrorAttributes extends DefaultErrorAttributes {
     return errorResponseFactory.membersOf(body);
   }
 
+  /**
+   * Returns what the request failed with: for a request that ran out of time, the timeout, in place
+   * of the failure the interrupt caused.
+   *
+   * @param webRequest the failed request
+   * @return the failure, if known
+   */
+  @Override
+  public @Nullable Throwable getError(WebRequest webRequest) {
+    return webRequest.getAttribute(
+                ResponseTimeoutFilter.TIMED_OUT_ATTRIBUTE, RequestAttributes.SCOPE_REQUEST)
+            instanceof Throwable timedOut
+        ? timedOut
+        : super.getError(webRequest);
+  }
+
   /** Returns an ID kept on the request, or else the one in the current logging context. */
   private @Nullable String requestId(WebRequest webRequest, String attribute, String mdcKey) {
     return Optional.ofNullable(webRequest.getAttribute(attribute, RequestAttributes.SCOPE_REQUEST))

@@ -5,6 +5,7 @@ import com.exepex.stratum.web.CorrelationIdChooser;
 import com.exepex.stratum.web.RequestFieldsPropagation;
 import com.exepex.stratum.web.RequestFieldsReader;
 import com.exepex.stratum.web.RequestLogWriter;
+import com.exepex.stratum.web.ResponseTimeouts;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebProperties;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -17,8 +18,8 @@ import org.springframework.core.env.Environment;
 
 /**
  * Creates what both web starters use to give every log line of a request its fields, the request
- * its correlation ID and its one closing log line. The web MVC and WebFlux auto-configurations
- * import it.
+ * its correlation ID, its one closing log line and its time limit. The web MVC and WebFlux
+ * auto-configurations import it.
  */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnStratumModule(WebConstants.MODULE)
@@ -80,5 +81,20 @@ public class RequestFieldsConfiguration {
   @ConditionalOnMissingBean
   public RequestFieldsPropagation requestFieldsPropagation() {
     return new RequestFieldsPropagation();
+  }
+
+  /**
+   * Decides how long each request may take until its response starts. Its settings come from {@link
+   * WebProperties#resolve}, so the service's Java configuration wins. Its timer thread stops with
+   * the application.
+   *
+   * @param environment the application's environment
+   * @return the timeouts
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean
+  public ResponseTimeouts responseTimeouts(Environment environment) {
+    return new ResponseTimeouts(WebProperties.resolve(environment));
   }
 }

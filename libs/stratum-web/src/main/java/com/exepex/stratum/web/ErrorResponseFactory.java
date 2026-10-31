@@ -92,6 +92,9 @@ public class ErrorResponseFactory {
     if (failure instanceof StratumException stratumFailure) {
       return bodyOf(stratumFailure.getReport().getExternal(), status);
     }
+    if (failure instanceof RequestTimedOutException) {
+      return bodyOf(ErrorReport.of(WebErrorCode.REQUEST_TIMED_OUT).getExternal(), status);
+    }
     var fieldDetails = Optional.ofNullable(failure).flatMap(FieldErrorDetails::of);
     if (fieldDetails.isPresent()) {
       var report = ErrorReport.of(WebErrorCode.INVALID_FIELDS).withDetails(fieldDetails.get());
