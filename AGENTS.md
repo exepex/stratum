@@ -117,7 +117,8 @@ topic file wins.
 - Each starter owns one cross-cutting concern and is optional. Code depends on interfaces, and every external
   system sits behind one. Before writing something new, use the Stratum module that already does it.
 - A service can replace every bean Stratum defines (`@ConditionalOnMissingBean`) and change every default through a
-  typed `stratum.<module>.*` property, set in `application.properties`, in `application.yml` or in Java.
+  typed `stratum.<module>.*` property, or Spring Boot's own key where Boot has one, set in `application.properties`,
+  in `application.yml` or in Java.
 - Names and Javadoc describe what things do for the service, in plain words. Every class, method and configuration
   property has Javadoc. Dependencies are injected through constructors only.
 - Generate boilerplate with Lombok and MapStruct. Use the JDK, Spring or an established library from Maven Central
