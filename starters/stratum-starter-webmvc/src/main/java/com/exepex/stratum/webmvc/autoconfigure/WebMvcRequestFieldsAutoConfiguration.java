@@ -7,6 +7,7 @@ import com.exepex.stratum.web.RequestFieldsAccessor;
 import com.exepex.stratum.web.RequestFieldsReader;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.autoconfigure.RequestFieldsConfiguration;
+import com.exepex.stratum.webmvc.CorrelationIdBaggageFilter;
 import com.exepex.stratum.webmvc.CorrelationIdFilter;
 import com.exepex.stratum.webmvc.RequestFieldsFilter;
 import com.exepex.stratum.webmvc.RequestRouteInterceptor;
@@ -78,10 +79,10 @@ public final class WebMvcRequestFieldsAutoConfiguration {
   public static class CorrelationIdConfiguration {
 
     /**
-     * Chooses each request's correlation ID and returns it in the response header.
+     * Returns each request's correlation ID in the response header.
      *
-     * @param tracer reads and sets the baggage; without one, only the caller's header is used
-     * @param correlationIdChooser chooses the ID
+     * @param tracer reads the baggage and the trace ID
+     * @param correlationIdChooser reads the ID
      * @return the filter's registration, just inside Spring Boot's tracing filter
      */
     @Bean
@@ -94,6 +95,23 @@ public final class WebMvcRequestFieldsAutoConfiguration {
               new CorrelationIdFilter(
                   tracer.getIfAvailable(() -> Tracer.NOOP), correlationIdChooser));
       registration.setOrder(CorrelationIdFilter.ORDER);
+      return registration;
+    }
+
+    /**
+     * Writes a caller's correlation ID into each request's baggage before tracing reads it.
+     *
+     * @param correlationIdChooser chooses the ID
+     * @return the filter's registration, before Spring Boot's tracing filter
+     */
+    @Bean
+    @Fallback
+    @ConditionalOnMissingBean(name = "stratumCorrelationIdBaggageFilter")
+    public FilterRegistrationBean<CorrelationIdBaggageFilter> stratumCorrelationIdBaggageFilter(
+        CorrelationIdChooser correlationIdChooser) {
+      var registration =
+          new FilterRegistrationBean<>(new CorrelationIdBaggageFilter(correlationIdChooser));
+      registration.setOrder(CorrelationIdBaggageFilter.ORDER);
       return registration;
     }
   }

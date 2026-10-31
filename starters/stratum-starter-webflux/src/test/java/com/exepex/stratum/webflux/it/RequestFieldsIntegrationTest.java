@@ -33,9 +33,6 @@ class RequestFieldsIntegrationTest {
   /** The query string of the test requests. */
   private static final String EXPAND_QUERY = "expand=lines";
 
-  /** The W3C header that carries baggage between services. */
-  private static final String BAGGAGE_HEADER = "baggage";
-
   /** The user agent the request sends. */
   private static final String USER_AGENT = "orders-cli/1.0";
 
@@ -143,13 +140,13 @@ class RequestFieldsIntegrationTest {
           StarterTestSupport.getFromService(
               port,
               ORDER_FIELDS_PATH,
-              BAGGAGE_HEADER,
+              WebConstants.BAGGAGE_HEADER,
               LoggingContextConstants.CORRELATION_ID + "=checkout%3A777");
       var broken =
           StarterTestSupport.getFromService(
               port,
               ORDER_FIELDS_PATH,
-              BAGGAGE_HEADER,
+              WebConstants.BAGGAGE_HEADER,
               LoggingContextConstants.CORRELATION_ID + "=checkout%3");
 
       assertThat(encoded.headers().firstValue(WebConstants.CORRELATION_ID_HEADER))
@@ -205,7 +202,7 @@ class RequestFieldsIntegrationTest {
               ORDER_FIELDS_PATH,
               WebConstants.CORRELATION_ID_HEADER,
               CALLER_ID,
-              BAGGAGE_HEADER,
+              WebConstants.BAGGAGE_HEADER,
               LoggingContextConstants.CORRELATION_ID + "=from-baggage");
 
       var traceId = JsonPath.<String>read(fields.body(), "$." + LoggingContextConstants.TRACE_ID);

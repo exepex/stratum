@@ -1,12 +1,8 @@
 package com.exepex.stratum.webflux;
 
-import com.exepex.stratum.core.error.LoggingContextConstants;
 import com.exepex.stratum.web.CorrelationIdChooser;
 import com.exepex.stratum.web.WebConstants;
 import io.micrometer.context.ContextSnapshotFactory;
-import io.micrometer.tracing.Baggage;
-import io.micrometer.tracing.Span;
-import io.micrometer.tracing.TraceContext;
 import io.micrometer.tracing.Tracer;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +30,7 @@ public class CorrelationIdWebFilter implements WebFilter, Ordered {
   /** Reads the trace ID and the baggage. */
   private final Tracer tracer;
 
-  /** Chooses the ID. */
+  /** Reads the ID from the tracing context. */
   private final CorrelationIdChooser correlationIdChooser;
 
   /**
@@ -62,27 +58,12 @@ public class CorrelationIdWebFilter implements WebFilter, Ordered {
   /** Reads the ID with the request's tracing context in place, then runs the chain. */
   private Mono<Void> filterWithCorrelationId(
       ServerWebExchange exchange, WebFilterChain chain, ContextView context) {
-    var callerHeader =
-        exchange.getRequest().getHeaders().getFirst(WebConstants.CORRELATION_ID_HEADER);
-    Optional<CorrelationIdChooser.Choice> choice;
+    Optional<String> correlationId;
     try (var _ = SNAPSHOTS.setThreadLocalsFrom(context)) {
-      var baggage =
-          Optional.ofNullable(tracer.getBaggage(LoggingContextConstants.CORRELATION_ID))
-              .map(Baggage::get)
-              .orElse(null);
-      var traceId =
-          Optional.ofNullable(tracer.currentSpan())
-              .map(Span::context)
-              .map(TraceContext::traceId)
-              .orElse(null);
-      choice = correlationIdChooser.choose(callerHeader, baggage, traceId);
+      correlationId = correlationIdChooser.currentCorrelationId(tracer);
     }
-    choice.ifPresent(
-        chosen ->
-            exchange
-                .getResponse()
-                .getHeaders()
-                .set(WebConstants.CORRELATION_ID_HEADER, chosen.correlationId()));
+    correlationId.ifPresent(
+        id -> exchange.getResponse().getHeaders().set(WebConstants.CORRELATION_ID_HEADER, id));
     return chain.filter(exchange);
   }
 }
