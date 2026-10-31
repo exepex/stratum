@@ -166,7 +166,7 @@ public record WebProperties(
    * @param deniedHeaders More headers that are never logged, even when listed above, such as a
    *     header your platform uses for a secret. Defaults to none.
    * @param tokenPayload Whether the payload of the caller's bearer JSON Web Token is logged, as
-   *     tokenPayload, decoded but not verified, so never trust it. The token's header and signature
+   *     jwtClaims, decoded but not verified, so never trust it. The token's header and signature
    *     never are. The payload can hold personal data, so check your log rules first. Defaults to
    *     false.
    */

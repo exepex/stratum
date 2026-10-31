@@ -68,7 +68,7 @@ class RequestLogIntegrationTest {
     assertThat(lines.fieldsOf(line))
         .containsEntry(WebConstants.HTTP_STATUS, HttpStatus.OK.value())
         .containsEntry("tenantId", "acme")
-        .containsEntry(WebConstants.TOKEN_PAYLOAD, PAYLOAD);
+        .containsEntry(WebConstants.JWT_CLAIMS, PAYLOAD);
   }
 
   @Test

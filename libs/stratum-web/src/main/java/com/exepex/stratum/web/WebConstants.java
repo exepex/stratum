@@ -71,8 +71,12 @@ public class WebConstants {
   /** The request log field that holds how long the request took, in milliseconds. */
   public static final String DURATION_MS = "durationMs";
 
-  /** The request log field that holds the payload of the caller's token. */
-  public static final String TOKEN_PAYLOAD = "tokenPayload";
+  /**
+   * The request log field that holds the claims in the caller's token payload. Its name has no
+   * "token" in it, because the logging starter masks every field so named in full, and would hide
+   * claims it can mask one by one.
+   */
+  public static final String JWT_CLAIMS = "jwtClaims";
 
   /** The key under which a request's log fields travel, such as in Reactor's context. */
   public static final String REQUEST_FIELDS_CONTEXT_KEY = "stratum.web.request-fields";

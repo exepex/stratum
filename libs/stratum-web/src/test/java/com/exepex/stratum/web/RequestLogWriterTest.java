@@ -104,7 +104,7 @@ class RequestLogWriterTest {
 
       writer.write(OK, TOOK, headers, new HttpHeaders());
 
-      assertThat(onlyLineFields()).doesNotContainKey(WebConstants.TOKEN_PAYLOAD);
+      assertThat(onlyLineFields()).doesNotContainKey(WebConstants.JWT_CLAIMS);
     }
   }
 
@@ -190,9 +190,9 @@ class RequestLogWriterTest {
 
       assertThat(lines.lines()).hasSize(2);
       assertThat(lines.fieldsOf(lines.lines().getFirst()))
-          .containsEntry(WebConstants.TOKEN_PAYLOAD, PAYLOAD);
+          .containsEntry(WebConstants.JWT_CLAIMS, PAYLOAD);
       assertThat(lines.fieldsOf(lines.lines().getLast()))
-          .doesNotContainKey(WebConstants.TOKEN_PAYLOAD);
+          .doesNotContainKey(WebConstants.JWT_CLAIMS);
     }
 
     @Test

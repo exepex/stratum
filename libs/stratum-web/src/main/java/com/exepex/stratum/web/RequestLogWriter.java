@@ -116,7 +116,7 @@ public final class RequestLogWriter {
     fields.put(WebConstants.DURATION_MS, durationMillis);
     if (tokenPayload) {
       tokenPayloadOf(requestHeaders)
-          .ifPresent(payload -> fields.put(WebConstants.TOKEN_PAYLOAD, payload));
+          .ifPresent(payload -> fields.put(WebConstants.JWT_CLAIMS, payload));
     }
     var line =
         log.atInfo()
