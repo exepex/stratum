@@ -130,6 +130,46 @@ This relies on Reactor's automatic context propagation, which the starter turns 
 (`stratum.context-propagation.reactor`). With it set to `false`, the fields appear only in
 `handle` and `tap`.
 
+## Virtual threads
+
+Stratum never turns virtual threads on. Your team decides, with Spring Boot's own switch, which is
+`false` by default:
+
+```properties
+spring.threads.virtual.enabled=true
+```
+
+```yaml
+spring:
+  threads:
+    virtual:
+      enabled: true
+```
+
+In Java, set the same key with `SpringApplication.setDefaultProperties(...)` before `run`.
+
+With it on, Spring Boot runs `@Async` methods, Spring Boot's task executor, `@Scheduled` jobs and
+message listeners on virtual threads, and so does the server of a servlet application (Tomcat or
+Jetty), for each request. A WebFlux application's requests stay on Netty's event-loop threads, so
+its handlers must still never block. Every row of the
+[blocking code](#blocking-code) table still holds: the fields, the trace and the correlation ID
+reach each virtual thread, as they reach a pool thread. A pool bean you declare as
+`Executors.newVirtualThreadPerTaskExecutor()` is wrapped like any other `ExecutorService` bean.
+When your own pool beans stop Spring Boot from creating its task executor, the one Stratum creates
+for `@Async` is Spring Boot's virtual-thread executor. `Thread.ofVirtual().start(...)` still
+carries nothing, like `new Thread(...)`.
+
+Check these before you turn them on:
+
+- **No limit on `@Async` work.** Spring Boot's executor starts a new virtual thread per task, with
+  no pool size to hold work back. To cap it, set `spring.task.execution.simple.concurrency-limit`.
+  A database or a downstream service still has its own limit, such as its connection pool.
+- **An application with no server can stop early.** Virtual threads don't keep the JVM running,
+  so an application that only runs `@Scheduled` jobs or listeners needs
+  `spring.main.keep-alive=true`.
+- **Native code still holds the platform thread** a virtual thread runs on, while it runs. Work
+  that is mostly CPU, rather than waiting on I/O, gains nothing from virtual threads.
+
 ## Scheduled jobs and work saved for later
 
 A `@Scheduled` job never takes the fields of a request, even on a thread a request used before:
