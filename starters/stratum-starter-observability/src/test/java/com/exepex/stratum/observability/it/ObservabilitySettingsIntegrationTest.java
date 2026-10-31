@@ -17,7 +17,7 @@ import org.springframework.test.annotation.DirtiesContext;
 class ObservabilitySettingsIntegrationTest {
 
   /** Checks the settings that both files set the same way. */
-  private static void assertSettingsApplied(MetricTagGuard guard, Environment environment) {
+  private void assertSettingsApplied(MetricTagGuard guard, Environment environment) {
     assertThat(guard.accept(ObservabilityTestData.counterTaggedWith("tenantId")))
         .isEqualTo(MeterFilterReply.DENY);
     assertThat(guard.accept(ObservabilityTestData.counterTaggedWith("orderId")))

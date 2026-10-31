@@ -2,10 +2,10 @@ package com.exepex.stratum.observability.it;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.exepex.stratum.observability.testsupport.ObservabilityTestData;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -14,13 +14,11 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.logging.LoggingSystem;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
-import org.springframework.util.ClassUtils;
 
 @SpringBootTest(
     classes = OrdersApplication.class,
@@ -35,12 +33,6 @@ import org.springframework.util.ClassUtils;
 @ExtendWith(OutputCaptureExtension.class)
 @DisplayName("A failed span send, with no Collector at the span address")
 class SpanExportLoggingIntegrationTest {
-
-  /** The loggers of OpenTelemetry's span exporters, over HTTP and gRPC. */
-  private static final List<String> SPAN_EXPORT_LOGGERS =
-      List.of(
-          "io.opentelemetry.exporter.internal.http.HttpExporter",
-          "io.opentelemetry.exporter.internal.grpc.GrpcExporter");
 
   /** OpenTelemetry's error when it cannot send spans. */
   private static final String SPAN_EXPORT_FAILED = "Failed to export spans";
@@ -60,14 +52,13 @@ class SpanExportLoggingIntegrationTest {
    */
   @BeforeAll
   static void resetLogLevels() {
-    var loggingSystem = LoggingSystem.get(ClassUtils.getDefaultClassLoader());
-    SPAN_EXPORT_LOGGERS.forEach(logger -> loggingSystem.setLogLevel(logger, null));
+    ObservabilityTestData.resetExportLogLevels();
   }
 
   /** Clears the log levels again after each test, before the next application starts. */
   @AfterEach
   void resetLogLevelsAfterTest() {
-    resetLogLevels();
+    ObservabilityTestData.resetExportLogLevels();
   }
 
   /** Makes one span and sends it while the application still runs. */

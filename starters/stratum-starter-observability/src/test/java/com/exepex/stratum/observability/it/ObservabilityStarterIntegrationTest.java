@@ -4,22 +4,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.core.error.StratumException;
+import com.exepex.stratum.observability.testsupport.ObservabilityTestData;
 import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.registry.otlp.HistogramFlavor;
 import io.micrometer.registry.otlp.OtlpConfig;
-import java.util.List;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.builder.SpringApplicationBuilder;
-import org.springframework.boot.logging.LoggingSystem;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.ConfigurableApplicationContext;
-import org.springframework.util.ClassUtils;
 import org.springframework.web.client.RestClient;
 
 // Each test starts and stops the application itself, because it checks what happens at startup or
@@ -40,18 +37,8 @@ class ObservabilityStarterIntegrationTest {
   /** The argument that turns the module on. */
   private static final String MODULE_ON = "--stratum.observability.enabled=true";
 
-  /** The logger of Micrometer's OTLP registry. */
-  private static final String METRICS_EXPORT_LOGGER =
-      "io.micrometer.registry.otlp.OtlpMeterRegistry";
-
   /** Micrometer's warning when it cannot push metrics. */
   private static final String PUSH_FAILED = "Failed to publish metrics";
-
-  /** The loggers of OpenTelemetry's span exporters, over HTTP and gRPC. */
-  private static final List<String> SPAN_EXPORT_LOGGERS =
-      List.of(
-          "io.opentelemetry.exporter.internal.http.HttpExporter",
-          "io.opentelemetry.exporter.internal.grpc.GrpcExporter");
 
   /** Receives what the application sends, and answers the partner call. */
   private final CollectorStub collector = new CollectorStub();
@@ -63,9 +50,7 @@ class ObservabilityStarterIntegrationTest {
   @AfterEach
   void stopCollectorAndResetLogLevel() {
     collector.close();
-    var loggingSystem = LoggingSystem.get(ClassUtils.getDefaultClassLoader());
-    Stream.concat(Stream.of(METRICS_EXPORT_LOGGER), SPAN_EXPORT_LOGGERS.stream())
-        .forEach(logger -> loggingSystem.setLogLevel(logger, null));
+    ObservabilityTestData.resetExportLogLevels();
   }
 
   /** Starts the test application with the given command-line arguments. */

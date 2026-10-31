@@ -139,6 +139,7 @@ class CorrelationIdIntegrationTest {
     startSpanWithBaggage(UNSAFE_CORRELATION_ID);
 
     assertThat(Stream.of(PLACE_ORDER_SPAN, CHARGE_CARD_SPAN).map(this::correlationIdRecordedOn))
+        .hasSize(2)
         .doesNotContain(UNSAFE_CORRELATION_ID);
   }
 
