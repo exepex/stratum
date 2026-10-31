@@ -3,27 +3,23 @@ package com.exepex.stratum.webmvc.it;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.error.StratumException;
-import com.exepex.stratum.web.WebConstants;
-import com.exepex.stratum.webmvc.testsupport.OrderErrorCode;
+import com.exepex.stratum.test.OrderErrorCode;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Map;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
-import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.boot.web.error.ErrorAttributeOptions;
-import org.springframework.boot.web.server.context.WebServerApplicationContext;
 import org.springframework.boot.webmvc.error.DefaultErrorAttributes;
 import org.springframework.boot.webmvc.error.ErrorAttributes;
-import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
@@ -36,28 +32,15 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 
+@SpringBootTest(
+    classes = ServiceErrorHandlingIntegrationTest.ServiceWithOwnHandling.class,
+    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+    properties = {"stratum.web.enabled=true", "stratum.web.error.statuses.ORD-0001=409"})
 @DisplayName("A service's own error handling wins over Stratum's")
 class ServiceErrorHandlingIntegrationTest {
 
-  /** The running service. */
-  private static ConfigurableApplicationContext service;
-
-  /** Starts the service on a free port. */
-  @BeforeAll
-  static void startService() {
-    service =
-        new SpringApplicationBuilder(ServiceWithOwnHandling.class)
-            .run(
-                "--server.port=0",
-                "--" + WebConstants.ENABLED + "=true",
-                "--" + WebConstants.ERROR_STATUSES + ".ORD-0001=409");
-  }
-
-  /** Stops the service. */
-  @AfterAll
-  static void stopService() {
-    service.close();
-  }
+  /** The port the service listens on. */
+  @LocalServerPort private int port;
 
   @Nested
   @DisplayName("when the service's own advice handles StratumException")
@@ -101,7 +84,6 @@ class ServiceErrorHandlingIntegrationTest {
   /** Sends a GET that accepts the given media type and reads the body as text. */
   private HttpResponse<String> get(String path, MediaType accepted)
       throws IOException, InterruptedException {
-    var port = ((WebServerApplicationContext) service).getWebServer().getPort();
     return HttpClient.newHttpClient()
         .send(
             HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))

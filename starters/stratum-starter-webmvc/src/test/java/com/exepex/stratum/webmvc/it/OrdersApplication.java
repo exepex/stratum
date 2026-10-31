@@ -1,7 +1,7 @@
 package com.exepex.stratum.webmvc.it;
 
 import com.exepex.stratum.core.error.StratumException;
-import com.exepex.stratum.webmvc.testsupport.OrderErrorCode;
+import com.exepex.stratum.test.OrderErrorCode;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

@@ -3,6 +3,7 @@ package com.exepex.stratum.observability.it;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
@@ -43,9 +44,17 @@ class CollectorStub implements AutoCloseable {
   /** The server that receives the requests. */
   private final HttpServer server;
 
-  /** Starts the stub on a free port. */
-  CollectorStub() throws IOException {
-    server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+  /**
+   * Starts the stub on a free port.
+   *
+   * @throws UncheckedIOException if no local port is free
+   */
+  CollectorStub() {
+    try {
+      server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+    } catch (IOException noFreePort) {
+      throw new UncheckedIOException(noFreePort);
+    }
     server.createContext("/", this::receive);
     server.start();
   }
