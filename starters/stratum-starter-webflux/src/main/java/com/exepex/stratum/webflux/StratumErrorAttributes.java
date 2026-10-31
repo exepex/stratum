@@ -9,8 +9,6 @@ import org.slf4j.MDC;
 import org.springframework.boot.web.error.ErrorAttributeOptions;
 import org.springframework.boot.web.error.ErrorAttributeOptions.Include;
 import org.springframework.boot.webflux.error.DefaultErrorAttributes;
-import org.springframework.core.io.buffer.DataBufferLimitException;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.reactive.function.server.ServerRequest;
@@ -69,15 +67,8 @@ public class StratumErrorAttributes extends DefaultErrorAttributes {
     return body;
   }
 
-  /**
-   * Returns the status Spring Boot gives the failed request, or {@code 413} when Spring refused a
-   * body over one of its own limits, such as a multipart part over its disk limit, which Spring
-   * Boot answers with {@code 500}.
-   */
+  /** Returns the status Spring Boot gives the failed request. */
   private HttpStatusCode statusOf(ServerRequest request) {
-    if (getError(request) instanceof DataBufferLimitException) {
-      return HttpStatus.CONTENT_TOO_LARGE;
-    }
     var bootAttributes =
         super.getErrorAttributes(request, ErrorAttributeOptions.of(Include.STATUS));
     return HttpStatusCode.valueOf((Integer) bootAttributes.get(STATUS));
