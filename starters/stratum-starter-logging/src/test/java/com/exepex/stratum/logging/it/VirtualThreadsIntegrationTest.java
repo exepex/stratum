@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,6 +43,9 @@ class VirtualThreadsIntegrationTest {
 
   /** The customer whose request the test runs. */
   private static final String CUSTOMER = "CUST-7";
+
+  /** How long a task may take before the test fails. */
+  private static final long TASK_TIMEOUT_SECONDS = 10;
 
   /** The request's own view, which every task must match. */
   private static final SeenInTask REQUEST_FIELD_ON_VIRTUAL_THREAD = new SeenInTask(CUSTOMER, true);
@@ -87,13 +91,22 @@ class VirtualThreadsIntegrationTest {
   @Test
   @DisplayName("an @Async method runs on a virtual thread and sees the request's field")
   void asyncMethodCarriesField() {
-    assertThat(receiptSender.seenInAsyncMethod().join()).isEqualTo(REQUEST_FIELD_ON_VIRTUAL_THREAD);
+    assertThat(
+            receiptSender
+                .seenInAsyncMethod()
+                .orTimeout(TASK_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .join())
+        .isEqualTo(REQUEST_FIELD_ON_VIRTUAL_THREAD);
   }
 
   @Test
   @DisplayName("a task on Spring Boot's task executor runs on a virtual thread and sees the field")
   void springTaskExecutorCarriesField() {
-    assertThat(applicationTaskExecutor.submitCompletable(SeenInTask::onCurrentThread).join())
+    assertThat(
+            applicationTaskExecutor
+                .submitCompletable(SeenInTask::onCurrentThread)
+                .orTimeout(TASK_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .join())
         .isEqualTo(REQUEST_FIELD_ON_VIRTUAL_THREAD);
   }
 
@@ -101,7 +114,9 @@ class VirtualThreadsIntegrationTest {
   @DisplayName("a task on the service's own virtual-thread ExecutorService bean sees the field")
   void serviceVirtualThreadPoolCarriesField() {
     assertThat(
-            CompletableFuture.supplyAsync(SeenInTask::onCurrentThread, invoiceRenderingPool).join())
+            CompletableFuture.supplyAsync(SeenInTask::onCurrentThread, invoiceRenderingPool)
+                .orTimeout(TASK_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .join())
         .isEqualTo(REQUEST_FIELD_ON_VIRTUAL_THREAD);
   }
 

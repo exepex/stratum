@@ -148,8 +148,10 @@ spring:
 
 In Java, set the same key with `SpringApplication.setDefaultProperties(...)` before `run`.
 
-With it on, Spring Boot runs server requests, `@Async` methods, Spring Boot's task executor,
-`@Scheduled` jobs and message listeners on virtual threads. Every row of the
+With it on, Spring Boot runs `@Async` methods, Spring Boot's task executor, `@Scheduled` jobs and
+message listeners on virtual threads, and so does the server of a servlet application (Tomcat or
+Jetty), for each request. A WebFlux application's requests stay on Netty's event-loop threads, so
+its handlers must still never block. Every row of the
 [blocking code](#blocking-code) table still holds: the fields, the trace and the correlation ID
 reach each virtual thread, as they reach a pool thread. A pool bean you declare as
 `Executors.newVirtualThreadPerTaskExecutor()` is wrapped like any other `ExecutorService` bean.

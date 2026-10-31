@@ -10,6 +10,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -41,6 +42,12 @@ class VirtualThreadsIntegrationTest {
 
   /** The span of the request whose trace the tasks must keep. */
   private static final String PLACE_ORDER_SPAN = "place-order";
+
+  /** The caller's correlation ID, set in baggage, which differs from the trace ID. */
+  private static final String ORDER_CORRELATION_ID = "order-42-c7d1";
+
+  /** How long a task may take before the test fails. */
+  private static final long TASK_TIMEOUT_SECONDS = 10;
 
   @Autowired private Tracer tracer;
 
@@ -91,19 +98,23 @@ class VirtualThreadsIntegrationTest {
     assertTaskKeepsCallersTrace(invoiceRenderingPool);
   }
 
-  /** Runs a task on the executor inside a request's span and checks what it saw. */
+  /** Runs a task on the executor inside a request's observation and correlation ID. */
   private void assertTaskKeepsCallersTrace(Executor executor) {
     Observation.createNotStarted(PLACE_ORDER_SPAN, observationRegistry)
-        .observe(() -> assertTaskSeesCurrentTrace(executor));
+        .observe(() -> assertTaskSeesCurrentTraceAndCorrelationId(executor));
   }
 
-  /**
-   * Checks that a task on the executor sees the current trace ID as both IDs, on a virtual thread.
-   */
-  private void assertTaskSeesCurrentTrace(Executor executor) {
-    var callerTraceId = tracer.currentSpan().context().traceId();
-    assertThat(CompletableFuture.supplyAsync(SeenInTask::onCurrentThread, executor).join())
-        .isEqualTo(new SeenInTask(callerTraceId, callerTraceId, true));
+  /** Sets the correlation ID in baggage and checks that a task on the executor sees both IDs. */
+  private void assertTaskSeesCurrentTraceAndCorrelationId(Executor executor) {
+    try (var _ =
+        tracer.createBaggageInScope(LoggingContextConstants.CORRELATION_ID, ORDER_CORRELATION_ID)) {
+      assertThat(
+              CompletableFuture.supplyAsync(SeenInTask::onCurrentThread, executor)
+                  .orTimeout(TASK_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                  .join())
+          .isEqualTo(
+              new SeenInTask(tracer.currentSpan().context().traceId(), ORDER_CORRELATION_ID, true));
+    }
   }
 
   /** The pools the service declares itself. */
