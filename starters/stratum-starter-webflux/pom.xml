@@ -14,14 +14,36 @@
   <artifactId>stratum-starter-webflux</artifactId>
 
   <name>Stratum starter: WebFlux</name>
-  <description>Spring WebFlux for a reactive service. Planned: error format, request fields, request log and timeouts.</description>
+  <description>Spring WebFlux with Stratum's error format, for a reactive service. Planned: request fields, request log and timeouts.</description>
 
   <dependencies>
+    <dependency>
+      <groupId>com.exepex.stratum</groupId>
+      <artifactId>stratum-web</artifactId>
+    </dependency>
     <!-- The service's web server: Spring WebFlux on Netty. A service that is not reactive uses
          stratum-starter-webmvc instead, so the two stacks never meet in one service. -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-webflux</artifactId>
+    </dependency>
+    <!-- The checks and set-up that every starter's tests share. -->
+    <dependency>
+      <groupId>com.exepex.stratum</groupId>
+      <artifactId>stratum-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Puts trace and correlation IDs in the logging context, to prove that error bodies carry
+         them. Services add it themselves. -->
+    <dependency>
+      <groupId>com.exepex.stratum</groupId>
+      <artifactId>stratum-starter-observability</artifactId>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 </project>

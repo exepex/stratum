@@ -6,8 +6,9 @@ and the correlation ID, and never a stack trace or an exception message. Browser
 with a reference to quote to support. Request fields in logs, the request log, timeouts and the body
 size limit are [planned](#planned).
 
-This page covers this starter only. The design both web starters share, and the reactive starter,
-are in [Web](../../docs/modules/web.md). How Stratum works as a whole is in the
+This page covers this starter only. The design both web starters share is in
+[Web](../../docs/modules/web.md), and the reactive starter in
+[WebFlux](../stratum-starter-webflux/README.md). How Stratum works as a whole is in the
 [documentation](../../docs/README.md).
 
 [← Documentation home](../../docs/README.md) · Property prefix: `stratum.web`
@@ -111,7 +112,7 @@ whatever `spring.web.error.include-*` says.
 | Any other status, such as `405` or an exception annotated `@ResponseStatus` | that status | `SX-WEB-1004` |
 | Any other exception | `500` | `SX-WEB-1005`, with a fixed message |
 
-The codes, with how to fix each, are in [Error and warning codes](../../docs/guides/error-codes.md#stratum-starter-webmvc).
+The codes, with how to fix each, are in [Error and warning codes](../../docs/guides/error-codes.md#stratum-starter-webmvc-and-stratum-starter-webflux).
 
 ### What is logged
 
@@ -244,10 +245,14 @@ Each bean below is Stratum's only until you declare your own:
 | Your bean | What it replaces |
 | --- | --- |
 | `ErrorResponseFactory` | How every error body is made and how a `StratumException` is logged |
-| `ErrorAttributes` | The body of failures outside your controllers, such as `404`; yours gets Spring Boot's error controller as before |
+| `ErrorAttributes` | The body of failures outside your controllers, such as `404`; yours gets Spring Boot's error controller and HTML page as before |
 | A `View` named `error` | The HTML error page |
 | `StratumExceptionHandler` or `ErrorBodyAdvice` | The handler of `StratumException`, or the advice that adds the IDs and the media type |
 | A bean named `stratumRequestIdsFilter` | The filter that keeps each request's IDs for its error page, which runs after tracing has ended |
+
+Stratum's error auto-configuration is ordered before Spring Boot's `ErrorMvcAutoConfiguration`, because its
+error attributes and HTML error page replace Spring Boot's. Your own beans, and those of a company framework whose
+auto-configuration declares no order, are still registered first and win.
 
 ## Switch it on or off
 

@@ -9,7 +9,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.core.error.ErrorCode;
+import com.exepex.stratum.core.error.LoggingContextConstants;
 import com.exepex.stratum.core.properties.StratumPropertiesCustomizer;
+import com.jayway.jsonpath.JsonPath;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.ArchRule;
@@ -17,6 +19,7 @@ import com.tngtech.archunit.lang.CompositeArchRule;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -41,6 +44,9 @@ public class StarterTestSupport {
   /** The annotation every class in a starter's autoconfigure package carries (ST-ENG-23). */
   private static final String CONFIGURATION =
       "org.springframework.context.annotation.Configuration";
+
+  /** The media type of every error body the web starters send. */
+  private static final String PROBLEM_JSON = "application/problem+json";
 
   /** The annotation every method in a starter's autoconfigure package carries (ST-ENG-23). */
   private static final String BEAN = "org.springframework.context.annotation.Bean";
@@ -131,6 +137,23 @@ public class StarterTestSupport {
         .allSatisfy(code -> assertThat(code).matches(codeFormat))
         .doesNotHaveDuplicates();
     assertThat(documentedCodes).containsExactlyInAnyOrderElementsOf(moduleCodes);
+  }
+
+  /**
+   * Checks an error answer of a web starter: its status, the Problem Details media type, the {@code
+   * status} and {@code code} members of the body, and a 32-hex {@code traceId}.
+   *
+   * @param response the answer
+   * @param status the HTTP status it must have
+   * @param code the error code its body must have, such as {@code SX-WEB-1003}
+   */
+  public static void checkProblemDetails(HttpResponse<String> response, int status, String code) {
+    assertThat(response.statusCode()).isEqualTo(status);
+    assertThat(response.headers().firstValue("Content-Type")).hasValue(PROBLEM_JSON);
+    assertThat(JsonPath.<String>read(response.body(), "$.code")).isEqualTo(code);
+    assertThat(JsonPath.<Integer>read(response.body(), "$.status")).isEqualTo(status);
+    assertThat(JsonPath.<String>read(response.body(), "$." + LoggingContextConstants.TRACE_ID))
+        .matches("\\p{XDigit}{32}");
   }
 
   /**
