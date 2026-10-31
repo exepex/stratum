@@ -231,10 +231,11 @@ and then:
   fixed set, such as `stratum.logging.format`,
 - warn about unknown or deprecated keys.
 
-Most Spring Boot defaults that Stratum changes come from a Stratum key, such as
-`stratum.observability.actuator-endpoints-exposed-over-http` for `management.endpoints.web.exposure.include`, so the
-IDE shows Stratum's default and what it sets; each module page lists them. The Spring Boot key
-still wins if you set it.
+Where Spring Boot has a key for a setting, Stratum keeps that key and only changes its default, so
+the IDE shows Spring Boot's description and default for it. Each module's README lists those keys
+with Stratum's default, and the value you set always wins. A few older Stratum keys cover a Spring
+Boot default, such as `stratum.observability.actuator-endpoints-exposed-over-http` for
+`management.endpoints.web.exposure.include`; there too, the Spring Boot key wins if you set it.
 
 Each jar carries its own file, so with several starters on the classpath, a bundle included, the
 IDE shows the keys of all of them. NetBeans needs a Spring Boot plugin that reads the same
