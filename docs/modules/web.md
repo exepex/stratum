@@ -303,6 +303,7 @@ can work out any percentile. The timer has these tags:
 | `uri` | The route template, never the real path | `/orders/{orderId}` |
 | `status` | The response status | `503` |
 | `outcome` | The status class, such as `SUCCESS`, `CLIENT_ERROR` or `SERVER_ERROR` | `SERVER_ERROR` |
+| `exception` | The simple class name of an exception that escaped the handler, or `none` | `TimeoutException` |
 | `application`, `environment`, `host` | The service, its environment and the pod, added by the observability starter | `orders`, `prod`, `orders-7d9f-x2k` |
 
 Any dashboard tool builds the usual SLA panels from it:
