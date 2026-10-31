@@ -19,6 +19,10 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.server.PathContainer;
 import org.springframework.web.util.pattern.PathPattern;
 import org.springframework.web.util.pattern.PathPatternParser;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * Writes the one INFO log line each request ends with: its status, how long it took, the headers
@@ -56,8 +60,11 @@ public final class RequestLogWriter {
   /** The response headers to log, by field name, without the denied ones. */
   private final Map<String, String> responseHeaderFields;
 
-  /** Whether the caller's token payload is logged. */
+  /** Whether the caller's token claims are logged. */
   private final boolean tokenPayload;
+
+  /** The claims of the caller's token that are logged. */
+  private final List<String> tokenClaims;
 
   /** Makes each value safe for the logs, as the request fields are. */
   private final RequestFieldsReader requestFieldsReader;
@@ -79,6 +86,7 @@ public final class RequestLogWriter {
     this.requestHeaderFields = allowedOnly(requestLog.requestHeaders(), deniedHeaders);
     this.responseHeaderFields = allowedOnly(requestLog.responseHeaders(), deniedHeaders);
     this.tokenPayload = requestLog.tokenPayload();
+    this.tokenClaims = requestLog.tokenClaims();
     this.requestFieldsReader = requestFieldsReader;
   }
 
@@ -165,8 +173,8 @@ public final class RequestLogWriter {
   }
 
   /**
-   * Returns the decoded payload of the caller's signed bearer token, if it sent one. An encrypted
-   * token, or one that is not Base64url JSON, gives none.
+   * Returns the listed claims of the caller's signed bearer token, as JSON, if it sent one that has
+   * any. An encrypted token, or one whose payload is not a Base64url JSON object, gives none.
    */
   private Optional<String> tokenPayloadOf(HttpHeaders requestHeaders) {
     return Optional.ofNullable(requestHeaders.getFirst(HttpHeaders.AUTHORIZATION))
@@ -174,8 +182,21 @@ public final class RequestLogWriter {
         .map(header -> header.substring(BEARER_PREFIX.length()).strip().split(TOKEN_PART_SEPARATOR))
         .filter(parts -> parts.length == SIGNED_TOKEN_PARTS)
         .flatMap(parts -> decoded(parts[1]))
-        .filter(payload -> payload.startsWith("{"))
+        .flatMap(this::listedClaims)
         .map(requestFieldsReader::safeForLogs);
+  }
+
+  /** Returns the listed claims of a token payload as JSON, or none when it has none of them. */
+  private Optional<String> listedClaims(String payload) {
+    try {
+      return Optional.of(JsonMapper.shared().readTree(payload))
+          .filter(ObjectNode.class::isInstance)
+          .map(claims -> ((ObjectNode) claims).retain(tokenClaims))
+          .filter(claims -> !claims.isEmpty())
+          .map(JsonNode::toString);
+    } catch (JacksonException notJson) {
+      return Optional.empty();
+    }
   }
 
   /** Returns a Base64url part of a token decoded, or nothing when it is not Base64url. */

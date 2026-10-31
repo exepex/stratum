@@ -31,7 +31,12 @@ class RequestLogWriterTest {
   private static final String TENANT_HEADER = "X-Tenant-Id";
 
   /** A token payload, as a caller's identity provider writes it. */
-  private static final String PAYLOAD = "{\"sub\":\"order-service\",\"scope\":\"orders.read\"}";
+  private static final String PAYLOAD =
+      "{\"sub\":\"order-service\",\"name\":\"Jane Doe\",\"scope\":\"orders.read\"}";
+
+  /** The claims of {@link #PAYLOAD} that are logged by default. */
+  private static final String CALLER_CLAIMS =
+      "{\"sub\":\"order-service\",\"scope\":\"orders.read\"}";
 
   /** The request log lines the test's writer wrote. */
   private final LogLineCapture lines = new LogLineCapture(WebConstants.REQUEST_LOG_LOGGER);
@@ -177,7 +182,7 @@ class RequestLogWriterTest {
     }
 
     @Test
-    @DisplayName("with the token payload on, writes only a signed bearer token's payload")
+    @DisplayName("with the token payload on, writes only the listed claims of a signed token")
     void writesTokenPayload() {
       var tokenPayloadOn = writer(defaultRequestLog().toBuilder().tokenPayload(true).build());
       var signed = new HttpHeaders();
@@ -190,7 +195,32 @@ class RequestLogWriterTest {
 
       assertThat(lines.lines()).hasSize(2);
       assertThat(lines.fieldsOf(lines.lines().getFirst()))
-          .containsEntry(WebConstants.JWT_CLAIMS, PAYLOAD);
+          .containsEntry(WebConstants.JWT_CLAIMS, CALLER_CLAIMS);
+      assertThat(lines.fieldsOf(lines.lines().getLast()))
+          .doesNotContainKey(WebConstants.JWT_CLAIMS);
+    }
+
+    @Test
+    @DisplayName("writes only the service's own claims, and none when the token has none of them")
+    void writesOwnClaims() {
+      var tenantClaimOnly =
+          writer(
+              defaultRequestLog().toBuilder()
+                  .tokenPayload(true)
+                  .tokenClaims(List.of("tenant"))
+                  .build());
+      var withTenant = new HttpHeaders();
+      withTenant.set(
+          HttpHeaders.AUTHORIZATION,
+          StarterTestSupport.bearerToken("{\"sub\":\"order-service\",\"tenant\":\"acme\"}"));
+      var withoutTenant = new HttpHeaders();
+      withoutTenant.set(HttpHeaders.AUTHORIZATION, StarterTestSupport.bearerToken(PAYLOAD));
+
+      tenantClaimOnly.write(OK, TOOK, withTenant, new HttpHeaders());
+      tenantClaimOnly.write(OK, TOOK, withoutTenant, new HttpHeaders());
+
+      assertThat(lines.fieldsOf(lines.lines().getFirst()))
+          .containsEntry(WebConstants.JWT_CLAIMS, "{\"tenant\":\"acme\"}");
       assertThat(lines.fieldsOf(lines.lines().getLast()))
           .doesNotContainKey(WebConstants.JWT_CLAIMS);
     }

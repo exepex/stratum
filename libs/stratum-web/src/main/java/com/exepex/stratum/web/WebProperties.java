@@ -165,10 +165,12 @@ public record WebProperties(
    *     under, as for the request headers. Defaults to none.
    * @param deniedHeaders More headers that are never logged, even when listed above, such as a
    *     header your platform uses for a secret. Defaults to none.
-   * @param tokenPayload Whether the payload of the caller's bearer JSON Web Token is logged, as
-   *     jwtClaims, decoded but not verified, so never trust it. The token's header and signature
-   *     never are. The payload can hold personal data, so check your log rules first. Defaults to
-   *     false.
+   * @param tokenPayload Whether the claims named in token-claims, from the payload of the caller's
+   *     bearer JSON Web Token, are logged as jwtClaims. They are decoded but not verified, so never
+   *     trust them. The token's header, signature and other claims never are. Defaults to false.
+   * @param tokenClaims The claims of the caller's token that are logged when token-payload is true.
+   *     Setting the list replaces the default; list no claim that holds personal data, such as
+   *     email or name. Defaults to sub, azp, client_id and scope.
    */
   @Builder(toBuilder = true)
   public record RequestLogSettings(
@@ -177,20 +179,25 @@ public record WebProperties(
       @DefaultValue Map<String, @Pattern(regexp = FIELD_NAME) String> requestHeaders,
       @DefaultValue Map<String, @Pattern(regexp = FIELD_NAME) String> responseHeaders,
       @DefaultValue List<String> deniedHeaders,
-      @DefaultValue("false") boolean tokenPayload) {
+      @DefaultValue("false") boolean tokenPayload,
+      List<String> tokenClaims) {
 
     /** A field name a log platform accepts. */
     private static final String FIELD_NAME = "[A-Za-z][A-Za-z0-9_.]{0,63}";
+
+    /** The token claims logged when none are set: who called, for which client and scope. */
+    private static final List<String> CALLER_CLAIMS = List.of("sub", "azp", "client_id", "scope");
 
     /** The paths skipped when none are set: the actuator's endpoints, such as health checks. */
     private static final List<String> ACTUATOR_PATHS = List.of("/actuator/**");
 
     /**
-     * Keeps unchangeable copies, with the actuator's paths as the skip paths when unset: Spring
-     * Boot passes null for a list that is not set.
+     * Keeps unchangeable copies, with the defaults for the skip paths and token claims when unset:
+     * Spring Boot passes null for a list that is not set.
      */
     public RequestLogSettings {
       skipPaths = skipPaths == null ? ACTUATOR_PATHS : List.copyOf(skipPaths);
+      tokenClaims = tokenClaims == null ? CALLER_CLAIMS : List.copyOf(tokenClaims);
       requestHeaders = Map.copyOf(requestHeaders);
       responseHeaders = Map.copyOf(responseHeaders);
       deniedHeaders = List.copyOf(deniedHeaders);

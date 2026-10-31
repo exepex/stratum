@@ -34,7 +34,8 @@ class ConfigurationMetadataTest {
           WebConstants.REQUEST_LOG_REQUEST_HEADERS,
           WebConstants.REQUEST_LOG_RESPONSE_HEADERS,
           WebConstants.REQUEST_LOG_DENIED_HEADERS,
-          WebConstants.REQUEST_LOG_TOKEN_PAYLOAD);
+          WebConstants.REQUEST_LOG_TOKEN_PAYLOAD,
+          WebConstants.REQUEST_LOG_TOKEN_CLAIMS);
 
   @Test
   @DisplayName("every property is listed with a description")

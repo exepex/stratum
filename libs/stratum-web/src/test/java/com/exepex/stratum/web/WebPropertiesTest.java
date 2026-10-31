@@ -203,7 +203,13 @@ class WebPropertiesTest {
       assertThat(WebProperties.resolve(new MockEnvironment()).requestLog())
           .isEqualTo(
               new WebProperties.RequestLogSettings(
-                  true, List.of("/actuator/**"), Map.of(), Map.of(), List.of(), false));
+                  true,
+                  List.of("/actuator/**"),
+                  Map.of(),
+                  Map.of(),
+                  List.of(),
+                  false,
+                  List.of("sub", "azp", "client_id", "scope")));
     }
 
     @Test
@@ -216,7 +222,8 @@ class WebPropertiesTest {
               .withProperty(WebConstants.REQUEST_LOG_REQUEST_HEADERS + ".X-Tenant-Id", "tenantId")
               .withProperty(WebConstants.REQUEST_LOG_RESPONSE_HEADERS + ".X-Cache", "cacheResult")
               .withProperty(WebConstants.REQUEST_LOG_DENIED_HEADERS, "X-Internal-Key")
-              .withProperty(WebConstants.REQUEST_LOG_TOKEN_PAYLOAD, "true");
+              .withProperty(WebConstants.REQUEST_LOG_TOKEN_PAYLOAD, "true")
+              .withProperty(WebConstants.REQUEST_LOG_TOKEN_CLAIMS, "sub,tenant");
 
       assertThat(WebProperties.resolve(environment).requestLog())
           .isEqualTo(
@@ -226,7 +233,8 @@ class WebPropertiesTest {
                   Map.of("X-Tenant-Id", "tenantId"),
                   Map.of("X-Cache", "cacheResult"),
                   List.of("X-Internal-Key"),
-                  true));
+                  true,
+                  List.of("sub", "tenant")));
     }
 
     @Test
@@ -241,6 +249,7 @@ class WebPropertiesTest {
 
       assertThat(requestLog.requestHeaders()).containsExactly(Map.entry("X-Tenant-Id", "tenantId"));
       assertThat(requestLog.tokenPayload()).isTrue();
+      assertThat(requestLog.tokenClaims()).containsExactly("sub", "tenant");
     }
 
     @Test

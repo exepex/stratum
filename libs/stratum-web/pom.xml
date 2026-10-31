@@ -59,6 +59,12 @@
       <groupId>com.maxmind.db</groupId>
       <artifactId>maxmind-db</artifactId>
     </dependency>
+    <!-- Reads the claims of a caller's token for the request log. Both web starters already bring
+         it through Spring Boot's JSON support. -->
+    <dependency>
+      <groupId>tools.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+    </dependency>
     <!-- The checks and set-up that every starter's tests share. -->
     <dependency>
       <groupId>com.exepex.stratum</groupId>

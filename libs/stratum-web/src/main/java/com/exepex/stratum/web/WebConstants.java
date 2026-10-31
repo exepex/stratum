@@ -62,6 +62,9 @@ public class WebConstants {
   /** The setting that turns on logging the caller's token payload. */
   public static final String REQUEST_LOG_TOKEN_PAYLOAD = PREFIX + ".request-log.token-payload";
 
+  /** The setting that lists the claims of the caller's token payload that are logged. */
+  public static final String REQUEST_LOG_TOKEN_CLAIMS = PREFIX + ".request-log.token-claims";
+
   /** The logger of the request log lines, whose level a service can change. */
   public static final String REQUEST_LOG_LOGGER = "com.exepex.stratum.web.request-log";
 
@@ -72,9 +75,8 @@ public class WebConstants {
   public static final String DURATION_MS = "durationMs";
 
   /**
-   * The request log field that holds the claims in the caller's token payload. Its name has no
-   * "token" in it, because the logging starter masks every field so named in full, and would hide
-   * claims it can mask one by one.
+   * The request log field that holds the listed claims of the caller's token payload. Its name has
+   * no "token" in it, because the logging starter masks every field so named in full.
    */
   public static final String JWT_CLAIMS = "jwtClaims";
 

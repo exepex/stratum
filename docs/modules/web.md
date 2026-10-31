@@ -69,7 +69,7 @@ Every feature works the same on both stacks.
 | Request fields in logs (built) | Every log line written during a request carries its method, route, path, query, client IP and user agent, as separate fields. Device, OS, browser and the client's country and city when you turn them on |
 | Request log (built) | One line when each request is answered, with its status and duration. Health checks and static files are left out |
 | Headers in logs (built) | The request and response headers a team names are logged as fields. `Authorization`, `Cookie`, `Set-Cookie` and `X-Api-Key` never are |
-| Token payload in logs (built) | When a team turns it on, the payload of the caller's JWT is logged. The token's header and signature never are |
+| Token claims in logs (built) | When a team turns it on, the claims it lists from the caller's JWT, such as `sub` and `scope`, are logged. Other claims, the token's header and its signature never are |
 | Correlation ID (built) | Taken from the caller's `X-Correlation-Id` header when it has a safe format, otherwise the trace ID; returned in the response header. Needs the observability starter |
 | Timeouts | A request that runs longer than its limit (10 seconds by default) is answered with `503` |
 | Body size limit | A request body larger than the limit is refused with `413` |
@@ -244,16 +244,18 @@ Each value is made safe for the logs, as a request field is, and several values 
 `, `. `Authorization`, `Cookie`, `Set-Cookie` and `X-Api-Key` are never written, even when named,
 and neither is any header in `denied-headers`.
 
-### Token payload
+### Token claims
 
-With `token-payload=true`, the line carries the payload of the caller's `Authorization: Bearer`
-JWT, decoded, as `jwtClaims`. The token's header and signature are never written, and an
-encrypted token, or one that is not a JWT, writes nothing. Stratum does not verify the token here,
-so the payload is what the caller claims, not who the caller is. It is off by default because a
-payload can hold personal data, such as an email address; turn it on only if yours holds none. The
-[logging starter](../../starters/stratum-starter-logging/README.md) masks the personal data and
-secrets it recognises inside the claims, such as an `email` claim, and keeps the others, such as
-`sub`; without it, nothing is masked.
+With `token-payload=true`, the line carries some claims of the caller's `Authorization: Bearer`
+JWT, decoded, as `jwtClaims`, such as `{"sub":"checkout-service","scope":"orders.read"}`. Only the
+claims listed in `token-claims` are written: by default `sub`, `azp`, `client_id` and `scope`, which
+say who called, through which client and with what rights. Every other claim, such as `email` or
+`name`, is left out, and so are the token's header and signature. A token that has none of the
+listed claims, an encrypted token, or one that is not a JWT, writes nothing.
+
+Stratum does not verify the token here, so the claims are what the caller says, not who the caller
+is. They are off by default. A list you set replaces the default, so list only claims that hold no
+personal data.
 
 In `application.properties`:
 
@@ -263,6 +265,7 @@ stratum.web.request-log.request-headers[X-Tenant-Id]=tenantId
 stratum.web.request-log.response-headers[X-Cache]=cacheResult
 stratum.web.request-log.denied-headers=X-Internal-Key
 stratum.web.request-log.token-payload=true
+stratum.web.request-log.token-claims=sub,azp,tenant
 ```
 
 or in `application.yml`, where the brackets need quotes:
@@ -281,6 +284,10 @@ stratum:
       denied-headers:
         - X-Internal-Key
       token-payload: true
+      token-claims:
+        - sub
+        - azp
+        - tenant
 ```
 
 ## Properties
@@ -306,7 +313,8 @@ both stacks; the others are planned.
 | `stratum.web.request-log.request-headers` | map of header to field name | empty | The request headers written in the line, and the field each is written as. |
 | `stratum.web.request-log.response-headers` | map of header to field name | empty | The response headers written in the line, and the field each is written as. |
 | `stratum.web.request-log.denied-headers` | list of header names | empty | Headers never written, on top of `Authorization`, `Cookie`, `Set-Cookie` and `X-Api-Key`. |
-| `stratum.web.request-log.token-payload` | boolean | `false` | Whether the line carries the decoded payload of the caller's bearer JWT. |
+| `stratum.web.request-log.token-payload` | boolean | `false` | Whether the line carries the listed claims of the caller's bearer JWT. |
+| `stratum.web.request-log.token-claims` | list of claim names | `sub`, `azp`, `client_id`, `scope` | The claims written when `token-payload` is `true`. Replaces the default. |
 
 For a service behind a CDN, with the device fields on, in `application.properties`:
 

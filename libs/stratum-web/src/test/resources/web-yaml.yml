@@ -19,3 +19,6 @@ stratum:
       request-headers:
         "[X-Tenant-Id]": tenantId
       token-payload: true
+      token-claims:
+        - sub
+        - tenant

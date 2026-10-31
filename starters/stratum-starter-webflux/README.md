@@ -165,8 +165,8 @@ the client IP behind proxies and the settings are described in
 
 Each request also writes one log line when it is answered, such as
 `GET /orders/{orderId} answered 200 in 12 ms`, with `httpStatus` and `durationMs` as fields. The
-actuator's paths and static files write none. The headers you name, and the payload of the caller's
-token when you turn it on, can be added to it; credentials never are. See
+actuator's paths and static files write none. The headers you name, and the claims you list from the
+caller's token when you turn it on, can be added to it; credentials never are. See
 [Web](../../docs/modules/web.md#request-log).
 
 ## Map your codes to statuses
@@ -218,7 +218,8 @@ which names the property but not the code or the value.
 | `stratum.web.request-log.request-headers` | map of header to field name | empty | The request headers written in the line, as fields. |
 | `stratum.web.request-log.response-headers` | map of header to field name | empty | The response headers written in the line, as fields. |
 | `stratum.web.request-log.denied-headers` | list of header names | empty | Headers never written, on top of the credential headers. |
-| `stratum.web.request-log.token-payload` | boolean | `false` | Whether the line carries the decoded payload of the caller's bearer JWT. |
+| `stratum.web.request-log.token-payload` | boolean | `false` | Whether the line carries the listed claims of the caller's bearer JWT. |
+| `stratum.web.request-log.token-claims` | list of claim names | `sub`, `azp`, `client_id`, `scope` | The claims written when `token-payload` is `true`. |
 
 These are the same keys as the Spring MVC starter's. Your IDE completes each and shows its
 description. The full list, with the allowed values, is in [Web](../../docs/modules/web.md#properties).
