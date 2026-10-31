@@ -8,7 +8,7 @@ import com.exepex.stratum.core.error.ErrorDetail;
 import com.exepex.stratum.core.error.LoggingContextConstants;
 import com.exepex.stratum.core.error.Severity;
 import com.exepex.stratum.core.error.StratumException;
-import com.exepex.stratum.web.testsupport.OrderErrorCode;
+import com.exepex.stratum.test.OrderErrorCode;
 import com.exepex.stratum.web.testsupport.WebTestData;
 import java.util.HashMap;
 import java.util.List;

@@ -41,6 +41,11 @@ public class RecordedSpans implements SpanProcessor {
         .orElseThrow();
   }
 
+  /** Forgets every span kept so far, so that a test sees only the spans it ends itself. */
+  public void clear() {
+    endedSpans.clear();
+  }
+
   /**
    * Does nothing: spans are kept when they end.
    *

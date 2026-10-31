@@ -5,20 +5,36 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.exepex.stratum.core.error.ErrorReport;
 import com.exepex.stratum.core.error.LoggingContextConstants;
 import com.exepex.stratum.observability.ObservabilityErrorCode;
+import com.exepex.stratum.observability.testsupport.RecordedSpans;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.tracing.Tracer;
-import java.io.IOException;
+import io.opentelemetry.api.common.AttributeKey;
 import java.util.concurrent.TimeUnit;
-import org.junit.jupiter.api.AutoClose;
+import java.util.stream.Stream;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
-import org.springframework.boot.WebApplicationType;
-import org.springframework.boot.builder.SpringApplicationBuilder;
-import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.task.AsyncTaskExecutor;
+import org.springframework.test.annotation.DirtiesContext;
 
+@SpringBootTest(
+    classes = {OrdersApplication.class, RecordedSpans.class},
+    properties = {
+      "spring.main.web-application-type=none",
+      "stratum.observability.enabled=true",
+      "management.tracing.sampling.probability=1.0",
+      // Spring Boot propagates trace headers only while span export is on. Nothing listens
+      // here, so the spans are dropped quietly.
+      "management.opentelemetry.tracing.export.otlp.endpoint=http://localhost:1/v1/traces",
+      "management.otlp.metrics.export.enabled=false"
+    })
+// Closes the application after this class, so its tracing and threads never reach the next one.
+@DirtiesContext
 @DisplayName("The correlation ID in an application with the observability starter")
 class CorrelationIdIntegrationTest {
 
@@ -28,27 +44,37 @@ class CorrelationIdIntegrationTest {
   /** A correlation ID with a line break, which could forge a log line. */
   private static final String UNSAFE_CORRELATION_ID = "order-42\nlevel=ERROR";
 
-  /** The name of Spring Boot's task executor, which also runs {@code @Async} methods. */
-  private static final String APPLICATION_TASK_EXECUTOR = "applicationTaskExecutor";
+  /** The span of the request, which sets the correlation ID. */
+  private static final String PLACE_ORDER_SPAN = "place-order";
+
+  /** A child span of the request, which must record its correlation ID. */
+  private static final String CHARGE_CARD_SPAN = "charge-card";
+
+  /** The span attribute that holds the correlation ID. */
+  private static final AttributeKey<String> CORRELATION_ID_ATTRIBUTE =
+      AttributeKey.stringKey(LoggingContextConstants.CORRELATION_ID);
 
   /** How long to wait for work on the executor. */
   private static final long EXECUTOR_TIMEOUT_SECONDS = 10;
 
-  /** Receives the spans the application sends. */
-  @AutoClose private final CollectorStub collector = new CollectorStub();
+  /** Starts and ends spans. */
+  @Autowired private Tracer tracer;
 
-  /**
-   * Starts the collector stub for one test.
-   *
-   * @throws IOException if no local port is free
-   */
-  CorrelationIdIntegrationTest() throws IOException {}
+  /** Starts observations, which Spring turns into spans. */
+  @Autowired private ObservationRegistry observationRegistry;
 
-  /** Starts the test application with the module on, sending every span to the stub. */
-  private ConfigurableApplicationContext start() {
-    return new SpringApplicationBuilder(OrdersApplication.class)
-        .web(WebApplicationType.NONE)
-        .run(collector.withExportsSentHere("--stratum.observability.enabled=true"));
+  /** Spring Boot's task executor, which also runs {@code @Async} methods. */
+  @Autowired
+  @Qualifier("applicationTaskExecutor")
+  private AsyncTaskExecutor applicationTaskExecutor;
+
+  /** Every span that ended. */
+  @Autowired private RecordedSpans recordedSpans;
+
+  /** Forgets the spans of earlier tests, so each test reads only its own. */
+  @BeforeEach
+  void forgetEarlierSpans() {
+    recordedSpans.clear();
   }
 
   /** Returns the correlation ID of an error report made now, as a caller would see it. */
@@ -58,43 +84,40 @@ class CorrelationIdIntegrationTest {
         .correlationId();
   }
 
+  /** Returns the correlation ID recorded on the ended span with this name, if any. */
+  private String correlationIdRecordedOn(String spanName) {
+    return recordedSpans.named(spanName).getAttributes().get(CORRELATION_ID_ATTRIBUTE);
+  }
+
   @Test
   @DisplayName("with none set, it is the trace ID in logs and error reports, and gone afterwards")
   void defaultsToTraceId() {
-    try (var context = start()) {
-      var tracer = context.getBean(Tracer.class);
-      var span = tracer.nextSpan().name("place-order").start();
-      try (var _ = tracer.withSpan(span)) {
-        var traceId = span.context().traceId();
-        assertThat(MDC.get(LoggingContextConstants.CORRELATION_ID)).isEqualTo(traceId);
-        assertThat(correlationIdOfErrorReport()).isEqualTo(traceId);
-      } finally {
-        span.end();
-      }
-      assertThat(MDC.get(LoggingContextConstants.CORRELATION_ID)).isNull();
+    var span = tracer.nextSpan().name(PLACE_ORDER_SPAN).start();
+    try (var _ = tracer.withSpan(span)) {
+      var traceId = span.context().traceId();
+      assertThat(MDC.get(LoggingContextConstants.CORRELATION_ID)).isEqualTo(traceId);
+      assertThat(correlationIdOfErrorReport()).isEqualTo(traceId);
+    } finally {
+      span.end();
     }
+    assertThat(MDC.get(LoggingContextConstants.CORRELATION_ID)).isNull();
   }
 
   @Test
   @DisplayName("work on Spring Boot's task executor keeps the caller's trace and correlation ID")
   void taskExecutorKeepsTrace() throws Exception {
-    try (var context = start()) {
-      var tracer = context.getBean(Tracer.class);
-      var executor = context.getBean(APPLICATION_TASK_EXECUTOR, AsyncTaskExecutor.class);
-      Observation.createNotStarted("place-order", context.getBean(ObservationRegistry.class))
-          .observeChecked(() -> assertExecutorKeepsCorrelationId(tracer, executor));
-    }
+    Observation.createNotStarted(PLACE_ORDER_SPAN, observationRegistry)
+        .observeChecked(() -> assertExecutorKeepsCorrelationId());
   }
 
   /**
    * Checks that work on the executor sees the caller's correlation ID, which is its trace ID when
    * no baggage is set.
    */
-  private void assertExecutorKeepsCorrelationId(Tracer tracer, AsyncTaskExecutor executor)
-      throws Exception {
+  private void assertExecutorKeepsCorrelationId() throws Exception {
     var callerTraceId = tracer.currentSpan().context().traceId();
     var correlationIdOnExecutor =
-        executor
+        applicationTaskExecutor
             .submit(() -> MDC.get(LoggingContextConstants.CORRELATION_ID))
             .get(EXECUTOR_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     assertThat(correlationIdOnExecutor).isEqualTo(callerTraceId);
@@ -105,24 +128,19 @@ class CorrelationIdIntegrationTest {
       "one set in baggage is used in logs and error reports, recorded on later spans, and kept"
           + " when a child span's scope closes")
   void usesBaggageCorrelationId() {
-    try (var context = start()) {
-      startSpanWithBaggage(context.getBean(Tracer.class), ORDER_CORRELATION_ID);
-    }
+    startSpanWithBaggage(ORDER_CORRELATION_ID);
 
-    assertThat(collector.bodiesOf(CollectorStub.TRACES_PATH))
-        .anySatisfy(spans -> assertThat(spans).contains("charge-card", ORDER_CORRELATION_ID));
+    assertThat(correlationIdRecordedOn(CHARGE_CARD_SPAN)).isEqualTo(ORDER_CORRELATION_ID);
   }
 
   @Test
   @DisplayName("an unsafe one in baggage is ignored, and the trace ID is used instead")
   void ignoresUnsafeBaggageCorrelationId() {
-    try (var context = start()) {
-      startSpanWithBaggage(context.getBean(Tracer.class), UNSAFE_CORRELATION_ID);
-    }
+    startSpanWithBaggage(UNSAFE_CORRELATION_ID);
 
-    assertThat(collector.bodiesOf(CollectorStub.TRACES_PATH))
-        .isNotEmpty()
-        .allSatisfy(spans -> assertThat(spans).doesNotContain(UNSAFE_CORRELATION_ID));
+    assertThat(Stream.of(PLACE_ORDER_SPAN, CHARGE_CARD_SPAN).map(this::correlationIdRecordedOn))
+        .hasSize(2)
+        .doesNotContain(UNSAFE_CORRELATION_ID);
   }
 
   /**
@@ -130,8 +148,8 @@ class CorrelationIdIntegrationTest {
    * and runs a child span that should record it. After the child's scope closes, the parent's ID
    * must be back in the logging context.
    */
-  private void startSpanWithBaggage(Tracer tracer, String correlationId) {
-    var span = tracer.nextSpan().name("place-order").start();
+  private void startSpanWithBaggage(String correlationId) {
+    var span = tracer.nextSpan().name(PLACE_ORDER_SPAN).start();
     try (var _ = tracer.withSpan(span);
         var _ =
             tracer.createBaggageInScope(LoggingContextConstants.CORRELATION_ID, correlationId)) {
@@ -139,7 +157,7 @@ class CorrelationIdIntegrationTest {
           ORDER_CORRELATION_ID.equals(correlationId) ? correlationId : span.context().traceId();
       assertThat(MDC.get(LoggingContextConstants.CORRELATION_ID)).isEqualTo(expectedId);
       assertThat(correlationIdOfErrorReport()).isEqualTo(expectedId);
-      var childSpan = tracer.nextSpan().name("charge-card").start();
+      var childSpan = tracer.nextSpan().name(CHARGE_CARD_SPAN).start();
       try (var _ = tracer.withSpan(childSpan)) {
         assertThat(MDC.get(LoggingContextConstants.CORRELATION_ID)).isEqualTo(expectedId);
       } finally {

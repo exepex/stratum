@@ -21,17 +21,28 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
-import org.springframework.boot.WebApplicationType;
-import org.springframework.boot.builder.SpringApplicationBuilder;
-import org.springframework.context.ConfigurableApplicationContext;
-import org.springframework.context.annotation.Bean;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.DirtiesContext;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
+@SpringBootTest(
+    classes = {OrdersApplication.class, RecordedSpans.class},
+    properties = {
+      "spring.main.web-application-type=none",
+      "stratum.observability.enabled=true",
+      "management.tracing.sampling.probability=1.0",
+      "management.tracing.export.enabled=false",
+      "management.otlp.metrics.export.enabled=false"
+    })
+// Closes the application after this class, so its tracing and threads never reach the next one.
+@DirtiesContext
 @DisplayName("Linked work runs in its own trace, linked back to the requests that caused it")
 class LinkedWorkIntegrationTest {
 
@@ -50,34 +61,43 @@ class LinkedWorkIntegrationTest {
   /** How often the endless receipt Flux emits, until it is cancelled. */
   private static final Duration RECEIPT_INTERVAL = Duration.ofMillis(10);
 
+  /** Starts and ends spans. */
+  @Autowired private Tracer tracer;
+
+  /** Starts observations, which Spring turns into spans. */
+  @Autowired private ObservationRegistry observationRegistry;
+
+  /** Runs work linked to the requests that caused it. */
+  @Autowired private LinkedWork linkedWork;
+
+  /** Runs a Mono or Flux linked to the requests that caused it. */
+  @Autowired private ReactiveLinkedWork reactiveLinkedWork;
+
+  /** Every span that ended. */
+  @Autowired private RecordedSpans recordedSpans;
+
+  /** Forgets the spans of earlier tests, so each test reads only its own. */
+  @BeforeEach
+  void forgetEarlierSpans() {
+    recordedSpans.clear();
+  }
+
   /** Clears the logging context, so no test sees fields left by another. */
   @AfterEach
   void clearLoggingContext() {
     MDC.clear();
   }
 
-  /** Starts the test application with the module on and every span sampled and recorded. */
-  private ConfigurableApplicationContext start() {
-    return new SpringApplicationBuilder(OrdersApplication.class, SpanRecording.class)
-        .web(WebApplicationType.NONE)
-        .run(
-            "--stratum.observability.enabled=true",
-            "--management.tracing.sampling.probability=1.0",
-            "--management.tracing.export.enabled=false",
-            "--management.otlp.metrics.export.enabled=false");
-  }
-
   /**
    * Returns the origin that a request with this correlation ID stores with its work, read back from
    * its stored text as a later job would.
    */
-  private WorkOrigin originOfRequest(ConfigurableApplicationContext context, String correlationId) {
-    var tracer = context.getBean(Tracer.class);
+  private WorkOrigin originOfRequest(String correlationId) {
     var span = tracer.nextSpan().name("place-order").start();
     try (var _ = tracer.withSpan(span);
         var _ =
             tracer.createBaggageInScope(LoggingContextConstants.CORRELATION_ID, correlationId)) {
-      var storedOrigin = context.getBean(LinkedWork.class).captureOrigin().orElseThrow().toText();
+      var storedOrigin = linkedWork.captureOrigin().orElseThrow().toText();
       return WorkOrigin.fromText(storedOrigin);
     } finally {
       span.end();
@@ -94,8 +114,8 @@ class LinkedWorkIntegrationTest {
   }
 
   /** Returns the ended span with this name. */
-  private SpanData endedSpan(ConfigurableApplicationContext context, String name) {
-    return context.getBean(RecordedSpans.class).named(name);
+  private SpanData endedSpan(String name) {
+    return recordedSpans.named(name);
   }
 
   /** Returns the trace and span ID that a span link points to. */
@@ -108,24 +128,18 @@ class LinkedWorkIntegrationTest {
   @DisplayName(
       "work from one request gets a new trace linked to the request, and keeps its correlation ID")
   void linksOneOriginAndKeepsCorrelationId() {
-    try (var context = start()) {
-      var tracer = context.getBean(Tracer.class);
-      var origin = originOfRequest(context, ORDER_CORRELATION_ID);
+    var origin = originOfRequest(ORDER_CORRELATION_ID);
 
-      var idsInWork =
-          context
-              .getBean(LinkedWork.class)
-              .call(INVOICE_EXPORT, List.of(origin), () -> idsSeenNow(tracer));
+    var idsInWork = linkedWork.call(INVOICE_EXPORT, List.of(origin), () -> idsSeenNow(tracer));
 
-      assertThat(idsInWork.get(LoggingContextConstants.TRACE_ID)).isNotEqualTo(origin.traceId());
-      assertThat(idsInWork.get(LoggingContextConstants.CORRELATION_ID))
-          .isEqualTo(ORDER_CORRELATION_ID);
-      var workSpan = endedSpan(context, INVOICE_EXPORT);
-      assertThat(workSpan.getParentSpanContext().isValid()).isFalse();
-      assertThat(workSpan.getLinks())
-          .extracting(this::linkTarget)
-          .containsExactly(List.of(origin.traceId(), origin.spanId()));
-    }
+    assertThat(idsInWork.get(LoggingContextConstants.TRACE_ID)).isNotEqualTo(origin.traceId());
+    assertThat(idsInWork.get(LoggingContextConstants.CORRELATION_ID))
+        .isEqualTo(ORDER_CORRELATION_ID);
+    var workSpan = endedSpan(INVOICE_EXPORT);
+    assertThat(workSpan.getParentSpanContext().isValid()).isFalse();
+    assertThat(workSpan.getLinks())
+        .extracting(this::linkTarget)
+        .containsExactly(List.of(origin.traceId(), origin.spanId()));
   }
 
   @Test
@@ -133,32 +147,28 @@ class LinkedWorkIntegrationTest {
       "a batch for two requests links to both, inside the job's own span, with the job's own"
           + " correlation ID")
   void linksEveryOriginOfBatchInsideJobSpan() {
-    try (var context = start()) {
-      var tracer = context.getBean(Tracer.class);
-      var firstOrigin = originOfRequest(context, ORDER_CORRELATION_ID);
-      var secondOrigin = originOfRequest(context, "order-43-a9b2");
-      var jobSpan = tracer.nextSpan().name("nightly-export").start();
-      Map<String, String> idsInWork;
-      try (var _ = tracer.withSpan(jobSpan)) {
-        idsInWork =
-            context
-                .getBean(LinkedWork.class)
-                .call(INVOICE_EXPORT, List.of(firstOrigin, secondOrigin), () -> idsSeenNow(tracer));
-      } finally {
-        jobSpan.end();
-      }
-
-      assertThat(idsInWork)
-          .containsEntry(LoggingContextConstants.TRACE_ID, jobSpan.context().traceId())
-          .containsEntry(LoggingContextConstants.CORRELATION_ID, jobSpan.context().traceId());
-      var workSpan = endedSpan(context, INVOICE_EXPORT);
-      assertThat(workSpan.getParentSpanId()).isEqualTo(jobSpan.context().spanId());
-      assertThat(workSpan.getLinks())
-          .extracting(this::linkTarget)
-          .containsExactlyInAnyOrder(
-              List.of(firstOrigin.traceId(), firstOrigin.spanId()),
-              List.of(secondOrigin.traceId(), secondOrigin.spanId()));
+    var firstOrigin = originOfRequest(ORDER_CORRELATION_ID);
+    var secondOrigin = originOfRequest("order-43-a9b2");
+    var jobSpan = tracer.nextSpan().name("nightly-export").start();
+    Map<String, String> idsInWork;
+    try (var _ = tracer.withSpan(jobSpan)) {
+      idsInWork =
+          linkedWork.call(
+              INVOICE_EXPORT, List.of(firstOrigin, secondOrigin), () -> idsSeenNow(tracer));
+    } finally {
+      jobSpan.end();
     }
+
+    assertThat(idsInWork)
+        .containsEntry(LoggingContextConstants.TRACE_ID, jobSpan.context().traceId())
+        .containsEntry(LoggingContextConstants.CORRELATION_ID, jobSpan.context().traceId());
+    var workSpan = endedSpan(INVOICE_EXPORT);
+    assertThat(workSpan.getParentSpanId()).isEqualTo(jobSpan.context().spanId());
+    assertThat(workSpan.getLinks())
+        .extracting(this::linkTarget)
+        .containsExactlyInAnyOrder(
+            List.of(firstOrigin.traceId(), firstOrigin.spanId()),
+            List.of(secondOrigin.traceId(), secondOrigin.spanId()));
   }
 
   @Test
@@ -166,48 +176,41 @@ class LinkedWorkIntegrationTest {
       "a Mono or Flux run as linked work keeps the new trace and the request's correlation ID"
           + " after a thread change")
   void reactiveWorkKeepsLinkedTraceAcrossThreads() {
-    try (var context = start()) {
-      var tracer = context.getBean(Tracer.class);
-      var origin = originOfRequest(context, ORDER_CORRELATION_ID);
-      var reactiveLinkedWork = context.getBean(ReactiveLinkedWork.class);
+    var origin = originOfRequest(ORDER_CORRELATION_ID);
 
-      var jobObservation =
-          Observation.start("nightly-export", context.getBean(ObservationRegistry.class));
-      var idsInMono =
-          reactiveLinkedWork
-              .mono(
-                  INVOICE_EXPORT,
-                  List.of(origin),
-                  Mono.just("invoice")
-                      .publishOn(Schedulers.boundedElastic())
-                      .map(_ -> idsSeenNow(tracer)))
-              .contextWrite(
-                  reactorContext ->
-                      reactorContext.put(ObservationThreadLocalAccessor.KEY, jobObservation))
-              .block(REACTIVE_TIMEOUT);
-      jobObservation.stop();
-      var idsInFlux =
-          reactiveLinkedWork
-              .flux(
-                  RECEIPT_EXPORT,
-                  List.of(origin),
-                  Flux.just("receipt")
-                      .publishOn(Schedulers.boundedElastic())
-                      .map(_ -> idsSeenNow(tracer)))
-              .blockLast(REACTIVE_TIMEOUT);
+    var jobObservation = Observation.start("nightly-export", observationRegistry);
+    var idsInMono =
+        reactiveLinkedWork
+            .mono(
+                INVOICE_EXPORT,
+                List.of(origin),
+                Mono.just("invoice")
+                    .publishOn(Schedulers.boundedElastic())
+                    .map(_ -> idsSeenNow(tracer)))
+            .contextWrite(
+                reactorContext ->
+                    reactorContext.put(ObservationThreadLocalAccessor.KEY, jobObservation))
+            .block(REACTIVE_TIMEOUT);
+    jobObservation.stop();
+    var idsInFlux =
+        reactiveLinkedWork
+            .flux(
+                RECEIPT_EXPORT,
+                List.of(origin),
+                Flux.just("receipt")
+                    .publishOn(Schedulers.boundedElastic())
+                    .map(_ -> idsSeenNow(tracer)))
+            .blockLast(REACTIVE_TIMEOUT);
 
-      assertThat(idsInMono)
-          .containsEntry(
-              LoggingContextConstants.TRACE_ID, endedSpan(context, INVOICE_EXPORT).getTraceId())
-          .containsEntry(LoggingContextConstants.CORRELATION_ID, ORDER_CORRELATION_ID);
-      assertThat(idsInFlux)
-          .containsEntry(
-              LoggingContextConstants.TRACE_ID, endedSpan(context, RECEIPT_EXPORT).getTraceId())
-          .containsEntry(LoggingContextConstants.CORRELATION_ID, ORDER_CORRELATION_ID);
-      assertThat(endedSpan(context, INVOICE_EXPORT).getLinks()).hasSize(1);
-      assertThat(endedSpan(context, INVOICE_EXPORT).getParentSpanId())
-          .isEqualTo(endedSpan(context, "nightly-export").getSpanId());
-    }
+    assertThat(idsInMono)
+        .containsEntry(LoggingContextConstants.TRACE_ID, endedSpan(INVOICE_EXPORT).getTraceId())
+        .containsEntry(LoggingContextConstants.CORRELATION_ID, ORDER_CORRELATION_ID);
+    assertThat(idsInFlux)
+        .containsEntry(LoggingContextConstants.TRACE_ID, endedSpan(RECEIPT_EXPORT).getTraceId())
+        .containsEntry(LoggingContextConstants.CORRELATION_ID, ORDER_CORRELATION_ID);
+    assertThat(endedSpan(INVOICE_EXPORT).getLinks()).hasSize(1);
+    assertThat(endedSpan(INVOICE_EXPORT).getParentSpanId())
+        .isEqualTo(endedSpan("nightly-export").getSpanId());
   }
 
   @Test
@@ -215,44 +218,26 @@ class LinkedWorkIntegrationTest {
       "a failing Mono records its failure on the span, a cancelled Flux still ends its span, and"
           + " the calling thread's trace and correlation ID are left as they were")
   void reactiveWorkEndsSpanOnFailureAndCancel() {
-    try (var context = start()) {
-      var tracer = context.getBean(Tracer.class);
-      var origin = originOfRequest(context, ORDER_CORRELATION_ID);
-      var reactiveLinkedWork = context.getBean(ReactiveLinkedWork.class);
-      var exportFailure = new IllegalStateException("export target refused the file");
+    var origin = originOfRequest(ORDER_CORRELATION_ID);
+    var exportFailure = new IllegalStateException("export target refused the file");
 
-      var failingWork =
-          reactiveLinkedWork.mono(
-              INVOICE_EXPORT,
-              List.of(origin),
-              Mono.error(exportFailure).publishOn(Schedulers.boundedElastic()));
-      assertThatThrownBy(() -> failingWork.block(REACTIVE_TIMEOUT)).isSameAs(exportFailure);
-      reactiveLinkedWork
-          .flux(RECEIPT_EXPORT, List.of(origin), Flux.interval(RECEIPT_INTERVAL))
-          .take(1)
-          .blockLast(REACTIVE_TIMEOUT);
+    var failingWork =
+        reactiveLinkedWork.mono(
+            INVOICE_EXPORT,
+            List.of(origin),
+            Mono.error(exportFailure).publishOn(Schedulers.boundedElastic()));
+    assertThatThrownBy(() -> failingWork.block(REACTIVE_TIMEOUT)).isSameAs(exportFailure);
+    reactiveLinkedWork
+        .flux(RECEIPT_EXPORT, List.of(origin), Flux.interval(RECEIPT_INTERVAL))
+        .take(1)
+        .blockLast(REACTIVE_TIMEOUT);
 
-      var failedSpan = endedSpan(context, INVOICE_EXPORT);
-      assertThat(failedSpan.getStatus().getStatusCode()).isEqualTo(StatusCode.ERROR);
-      assertThat(failedSpan.getEvents())
-          .anySatisfy(event -> assertThat(event.getName()).isEqualTo("exception"));
-      assertThat(endedSpan(context, RECEIPT_EXPORT).getLinks()).hasSize(1);
-      assertThat(tracer.currentSpan()).isNull();
-      assertThat(MDC.get(LoggingContextConstants.CORRELATION_ID)).isNull();
-    }
-  }
-
-  /** Records every span, so the tests can read parents and links. */
-  static class SpanRecording {
-
-    /**
-     * Returns the recorder.
-     *
-     * @return the recorder
-     */
-    @Bean
-    RecordedSpans recordedSpans() {
-      return new RecordedSpans();
-    }
+    var failedSpan = endedSpan(INVOICE_EXPORT);
+    assertThat(failedSpan.getStatus().getStatusCode()).isEqualTo(StatusCode.ERROR);
+    assertThat(failedSpan.getEvents())
+        .anySatisfy(event -> assertThat(event.getName()).isEqualTo("exception"));
+    assertThat(endedSpan(RECEIPT_EXPORT).getLinks()).hasSize(1);
+    assertThat(tracer.currentSpan()).isNull();
+    assertThat(MDC.get(LoggingContextConstants.CORRELATION_ID)).isNull();
   }
 }

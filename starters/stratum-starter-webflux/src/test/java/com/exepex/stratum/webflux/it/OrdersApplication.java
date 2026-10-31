@@ -1,7 +1,7 @@
 package com.exepex.stratum.webflux.it;
 
 import com.exepex.stratum.core.error.StratumException;
-import com.exepex.stratum.webflux.testsupport.OrderErrorCode;
+import com.exepex.stratum.test.OrderErrorCode;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;

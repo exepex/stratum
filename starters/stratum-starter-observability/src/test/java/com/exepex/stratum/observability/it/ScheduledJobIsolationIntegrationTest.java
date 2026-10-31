@@ -14,11 +14,23 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
-import org.springframework.boot.WebApplicationType;
-import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.test.annotation.DirtiesContext;
 
+@SpringBootTest(
+    classes = {OrdersApplication.class, ScheduledJobIsolationIntegrationTest.CleanupJob.class},
+    properties = {
+      "spring.main.web-application-type=none",
+      "stratum.observability.enabled=true",
+      "management.tracing.sampling.probability=1.0",
+      "management.tracing.export.enabled=false",
+      "management.otlp.metrics.export.enabled=false"
+    })
+// Closing the application stops the job, which would otherwise run until the build ends.
+@DirtiesContext
 @DisplayName("A @Scheduled job never takes the trace, correlation ID or MDC fields of a request")
 class ScheduledJobIsolationIntegrationTest {
 
@@ -34,6 +46,12 @@ class ScheduledJobIsolationIntegrationTest {
   /** How long to wait for a run of the job. */
   private static final long JOB_RUN_TIMEOUT_SECONDS = 10;
 
+  /** Reads the current trace. */
+  @Autowired private Tracer tracer;
+
+  /** The job, which runs every 50 milliseconds. */
+  @Autowired private CleanupJob job;
+
   /** Clears the logging context, so no test sees fields left by another. */
   @AfterEach
   void clearLoggingContext() {
@@ -43,37 +61,26 @@ class ScheduledJobIsolationIntegrationTest {
   @Test
   @DisplayName("a run during a request has its own trace and correlation ID, and no request field")
   void runDuringRequestIsNotLinked() throws InterruptedException {
-    try (var context =
-        new SpringApplicationBuilder(OrdersApplication.class, CleanupJob.class)
-            .web(WebApplicationType.NONE)
-            .run(
-                "--stratum.observability.enabled=true",
-                "--management.tracing.sampling.probability=1.0",
-                "--management.tracing.export.enabled=false",
-                "--management.otlp.metrics.export.enabled=false")) {
-      var tracer = context.getBean(Tracer.class);
-      var job = context.getBean(CleanupJob.class);
-      var requestSpan = tracer.nextSpan().name("place-order").start();
-      Map<String, String> idsInRun;
-      try (var _ = tracer.withSpan(requestSpan);
-          var _ =
-              tracer.createBaggageInScope(
-                  LoggingContextConstants.CORRELATION_ID, ORDER_CORRELATION_ID);
-          var _ = MDC.putCloseable(CUSTOMER_ID, "CUST-7")) {
-        job.idsSeenByRuns.clear();
-        idsInRun = job.idsSeenByRuns.poll(JOB_RUN_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-      } finally {
-        requestSpan.end();
-      }
-
-      assertThat(idsInRun).isNotNull();
-      assertThat(idsInRun.get(LoggingContextConstants.TRACE_ID))
-          .isNotEqualTo(requestSpan.context().traceId());
-      assertThat(idsInRun.get(LoggingContextConstants.CORRELATION_ID))
-          .isNotEqualTo(ORDER_CORRELATION_ID)
-          .isEqualTo(idsInRun.get(LoggingContextConstants.TRACE_ID));
-      assertThat(idsInRun.get(CUSTOMER_ID)).isEqualTo(NOT_SET);
+    var requestSpan = tracer.nextSpan().name("place-order").start();
+    Map<String, String> idsInRun;
+    try (var _ = tracer.withSpan(requestSpan);
+        var _ =
+            tracer.createBaggageInScope(
+                LoggingContextConstants.CORRELATION_ID, ORDER_CORRELATION_ID);
+        var _ = MDC.putCloseable(CUSTOMER_ID, "CUST-7")) {
+      job.idsSeenByRuns.clear();
+      idsInRun = job.idsSeenByRuns.poll(JOB_RUN_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    } finally {
+      requestSpan.end();
     }
+
+    assertThat(idsInRun).isNotNull();
+    assertThat(idsInRun.get(LoggingContextConstants.TRACE_ID))
+        .isNotEqualTo(requestSpan.context().traceId());
+    assertThat(idsInRun.get(LoggingContextConstants.CORRELATION_ID))
+        .isNotEqualTo(ORDER_CORRELATION_ID)
+        .isEqualTo(idsInRun.get(LoggingContextConstants.TRACE_ID));
+    assertThat(idsInRun.get(CUSTOMER_ID)).isEqualTo(NOT_SET);
   }
 
   /** A job that runs every 50 milliseconds and records the IDs each run sees. */

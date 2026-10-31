@@ -64,7 +64,9 @@ conventions. Each rule has an ID so that reviews and judge verdicts can cite it.
   the `verify` phase. Surefire runs every other `*Test` class. (Google's Checkstyle rules reject `IT` as a name
   ending, because it is an abbreviation.)
 - **ST-TEST-31** They start a minimal test application with `@SpringBootTest`, so they show what a real service gets
-  by adding the starter.
+  by adding the starter. One exception: a test that checks what happens at startup or at shutdown, such as a startup
+  that must fail or the last metrics sent when the application stops, starts and stops the application itself with
+  `SpringApplicationBuilder`, because `@SpringBootTest` keeps the application running until the build ends.
 - **ST-TEST-32** Real dependencies (PostgreSQL, Kafka, Redis, an OAuth2 server) run in Testcontainers provided by
   `stratum-test`. Image tags are pinned in one place; `latest` is never used. Containers are shared across a module's
   tests where that is safe, to keep builds fast. Where the library ships a real broker that runs inside the test JVM,
