@@ -31,7 +31,8 @@ public class ReactiveMdcFields {
    * @param monoThatLogs the {@code Mono} whose log lines get the fields
    * @param <T> the result's type
    * @return the {@code Mono}, with the fields
-   * @throws IllegalArgumentException if a field is one that tracing or workflows set
+   * @throws IllegalArgumentException if a field is one that tracing, workflows or the web module
+   *     set
    */
   public static <T> Mono<T> mono(Map<String, String> fields, Mono<T> monoThatLogs) {
     requireServiceFieldNames(fields);
@@ -45,14 +46,18 @@ public class ReactiveMdcFields {
    * @param fluxThatLogs the {@code Flux} whose log lines get the fields
    * @param <T> the elements' type
    * @return the {@code Flux}, with the fields
-   * @throws IllegalArgumentException if a field is one that tracing or workflows set
+   * @throws IllegalArgumentException if a field is one that tracing, workflows or the web module
+   *     set
    */
   public static <T> Flux<T> flux(Map<String, String> fields, Flux<T> fluxThatLogs) {
     requireServiceFieldNames(fields);
     return fluxThatLogs.contextWrite(context -> withServiceFields(context, fields));
   }
 
-  /** Refuses the fields that tracing and workflows set, which would fall out of step. */
+  /**
+   * Refuses the fields that tracing, workflows and the web module set, which would fall out of
+   * step.
+   */
   private static void requireServiceFieldNames(Map<String, String> fields) {
     var managedField =
         fields.keySet().stream()
@@ -60,7 +65,7 @@ public class ReactiveMdcFields {
             .findFirst();
     if (managedField.isPresent()) {
       throw new IllegalArgumentException(
-          "MDC field " + managedField.get() + " is set by tracing or workflows");
+          "MDC field " + managedField.get() + " is set by tracing, workflows or the web module");
     }
   }
 

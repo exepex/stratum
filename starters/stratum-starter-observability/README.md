@@ -190,8 +190,8 @@ correlation ID set in baggage reaches every service you call or send a message t
 > Never put a secret or personal data, such as a customer's name or email address, in the
 > correlation ID or any other baggage entry. Every host your service calls receives it.
 
-**Planned:** the web starter will take the ID from the `X-Correlation-Id` header, and the logging
-starter will limit the baggage to your own hosts.
+The web starters also take it from the `X-Correlation-Id` header ([web](../../docs/modules/web.md#correlation-id)).
+**Planned:** the logging starter will limit the baggage to your own hosts.
 
 ### Messages
 

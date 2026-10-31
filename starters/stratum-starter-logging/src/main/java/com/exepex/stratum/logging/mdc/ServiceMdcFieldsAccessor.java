@@ -8,6 +8,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.MDC;
@@ -19,8 +21,8 @@ import org.springframework.util.ClassUtils;
  * Spring's executors and Reactor carry them to the threads a request's work moves to, and put back
  * what each thread held before once the work there ends. The trace, span and correlation IDs and
  * the workflow fields are left to tracing and the workflow accessor, which keep them in step with
- * each span and workflow. Registered with Micrometer's context propagation by {@link
- * ServiceMdcFieldsPropagation} while the logging module is on.
+ * each span and workflow, and the request fields to the web module. Registered with Micrometer's
+ * context propagation by {@link ServiceMdcFieldsPropagation} while the logging module is on.
  *
  * <p>Reactor calls it around every operator for every element, so it reads the MDC without copying
  * it when the backend is Logback, and writes only when the fields differ. Its methods use loops
@@ -29,15 +31,21 @@ import org.springframework.util.ClassUtils;
 @RequiredArgsConstructor(access = AccessLevel.PACKAGE)
 public class ServiceMdcFieldsAccessor implements ThreadLocalAccessor<Map<String, String>> {
 
-  /** The MDC fields that tracing and workflows set, which this accessor never copies or removes. */
+  /**
+   * The MDC fields that tracing, workflows and the web module set, which this accessor never copies
+   * or removes.
+   */
   static final Set<String> FIELDS_MANAGED_ELSEWHERE =
-      Set.of(
-          LoggingContextConstants.TRACE_ID,
-          LoggingContextConstants.SPAN_ID,
-          LoggingContextConstants.CORRELATION_ID,
-          LoggingConstants.WORKFLOW,
-          LoggingConstants.ROOT_WORKFLOW,
-          LoggingConstants.WORKFLOW_ID);
+      Stream.concat(
+              Stream.of(
+                  LoggingContextConstants.TRACE_ID,
+                  LoggingContextConstants.SPAN_ID,
+                  LoggingContextConstants.CORRELATION_ID,
+                  LoggingConstants.WORKFLOW,
+                  LoggingConstants.ROOT_WORKFLOW,
+                  LoggingConstants.WORKFLOW_ID),
+              LoggingContextConstants.WEB_REQUEST_FIELDS.stream())
+          .collect(Collectors.toUnmodifiableSet());
 
   /** Whether the MDC backend is Logback, Spring Boot's default, whose MDC can be read uncopied. */
   private static final boolean LOGBACK_MDC_PRESENT =

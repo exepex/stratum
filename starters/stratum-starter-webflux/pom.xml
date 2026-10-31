@@ -14,7 +14,7 @@
   <artifactId>stratum-starter-webflux</artifactId>
 
   <name>Stratum starter: WebFlux</name>
-  <description>Spring WebFlux with Stratum's error format, for a reactive service. Planned: request fields, request log and timeouts.</description>
+  <description>Spring WebFlux for a reactive service, with Stratum's error format, request fields in logs and the correlation ID. Planned: request log and timeouts.</description>
 
   <dependencies>
     <dependency>
@@ -26,6 +26,20 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-webflux</artifactId>
+    </dependency>
+    <!-- Sets the correlation ID in the tracing baggage. The observability starter brings it; without
+         it, requests get no correlation ID. -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-tracing</artifactId>
+      <optional>true</optional>
+      <!-- Spring AOP already holds these classes. -->
+      <exclusions>
+        <exclusion>
+          <groupId>aopalliance</groupId>
+          <artifactId>aopalliance</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <!-- The checks and set-up that every starter's tests share. -->
     <dependency>
@@ -43,6 +57,13 @@
     <dependency>
       <groupId>com.exepex.stratum</groupId>
       <artifactId>stratum-starter-observability</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Calls the test service from itself, to prove the correlation ID reaches the services a
+         request calls. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-webclient</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

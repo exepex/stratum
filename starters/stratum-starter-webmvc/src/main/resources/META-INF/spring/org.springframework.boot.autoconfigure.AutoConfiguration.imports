@@ -1,1 +1,2 @@
 com.exepex.stratum.webmvc.autoconfigure.WebMvcErrorResponsesAutoConfiguration
+com.exepex.stratum.webmvc.autoconfigure.WebMvcRequestFieldsAutoConfiguration

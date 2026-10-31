@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.test.StarterTestSupport;
+import com.exepex.stratum.web.testsupport.EdgeServiceWebSettings;
 import com.exepex.stratum.web.testsupport.GoneOrderWebSettings;
 import com.exepex.stratum.web.testsupport.OrderErrorCode;
 import jakarta.validation.ConstraintViolationException;
@@ -12,6 +13,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.boot.env.YamlPropertySourceLoader;
@@ -87,5 +89,107 @@ class WebPropertiesTest {
         .isThrownBy(() -> WebProperties.resolve(environment))
         .withMessageStartingWith("SX-CORE-1003: Invalid settings: " + WebConstants.ERROR_STATUSES)
         .withMessageNotContaining(DUPLICATE_ORDER);
+  }
+
+  @Nested
+  @DisplayName("the request field and correlation settings")
+  class RequestFieldSettings {
+
+    /** How many parsed user agents are kept by default. */
+    private static final int DEFAULT_CACHE_SIZE = 10_000;
+
+    /** How long a field may be by default. */
+    private static final int DEFAULT_MAX_VALUE_LENGTH = 512;
+
+    /** The cache size in web-yaml.yml. */
+    private static final int YAML_CACHE_SIZE = 500;
+
+    /** The field length the files set. */
+    private static final int FILE_MAX_VALUE_LENGTH = 256;
+
+    @Test
+    @DisplayName("with nothing set, the defaults are safe and cheap")
+    void defaults() {
+      var settings = WebProperties.resolve(new MockEnvironment());
+
+      assertThat(settings.correlation().acceptFromCaller()).isTrue();
+      assertThat(settings.clientIp().trustedProxies())
+          .containsExactly(
+              "10.0.0.0/8",
+              "172.16.0.0/12",
+              "192.168.0.0/16",
+              "127.0.0.0/8",
+              "::1/128",
+              "fc00::/7");
+      assertThat(settings.userAgent())
+          .isEqualTo(new WebProperties.UserAgentSettings(false, DEFAULT_CACHE_SIZE, false));
+      assertThat(settings.clientLocation().database()).isNull();
+      assertThat(settings.requestFields().maxValueLength()).isEqualTo(DEFAULT_MAX_VALUE_LENGTH);
+    }
+
+    @Test
+    @DisplayName("are read from a .properties file")
+    void fromProperties() {
+      var environment =
+          new MockEnvironment()
+              .withProperty(WebConstants.CORRELATION_ACCEPT_FROM_CALLER, "false")
+              .withProperty(WebConstants.CLIENT_IP_TRUSTED_PROXIES, "10.20.0.0/16,fd00::/8")
+              .withProperty(WebConstants.USER_AGENT_PARSE, "true")
+              .withProperty(WebConstants.CLIENT_LOCATION_DATABASE, "/data/city.mmdb")
+              .withProperty(WebConstants.REQUEST_FIELDS_MAX_VALUE_LENGTH, "256");
+
+      var settings = WebProperties.resolve(environment);
+
+      assertThat(settings.correlation().acceptFromCaller()).isFalse();
+      assertThat(settings.clientIp().trustedProxies()).containsExactly("10.20.0.0/16", "fd00::/8");
+      assertThat(settings.userAgent().parse()).isTrue();
+      assertThat(settings.clientLocation().database()).isEqualTo(Path.of("/data/city.mmdb"));
+      assertThat(settings.requestFields().maxValueLength()).isEqualTo(FILE_MAX_VALUE_LENGTH);
+    }
+
+    @Test
+    @DisplayName("are read from a .yml file")
+    void fromYaml() throws IOException {
+      var environment = new StandardEnvironment();
+      new YamlPropertySourceLoader()
+          .load("web-yaml", new ClassPathResource("web-yaml.yml"))
+          .forEach(environment.getPropertySources()::addFirst);
+
+      var settings = WebProperties.resolve(environment);
+
+      assertThat(settings.correlation().acceptFromCaller()).isFalse();
+      assertThat(settings.clientIp().trustedProxies()).containsExactly("10.20.0.0/16");
+      assertThat(settings.userAgent())
+          .isEqualTo(new WebProperties.UserAgentSettings(true, YAML_CACHE_SIZE, true));
+      assertThat(settings.requestFields().maxValueLength()).isEqualTo(FILE_MAX_VALUE_LENGTH);
+    }
+
+    @Test
+    @DisplayName("a customizer listed in spring.factories wins over the files")
+    void javaConfigurationWins(@TempDir Path folder) throws IOException {
+      var environment =
+          new MockEnvironment().withProperty(WebConstants.CORRELATION_ACCEPT_FROM_CALLER, "true");
+
+      var properties =
+          StarterTestSupport.withCustomizers(
+              folder,
+              WebPropertiesCustomizer.class,
+              List.of(EdgeServiceWebSettings.class),
+              () -> WebProperties.resolve(environment));
+
+      assertThat(properties.correlation().acceptFromCaller()).isFalse();
+    }
+
+    @Test
+    @DisplayName("a field length out of range stops startup with SX-CORE-1003")
+    void lengthOutOfRange() {
+      var environment =
+          new MockEnvironment().withProperty(WebConstants.REQUEST_FIELDS_MAX_VALUE_LENGTH, "8");
+
+      assertThatExceptionOfType(ConstraintViolationException.class)
+          .isThrownBy(() -> WebProperties.resolve(environment))
+          .withMessageStartingWith(
+              "SX-CORE-1003: Invalid settings: " + WebConstants.REQUEST_FIELDS_MAX_VALUE_LENGTH);
+    }
   }
 }

@@ -14,6 +14,7 @@ says what travels, where, and the few places your code has to help.
 | `traceId`, `spanId` | Tracing, with the observability starter | Yes |
 | `correlationId` | The observability starter, from baggage | Yes |
 | `workflow`, `root_workflow`, `workflow_id` | [Workflows](../../starters/stratum-starter-logging/README.md#workflows) | Yes |
+| `httpMethod`, `httpRoute`, `clientIp` and the other [request fields](../modules/web.md#request-fields-in-logs) | The web starters | Yes |
 | Any field your code puts with `MDC.put`, such as `customerId` | Your code | Yes, with the logging starter |
 
 Fields stay inside the service. Only `traceparent` and the correlation ID in `baggage` go to the

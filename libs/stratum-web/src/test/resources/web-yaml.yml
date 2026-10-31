@@ -4,3 +4,14 @@ stratum:
       statuses:
         ORD-0001: 409
         ORD-0002: 503
+    correlation:
+      accept-from-caller: false
+    client-ip:
+      trusted-proxies:
+        - 10.20.0.0/16
+    user-agent:
+      parse: true
+      cache-size: 500
+      request-client-hints: true
+    request-fields:
+      max-value-length: 256

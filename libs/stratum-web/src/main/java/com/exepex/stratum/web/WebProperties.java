@@ -4,8 +4,12 @@ import com.exepex.stratum.core.properties.StratumCustomizers;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
+import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import lombok.Builder;
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.core.env.Environment;
@@ -16,10 +20,21 @@ import org.springframework.core.env.Environment;
  * descriptions of the components are what IDEs show, so they are plain sentences.
  *
  * @param error How errors are answered.
+ * @param correlation Where each request's correlation ID comes from.
+ * @param clientIp How the client's IP address is found behind proxies.
+ * @param userAgent What is read from the client's user agent.
+ * @param clientLocation Where the client's country and city come from.
+ * @param requestFields The fields every log line of a request carries.
  */
 @Builder(toBuilder = true)
 @ConfigurationProperties(prefix = WebConstants.PREFIX)
-public record WebProperties(@DefaultValue @Valid ErrorSettings error) {
+public record WebProperties(
+    @DefaultValue @Valid ErrorSettings error,
+    @DefaultValue CorrelationSettings correlation,
+    @DefaultValue @Valid ClientIpSettings clientIp,
+    @DefaultValue @Valid UserAgentSettings userAgent,
+    @DefaultValue ClientLocationSettings clientLocation,
+    @DefaultValue @Valid RequestFieldsSettings requestFields) {
 
   /**
    * Returns the settings the module uses: {@code stratum.web.*} with the defaults for anything
@@ -51,4 +66,83 @@ public record WebProperties(@DefaultValue @Valid ErrorSettings error) {
       statuses = Map.copyOf(statuses);
     }
   }
+
+  /**
+   * Where each request's correlation ID comes from.
+   *
+   * @param acceptFromCaller Whether the caller's X-Correlation-Id header, or the correlationId it
+   *     sent in the tracing baggage, is used when it is 1 to 128 letters, digits, -, _, . or :. Set
+   *     it to false on a service that faces the internet, so that every request's correlation ID is
+   *     its trace ID. Defaults to true.
+   */
+  @Builder(toBuilder = true)
+  public record CorrelationSettings(@DefaultValue("true") boolean acceptFromCaller) {}
+
+  /**
+   * How the client's IP address is found behind proxies.
+   *
+   * @param trustedProxies The address ranges, such as 10.0.0.0/8, of the load balancers and proxies
+   *     in front of the service. Their X-Forwarded-For header is read from right to left, and the
+   *     first address outside these ranges is the client's. A request from any other address is
+   *     taken as it arrives. Defaults to the private and loopback ranges: 10.0.0.0/8,
+   *     172.16.0.0/12, 192.168.0.0/16, 127.0.0.0/8, ::1/128 and fc00::/7.
+   */
+  @Builder(toBuilder = true)
+  public record ClientIpSettings(List<@Pattern(regexp = ADDRESS_RANGE) String> trustedProxies) {
+
+    /** An IPv4 or IPv6 address, a slash and a prefix length. */
+    private static final String ADDRESS_RANGE = "[0-9A-Fa-f.:]+/[0-9]{1,3}";
+
+    /** The private and loopback ranges, the ranges of a service's own network. */
+    private static final List<String> PRIVATE_ADDRESS_RANGES =
+        List.of(
+            "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "::1/128", "fc00::/7");
+
+    /**
+     * Keeps an unchangeable copy of the ranges, which are the private ranges when unset: Spring
+     * Boot passes null for a list that is not set.
+     */
+    public ClientIpSettings {
+      trustedProxies =
+          trustedProxies == null ? PRIVATE_ADDRESS_RANGES : List.copyOf(trustedProxies);
+    }
+  }
+
+  /**
+   * What is read from the client's user agent. The raw User-Agent header is always logged.
+   *
+   * @param parse Whether the device, operating system and browser are read from the User-Agent
+   *     header and the browser's client hints, and logged as separate fields. Turning it on adds
+   *     about 110 MB of memory and 3 seconds of startup. Defaults to false.
+   * @param cacheSize How many different user agents are kept already parsed, from 1 to 1000000.
+   *     Defaults to 10000.
+   * @param requestClientHints Whether responses ask browsers for their device model and full
+   *     operating system version, with the Accept-CH header, so later requests can log them. Only
+   *     used when parse is true. Defaults to false.
+   */
+  @Builder(toBuilder = true)
+  public record UserAgentSettings(
+      @DefaultValue("false") boolean parse,
+      @DefaultValue("10000") @Min(1) @Max(1_000_000) int cacheSize,
+      @DefaultValue("false") boolean requestClientHints) {}
+
+  /**
+   * Where the client's country and city come from.
+   *
+   * @param database The MaxMind GeoIP2 or GeoLite2 City or Country database file, in .mmdb format,
+   *     that your team provides and keeps up to date. Defaults to none, which logs no country or
+   *     city.
+   */
+  @Builder(toBuilder = true)
+  public record ClientLocationSettings(@Nullable Path database) {}
+
+  /**
+   * The fields every log line of a request carries.
+   *
+   * @param maxValueLength The most characters a field keeps, such as a long query string or user
+   *     agent, from 16 to 8192; the rest is cut off. Defaults to 512.
+   */
+  @Builder(toBuilder = true)
+  public record RequestFieldsSettings(
+      @DefaultValue("512") @Min(16) @Max(8192) int maxValueLength) {}
 }

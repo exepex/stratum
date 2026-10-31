@@ -174,7 +174,7 @@ public extension points:
 | --- | --- |
 | HTTP client sends trace headers | Spring's observation support on `RestClient`, configured by observability |
 | Logs show trace IDs | Micrometer Tracing puts IDs in the MDC; logging writes them |
-| Logs show correlation IDs | Observability puts the ID in the MDC from tracing baggage, or the trace ID; logging writes it. The web starter will set the baggage from the `X-Correlation-Id` header (planned) |
+| Logs show correlation IDs | Observability puts the ID in the MDC from tracing baggage, or the trace ID; logging writes it. The web starters set the baggage from the `X-Correlation-Id` header |
 | HTTP client sends tokens | A request interceptor backed by Spring Security's `OAuth2AuthorizedClientManager` |
 | HTTP client uses resilience policies | The resilience starter registers a customizer when present |
 | Errors from HTTP clients become `503`/`504` | The web starter handles `DownstreamUnavailableException` from the shared core |

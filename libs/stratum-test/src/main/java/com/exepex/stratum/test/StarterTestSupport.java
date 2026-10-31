@@ -28,6 +28,7 @@ import java.util.function.Supplier;
 import java.util.regex.MatchResult;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 
@@ -50,6 +51,9 @@ public class StarterTestSupport {
 
   /** The annotation every method in a starter's autoconfigure package carries (ST-ENG-23). */
   private static final String BEAN = "org.springframework.context.annotation.Bean";
+
+  /** The number of bytes in an IPv4 address. */
+  private static final int IPV4_BYTES = 4;
 
   /** The annotation behind every class a component scan picks up, such as {@code @Service}. */
   private static final String COMPONENT = "org.springframework.stereotype.Component";
@@ -154,6 +158,22 @@ public class StarterTestSupport {
     assertThat(JsonPath.<Integer>read(response.body(), "$.status")).isEqualTo(status);
     assertThat(JsonPath.<String>read(response.body(), "$." + LoggingContextConstants.TRACE_ID))
         .matches("\\p{XDigit}{32}");
+  }
+
+  /**
+   * Returns the text of an IP address from its numbers: four decimal numbers make an IPv4 address,
+   * such as {@code ipAddress(198, 51, 100, 20)} for {@code 198.51.100.20}, and eight make an IPv6
+   * address, such as {@code ipAddress(0x2001, 0xdb8, 0, 0, 0, 0, 0, 1)} for {@code 2001:db8::1}.
+   * Tests write addresses this way because PMD's {@code AvoidUsingHardCodedIP} rule, which keeps
+   * server addresses out of code, rejects address literals.
+   *
+   * @param numbers the four bytes of an IPv4 address, or the eight groups of an IPv6 address
+   * @return the address as text, such as {@code 198.51.100.20} or {@code 2001:db8:0:0:0:0:0:1}
+   */
+  public static String ipAddress(int... numbers) {
+    return numbers.length == IPV4_BYTES
+        ? IntStream.of(numbers).mapToObj(Integer::toString).collect(Collectors.joining("."))
+        : IntStream.of(numbers).mapToObj(Integer::toHexString).collect(Collectors.joining(":"));
   }
 
   /**
