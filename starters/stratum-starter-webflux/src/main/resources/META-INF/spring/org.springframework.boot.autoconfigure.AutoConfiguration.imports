@@ -1,1 +1,2 @@
 com.exepex.stratum.webflux.autoconfigure.WebFluxErrorResponsesAutoConfiguration
+com.exepex.stratum.webflux.autoconfigure.WebFluxRequestFieldsAutoConfiguration

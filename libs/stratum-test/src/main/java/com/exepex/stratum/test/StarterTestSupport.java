@@ -17,17 +17,22 @@ import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.CompositeArchRule;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 import java.util.regex.MatchResult;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 
@@ -50,6 +55,15 @@ public class StarterTestSupport {
 
   /** The annotation every method in a starter's autoconfigure package carries (ST-ENG-23). */
   private static final String BEAN = "org.springframework.context.annotation.Bean";
+
+  /** The address that requests sent from this machine come from. */
+  private static final String LOOPBACK_ADDRESS = ipAddress(127, 0, 0, 1);
+
+  /** Calls the services under test; one client serves every test. */
+  private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
+
+  /** The number of bytes in an IPv4 address. */
+  private static final int IPV4_BYTES = 4;
 
   /** The annotation behind every class a component scan picks up, such as {@code @Service}. */
   private static final String COMPONENT = "org.springframework.stereotype.Component";
@@ -154,6 +168,68 @@ public class StarterTestSupport {
     assertThat(JsonPath.<Integer>read(response.body(), "$.status")).isEqualTo(status);
     assertThat(JsonPath.<String>read(response.body(), "$." + LoggingContextConstants.TRACE_ID))
         .matches("\\p{XDigit}{32}");
+  }
+
+  /**
+   * Sends a GET request to a service running on this machine, as its integration tests do.
+   *
+   * @param port the service's port
+   * @param pathAndQuery the path and query, such as {@code /orders/42?expand=lines}
+   * @param headers header names and values, in pairs
+   * @return the response, with its body as text
+   * @throws IOException if the request cannot be sent or the response read
+   * @throws InterruptedException if the thread is interrupted while it waits
+   */
+  public static HttpResponse<String> getFromService(
+      int port, String pathAndQuery, String... headers) throws IOException, InterruptedException {
+    var request =
+        HttpRequest.newBuilder(URI.create("http://localhost:" + port + pathAndQuery)).GET();
+    if (headers.length > 0) {
+      request.headers(headers);
+    }
+    return HTTP_CLIENT.send(request.build(), HttpResponse.BodyHandlers.ofString());
+  }
+
+  /**
+   * Checks the request fields that both web starters put in the logging context of a GET request
+   * sent from this machine, as returned by a test endpoint that answers with its logging context:
+   * the method, route, path, query, client IP and raw user agent, and none of the parsed agent or
+   * location fields, which are off by default.
+   *
+   * @param response the endpoint's response, whose body is the logging context as JSON
+   * @param route the route template, such as {@code /orders/{orderId}/fields}
+   * @param pathAndQuery the path and query sent, such as {@code /orders/42/fields?expand=lines}
+   * @param userAgent the {@code User-Agent} header sent
+   */
+  public static void checkRequestFields(
+      HttpResponse<String> response, String route, String pathAndQuery, String userAgent) {
+    var sent = URI.create(pathAndQuery);
+    Map<String, String> fields = JsonPath.read(response.body(), "$");
+    assertThat(fields)
+        .containsEntry(LoggingContextConstants.HTTP_METHOD, "GET")
+        .containsEntry(LoggingContextConstants.HTTP_ROUTE, route)
+        .containsEntry(LoggingContextConstants.HTTP_PATH, sent.getPath())
+        .containsEntry(LoggingContextConstants.HTTP_QUERY, sent.getQuery())
+        .containsEntry(LoggingContextConstants.CLIENT_IP, LOOPBACK_ADDRESS)
+        .containsEntry(LoggingContextConstants.USER_AGENT, userAgent)
+        .doesNotContainKeys(
+            LoggingContextConstants.DEVICE_CLASS, LoggingContextConstants.CLIENT_COUNTRY);
+  }
+
+  /**
+   * Returns the text of an IP address from its numbers: four decimal numbers make an IPv4 address,
+   * such as {@code ipAddress(198, 51, 100, 20)} for {@code 198.51.100.20}, and eight make an IPv6
+   * address, such as {@code ipAddress(0x2001, 0xdb8, 0, 0, 0, 0, 0, 1)} for {@code 2001:db8::1}.
+   * Tests write addresses this way because PMD's {@code AvoidUsingHardCodedIP} rule, which keeps
+   * server addresses out of code, rejects address literals.
+   *
+   * @param numbers the four bytes of an IPv4 address, or the eight groups of an IPv6 address
+   * @return the address as text, such as {@code 198.51.100.20} or {@code 2001:db8:0:0:0:0:0:1}
+   */
+  public static String ipAddress(int... numbers) {
+    return numbers.length == IPV4_BYTES
+        ? IntStream.of(numbers).mapToObj(Integer::toString).collect(Collectors.joining("."))
+        : IntStream.of(numbers).mapToObj(Integer::toHexString).collect(Collectors.joining(":"));
   }
 
   /**

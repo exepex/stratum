@@ -37,7 +37,7 @@ stratum.environment=prod
 
 | Prefix | Module | Full table | Required settings |
 | --- | --- | --- | --- |
-| `stratum.web.*` | `stratum-starter-webmvc`, `stratum-starter-webflux` | [Web MVC → Properties](../../starters/stratum-starter-webmvc/README.md#properties), [WebFlux → Properties](../../starters/stratum-starter-webflux/README.md#properties), planned ones in [Web](../modules/web.md#properties) | none |
+| `stratum.web.*` | `stratum-starter-webmvc`, `stratum-starter-webflux` | [Web MVC → Properties](../../starters/stratum-starter-webmvc/README.md#properties), [WebFlux → Properties](../../starters/stratum-starter-webflux/README.md#properties), all of them, planned ones included, in [Web](../modules/web.md#properties) | none |
 | `stratum.logging.*` | `stratum-starter-logging` | [Logging → Properties](../../starters/stratum-starter-logging/README.md#properties) | none |
 | `stratum.observability.*` | `stratum-starter-observability` | [Observability → Properties](../../starters/stratum-starter-observability/README.md#properties) | Collector addresses, once enabled |
 | `stratum.security.*` | `stratum-starter-security` | [Security → Properties](../modules/security.md#properties) | `resource-server.issuer-uri` |
@@ -58,7 +58,7 @@ such as `stratum.web.request-log.enabled`, apply only once the module is on.
 
 | Property | Switches on |
 | --- | --- |
-| `stratum.web.enabled` | Error format; planned: request fields, request log, correlation IDs, timeouts |
+| `stratum.web.enabled` | Error format, request fields in logs, correlation ID; planned: request log, timeouts |
 | `stratum.logging.enabled` | Structured format and redaction |
 | `stratum.observability.enabled` | Stratum's metrics, tracing and health settings |
 | `stratum.security.enabled` | Stratum's security chain (Spring Security's defaults then apply) |

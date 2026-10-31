@@ -130,6 +130,11 @@
         <version>${libphonenumber.version}</version>
       </dependency>
       <dependency>
+        <groupId>com.maxmind.db</groupId>
+        <artifactId>maxmind-db</artifactId>
+        <version>${maxmind-db.version}</version>
+      </dependency>
+      <dependency>
         <groupId>com.tngtech.archunit</groupId>
         <artifactId>archunit</artifactId>
         <version>${archunit.version}</version>
@@ -138,6 +143,11 @@
         <groupId>commons-validator</groupId>
         <artifactId>commons-validator</artifactId>
         <version>${commons-validator.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>nl.basjes.parse.useragent</groupId>
+        <artifactId>yauaa</artifactId>
+        <version>${yauaa.version}</version>
       </dependency>
       <dependency>
         <groupId>org.mapstruct</groupId>

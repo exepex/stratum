@@ -19,7 +19,16 @@ class ConfigurationMetadataTest {
 
   /** Every property of the module, the switch included. */
   private static final List<String> PROPERTY_NAMES =
-      List.of(WebConstants.ENABLED, WebConstants.ERROR_STATUSES);
+      List.of(
+          WebConstants.ENABLED,
+          WebConstants.ERROR_STATUSES,
+          WebConstants.CORRELATION_ACCEPT_FROM_CALLER,
+          WebConstants.CLIENT_IP_TRUSTED_PROXIES,
+          WebConstants.USER_AGENT_PARSE,
+          WebConstants.USER_AGENT_CACHE_SIZE,
+          WebConstants.USER_AGENT_REQUEST_CLIENT_HINTS,
+          WebConstants.CLIENT_LOCATION_DATABASE,
+          WebConstants.REQUEST_FIELDS_MAX_VALUE_LENGTH);
 
   @Test
   @DisplayName("every property is listed with a description")

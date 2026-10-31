@@ -147,6 +147,80 @@ class StarterTestSupportTest {
   }
 
   @Nested
+  @DisplayName("ipAddress")
+  class IpAddress {
+
+    /** An IPv4 address from the documentation range. */
+    private static final String IPV4_ADDRESS = StarterTestSupport.ipAddress(198, 51, 100, 20);
+
+    /** An IPv6 address from the documentation range. */
+    private static final String IPV6_ADDRESS =
+        StarterTestSupport.ipAddress(0x2001, 0xdb8, 0, 0, 0, 0, 0, 1);
+
+    @Test
+    @DisplayName("writes four numbers as an IPv4 address and eight as an IPv6 address")
+    void writesIpv4AndIpv6() {
+      assertThat(IPV4_ADDRESS).isEqualTo(String.join(".", "198", "51", "100", "20"));
+      assertThat(IPV6_ADDRESS)
+          .isEqualTo(String.join(":", "2001", "db8", "0", "0", "0", "0", "0", "1"));
+    }
+  }
+
+  @Nested
+  @DisplayName("checkRequestFields")
+  class CheckRequestFields {
+
+    /** The route of the test endpoint. */
+    private static final String ROUTE = "/orders/{orderId}/fields";
+
+    /** The path and query the test request sends. */
+    private static final String PATH_AND_QUERY = "/orders/42/fields?expand=lines";
+
+    /** The user agent the test request sends. */
+    private static final String USER_AGENT = "orders-cli/1.0";
+
+    /** The logging context of the test request, as the endpoint returns it. */
+    private static final String FIELDS_BODY =
+        "{\"httpMethod\":\"GET\",\"httpRoute\":\"/orders/{orderId}/fields\","
+            + "\"httpPath\":\"/orders/42/fields\",\"httpQuery\":\"expand=lines\","
+            + "\"clientIp\":\""
+            + StarterTestSupport.ipAddress(127, 0, 0, 1)
+            + "\",\"userAgent\":\"orders-cli/1.0\"}";
+
+    @Test
+    @DisplayName("passes a logging context with every request field")
+    void passesRequestFields() {
+      StarterTestSupport.checkRequestFields(
+          bodyOnly(FIELDS_BODY), ROUTE, PATH_AND_QUERY, USER_AGENT);
+    }
+
+    @Test
+    @DisplayName("fails a logging context with another path or a parsed device field")
+    void failsOtherFields() {
+      assertThatExceptionOfType(AssertionError.class)
+          .isThrownBy(
+              () ->
+                  StarterTestSupport.checkRequestFields(
+                      bodyOnly(FIELDS_BODY), ROUTE, "/orders/7/fields?expand=lines", USER_AGENT));
+      assertThatExceptionOfType(AssertionError.class)
+          .isThrownBy(
+              () ->
+                  StarterTestSupport.checkRequestFields(
+                      bodyOnly(FIELDS_BODY.replaceFirst("\\}$", ",\"deviceClass\":\"Phone\"}")),
+                      ROUTE,
+                      PATH_AND_QUERY,
+                      USER_AGENT));
+    }
+
+    /** Returns a response with only the body. */
+    private HttpResponse<String> bodyOnly(String body) {
+      HttpResponse<String> response = mock();
+      when(response.body()).thenReturn(body);
+      return response;
+    }
+  }
+
+  @Nested
   @DisplayName("checkProblemDetails")
   class CheckProblemDetails {
 

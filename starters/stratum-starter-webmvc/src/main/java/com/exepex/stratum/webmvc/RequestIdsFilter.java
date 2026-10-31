@@ -17,8 +17,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
  */
 public class RequestIdsFilter extends OncePerRequestFilter {
 
-  /** Runs just inside Spring Boot's tracing filter, whose order is one above the highest. */
-  public static final int ORDER = Ordered.HIGHEST_PRECEDENCE + 2;
+  /** Runs just inside the correlation ID filter, so the error page gets the ID it chose. */
+  public static final int ORDER = Ordered.HIGHEST_PRECEDENCE + 3;
 
   /** The request attribute that keeps the request's trace ID. */
   static final String TRACE_ID_ATTRIBUTE =

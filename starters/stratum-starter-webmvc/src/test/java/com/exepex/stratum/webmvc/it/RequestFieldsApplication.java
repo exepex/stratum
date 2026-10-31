@@ -1,0 +1,177 @@
+package com.exepex.stratum.webmvc.it;
+
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import org.jspecify.annotations.Nullable;
+import org.slf4j.MDC;
+import org.springframework.boot.SpringBootConfiguration;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.web.server.context.WebServerApplicationContext;
+import org.springframework.context.annotation.Import;
+import org.springframework.core.MethodParameter;
+import org.springframework.core.task.AsyncTaskExecutor;
+import org.springframework.http.MediaType;
+import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.http.server.ServerHttpRequest;
+import org.springframework.http.server.ServerHttpResponse;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.context.request.async.DeferredResult;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
+
+/** A service whose endpoints return the logging context their log lines would carry. */
+@SpringBootConfiguration
+@EnableAutoConfiguration
+@Import({
+  RequestFieldsApplication.FieldsController.class,
+  RequestFieldsApplication.ResponseThreadFieldsAdvice.class
+})
+public class RequestFieldsApplication {
+
+  /** Answers the response thread endpoint with the logging context of the thread writing it. */
+  @RestControllerAdvice
+  static class ResponseThreadFieldsAdvice implements ResponseBodyAdvice<Object> {
+
+    /**
+     * Returns true: the advice checks the path itself.
+     *
+     * @param returnType the handler's return type
+     * @param converterType the converter that writes the body
+     * @return true
+     */
+    @Override
+    public boolean supports(
+        MethodParameter returnType, Class<? extends HttpMessageConverter<?>> converterType) {
+      return true;
+    }
+
+    /**
+     * Returns the logging context for the response thread endpoint, and any other body unchanged.
+     *
+     * @param body the body
+     * @param returnType the handler's return type
+     * @param contentType the body's media type
+     * @param converterType the converter that writes the body
+     * @param request the request
+     * @param response the response
+     * @return the body to write
+     */
+    @Override
+    public @Nullable Object beforeBodyWrite(
+        @Nullable Object body,
+        MethodParameter returnType,
+        MediaType contentType,
+        Class<? extends HttpMessageConverter<?>> converterType,
+        ServerHttpRequest request,
+        ServerHttpResponse response) {
+      return request.getURI().getPath().endsWith("/response-thread-fields")
+          ? Objects.requireNonNullElse(MDC.getCopyOfContextMap(), Map.of())
+          : body;
+    }
+  }
+
+  /** The endpoints. */
+  @RestController
+  static class FieldsController {
+
+    /** How long the asynchronous endpoint waits, so its first dispatch has ended by then. */
+    private static final long FIRST_DISPATCH_END_MILLIS = 300;
+
+    /** Calls this service, as a request calls another service. */
+    private final RestClient selfClient;
+
+    /** The running server, whose port the client calls. */
+    private final WebServerApplicationContext server;
+
+    /** Spring Boot's task executor, which carries the logging context. */
+    private final AsyncTaskExecutor taskExecutor;
+
+    /**
+     * Makes the controller.
+     *
+     * @param restClientBuilder Spring Boot's builder, which sends the trace and baggage
+     * @param server the running server
+     * @param taskExecutor Spring Boot's task executor
+     */
+    FieldsController(
+        RestClient.Builder restClientBuilder,
+        WebServerApplicationContext server,
+        AsyncTaskExecutor taskExecutor) {
+      this.selfClient = restClientBuilder.build();
+      this.server = server;
+      this.taskExecutor = taskExecutor;
+    }
+
+    /**
+     * Returns the logging context of work the request hands to another thread.
+     *
+     * @param orderId the order's ID
+     * @return the logging context on the other thread
+     */
+    @GetMapping("/orders/{orderId}/async-fields")
+    CompletableFuture<Map<String, String>> asyncFields(@PathVariable String orderId) {
+      return taskExecutor.submitCompletable(
+          () -> Objects.requireNonNullElse(MDC.getCopyOfContextMap(), Map.of()));
+    }
+
+    /**
+     * Finishes on another thread once the first dispatch has ended, so Spring MVC writes the
+     * response on a second, asynchronous dispatch, where {@link ResponseThreadFieldsAdvice}
+     * replaces the body.
+     *
+     * @param orderId the order's ID
+     * @return an empty body, replaced by the advice
+     */
+    @GetMapping("/orders/{orderId}/response-thread-fields")
+    DeferredResult<Map<String, String>> responseThreadFields(@PathVariable String orderId) {
+      var result = new DeferredResult<Map<String, String>>();
+      CompletableFuture.delayedExecutor(FIRST_DISPATCH_END_MILLIS, TimeUnit.MILLISECONDS)
+          .execute(() -> result.setResult(Map.of()));
+      return result;
+    }
+
+    /**
+     * Returns the logging context of the request.
+     *
+     * @param orderId the order's ID
+     * @return the logging context
+     */
+    @GetMapping("/orders/{orderId}/fields")
+    Map<String, String> fields(@PathVariable String orderId) {
+      return Objects.requireNonNullElse(MDC.getCopyOfContextMap(), Map.of());
+    }
+
+    /**
+     * Calls this service's echo endpoint and returns what it received.
+     *
+     * @return the baggage header the called service received
+     */
+    @GetMapping("/downstream")
+    String downstream() {
+      return selfClient
+          .get()
+          .uri("http://localhost:" + server.getWebServer().getPort() + "/echo-baggage")
+          .retrieve()
+          .body(String.class);
+    }
+
+    /**
+     * Returns the baggage header this request arrived with, as plain text so a browser never runs
+     * it.
+     *
+     * @param baggage the W3C baggage header, if any
+     * @return the header, or an empty string
+     */
+    @GetMapping(path = "/echo-baggage", produces = MediaType.TEXT_PLAIN_VALUE)
+    String echoBaggage(
+        @RequestHeader(name = "baggage", required = false) @Nullable String baggage) {
+      return Objects.requireNonNullElse(baggage, "");
+    }
+  }
+}

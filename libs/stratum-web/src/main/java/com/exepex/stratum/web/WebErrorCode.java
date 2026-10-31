@@ -7,8 +7,8 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * The codes of the web module, each listed with its fix in {@code docs/guides/error-codes.md}. A
- * caller sees them in the error body of a request that failed outside the service's own error
- * handling.
+ * caller sees the first five in the error body of a request that failed outside the service's own
+ * error handling; the others stop the service at startup.
  */
 @Getter
 @RequiredArgsConstructor
@@ -30,7 +30,13 @@ public enum WebErrorCode implements ErrorCode {
   INTERNAL_ERROR(
       "SX-WEB-1005",
       Severity.ERROR,
-      "The service failed unexpectedly; quote the trace ID to its support team");
+      "The service failed unexpectedly; quote the trace ID to its support team"),
+
+  /** The client location database is set, but it is missing or not a MaxMind database. */
+  CLIENT_LOCATION_DATABASE_UNREADABLE(
+      "SX-WEB-1006",
+      Severity.ERROR,
+      "The client location database cannot be read as a MaxMind database");
 
   /** The code, such as {@code SX-WEB-1001}. */
   private final String code;

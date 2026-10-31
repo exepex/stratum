@@ -85,9 +85,11 @@ With `stratum.observability.enabled=true`, the correlation ID is the `correlatio
 tracing baggage when one is set, and otherwise the trace ID, which every service in the same trace
 shares ([observability module](../../starters/stratum-starter-observability/README.md#correlation-id)).
 Baggage is sent on every outgoing call made with Spring's HTTP clients, `WebClient` in reactive
-code included, to every host, so never put a secret or personal data in the correlation ID. **Planned:** the web module will read the
-correlation ID from the `X-Correlation-Id` header and set it in the baggage, and the logging module
-will limit the baggage to the service's own hosts.
+code included, to every host, so never put a secret or personal data in the correlation ID. With
+`stratum.web.enabled=true`, the web module also takes the ID from the caller's `X-Correlation-Id`
+header and returns it in the response
+([web module](../modules/web.md#correlation-id)). **Planned:** the logging module will limit the
+baggage to the service's own hosts.
 
 ## Using codes in your service
 
@@ -189,9 +191,10 @@ stops the application at startup; `SX-OBSERVABILITY-1002` is a warning. See the
 
 ## stratum-starter-webmvc and stratum-starter-webflux
 
-These apply only when `stratum.web.enabled=true`. A caller gets them in the error body of a request
-that failed outside your own error handling, such as an unknown path or a request that broke
-validation. None stops the application. Both web starters send the same codes. See the
+These apply only when `stratum.web.enabled=true`. A caller gets the first five in the error body of
+a request that failed outside your own error handling, such as an unknown path or a request that
+broke validation. `SX-WEB-1006` stops the application at startup. Both web starters send the same
+codes. See the
 [web MVC starter](../../starters/stratum-starter-webmvc/README.md) and the
 [WebFlux starter](../../starters/stratum-starter-webflux/README.md).
 
@@ -202,3 +205,4 @@ validation. None stops the application. Both web starters send the same codes. S
 | `SX-WEB-1003` | Nothing answers at the request's path. The status is `404`. | The caller checks the path and the method. |
 | `SX-WEB-1004` | The request failed with the status shown for another reason, such as a method the path does not allow (`405`) or an exception annotated `@ResponseStatus`. | Depends on the status. To give the caller your own code, throw a `StratumException` and map its code in `stratum.web.error.statuses`. |
 | `SX-WEB-1005` | The service failed unexpectedly. The status is `500`, and the message is fixed, so no internal detail reaches the caller. | Search the service's log for the `traceId` in the body; the exception and its stack trace are there. |
+| `SX-WEB-1006` | Startup stopped: `stratum.web.client-location.database` names a file that is missing or is not a MaxMind `.mmdb` database. | Point the property at your GeoIP2 or GeoLite2 City or Country file, or remove it to log no country or city. |

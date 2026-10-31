@@ -98,7 +98,7 @@ Every module has an on/off switch, `stratum.<module>.enabled`, and is off until 
 | --- | --- | --- |
 | Boolean | `true` or `false` | `stratum.cache.enabled=false` |
 | Number | Digits | `stratum.resilience.policies.default.retry.max-attempts=3` |
-| Text | As is; quote in YAML if it contains `:` or `#` | `stratum.web.correlation.header=X-Correlation-Id` |
+| Text | As is; quote in YAML if it contains `:` or `#` | `stratum.web.client-location.database=/data/geoip/GeoLite2-City.mmdb` |
 | Duration | Number plus unit: `ms`, `s`, `m`, `h`, `d` | `500ms`, `5s`, `10m`, `1h` |
 | Data size | Number plus unit: `B`, `KB`, `MB`, `GB` | `256KB`, `10MB` |
 | URI or URL | Full address with scheme | `https://idp.example.com/realms/acme` |

@@ -3,8 +3,9 @@
 **Status: Partly built.** Every error a Spring MVC service sends is the same
 [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457) JSON, with a code, the trace ID
 and the correlation ID, and never a stack trace or an exception message. Browsers get an HTML page
-with a reference to quote to support. Request fields in logs, the request log, timeouts and the body
-size limit are [planned](#planned).
+with a reference to quote to support. Every log line of a request carries its method, route, path,
+client IP and correlation ID. The request log, timeouts and the body size limit are
+[planned](#planned).
 
 This page covers this starter only. The design both web starters share is in
 [Web](../../docs/modules/web.md), and the reactive starter in
@@ -51,9 +52,9 @@ stratum:
     enabled: true
 ```
 
-The trace and correlation IDs in error bodies come from the
-[observability starter](../stratum-starter-observability/README.md). Without it, the bodies have no
-IDs, and everything else works the same.
+The trace and correlation IDs in error bodies and logs come from the
+[observability starter](../stratum-starter-observability/README.md). Without it, there are no IDs,
+and everything else works the same.
 
 ## What you get
 
@@ -167,6 +168,16 @@ class OrderErrorHandlers {
 Your advice runs before Stratum's whether it has an `@Order` or not: Stratum's has the lowest
 precedence, and with equal orders your beans come first.
 
+## Request fields and the correlation ID
+
+Every log line written while a request runs carries its `httpMethod`, `httpRoute`, `httpPath`,
+`httpQuery`, `clientIp` and `userAgent`, on every thread the request's work runs on, such as an
+`@Async` method. Device, OS and browser fields, and the client's country and city, are off until you
+turn them on. The caller's `X-Correlation-Id` is used when its format is safe, sent back in the
+response header and passed on to the services this one calls; when there is none, the trace ID is
+the correlation ID. Each field, the client IP behind proxies and the settings are described in
+[Web](../../docs/modules/web.md#request-fields-in-logs).
+
 ## Map your codes to statuses
 
 Throw a `StratumException` with your own [error code](../../docs/guides/error-codes.md#using-codes-in-your-service),
@@ -203,8 +214,16 @@ which names the property but not the code or the value.
 | --- | --- | --- | --- |
 | `stratum.web.enabled` | boolean | `false` | Switches the module on. Until it is `true`, the starter only brings Spring MVC. |
 | `stratum.web.error.statuses` | map of code to status | empty | The HTTP status, from `400` to `599`, of each of your error codes. A code with no status is answered with `500` and logged. |
+| `stratum.web.correlation.accept-from-caller` | boolean | `true` | Whether a caller's correlation ID is used. Set it to `false` on a service that faces the internet. |
+| `stratum.web.client-ip.trusted-proxies` | list of address ranges | the private ranges | The load balancers and proxies whose `X-Forwarded-For` header is trusted. |
+| `stratum.web.user-agent.parse` | boolean | `false` | Whether device, OS and browser are read from the user agent. |
+| `stratum.web.user-agent.cache-size` | integer | `10000` | How many different user agents are kept already parsed. |
+| `stratum.web.user-agent.request-client-hints` | boolean | `false` | Whether responses ask browsers for their device model and full OS version. |
+| `stratum.web.client-location.database` | file path | none | Your MaxMind `.mmdb` file, for the client's country and city. |
+| `stratum.web.request-fields.max-value-length` | integer | `512` | The most characters a request field keeps. |
 
-Your IDE completes both and shows their descriptions.
+Your IDE completes each and shows its description. The full list, with the allowed values, is in
+[Web](../../docs/modules/web.md#properties).
 
 ## Configure in Java
 
@@ -249,6 +268,9 @@ Each bean below is Stratum's only until you declare your own:
 | A `View` named `error` | The HTML error page |
 | `StratumExceptionHandler` or `ErrorBodyAdvice` | The handler of `StratumException`, or the advice that adds the IDs and the media type |
 | A bean named `stratumRequestIdsFilter` | The filter that keeps each request's IDs for its error page, which runs after tracing has ended |
+| A bean named `stratumRequestFieldsFilter` or `stratumCorrelationIdFilter` | The filter that puts the request fields in the logging context, or the one that chooses the correlation ID |
+| `RequestRouteInterceptor` | What puts the matched route in the logging context |
+| `RequestFieldsReader`, `CorrelationIdChooser` or `RequestFieldsPropagation` | How the fields are read, how the correlation ID is chosen, or how the fields follow the request across threads |
 
 Stratum's error auto-configuration is ordered before Spring Boot's `ErrorMvcAutoConfiguration`, because its
 error attributes and HTML error page replace Spring Boot's. Your own beans, and those of a company framework whose
@@ -267,9 +289,7 @@ to change the wait.
 
 | Feature | What it adds |
 | --- | --- |
-| Request fields in logs | Method, route, path, query, client IP and caller on every log line of a request |
 | Request log | One JSON line when each request ends, with its status and duration |
-| Correlation ID from the caller | The caller's `X-Correlation-Id`, when its format is safe, returned in the response header |
 | Timeouts | A request that runs longer than its limit, 10 seconds by default, is answered with `503` |
 | Body size limit | A request body larger than the limit is refused with `413` |
 
