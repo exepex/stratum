@@ -135,4 +135,13 @@ class RequestBodyLimitIntegrationTest {
           response, HttpStatus.CONTENT_TOO_LARGE.value(), TOO_LARGE);
     }
   }
+
+  @Test
+  @DisplayName("a buffer limit that is not the request body's, such as a downstream one, keeps 500")
+  void otherBufferLimitKeeps500() throws Exception {
+    var response = StarterTestSupport.getFromService(port, "/reports");
+
+    StarterTestSupport.checkProblemDetails(
+        response, HttpStatus.INTERNAL_SERVER_ERROR.value(), WebErrorCode.INTERNAL_ERROR.getCode());
+  }
 }

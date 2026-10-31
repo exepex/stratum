@@ -6,7 +6,9 @@ import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
+import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.util.unit.DataUnit;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -26,6 +28,25 @@ public class UploadApplication {
   /** The endpoints, each answering with how many bytes its body had. */
   @RestController
   static class UploadController {
+
+    /** The size of the report that {@code /reports} builds, over its own buffer limit. */
+    private static final int REPORT_BYTES = 2048;
+
+    /** The buffer limit of {@code /reports}, smaller than its report. */
+    private static final int REPORT_BUFFER_LIMIT = 1024;
+
+    /**
+     * Joins a report larger than its buffer limit, as a service that reads a large downstream
+     * response into memory does. The limit has nothing to do with the request's body.
+     *
+     * @return never answers: the join fails
+     */
+    @GetMapping("/reports")
+    Mono<String> report() {
+      var report = DefaultDataBufferFactory.sharedInstance.wrap(new byte[REPORT_BYTES]);
+      return DataBufferUtils.join(Flux.just(report), REPORT_BUFFER_LIMIT)
+          .map(joined -> String.valueOf(joined.readableByteCount()));
+    }
 
     /**
      * Reads the body as text, as most APIs do.

@@ -5,14 +5,18 @@ import com.exepex.stratum.web.RequestBodyLimit;
 import com.exepex.stratum.web.RequestBodyLimits;
 import com.exepex.stratum.web.RequestBodyTooLargeException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.Ordered;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferLimitException;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.codec.multipart.Part;
 import org.springframework.http.server.reactive.ServerHttpRequestDecorator;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.server.ServerWebExchange;
+import org.springframework.web.server.ServerWebExchangeDecorator;
 import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Flux;
@@ -24,10 +28,12 @@ import reactor.core.publisher.SynchronousSink;
  * the body is larger than its limit, before it is held in memory. Spring reads form fields and
  * multipart parts from the original body, so those are checked by their declared length only. Just
  * before the handler runs, it gives the request the limit of its handler's {@link RequestBodyLimit}
- * and checks the declared {@code Content-Length}. A body that Spring refuses over one of its own
- * limits, such as a multipart part over its disk limit, is answered with {@code 413} too, where
- * Spring Boot would answer {@code 500}.
+ * and checks the declared {@code Content-Length}. A multipart or form body that Spring refuses over
+ * one of its own limits, such as a part over its disk limit, is answered with {@code 413} too,
+ * where Spring Boot would answer {@code 500}. Any other buffer limit, such as on a downstream
+ * response, keeps its {@code 500}.
  */
+@Slf4j
 @RequiredArgsConstructor
 public class RequestBodyLimitWebFilter implements WebFilter, HandlerStartListener, Ordered {
 
@@ -42,8 +48,8 @@ public class RequestBodyLimitWebFilter implements WebFilter, HandlerStartListene
   private final RequestBodyLimits requestBodyLimits;
 
   /**
-   * Runs the rest of the chain with the request's body counted, and answers Spring's own body
-   * limits with {@code 413}.
+   * Runs the rest of the chain with the request's body counted, and answers a multipart or form
+   * body over one of Spring's own limits with {@code 413}.
    *
    * @param exchange the request and its response
    * @param chain the rest of the chain
@@ -64,12 +70,32 @@ public class RequestBodyLimitWebFilter implements WebFilter, HandlerStartListene
                         countOrFail(counter, buffer, sink));
           }
         };
-    return chain
-        .filter(exchange.mutate().request(countedRequest).build())
-        .onErrorMap(
-            DataBufferLimitException.class,
-            springLimitPassed ->
-                new ResponseStatusException(HttpStatus.CONTENT_TOO_LARGE, null, springLimitPassed));
+    var countedExchange =
+        new ServerWebExchangeDecorator(exchange.mutate().request(countedRequest).build()) {
+          @Override
+          public Mono<MultiValueMap<String, Part>> getMultipartData() {
+            return super.getMultipartData()
+                .onErrorMap(
+                    DataBufferLimitException.class, RequestBodyLimitWebFilter.this::tooLarge);
+          }
+
+          @Override
+          public Mono<MultiValueMap<String, String>> getFormData() {
+            return super.getFormData()
+                .onErrorMap(
+                    DataBufferLimitException.class, RequestBodyLimitWebFilter.this::tooLarge);
+          }
+        };
+    return chain.filter(countedExchange);
+  }
+
+  /**
+   * Logs that Spring refused a multipart or form body over one of its own limits, and returns the
+   * {@code 413} the request is answered with.
+   */
+  private ResponseStatusException tooLarge(DataBufferLimitException springLimitPassed) {
+    log.warn("The request body passed one of Spring's multipart or form limits");
+    return new ResponseStatusException(HttpStatus.CONTENT_TOO_LARGE, null, springLimitPassed);
   }
 
   /**
