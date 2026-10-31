@@ -37,6 +37,11 @@ it needs, use `./mvnw -pl starters/stratum-starter-webmvc -am verify`.
 
 Stratum's version is set once, as `revision` in `.mvn/maven.config`. To change it, edit that line.
 
+`.mvn/maven.config` also sets `-T 1C`, so Maven builds modules that do not depend on each other at
+the same time, one thread per CPU core. When a build fails, lines from several modules are mixed in
+the log; the Reactor Summary at the end names the module that failed. To build one module at a
+time, add `-T 1`.
+
 Then open a pull request. Its description and review follow
 [`AGENTS.md`](../AGENTS.md#git-and-pull-requests).
 

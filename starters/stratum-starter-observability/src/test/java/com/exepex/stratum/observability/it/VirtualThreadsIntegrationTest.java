@@ -12,6 +12,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.jspecify.annotations.Nullable;
+import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
@@ -22,6 +23,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 
 @SpringBootTest(
     classes = {OrdersApplication.class, VirtualThreadsIntegrationTest.ServicePools.class},
@@ -30,8 +33,8 @@ import org.springframework.test.annotation.DirtiesContext;
       "stratum.observability.enabled=true",
       "spring.threads.virtual.enabled=true",
       "management.tracing.sampling.probability=1.0",
-      // Spring Boot propagates trace headers only while span export is on. Nothing listens
-      // here, so the spans are dropped quietly.
+      // Stratum's startup check needs an address before @DynamicPropertySource runs; the
+      // collector stub's address then replaces this one.
       "management.opentelemetry.tracing.export.otlp.endpoint=http://localhost:1/v1/traces",
       "management.otlp.metrics.export.enabled=false"
     })
@@ -39,6 +42,20 @@ import org.springframework.test.annotation.DirtiesContext;
 @DirtiesContext
 @DisplayName("A service that turns on virtual threads keeps its trace on every virtual thread")
 class VirtualThreadsIntegrationTest {
+
+  /** Takes the spans at once, so the application closes without retrying a failed send. */
+  @AutoClose private static final CollectorStub COLLECTOR = new CollectorStub();
+
+  /**
+   * Sends the spans to the collector stub. Spring Boot propagates trace headers only while span
+   * export is on.
+   *
+   * @param registry the test's properties
+   */
+  @DynamicPropertySource
+  static void sendSpansToCollectorStub(DynamicPropertyRegistry registry) {
+    COLLECTOR.receiveSpans(registry);
+  }
 
   /** The span of the request whose trace the tasks must keep. */
   private static final String PLACE_ORDER_SPAN = "place-order";

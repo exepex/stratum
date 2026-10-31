@@ -12,6 +12,7 @@ import io.micrometer.tracing.Tracer;
 import io.opentelemetry.api.common.AttributeKey;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,6 +22,8 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 
 @SpringBootTest(
     classes = {OrdersApplication.class, RecordedSpans.class},
@@ -28,8 +31,8 @@ import org.springframework.test.annotation.DirtiesContext;
       "spring.main.web-application-type=none",
       "stratum.observability.enabled=true",
       "management.tracing.sampling.probability=1.0",
-      // Spring Boot propagates trace headers only while span export is on. Nothing listens
-      // here, so the spans are dropped quietly.
+      // Stratum's startup check needs an address before @DynamicPropertySource runs; the
+      // collector stub's address then replaces this one.
       "management.opentelemetry.tracing.export.otlp.endpoint=http://localhost:1/v1/traces",
       "management.otlp.metrics.export.enabled=false"
     })
@@ -37,6 +40,20 @@ import org.springframework.test.annotation.DirtiesContext;
 @DirtiesContext
 @DisplayName("The correlation ID in an application with the observability starter")
 class CorrelationIdIntegrationTest {
+
+  /** Takes the spans at once, so the application closes without retrying a failed send. */
+  @AutoClose private static final CollectorStub COLLECTOR = new CollectorStub();
+
+  /**
+   * Sends the spans to the collector stub. Spring Boot propagates trace headers only while span
+   * export is on.
+   *
+   * @param registry the test's properties
+   */
+  @DynamicPropertySource
+  static void sendSpansToCollectorStub(DynamicPropertyRegistry registry) {
+    COLLECTOR.receiveSpans(registry);
+  }
 
   /** A correlation ID set in baggage, as the web starter or the service's code would. */
   private static final String ORDER_CORRELATION_ID = "order-42-c7d1";
