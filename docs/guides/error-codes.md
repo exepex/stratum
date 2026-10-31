@@ -201,7 +201,7 @@ codes. See the
 | Code | Meaning | Fix |
 | --- | --- | --- |
 | `SX-WEB-1001` | The request broke validation rules, such as `@Valid` on a body or a constraint on a parameter. The status is `400`, and `details` lists each field with its rule's message. A message that would quote the rejected value is replaced with `is not valid`, and a map key in a field path is shown as `[*]`. | The caller corrects the fields named in `details`. |
-| `SX-WEB-1002` | The request could not be read, such as a malformed JSON body or a parameter of the wrong type. The status is `400`. | The caller fixes the request. On Spring MVC, to see Spring's reason in the service's log, set `spring.mvc.log-resolved-exception=true`. |
+| `SX-WEB-1002` | The request could not be read, such as a malformed JSON body, a parameter of the wrong type, or a WebFlux multipart upload with more parts than `spring.webflux.multipart.max-parts` allows. The status is `400`. | The caller fixes the request. On Spring MVC, to see Spring's reason in the service's log, set `spring.mvc.log-resolved-exception=true`. |
 | `SX-WEB-1003` | Nothing answers at the request's path. The status is `404`. | The caller checks the path and the method. |
 | `SX-WEB-1004` | The request failed with the status shown for another reason, such as a method the path does not allow (`405`) or an exception annotated `@ResponseStatus`. | Depends on the status. To give the caller your own code, throw a `StratumException` and map its code in `stratum.web.error.statuses`. |
 | `SX-WEB-1005` | The service failed unexpectedly. The status is `500`, and the message is fixed, so no internal detail reaches the caller. | Search the service's log for the `traceId` in the body; the exception and its stack trace are there. |
