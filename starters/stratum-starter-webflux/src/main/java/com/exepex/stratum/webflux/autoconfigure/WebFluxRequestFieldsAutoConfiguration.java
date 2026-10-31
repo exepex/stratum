@@ -4,11 +4,13 @@ import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.web.CorrelationIdChooser;
 import com.exepex.stratum.web.RequestFieldsReader;
+import com.exepex.stratum.web.RequestLogWriter;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.autoconfigure.RequestFieldsConfiguration;
 import com.exepex.stratum.webflux.CorrelationIdBaggageDecorator;
 import com.exepex.stratum.webflux.CorrelationIdWebFilter;
 import com.exepex.stratum.webflux.RequestFieldsWebFilter;
+import com.exepex.stratum.webflux.RequestLogWebFilter;
 import com.exepex.stratum.webflux.RequestRouteHandlerAdapter;
 import io.micrometer.tracing.Tracer;
 import org.springframework.beans.factory.ObjectProvider;
@@ -24,8 +26,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.web.reactive.HandlerAdapter;
 
 /**
- * Gives every log line of a reactive request its fields, and every request its correlation ID, when
- * {@code stratum.web.enabled=true}.
+ * Gives every log line of a reactive request its fields, every request its correlation ID and one
+ * closing log line, when {@code stratum.web.enabled=true}.
  */
 @AutoConfiguration
 @AutoConfigureOrder(StratumModuleConstants.AUTO_CONFIGURATION_ORDER)
@@ -45,6 +47,19 @@ public final class WebFluxRequestFieldsAutoConfiguration {
   @ConditionalOnMissingBean
   public RequestFieldsWebFilter requestFieldsWebFilter(RequestFieldsReader requestFieldsReader) {
     return new RequestFieldsWebFilter(requestFieldsReader);
+  }
+
+  /**
+   * Writes one log line when each request's response starts.
+   *
+   * @param requestLogWriter writes the line
+   * @return the filter
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean
+  public RequestLogWebFilter requestLogWebFilter(RequestLogWriter requestLogWriter) {
+    return new RequestLogWebFilter(requestLogWriter);
   }
 
   /**

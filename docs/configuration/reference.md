@@ -58,7 +58,7 @@ such as `stratum.web.request-log.enabled`, apply only once the module is on.
 
 | Property | Switches on |
 | --- | --- |
-| `stratum.web.enabled` | Error format, request fields in logs, correlation ID; planned: request log, timeouts |
+| `stratum.web.enabled` | Error format, request fields in logs, correlation ID, request log; planned: timeouts |
 | `stratum.logging.enabled` | Structured format and redaction |
 | `stratum.observability.enabled` | Stratum's metrics, tracing and health settings |
 | `stratum.security.enabled` | Stratum's security chain (Spring Security's defaults then apply) |

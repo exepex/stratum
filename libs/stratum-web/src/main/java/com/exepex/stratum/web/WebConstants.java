@@ -43,6 +43,37 @@ public class WebConstants {
   public static final String REQUEST_FIELDS_MAX_VALUE_LENGTH =
       PREFIX + ".request-fields.max-value-length";
 
+  /** The switch for the one log line each request writes. */
+  public static final String REQUEST_LOG_ENABLED = PREFIX + ".request-log.enabled";
+
+  /** The setting that lists the paths whose requests write no log line. */
+  public static final String REQUEST_LOG_SKIP_PATHS = PREFIX + ".request-log.skip-paths";
+
+  /** The setting that names the request headers the request log line carries. */
+  public static final String REQUEST_LOG_REQUEST_HEADERS = PREFIX + ".request-log.request-headers";
+
+  /** The setting that names the response headers the request log line carries. */
+  public static final String REQUEST_LOG_RESPONSE_HEADERS =
+      PREFIX + ".request-log.response-headers";
+
+  /** The setting that lists more headers that are never logged. */
+  public static final String REQUEST_LOG_DENIED_HEADERS = PREFIX + ".request-log.denied-headers";
+
+  /** The setting that turns on logging the caller's token payload. */
+  public static final String REQUEST_LOG_TOKEN_PAYLOAD = PREFIX + ".request-log.token-payload";
+
+  /** The logger of the request log lines, whose level a service can change. */
+  public static final String REQUEST_LOG_LOGGER = "com.exepex.stratum.web.request-log";
+
+  /** The request log field that holds the response's HTTP status. */
+  public static final String HTTP_STATUS = "httpStatus";
+
+  /** The request log field that holds how long the request took, in milliseconds. */
+  public static final String DURATION_MS = "durationMs";
+
+  /** The request log field that holds the payload of the caller's token. */
+  public static final String TOKEN_PAYLOAD = "tokenPayload";
+
   /** The key under which a request's log fields travel, such as in Reactor's context. */
   public static final String REQUEST_FIELDS_CONTEXT_KEY = "stratum.web.request-fields";
 

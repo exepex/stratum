@@ -4,8 +4,8 @@
 [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457) JSON, with a code, the trace ID
 and the correlation ID, and never a stack trace or an exception message. Browsers get an HTML page
 with a reference to quote to support. Every log line of a request carries its method, route, path,
-client IP and correlation ID. The request log, timeouts and the body size limit are
-[planned](#planned).
+client IP and correlation ID, and each request writes one log line when it is answered. Timeouts
+and the body size limit are [planned](#planned).
 
 This page covers this starter only. The design both web starters share is in
 [Web](../../docs/modules/web.md), and the reactive starter in
@@ -178,6 +178,12 @@ response header and passed on to the services this one calls; when there is none
 the correlation ID. Each field, the client IP behind proxies and the settings are described in
 [Web](../../docs/modules/web.md#request-fields-in-logs).
 
+Each request also writes one log line when it is answered, such as
+`GET /orders/{orderId} answered 200 in 12 ms`, with `httpStatus` and `durationMs` as fields. The
+actuator's paths and static files write none. The headers you name, and the payload of the caller's
+token when you turn it on, can be added to it; credentials never are. See
+[Web](../../docs/modules/web.md#request-log).
+
 ## Map your codes to statuses
 
 Throw a `StratumException` with your own [error code](../../docs/guides/error-codes.md#using-codes-in-your-service),
@@ -221,6 +227,12 @@ which names the property but not the code or the value.
 | `stratum.web.user-agent.request-client-hints` | boolean | `false` | Whether responses ask browsers for their device model and full OS version. |
 | `stratum.web.client-location.database` | file path | none | Your MaxMind `.mmdb` file, for the client's country and city. |
 | `stratum.web.request-fields.max-value-length` | integer | `512` | The most characters a request field keeps. |
+| `stratum.web.request-log.enabled` | boolean | `true` | Whether each request writes one log line when it is answered. |
+| `stratum.web.request-log.skip-paths` | list of path patterns | `/actuator/**` | Paths whose requests write no log line. |
+| `stratum.web.request-log.request-headers` | map of header to field name | empty | The request headers written in the line, as fields. |
+| `stratum.web.request-log.response-headers` | map of header to field name | empty | The response headers written in the line, as fields. |
+| `stratum.web.request-log.denied-headers` | list of header names | empty | Headers never written, on top of the credential headers. |
+| `stratum.web.request-log.token-payload` | boolean | `false` | Whether the line carries the decoded payload of the caller's bearer JWT. |
 
 Your IDE completes each and shows its description. The full list, with the allowed values, is in
 [Web](../../docs/modules/web.md#properties).
@@ -270,6 +282,7 @@ Each bean below is Stratum's only until you declare your own:
 | A bean named `stratumRequestIdsFilter` | The filter that keeps each request's IDs for its error page, which runs after tracing has ended |
 | A bean named `stratumRequestFieldsFilter` or `stratumCorrelationIdFilter` | The filter that puts the request fields in the logging context, or the one that returns the correlation ID in the response header |
 | A bean named `stratumCorrelationIdBaggageFilter` | The filter that writes a caller's correlation ID into the request's baggage before tracing reads it |
+| A bean named `stratumRequestLogFilter` or `RequestLogWriter` | The filter that writes each request's log line, or what the line holds |
 | `RequestRouteInterceptor` | What puts the matched route in the logging context |
 | `RequestFieldsReader`, `CorrelationIdChooser` or `RequestFieldsPropagation` | How the fields are read, how the correlation ID is chosen, or how the fields follow the request across threads |
 
@@ -290,7 +303,6 @@ to change the wait.
 
 | Feature | What it adds |
 | --- | --- |
-| Request log | One JSON line when each request ends, with its status and duration |
 | Timeouts | A request that runs longer than its limit, 10 seconds by default, is answered with `503` |
 | Body size limit | A request body larger than the limit is refused with `413` |
 
