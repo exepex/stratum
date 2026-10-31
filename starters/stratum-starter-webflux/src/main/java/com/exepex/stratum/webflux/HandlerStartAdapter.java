@@ -1,26 +1,22 @@
 package com.exepex.stratum.webflux;
 
-import com.exepex.stratum.core.error.LoggingContextConstants;
 import java.util.List;
 import java.util.function.Predicate;
-import org.slf4j.MDC;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.Ordered;
 import org.springframework.util.function.SingletonSupplier;
 import org.springframework.web.reactive.HandlerAdapter;
-import org.springframework.web.reactive.HandlerMapping;
 import org.springframework.web.reactive.HandlerResult;
 import org.springframework.web.server.ServerWebExchange;
-import org.springframework.web.util.pattern.PathPattern;
 import reactor.core.publisher.Mono;
 
 /**
- * Adds the route the request matched, such as {@code /orders/{orderId}}, to the logging context
- * just before Spring WebFlux calls the handler, so the handler's log lines carry it. Spring WebFlux
- * has no interceptors, so this wraps its own handler adapters: it runs first, puts the route, and
- * hands the request to the adapter that would have handled it.
+ * Tells every {@link HandlerStartListener} that Spring WebFlux has chosen the request's handler,
+ * just before the handler runs. Spring WebFlux has no interceptors, so this wraps its own handler
+ * adapters: it runs first, tells the listeners, and hands the request to the adapter that would
+ * have handled it.
  */
-public class RequestRouteHandlerAdapter implements HandlerAdapter, Ordered {
+public class HandlerStartAdapter implements HandlerAdapter, Ordered {
 
   /**
    * Spring WebFlux's own handler adapters, which call the handlers, in their order and without this
@@ -28,15 +24,22 @@ public class RequestRouteHandlerAdapter implements HandlerAdapter, Ordered {
    */
   private final SingletonSupplier<List<HandlerAdapter>> springAdapters;
 
+  /** The listeners, in their order, looked up on the first request and then kept. */
+  private final SingletonSupplier<List<HandlerStartListener>> listeners;
+
   /**
    * Makes the adapter.
    *
    * @param handlerAdapters every handler adapter in the application, this one included
+   * @param handlerStartListeners what is told when a handler is about to run
    */
-  public RequestRouteHandlerAdapter(ObjectProvider<HandlerAdapter> handlerAdapters) {
+  public HandlerStartAdapter(
+      ObjectProvider<HandlerAdapter> handlerAdapters,
+      ObjectProvider<HandlerStartListener> handlerStartListeners) {
     this.springAdapters =
         SingletonSupplier.of(
             () -> handlerAdapters.orderedStream().filter(Predicate.not(this::equals)).toList());
+    this.listeners = SingletonSupplier.of(() -> handlerStartListeners.orderedStream().toList());
   }
 
   /**
@@ -51,7 +54,7 @@ public class RequestRouteHandlerAdapter implements HandlerAdapter, Ordered {
   }
 
   /**
-   * Puts the matched route in the logging context, then lets Spring's adapter call the handler.
+   * Tells the listeners, then lets Spring's adapter call the handler.
    *
    * @param exchange the request and its response
    * @param handler the chosen handler
@@ -59,10 +62,7 @@ public class RequestRouteHandlerAdapter implements HandlerAdapter, Ordered {
    */
   @Override
   public Mono<HandlerResult> handle(ServerWebExchange exchange, Object handler) {
-    if (exchange.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE)
-        instanceof PathPattern route) {
-      MDC.put(LoggingContextConstants.HTTP_ROUTE, route.getPatternString());
-    }
+    listeners.obtain().forEach(listener -> listener.onHandlerStart(exchange, handler));
     return springAdapters.obtain().stream()
         .filter(adapter -> adapter.supports(handler))
         .findFirst()

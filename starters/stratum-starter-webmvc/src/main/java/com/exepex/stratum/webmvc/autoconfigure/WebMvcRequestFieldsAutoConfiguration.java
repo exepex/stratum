@@ -6,6 +6,7 @@ import com.exepex.stratum.web.CorrelationIdChooser;
 import com.exepex.stratum.web.RequestFieldsAccessor;
 import com.exepex.stratum.web.RequestFieldsReader;
 import com.exepex.stratum.web.RequestLogWriter;
+import com.exepex.stratum.web.ResponseTimeouts;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.autoconfigure.RequestFieldsConfiguration;
 import com.exepex.stratum.webmvc.CorrelationIdBaggageFilter;
@@ -13,6 +14,8 @@ import com.exepex.stratum.webmvc.CorrelationIdFilter;
 import com.exepex.stratum.webmvc.RequestFieldsFilter;
 import com.exepex.stratum.webmvc.RequestLogFilter;
 import com.exepex.stratum.webmvc.RequestRouteInterceptor;
+import com.exepex.stratum.webmvc.ResponseTimeoutFilter;
+import com.exepex.stratum.webmvc.ResponseTimeoutInterceptor;
 import io.micrometer.tracing.Tracer;
 import jakarta.servlet.DispatcherType;
 import org.springframework.beans.factory.ObjectProvider;
@@ -28,8 +31,8 @@ import org.springframework.context.annotation.Fallback;
 import org.springframework.context.annotation.Import;
 
 /**
- * Gives every log line of a Spring MVC request its fields, every request its correlation ID and one
- * closing log line, when {@code stratum.web.enabled=true}.
+ * Gives every log line of a Spring MVC request its fields, every request its correlation ID, one
+ * closing log line and a time limit, when {@code stratum.web.enabled=true}.
  */
 @AutoConfiguration
 @AutoConfigureOrder(StratumModuleConstants.AUTO_CONFIGURATION_ORDER)
@@ -74,6 +77,35 @@ public final class WebMvcRequestFieldsAutoConfiguration {
     registration.setOrder(RequestLogFilter.ORDER);
     registration.setDispatcherTypes(DispatcherType.REQUEST, DispatcherType.ASYNC);
     return registration;
+  }
+
+  /**
+   * Answers a request that ran out of time with the timeout status.
+   *
+   * @param responseTimeouts decides each request's limit
+   * @return the filter's registration, just inside the request log filter, for the first dispatch
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean(name = "stratumResponseTimeoutFilter")
+  public FilterRegistrationBean<ResponseTimeoutFilter> stratumResponseTimeoutFilter(
+      ResponseTimeouts responseTimeouts) {
+    var registration = new FilterRegistrationBean<>(new ResponseTimeoutFilter(responseTimeouts));
+    registration.setOrder(ResponseTimeoutFilter.ORDER);
+    return registration;
+  }
+
+  /**
+   * Gives each request the limit of its handler's {@code @ResponseTimeout}.
+   *
+   * @param responseTimeouts reads the handler's limit
+   * @return the interceptor
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean
+  public ResponseTimeoutInterceptor responseTimeoutInterceptor(ResponseTimeouts responseTimeouts) {
+    return new ResponseTimeoutInterceptor(responseTimeouts);
   }
 
   /**

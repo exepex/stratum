@@ -4,8 +4,8 @@
 [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457) JSON, with a code, the trace ID
 and the correlation ID, and never a stack trace or an exception message. Browsers get an HTML page
 with a reference to quote to support. Every log line of a request carries its method, route, path,
-client IP and correlation ID, and each request writes one log line when it is answered. Timeouts
-and the body size limit are [planned](#planned).
+client IP and correlation ID, and each request writes one log line when it is answered. A request
+that runs out of time is answered with `503`. The body size limit is [planned](#planned).
 
 This page covers this starter only. The design both web starters share, and the Spring MVC starter,
 are in [Web](../../docs/modules/web.md). How Stratum works as a whole is in the
@@ -97,6 +97,7 @@ failure comes from a controller or a `WebFilter`.
 | A path nothing answers | `404` | `SX-WEB-1003` |
 | Any other status, such as `405`, a `ResponseStatusException` or an exception annotated `@ResponseStatus` | that status | `SX-WEB-1004` |
 | Any other exception | `500` | `SX-WEB-1005`, with a fixed message |
+| A request whose response had not started within its [time limit](#timeouts) | `stratum.web.timeout.status`, `503` by default | `SX-WEB-1007` |
 
 The codes, with how to fix each, are in [Error and warning codes](../../docs/guides/error-codes.md#stratum-starter-webmvc-and-stratum-starter-webflux).
 
@@ -172,6 +173,44 @@ caller's token when you turn it on, can be added to it; credentials never are. S
 Response times and error rates per API come from the observability starter's metrics. The SLA
 dashboard recipe, with PromQL examples, is in [Web](../../docs/modules/web.md#sla-dashboards).
 
+## Timeouts
+
+Each request has 10 seconds until its response starts, unless you set another limit. A request that
+runs out of time is answered with `503` and `SX-WEB-1007`, and the service logs a WARN line. A
+response that has started, such as a stream, is never cut off. Change the limits in
+`application.properties`:
+
+```properties
+stratum.web.timeout.default=5s
+stratum.web.timeout.routes[/reports/**]=60s
+```
+
+or in `application.yml`:
+
+```yaml
+stratum:
+  web:
+    timeout:
+      default: 5s
+      routes:
+        "[/reports/**]": 60s
+```
+
+or for one API, which wins over both:
+
+```java
+@ResponseTimeout(60)
+@GetMapping("/reports/{reportId}")
+Mono<Report> report(@PathVariable String reportId) {
+  return reports.build(reportId);
+}
+```
+
+When the time is up, Stratum cancels the request's work, so reactive database and HTTP calls stop.
+Blocking work moved to another scheduler runs on to its end. A `TimeoutException` of your own, such
+as from `Mono.timeout`, is answered as the failure it is. The details, with `0` for no limit and the
+status, are in [Response timeouts](../../docs/modules/web-timeouts.md).
+
 ## Map your codes to statuses
 
 Throw a `StratumException` with your own [error code](../../docs/guides/error-codes.md#using-codes-in-your-service),
@@ -223,6 +262,9 @@ which names the property but not the code or the value.
 | `stratum.web.request-log.denied-headers` | list of header names | empty | Headers never written, on top of the credential headers. |
 | `stratum.web.request-log.token-payload` | boolean | `false` | Whether the line carries the listed claims of the caller's bearer JWT. |
 | `stratum.web.request-log.token-claims` | list of claim names | `sub`, `azp`, `client_id`, `scope` | The claims written when `token-payload` is `true`. |
+| `stratum.web.timeout.default` | duration | `10s` | How long any request may take until its response starts. `0` means no limit. |
+| `stratum.web.timeout.routes` | map of path pattern to duration | empty | The limit of the requests whose path matches a pattern, such as `/reports/**`. |
+| `stratum.web.timeout.status` | HTTP status | `503` | The status a request that ran out of time is answered with. |
 
 These are the same keys as the Spring MVC starter's. Your IDE completes each and shows its
 description. The full list, with the allowed values, is in [Web](../../docs/modules/web.md#properties).
@@ -246,7 +288,9 @@ Each bean below is Stratum's only until you declare your own:
 | `ErrorWebExceptionHandler` | All of the error handling outside your exception handlers, Stratum's and Spring Boot's |
 | `ProblemDetailIdsInterceptor` | What adds the IDs to the `ProblemDetail` bodies your handlers return |
 | `RequestFieldsWebFilter` or `CorrelationIdWebFilter` | The filter that puts the request fields in the logging context, or the one that returns the correlation ID in the response header |
-| `RequestRouteHandlerAdapter` | What puts the matched route in the logging context before your handler runs |
+| `RequestRouteListener` | What puts the matched route in the logging context before your handler runs |
+| `ResponseTimeouts` or `ResponseTimeoutWebFilter` | How each request's time limit is chosen, or the filter that answers a request that ran out of time and applies `@ResponseTimeout` |
+| `HandlerStartAdapter` | What tells the route listener and the timeout filter that your handler is about to run |
 | `CorrelationIdBaggageDecorator` | What writes a caller's correlation ID into the request's baggage before tracing reads it |
 | `RequestLogWebFilter` or `RequestLogWriter` | The filter that writes each request's log line, or what the line holds |
 | `RequestFieldsReader`, `CorrelationIdChooser` or `RequestFieldsPropagation` | How the fields are read, how the correlation ID is chosen, or how the fields follow the request across threads |
@@ -268,7 +312,6 @@ to change the wait.
 
 | Feature | What it adds |
 | --- | --- |
-| Timeouts | A request that runs longer than its limit, 10 seconds by default, is answered with `503` |
 | Body size limit | A request body larger than the limit is refused with `413` |
 
 The agreed design of each is in [Web](../../docs/modules/web.md).

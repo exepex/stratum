@@ -22,3 +22,8 @@ stratum:
       token-claims:
         - sub
         - tenant
+    timeout:
+      default: 5s
+      routes:
+        "[/reports/**]": 60s
+      status: 504

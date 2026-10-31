@@ -191,9 +191,9 @@ stops the application at startup; `SX-OBSERVABILITY-1002` is a warning. See the
 
 ## stratum-starter-webmvc and stratum-starter-webflux
 
-These apply only when `stratum.web.enabled=true`. A caller gets the first five in the error body of
-a request that failed outside your own error handling, such as an unknown path or a request that
-broke validation. `SX-WEB-1006` stops the application at startup. Both web starters send the same
+These apply only when `stratum.web.enabled=true`. A caller gets all but `SX-WEB-1006` in the error
+body of a request that failed outside your own error handling, such as an unknown path, a request
+that broke validation or one that ran out of time. `SX-WEB-1006` stops the application at startup. Both web starters send the same
 codes. See the
 [web MVC starter](../../starters/stratum-starter-webmvc/README.md) and the
 [WebFlux starter](../../starters/stratum-starter-webflux/README.md).
@@ -206,3 +206,4 @@ codes. See the
 | `SX-WEB-1004` | The request failed with the status shown for another reason, such as a method the path does not allow (`405`) or an exception annotated `@ResponseStatus`. | Depends on the status. To give the caller your own code, throw a `StratumException` and map its code in `stratum.web.error.statuses`. |
 | `SX-WEB-1005` | The service failed unexpectedly. The status is `500`, and the message is fixed, so no internal detail reaches the caller. | Search the service's log for the `traceId` in the body; the exception and its stack trace are there. |
 | `SX-WEB-1006` | Startup stopped: `stratum.web.client-location.database` names a file that is missing or is not a MaxMind `.mmdb` database. | Point the property at your GeoIP2 or GeoLite2 City or Country file, or remove it to log no country or city. |
+| `SX-WEB-1007` | The request ran out of time before its response started. The status is `stratum.web.timeout.status`, `503` by default, and the service logs a warning with the limit. | The service's team finds the slow call in the trace, adds a timeout to it, or gives the API more time with `stratum.web.timeout.routes` or `@ResponseTimeout`. The caller may retry an idempotent request later. |

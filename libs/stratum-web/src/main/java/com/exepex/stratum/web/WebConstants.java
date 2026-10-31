@@ -65,6 +65,15 @@ public class WebConstants {
   /** The setting that lists the claims of the caller's token payload that are logged. */
   public static final String REQUEST_LOG_TOKEN_CLAIMS = PREFIX + ".request-log.token-claims";
 
+  /** The setting that limits how long any request may take until its response starts. */
+  public static final String TIMEOUT_DEFAULT = PREFIX + ".timeout.default";
+
+  /** The setting that limits how long the requests on some paths may take. */
+  public static final String TIMEOUT_ROUTES = PREFIX + ".timeout.routes";
+
+  /** The setting that names the status of a request that ran out of time. */
+  public static final String TIMEOUT_STATUS = PREFIX + ".timeout.status";
+
   /** The logger of the request log lines, whose level a service can change. */
   public static final String REQUEST_LOG_LOGGER = "com.exepex.stratum.web.request-log";
 

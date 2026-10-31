@@ -7,10 +7,13 @@ import com.exepex.stratum.web.CorrelationIdChooser;
 import com.exepex.stratum.web.RequestFieldsPropagation;
 import com.exepex.stratum.web.RequestFieldsReader;
 import com.exepex.stratum.web.RequestLogWriter;
+import com.exepex.stratum.web.ResponseTimeouts;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebProperties;
 import com.exepex.stratum.webmvc.RequestLogFilter;
 import com.exepex.stratum.webmvc.RequestRouteInterceptor;
+import com.exepex.stratum.webmvc.ResponseTimeoutFilter;
+import com.exepex.stratum.webmvc.ResponseTimeoutInterceptor;
 import io.micrometer.tracing.Tracer;
 import java.io.IOException;
 import java.util.List;
@@ -45,6 +48,9 @@ class WebMvcRequestFieldsAutoConfigurationTest {
   /** The name of the request log filter's registration. */
   private static final String REQUEST_LOG_FILTER = "stratumRequestLogFilter";
 
+  /** The name of the timeout filter's registration. */
+  private static final String TIMEOUT_FILTER = "stratumResponseTimeoutFilter";
+
   /** A trusted proxy range whose prefix is longer than its address. */
   private static final String TOO_LONG_RANGE = "10.0.0.0/33";
 
@@ -69,6 +75,9 @@ class WebMvcRequestFieldsAutoConfigurationTest {
                       .hasSingleBean(CorrelationIdChooser.class)
                       .hasSingleBean(RequestFieldsPropagation.class)
                       .hasSingleBean(RequestRouteInterceptor.class)
+                      .hasSingleBean(ResponseTimeouts.class)
+                      .hasSingleBean(ResponseTimeoutInterceptor.class)
+                      .hasBean(TIMEOUT_FILTER)
                       .hasBean(FIELDS_FILTER)
                       .hasBean(CORRELATION_FILTER)
                       .hasBean(BAGGAGE_FILTER)
@@ -164,6 +173,27 @@ class WebMvcRequestFieldsAutoConfigurationTest {
                                 context.getBean(RequestLogWriter.class),
                                 context.getBean(REQUEST_LOG_FILTER)))
                         .containsExactly(serviceWriter, serviceFilter));
+      }
+    }
+
+    @Test
+    @DisplayName("the service's own timeouts and timeout filter replace Stratum's")
+    void serviceTimeoutBeansWin() {
+      try (var serviceTimeouts =
+          new ResponseTimeouts(WebProperties.resolve(new MockEnvironment()))) {
+        var serviceFilter =
+            new FilterRegistrationBean<>(new ResponseTimeoutFilter(serviceTimeouts));
+        contextRunner
+            .withPropertyValues(MODULE_ON)
+            .withBean(ResponseTimeouts.class, () -> serviceTimeouts)
+            .withBean(TIMEOUT_FILTER, FilterRegistrationBean.class, () -> serviceFilter)
+            .run(
+                context ->
+                    assertThat(
+                            List.of(
+                                context.getBean(ResponseTimeouts.class),
+                                context.getBean(TIMEOUT_FILTER)))
+                        .containsExactly(serviceTimeouts, serviceFilter));
       }
     }
 

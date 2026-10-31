@@ -6,12 +6,14 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import lombok.Builder;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
+import org.springframework.boot.context.properties.bind.Name;
 import org.springframework.core.env.Environment;
 
 /**
@@ -26,6 +28,7 @@ import org.springframework.core.env.Environment;
  * @param clientLocation Where the client's country and city come from.
  * @param requestFields The fields every log line of a request carries.
  * @param requestLog The one log line each request writes when it ends.
+ * @param timeout How long a request may take before it is answered with the timeout status.
  */
 @Builder(toBuilder = true)
 @ConfigurationProperties(prefix = WebConstants.PREFIX)
@@ -36,7 +39,8 @@ public record WebProperties(
     @DefaultValue @Valid UserAgentSettings userAgent,
     @DefaultValue ClientLocationSettings clientLocation,
     @DefaultValue @Valid RequestFieldsSettings requestFields,
-    @DefaultValue @Valid RequestLogSettings requestLog) {
+    @DefaultValue @Valid RequestLogSettings requestLog,
+    @DefaultValue @Valid TimeoutSettings timeout) {
 
   /**
    * Returns the settings the module uses: {@code stratum.web.*} with the defaults for anything
@@ -201,6 +205,31 @@ public record WebProperties(
       requestHeaders = Map.copyOf(requestHeaders);
       responseHeaders = Map.copyOf(responseHeaders);
       deniedHeaders = List.copyOf(deniedHeaders);
+    }
+  }
+
+  /**
+   * How long a request may take until its response starts, before it is answered with the timeout
+   * status. A response that has started, such as a stream or a download, is not cut off. A method's
+   * {@code @ResponseTimeout} wins over a route, and a route wins over the default.
+   *
+   * @param defaultLimit How long any request may take until its response starts, such as 10s or
+   *     500ms. 0 means no limit. Defaults to 10s.
+   * @param routes The limit of the requests whose path matches a pattern, such as /reports/** to
+   *     60s. When several patterns match, the most specific one wins. 0 means no limit on those
+   *     paths. Defaults to none.
+   * @param status The HTTP status, from 400 to 599, that a request which ran out of time is
+   *     answered with. Defaults to 503.
+   */
+  @Builder(toBuilder = true)
+  public record TimeoutSettings(
+      @Name("default") @DefaultValue("10s") Duration defaultLimit,
+      @DefaultValue Map<String, Duration> routes,
+      @DefaultValue("503") @Min(400) @Max(599) int status) {
+
+    /** Keeps an unchangeable copy of the routes. */
+    public TimeoutSettings {
+      routes = Map.copyOf(routes);
     }
   }
 }

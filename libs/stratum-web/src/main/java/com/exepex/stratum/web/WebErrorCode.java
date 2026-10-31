@@ -7,8 +7,8 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * The codes of the web module, each listed with its fix in {@code docs/guides/error-codes.md}. A
- * caller sees the first five in the error body of a request that failed outside the service's own
- * error handling; the others stop the service at startup.
+ * caller sees all but {@code SX-WEB-1006} in the error body of a request that failed outside the
+ * service's own error handling; {@code SX-WEB-1006} stops the service at startup.
  */
 @Getter
 @RequiredArgsConstructor
@@ -36,7 +36,10 @@ public enum WebErrorCode implements ErrorCode {
   CLIENT_LOCATION_DATABASE_UNREADABLE(
       "SX-WEB-1006",
       Severity.ERROR,
-      "The client location database cannot be read as a MaxMind database");
+      "The client location database cannot be read as a MaxMind database"),
+
+  /** The request ran out of time before its response started. */
+  REQUEST_TIMED_OUT("SX-WEB-1007", Severity.ERROR, "The request ran out of time");
 
   /** The code, such as {@code SX-WEB-1001}. */
   private final String code;
