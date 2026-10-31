@@ -154,6 +154,17 @@ class CorrelationIdChooserTest {
     }
 
     @Test
+    @DisplayName("is the trace ID when the baggage ID is not safe for logs")
+    void unsafeBaggageIdSkipped() {
+      var baggage = mock(Baggage.class);
+      when(baggage.get()).thenReturn("a\nb");
+      when(tracer.getBaggage(LoggingContextConstants.CORRELATION_ID)).thenReturn(baggage);
+      when(tracer.currentSpan().context().traceId()).thenReturn(WebTestData.TRACE_ID);
+
+      assertThat(chooser.currentCorrelationId(tracer)).hasValue(WebTestData.TRACE_ID);
+    }
+
+    @Test
     @DisplayName("is nothing when the request is not traced")
     void untraced() {
       assertThat(chooser.currentCorrelationId(Tracer.NOOP)).isEmpty();
