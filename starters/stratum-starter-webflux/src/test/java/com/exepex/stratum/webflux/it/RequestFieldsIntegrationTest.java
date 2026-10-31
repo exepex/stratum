@@ -33,6 +33,9 @@ class RequestFieldsIntegrationTest {
   /** The query string of the test requests. */
   private static final String EXPAND_QUERY = "expand=lines";
 
+  /** The W3C header that carries baggage between services. */
+  private static final String BAGGAGE_HEADER = "baggage";
+
   /** The user agent the request sends. */
   private static final String USER_AGENT = "orders-cli/1.0";
 
@@ -132,6 +135,30 @@ class RequestFieldsIntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "a percent-encoded baggage ID, as some tracing libraries send it, is decoded; a broken"
+            + " escape is ignored for the trace ID")
+    void encodedBaggageIdDecoded() throws Exception {
+      var encoded =
+          StarterTestSupport.getFromService(
+              port,
+              ORDER_FIELDS_PATH,
+              BAGGAGE_HEADER,
+              LoggingContextConstants.CORRELATION_ID + "=checkout%3A777");
+      var broken =
+          StarterTestSupport.getFromService(
+              port,
+              ORDER_FIELDS_PATH,
+              BAGGAGE_HEADER,
+              LoggingContextConstants.CORRELATION_ID + "=checkout%3");
+
+      assertThat(encoded.headers().firstValue(WebConstants.CORRELATION_ID_HEADER))
+          .hasValue("checkout:777");
+      var traceId = JsonPath.<String>read(broken.body(), "$." + LoggingContextConstants.TRACE_ID);
+      assertThat(broken.headers().firstValue(WebConstants.CORRELATION_ID_HEADER)).hasValue(traceId);
+    }
+
+    @Test
     @DisplayName("an X-Correlation-Id with unsafe characters is ignored for the trace ID")
     void unsafeCallerIdIgnored() throws Exception {
       var fields =
@@ -178,7 +205,7 @@ class RequestFieldsIntegrationTest {
               ORDER_FIELDS_PATH,
               WebConstants.CORRELATION_ID_HEADER,
               CALLER_ID,
-              "baggage",
+              BAGGAGE_HEADER,
               LoggingContextConstants.CORRELATION_ID + "=from-baggage");
 
       var traceId = JsonPath.<String>read(fields.body(), "$." + LoggingContextConstants.TRACE_ID);
