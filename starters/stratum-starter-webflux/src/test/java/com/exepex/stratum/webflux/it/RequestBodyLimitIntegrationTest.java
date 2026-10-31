@@ -63,6 +63,9 @@ class RequestBodyLimitIntegrationTest {
   /** A form over the 256KB that Spring's form reader holds in memory by default. */
   private static final int OVER_FORM_READER_LIMIT = 300 * KILOBYTE;
 
+  /** One part more than the 50 parts Stratum allows a multipart upload by default. */
+  private static final int OVER_DEFAULT_PART_LIMIT = 51;
+
   /** The code a body over its limit is answered with. */
   private static final String TOO_LARGE = WebErrorCode.REQUEST_BODY_TOO_LARGE.getCode();
 
@@ -125,30 +128,19 @@ class RequestBodyLimitIntegrationTest {
   @Test
   @DisplayName("a chunked multipart upload over Spring's disk limit gets SX-WEB-1008")
   void multipartOverDiskLimit() throws Exception {
-    var multipart =
-        ("--"
-                + BOUNDARY
-                + "\r\n"
-                + "Content-Disposition: form-data; name=\"file\"; filename=\"orders.csv\"\r\n"
-                + "Content-Type: text/plain\r\n\r\n"
-                + "x".repeat(OVER_ROUTE_LIMIT)
-                + "\r\n--"
-                + BOUNDARY
-                + "--\r\n")
-            .getBytes(StandardCharsets.US_ASCII);
-    var request =
-        HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/files"))
-            .header(HttpHeaders.CONTENT_TYPE, "multipart/form-data; boundary=" + BOUNDARY)
-            .POST(
-                HttpRequest.BodyPublishers.ofInputStream(() -> new ByteArrayInputStream(multipart)))
-            .build();
+    var response = postMultipartInChunks(1, OVER_ROUTE_LIMIT);
 
-    try (var client = HttpClient.newHttpClient()) {
-      var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+    StarterTestSupport.checkProblemDetails(
+        response, HttpStatus.CONTENT_TOO_LARGE.value(), TOO_LARGE);
+  }
 
-      StarterTestSupport.checkProblemDetails(
-          response, HttpStatus.CONTENT_TOO_LARGE.value(), TOO_LARGE);
-    }
+  @Test
+  @DisplayName("a multipart upload over Stratum's default of 50 parts gets 400 and SX-WEB-1002")
+  void multipartOverPartLimit() throws Exception {
+    var response = postMultipartInChunks(OVER_DEFAULT_PART_LIMIT, 1);
+
+    StarterTestSupport.checkProblemDetails(
+        response, HttpStatus.BAD_REQUEST.value(), WebErrorCode.UNREADABLE_REQUEST.getCode());
   }
 
   @Test
@@ -158,5 +150,32 @@ class RequestBodyLimitIntegrationTest {
 
     StarterTestSupport.checkProblemDetails(
         response, HttpStatus.INTERNAL_SERVER_ERROR.value(), WebErrorCode.INTERNAL_ERROR.getCode());
+  }
+
+  /**
+   * Sends a multipart upload to {@code /files} in chunks, with no {@code Content-Length}, so that
+   * only Spring's multipart limits apply.
+   */
+  private HttpResponse<String> postMultipartInChunks(int partCount, int bytesPerPart)
+      throws Exception {
+    var part =
+        "--"
+            + BOUNDARY
+            + "\r\n"
+            + "Content-Disposition: form-data; name=\"file\"; filename=\"orders.csv\"\r\n"
+            + "Content-Type: text/plain\r\n\r\n"
+            + "x".repeat(bytesPerPart)
+            + "\r\n";
+    var multipart =
+        (part.repeat(partCount) + "--" + BOUNDARY + "--\r\n").getBytes(StandardCharsets.US_ASCII);
+    var request =
+        HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/files"))
+            .header(HttpHeaders.CONTENT_TYPE, "multipart/form-data; boundary=" + BOUNDARY)
+            .POST(
+                HttpRequest.BodyPublishers.ofInputStream(() -> new ByteArrayInputStream(multipart)))
+            .build();
+    try (var client = HttpClient.newHttpClient()) {
+      return client.send(request, HttpResponse.BodyHandlers.ofString());
+    }
   }
 }

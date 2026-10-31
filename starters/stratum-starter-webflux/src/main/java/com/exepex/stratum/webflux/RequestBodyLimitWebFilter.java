@@ -7,6 +7,7 @@ import com.exepex.stratum.web.RequestBodyTooLargeException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.Ordered;
+import org.springframework.core.codec.DecodingException;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferLimitException;
 import org.springframework.core.io.buffer.DataBufferUtils;
@@ -30,8 +31,9 @@ import reactor.core.publisher.SynchronousSink;
  * before the handler runs, it gives the request the limit of its handler's {@link RequestBodyLimit}
  * and checks the declared {@code Content-Length}. A multipart or form body that Spring refuses over
  * one of its own limits, such as a part over its disk limit, is answered with {@code 413} too,
- * where Spring Boot would answer {@code 500}. Any other buffer limit, such as on a downstream
- * response, keeps its {@code 500}.
+ * where Spring Boot would answer {@code 500}, and one Spring cannot read, such as one with too many
+ * parts, is answered with {@code 400}. Any other buffer limit, such as on a downstream response,
+ * keeps its {@code 500}.
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -74,19 +76,32 @@ public class RequestBodyLimitWebFilter implements WebFilter, HandlerStartListene
         new ServerWebExchangeDecorator(exchange.mutate().request(countedRequest).build()) {
           @Override
           public Mono<MultiValueMap<String, Part>> getMultipartData() {
-            return super.getMultipartData()
-                .onErrorMap(
-                    DataBufferLimitException.class, RequestBodyLimitWebFilter.this::tooLarge);
+            return answerSpringReadFailures(super.getMultipartData());
           }
 
           @Override
           public Mono<MultiValueMap<String, String>> getFormData() {
-            return super.getFormData()
-                .onErrorMap(
-                    DataBufferLimitException.class, RequestBodyLimitWebFilter.this::tooLarge);
+            return answerSpringReadFailures(super.getFormData());
           }
         };
     return chain.filter(countedExchange);
+  }
+
+  /**
+   * Turns a multipart or form body that Spring refuses into a caller's error: {@code 413} when it
+   * passes one of Spring's size limits, and {@code 400} when Spring cannot read it, such as one
+   * with more parts than {@code spring.webflux.multipart.max-parts} allows.
+   */
+  private <T> Mono<T> answerSpringReadFailures(Mono<T> springRead) {
+    return springRead
+        .onErrorMap(DataBufferLimitException.class, this::tooLarge)
+        .onErrorMap(DecodingException.class, this::unreadable);
+  }
+
+  /** Logs that Spring could not read a multipart or form body, and returns its {@code 400}. */
+  private ResponseStatusException unreadable(DecodingException springReadFailure) {
+    log.warn("Spring could not read the multipart or form body, such as one with too many parts");
+    return new ResponseStatusException(HttpStatus.BAD_REQUEST, null, springReadFailure);
   }
 
   /**
