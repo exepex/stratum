@@ -64,6 +64,17 @@ class ResponseTimeoutIntegrationTest {
   }
 
   @Test
+  @DisplayName("a handler that ignores the interrupt and answers late gets SX-WEB-1007")
+  void lateAnswer() throws Exception {
+    var response = StarterTestSupport.getFromService(port, "/slow/ignores-interrupt");
+
+    StarterTestSupport.checkProblemDetails(
+        response, HttpStatus.GATEWAY_TIMEOUT.value(), WebErrorCode.REQUEST_TIMED_OUT.getCode());
+    assertThat(lines.fieldsOf(lines.onlyLine()))
+        .containsEntry(WebConstants.HTTP_STATUS, HttpStatus.GATEWAY_TIMEOUT.value());
+  }
+
+  @Test
   @DisplayName("a method's @ResponseTimeout gives it more time than its route")
   void annotationWinsOverRoute() throws Exception {
     var response = StarterTestSupport.getFromService(port, "/slow/given-more-time");

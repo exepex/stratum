@@ -224,7 +224,7 @@ Report report(@PathVariable String reportId) {
 When the time is up, Stratum interrupts the request's thread. A blocking call that honours
 interrupts, such as the JDK's `HttpClient` or a socket on a virtual thread, stops, and the caller
 gets `503`. A call that ignores interrupts, such as a database query waiting on its socket on a
-platform thread, runs on, and the caller gets your handler's answer; give each remote call a timeout
+platform thread, runs on, and the caller gets `503` when it ends; give each remote call a timeout
 of its own. For a `Callable` or `DeferredResult`, the limit ends when the handler method returns.
 An upload API answers only once it has read the whole body, so give it
 `@ResponseTimeout(0)` or a long limit; see [Uploads](../../docs/modules/web-timeouts.md#uploads).
@@ -363,7 +363,7 @@ The agreed design of each is in [Web](../../docs/modules/web.md).
 | What you see | Why, and the fix |
 | --- | --- |
 | Your code is answered with `500`, and the log says it has no status | Add the code to `stratum.web.error.statuses`. |
-| A request runs far past its time limit and is not answered with `503` | A call in it ignores interrupts, such as a query waiting on its socket. Set a timeout on that call, such as the database's query timeout. |
+| A request runs far past its time limit before it is answered with `503` | A call in it ignores interrupts, such as a query waiting on its socket. Set a timeout on that call, such as the database's query timeout. |
 | The body has no `traceId` | Tracing is off. Add the observability starter and set `stratum.observability.enabled=true`. |
 | A failure gets Spring Boot's default body | The module is off, or the service declares its own `ErrorAttributes` bean. |
 | Your handler is not used for an exception | Another advice handles it first. Advice runs in `@Order` order; Stratum's runs last. |

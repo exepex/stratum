@@ -15,9 +15,10 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * Answers a request that ran out of time before its response started with the timeout status,
  * through Spring Boot's error handling. When the time is up, it interrupts the request's thread, as
  * Tomcat's stuck thread valve does, so a blocking call that honours interrupts stops and the
- * handler fails. A call that ignores interrupts runs on, and the caller then gets what the handler
- * answers. A request whose response has started is not interrupted. For a handler that returns a
- * {@code Callable} or {@code DeferredResult}, the limit ends when the handler returns.
+ * handler fails. A call that ignores interrupts runs on, and {@link ResponseTimeoutInterceptor}
+ * fails the request when the handler answers. A request whose response has started is not
+ * interrupted. For a handler that returns a {@code Callable} or {@code DeferredResult}, the limit
+ * ends when the handler returns.
  */
 @RequiredArgsConstructor
 public class ResponseTimeoutFilter extends OncePerRequestFilter {

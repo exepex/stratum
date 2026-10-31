@@ -82,7 +82,9 @@ route that matches its path, then the default.
 
 An upload API usually answers only once it has read the whole request body, so a large upload,
 such as a file or a binary stream, can take longer than the default limit. Its response has not
-started yet, so it would be answered with `503`. Give each upload API its own limit, or none:
+started yet, so it fails with `503`: on WebFlux at the limit, and on Spring MVC at the limit or,
+when its read ignores the interrupt, once the read ends. Give each upload API its own limit, or
+none:
 
 ```java
 @ResponseTimeout(0)
@@ -126,16 +128,18 @@ When the time is up, Stratum interrupts the request's thread, as Tomcat's stuck 
 - A blocking call that honours interrupts stops at once and throws, and the caller gets `503`. That
   includes `Thread.sleep`, waits on locks and queues, the JDK's `HttpClient`, and socket reads and
   writes on virtual threads.
-- A call that ignores interrupts runs on until it ends, and the caller then gets what your handler
-  answers. Socket reads on ordinary platform threads ignore interrupts, so a database query waiting
+- A call that ignores interrupts runs on until it ends, and the caller then gets `503`, as late as
+  that. Socket reads on ordinary platform threads ignore interrupts, so a database query waiting
   on its socket usually runs on. Give every remote call its own timeout, shorter than the
   request's, such as a query timeout on the database and a read timeout on the HTTP client.
-- When your code catches the failure the interrupt caused and answers the request itself, such as
-  from your own `@ExceptionHandler`, your answer is sent.
+- Whatever your code answers after the time is up, from the handler or from your own
+  `@ExceptionHandler`, the caller gets `503`, as on WebFlux. Only a response that started in time
+  is sent as it is.
 - For a handler that returns a `Callable`, a `DeferredResult` or an `SseEmitter`, the limit ends
   when the handler method returns. Spring's `spring.mvc.async.request-timeout` limits the rest.
 
-The thread is never left interrupted: Stratum clears the interrupt before the server reuses it.
+Stratum clears the interrupt before anything is written, because the server closes the connection
+when an interrupted thread writes to it, and before the server reuses the thread.
 
 **WebFlux** cancels the request's work when the time is up, so reactive database and HTTP calls stop.
 Blocking work you moved to another scheduler, such as `Schedulers.boundedElastic()`, runs on to its
