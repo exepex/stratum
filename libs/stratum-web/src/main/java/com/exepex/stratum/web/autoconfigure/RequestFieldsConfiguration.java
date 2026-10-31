@@ -4,6 +4,7 @@ import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.web.CorrelationIdChooser;
 import com.exepex.stratum.web.RequestFieldsPropagation;
 import com.exepex.stratum.web.RequestFieldsReader;
+import com.exepex.stratum.web.RequestLogWriter;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebProperties;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -15,8 +16,9 @@ import org.springframework.context.annotation.Fallback;
 import org.springframework.core.env.Environment;
 
 /**
- * Creates what both web starters use to give every log line of a request its fields and the request
- * its correlation ID. The web MVC and WebFlux auto-configurations import it.
+ * Creates what both web starters use to give every log line of a request its fields, the request
+ * its correlation ID and its one closing log line. The web MVC and WebFlux auto-configurations
+ * import it.
  */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnStratumModule(WebConstants.MODULE)
@@ -50,6 +52,22 @@ public class RequestFieldsConfiguration {
   @ConditionalOnClass(name = "io.micrometer.tracing.Tracer")
   public CorrelationIdChooser correlationIdChooser(Environment environment) {
     return new CorrelationIdChooser(WebProperties.resolve(environment));
+  }
+
+  /**
+   * Writes the log line each request ends with. Its settings come from {@link
+   * WebProperties#resolve}, so the service's Java configuration wins.
+   *
+   * @param environment the application's environment
+   * @param requestFieldsReader makes each value safe for the logs
+   * @return the writer
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean
+  public RequestLogWriter requestLogWriter(
+      Environment environment, RequestFieldsReader requestFieldsReader) {
+    return new RequestLogWriter(WebProperties.resolve(environment), requestFieldsReader);
   }
 
   /**

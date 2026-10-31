@@ -5,11 +5,13 @@ import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.web.CorrelationIdChooser;
 import com.exepex.stratum.web.RequestFieldsAccessor;
 import com.exepex.stratum.web.RequestFieldsReader;
+import com.exepex.stratum.web.RequestLogWriter;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.autoconfigure.RequestFieldsConfiguration;
 import com.exepex.stratum.webmvc.CorrelationIdBaggageFilter;
 import com.exepex.stratum.webmvc.CorrelationIdFilter;
 import com.exepex.stratum.webmvc.RequestFieldsFilter;
+import com.exepex.stratum.webmvc.RequestLogFilter;
 import com.exepex.stratum.webmvc.RequestRouteInterceptor;
 import io.micrometer.tracing.Tracer;
 import jakarta.servlet.DispatcherType;
@@ -26,8 +28,8 @@ import org.springframework.context.annotation.Fallback;
 import org.springframework.context.annotation.Import;
 
 /**
- * Gives every log line of a Spring MVC request its fields, and every request its correlation ID,
- * when {@code stratum.web.enabled=true}.
+ * Gives every log line of a Spring MVC request its fields, every request its correlation ID and one
+ * closing log line, when {@code stratum.web.enabled=true}.
  */
 @AutoConfiguration
 @AutoConfigureOrder(StratumModuleConstants.AUTO_CONFIGURATION_ORDER)
@@ -52,6 +54,24 @@ public final class WebMvcRequestFieldsAutoConfiguration {
         new FilterRegistrationBean<>(
             new RequestFieldsFilter(requestFieldsReader, new RequestFieldsAccessor()));
     registration.setOrder(RequestFieldsFilter.ORDER);
+    registration.setDispatcherTypes(DispatcherType.REQUEST, DispatcherType.ASYNC);
+    return registration;
+  }
+
+  /**
+   * Writes one log line when each request has been answered.
+   *
+   * @param requestLogWriter writes the line
+   * @return the filter's registration, just inside the request fields filter, for the first
+   *     dispatch and the asynchronous one that writes a {@code Callable}'s response
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean(name = "stratumRequestLogFilter")
+  public FilterRegistrationBean<RequestLogFilter> stratumRequestLogFilter(
+      RequestLogWriter requestLogWriter) {
+    var registration = new FilterRegistrationBean<>(new RequestLogFilter(requestLogWriter));
+    registration.setOrder(RequestLogFilter.ORDER);
     registration.setDispatcherTypes(DispatcherType.REQUEST, DispatcherType.ASYNC);
     return registration;
   }

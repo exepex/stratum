@@ -28,7 +28,14 @@ class ConfigurationMetadataTest {
           WebConstants.USER_AGENT_CACHE_SIZE,
           WebConstants.USER_AGENT_REQUEST_CLIENT_HINTS,
           WebConstants.CLIENT_LOCATION_DATABASE,
-          WebConstants.REQUEST_FIELDS_MAX_VALUE_LENGTH);
+          WebConstants.REQUEST_FIELDS_MAX_VALUE_LENGTH,
+          WebConstants.REQUEST_LOG_ENABLED,
+          WebConstants.REQUEST_LOG_SKIP_PATHS,
+          WebConstants.REQUEST_LOG_REQUEST_HEADERS,
+          WebConstants.REQUEST_LOG_RESPONSE_HEADERS,
+          WebConstants.REQUEST_LOG_DENIED_HEADERS,
+          WebConstants.REQUEST_LOG_TOKEN_PAYLOAD,
+          WebConstants.REQUEST_LOG_TOKEN_CLAIMS);
 
   @Test
   @DisplayName("every property is listed with a description")

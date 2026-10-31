@@ -23,9 +23,11 @@ import java.net.URLClassLoader;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -188,6 +190,21 @@ public class StarterTestSupport {
       request.headers(headers);
     }
     return HTTP_CLIENT.send(request.build(), HttpResponse.BodyHandlers.ofString());
+  }
+
+  /**
+   * Returns an {@code Authorization} header value with a signed JWT whose payload is the given
+   * JSON. The token's header and signature are fixed test values.
+   *
+   * @param payloadJson the token's payload, such as {@code {"sub":"checkout-service"}}
+   * @return the header value, starting with {@code Bearer }
+   */
+  public static String bearerToken(String payloadJson) {
+    return "Bearer eyJhbGciOiJSUzI1NiJ9."
+        + Base64.getUrlEncoder()
+            .withoutPadding()
+            .encodeToString(payloadJson.getBytes(StandardCharsets.UTF_8))
+        + ".c2lnbmF0dXJl";
   }
 
   /**

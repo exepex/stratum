@@ -25,6 +25,7 @@ import org.springframework.core.env.Environment;
  * @param userAgent What is read from the client's user agent.
  * @param clientLocation Where the client's country and city come from.
  * @param requestFields The fields every log line of a request carries.
+ * @param requestLog The one log line each request writes when it ends.
  */
 @Builder(toBuilder = true)
 @ConfigurationProperties(prefix = WebConstants.PREFIX)
@@ -34,7 +35,8 @@ public record WebProperties(
     @DefaultValue @Valid ClientIpSettings clientIp,
     @DefaultValue @Valid UserAgentSettings userAgent,
     @DefaultValue ClientLocationSettings clientLocation,
-    @DefaultValue @Valid RequestFieldsSettings requestFields) {
+    @DefaultValue @Valid RequestFieldsSettings requestFields,
+    @DefaultValue @Valid RequestLogSettings requestLog) {
 
   /**
    * Returns the settings the module uses: {@code stratum.web.*} with the defaults for anything
@@ -145,4 +147,60 @@ public record WebProperties(
   @Builder(toBuilder = true)
   public record RequestFieldsSettings(
       @DefaultValue("512") @Min(16) @Max(8192) int maxValueLength) {}
+
+  /**
+   * The one log line each request writes when it ends.
+   *
+   * @param enabled Whether each request writes one INFO log line when it ends, with its status, how
+   *     long it took and the headers named below. Requests for static files never write one.
+   *     Defaults to true.
+   * @param skipPaths The path patterns whose requests write no line, such as /actuator/** or
+   *     /internal/*. Setting the list replaces the default, so keep /actuator/** in it. Defaults to
+   *     /actuator/**.
+   * @param requestHeaders The request headers to log, each with the field name it is logged under,
+   *     such as X-Tenant-Id to tenantId. A field name is a letter, then up to 63 letters, digits, _
+   *     or . characters. Authorization, Cookie, Set-Cookie, X-Api-Key and the denied headers are
+   *     never logged. Defaults to none.
+   * @param responseHeaders The response headers to log, each with the field name it is logged
+   *     under, as for the request headers. Defaults to none.
+   * @param deniedHeaders More headers that are never logged, even when listed above, such as a
+   *     header your platform uses for a secret. Defaults to none.
+   * @param tokenPayload Whether the claims named in token-claims, from the payload of the caller's
+   *     bearer JSON Web Token, are logged as jwtClaims. They are decoded but not verified, so never
+   *     trust them. The token's header, signature and other claims never are. Defaults to false.
+   * @param tokenClaims The claims of the caller's token that are logged when token-payload is true.
+   *     Setting the list replaces the default; list no claim that holds personal data, such as
+   *     email or name. Defaults to sub, azp, client_id and scope.
+   */
+  @Builder(toBuilder = true)
+  public record RequestLogSettings(
+      @DefaultValue("true") boolean enabled,
+      List<String> skipPaths,
+      @DefaultValue Map<String, @Pattern(regexp = FIELD_NAME) String> requestHeaders,
+      @DefaultValue Map<String, @Pattern(regexp = FIELD_NAME) String> responseHeaders,
+      @DefaultValue List<String> deniedHeaders,
+      @DefaultValue("false") boolean tokenPayload,
+      List<String> tokenClaims) {
+
+    /** A field name a log platform accepts. */
+    private static final String FIELD_NAME = "[A-Za-z][A-Za-z0-9_.]{0,63}";
+
+    /** The token claims logged when none are set: who called, for which client and scope. */
+    private static final List<String> CALLER_CLAIMS = List.of("sub", "azp", "client_id", "scope");
+
+    /** The paths skipped when none are set: the actuator's endpoints, such as health checks. */
+    private static final List<String> ACTUATOR_PATHS = List.of("/actuator/**");
+
+    /**
+     * Keeps unchangeable copies, with the defaults for the skip paths and token claims when unset:
+     * Spring Boot passes null for a list that is not set.
+     */
+    public RequestLogSettings {
+      skipPaths = skipPaths == null ? ACTUATOR_PATHS : List.copyOf(skipPaths);
+      tokenClaims = tokenClaims == null ? CALLER_CLAIMS : List.copyOf(tokenClaims);
+      requestHeaders = Map.copyOf(requestHeaders);
+      responseHeaders = Map.copyOf(responseHeaders);
+      deniedHeaders = List.copyOf(deniedHeaders);
+    }
+  }
 }

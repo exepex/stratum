@@ -1,11 +1,10 @@
 # Web: `stratum-starter-webmvc` and `stratum-starter-webflux`
 
-**Status: Partly built.** Error responses, request fields in logs and the correlation ID are built
-for both stacks; the error responses are described in the READMEs of
+**Status: Partly built.** Error responses, request fields in logs, the correlation ID and the
+request log are built for both stacks; the error responses are described in the READMEs of
 [`stratum-starter-webmvc`](../../starters/stratum-starter-webmvc/README.md) and
-[`stratum-starter-webflux`](../../starters/stratum-starter-webflux/README.md), and the request
-fields and correlation ID on this page. The request log, timeouts and the body size limit are the
-agreed design and not built yet.
+[`stratum-starter-webflux`](../../starters/stratum-starter-webflux/README.md), and the rest on this
+page. Timeouts and the body size limit are the agreed design and not built yet.
 
 [← Documentation home](../README.md) · Property prefix: `stratum.web` · Decision record:
 [ADR 0006](../adr/0006-separate-mvc-and-webflux-starters.md)
@@ -68,9 +67,9 @@ Every feature works the same on both stacks.
 | Error responses (built) | Every error is [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457) JSON with a code, the trace ID and the correlation ID. Never a stack trace, exception message or class name |
 | HTML error page (built) | A browser gets an HTML page with a reference number (the trace ID) that the user can quote to support |
 | Request fields in logs (built) | Every log line written during a request carries its method, route, path, query, client IP and user agent, as separate fields. Device, OS, browser and the client's country and city when you turn them on |
-| Request log | One JSON line when each request ends, with its status and duration. Health checks and static files are left out |
-| Headers in logs | The request and response headers a team names are logged as fields. `Authorization`, `Cookie`, `Set-Cookie` and `X-Api-Key` never are |
-| Token payload in logs | When a team turns it on, the payload of the caller's JWT is logged. The token's header and signature never are |
+| Request log (built) | One line when each request is answered, with its status and duration. Health checks and static files are left out |
+| Headers in logs (built) | The request and response headers a team names are logged as fields. `Authorization`, `Cookie`, `Set-Cookie` and `X-Api-Key` never are |
+| Token claims in logs (built) | When a team turns it on, the claims it lists from the caller's JWT, such as `sub` and `scope`, are logged. Other claims, the token's header and its signature never are |
 | Correlation ID (built) | Taken from the caller's `X-Correlation-Id` header when it has a safe format, otherwise the trace ID; returned in the response header. Needs the observability starter |
 | Timeouts | A request that runs longer than its limit (10 seconds by default) is answered with `503` |
 | Body size limit | A request body larger than the limit is refused with `413` |
@@ -212,6 +211,85 @@ The correlation ID needs tracing, which the
 [observability starter](../../starters/stratum-starter-observability/README.md#correlation-id)
 brings. Without that starter, requests get no correlation ID.
 
+## Request log
+
+Each request writes one line at `INFO`, through the logger `com.exepex.stratum.web.request-log`, once
+it is answered:
+
+```text
+GET /orders/{orderId} answered 200 in 12 ms
+```
+
+The line carries the request fields and the IDs described above, plus `httpStatus` and
+`durationMs`. With the [logging starter](../../starters/stratum-starter-logging/README.md) the line
+is JSON, so each is a field you can search and chart.
+
+- Spring MVC writes the line once the response is written, also for a `Callable` or
+  `DeferredResult` that answers later. A request whose error no handler answered is logged with
+  `500`.
+- WebFlux writes it when the response starts, so it has the status the error handler set. For a
+  streamed response, `durationMs` is the time until the first bytes were sent. A request the caller
+  cancels before then is logged with `499`, the status nginx uses for a closed request.
+- Paths under `/actuator/**` and the static files Spring serves write no line. A path that matches
+  nothing is answered `404` and logged.
+- `skip-paths` replaces the default list, so keep `/actuator/**` in it when you add your own paths.
+  Each is a Spring path pattern, such as `/internal/**`.
+- To stop the line, set `stratum.web.request-log.enabled=false`, or set the logger above to `WARN`.
+
+### Headers in the line
+
+`request-headers` and `response-headers` map a header to the field it is written as. A field name
+starts with a letter and has up to 64 letters, digits, `_` and `.`. Header names match in any case.
+Each value is made safe for the logs, as a request field is, and several values are joined with
+`, `. `Authorization`, `Cookie`, `Set-Cookie` and `X-Api-Key` are never written, even when named,
+and neither is any header in `denied-headers`.
+
+### Token claims
+
+With `token-payload=true`, the line carries some claims of the caller's `Authorization: Bearer`
+JWT, decoded, as `jwtClaims`, such as `{"sub":"checkout-service","scope":"orders.read"}`. Only the
+claims listed in `token-claims` are written: by default `sub`, `azp`, `client_id` and `scope`, which
+say who called, through which client and with what rights. Every other claim, such as `email` or
+`name`, is left out, and so are the token's header and signature. A token that has none of the
+listed claims, an encrypted token, or one that is not a JWT, writes nothing.
+
+Stratum does not verify the token here, so the claims are what the caller says, not who the caller
+is. They are off by default. A list you set replaces the default, so list only claims that hold no
+personal data.
+
+In `application.properties`:
+
+```properties
+stratum.web.request-log.skip-paths=/actuator/**,/internal/**
+stratum.web.request-log.request-headers[X-Tenant-Id]=tenantId
+stratum.web.request-log.response-headers[X-Cache]=cacheResult
+stratum.web.request-log.denied-headers=X-Internal-Key
+stratum.web.request-log.token-payload=true
+stratum.web.request-log.token-claims=sub,azp,tenant
+```
+
+or in `application.yml`, where the brackets need quotes:
+
+```yaml
+stratum:
+  web:
+    request-log:
+      skip-paths:
+        - /actuator/**
+        - /internal/**
+      request-headers:
+        "[X-Tenant-Id]": tenantId
+      response-headers:
+        "[X-Cache]": cacheResult
+      denied-headers:
+        - X-Internal-Key
+      token-payload: true
+      token-claims:
+        - sub
+        - azp
+        - tenant
+```
+
 ## Properties
 
 Each works from `.properties`, `.yml` and Java, and your IDE completes it. The built ones work on
@@ -230,8 +308,13 @@ both stacks; the others are planned.
 | `stratum.web.request-fields.max-value-length` | integer, 16 to 8192 | `512` | The most characters a request field keeps. |
 | `stratum.web.timeout.default` (planned) | duration | `10s` | How long any request may run. |
 | `stratum.web.timeout.status` (planned) | HTTP status | `503` | The status of a request that ran out of time. |
-| `stratum.web.request-log.enabled` (planned) | boolean | `true` | Whether each request writes one log line when it ends. |
-| `stratum.web.request-log.skip-paths` (planned) | list | `/actuator/**` and static files | Paths whose requests write no log line. |
+| `stratum.web.request-log.enabled` | boolean | `true` | Whether each request writes one log line when it is answered. |
+| `stratum.web.request-log.skip-paths` | list of path patterns | `/actuator/**` | Paths whose requests write no log line. Replaces the default; static files are always skipped. |
+| `stratum.web.request-log.request-headers` | map of header to field name | empty | The request headers written in the line, and the field each is written as. |
+| `stratum.web.request-log.response-headers` | map of header to field name | empty | The response headers written in the line, and the field each is written as. |
+| `stratum.web.request-log.denied-headers` | list of header names | empty | Headers never written, on top of `Authorization`, `Cookie`, `Set-Cookie` and `X-Api-Key`. |
+| `stratum.web.request-log.token-payload` | boolean | `false` | Whether the line carries the listed claims of the caller's bearer JWT. |
+| `stratum.web.request-log.token-claims` | list of claim names | `sub`, `azp`, `client_id`, `scope` | The claims written when `token-payload` is `true`. Replaces the default. |
 
 For a service behind a CDN, with the device fields on, in `application.properties`:
 
@@ -259,7 +342,8 @@ stratum:
 ## Configure in Java
 
 Every setting can also be set in Java, through a `WebPropertiesCustomizer` class listed in
-`META-INF/spring.factories`, as for the other modules, and Java wins. The same settings as above:
+`META-INF/spring.factories`, as for the other modules, and Java wins. The same settings as above,
+with a tenant header in the request log:
 
 ```java
 public class OrdersWebSettings implements WebPropertiesCustomizer {
@@ -272,6 +356,10 @@ public class OrdersWebSettings implements WebPropertiesCustomizer {
                 .trustedProxies(List.of("10.0.0.0/8", "203.0.113.0/24"))
                 .build())
         .userAgent(properties.userAgent().toBuilder().parse(true).build())
+        .requestLog(
+            properties.requestLog().toBuilder()
+                .requestHeaders(Map.of("X-Tenant-Id", "tenantId"))
+                .build())
         .clientLocation(
             WebProperties.ClientLocationSettings.builder()
                 .database(Path.of("/data/geoip/GeoLite2-City.mmdb"))

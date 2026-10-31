@@ -192,4 +192,77 @@ class WebPropertiesTest {
               "SX-CORE-1003: Invalid settings: " + WebConstants.REQUEST_FIELDS_MAX_VALUE_LENGTH);
     }
   }
+
+  @Nested
+  @DisplayName("the request log settings")
+  class RequestLogSettings {
+
+    @Test
+    @DisplayName("with nothing set, every request but the actuator's writes a line with no headers")
+    void defaults() {
+      assertThat(WebProperties.resolve(new MockEnvironment()).requestLog())
+          .isEqualTo(
+              new WebProperties.RequestLogSettings(
+                  true,
+                  List.of("/actuator/**"),
+                  Map.of(),
+                  Map.of(),
+                  List.of(),
+                  false,
+                  List.of("sub", "azp", "client_id", "scope")));
+    }
+
+    @Test
+    @DisplayName("are read from a .properties file, header names with their field names")
+    void fromProperties() {
+      var environment =
+          new MockEnvironment()
+              .withProperty(WebConstants.REQUEST_LOG_ENABLED, "false")
+              .withProperty(WebConstants.REQUEST_LOG_SKIP_PATHS, "/actuator/**,/internal/**")
+              .withProperty(WebConstants.REQUEST_LOG_REQUEST_HEADERS + ".X-Tenant-Id", "tenantId")
+              .withProperty(WebConstants.REQUEST_LOG_RESPONSE_HEADERS + ".X-Cache", "cacheResult")
+              .withProperty(WebConstants.REQUEST_LOG_DENIED_HEADERS, "X-Internal-Key")
+              .withProperty(WebConstants.REQUEST_LOG_TOKEN_PAYLOAD, "true")
+              .withProperty(WebConstants.REQUEST_LOG_TOKEN_CLAIMS, "sub,tenant");
+
+      assertThat(WebProperties.resolve(environment).requestLog())
+          .isEqualTo(
+              new WebProperties.RequestLogSettings(
+                  false,
+                  List.of("/actuator/**", "/internal/**"),
+                  Map.of("X-Tenant-Id", "tenantId"),
+                  Map.of("X-Cache", "cacheResult"),
+                  List.of("X-Internal-Key"),
+                  true,
+                  List.of("sub", "tenant")));
+    }
+
+    @Test
+    @DisplayName("are read from a .yml file")
+    void fromYaml() throws IOException {
+      var environment = new StandardEnvironment();
+      new YamlPropertySourceLoader()
+          .load("web-yaml", new ClassPathResource("web-yaml.yml"))
+          .forEach(environment.getPropertySources()::addFirst);
+
+      var requestLog = WebProperties.resolve(environment).requestLog();
+
+      assertThat(requestLog.requestHeaders()).containsExactly(Map.entry("X-Tenant-Id", "tenantId"));
+      assertThat(requestLog.tokenPayload()).isTrue();
+      assertThat(requestLog.tokenClaims()).containsExactly("sub", "tenant");
+    }
+
+    @Test
+    @DisplayName("a field name a log platform cannot take stops startup with SX-CORE-1003")
+    void badFieldName() {
+      var environment =
+          new MockEnvironment()
+              .withProperty(WebConstants.REQUEST_LOG_REQUEST_HEADERS + ".X-Tenant-Id", "tenant id");
+
+      assertThatExceptionOfType(ConstraintViolationException.class)
+          .isThrownBy(() -> WebProperties.resolve(environment))
+          .withMessageStartingWith(
+              "SX-CORE-1003: Invalid settings: " + WebConstants.REQUEST_LOG_REQUEST_HEADERS);
+    }
+  }
 }

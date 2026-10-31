@@ -242,7 +242,7 @@ Some modules also let you switch off one part:
 
 | Property | Turns off |
 | --- | --- |
-| `stratum.web.request-logging.enabled=false` | Only the per-request log line |
+| `stratum.web.request-log.enabled=false` | Only the per-request log line |
 | `management.tracing.export.enabled=false` | Only sending traces, with Spring Boot's own switch; metrics and health stay |
 
 ## Advanced: exclude one auto-configuration class

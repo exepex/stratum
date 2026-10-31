@@ -15,3 +15,10 @@ stratum:
       request-client-hints: true
     request-fields:
       max-value-length: 256
+    request-log:
+      request-headers:
+        "[X-Tenant-Id]": tenantId
+      token-payload: true
+      token-claims:
+        - sub
+        - tenant
