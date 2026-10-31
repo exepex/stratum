@@ -3,6 +3,12 @@ package com.exepex.stratum.webflux.it;
 import com.exepex.stratum.test.StarterTestSupport;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebErrorCode;
+import java.io.ByteArrayInputStream;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -10,6 +16,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 
 @SpringBootTest(
@@ -22,7 +30,9 @@ import org.springframework.http.MediaType;
       "stratum.observability.enabled=true",
       "management.tracing.sampling.probability=1.0",
       "management.tracing.export.enabled=false",
-      "management.otlp.metrics.export.enabled=false"
+      "management.otlp.metrics.export.enabled=false",
+      "spring.webflux.multipart.max-in-memory-size=1KB",
+      "spring.webflux.multipart.max-disk-usage-per-part=2KB"
     })
 @DisplayName("A reactive request whose body is larger than its limit is answered with 413")
 class RequestBodyLimitIntegrationTest {
@@ -31,6 +41,9 @@ class RequestBodyLimitIntegrationTest {
    * Whether the request declares its body's length: with {@code Content-Length}, then in chunks.
    */
   private static final List<Boolean> DECLARED_AND_STREAMED = List.of(true, false);
+
+  /** The boundary between the parts of a multipart upload. */
+  private static final String BOUNDARY = "stratum-upload";
 
   /** One kilobyte, the default limit. */
   private static final int KILOBYTE = 1024;
@@ -46,6 +59,9 @@ class RequestBodyLimitIntegrationTest {
 
   /** A body inside the 8KB limit of the import API's annotation. */
   private static final int WITHIN_ANNOTATION_LIMIT = 6 * KILOBYTE;
+
+  /** A form over the 256KB that Spring's form reader holds in memory by default. */
+  private static final int OVER_FORM_READER_LIMIT = 300 * KILOBYTE;
 
   /** The code a body over its limit is answered with. */
   private static final String TOO_LARGE = WebErrorCode.REQUEST_BODY_TOO_LARGE.getCode();
@@ -92,5 +108,55 @@ class RequestBodyLimitIntegrationTest {
         OVER_DEFAULT_LIMIT,
         true,
         TOO_LARGE);
+  }
+
+  @Test
+  @DisplayName("a chunked form over Spring's form reader limit gets SX-WEB-1008")
+  void chunkedFormOverReaderLimit() throws Exception {
+    StarterTestSupport.checkBodyRefused(
+        port,
+        "/forms",
+        MediaType.APPLICATION_FORM_URLENCODED_VALUE,
+        OVER_FORM_READER_LIMIT,
+        false,
+        TOO_LARGE);
+  }
+
+  @Test
+  @DisplayName("a chunked multipart upload over Spring's disk limit gets SX-WEB-1008")
+  void multipartOverDiskLimit() throws Exception {
+    var multipart =
+        ("--"
+                + BOUNDARY
+                + "\r\n"
+                + "Content-Disposition: form-data; name=\"file\"; filename=\"orders.csv\"\r\n"
+                + "Content-Type: text/plain\r\n\r\n"
+                + "x".repeat(OVER_ROUTE_LIMIT)
+                + "\r\n--"
+                + BOUNDARY
+                + "--\r\n")
+            .getBytes(StandardCharsets.US_ASCII);
+    var request =
+        HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/files"))
+            .header(HttpHeaders.CONTENT_TYPE, "multipart/form-data; boundary=" + BOUNDARY)
+            .POST(
+                HttpRequest.BodyPublishers.ofInputStream(() -> new ByteArrayInputStream(multipart)))
+            .build();
+
+    try (var client = HttpClient.newHttpClient()) {
+      var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+      StarterTestSupport.checkProblemDetails(
+          response, HttpStatus.CONTENT_TOO_LARGE.value(), TOO_LARGE);
+    }
+  }
+
+  @Test
+  @DisplayName("a buffer limit that is not the request body's, such as a downstream one, keeps 500")
+  void otherBufferLimitKeeps500() throws Exception {
+    var response = StarterTestSupport.getFromService(port, "/reports");
+
+    StarterTestSupport.checkProblemDetails(
+        response, HttpStatus.INTERNAL_SERVER_ERROR.value(), WebErrorCode.INTERNAL_ERROR.getCode());
   }
 }
