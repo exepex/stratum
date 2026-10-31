@@ -153,13 +153,15 @@ public class RequestFieldsReader implements AutoCloseable {
    */
   private String withDecodedNames(String rawQuery) {
     return Arrays.stream(rawQuery.split("&", -1))
-        .map(
-            parameter -> {
-              var nameEnd = parameter.indexOf('=');
-              var name = nameEnd < 0 ? parameter : parameter.substring(0, nameEnd);
-              return decodedName(name) + parameter.substring(name.length());
-            })
+        .map(this::withDecodedName)
         .collect(Collectors.joining("&"));
+  }
+
+  /** Returns one query parameter, such as {@code %74oken=x}, with its name decoded. */
+  private String withDecodedName(String parameter) {
+    var nameEnd = parameter.indexOf('=');
+    var name = nameEnd < 0 ? parameter : parameter.substring(0, nameEnd);
+    return decodedName(name) + parameter.substring(name.length());
   }
 
   /**

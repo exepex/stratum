@@ -2,8 +2,8 @@ package com.exepex.stratum.webmvc.it;
 
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.MDC;
 import org.springframework.boot.SpringBootConfiguration;
@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.context.request.async.DeferredResult;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
 
 /** A service whose endpoints return the logging context their log lines would carry. */
@@ -79,6 +80,9 @@ public class RequestFieldsApplication {
   @RestController
   static class FieldsController {
 
+    /** How long the asynchronous endpoint waits, so its first dispatch has ended by then. */
+    private static final long FIRST_DISPATCH_END_MILLIS = 300;
+
     /** Calls this service, as a request calls another service. */
     private final RestClient selfClient;
 
@@ -117,15 +121,19 @@ public class RequestFieldsApplication {
     }
 
     /**
-     * Finishes on another thread, so Spring MVC writes the response on a second, asynchronous
-     * dispatch, where {@link ResponseThreadFieldsAdvice} replaces the body.
+     * Finishes on another thread once the first dispatch has ended, so Spring MVC writes the
+     * response on a second, asynchronous dispatch, where {@link ResponseThreadFieldsAdvice}
+     * replaces the body.
      *
      * @param orderId the order's ID
      * @return an empty body, replaced by the advice
      */
     @GetMapping("/orders/{orderId}/response-thread-fields")
-    Callable<Map<String, String>> responseThreadFields(@PathVariable String orderId) {
-      return Map::of;
+    DeferredResult<Map<String, String>> responseThreadFields(@PathVariable String orderId) {
+      var result = new DeferredResult<Map<String, String>>();
+      CompletableFuture.delayedExecutor(FIRST_DISPATCH_END_MILLIS, TimeUnit.MILLISECONDS)
+          .execute(() -> result.setResult(Map.of()));
+      return result;
     }
 
     /**
