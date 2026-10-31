@@ -249,7 +249,9 @@ With `token-payload=true`, the line carries the payload of the caller's `Authori
 JWT, decoded, as `tokenPayload`. The token's header and signature are never written, and an
 encrypted token, or one that is not a JWT, writes nothing. Stratum does not verify the token here,
 so the payload is what the caller claims, not who the caller is. It is off by default because a
-payload can hold personal data, such as an email address; turn it on only if yours holds none.
+payload can hold personal data, such as an email address; turn it on only if yours holds none. The
+[logging starter](../../starters/stratum-starter-logging/README.md) masks the personal data and
+secrets it recognises in every field, this one included; without it, nothing is masked.
 
 In `application.properties`:
 

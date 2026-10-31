@@ -109,10 +109,11 @@ public final class RequestLogWriter {
     }
     var durationMillis = duration.toNanos() / NANOS_PER_MILLI;
     var fields = new LinkedHashMap<String, Object>();
-    fields.put(WebConstants.HTTP_STATUS, status);
-    fields.put(WebConstants.DURATION_MS, durationMillis);
     fields.putAll(headerFields(requestHeaderFields, requestHeaders));
     fields.putAll(headerFields(responseHeaderFields, responseHeaders));
+    // Last, so a header written under the same field name never replaces them.
+    fields.put(WebConstants.HTTP_STATUS, status);
+    fields.put(WebConstants.DURATION_MS, durationMillis);
     if (tokenPayload) {
       tokenPayloadOf(requestHeaders)
           .ifPresent(payload -> fields.put(WebConstants.TOKEN_PAYLOAD, payload));

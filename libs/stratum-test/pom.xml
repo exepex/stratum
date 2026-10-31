@@ -33,6 +33,11 @@
       <groupId>org.assertj</groupId>
       <artifactId>assertj-core</artifactId>
     </dependency>
+    <!-- Waits for a log line written on a server thread, in LogLineCapture. -->
+    <dependency>
+      <groupId>org.awaitility</groupId>
+      <artifactId>awaitility</artifactId>
+    </dependency>
     <!-- Reads the error bodies of the web starters in checkProblemDetails. -->
     <dependency>
       <groupId>com.jayway.jsonpath</groupId>

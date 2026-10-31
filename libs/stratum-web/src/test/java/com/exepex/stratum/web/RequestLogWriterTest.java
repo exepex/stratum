@@ -2,10 +2,8 @@ package com.exepex.stratum.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ch.qos.logback.classic.Logger;
-import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.read.ListAppender;
 import com.exepex.stratum.core.error.LoggingContextConstants;
+import com.exepex.stratum.test.LogLineCapture;
 import com.exepex.stratum.web.testsupport.WebTestData;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -13,13 +11,11 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.http.HttpHeaders;
 
@@ -39,13 +35,11 @@ class RequestLogWriterTest {
   private static final String PAYLOAD = "{\"sub\":\"order-service\",\"scope\":\"orders.read\"}";
 
   /** The request log lines the test's writer wrote. */
-  private final ListAppender<ILoggingEvent> lines = new ListAppender<>();
+  private final LogLineCapture lines = new LogLineCapture(WebConstants.REQUEST_LOG_LOGGER);
 
   /** Returns the key-value pairs of the only line written. */
   private Map<String, Object> onlyLineFields() {
-    assertThat(lines.list).hasSize(1);
-    return lines.list.getFirst().getKeyValuePairs().stream()
-        .collect(Collectors.toMap(pair -> pair.key, pair -> pair.value));
+    return lines.fieldsOf(lines.onlyLine());
   }
 
   /** Returns the request log settings a service gets when it sets nothing. */
@@ -71,7 +65,6 @@ class RequestLogWriterTest {
   @BeforeEach
   void captureLines() {
     lines.start();
-    ((Logger) LoggerFactory.getLogger(WebConstants.REQUEST_LOG_LOGGER)).addAppender(lines);
     MDC.put(LoggingContextConstants.HTTP_METHOD, "GET");
     MDC.put(LoggingContextConstants.HTTP_ROUTE, "/orders/{orderId}");
   }
@@ -79,7 +72,7 @@ class RequestLogWriterTest {
   /** Stops capturing and leaves no field behind. */
   @AfterEach
   void stopCapturing() {
-    ((Logger) LoggerFactory.getLogger(WebConstants.REQUEST_LOG_LOGGER)).detachAppender(lines);
+    lines.stop();
     MDC.clear();
   }
 
@@ -98,7 +91,7 @@ class RequestLogWriterTest {
 
       writer.write(OK, TOOK, headers, new HttpHeaders());
 
-      assertThat(lines.list.getFirst().getFormattedMessage())
+      assertThat(lines.onlyLine().getFormattedMessage())
           .isEqualTo("GET /orders/{orderId} answered 200 in 12 ms");
       assertThat(onlyLineFields())
           .containsExactlyInAnyOrderEntriesOf(
@@ -178,6 +171,21 @@ class RequestLogWriterTest {
     }
 
     @Test
+    @DisplayName("never lets a header replace the status or duration")
+    void headerNeverReplacesStatus() {
+      var headers = new HttpHeaders();
+      headers.set("X-Status", "204");
+
+      writer(
+              defaultRequestLog().toBuilder()
+                  .requestHeaders(Map.of("X-Status", WebConstants.HTTP_STATUS))
+                  .build())
+          .write(OK, TOOK, headers, new HttpHeaders());
+
+      assertThat(onlyLineFields()).containsEntry(WebConstants.HTTP_STATUS, OK);
+    }
+
+    @Test
     @DisplayName("with the token payload on, writes only a signed bearer token's payload")
     void writesTokenPayload() {
       var tokenPayloadOn = writer(defaultRequestLog().toBuilder().tokenPayload(true).build());
@@ -187,12 +195,13 @@ class RequestLogWriterTest {
       encrypted.set(HttpHeaders.AUTHORIZATION, "Bearer a.b.c.d.e");
 
       tokenPayloadOn.write(OK, TOOK, signed, new HttpHeaders());
-      var signedLine = onlyLineFields();
-      lines.list.clear();
       tokenPayloadOn.write(OK, TOOK, encrypted, new HttpHeaders());
 
-      assertThat(signedLine).containsEntry(WebConstants.TOKEN_PAYLOAD, PAYLOAD);
-      assertThat(onlyLineFields()).doesNotContainKey(WebConstants.TOKEN_PAYLOAD);
+      assertThat(lines.lines()).hasSize(2);
+      assertThat(lines.fieldsOf(lines.lines().getFirst()))
+          .containsEntry(WebConstants.TOKEN_PAYLOAD, PAYLOAD);
+      assertThat(lines.fieldsOf(lines.lines().getLast()))
+          .doesNotContainKey(WebConstants.TOKEN_PAYLOAD);
     }
 
     @Test
