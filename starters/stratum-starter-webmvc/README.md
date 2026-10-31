@@ -226,8 +226,9 @@ interrupts, such as the JDK's `HttpClient` or a socket on a virtual thread, stop
 gets `503`. A call that ignores interrupts, such as a database query waiting on its socket on a
 platform thread, runs on, and the caller gets your handler's answer; give each remote call a timeout
 of its own. For a `Callable` or `DeferredResult`, the limit ends when the handler method returns.
-The details, with `0` for no limit and the status, are in
-[Response timeouts](../../docs/modules/web-timeouts.md).
+An upload API answers only once it has read the whole body, so give it
+`@ResponseTimeout(0)` or a long limit; see [Uploads](../../docs/modules/web-timeouts.md#uploads).
+The details, with `0` for no limit and the status, are in [Response timeouts](../../docs/modules/web-timeouts.md).
 
 ## Map your codes to statuses
 

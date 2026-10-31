@@ -78,6 +78,23 @@ uses the routes and the default.
 So the limit of a request is, in order: its method's `@ResponseTimeout`, then the most specific
 route that matches its path, then the default.
 
+## Uploads
+
+An upload API usually answers only once it has read the whole request body, so a large upload,
+such as a file or a binary stream, can take longer than the default limit. Its response has not
+started yet, so it would be answered with `503`. Give each upload API its own limit, or none:
+
+```java
+@ResponseTimeout(0)
+@PostMapping("/documents")
+DocumentId upload(InputStream body) {
+  return documents.store(body);
+}
+```
+
+or by path, `stratum.web.timeout.routes[/uploads/**]=0`. A download, or any response that streams
+while it works, needs nothing: once its response has started, it is never cut off.
+
 ## Configure in Java
 
 As every setting, the limits can be set in a `WebPropertiesCustomizer`, and Java wins over the files:

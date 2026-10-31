@@ -208,7 +208,9 @@ Mono<Report> report(@PathVariable String reportId) {
 
 When the time is up, Stratum cancels the request's work, so reactive database and HTTP calls stop.
 Blocking work moved to another scheduler runs on to its end. A `TimeoutException` of your own, such
-as from `Mono.timeout`, is answered as the failure it is. The details, with `0` for no limit and the
+as from `Mono.timeout`, is answered as the failure it is. An upload API answers only once it has read the whole body, so give it
+`@ResponseTimeout(0)` or a long limit; see
+[Uploads](../../docs/modules/web-timeouts.md#uploads). The details, with `0` for no limit and the
 status, are in [Response timeouts](../../docs/modules/web-timeouts.md).
 
 ## Map your codes to statuses
