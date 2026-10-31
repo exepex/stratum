@@ -6,19 +6,31 @@ import static org.awaitility.Awaitility.await;
 import com.exepex.stratum.core.error.LoggingContextConstants;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.tracing.Tracer;
-import java.io.IOException;
 import java.util.Map;
 import java.util.function.Consumer;
 import org.jspecify.annotations.Nullable;
-import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.WebApplicationType;
-import org.springframework.boot.builder.SpringApplicationBuilder;
-import org.springframework.context.ConfigurableApplicationContext;
-import org.springframework.kafka.test.EmbeddedKafkaBroker;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.kafka.test.context.EmbeddedKafka;
+import org.springframework.test.annotation.DirtiesContext;
 
+@SpringBootTest(
+    classes = OrderEventsApplication.class,
+    properties = {
+      "spring.main.web-application-type=none",
+      "stratum.observability.enabled=true",
+      "management.tracing.sampling.probability=1.0",
+      // Spring Boot propagates trace headers only while span export is on. Nothing listens
+      // here, so the spans are dropped quietly.
+      "management.opentelemetry.tracing.export.otlp.endpoint=http://localhost:1/v1/traces",
+      "management.otlp.metrics.export.enabled=false",
+      "spring.kafka.bootstrap-servers=${spring.embedded.kafka.brokers}",
+      "spring.kafka.consumer.auto-offset-reset=earliest"
+    })
+// Closes the application after this class, so its tracing and threads never reach the next one.
+@DirtiesContext
 @EmbeddedKafka(topics = OrderEvents.DESTINATION)
 @DisplayName("Kafka and JMS messages in an application with the observability starter")
 class MessagingIntegrationTest {
@@ -32,32 +44,19 @@ class MessagingIntegrationTest {
   /** The MDC key in which Spring Boot puts the trace ID. */
   private static final String TRACE_ID = "traceId";
 
-  /** Receives the spans and metrics the application sends. */
-  @AutoClose private final CollectorStub collector = new CollectorStub();
+  /** Sends the order events and keeps what each receiver saw. */
+  @Autowired private OrderEvents orderEvents;
 
-  /**
-   * Starts the collector stub for one test.
-   *
-   * @throws IOException if no local port is free
-   */
-  MessagingIntegrationTest() throws IOException {}
+  /** Starts and ends spans. */
+  @Autowired private Tracer tracer;
 
-  /** Starts the test application with the module on and Kafka at the embedded broker. */
-  private ConfigurableApplicationContext start(EmbeddedKafkaBroker kafkaBroker) {
-    return new SpringApplicationBuilder(OrderEventsApplication.class)
-        .web(WebApplicationType.NONE)
-        .run(
-            collector.withExportsSentHere(
-                "--stratum.observability.enabled=true",
-                "--spring.kafka.bootstrap-servers=" + kafkaBroker.getBrokersAsString(),
-                "--spring.kafka.consumer.auto-offset-reset=earliest"));
-  }
+  /** Holds the timers of the senders and receivers. */
+  @Autowired private MeterRegistry meterRegistry;
 
   /**
    * Sends an event inside a span whose baggage holds the correlation ID, and returns the trace ID.
    */
-  private String sendInTrace(ConfigurableApplicationContext context, Consumer<String> sender) {
-    var tracer = context.getBean(Tracer.class);
+  private String sendInTrace(Consumer<String> sender) {
     var span = tracer.nextSpan().name("place-order").start();
     try (var _ = tracer.withSpan(span);
         var _ =
@@ -82,8 +81,7 @@ class MessagingIntegrationTest {
    * Waits until the timers with these names each recorded one duration; a receiver's timer stops
    * just after the event is handled.
    */
-  private void assertTimedOnce(ConfigurableApplicationContext context, String... timerNames) {
-    var meterRegistry = context.getBean(MeterRegistry.class);
+  private void assertTimedOnce(String... timerNames) {
     await()
         .untilAsserted(
             () ->
@@ -95,27 +93,19 @@ class MessagingIntegrationTest {
 
   @Test
   @DisplayName("a Kafka consumer joins the sender's trace, logs its correlation ID and is timed")
-  void kafkaMessageCarriesTraceAndCorrelationId(EmbeddedKafkaBroker kafkaBroker)
-      throws InterruptedException {
-    try (var context = start(kafkaBroker)) {
-      var orderEvents = context.getBean(OrderEvents.class);
-      var traceId = sendInTrace(context, orderEvents::sendToKafka);
+  void kafkaMessageCarriesTraceAndCorrelationId() throws InterruptedException {
+    var traceId = sendInTrace(orderEvents::sendToKafka);
 
-      assertReceivedInSameTrace(orderEvents.nextReceivedLoggingContext(), traceId);
-      assertTimedOnce(context, "spring.kafka.template", "spring.kafka.listener");
-    }
+    assertReceivedInSameTrace(orderEvents.nextReceivedLoggingContext(), traceId);
+    assertTimedOnce("spring.kafka.template", "spring.kafka.listener");
   }
 
   @Test
   @DisplayName("a JMS consumer joins the sender's trace, logs its correlation ID and is timed")
-  void jmsMessageCarriesTraceAndCorrelationId(EmbeddedKafkaBroker kafkaBroker)
-      throws InterruptedException {
-    try (var context = start(kafkaBroker)) {
-      var orderEvents = context.getBean(OrderEvents.class);
-      var traceId = sendInTrace(context, orderEvents::sendToJms);
+  void jmsMessageCarriesTraceAndCorrelationId() throws InterruptedException {
+    var traceId = sendInTrace(orderEvents::sendToJms);
 
-      assertReceivedInSameTrace(orderEvents.nextReceivedLoggingContext(), traceId);
-      assertTimedOnce(context, "jms.message.publish", "jms.message.process");
-    }
+    assertReceivedInSameTrace(orderEvents.nextReceivedLoggingContext(), traceId);
+    assertTimedOnce("jms.message.publish", "jms.message.process");
   }
 }

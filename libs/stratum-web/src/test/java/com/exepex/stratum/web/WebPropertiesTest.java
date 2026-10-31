@@ -3,10 +3,10 @@ package com.exepex.stratum.web;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
+import com.exepex.stratum.test.OrderErrorCode;
 import com.exepex.stratum.test.StarterTestSupport;
 import com.exepex.stratum.web.testsupport.EdgeServiceWebSettings;
 import com.exepex.stratum.web.testsupport.GoneOrderWebSettings;
-import com.exepex.stratum.web.testsupport.OrderErrorCode;
 import jakarta.validation.ConstraintViolationException;
 import java.io.IOException;
 import java.nio.file.Path;

@@ -24,13 +24,18 @@ import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
-import org.springframework.boot.WebApplicationType;
-import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.restclient.RestTemplateBuilder;
-import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.core.task.AsyncTaskExecutor;
+import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
@@ -70,29 +75,17 @@ class ReactiveAndBlockingCodeIntegrationTest {
 
   private static final String BLOCKING_WEB_CLIENT_PATH = "/downstream/blocking-web-client";
 
-  /** Receives the spans, and stands in for the downstream service. */
-  @AutoClose private final CollectorStub collectorAndDownstream = new CollectorStub();
-
-  /** Sends requests to the reactive service, as its caller. */
-  private final HttpClient caller = HttpClient.newHttpClient();
+  /** Stands in for the downstream service and keeps the trace headers it receives. */
+  @AutoClose private static final CollectorStub DOWNSTREAM = new CollectorStub();
 
   /**
-   * Starts the stub for one test.
+   * Points the reactive handler's WebClient at the downstream stub.
    *
-   * @throws IOException if no local port is free
+   * @param registry the test's properties
    */
-  ReactiveAndBlockingCodeIntegrationTest() throws IOException {}
-
-  /** Starts an application with the module on, every span kept, and the given web type. */
-  private ConfigurableApplicationContext startApplication(
-      Class<?> application, WebApplicationType webApplicationType) {
-    return new SpringApplicationBuilder(application)
-        .web(webApplicationType)
-        .run(
-            collectorAndDownstream.withExportsSentHere(
-                "--stratum.observability.enabled=true",
-                "--server.port=0",
-                "--orders.downstream-url=" + collectorAndDownstream.url(REACTIVE_WEB_CLIENT_PATH)));
+  @DynamicPropertySource
+  static void callDownstreamStub(DynamicPropertyRegistry registry) {
+    registry.add("orders.downstream-url", () -> DOWNSTREAM.url(REACTIVE_WEB_CLIENT_PATH));
   }
 
   /**
@@ -131,77 +124,97 @@ class ReactiveAndBlockingCodeIntegrationTest {
     }
   }
 
-  /** Builds a request to the reactive handler for an order, without trace headers. */
-  private HttpRequest.Builder reactiveHandlerRequest(
-      ConfigurableApplicationContext context, String orderNumber) {
-    var port = context.getEnvironment().getProperty("local.server.port");
-    return HttpRequest.newBuilder(
-        URI.create(
-            "http://localhost:"
-                + port
-                + ReactiveOrdersApplication.PLACE_ORDER_PATH
-                + "?"
-                + ReactiveOrdersApplication.ORDER_NUMBER_PARAMETER
-                + "="
-                + orderNumber));
-  }
+  @Nested
+  @SpringBootTest(
+      classes = ReactiveOrdersApplication.class,
+      webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+      properties = {
+        "stratum.observability.enabled=true",
+        "management.tracing.sampling.probability=1.0",
+        // Spring Boot propagates trace headers only while span export is on. Nothing listens
+        // here, so the spans are dropped quietly.
+        "management.opentelemetry.tracing.export.otlp.endpoint=http://localhost:1/v1/traces",
+        "management.otlp.metrics.export.enabled=false"
+      })
+  // Closes the application after these tests, so its tracing and threads never reach the next.
+  @DirtiesContext
+  @DisplayName("in a WebFlux service")
+  class ReactiveService {
 
-  /** Builds a request to the reactive handler for an order, with the caller's trace headers. */
-  private HttpRequest requestWithCallerTrace(
-      ConfigurableApplicationContext context, String orderNumber, CallerTrace callerTrace) {
-    return reactiveHandlerRequest(context, orderNumber)
-        .header(CollectorStub.TRACEPARENT_HEADER, callerTrace.traceparent())
-        .header(CollectorStub.BAGGAGE_HEADER, callerTrace.baggage())
-        .build();
-  }
+    /** The port the service listens on. */
+    @LocalServerPort private int port;
 
-  /** Sends one request and checks that the handler answered with the order number. */
-  private void send(HttpRequest request, String orderNumber)
-      throws IOException, InterruptedException {
-    var response = caller.send(request, HttpResponse.BodyHandlers.ofString());
-    assertThat(response.body()).isEqualTo(orderNumber);
-  }
+    /** The handler, which keeps what the logging context held at each step. */
+    @Autowired private ReactiveOrdersController controller;
 
-  /**
-   * Checks that every place in an order's request, and its downstream call, had the caller's IDs.
-   */
-  private void assertOrderKeptCallerTrace(
-      ReactiveOrdersController controller, String orderNumber, CallerTrace callerTrace) {
-    assertThat(List.of(PlaceInReactiveCode.values()))
-        .allSatisfy(
-            place ->
-                assertThat(controller.loggingContextAt(orderNumber, place))
-                    .as("%s in %s", place, orderNumber)
-                    .isEqualTo(callerTrace.expectedLoggingContext()));
-    var downstreamPath = REACTIVE_WEB_CLIENT_PATH + "/" + orderNumber;
-    assertThat(collectorAndDownstream.traceparentHeaderReceivedOn(downstreamPath))
-        .hasValueSatisfying(traceparent -> assertThat(traceparent).contains(callerTrace.traceId()));
-    assertThat(collectorAndDownstream.baggageHeaderReceivedOn(downstreamPath))
-        .hasValueSatisfying(baggage -> assertThat(baggage).contains(callerTrace.baggage()));
-  }
+    /** Spring Boot's task executor, which also runs {@code @Async} methods. */
+    @Autowired
+    @Qualifier("applicationTaskExecutor")
+    private AsyncTaskExecutor applicationTaskExecutor;
 
-  @Test
-  @DisplayName(
-      "a WebFlux handler, a map after a thread change, blocking work on Spring's executor and the"
-          + " WebClient call keep the caller's trace and correlation ID")
-  void reactiveHandlerKeepsCallerTrace() throws IOException, InterruptedException {
-    try (var context =
-        startApplication(ReactiveOrdersApplication.class, WebApplicationType.REACTIVE)) {
-      send(
-          requestWithCallerTrace(context, ORDER_WITH_CALLER_TRACE, CALLER_TRACE),
-          ORDER_WITH_CALLER_TRACE);
+    /** Sends requests to the reactive service, as its caller. */
+    private final HttpClient caller = HttpClient.newHttpClient();
 
-      assertOrderKeptCallerTrace(
-          context.getBean(ReactiveOrdersController.class), ORDER_WITH_CALLER_TRACE, CALLER_TRACE);
+    /** Builds a request to the reactive handler for an order, without trace headers. */
+    private HttpRequest.Builder reactiveHandlerRequest(String orderNumber) {
+      return HttpRequest.newBuilder(
+          URI.create(
+              "http://localhost:"
+                  + port
+                  + ReactiveOrdersApplication.PLACE_ORDER_PATH
+                  + "?"
+                  + ReactiveOrdersApplication.ORDER_NUMBER_PARAMETER
+                  + "="
+                  + orderNumber));
     }
-  }
 
-  @Test
-  @DisplayName(
-      "concurrent requests each see only their own IDs at every step, and idle threads keep none")
-  void concurrentRequestsSeeOnlyTheirOwnIds() throws InterruptedException, ExecutionException {
-    try (var context =
-        startApplication(ReactiveOrdersApplication.class, WebApplicationType.REACTIVE)) {
+    /** Builds a request to the reactive handler for an order, with the caller's trace headers. */
+    private HttpRequest requestWithCallerTrace(String orderNumber, CallerTrace callerTrace) {
+      return reactiveHandlerRequest(orderNumber)
+          .header(CollectorStub.TRACEPARENT_HEADER, callerTrace.traceparent())
+          .header(CollectorStub.BAGGAGE_HEADER, callerTrace.baggage())
+          .build();
+    }
+
+    /** Sends one request and checks that the handler answered with the order number. */
+    private void send(HttpRequest request, String orderNumber)
+        throws IOException, InterruptedException {
+      var response = caller.send(request, HttpResponse.BodyHandlers.ofString());
+      assertThat(response.body()).isEqualTo(orderNumber);
+    }
+
+    /**
+     * Checks that every place in an order's request, and its downstream call, had the caller's IDs.
+     */
+    private void assertOrderKeptCallerTrace(String orderNumber, CallerTrace callerTrace) {
+      assertThat(List.of(PlaceInReactiveCode.values()))
+          .allSatisfy(
+              place ->
+                  assertThat(controller.loggingContextAt(orderNumber, place))
+                      .as("%s in %s", place, orderNumber)
+                      .isEqualTo(callerTrace.expectedLoggingContext()));
+      var downstreamPath = REACTIVE_WEB_CLIENT_PATH + "/" + orderNumber;
+      assertThat(DOWNSTREAM.traceparentHeaderReceivedOn(downstreamPath))
+          .hasValueSatisfying(
+              traceparent -> assertThat(traceparent).contains(callerTrace.traceId()));
+      assertThat(DOWNSTREAM.baggageHeaderReceivedOn(downstreamPath))
+          .hasValueSatisfying(baggage -> assertThat(baggage).contains(callerTrace.baggage()));
+    }
+
+    @Test
+    @DisplayName(
+        "a WebFlux handler, a map after a thread change, blocking work on Spring's executor and the"
+            + " WebClient call keep the caller's trace and correlation ID")
+    void reactiveHandlerKeepsCallerTrace() throws IOException, InterruptedException {
+      send(requestWithCallerTrace(ORDER_WITH_CALLER_TRACE, CALLER_TRACE), ORDER_WITH_CALLER_TRACE);
+
+      assertOrderKeptCallerTrace(ORDER_WITH_CALLER_TRACE, CALLER_TRACE);
+    }
+
+    @Test
+    @DisplayName(
+        "concurrent requests each see only their own IDs at every step, and idle threads keep none")
+    void concurrentRequestsSeeOnlyTheirOwnIds() throws InterruptedException, ExecutionException {
       var callerTraceByOrderNumber =
           IntStream.range(0, CONCURRENT_REQUESTS)
               .boxed()
@@ -217,137 +230,152 @@ class ReactiveAndBlockingCodeIntegrationTest {
                   .map(
                       order ->
                           caller.sendAsync(
-                              requestWithCallerTrace(context, order.getKey(), order.getValue()),
+                              requestWithCallerTrace(order.getKey(), order.getValue()),
                               HttpResponse.BodyHandlers.ofString()))
                   .toArray(CompletableFuture[]::new))
           .get();
 
-      var controller = context.getBean(ReactiveOrdersController.class);
-      callerTraceByOrderNumber.forEach(
-          (orderNumber, callerTrace) ->
-              assertOrderKeptCallerTrace(controller, orderNumber, callerTrace));
-      assertIdleThreadsHoldNoIds(
-          context.getBean("applicationTaskExecutor", AsyncTaskExecutor.class));
+      callerTraceByOrderNumber.forEach(this::assertOrderKeptCallerTrace);
+      assertIdleThreadsHoldNoIds();
     }
-  }
 
-  /** Checks that tasks run later on Reactor's schedulers and Spring's executor see no IDs. */
-  private void assertIdleThreadsHoldNoIds(AsyncTaskExecutor applicationTaskExecutor) {
-    var idsSeenOnReactorSchedulers =
-        Flux.range(0, TASKS_PER_IDLE_POOL)
-            .flatMap(
-                _ ->
-                    Flux.just(Schedulers.parallel(), Schedulers.boundedElastic())
-                        .flatMap(
-                            scheduler ->
-                                Mono.fromCallable(this::idsInLoggingContext)
-                                    .subscribeOn(scheduler)))
-            .collectList()
-            .block();
-    var idsSeenOnSpringExecutor =
-        IntStream.range(0, TASKS_PER_IDLE_POOL)
-            .mapToObj(_ -> applicationTaskExecutor.submitCompletable(this::idsInLoggingContext))
-            .toList()
-            .stream()
-            .map(CompletableFuture::join)
-            .toList();
+    /** Checks that tasks run later on Reactor's schedulers and Spring's executor see no IDs. */
+    private void assertIdleThreadsHoldNoIds() {
+      var idsSeenOnReactorSchedulers =
+          Flux.range(0, TASKS_PER_IDLE_POOL)
+              .flatMap(
+                  _ ->
+                      Flux.just(Schedulers.parallel(), Schedulers.boundedElastic())
+                          .flatMap(
+                              scheduler ->
+                                  Mono.fromCallable(this::idsInLoggingContext)
+                                      .subscribeOn(scheduler)))
+              .collectList()
+              .block();
+      var idsSeenOnSpringExecutor =
+          IntStream.range(0, TASKS_PER_IDLE_POOL)
+              .mapToObj(_ -> applicationTaskExecutor.submitCompletable(this::idsInLoggingContext))
+              .toList()
+              .stream()
+              .map(CompletableFuture::join)
+              .toList();
 
-    assertThat(idsSeenOnReactorSchedulers)
-        .hasSize(2 * TASKS_PER_IDLE_POOL)
-        .allSatisfy(ids -> assertThat(ids).isEmpty());
-    assertThat(idsSeenOnSpringExecutor)
-        .hasSize(TASKS_PER_IDLE_POOL)
-        .allSatisfy(ids -> assertThat(ids).isEmpty());
-  }
+      assertThat(idsSeenOnReactorSchedulers)
+          .hasSize(2 * TASKS_PER_IDLE_POOL)
+          .allSatisfy(ids -> assertThat(ids).isEmpty());
+      assertThat(idsSeenOnSpringExecutor)
+          .hasSize(TASKS_PER_IDLE_POOL)
+          .allSatisfy(ids -> assertThat(ids).isEmpty());
+    }
 
-  /** Returns the trace and correlation IDs the logging context holds on this thread. */
-  private List<String> idsInLoggingContext() {
-    return Stream.of(LoggingContextConstants.TRACE_ID, LoggingContextConstants.CORRELATION_ID)
-        .map(MDC::get)
-        .filter(Objects::nonNull)
-        .toList();
-  }
+    /** Returns the trace and correlation IDs the logging context holds on this thread. */
+    private List<String> idsInLoggingContext() {
+      return Stream.of(LoggingContextConstants.TRACE_ID, LoggingContextConstants.CORRELATION_ID)
+          .map(MDC::get)
+          .filter(Objects::nonNull)
+          .toList();
+    }
 
-  @Test
-  @DisplayName("a request without a caller's trace gets its own IDs, never the previous request's")
-  void nextRequestDoesNotSeePreviousRequestIds() throws IOException, InterruptedException {
-    try (var context =
-        startApplication(ReactiveOrdersApplication.class, WebApplicationType.REACTIVE)) {
-      send(
-          requestWithCallerTrace(context, ORDER_WITH_CALLER_TRACE, CALLER_TRACE),
-          ORDER_WITH_CALLER_TRACE);
-      send(
-          reactiveHandlerRequest(context, ORDER_WITHOUT_CALLER_TRACE).build(),
-          ORDER_WITHOUT_CALLER_TRACE);
-      var controller = context.getBean(ReactiveOrdersController.class);
+    @Test
+    @DisplayName(
+        "a request without a caller's trace gets its own IDs, never the previous request's")
+    void nextRequestDoesNotSeePreviousRequestIds() throws IOException, InterruptedException {
+      send(requestWithCallerTrace(ORDER_WITH_CALLER_TRACE, CALLER_TRACE), ORDER_WITH_CALLER_TRACE);
+      send(reactiveHandlerRequest(ORDER_WITHOUT_CALLER_TRACE).build(), ORDER_WITHOUT_CALLER_TRACE);
 
       assertThat(List.of(PlaceInReactiveCode.values()))
           .map(place -> controller.loggingContextAt(ORDER_WITHOUT_CALLER_TRACE, place))
           .allSatisfy(this::assertOwnTraceIsTheCorrelationId);
     }
-  }
 
-  /** Checks that a request with no caller's trace saw its own trace ID as its correlation ID. */
-  private void assertOwnTraceIsTheCorrelationId(@Nullable LoggingContextSeen loggingContext) {
-    assertThat(loggingContext)
-        .isNotNull()
-        .satisfies(seen -> assertThat(seen.correlationId()).isEqualTo(seen.traceId()))
-        .extracting(LoggingContextSeen::traceId)
-        .isNotNull()
-        .isNotEqualTo(CALLER_TRACE.traceId());
-  }
-
-  @Test
-  @DisplayName(
-      "RestClient, RestTemplate and WebClient in blocking code send the same trace headers")
-  void blockingClientsSendSameTraceHeaders() {
-    try (var context = startApplication(OrdersApplication.class, WebApplicationType.NONE)) {
-      var tracer = context.getBean(Tracer.class);
-      Observation.createNotStarted("place-order", context.getBean(ObservationRegistry.class))
-          .observe(() -> callEveryClientWithCorrelationId(context, tracer));
-    }
-
-    assertThat(
-            List.of(
-                BLOCKING_REST_CLIENT_PATH, BLOCKING_REST_TEMPLATE_PATH, BLOCKING_WEB_CLIENT_PATH))
-        .allSatisfy(this::assertTraceHeadersReceived);
-  }
-
-  /** Calls the downstream service with each of Spring's clients, with a correlation ID set. */
-  private void callEveryClientWithCorrelationId(
-      ConfigurableApplicationContext context, Tracer tracer) {
-    try (var _ =
-        tracer.createBaggageInScope(
-            LoggingContextConstants.CORRELATION_ID, CALLER_TRACE.correlationId())) {
-      context
-          .getBean(RestClient.Builder.class)
-          .build()
-          .get()
-          .uri(collectorAndDownstream.url(BLOCKING_REST_CLIENT_PATH))
-          .retrieve()
-          .toBodilessEntity();
-      context
-          .getBean(RestTemplateBuilder.class)
-          .build()
-          .getForEntity(collectorAndDownstream.url(BLOCKING_REST_TEMPLATE_PATH), Void.class);
-      context
-          .getBean(WebClient.Builder.class)
-          .build()
-          .get()
-          .uri(collectorAndDownstream.url(BLOCKING_WEB_CLIENT_PATH))
-          .retrieve()
-          .toBodilessEntity()
-          .block();
+    /** Checks that a request with no caller's trace saw its own trace ID as its correlation ID. */
+    private void assertOwnTraceIsTheCorrelationId(@Nullable LoggingContextSeen loggingContext) {
+      assertThat(loggingContext)
+          .isNotNull()
+          .satisfies(seen -> assertThat(seen.correlationId()).isEqualTo(seen.traceId()))
+          .extracting(LoggingContextSeen::traceId)
+          .isNotNull()
+          .isNotEqualTo(CALLER_TRACE.traceId());
     }
   }
 
-  /** Checks that a downstream path received a trace header and the correlation ID in baggage. */
-  private void assertTraceHeadersReceived(String downstreamPath) {
-    assertThat(collectorAndDownstream.traceparentHeaderReceivedOn(downstreamPath))
-        .as("traceparent on %s", downstreamPath)
-        .isPresent();
-    assertThat(collectorAndDownstream.baggageHeaderReceivedOn(downstreamPath))
-        .as("baggage on %s", downstreamPath)
-        .hasValueSatisfying(baggage -> assertThat(baggage).contains(CALLER_BAGGAGE));
+  @Nested
+  @SpringBootTest(
+      classes = OrdersApplication.class,
+      properties = {
+        "spring.main.web-application-type=none",
+        "stratum.observability.enabled=true",
+        "management.tracing.sampling.probability=1.0",
+        // Spring Boot propagates trace headers only while span export is on. Nothing listens
+        // here, so the spans are dropped quietly.
+        "management.opentelemetry.tracing.export.otlp.endpoint=http://localhost:1/v1/traces",
+        "management.otlp.metrics.export.enabled=false"
+      })
+  // Closes the application after these tests, so its tracing and threads never reach the next.
+  @DirtiesContext
+  @DisplayName("in blocking code")
+  class BlockingCode {
+
+    /** Starts and ends spans. */
+    @Autowired private Tracer tracer;
+
+    /** Starts observations, which Spring turns into spans. */
+    @Autowired private ObservationRegistry observationRegistry;
+
+    /** Spring Boot's RestClient builder, set up for tracing. */
+    @Autowired private RestClient.Builder restClientBuilder;
+
+    /** Spring Boot's RestTemplate builder, set up for tracing. */
+    @Autowired private RestTemplateBuilder restTemplateBuilder;
+
+    /** Spring Boot's WebClient builder, set up for tracing. */
+    @Autowired private WebClient.Builder webClientBuilder;
+
+    @Test
+    @DisplayName(
+        "RestClient, RestTemplate and WebClient in blocking code send the same trace headers")
+    void blockingClientsSendSameTraceHeaders() {
+      Observation.createNotStarted("place-order", observationRegistry)
+          .observe(this::callEveryClientWithCorrelationId);
+
+      assertThat(
+              List.of(
+                  BLOCKING_REST_CLIENT_PATH, BLOCKING_REST_TEMPLATE_PATH, BLOCKING_WEB_CLIENT_PATH))
+          .allSatisfy(this::assertTraceHeadersReceived);
+    }
+
+    /** Calls the downstream service with each of Spring's clients, with a correlation ID set. */
+    private void callEveryClientWithCorrelationId() {
+      try (var _ =
+          tracer.createBaggageInScope(
+              LoggingContextConstants.CORRELATION_ID, CALLER_TRACE.correlationId())) {
+        restClientBuilder
+            .build()
+            .get()
+            .uri(DOWNSTREAM.url(BLOCKING_REST_CLIENT_PATH))
+            .retrieve()
+            .toBodilessEntity();
+        restTemplateBuilder
+            .build()
+            .getForEntity(DOWNSTREAM.url(BLOCKING_REST_TEMPLATE_PATH), Void.class);
+        webClientBuilder
+            .build()
+            .get()
+            .uri(DOWNSTREAM.url(BLOCKING_WEB_CLIENT_PATH))
+            .retrieve()
+            .toBodilessEntity()
+            .block();
+      }
+    }
+
+    /** Checks that a downstream path received a trace header and the correlation ID in baggage. */
+    private void assertTraceHeadersReceived(String downstreamPath) {
+      assertThat(DOWNSTREAM.traceparentHeaderReceivedOn(downstreamPath))
+          .as("traceparent on %s", downstreamPath)
+          .isPresent();
+      assertThat(DOWNSTREAM.baggageHeaderReceivedOn(downstreamPath))
+          .as("baggage on %s", downstreamPath)
+          .hasValueSatisfying(baggage -> assertThat(baggage).contains(CALLER_BAGGAGE));
+    }
   }
 }

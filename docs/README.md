@@ -68,7 +68,7 @@ Each module page follows the same layout so you always know where to look:
 | [Migrating a service](guides/migrating-a-service.md) | Moving an existing Spring Boot service onto Stratum, one concern at a time. |
 | [Versioning and upgrades](guides/upgrading.md) | How Stratum versions work, what an upgrade involves, the compatibility table. |
 | [Using Stratum with a company framework](guides/company-framework.md) | Keeping your company's parent and framework, which bean wins, turning off overlapping modules, forking Stratum under the company parent. |
-| [Log fields across threads](guides/context-across-threads.md) | Which log fields follow a request to `@Async` methods, executors, event listeners and Reactor, and what your own threads need. |
+| [Log fields across threads](guides/context-across-threads.md) | Which log fields follow a request to `@Async` methods, executors, event listeners, Reactor and virtual threads, and what your own threads need. |
 | [Linking work that runs later](guides/linking-later-work.md) | When a job's trace and correlation ID should link to the API request that caused it, and how to link work a request saves for later. |
 | [Architecture](guides/architecture.md) | How Stratum is built inside: repository layout, how defaults are applied, module rules. |
 | [Error and warning codes](guides/error-codes.md) | What Stratum's codes look like, the internal and external error objects, using codes in your service, and every code with its fix. |

@@ -13,49 +13,36 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Map;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.builder.SpringApplicationBuilder;
-import org.springframework.boot.web.server.context.WebServerApplicationContext;
-import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 
+@SpringBootTest(
+    classes = OrdersApplication.class,
+    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+    properties = {
+      "stratum.web.enabled=true",
+      "stratum.web.error.statuses.ORD-0001=409",
+      "stratum.observability.enabled=true",
+      "management.tracing.sampling.probability=1.0",
+      "management.tracing.export.enabled=false",
+      "management.otlp.metrics.export.enabled=false"
+    })
 @DisplayName("A Spring MVC service with the web module on answers every error the same way")
 class ErrorResponsesIntegrationTest {
 
   /** The member of the error body that holds the trace ID. */
   private static final String TRACE_ID_PATH = "$." + LoggingContextConstants.TRACE_ID;
 
-  /** The running service. */
-  private static ConfigurableApplicationContext service;
-
   /** Calls the service. */
   private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
 
-  /** Starts the service on a free port, with tracing on and nothing exported. */
-  @BeforeAll
-  static void startService() {
-    service =
-        new SpringApplicationBuilder(OrdersApplication.class)
-            .run(
-                "--server.port=0",
-                "--" + WebConstants.ENABLED + "=true",
-                "--" + WebConstants.ERROR_STATUSES + ".ORD-0001=409",
-                "--stratum.observability.enabled=true",
-                "--management.tracing.sampling.probability=1.0",
-                "--management.tracing.export.enabled=false",
-                "--management.otlp.metrics.export.enabled=false");
-  }
-
-  /** Stops the service. */
-  @AfterAll
-  static void stopService() {
-    service.close();
-  }
+  /** The port the service listens on. */
+  @LocalServerPort private int port;
 
   @Test
   @DisplayName(
@@ -240,7 +227,6 @@ class ErrorResponsesIntegrationTest {
 
   /** Returns the address of a path on the service. */
   private URI uri(String path) {
-    var port = ((WebServerApplicationContext) service).getWebServer().getPort();
     return URI.create("http://localhost:" + port + path);
   }
 }
