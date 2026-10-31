@@ -76,7 +76,7 @@ Every feature works the same on both stacks.
 
 Response times and error counts per API come from the
 [observability starter](../../starters/stratum-starter-observability/README.md), which records
-every request already.
+every request already; [SLA dashboards](#sla-dashboards) shows how to chart them.
 
 ### The error format
 
@@ -289,6 +289,87 @@ stratum:
         - azp
         - tenant
 ```
+
+## SLA dashboards
+
+Response times and error rates per API need nothing from this module. The
+[observability starter](../../starters/stratum-starter-observability/README.md#timings) already
+records every request in the `http.server.requests` timer, as a histogram, so your metrics backend
+can work out any percentile. The timer has these tags:
+
+| Tag | Holds | Example |
+| --- | --- | --- |
+| `method` | The HTTP method | `GET` |
+| `uri` | The route template, never the real path | `/orders/{orderId}` |
+| `status` | The response status | `503` |
+| `outcome` | The status class, such as `SUCCESS`, `CLIENT_ERROR` or `SERVER_ERROR` | `SERVER_ERROR` |
+| `application`, `environment`, `host` | The service, its environment and the pod, added by the observability starter | `orders`, `prod`, `orders-7d9f-x2k` |
+
+Any dashboard tool builds the usual SLA panels from it:
+
+| Panel | Filter | Group by | Calculation |
+| --- | --- | --- | --- |
+| Requests per second | `application` | `method`, `uri` | Rate of the count |
+| Error rate | `application` | `method`, `uri` | Rate of the count with `outcome=SERVER_ERROR`, divided by the rate of all |
+| P99 response time, all pods | `application` | `method`, `uri` | 99th percentile of the histograms of all pods added together |
+| P99 response time, one pod | `application`, `host` | `method`, `uri` | 99th percentile of that pod's histogram |
+| Availability over 30 days | `application` | none | 1 minus the share of requests with `outcome=SERVER_ERROR` |
+
+Leave out `uri` values under `/actuator` so health checks do not lift the numbers. A `4xx` answer
+is the caller's mistake, so most SLAs count only `SERVER_ERROR` as a failure.
+
+### PromQL examples
+
+These use the names Prometheus gives the timer when it scrapes the service, as set up in the
+observability starter's
+[Prometheus example](../../starters/stratum-starter-observability/README.md#examples). That example
+turns histograms off to keep the scrape small, so keep them for this one timer, or the P99 query
+finds no `_bucket` series:
+
+```properties
+management.metrics.distribution.percentiles-histogram.http.server.requests=true
+```
+
+```yaml
+management:
+  metrics:
+    distribution:
+      percentiles-histogram:
+        "[http.server.requests]": true
+```
+
+Through an OpenTelemetry Collector the names can differ; check them in your backend first.
+
+Requests per second, per API:
+
+```promql
+sum by (method, uri) (rate(http_server_requests_seconds_count{application="orders", uri!~"/actuator.*"}[5m]))
+```
+
+Error rate, per API:
+
+```promql
+  sum by (method, uri) (rate(http_server_requests_seconds_count{application="orders", outcome="SERVER_ERROR"}[5m]))
+/ sum by (method, uri) (rate(http_server_requests_seconds_count{application="orders"}[5m]))
+```
+
+P99 response time, per API, all pods together; add `host` to the `by` list to see each pod:
+
+```promql
+histogram_quantile(0.99, sum by (method, uri, le) (rate(http_server_requests_seconds_bucket{application="orders"}[5m])))
+```
+
+Availability over 30 days:
+
+```promql
+1 - (
+    sum(increase(http_server_requests_seconds_count{application="orders", outcome="SERVER_ERROR"}[30d]))
+  / sum(increase(http_server_requests_seconds_count{application="orders"}[30d]))
+)
+```
+
+To find the requests behind a bad number, search the [request log](#request-log) for the same
+route with `httpStatus` 500 or above, or with a large `durationMs`; each line carries the trace ID.
 
 ## Properties
 
