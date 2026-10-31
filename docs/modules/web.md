@@ -346,25 +346,30 @@ Requests per second, per API:
 sum by (method, uri) (rate(http_server_requests_seconds_count{application="orders", uri!~"/actuator.*"}[5m]))
 ```
 
-Error rate, per API:
+Error rate, per API. An API that has never failed has no `SERVER_ERROR` series, so the `or` part
+gives it 0 instead of leaving it off the panel:
 
 ```promql
-  sum by (method, uri) (rate(http_server_requests_seconds_count{application="orders", outcome="SERVER_ERROR"}[5m]))
-/ sum by (method, uri) (rate(http_server_requests_seconds_count{application="orders"}[5m]))
+  (
+      sum by (method, uri) (rate(http_server_requests_seconds_count{application="orders", uri!~"/actuator.*", outcome="SERVER_ERROR"}[5m]))
+    or
+      sum by (method, uri) (rate(http_server_requests_seconds_count{application="orders", uri!~"/actuator.*"}[5m])) * 0
+  )
+/ sum by (method, uri) (rate(http_server_requests_seconds_count{application="orders", uri!~"/actuator.*"}[5m]))
 ```
 
 P99 response time, per API, all pods together; add `host` to the `by` list to see each pod:
 
 ```promql
-histogram_quantile(0.99, sum by (method, uri, le) (rate(http_server_requests_seconds_bucket{application="orders"}[5m])))
+histogram_quantile(0.99, sum by (method, uri, le) (rate(http_server_requests_seconds_bucket{application="orders", uri!~"/actuator.*"}[5m])))
 ```
 
-Availability over 30 days:
+Availability over 30 days, where `or vector(0)` counts no failures as 0 failures:
 
 ```promql
 1 - (
-    sum(increase(http_server_requests_seconds_count{application="orders", outcome="SERVER_ERROR"}[30d]))
-  / sum(increase(http_server_requests_seconds_count{application="orders"}[30d]))
+    (sum(increase(http_server_requests_seconds_count{application="orders", uri!~"/actuator.*", outcome="SERVER_ERROR"}[30d])) or vector(0))
+  / sum(increase(http_server_requests_seconds_count{application="orders", uri!~"/actuator.*"}[30d]))
 )
 ```
 
