@@ -262,7 +262,7 @@ Every starter is off until its `stratum.<module>.enabled` property is `true`.
 
 | Starter | In one sentence | Property prefix |
 | --- | --- | --- |
-| [`stratum-starter-webmvc`](starters/stratum-starter-webmvc/README.md), [`stratum-starter-webflux`](starters/stratum-starter-webflux/README.md) | Spring MVC or WebFlux with one error format, request logs, correlation IDs and timeouts. | `stratum.web` |
+| [`stratum-starter-webmvc`](starters/stratum-starter-webmvc/README.md), [`stratum-starter-webflux`](starters/stratum-starter-webflux/README.md) | Spring MVC or WebFlux with one error format, request logs, correlation IDs, timeouts and body size limits. | `stratum.web` |
 | [`stratum-starter-logging`](starters/stratum-starter-logging/README.md) | Structured JSON logs with secrets and personal data redacted, and trace IDs with observability. | `stratum.logging` |
 | [`stratum-starter-observability`](starters/stratum-starter-observability/README.md) | Metrics, traces and health, sent over OTLP to an OpenTelemetry Collector. | `stratum.observability` |
 | [`stratum-starter-security`](docs/modules/security.md) | OAuth2 resource server: JWT validation, roles, public paths, CORS. | `stratum.security` |

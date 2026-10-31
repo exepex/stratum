@@ -14,6 +14,7 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.core.env.Environment;
+import org.springframework.util.unit.DataSize;
 
 /**
  * The settings of the web module, bound to {@code stratum.web.*} and then changed by the service's
@@ -28,6 +29,7 @@ import org.springframework.core.env.Environment;
  * @param requestFields The fields every log line of a request carries.
  * @param requestLog The one log line each request writes when it ends.
  * @param timeout How long a request may take before it is answered with the timeout status.
+ * @param bodyLimit How large a request's body may be before it is answered with 413.
  */
 @Builder(toBuilder = true)
 @ConfigurationProperties(prefix = WebConstants.PREFIX)
@@ -39,7 +41,8 @@ public record WebProperties(
     @DefaultValue ClientLocationSettings clientLocation,
     @DefaultValue @Valid RequestFieldsSettings requestFields,
     @DefaultValue @Valid RequestLogSettings requestLog,
-    @DefaultValue @Valid TimeoutSettings timeout) {
+    @DefaultValue @Valid TimeoutSettings timeout,
+    @DefaultValue BodyLimitSettings bodyLimit) {
 
   /**
    * Returns the settings the module uses: {@code stratum.web.*} with the defaults for anything
@@ -228,6 +231,27 @@ public record WebProperties(
 
     /** Keeps an unchangeable copy of the routes. */
     public TimeoutSettings {
+      routes = Map.copyOf(routes);
+    }
+  }
+
+  /**
+   * How large a request's body may be before the request is answered with 413 Content Too Large.
+   * The body is counted as it arrives, so a body that is too large is never held in memory. A
+   * method's {@code @RequestBodyLimit} wins over a route, and a route wins over the default.
+   *
+   * @param defaultLimit How large any request's body may be, such as 256KB or 20MB. 0 means no
+   *     limit. Defaults to 256KB.
+   * @param routes The limit of the bodies of the requests whose path matches a pattern, such as
+   *     /uploads/** to 20MB. When several patterns match, the most specific one wins. 0 means no
+   *     limit on those paths. Defaults to none.
+   */
+  @Builder(toBuilder = true)
+  public record BodyLimitSettings(
+      @DefaultValue("256KB") DataSize defaultLimit, @DefaultValue Map<String, DataSize> routes) {
+
+    /** Keeps an unchangeable copy of the routes. */
+    public BodyLimitSettings {
       routes = Map.copyOf(routes);
     }
   }

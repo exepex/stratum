@@ -1,11 +1,11 @@
 # WebFlux: `stratum-starter-webflux`
 
-**Status: Partly built.** Every error a reactive service sends is the same
+**Status: Built.** Every error a reactive service sends is the same
 [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457) JSON, with a code, the trace ID
 and the correlation ID, and never a stack trace or an exception message. Browsers get an HTML page
 with a reference to quote to support. Every log line of a request carries its method, route, path,
 client IP and correlation ID, and each request writes one log line when it is answered. A request
-that runs out of time is answered with `503`. The body size limit is [planned](#planned).
+that runs out of time is answered with `503`, and one whose body is too large with `413`.
 
 This page covers this starter only. The design both web starters share, and the Spring MVC starter,
 are in [Web](../../docs/modules/web.md). How Stratum works as a whole is in the
@@ -98,6 +98,7 @@ failure comes from a controller or a `WebFilter`.
 | Any other status, such as `405`, a `ResponseStatusException` or an exception annotated `@ResponseStatus` | that status | `SX-WEB-1004` |
 | Any other exception | `500` | `SX-WEB-1005`, with a fixed message |
 | A request whose response had not started within its [time limit](#timeouts) | `stratum.web.timeout.status`, `503` by default | `SX-WEB-1007` |
+| A request whose body is larger than its [limit](#body-size-limit) | `413` | `SX-WEB-1008` |
 
 The codes, with how to fix each, are in [Error and warning codes](../../docs/guides/error-codes.md#stratum-starter-webmvc-and-stratum-starter-webflux).
 
@@ -213,6 +214,45 @@ read the whole body, so give it `@ResponseTimeout(0)` or a long limit; see
 [Uploads](../../docs/modules/web-timeouts.md#uploads). The details, with `0` for no limit and the
 status, are in [Response timeouts](../../docs/modules/web-timeouts.md).
 
+## Body size limit
+
+Each request body may have 256KB, unless you set another limit. A larger body is answered with
+`413` and `SX-WEB-1008`, and the service logs a WARN line. A body sent without `Content-Length` is
+counted as it arrives and stopped at the limit, before it is held in memory. Raise the limit for
+uploads by path, in `application.properties`:
+
+```properties
+stratum.web.body-limit.routes[/uploads/**]=20MB
+```
+
+or in `application.yml`:
+
+```yaml
+stratum:
+  web:
+    body-limit:
+      routes:
+        "[/uploads/**]": 20MB
+```
+
+or for one API, with `@RequestBodyLimit`, in megabytes unless you set another unit:
+
+```java
+@RequestBodyLimit(20)
+@ResponseTimeout(0)
+@PostMapping("/documents")
+Mono<DocumentId> upload(@RequestBody Flux<DataBuffer> body) {
+  return documents.store(body);
+}
+```
+
+Spring's own limit of 256KB for a body decoded in memory, `spring.http.codecs.max-in-memory-size`,
+applies as well, so read a large upload as a `Flux<DataBuffer>`. Forms and multipart uploads are
+checked by their `Content-Length` only, and Spring Boot sets no limit on a multipart upload's disk use
+or parts, so a service that takes multipart uploads sets `spring.webflux.multipart.max-disk-usage-per-part`
+and `max-parts`. The details, with `0` for no limit, are in
+[Request body size limit](../../docs/modules/web-body-limit.md).
+
 ## Map your codes to statuses
 
 Throw a `StratumException` with your own [error code](../../docs/guides/error-codes.md#using-codes-in-your-service),
@@ -267,6 +307,8 @@ which names the property but not the code or the value.
 | `stratum.web.timeout.default-limit` | duration | `10s` | How long any request may take until its response starts. `0` means no limit. |
 | `stratum.web.timeout.routes` | map of path pattern to duration | empty | The limit of the requests whose path matches a pattern, such as `/reports/**`. |
 | `stratum.web.timeout.status` | HTTP status | `503` | The status a request that ran out of time is answered with. |
+| `stratum.web.body-limit.default-limit` | data size | `256KB` | How large any request's body may be. `0` means no limit. |
+| `stratum.web.body-limit.routes` | map of path pattern to data size | empty | The limit of the bodies of the requests whose path matches a pattern, such as `/uploads/**`. |
 
 These are the same keys as the Spring MVC starter's. Your IDE completes each and shows its
 description. The full list, with the allowed values, is in [Web](../../docs/modules/web.md#properties).
@@ -292,7 +334,8 @@ Each bean below is Stratum's only until you declare your own:
 | `RequestFieldsWebFilter` or `CorrelationIdWebFilter` | The filter that puts the request fields in the logging context, or the one that returns the correlation ID in the response header |
 | `RequestRouteListener` | What puts the matched route in the logging context before your handler runs |
 | `ResponseTimeouts` or `ResponseTimeoutWebFilter` | How each request's time limit is chosen, or the filter that answers a request that ran out of time and applies `@ResponseTimeout` |
-| `HandlerStartAdapter` | What tells the route listener and the timeout filter that your handler is about to run |
+| `RequestBodyLimits` or `RequestBodyLimitWebFilter` | How each request's body size limit is chosen, or the filter that counts the body, applies `@RequestBodyLimit` and checks `Content-Length` |
+| `HandlerStartAdapter` | What tells the route listener and the timeout and body limit filters that your handler is about to run |
 | `CorrelationIdBaggageDecorator` | What writes a caller's correlation ID into the request's baggage before tracing reads it |
 | `RequestLogWebFilter` or `RequestLogWriter` | The filter that writes each request's log line, or what the line holds |
 | `RequestFieldsReader`, `CorrelationIdChooser` or `RequestFieldsPropagation` | How the fields are read, how the correlation ID is chosen, or how the fields follow the request across threads |
@@ -309,14 +352,6 @@ service runs on plain Spring WebFlux, with Spring Boot's own error handling.
 Shutdown is graceful, as in Spring Boot (`server.shutdown=graceful`): requests already running get up
 to 30 seconds to finish. Stratum does not change it; set `spring.lifecycle.timeout-per-shutdown-phase`
 to change the wait.
-
-## Planned
-
-| Feature | What it adds |
-| --- | --- |
-| Body size limit | A request body larger than the limit is refused with `413` |
-
-The agreed design of each is in [Web](../../docs/modules/web.md).
 
 ## Troubleshooting
 

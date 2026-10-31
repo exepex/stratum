@@ -95,7 +95,8 @@ DocumentId upload(InputStream body) {
 ```
 
 or by path, `stratum.web.timeout.routes[/uploads/**]=0`. A download, or any response that streams
-while it works, needs nothing: once its response has started, it is never cut off.
+while it works, needs nothing: once its response has started, it is never cut off. An upload larger
+than 256KB also needs a larger [body size limit](web-body-limit.md#uploads-of-5-to-20-mb).
 
 ## Configure in Java
 

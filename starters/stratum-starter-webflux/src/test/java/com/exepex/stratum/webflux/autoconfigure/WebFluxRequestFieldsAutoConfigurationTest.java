@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.web.CorrelationIdChooser;
+import com.exepex.stratum.web.RequestBodyLimits;
 import com.exepex.stratum.web.RequestFieldsPropagation;
 import com.exepex.stratum.web.RequestFieldsReader;
 import com.exepex.stratum.web.RequestLogWriter;
@@ -13,6 +14,7 @@ import com.exepex.stratum.web.WebProperties;
 import com.exepex.stratum.webflux.CorrelationIdBaggageDecorator;
 import com.exepex.stratum.webflux.CorrelationIdWebFilter;
 import com.exepex.stratum.webflux.HandlerStartAdapter;
+import com.exepex.stratum.webflux.RequestBodyLimitWebFilter;
 import com.exepex.stratum.webflux.RequestFieldsWebFilter;
 import com.exepex.stratum.webflux.RequestLogWebFilter;
 import com.exepex.stratum.webflux.RequestRouteListener;
@@ -66,6 +68,8 @@ class WebFluxRequestFieldsAutoConfigurationTest {
                       .hasSingleBean(RequestRouteListener.class)
                       .hasSingleBean(ResponseTimeoutWebFilter.class)
                       .hasSingleBean(ResponseTimeouts.class)
+                      .hasSingleBean(RequestBodyLimitWebFilter.class)
+                      .hasSingleBean(RequestBodyLimits.class)
                       .hasSingleBean(CorrelationIdWebFilter.class)
                       .hasSingleBean(CorrelationIdBaggageDecorator.class)
                       .hasSingleBean(RequestLogWriter.class)
@@ -161,6 +165,24 @@ class WebFluxRequestFieldsAutoConfigurationTest {
                                 context.getBean(RequestLogWebFilter.class)))
                         .containsExactly(serviceWriter, serviceFilter));
       }
+    }
+
+    @Test
+    @DisplayName("the service's own body limits and body limit filter replace Stratum's")
+    void serviceBodyLimitBeansWin() {
+      var serviceLimits = new RequestBodyLimits(WebProperties.resolve(new MockEnvironment()));
+      var serviceFilter = new RequestBodyLimitWebFilter(serviceLimits);
+      contextRunner
+          .withPropertyValues(MODULE_ON)
+          .withBean(RequestBodyLimits.class, () -> serviceLimits)
+          .withBean(RequestBodyLimitWebFilter.class, () -> serviceFilter)
+          .run(
+              context ->
+                  assertThat(
+                          List.of(
+                              context.getBean(RequestBodyLimits.class),
+                              context.getBean(RequestBodyLimitWebFilter.class)))
+                      .containsExactly(serviceLimits, serviceFilter));
     }
 
     @Test

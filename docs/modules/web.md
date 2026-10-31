@@ -1,11 +1,11 @@
 # Web: `stratum-starter-webmvc` and `stratum-starter-webflux`
 
 **Status: Partly built.** Error responses, request fields in logs, the correlation ID, the request
-log and timeouts are built for both stacks; the error responses are described in the READMEs of
-[`stratum-starter-webmvc`](../../starters/stratum-starter-webmvc/README.md) and
+log, timeouts and the body size limit are built for both stacks; the error responses are described
+in the READMEs of [`stratum-starter-webmvc`](../../starters/stratum-starter-webmvc/README.md) and
 [`stratum-starter-webflux`](../../starters/stratum-starter-webflux/README.md), timeouts in
-[Response timeouts](web-timeouts.md), and the rest on this page. The body size limit is the agreed
-design and not built yet.
+[Response timeouts](web-timeouts.md), the body size limit in
+[Request body size limit](web-body-limit.md), and the rest on this page.
 
 [← Documentation home](../README.md) · Property prefix: `stratum.web` · Decision record:
 [ADR 0006](../adr/0006-separate-mvc-and-webflux-starters.md)
@@ -73,7 +73,7 @@ Every feature works the same on both stacks.
 | Token claims in logs (built) | When a team turns it on, the claims it lists from the caller's JWT, such as `sub` and `scope`, are logged. Other claims, the token's header and its signature never are |
 | Correlation ID (built) | Taken from the caller's `X-Correlation-Id` header when it has a safe format, otherwise the trace ID; returned in the response header. Needs the observability starter |
 | Timeouts (built) | A request whose response has not started within its limit, 10 seconds by default, is answered with `503`. One API can have its own limit. See [Response timeouts](web-timeouts.md) |
-| Body size limit | A request body larger than the limit is refused with `413` |
+| Body size limit (built) | A request body larger than its limit, 256KB by default, is refused with `413`. One path or API can have its own limit. See [Request body size limit](web-body-limit.md) |
 
 Response times and error counts per API come from the
 [observability starter](../../starters/stratum-starter-observability/README.md), which records
@@ -396,6 +396,8 @@ Each works from `.properties`, `.yml` and Java, and your IDE completes it, on bo
 | `stratum.web.timeout.default-limit` | duration | `10s` | How long any request may take until its response starts. `0` means no limit. |
 | `stratum.web.timeout.routes` | map of path pattern to duration | empty | The limit of the requests whose path matches a pattern, such as `/reports/**`. The most specific pattern wins. |
 | `stratum.web.timeout.status` | HTTP status, `400` to `599` | `503` | The status a request that ran out of time is answered with. |
+| `stratum.web.body-limit.default-limit` | data size | `256KB` | How large any request's body may be. `0` means no limit. |
+| `stratum.web.body-limit.routes` | map of path pattern to data size | empty | The limit of the bodies of the requests whose path matches a pattern, such as `/uploads/**`. The most specific pattern wins. |
 | `stratum.web.request-log.enabled` | boolean | `true` | Whether each request writes one log line when it is answered. |
 | `stratum.web.request-log.skip-paths` | list of path patterns | `/actuator/**` | Paths whose requests write no log line. Replaces the default; static files are always skipped. |
 | `stratum.web.request-log.request-headers` | map of header to field name | empty | The request headers written in the line, and the field each is written as. |
@@ -459,7 +461,8 @@ public class OrdersWebSettings implements WebPropertiesCustomizer {
 
 The [web MVC starter's README](../../starters/stratum-starter-webmvc/README.md#configure-in-java)
 shows how to list the class, which is the same for WebFlux. A single API can also set its own
-timeout with `@ResponseTimeout` on its method; see [Response timeouts](web-timeouts.md).
+timeout with `@ResponseTimeout` on its method, and its own body size limit with `@RequestBodyLimit`;
+see [Response timeouts](web-timeouts.md) and [Request body size limit](web-body-limit.md).
 
 ## Switch it on or off
 

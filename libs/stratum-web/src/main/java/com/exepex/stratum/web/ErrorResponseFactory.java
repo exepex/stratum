@@ -141,6 +141,7 @@ public class ErrorResponseFactory {
     return switch (HttpStatus.resolve(status.value())) {
       case BAD_REQUEST -> WebErrorCode.UNREADABLE_REQUEST;
       case NOT_FOUND -> WebErrorCode.NOT_FOUND;
+      case CONTENT_TOO_LARGE -> WebErrorCode.REQUEST_BODY_TOO_LARGE;
       case INTERNAL_SERVER_ERROR -> WebErrorCode.INTERNAL_ERROR;
       case null, default -> WebErrorCode.REQUEST_FAILED;
     };

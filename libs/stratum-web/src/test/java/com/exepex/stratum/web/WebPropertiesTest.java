@@ -22,12 +22,17 @@ import org.springframework.core.env.StandardEnvironment;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.env.MockEnvironment;
+import org.springframework.util.unit.DataSize;
 
 @DisplayName("WebProperties come from properties, changed by Java configuration, which wins")
 class WebPropertiesTest {
 
   /** How every message about a broken setting starts. */
   private static final String INVALID_SETTINGS = "SX-CORE-1003: Invalid settings: ";
+
+  /** The name of the tests that show a service's Java configuration wins. */
+  private static final String JAVA_CONFIGURATION_WINS =
+      "a customizer listed in spring.factories wins over the files";
 
   /** The code of a duplicate order. */
   private static final String DUPLICATE_ORDER = OrderErrorCode.DUPLICATE_ORDER.getCode();
@@ -66,7 +71,7 @@ class WebPropertiesTest {
   }
 
   @Test
-  @DisplayName("a customizer listed in spring.factories wins over the files")
+  @DisplayName(JAVA_CONFIGURATION_WINS)
   void javaConfigurationWins(@TempDir Path folder) throws IOException {
     var environment = new MockEnvironment().withProperty(DUPLICATE_ORDER_STATUS, "409");
 
@@ -163,7 +168,7 @@ class WebPropertiesTest {
     }
 
     @Test
-    @DisplayName("a customizer listed in spring.factories wins over the files")
+    @DisplayName(JAVA_CONFIGURATION_WINS)
     void javaConfigurationWins(@TempDir Path folder) throws IOException {
       var environment =
           new MockEnvironment().withProperty(WebConstants.CORRELATION_ACCEPT_FROM_CALLER, "true");
@@ -309,7 +314,7 @@ class WebPropertiesTest {
     }
 
     @Test
-    @DisplayName("a customizer listed in spring.factories wins over the files")
+    @DisplayName(JAVA_CONFIGURATION_WINS)
     void javaConfigurationWins(@TempDir Path folder) throws IOException {
       var environment =
           new MockEnvironment().withProperty(WebConstants.TIMEOUT_DEFAULT_LIMIT, "5s");
@@ -332,6 +337,54 @@ class WebPropertiesTest {
       assertThatExceptionOfType(ConstraintViolationException.class)
           .isThrownBy(() -> WebProperties.resolve(environment))
           .withMessageStartingWith(INVALID_SETTINGS + WebConstants.TIMEOUT_STATUS);
+    }
+  }
+
+  @Nested
+  @DisplayName("the body limit settings")
+  class BodyLimitSettings {
+
+    /** The body limit the files set. */
+    private static final DataSize FILE_LIMIT = DataSize.ofKilobytes(64);
+
+    /** The limit of the upload paths that the files set. */
+    private static final Map<String, DataSize> UPLOAD_ROUTES =
+        Map.of("/uploads/**", DataSize.ofMegabytes(20));
+
+    @Test
+    @DisplayName("with nothing set, every request body may have 256KB")
+    void defaults() {
+      assertThat(WebProperties.resolve(new MockEnvironment()).bodyLimit())
+          .isEqualTo(new WebProperties.BodyLimitSettings(DataSize.parse("256KB"), Map.of()));
+    }
+
+    @Test
+    @DisplayName("are read from a .properties file and from a .yml file")
+    void fromFiles() throws IOException {
+      var properties =
+          new MockEnvironment()
+              .withProperty(WebConstants.BODY_LIMIT_DEFAULT_LIMIT, "64KB")
+              .withProperty(WebConstants.BODY_LIMIT_ROUTES + "[/uploads/**]", "20MB");
+      var expected = new WebProperties.BodyLimitSettings(FILE_LIMIT, UPLOAD_ROUTES);
+
+      assertThat(WebProperties.resolve(properties).bodyLimit()).isEqualTo(expected);
+      assertThat(WebProperties.resolve(yamlEnvironment()).bodyLimit()).isEqualTo(expected);
+    }
+
+    @Test
+    @DisplayName(JAVA_CONFIGURATION_WINS)
+    void javaConfigurationWins(@TempDir Path folder) throws IOException {
+      var environment =
+          new MockEnvironment().withProperty(WebConstants.BODY_LIMIT_DEFAULT_LIMIT, "64KB");
+
+      var properties =
+          StarterTestSupport.withCustomizers(
+              folder,
+              WebPropertiesCustomizer.class,
+              List.of(EdgeServiceWebSettings.class),
+              () -> WebProperties.resolve(environment));
+
+      assertThat(properties.bodyLimit().defaultLimit()).isEqualTo(DataSize.parse("16KB"));
     }
   }
 

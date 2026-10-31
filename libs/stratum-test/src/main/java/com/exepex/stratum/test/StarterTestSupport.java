@@ -16,7 +16,9 @@ import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.CompositeArchRule;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -54,6 +56,9 @@ public class StarterTestSupport {
 
   /** The media type of every error body the web starters send. */
   private static final String PROBLEM_JSON = "application/problem+json";
+
+  /** The media type of a text body. */
+  private static final String TEXT_PLAIN = "text/plain";
 
   /** The annotation every method in a starter's autoconfigure package carries (ST-ENG-23). */
   private static final String BEAN = "org.springframework.context.annotation.Bean";
@@ -190,6 +195,77 @@ public class StarterTestSupport {
       request.headers(headers);
     }
     return HTTP_CLIENT.send(request.build(), HttpResponse.BodyHandlers.ofString());
+  }
+
+  /**
+   * Sends a POST request with a body of {@code byteCount} bytes to a service running on this
+   * machine, as its integration tests do.
+   *
+   * @param port the service's port
+   * @param path the path, such as {@code /orders}
+   * @param contentType the body's media type, such as {@code text/plain}
+   * @param byteCount how large the body is
+   * @param declareLength whether the request has a {@code Content-Length} header; without one the
+   *     body is sent in chunks, as a stream of unknown length is
+   * @return the response, with its body as text
+   * @throws IOException if the request cannot be sent or the response read
+   * @throws InterruptedException if the thread is interrupted while it waits
+   */
+  public static HttpResponse<String> postToService(
+      int port, String path, String contentType, int byteCount, boolean declareLength)
+      throws IOException, InterruptedException {
+    var body = "x".repeat(byteCount).getBytes(StandardCharsets.US_ASCII);
+    var publisher =
+        declareLength
+            ? HttpRequest.BodyPublishers.ofByteArray(body)
+            : HttpRequest.BodyPublishers.ofInputStream(() -> new ByteArrayInputStream(body));
+    var request =
+        HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+            .header("Content-Type", contentType)
+            .POST(publisher)
+            .build();
+    return HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+  }
+
+  /**
+   * Sends a text body of {@code byteCount} bytes and checks that the service read all of it: the
+   * answer is {@code 200} with the number of bytes read as its body, as the body limit tests'
+   * endpoints answer.
+   *
+   * @param port the service's port
+   * @param path the path, such as {@code /uploads/raw}
+   * @param byteCount how large the body is
+   * @param declareLength whether the request has a {@code Content-Length} header
+   * @throws IOException if the request cannot be sent or the response read
+   * @throws InterruptedException if the thread is interrupted while it waits
+   */
+  public static void checkBodyAccepted(int port, String path, int byteCount, boolean declareLength)
+      throws IOException, InterruptedException {
+    var response = postToService(port, path, TEXT_PLAIN, byteCount, declareLength);
+
+    assertThat(response.statusCode()).isEqualTo(HttpURLConnection.HTTP_OK);
+    assertThat(response.body()).isEqualTo(String.valueOf(byteCount));
+  }
+
+  /**
+   * Sends a body of {@code byteCount} bytes and checks that the service refused it as too large:
+   * {@code 413} with the code, in Problem Details.
+   *
+   * @param port the service's port
+   * @param path the path, such as {@code /orders}
+   * @param contentType the body's media type, such as {@code text/plain}
+   * @param byteCount how large the body is
+   * @param declareLength whether the request has a {@code Content-Length} header
+   * @param code the error code the body must have, {@code SX-WEB-1008}
+   * @throws IOException if the request cannot be sent or the response read
+   * @throws InterruptedException if the thread is interrupted while it waits
+   */
+  public static void checkBodyRefused(
+      int port, String path, String contentType, int byteCount, boolean declareLength, String code)
+      throws IOException, InterruptedException {
+    var response = postToService(port, path, contentType, byteCount, declareLength);
+
+    checkProblemDetails(response, HttpURLConnection.HTTP_ENTITY_TOO_LARGE, code);
   }
 
   /**

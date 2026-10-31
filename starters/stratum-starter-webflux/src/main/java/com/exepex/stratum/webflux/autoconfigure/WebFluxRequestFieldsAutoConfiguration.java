@@ -3,6 +3,7 @@ package com.exepex.stratum.webflux.autoconfigure;
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.web.CorrelationIdChooser;
+import com.exepex.stratum.web.RequestBodyLimits;
 import com.exepex.stratum.web.RequestFieldsReader;
 import com.exepex.stratum.web.RequestLogWriter;
 import com.exepex.stratum.web.ResponseTimeouts;
@@ -12,6 +13,7 @@ import com.exepex.stratum.webflux.CorrelationIdBaggageDecorator;
 import com.exepex.stratum.webflux.CorrelationIdWebFilter;
 import com.exepex.stratum.webflux.HandlerStartAdapter;
 import com.exepex.stratum.webflux.HandlerStartListener;
+import com.exepex.stratum.webflux.RequestBodyLimitWebFilter;
 import com.exepex.stratum.webflux.RequestFieldsWebFilter;
 import com.exepex.stratum.webflux.RequestLogWebFilter;
 import com.exepex.stratum.webflux.RequestRouteListener;
@@ -78,6 +80,20 @@ public final class WebFluxRequestFieldsAutoConfiguration {
   @ConditionalOnMissingBean
   public ResponseTimeoutWebFilter responseTimeoutWebFilter(ResponseTimeouts responseTimeouts) {
     return new ResponseTimeoutWebFilter(responseTimeouts);
+  }
+
+  /**
+   * Answers a request whose body is larger than its limit with {@code 413}, and gives each request
+   * the limit of its handler's {@code @RequestBodyLimit}.
+   *
+   * @param requestBodyLimits decides each request's limit
+   * @return the filter
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean
+  public RequestBodyLimitWebFilter requestBodyLimitWebFilter(RequestBodyLimits requestBodyLimits) {
+    return new RequestBodyLimitWebFilter(requestBodyLimits);
   }
 
   /**

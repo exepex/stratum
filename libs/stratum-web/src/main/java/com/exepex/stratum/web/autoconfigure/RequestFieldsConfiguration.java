@@ -2,6 +2,7 @@ package com.exepex.stratum.web.autoconfigure;
 
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.web.CorrelationIdChooser;
+import com.exepex.stratum.web.RequestBodyLimits;
 import com.exepex.stratum.web.RequestFieldsPropagation;
 import com.exepex.stratum.web.RequestFieldsReader;
 import com.exepex.stratum.web.RequestLogWriter;
@@ -18,8 +19,8 @@ import org.springframework.core.env.Environment;
 
 /**
  * Creates what both web starters use to give every log line of a request its fields, the request
- * its correlation ID, its one closing log line and its time limit. The web MVC and WebFlux
- * auto-configurations import it.
+ * its correlation ID, its one closing log line, its time limit and its body size limit. The web MVC
+ * and WebFlux auto-configurations import it.
  */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnStratumModule(WebConstants.MODULE)
@@ -96,5 +97,19 @@ public class RequestFieldsConfiguration {
   @ConditionalOnMissingBean
   public ResponseTimeouts responseTimeouts(Environment environment) {
     return new ResponseTimeouts(WebProperties.resolve(environment));
+  }
+
+  /**
+   * Decides how large each request's body may be. Its settings come from {@link
+   * WebProperties#resolve}, so the service's Java configuration wins.
+   *
+   * @param environment the application's environment
+   * @return the limits
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean
+  public RequestBodyLimits requestBodyLimits(Environment environment) {
+    return new RequestBodyLimits(WebProperties.resolve(environment));
   }
 }
