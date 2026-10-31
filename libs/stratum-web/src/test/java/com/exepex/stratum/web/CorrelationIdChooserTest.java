@@ -82,6 +82,19 @@ class CorrelationIdChooserTest {
     }
 
     @Test
+    @DisplayName(
+        "a second correlationId entry, which tracing would keep unchecked, is replaced by the"
+            + " first usable one")
+    void duplicateBaggageIdsReplaced() {
+      assertThat(
+              chooser.rewrittenBaggage(
+                  null,
+                  List.of(
+                      BAGGAGE_ENTRY + "," + LoggingContextConstants.CORRELATION_ID + "=%0Aforged")))
+          .hasValue(List.of(BAGGAGE_ENTRY));
+    }
+
+    @Test
     @DisplayName("without caller values, the baggage is left as it is")
     void nothingToChange() {
       assertThat(chooser.rewrittenBaggage(null, List.of(TENANT_ENTRY))).isEmpty();

@@ -50,8 +50,8 @@ public class CorrelationIdChooser {
 
   /**
    * Returns the baggage entries the request must carry so that tracing takes the caller's ID: the
-   * caller's other entries, and {@code correlationId} with the caller's usable ID, if any. Returns
-   * nothing when the request's baggage is right as it is.
+   * caller's other entries, and one {@code correlationId} with the caller's usable ID, if any.
+   * Returns nothing when the request's baggage is right as it is.
    *
    * @param correlationHeader the caller's {@code X-Correlation-Id} header, if sent
    * @param baggageHeaders the request's {@code baggage} headers, each with one or more entries
@@ -65,13 +65,13 @@ public class CorrelationIdChooser {
             .map(String::strip)
             .filter(entry -> !entry.isEmpty())
             .toList();
-    var callerBaggageId =
-        entries.stream().flatMap(entry -> correlationIdOf(entry).stream()).findFirst();
+    var callerBaggageIds =
+        entries.stream().flatMap(entry -> correlationIdOf(entry).stream()).toList();
+    var callerBaggageId = callerBaggageIds.stream().findFirst();
     var callerId = callerIdOf(correlationHeader, callerBaggageId.orElse(null));
-    var baggageAlreadyRight =
-        callerId
-            .map(id -> id.equals(callerBaggageId.orElse(null)))
-            .orElse(callerBaggageId.isEmpty());
+    // Tracing keeps the last of several correlationId entries, which was not checked, so the
+    // baggage is kept only with no entry, or with one that is already the chosen ID.
+    var baggageAlreadyRight = callerBaggageIds.size() <= 1 && callerId.equals(callerBaggageId);
     if (baggageAlreadyRight) {
       return Optional.empty();
     }
