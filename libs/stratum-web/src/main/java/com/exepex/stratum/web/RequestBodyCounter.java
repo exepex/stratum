@@ -28,12 +28,17 @@ public final class RequestBodyCounter {
   }
 
   /**
-   * Sets how large the body may be, in place of the limit it had, such as its handler's own.
+   * Sets how large the body may be, in place of the limit it had, such as its handler's own, and
+   * fails the request if more than that was already read, such as by a filter that read a form.
    *
    * @param newLimit the limit; zero or less for no limit
+   * @throws RequestBodyTooLargeException if more than the new limit was already read
    */
   public void limitTo(DataSize newLimit) {
     currentLimit = newLimit;
+    if (isOverLimit(bytesRead)) {
+      throw tooLarge();
+    }
   }
 
   /**

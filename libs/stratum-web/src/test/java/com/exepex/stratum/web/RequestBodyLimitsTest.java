@@ -108,6 +108,16 @@ class RequestBodyLimitsTest {
     }
 
     @Test
+    @DisplayName("already read past a smaller limit set later, such as its handler's, fails")
+    void smallerLimitAfterReadingFails() {
+      var counter = limits.start(ORDER);
+      counter.count(DataSize.ofKilobytes(2).toBytes());
+
+      assertThatExceptionOfType(RequestBodyTooLargeException.class)
+          .isThrownBy(() -> counter.limitTo(DataSize.ofKilobytes(1)));
+    }
+
+    @Test
     @DisplayName("on a path with no limit is never stopped")
     void noLimit() {
       var counter = limits.start("/uploads/videos/42");
