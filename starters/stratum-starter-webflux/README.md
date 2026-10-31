@@ -212,6 +212,10 @@ Each bean below is Stratum's only until you declare your own:
 | `ErrorWebExceptionHandler` | All of the error handling outside your exception handlers, Stratum's and Spring Boot's |
 | `ProblemDetailIdsInterceptor` | What adds the IDs to the `ProblemDetail` bodies your handlers return |
 
+Stratum's error auto-configuration is ordered before Spring Boot's `ErrorWebFluxAutoConfiguration`, because its
+error attributes and error handler replace Spring Boot's. Your own beans, and those of a company framework whose
+auto-configuration declares no order, are still registered first and win.
+
 ## Switch it on or off
 
 `stratum.web.enabled=true` switches the module on. Leaving it unset is the same as `false`: the

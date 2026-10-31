@@ -14,6 +14,7 @@ import java.util.Map;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -58,33 +59,43 @@ class ServiceErrorHandlingIntegrationTest {
     service.close();
   }
 
-  @Test
-  @DisplayName("its StratumException handler's status and body are sent, not the mapped status")
-  void serviceHandlerWins() throws Exception {
-    var response = get("/orders", MediaType.APPLICATION_JSON);
+  @Nested
+  @DisplayName("when the service's own advice handles StratumException")
+  class OwnHandler {
 
-    assertThat(response.statusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT.value());
-    assertThat(response.body()).isEqualTo("{\"failed\":\"ORD-0001\"}");
+    @Test
+    @DisplayName("its StratumException handler's status and body are sent, not the mapped status")
+    void serviceHandlerWins() throws Exception {
+      var response = get("/orders", MediaType.APPLICATION_JSON);
+
+      assertThat(response.statusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT.value());
+      assertThat(response.body()).isEqualTo("{\"failed\":\"ORD-0001\"}");
+    }
   }
 
-  @Test
-  @DisplayName("its own error attributes keep their body and the plain JSON media type")
-  void serviceErrorAttributesKeepTheirMediaType() throws Exception {
-    var response = get("/no-such-path", MediaType.APPLICATION_JSON);
+  @Nested
+  @DisplayName("when the service has its own error attributes")
+  class OwnErrorAttributes {
 
-    assertThat(response.statusCode()).isEqualTo(HttpStatus.NOT_FOUND.value());
-    assertThat(response.headers().firstValue(HttpHeaders.CONTENT_TYPE))
-        .hasValue(MediaType.APPLICATION_JSON_VALUE);
-    assertThat(response.body()).isEqualTo("{\"legacy\":\"error\"}");
-  }
+    @Test
+    @DisplayName("its own error attributes keep their body and the plain JSON media type")
+    void serviceErrorAttributesKeepTheirMediaType() throws Exception {
+      var response = get("/no-such-path", MediaType.APPLICATION_JSON);
 
-  @Test
-  @DisplayName("its own error attributes give a browser Spring Boot's page, not Stratum's")
-  void serviceErrorAttributesKeepBootPage() throws Exception {
-    var response = get("/no-such-path", MediaType.TEXT_HTML);
+      assertThat(response.statusCode()).isEqualTo(HttpStatus.NOT_FOUND.value());
+      assertThat(response.headers().firstValue(HttpHeaders.CONTENT_TYPE))
+          .hasValue(MediaType.APPLICATION_JSON_VALUE);
+      assertThat(response.body()).isEqualTo("{\"legacy\":\"error\"}");
+    }
 
-    assertThat(response.statusCode()).isEqualTo(HttpStatus.NOT_FOUND.value());
-    assertThat(response.body()).contains("Whitelabel Error Page").doesNotContain("Reference:");
+    @Test
+    @DisplayName("its own error attributes give a browser Spring Boot's page, not Stratum's")
+    void serviceErrorAttributesKeepBootPage() throws Exception {
+      var response = get("/no-such-path", MediaType.TEXT_HTML);
+
+      assertThat(response.statusCode()).isEqualTo(HttpStatus.NOT_FOUND.value());
+      assertThat(response.body()).contains("Whitelabel Error Page").doesNotContain("Reference:");
+    }
   }
 
   /** Sends a GET that accepts the given media type and reads the body as text. */
