@@ -90,7 +90,7 @@ public class RequestBodyLimitWebFilter implements WebFilter, HandlerStartListene
    * Hands on a piece of the body once counted, or releases it and fails the body when it makes the
    * body too large.
    */
-  private static void countOrFail(
+  private void countOrFail(
       RequestBodyCounter counter, DataBuffer buffer, SynchronousSink<DataBuffer> sink) {
     try {
       counter.count(buffer.readableByteCount());

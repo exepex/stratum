@@ -101,7 +101,7 @@ class StarterTestSupportIntegrationTest {
   }
 
   /** Reads what is left of the request body, then answers with the status, type and body. */
-  private static void answer(HttpExchange exchange, int status, String contentType, String body)
+  private void answer(HttpExchange exchange, int status, String contentType, String body)
       throws IOException {
     exchange.getRequestBody().readAllBytes();
     var bytes = body.getBytes(UTF_8);
