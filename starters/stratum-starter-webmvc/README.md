@@ -184,6 +184,9 @@ actuator's paths and static files write none. The headers you name, and the clai
 caller's token when you turn it on, can be added to it; credentials never are. See
 [Web](../../docs/modules/web.md#request-log).
 
+Response times and error rates per API come from the observability starter's metrics. The SLA
+dashboard recipe, with PromQL examples, is in [Web](../../docs/modules/web.md#sla-dashboards).
+
 ## Map your codes to statuses
 
 Throw a `StratumException` with your own [error code](../../docs/guides/error-codes.md#using-codes-in-your-service),
