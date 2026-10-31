@@ -13,7 +13,6 @@ import lombok.Builder;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
-import org.springframework.boot.context.properties.bind.Name;
 import org.springframework.core.env.Environment;
 
 /**
@@ -223,7 +222,7 @@ public record WebProperties(
    */
   @Builder(toBuilder = true)
   public record TimeoutSettings(
-      @Name("default") @DefaultValue("10s") Duration defaultLimit,
+      @DefaultValue("10s") Duration defaultLimit,
       @DefaultValue Map<String, Duration> routes,
       @DefaultValue("503") @Min(400) @Max(599) int status) {
 

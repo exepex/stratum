@@ -9,8 +9,8 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Sets how long the requests a controller method answers may take until their response starts. It
- * wins over {@code stratum.web.timeout.routes} and {@code stratum.web.timeout.default}, so one slow
- * API, such as a report, can have more time than the rest:
+ * wins over {@code stratum.web.timeout.routes} and {@code stratum.web.timeout.default-limit}, so
+ * one slow API, such as a report, can have more time than the rest:
  *
  * <pre>{@code
  * @ResponseTimeout(60)

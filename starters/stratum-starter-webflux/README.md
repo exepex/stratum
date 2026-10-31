@@ -181,7 +181,7 @@ response that has started, such as a stream, is never cut off. Change the limits
 `application.properties`:
 
 ```properties
-stratum.web.timeout.default=5s
+stratum.web.timeout.default-limit=5s
 stratum.web.timeout.routes[/reports/**]=60s
 ```
 
@@ -191,7 +191,7 @@ or in `application.yml`:
 stratum:
   web:
     timeout:
-      default: 5s
+      default-limit: 5s
       routes:
         "[/reports/**]": 60s
 ```
@@ -264,7 +264,7 @@ which names the property but not the code or the value.
 | `stratum.web.request-log.denied-headers` | list of header names | empty | Headers never written, on top of the credential headers. |
 | `stratum.web.request-log.token-payload` | boolean | `false` | Whether the line carries the listed claims of the caller's bearer JWT. |
 | `stratum.web.request-log.token-claims` | list of claim names | `sub`, `azp`, `client_id`, `scope` | The claims written when `token-payload` is `true`. |
-| `stratum.web.timeout.default` | duration | `10s` | How long any request may take until its response starts. `0` means no limit. |
+| `stratum.web.timeout.default-limit` | duration | `10s` | How long any request may take until its response starts. `0` means no limit. |
 | `stratum.web.timeout.routes` | map of path pattern to duration | empty | The limit of the requests whose path matches a pattern, such as `/reports/**`. |
 | `stratum.web.timeout.status` | HTTP status | `503` | The status a request that ran out of time is answered with. |
 

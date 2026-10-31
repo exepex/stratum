@@ -66,7 +66,7 @@ public class WebConstants {
   public static final String REQUEST_LOG_TOKEN_CLAIMS = PREFIX + ".request-log.token-claims";
 
   /** The setting that limits how long any request may take until its response starts. */
-  public static final String TIMEOUT_DEFAULT = PREFIX + ".timeout.default";
+  public static final String TIMEOUT_DEFAULT_LIMIT = PREFIX + ".timeout.default-limit";
 
   /** The setting that limits how long the requests on some paths may take. */
   public static final String TIMEOUT_ROUTES = PREFIX + ".timeout.routes";

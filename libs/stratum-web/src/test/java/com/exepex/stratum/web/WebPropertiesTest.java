@@ -287,7 +287,7 @@ class WebPropertiesTest {
     void fromProperties() {
       var environment =
           new MockEnvironment()
-              .withProperty(WebConstants.TIMEOUT_DEFAULT, "5s")
+              .withProperty(WebConstants.TIMEOUT_DEFAULT_LIMIT, "5s")
               .withProperty(WebConstants.TIMEOUT_ROUTES + "[/reports/**]", "60s")
               .withProperty(WebConstants.TIMEOUT_STATUS, "504");
 
@@ -311,7 +311,8 @@ class WebPropertiesTest {
     @Test
     @DisplayName("a customizer listed in spring.factories wins over the files")
     void javaConfigurationWins(@TempDir Path folder) throws IOException {
-      var environment = new MockEnvironment().withProperty(WebConstants.TIMEOUT_DEFAULT, "5s");
+      var environment =
+          new MockEnvironment().withProperty(WebConstants.TIMEOUT_DEFAULT_LIMIT, "5s");
 
       var properties =
           StarterTestSupport.withCustomizers(

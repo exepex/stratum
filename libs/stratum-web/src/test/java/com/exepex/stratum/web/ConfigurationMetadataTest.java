@@ -36,7 +36,7 @@ class ConfigurationMetadataTest {
           WebConstants.REQUEST_LOG_DENIED_HEADERS,
           WebConstants.REQUEST_LOG_TOKEN_PAYLOAD,
           WebConstants.REQUEST_LOG_TOKEN_CLAIMS,
-          WebConstants.TIMEOUT_DEFAULT,
+          WebConstants.TIMEOUT_DEFAULT_LIMIT,
           WebConstants.TIMEOUT_ROUTES,
           WebConstants.TIMEOUT_STATUS);
 

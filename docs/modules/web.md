@@ -393,7 +393,7 @@ Each works from `.properties`, `.yml` and Java, and your IDE completes it, on bo
 | `stratum.web.user-agent.request-client-hints` | boolean | `false` | Whether responses ask browsers for their device model and full OS version. Only used when `parse` is `true`. |
 | `stratum.web.client-location.database` | file path | none | Your MaxMind City or Country `.mmdb` file. Unset, no country or city is logged. |
 | `stratum.web.request-fields.max-value-length` | integer, 16 to 8192 | `512` | The most characters a request field keeps. |
-| `stratum.web.timeout.default` | duration | `10s` | How long any request may take until its response starts. `0` means no limit. |
+| `stratum.web.timeout.default-limit` | duration | `10s` | How long any request may take until its response starts. `0` means no limit. |
 | `stratum.web.timeout.routes` | map of path pattern to duration | empty | The limit of the requests whose path matches a pattern, such as `/reports/**`. The most specific pattern wins. |
 | `stratum.web.timeout.status` | HTTP status, `400` to `599` | `503` | The status a request that ran out of time is answered with. |
 | `stratum.web.request-log.enabled` | boolean | `true` | Whether each request writes one log line when it is answered. |

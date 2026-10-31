@@ -21,7 +21,7 @@ a large download, is never cut off.
 In `application.properties`:
 
 ```properties
-stratum.web.timeout.default=5s
+stratum.web.timeout.default-limit=5s
 stratum.web.timeout.routes[/reports/**]=60s
 stratum.web.timeout.routes[/internal/exports/*]=0
 stratum.web.timeout.status=504
@@ -33,7 +33,7 @@ or in `application.yml`:
 stratum:
   web:
     timeout:
-      default: 5s
+      default-limit: 5s
       routes:
         "[/reports/**]": 60s
         "[/internal/exports/*]": 0
@@ -48,7 +48,7 @@ stratum:
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.web.timeout.default` | duration | `10s` | How long any request may take until its response starts. `0` means no limit. |
+| `stratum.web.timeout.default-limit` | duration | `10s` | How long any request may take until its response starts. `0` means no limit. |
 | `stratum.web.timeout.routes` | map of path pattern to duration | empty | The limit of the requests whose path matches a pattern, such as `/reports/**`. The most specific pattern wins. |
 | `stratum.web.timeout.status` | HTTP status, `400` to `599` | `503` | The status a request that ran out of time is answered with. |
 
@@ -117,7 +117,6 @@ public class OrdersWebSettings implements WebPropertiesCustomizer {
 
 List the class in `META-INF/spring.factories`, as the
 [web MVC starter's README](../../starters/stratum-starter-webmvc/README.md#configure-in-java) shows.
-`defaultLimit` is the Java name of `default`, which is a reserved word in Java.
 
 ## How each stack stops the work
 

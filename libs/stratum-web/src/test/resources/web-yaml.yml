@@ -23,7 +23,7 @@ stratum:
         - sub
         - tenant
     timeout:
-      default: 5s
+      default-limit: 5s
       routes:
         "[/reports/**]": 60s
       status: 504

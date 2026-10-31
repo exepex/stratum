@@ -89,10 +89,15 @@ public final class RequestDeadline {
     cancelPendingExpiry();
   }
 
-  /** Runs the action, unless the request ended first. */
+  /**
+   * Runs the action, unless the request ended first or its limit has since grown or gone: a run
+   * scheduled for an earlier limit can already have started when {@link #limitTo} cancels it.
+   */
   @Synchronized
   private void expire() {
-    if (!closed) {
+    var timeIsUp =
+        currentLimit.isPositive() && System.nanoTime() - startNanos >= currentLimit.toNanos();
+    if (!closed && timeIsUp) {
       expired = true;
       onExpiry.run();
     }
