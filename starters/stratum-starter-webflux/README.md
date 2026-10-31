@@ -246,7 +246,7 @@ Mono<DocumentId> upload(@RequestBody Flux<DataBuffer> body) {
 }
 ```
 
-Spring's own limit of 256KB for a body decoded in memory, `spring.codec.max-in-memory-size`,
+Spring's own limit of 256KB for a body decoded in memory, `spring.http.codecs.max-in-memory-size`,
 applies as well, so read a large upload as a `Flux<DataBuffer>`. Forms and multipart uploads are
 checked by their `Content-Length` only, and Spring Boot sets no limit on a multipart upload's disk use
 or parts, so a service that takes multipart uploads sets `spring.webflux.multipart.max-disk-usage-per-part`

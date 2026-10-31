@@ -121,7 +121,7 @@ upload API that accepts more than they allow raises both.
 | Spring MVC | Each file of a multipart upload | `spring.servlet.multipart.max-file-size` | `1MB` |
 | Spring MVC | A whole multipart upload | `spring.servlet.multipart.max-request-size` | `10MB` |
 | Spring MVC on Tomcat | A form, `application/x-www-form-urlencoded` | `server.tomcat.max-http-form-post-size` | `2MB` |
-| WebFlux | A body decoded in memory, such as JSON or a `String` | `spring.codec.max-in-memory-size` | `256KB` |
+| WebFlux | A body decoded in memory, such as JSON or a `String` | `spring.http.codecs.max-in-memory-size` | `256KB` |
 | WebFlux | Each part of a multipart upload kept in memory | `spring.webflux.multipart.max-in-memory-size` | `256KB` |
 | WebFlux | Each part of a multipart upload written to disk | `spring.webflux.multipart.max-disk-usage-per-part` | `-1B`, no limit |
 | WebFlux | The number of parts of a multipart upload | `spring.webflux.multipart.max-parts` | `-1`, no limit |
