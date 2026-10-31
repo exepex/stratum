@@ -60,6 +60,9 @@ class RequestBodyLimitIntegrationTest {
   /** A body inside the 8KB limit of the import API's annotation. */
   private static final int WITHIN_ANNOTATION_LIMIT = 6 * KILOBYTE;
 
+  /** A form over the 256KB that Spring's form reader holds in memory by default. */
+  private static final int OVER_FORM_READER_LIMIT = 300 * KILOBYTE;
+
   /** The code a body over its limit is answered with. */
   private static final String TOO_LARGE = WebErrorCode.REQUEST_BODY_TOO_LARGE.getCode();
 
@@ -104,6 +107,18 @@ class RequestBodyLimitIntegrationTest {
         MediaType.APPLICATION_FORM_URLENCODED_VALUE,
         OVER_DEFAULT_LIMIT,
         true,
+        TOO_LARGE);
+  }
+
+  @Test
+  @DisplayName("a chunked form over Spring's form reader limit gets SX-WEB-1008")
+  void chunkedFormOverReaderLimit() throws Exception {
+    StarterTestSupport.checkBodyRefused(
+        port,
+        "/forms",
+        MediaType.APPLICATION_FORM_URLENCODED_VALUE,
+        OVER_FORM_READER_LIMIT,
+        false,
         TOO_LARGE);
   }
 
