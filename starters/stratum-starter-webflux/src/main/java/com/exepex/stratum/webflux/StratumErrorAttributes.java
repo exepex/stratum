@@ -10,6 +10,7 @@ import org.springframework.boot.web.error.ErrorAttributeOptions;
 import org.springframework.boot.web.error.ErrorAttributeOptions.Include;
 import org.springframework.boot.webflux.error.DefaultErrorAttributes;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.http.ProblemDetail;
 import org.springframework.web.reactive.function.server.ServerRequest;
 
 /**
@@ -25,12 +26,19 @@ public class StratumErrorAttributes extends DefaultErrorAttributes {
   /** The member of Spring Boot's error attributes that holds the status. */
   private static final String STATUS = "status";
 
+  /**
+   * The request attribute that keeps the body once made, so that a second read, as when a browser's
+   * page falls back to the JSON body, does not log the failure again.
+   */
+  private static final String BODY = StratumErrorAttributes.class.getName() + ".body";
+
   /** Makes the error body. */
   private final ErrorResponseFactory errorResponseFactory;
 
   /**
-   * Returns Stratum's error body for the failed request, with its IDs. The options of {@code
-   * spring.web.error.include-*} do not apply: the body never holds a message, stack trace or path.
+   * Returns Stratum's error body for the failed request, with its IDs, made once per request. The
+   * options of {@code spring.web.error.include-*} do not apply: the body never holds a message,
+   * stack trace or path.
    *
    * @param request the failed request
    * @param options ignored
@@ -39,6 +47,14 @@ public class StratumErrorAttributes extends DefaultErrorAttributes {
   @Override
   public Map<String, Object> getErrorAttributes(
       ServerRequest request, ErrorAttributeOptions options) {
+    var body =
+        request.attribute(BODY).map(ProblemDetail.class::cast).orElseGet(() -> bodyOf(request));
+    request.attributes().put(BODY, body);
+    return errorResponseFactory.membersOf(body);
+  }
+
+  /** Makes the error body of the failed request, and logs a {@code StratumException}. */
+  private ProblemDetail bodyOf(ServerRequest request) {
     var failure = getError(request);
     var body =
         failure instanceof StratumException stratumFailure
@@ -48,7 +64,7 @@ public class StratumErrorAttributes extends DefaultErrorAttributes {
         body,
         MDC.get(LoggingContextConstants.TRACE_ID),
         MDC.get(LoggingContextConstants.CORRELATION_ID));
-    return errorResponseFactory.membersOf(body);
+    return body;
   }
 
   /** Returns the status Spring Boot gives the failed request. */

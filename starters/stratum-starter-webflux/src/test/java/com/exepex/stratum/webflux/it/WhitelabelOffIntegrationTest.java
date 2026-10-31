@@ -1,5 +1,7 @@
 package com.exepex.stratum.webflux.it;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.exepex.stratum.test.StarterTestSupport;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebErrorCode;
@@ -12,7 +14,10 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.web.server.context.WebServerApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.http.HttpHeaders;
@@ -20,7 +25,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 
 @DisplayName("With Spring Boot's default error page off, a browser gets Stratum's body and status")
+@ExtendWith(OutputCaptureExtension.class)
 class WhitelabelOffIntegrationTest {
+
+  /** The path that fails with a code the service maps to 409. */
+  private static final String DUPLICATE_PATH = "/orders/duplicate";
 
   /** The running service. */
   private static ConfigurableApplicationContext service;
@@ -51,7 +60,15 @@ class WhitelabelOffIntegrationTest {
   @DisplayName("a mapped StratumException keeps its mapped status, not 500")
   void mappedStatusKept() throws Exception {
     StarterTestSupport.checkProblemDetails(
-        getHtml("/orders/duplicate"), HttpStatus.CONFLICT.value(), "ORD-0001");
+        getHtml(DUPLICATE_PATH), HttpStatus.CONFLICT.value(), "ORD-0001");
+  }
+
+  @Test
+  @DisplayName("a StratumException is logged once, though the page falls back to the JSON body")
+  void loggedOnce(CapturedOutput output) throws Exception {
+    getHtml(DUPLICATE_PATH);
+
+    assertThat(output.getAll()).containsOnlyOnce("ORD-0001");
   }
 
   @Test
