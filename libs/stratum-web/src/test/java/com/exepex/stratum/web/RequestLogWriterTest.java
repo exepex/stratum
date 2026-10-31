@@ -4,10 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.error.LoggingContextConstants;
 import com.exepex.stratum.test.LogLineCapture;
+import com.exepex.stratum.test.StarterTestSupport;
 import com.exepex.stratum.web.testsupport.WebTestData;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -51,14 +50,6 @@ class RequestLogWriterTest {
   private RequestLogWriter writer(WebProperties.RequestLogSettings requestLog) {
     var settings = WebTestData.defaults().requestLog(requestLog).build();
     return new RequestLogWriter(settings, RequestFieldsReader.from(settings));
-  }
-
-  /** Returns a signed token whose payload part is the given JSON. */
-  private String bearerToken(String payload) {
-    var encoder = Base64.getUrlEncoder().withoutPadding();
-    return "Bearer eyJhbGciOiJSUzI1NiJ9."
-        + encoder.encodeToString(payload.getBytes(StandardCharsets.UTF_8))
-        + ".c2lnbmF0dXJl";
   }
 
   /** Captures the request log lines and puts the request fields in the logging context. */
@@ -109,7 +100,7 @@ class RequestLogWriterTest {
     @DisplayName("leaves the token payload out")
     void noTokenPayload() {
       var headers = new HttpHeaders();
-      headers.set(HttpHeaders.AUTHORIZATION, bearerToken(PAYLOAD));
+      headers.set(HttpHeaders.AUTHORIZATION, StarterTestSupport.bearerToken(PAYLOAD));
 
       writer.write(OK, TOOK, headers, new HttpHeaders());
 
@@ -190,7 +181,7 @@ class RequestLogWriterTest {
     void writesTokenPayload() {
       var tokenPayloadOn = writer(defaultRequestLog().toBuilder().tokenPayload(true).build());
       var signed = new HttpHeaders();
-      signed.set(HttpHeaders.AUTHORIZATION, bearerToken(PAYLOAD));
+      signed.set(HttpHeaders.AUTHORIZATION, StarterTestSupport.bearerToken(PAYLOAD));
       var encrypted = new HttpHeaders();
       encrypted.set(HttpHeaders.AUTHORIZATION, "Bearer a.b.c.d.e");
 

@@ -6,8 +6,6 @@ import com.exepex.stratum.core.error.LoggingContextConstants;
 import com.exepex.stratum.test.LogLineCapture;
 import com.exepex.stratum.test.StarterTestSupport;
 import com.exepex.stratum.web.WebConstants;
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -54,15 +52,13 @@ class RequestLogIntegrationTest {
   @Test
   @DisplayName("the line has the status, route, request fields, named header and token payload")
   void answeredRequest() throws Exception {
-    var token =
-        "Bearer eyJhbGciOiJSUzI1NiJ9."
-            + Base64.getUrlEncoder()
-                .withoutPadding()
-                .encodeToString(PAYLOAD.getBytes(StandardCharsets.UTF_8))
-            + ".c2lnbmF0dXJl";
-
     StarterTestSupport.getFromService(
-        port, ORDER_FIELDS_PATH, "X-Tenant-Id", "acme", HttpHeaders.AUTHORIZATION, token);
+        port,
+        ORDER_FIELDS_PATH,
+        "X-Tenant-Id",
+        "acme",
+        HttpHeaders.AUTHORIZATION,
+        StarterTestSupport.bearerToken(PAYLOAD));
 
     var line = lines.onlyLine();
     assertThat(line.getFormattedMessage())

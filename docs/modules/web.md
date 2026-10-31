@@ -228,7 +228,8 @@ is JSON, so each is a field you can search and chart.
   `DeferredResult` that answers later. A request whose error no handler answered is logged with
   `500`.
 - WebFlux writes it when the response starts, so it has the status the error handler set. For a
-  streamed response, `durationMs` is the time until the first bytes were sent.
+  streamed response, `durationMs` is the time until the first bytes were sent. A request the caller
+  cancels before then is logged with `499`, the status nginx uses for a closed request.
 - Paths under `/actuator/**` and the static files Spring serves write no line. A path that matches
   nothing is answered `404` and logged.
 - `skip-paths` replaces the default list, so keep `/actuator/**` in it when you add your own paths.
