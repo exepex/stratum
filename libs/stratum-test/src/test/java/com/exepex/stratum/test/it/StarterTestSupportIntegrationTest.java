@@ -14,6 +14,7 @@ import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.FieldSource;
@@ -73,26 +74,42 @@ class StarterTestSupportIntegrationTest {
     server.stop(0);
   }
 
-  @Test
-  @DisplayName("getFromService sends a GET request with the headers and returns the body")
-  void sendsRequestWithHeaders() throws IOException, InterruptedException {
-    var response = StarterTestSupport.getFromService(port(), "/echo", "X-Order", "42");
+  @Nested
+  @DisplayName("getFromService")
+  class GetFromService {
 
-    assertThat(response.body()).isEqualTo("42");
+    @Test
+    @DisplayName("sends a GET request with the headers and returns the body")
+    void sendsRequestWithHeaders() throws IOException, InterruptedException {
+      var response = StarterTestSupport.getFromService(port(), "/echo", "X-Order", "42");
+
+      assertThat(response.body()).isEqualTo("42");
+    }
   }
 
-  @ParameterizedTest(name = "with Content-Length: {0}")
-  @FieldSource("DECLARED_AND_STREAMED")
-  @DisplayName("checkBodyAccepted sends the whole body, declared or streamed")
-  void sendsWholeBody(boolean declareLength) throws IOException, InterruptedException {
-    StarterTestSupport.checkBodyAccepted(port(), "/accepted", BODY_BYTES, declareLength);
+  @Nested
+  @DisplayName("checkBodyAccepted")
+  class CheckBodyAccepted {
+
+    @ParameterizedTest(name = "with Content-Length: {0}")
+    @FieldSource(
+        "com.exepex.stratum.test.it.StarterTestSupportIntegrationTest#DECLARED_AND_STREAMED")
+    @DisplayName("sends the whole body, declared or streamed")
+    void sendsWholeBody(boolean declareLength) throws IOException, InterruptedException {
+      StarterTestSupport.checkBodyAccepted(port(), "/accepted", BODY_BYTES, declareLength);
+    }
   }
 
-  @Test
-  @DisplayName("checkBodyRefused accepts a 413 with the code")
-  void readsRefusal() throws IOException, InterruptedException {
-    StarterTestSupport.checkBodyRefused(
-        port(), "/refused", "text/plain", BODY_BYTES, true, TOO_LARGE_CODE);
+  @Nested
+  @DisplayName("checkBodyRefused")
+  class CheckBodyRefused {
+
+    @Test
+    @DisplayName("accepts a 413 with the code")
+    void readsRefusal() throws IOException, InterruptedException {
+      StarterTestSupport.checkBodyRefused(
+          port(), "/refused", "text/plain", BODY_BYTES, true, TOO_LARGE_CODE);
+    }
   }
 
   /** The server's port. */
