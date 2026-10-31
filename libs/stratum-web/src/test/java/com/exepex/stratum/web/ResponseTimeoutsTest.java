@@ -24,6 +24,9 @@ class ResponseTimeoutsTest {
   /** The path of the daily reports, which have a short limit. */
   private static final String DAILY_REPORTS = "/reports/daily";
 
+  /** The path of an order, which matches no route. */
+  private static final String ORDER = "/orders/42";
+
   /** The limit of a request whose path matches no route. */
   private static final Duration DEFAULT_LIMIT = Duration.ofSeconds(10);
 
@@ -69,7 +72,7 @@ class ResponseTimeoutsTest {
     @Test
     @DisplayName("is the default when no route matches")
     void defaultLimit() {
-      var deadline = timeouts.start("/orders/42", () -> expired.set(true));
+      var deadline = timeouts.start(ORDER, () -> expired.set(true));
       assertThat(deadline.limit()).isEqualTo(DEFAULT_LIMIT);
     }
 
@@ -85,10 +88,11 @@ class ResponseTimeoutsTest {
     @Test
     @DisplayName("is the handler's @ResponseTimeout, when it has one")
     void handlerLimitWins() throws NoSuchMethodException {
-      var deadline = timeouts.start(DAILY_REPORTS, () -> expired.set(true));
+      // The default, not the short daily limit, which a loaded build can run out before the end.
+      var deadline = timeouts.start(ORDER, () -> expired.set(true));
       timeouts.applyHandlerLimit(deadline, handler("plainReport"));
       timeouts.applyHandlerLimit(deadline, "a handler that is not a method");
-      assertThat(deadline.limit()).isEqualTo(SHORT);
+      assertThat(deadline.limit()).isEqualTo(DEFAULT_LIMIT);
 
       timeouts.applyHandlerLimit(deadline, handler("slowReport"));
       assertThat(deadline.limit()).isEqualTo(SLOW_REPORT_LIMIT);
@@ -120,10 +124,11 @@ class ResponseTimeoutsTest {
     @Test
     @DisplayName("waits for a longer limit set while the request runs")
     void longerLimitDelaysIt() {
-      var deadline = timeouts.start(DAILY_REPORTS, () -> expired.set(true));
+      var deadline = timeouts.start(ORDER, () -> expired.set(true));
+      deadline.limitTo(SLOW_REPORT_LIMIT);
       deadline.limitTo(LONG);
 
-      await().during(QUIET_PERIOD).atMost(QUIET_PERIOD.multipliedBy(2)).untilFalse(expired);
+      await().during(SLOW_REPORT_LIMIT.multipliedBy(2)).atMost(WAIT).untilFalse(expired);
       assertThat(deadline.hasExpired()).isFalse();
     }
   }

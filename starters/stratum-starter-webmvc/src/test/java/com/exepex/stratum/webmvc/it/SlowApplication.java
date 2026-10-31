@@ -34,10 +34,11 @@ public class SlowApplication {
     @GetMapping("/slow/ignores-interrupt")
     String ignoresInterrupt() {
       var answerAt = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(IGNORES_INTERRUPT_MILLIS);
+      var neverReleased = new CountDownLatch(1);
       var interrupted = false;
       while (System.nanoTime() < answerAt) {
         try {
-          new CountDownLatch(1).await(answerAt - System.nanoTime(), TimeUnit.NANOSECONDS);
+          neverReleased.await(answerAt - System.nanoTime(), TimeUnit.NANOSECONDS);
         } catch (InterruptedException ignored) {
           interrupted = true;
         }

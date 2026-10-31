@@ -4,6 +4,7 @@ import com.exepex.stratum.web.RequestDeadline;
 import com.exepex.stratum.web.ResponseTimeout;
 import com.exepex.stratum.web.ResponseTimeouts;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.Ordered;
 import org.springframework.web.server.ServerWebExchange;
@@ -70,16 +71,34 @@ public class ResponseTimeoutWebFilter implements WebFilter, HandlerStartListener
   /**
    * Starts the request's deadline and runs the chain until it ends or the time is up. The limit
    * ends when the response starts. A {@link TimeoutException} of the service's own is passed on.
+   * The expiry hops to another thread, so the response can start in between: whichever of the two
+   * comes first wins, and a started response is never cut off by an expiry still on its way.
    */
   private Mono<Void> filterWithinLimit(ServerWebExchange exchange, WebFilterChain chain) {
     var expiry = Sinks.<Boolean>one();
+    var startedOrTimedOut = new AtomicBoolean();
     // The error is answered on Reactor's threads, so the single timer thread stays free.
     var deadline =
         responseTimeouts.start(
             exchange.getRequest().getPath().pathWithinApplication().value(),
-            () -> Schedulers.parallel().schedule(() -> expiry.tryEmitValue(true)));
+            () ->
+                Schedulers.parallel()
+                    .schedule(
+                        () -> {
+                          if (startedOrTimedOut.compareAndSet(false, true)) {
+                            expiry.tryEmitValue(true);
+                          }
+                        }));
     exchange.getAttributes().put(DEADLINE_ATTRIBUTE, deadline);
-    exchange.getResponse().beforeCommit(() -> Mono.fromRunnable(deadline::end));
+    exchange
+        .getResponse()
+        .beforeCommit(
+            () ->
+                Mono.fromRunnable(
+                    () -> {
+                      startedOrTimedOut.set(true);
+                      deadline.end();
+                    }));
     return chain
         .filter(exchange)
         .timeout(expiry.asMono())
