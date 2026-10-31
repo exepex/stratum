@@ -84,7 +84,8 @@ public class CorrelationIdChooser {
   /**
    * Returns the current request's correlation ID, once tracing has started: the {@code
    * correlationId} in its baggage, which {@link #rewrittenBaggage} has set to the caller's, or else
-   * the trace ID.
+   * the trace ID. A baggage value that is not safe for logs, such as one tracing took from a header
+   * the service named in {@code management.tracing.baggage.remote-fields}, is not used.
    *
    * @param tracer the tracer, in the request's tracing context
    * @return the ID, or nothing when the request is not traced, as with the no-op tracer
@@ -92,6 +93,7 @@ public class CorrelationIdChooser {
   public Optional<String> currentCorrelationId(Tracer tracer) {
     return Optional.ofNullable(tracer.getBaggage(LoggingContextConstants.CORRELATION_ID))
         .map(Baggage::get)
+        .filter(LoggingContextConstants::isSafeForLogs)
         .or(
             () ->
                 Optional.ofNullable(tracer.currentSpan())

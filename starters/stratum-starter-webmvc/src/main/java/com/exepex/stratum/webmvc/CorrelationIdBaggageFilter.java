@@ -109,7 +109,7 @@ public class CorrelationIdBaggageFilter extends OncePerRequestFilter {
     }
 
     /** Returns whether the header is the baggage header; header names ignore case. */
-    private static boolean isBaggage(String name) {
+    private boolean isBaggage(String name) {
       return String.CASE_INSENSITIVE_ORDER.compare(WebConstants.BAGGAGE_HEADER, name) == 0;
     }
   }
