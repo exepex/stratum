@@ -70,7 +70,8 @@ void updatePrice(@RequestBody PriceChange change) {
 
 The unit is megabytes unless you set another. `@RequestBodyLimit(0)` means no limit. The
 annotation works on `@RequestMapping` methods. A WebFlux router function has no method to annotate,
-so it uses the routes and the default.
+so it uses the routes and the default. On Spring MVC, Spring's form filter reads a `PUT` or `PATCH`
+form before the method is known, so a larger limit for such a form is set with a route.
 
 So the limit of a request is, in order: its method's `@RequestBodyLimit`, then the most specific
 route that matches its path, then the default.
