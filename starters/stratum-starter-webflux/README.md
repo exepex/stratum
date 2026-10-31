@@ -98,7 +98,7 @@ failure comes from a controller or a `WebFilter`.
 | Any other status, such as `405`, a `ResponseStatusException` or an exception annotated `@ResponseStatus` | that status | `SX-WEB-1004` |
 | Any other exception | `500` | `SX-WEB-1005`, with a fixed message |
 | A request whose response had not started within its [time limit](#timeouts) | `stratum.web.timeout.status`, `503` by default | `SX-WEB-1007` |
-| A request whose body is larger than its [limit](#body-size-limit) | `413` | `SX-WEB-1008` |
+| A request whose body is larger than its [limit](#body-size-limit), or a multipart part over Spring's disk limit | `413` | `SX-WEB-1008` |
 
 The codes, with how to fix each, are in [Error and warning codes](../../docs/guides/error-codes.md#stratum-starter-webmvc-and-stratum-starter-webflux).
 

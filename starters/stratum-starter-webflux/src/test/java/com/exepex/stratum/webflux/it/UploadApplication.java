@@ -14,7 +14,10 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-/** A reactive service that accepts orders as text, forms, and uploads as a stream. */
+/**
+ * A reactive service that accepts orders as text, forms, multipart uploads, and uploads as a
+ * stream.
+ */
 @SpringBootConfiguration
 @EnableAutoConfiguration
 @Import(UploadApplication.UploadController.class)
@@ -56,6 +59,17 @@ public class UploadApplication {
     @PostMapping("/forms")
     Mono<String> form(ServerWebExchange exchange) {
       return exchange.getFormData().map(fields -> String.valueOf(fields.size()));
+    }
+
+    /**
+     * Reads a multipart upload, which Spring reads from the original body.
+     *
+     * @param exchange the request and its response
+     * @return how many parts it had
+     */
+    @PostMapping("/files")
+    Mono<String> files(ServerWebExchange exchange) {
+      return exchange.getMultipartData().map(parts -> String.valueOf(parts.size()));
     }
 
     /**

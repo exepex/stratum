@@ -70,8 +70,8 @@ void updatePrice(@RequestBody PriceChange change) {
 
 The unit is megabytes unless you set another. `@RequestBodyLimit(0)` means no limit. The
 annotation works on `@RequestMapping` methods. A WebFlux router function has no method to annotate,
-so it uses the routes and the default. On Spring MVC, Spring's form filter reads a `PUT` or `PATCH`
-form before the method is known, so a larger limit for such a form is set with a route.
+so it uses the routes and the default. On Spring MVC, Spring's form filter reads a `PUT`, `PATCH` or
+`DELETE` form before the method is known, so a larger limit for such a form is set with a route.
 
 So the limit of a request is, in order: its method's `@RequestBodyLimit`, then the most specific
 route that matches its path, then the default.
@@ -130,7 +130,8 @@ upload API that accepts more than they allow raises both.
 A WebFlux part larger than `max-in-memory-size` is written to disk, and Spring Boot sets no limit on
 that disk use or on the number of parts. A WebFlux service that takes multipart uploads sets both,
 because a multipart upload sent in chunks is not limited by Stratum (see
-[What is counted](#what-is-counted)).
+[What is counted](#what-is-counted)). A WebFlux part over its disk limit is answered with `413` and
+`SX-WEB-1008`, as a body over Stratum's limit is.
 
 For example, a Spring MVC service that takes files of up to 20MB as multipart uploads sets the
 file limit to 20MB, and the upload's limits a little higher, because an upload holds the file's
@@ -185,7 +186,7 @@ Spring reads forms and multipart uploads itself, such as for `@RequestParam`, `@
 `@ModelAttribute`, so those are checked by their `Content-Length` only. On Spring MVC the server
 reads a multipart upload, under Spring's limits above, before Stratum can refuse it. A form or
 multipart upload sent in chunks, with no `Content-Length`, is limited by Spring's limits only. The
-exception is a `PUT` or `PATCH` form on Spring MVC: Spring's form filter reads it through Stratum's
+exception is a `PUT`, `PATCH` or `DELETE` form on Spring MVC: Spring's form filter reads it through Stratum's
 counter, so it is counted as it arrives. On WebFlux, Spring Boot sets no limit on a multipart
 upload's disk use or parts, so set `spring.webflux.multipart.max-disk-usage-per-part` and
 `max-parts` as shown above.
