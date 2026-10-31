@@ -27,3 +27,7 @@ stratum:
       routes:
         "[/reports/**]": 60s
       status: 504
+    body-limit:
+      default-limit: 64KB
+      routes:
+        "[/uploads/**]": 20MB

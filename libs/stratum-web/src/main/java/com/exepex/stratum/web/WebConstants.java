@@ -74,6 +74,12 @@ public class WebConstants {
   /** The setting that names the status of a request that ran out of time. */
   public static final String TIMEOUT_STATUS = PREFIX + ".timeout.status";
 
+  /** The property with how large any request's body may be. */
+  public static final String BODY_LIMIT_DEFAULT_LIMIT = PREFIX + ".body-limit.default-limit";
+
+  /** The property with the body size limit of the requests whose path matches each pattern. */
+  public static final String BODY_LIMIT_ROUTES = PREFIX + ".body-limit.routes";
+
   /** The logger of the request log lines, whose level a service can change. */
   public static final String REQUEST_LOG_LOGGER = "com.exepex.stratum.web.request-log";
 

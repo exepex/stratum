@@ -16,6 +16,7 @@ import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.CompositeArchRule;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
@@ -190,6 +191,36 @@ public class StarterTestSupport {
       request.headers(headers);
     }
     return HTTP_CLIENT.send(request.build(), HttpResponse.BodyHandlers.ofString());
+  }
+
+  /**
+   * Sends a POST request with a body of {@code byteCount} bytes to a service running on this
+   * machine, as its integration tests do.
+   *
+   * @param port the service's port
+   * @param path the path, such as {@code /orders}
+   * @param contentType the body's media type, such as {@code text/plain}
+   * @param byteCount how large the body is
+   * @param declareLength whether the request has a {@code Content-Length} header; without one the
+   *     body is sent in chunks, as a stream of unknown length is
+   * @return the response, with its body as text
+   * @throws IOException if the request cannot be sent or the response read
+   * @throws InterruptedException if the thread is interrupted while it waits
+   */
+  public static HttpResponse<String> postToService(
+      int port, String path, String contentType, int byteCount, boolean declareLength)
+      throws IOException, InterruptedException {
+    var body = "x".repeat(byteCount).getBytes(StandardCharsets.US_ASCII);
+    var publisher =
+        declareLength
+            ? HttpRequest.BodyPublishers.ofByteArray(body)
+            : HttpRequest.BodyPublishers.ofInputStream(() -> new ByteArrayInputStream(body));
+    var request =
+        HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+            .header("Content-Type", contentType)
+            .POST(publisher)
+            .build();
+    return HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
   }
 
   /**

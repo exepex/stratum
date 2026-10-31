@@ -3,6 +3,7 @@ package com.exepex.stratum.webmvc.autoconfigure;
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.web.CorrelationIdChooser;
+import com.exepex.stratum.web.RequestBodyLimits;
 import com.exepex.stratum.web.RequestFieldsAccessor;
 import com.exepex.stratum.web.RequestFieldsReader;
 import com.exepex.stratum.web.RequestLogWriter;
@@ -11,6 +12,8 @@ import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.autoconfigure.RequestFieldsConfiguration;
 import com.exepex.stratum.webmvc.CorrelationIdBaggageFilter;
 import com.exepex.stratum.webmvc.CorrelationIdFilter;
+import com.exepex.stratum.webmvc.RequestBodyLimitFilter;
+import com.exepex.stratum.webmvc.RequestBodyLimitInterceptor;
 import com.exepex.stratum.webmvc.RequestFieldsFilter;
 import com.exepex.stratum.webmvc.RequestLogFilter;
 import com.exepex.stratum.webmvc.RequestRouteInterceptor;
@@ -106,6 +109,37 @@ public final class WebMvcRequestFieldsAutoConfiguration {
   @ConditionalOnMissingBean
   public ResponseTimeoutInterceptor responseTimeoutInterceptor(ResponseTimeouts responseTimeouts) {
     return new ResponseTimeoutInterceptor(responseTimeouts);
+  }
+
+  /**
+   * Answers a request whose body is larger than its limit with {@code 413}.
+   *
+   * @param requestBodyLimits decides each request's limit
+   * @return the filter's registration, just inside the response timeout filter
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean(name = "stratumRequestBodyLimitFilter")
+  public FilterRegistrationBean<RequestBodyLimitFilter> stratumRequestBodyLimitFilter(
+      RequestBodyLimits requestBodyLimits) {
+    var registration = new FilterRegistrationBean<>(new RequestBodyLimitFilter(requestBodyLimits));
+    registration.setOrder(RequestBodyLimitFilter.ORDER);
+    return registration;
+  }
+
+  /**
+   * Gives each request the limit of its handler's {@code @RequestBodyLimit}, and checks the
+   * declared length before the handler reads the body.
+   *
+   * @param requestBodyLimits reads the handler's limit
+   * @return the interceptor
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean
+  public RequestBodyLimitInterceptor requestBodyLimitInterceptor(
+      RequestBodyLimits requestBodyLimits) {
+    return new RequestBodyLimitInterceptor(requestBodyLimits);
   }
 
   /**

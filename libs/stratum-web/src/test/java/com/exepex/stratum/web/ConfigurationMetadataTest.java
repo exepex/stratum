@@ -38,7 +38,9 @@ class ConfigurationMetadataTest {
           WebConstants.REQUEST_LOG_TOKEN_CLAIMS,
           WebConstants.TIMEOUT_DEFAULT_LIMIT,
           WebConstants.TIMEOUT_ROUTES,
-          WebConstants.TIMEOUT_STATUS);
+          WebConstants.TIMEOUT_STATUS,
+          WebConstants.BODY_LIMIT_DEFAULT_LIMIT,
+          WebConstants.BODY_LIMIT_ROUTES);
 
   @Test
   @DisplayName("every property is listed with a description")

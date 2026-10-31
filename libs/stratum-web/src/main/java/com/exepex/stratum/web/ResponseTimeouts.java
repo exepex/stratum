@@ -1,16 +1,11 @@
 package com.exepex.stratum.web;
 
 import java.time.Duration;
-import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatusCode;
-import org.springframework.http.server.PathContainer;
 import org.springframework.web.method.HandlerMethod;
-import org.springframework.web.util.pattern.PathPattern;
-import org.springframework.web.util.pattern.PathPatternParser;
 
 /**
  * Decides how long each request may take until its response starts, from {@code
@@ -24,8 +19,8 @@ public class ResponseTimeouts implements AutoCloseable {
   /** The limit of a request whose path matches no route. */
   private final Duration defaultLimit;
 
-  /** The limit of each route, the most specific pattern first. */
-  private final List<Map.Entry<PathPattern, Duration>> routeLimits;
+  /** The limit of each route. */
+  private final RouteValues<Duration> routeLimits;
 
   /** The status of a request that ran out of time. */
   private final HttpStatusCode status;
@@ -43,14 +38,7 @@ public class ResponseTimeouts implements AutoCloseable {
   public ResponseTimeouts(WebProperties settings) {
     var timeout = settings.timeout();
     this.defaultLimit = timeout.defaultLimit();
-    this.routeLimits =
-        timeout.routes().entrySet().stream()
-            .map(
-                route ->
-                    Map.entry(
-                        PathPatternParser.defaultInstance.parse(route.getKey()), route.getValue()))
-            .sorted(Map.Entry.comparingByKey(PathPattern.SPECIFICITY_COMPARATOR))
-            .toList();
+    this.routeLimits = new RouteValues<>(timeout.routes());
     this.status = HttpStatusCode.valueOf(timeout.status());
     this.timer =
         new ScheduledThreadPoolExecutor(
@@ -68,13 +56,7 @@ public class ResponseTimeouts implements AutoCloseable {
    * @return the request's deadline, to end when the request ends
    */
   public RequestDeadline start(String pathWithinApplication, Runnable onExpiry) {
-    var path = PathContainer.parsePath(pathWithinApplication);
-    var limit =
-        routeLimits.stream()
-            .filter(route -> route.getKey().matches(path))
-            .map(Map.Entry::getValue)
-            .findFirst()
-            .orElse(defaultLimit);
+    var limit = routeLimits.find(pathWithinApplication).orElse(defaultLimit);
     var deadline = new RequestDeadline(timer, onExpiry);
     deadline.limitTo(limit);
     return deadline;

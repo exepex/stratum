@@ -4,12 +4,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.web.CorrelationIdChooser;
+import com.exepex.stratum.web.RequestBodyLimits;
 import com.exepex.stratum.web.RequestFieldsPropagation;
 import com.exepex.stratum.web.RequestFieldsReader;
 import com.exepex.stratum.web.RequestLogWriter;
 import com.exepex.stratum.web.ResponseTimeouts;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebProperties;
+import com.exepex.stratum.webmvc.RequestBodyLimitFilter;
+import com.exepex.stratum.webmvc.RequestBodyLimitInterceptor;
 import com.exepex.stratum.webmvc.RequestLogFilter;
 import com.exepex.stratum.webmvc.RequestRouteInterceptor;
 import com.exepex.stratum.webmvc.ResponseTimeoutFilter;
@@ -51,6 +54,9 @@ class WebMvcRequestFieldsAutoConfigurationTest {
   /** The name of the timeout filter's registration. */
   private static final String TIMEOUT_FILTER = "stratumResponseTimeoutFilter";
 
+  /** The name of the body limit filter's registration. */
+  private static final String BODY_LIMIT_FILTER = "stratumRequestBodyLimitFilter";
+
   /** A trusted proxy range whose prefix is longer than its address. */
   private static final String TOO_LONG_RANGE = "10.0.0.0/33";
 
@@ -78,6 +84,9 @@ class WebMvcRequestFieldsAutoConfigurationTest {
                       .hasSingleBean(ResponseTimeouts.class)
                       .hasSingleBean(ResponseTimeoutInterceptor.class)
                       .hasBean(TIMEOUT_FILTER)
+                      .hasSingleBean(RequestBodyLimits.class)
+                      .hasSingleBean(RequestBodyLimitInterceptor.class)
+                      .hasBean(BODY_LIMIT_FILTER)
                       .hasBean(FIELDS_FILTER)
                       .hasBean(CORRELATION_FILTER)
                       .hasBean(BAGGAGE_FILTER)
@@ -174,6 +183,24 @@ class WebMvcRequestFieldsAutoConfigurationTest {
                                 context.getBean(REQUEST_LOG_FILTER)))
                         .containsExactly(serviceWriter, serviceFilter));
       }
+    }
+
+    @Test
+    @DisplayName("the service's own body limits and body limit filter replace Stratum's")
+    void serviceBodyLimitBeansWin() {
+      var serviceLimits = new RequestBodyLimits(WebProperties.resolve(new MockEnvironment()));
+      var serviceFilter = new FilterRegistrationBean<>(new RequestBodyLimitFilter(serviceLimits));
+      contextRunner
+          .withPropertyValues(MODULE_ON)
+          .withBean(RequestBodyLimits.class, () -> serviceLimits)
+          .withBean(BODY_LIMIT_FILTER, FilterRegistrationBean.class, () -> serviceFilter)
+          .run(
+              context ->
+                  assertThat(
+                          List.of(
+                              context.getBean(RequestBodyLimits.class),
+                              context.getBean(BODY_LIMIT_FILTER)))
+                      .containsExactly(serviceLimits, serviceFilter));
     }
 
     @Test

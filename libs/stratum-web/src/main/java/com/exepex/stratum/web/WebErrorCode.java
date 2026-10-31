@@ -39,7 +39,11 @@ public enum WebErrorCode implements ErrorCode {
       "The client location database cannot be read as a MaxMind database"),
 
   /** The request ran out of time before its response started. */
-  REQUEST_TIMED_OUT("SX-WEB-1007", Severity.ERROR, "The request ran out of time");
+  REQUEST_TIMED_OUT("SX-WEB-1007", Severity.ERROR, "The request ran out of time"),
+
+  /** The request body is larger than the API accepts. */
+  REQUEST_BODY_TOO_LARGE(
+      "SX-WEB-1008", Severity.ERROR, "The request body is larger than this API accepts");
 
   /** The code, such as {@code SX-WEB-1001}. */
   private final String code;

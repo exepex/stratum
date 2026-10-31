@@ -88,6 +88,7 @@ class ErrorResponseFactoryTest {
     @CsvSource({
       "400, SX-WEB-1002",
       "404, SX-WEB-1003",
+      "413, SX-WEB-1008",
       "405, SX-WEB-1004",
       "499, SX-WEB-1004",
       "500, SX-WEB-1005"
