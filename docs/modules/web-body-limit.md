@@ -183,9 +183,11 @@ on Spring MVC, and through `@RequestBody`, including a `Flux<DataBuffer>`, on We
 Spring reads forms and multipart uploads itself, such as for `@RequestParam`, `@RequestPart` or
 `@ModelAttribute`, so those are checked by their `Content-Length` only. On Spring MVC the server
 reads a multipart upload, under Spring's limits above, before Stratum can refuse it. A form or
-multipart upload sent in chunks, with no `Content-Length`, is limited by Spring's limits only. On
-WebFlux those have no limit on disk use or parts by default, so set
-`spring.webflux.multipart.max-disk-usage-per-part` and `max-parts` as shown above.
+multipart upload sent in chunks, with no `Content-Length`, is limited by Spring's limits only. The
+exception is a `PUT` or `PATCH` form on Spring MVC: Spring's form filter reads it through Stratum's
+counter, so it is counted as it arrives. On WebFlux, Spring Boot sets no limit on a multipart
+upload's disk use or parts, so set `spring.webflux.multipart.max-disk-usage-per-part` and
+`max-parts` as shown above.
 
 ## Configure in Java
 

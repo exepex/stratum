@@ -1,6 +1,7 @@
 package com.exepex.stratum.webmvc;
 
 import com.exepex.stratum.web.RequestBodyLimits;
+import com.exepex.stratum.web.RequestBodyTooLargeException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -13,7 +14,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 /**
  * Counts each request's body as it is read, and fails the request with {@code 413} once the body is
  * larger than the limit of its route or the default. {@link RequestBodyLimitInterceptor} gives it
- * the handler's own limit and checks the declared length before the handler reads the body.
+ * the handler's own limit and checks the declared length before the handler reads the body. A body
+ * found too large while a later filter reads it is answered here with {@code 413}.
  */
 @RequiredArgsConstructor
 public class RequestBodyLimitFilter extends OncePerRequestFilter {
@@ -46,6 +48,13 @@ public class RequestBodyLimitFilter extends OncePerRequestFilter {
     request.setAttribute(COUNTER_ATTRIBUTE, counter);
     try {
       filterChain.doFilter(new BodyCountingRequest(request, counter), response);
+    } catch (RequestBodyTooLargeException tooLarge) {
+      // A filter that reads the body, such as Spring's form filter for PUT and PATCH, fails before
+      // Spring MVC can answer it, so the answer is sent here.
+      if (response.isCommitted()) {
+        throw tooLarge;
+      }
+      response.sendError(tooLarge.getStatusCode().value());
     } finally {
       // The error page dispatch that answers a body that was too large must not be checked again.
       request.removeAttribute(COUNTER_ATTRIBUTE);

@@ -22,9 +22,6 @@ import org.junit.jupiter.params.provider.FieldSource;
 @DisplayName("StarterTestSupport's calls to a running service")
 class StarterTestSupportIntegrationTest {
 
-  /** Whether the request declares its body's length: with {@code Content-Length}, then chunked. */
-  private static final List<Boolean> DECLARED_AND_STREAMED = List.of(true, false);
-
   /** The size of the bodies sent. */
   private static final int BODY_BYTES = 2048;
 
@@ -91,9 +88,13 @@ class StarterTestSupportIntegrationTest {
   @DisplayName("checkBodyAccepted")
   class CheckBodyAccepted {
 
+    /**
+     * Whether the request declares its body's length: with {@code Content-Length}, then chunked.
+     */
+    private static final List<Boolean> DECLARED_AND_STREAMED = List.of(true, false);
+
     @ParameterizedTest(name = "with Content-Length: {0}")
-    @FieldSource(
-        "com.exepex.stratum.test.it.StarterTestSupportIntegrationTest#DECLARED_AND_STREAMED")
+    @FieldSource("DECLARED_AND_STREAMED")
     @DisplayName("sends the whole body, declared or streamed")
     void sendsWholeBody(boolean declareLength) throws IOException, InterruptedException {
       StarterTestSupport.checkBodyAccepted(port(), "/accepted", BODY_BYTES, declareLength);

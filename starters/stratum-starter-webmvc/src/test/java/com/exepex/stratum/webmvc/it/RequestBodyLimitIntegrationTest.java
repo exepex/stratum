@@ -3,6 +3,10 @@ package com.exepex.stratum.webmvc.it;
 import com.exepex.stratum.test.StarterTestSupport;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebErrorCode;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -10,6 +14,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 
 @SpringBootTest(
@@ -92,5 +98,22 @@ class RequestBodyLimitIntegrationTest {
         OVER_DEFAULT_LIMIT,
         true,
         TOO_LARGE);
+  }
+
+  @Test
+  @DisplayName("a PUT form over the limit, which Spring's form filter reads, gets SX-WEB-1008")
+  void putFormOverLimit() throws Exception {
+    var request =
+        HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/forms"))
+            .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+            .PUT(HttpRequest.BodyPublishers.ofString("x".repeat(OVER_DEFAULT_LIMIT)))
+            .build();
+
+    try (var client = HttpClient.newHttpClient()) {
+      var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+      StarterTestSupport.checkProblemDetails(
+          response, HttpStatus.CONTENT_TOO_LARGE.value(), TOO_LARGE);
+    }
   }
 }

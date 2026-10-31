@@ -11,6 +11,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.util.unit.DataUnit;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -53,7 +55,9 @@ public class UploadApplication {
      * @param fields the form's fields
      * @return how many fields it had
      */
-    @PostMapping("/forms")
+    @RequestMapping(
+        path = "/forms",
+        method = {RequestMethod.POST, RequestMethod.PUT})
     String form(@RequestParam Map<String, String> fields) {
       return String.valueOf(fields.size());
     }
