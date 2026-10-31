@@ -3,6 +3,7 @@ package com.exepex.stratum.webflux;
 import com.exepex.stratum.core.error.LoggingContextConstants;
 import com.exepex.stratum.web.CorrelationIdChooser;
 import com.exepex.stratum.web.WebConstants;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -11,6 +12,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.server.reactive.HttpHandler;
 import org.springframework.http.server.reactive.HttpHandlerDecoratorFactory;
 import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.web.util.UriUtils;
 
 /**
  * Writes a reactive request's correlation ID into its W3C {@code baggage} header before tracing
@@ -80,12 +82,27 @@ public class CorrelationIdBaggageDecorator implements HttpHandlerDecoratorFactor
     }
   }
 
-  /** Returns the value of a baggage entry whose key is {@code correlationId}, if it is one. */
+  /**
+   * Returns the decoded value of a baggage entry whose key is {@code correlationId}, if it is one.
+   * Baggage values may be percent-encoded, as some tracing libraries send {@code checkout%3A777}.
+   */
   private Optional<String> correlationIdOf(String entry) {
     var keyAndValue = entry.split(PROPERTIES_SEPARATOR, 2)[0].split(KEY_VALUE_SEPARATOR, 2);
     return keyAndValue.length == 2
             && LoggingContextConstants.CORRELATION_ID.equals(keyAndValue[0].strip())
-        ? Optional.of(keyAndValue[1].strip())
+        ? Optional.of(decoded(keyAndValue[1].strip()))
         : Optional.empty();
+  }
+
+  /**
+   * Returns a baggage value percent-decoded, or as sent when an escape is broken, so the format
+   * check rejects it.
+   */
+  private String decoded(String value) {
+    try {
+      return UriUtils.decode(value, StandardCharsets.UTF_8);
+    } catch (IllegalArgumentException brokenEscape) {
+      return value;
+    }
   }
 }

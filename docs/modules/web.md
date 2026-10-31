@@ -155,6 +155,12 @@ proxy's address, which is wrong but safe. Platform teams can set it for every se
 an environment variable such as
 `STRATUM_WEB_CLIENTIP_TRUSTEDPROXIES=10.0.0.0/8,203.0.113.0/24` or a company customizer.
 
+On Spring MVC with `server.forward-headers-strategy=native`, which Spring Boot turns on by itself on
+Kubernetes, Tomcat reads `X-Forwarded-For` first, trusting its own list,
+`server.tomcat.remoteip.internal-proxies`, which also defaults to the private and loopback ranges.
+If you change Stratum's list, set Tomcat's to match. WebFlux always uses the connection's own
+address, so only Stratum's list applies there.
+
 The client IP is personal data. It is logged because support and security need it, so keep your
 log retention and access rules in line with that.
 
