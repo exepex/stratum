@@ -13,6 +13,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Stream;
+import org.springframework.test.context.DynamicPropertyRegistry;
 
 /**
  * Stands in for an OpenTelemetry Collector and for a service the application calls: accepts every
@@ -25,6 +26,10 @@ class CollectorStub implements AutoCloseable {
 
   /** The OTLP path for spans. */
   static final String TRACES_PATH = "/v1/traces";
+
+  /** Spring Boot's property for the address that spans are sent to. */
+  private static final String TRACES_ENDPOINT_PROPERTY =
+      "management.opentelemetry.tracing.export.otlp.endpoint";
 
   /** The W3C header that carries the trace ID and the caller's span ID. */
   static final String TRACEPARENT_HEADER = "traceparent";
@@ -80,9 +85,19 @@ class CollectorStub implements AutoCloseable {
     var exportArgs =
         List.of(
             "--management.otlp.metrics.export.url=" + url(METRICS_PATH),
-            "--management.opentelemetry.tracing.export.otlp.endpoint=" + url(TRACES_PATH),
+            "--" + TRACES_ENDPOINT_PROPERTY + "=" + url(TRACES_PATH),
             "--management.tracing.sampling.probability=1.0");
     return Stream.concat(exportArgs.stream(), Stream.of(applicationArgs)).toArray(String[]::new);
+  }
+
+  /**
+   * Sends the spans of a {@code @SpringBootTest} application to this stub, which accepts them at
+   * once.
+   *
+   * @param registry the test's properties
+   */
+  void receiveSpans(DynamicPropertyRegistry registry) {
+    registry.add(TRACES_ENDPOINT_PROPERTY, () -> url(TRACES_PATH));
   }
 
   /**

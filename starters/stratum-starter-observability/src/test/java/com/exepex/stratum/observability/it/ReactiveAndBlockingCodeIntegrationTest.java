@@ -75,17 +75,22 @@ class ReactiveAndBlockingCodeIntegrationTest {
 
   private static final String BLOCKING_WEB_CLIENT_PATH = "/downstream/blocking-web-client";
 
-  /** Stands in for the downstream service and keeps the trace headers it receives. */
+  /**
+   * Stands in for the downstream service and keeps the trace headers it receives. It also takes the
+   * spans at once, so each application closes without retrying a failed send.
+   */
   @AutoClose private static final CollectorStub DOWNSTREAM = new CollectorStub();
 
   /**
-   * Points the reactive handler's WebClient at the downstream stub.
+   * Points the reactive handler's WebClient and the span export at the stub. Spring Boot propagates
+   * trace headers only while span export is on.
    *
    * @param registry the test's properties
    */
   @DynamicPropertySource
   static void callDownstreamStub(DynamicPropertyRegistry registry) {
     registry.add("orders.downstream-url", () -> DOWNSTREAM.url(REACTIVE_WEB_CLIENT_PATH));
+    DOWNSTREAM.receiveSpans(registry);
   }
 
   /**
@@ -131,8 +136,8 @@ class ReactiveAndBlockingCodeIntegrationTest {
       properties = {
         "stratum.observability.enabled=true",
         "management.tracing.sampling.probability=1.0",
-        // Spring Boot propagates trace headers only while span export is on. Nothing listens
-        // here, so the spans are dropped quietly.
+        // Stratum's startup check needs an address before @DynamicPropertySource runs; the
+        // collector stub's address then replaces this one.
         "management.opentelemetry.tracing.export.otlp.endpoint=http://localhost:1/v1/traces",
         "management.otlp.metrics.export.enabled=false"
       })
@@ -306,8 +311,8 @@ class ReactiveAndBlockingCodeIntegrationTest {
         "spring.main.web-application-type=none",
         "stratum.observability.enabled=true",
         "management.tracing.sampling.probability=1.0",
-        // Spring Boot propagates trace headers only while span export is on. Nothing listens
-        // here, so the spans are dropped quietly.
+        // Stratum's startup check needs an address before @DynamicPropertySource runs; the
+        // collector stub's address then replaces this one.
         "management.opentelemetry.tracing.export.otlp.endpoint=http://localhost:1/v1/traces",
         "management.otlp.metrics.export.enabled=false"
       })
