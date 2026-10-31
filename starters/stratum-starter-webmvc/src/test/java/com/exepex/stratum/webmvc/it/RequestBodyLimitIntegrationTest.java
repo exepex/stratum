@@ -1,17 +1,15 @@
 package com.exepex.stratum.webmvc.it;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import com.exepex.stratum.test.StarterTestSupport;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebErrorCode;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 
 @SpringBootTest(
@@ -29,8 +27,16 @@ import org.springframework.http.MediaType;
 @DisplayName("A Spring MVC request whose body is larger than its limit is answered with 413")
 class RequestBodyLimitIntegrationTest {
 
+  /**
+   * Whether the request declares its body's length: with {@code Content-Length}, then in chunks.
+   */
+  private static final List<Boolean> DECLARED_AND_STREAMED = List.of(true, false);
+
   /** One kilobyte, the default limit. */
   private static final int KILOBYTE = 1024;
+
+  /** A body over the 1KB default limit. */
+  private static final int OVER_DEFAULT_LIMIT = 2 * KILOBYTE;
 
   /** A body inside the 4KB limit of the upload route. */
   private static final int WITHIN_ROUTE_LIMIT = 3 * KILOBYTE;
@@ -41,67 +47,50 @@ class RequestBodyLimitIntegrationTest {
   /** A body inside the 8KB limit of the import API's annotation. */
   private static final int WITHIN_ANNOTATION_LIMIT = 6 * KILOBYTE;
 
+  /** The code a body over its limit is answered with. */
+  private static final String TOO_LARGE = WebErrorCode.REQUEST_BODY_TOO_LARGE.getCode();
+
   @LocalServerPort private int port;
 
   @ParameterizedTest(name = "with Content-Length: {0}")
-  @ValueSource(booleans = {true, false})
+  @FieldSource("DECLARED_AND_STREAMED")
   @DisplayName("a body over the default limit gets SX-WEB-1008, declared or streamed")
   void defaultLimit(boolean declareLength) throws Exception {
-    var response =
-        StarterTestSupport.postToService(
-            port, "/orders", MediaType.TEXT_PLAIN_VALUE, 2 * KILOBYTE, declareLength);
-
-    StarterTestSupport.checkProblemDetails(
-        response,
-        HttpStatus.CONTENT_TOO_LARGE.value(),
-        WebErrorCode.REQUEST_BODY_TOO_LARGE.getCode());
+    StarterTestSupport.checkBodyRefused(
+        port, "/orders", MediaType.TEXT_PLAIN_VALUE, OVER_DEFAULT_LIMIT, declareLength, TOO_LARGE);
   }
 
   @ParameterizedTest(name = "with Content-Length: {0}")
-  @ValueSource(booleans = {true, false})
+  @FieldSource("DECLARED_AND_STREAMED")
   @DisplayName("a route's limit lets a larger upload in, and stops one over it")
   void routeLimit(boolean declareLength) throws Exception {
-    var inLimit =
-        StarterTestSupport.postToService(
-            port, "/uploads/raw", MediaType.TEXT_PLAIN_VALUE, WITHIN_ROUTE_LIMIT, declareLength);
-    var overLimit =
-        StarterTestSupport.postToService(
-            port, "/uploads/raw", MediaType.TEXT_PLAIN_VALUE, OVER_ROUTE_LIMIT, declareLength);
-
-    assertThat(inLimit.statusCode()).isEqualTo(HttpStatus.OK.value());
-    assertThat(inLimit.body()).isEqualTo(String.valueOf(WITHIN_ROUTE_LIMIT));
-    StarterTestSupport.checkProblemDetails(
-        overLimit,
-        HttpStatus.CONTENT_TOO_LARGE.value(),
-        WebErrorCode.REQUEST_BODY_TOO_LARGE.getCode());
+    StarterTestSupport.checkBodyAccepted(port, "/uploads/raw", WITHIN_ROUTE_LIMIT, declareLength);
+    StarterTestSupport.checkBodyRefused(
+        port,
+        "/uploads/raw",
+        MediaType.TEXT_PLAIN_VALUE,
+        OVER_ROUTE_LIMIT,
+        declareLength,
+        TOO_LARGE);
   }
 
   @ParameterizedTest(name = "with Content-Length: {0}")
-  @ValueSource(booleans = {true, false})
+  @FieldSource("DECLARED_AND_STREAMED")
   @DisplayName("a method's @RequestBodyLimit wins over the default")
   void annotationWins(boolean declareLength) throws Exception {
-    var response =
-        StarterTestSupport.postToService(
-            port,
-            "/orders/imports",
-            MediaType.TEXT_PLAIN_VALUE,
-            WITHIN_ANNOTATION_LIMIT,
-            declareLength);
-
-    assertThat(response.statusCode()).isEqualTo(HttpStatus.OK.value());
-    assertThat(response.body()).isEqualTo(String.valueOf(WITHIN_ANNOTATION_LIMIT));
+    StarterTestSupport.checkBodyAccepted(
+        port, "/orders/imports", WITHIN_ANNOTATION_LIMIT, declareLength);
   }
 
   @Test
-  @DisplayName("a form over the limit, which the server reads itself, is stopped by its length")
+  @DisplayName("a form over the limit, which Spring reads itself, is stopped by its length")
   void formOverLimit() throws Exception {
-    var response =
-        StarterTestSupport.postToService(
-            port, "/forms", MediaType.APPLICATION_FORM_URLENCODED_VALUE, 2 * KILOBYTE, true);
-
-    StarterTestSupport.checkProblemDetails(
-        response,
-        HttpStatus.CONTENT_TOO_LARGE.value(),
-        WebErrorCode.REQUEST_BODY_TOO_LARGE.getCode());
+    StarterTestSupport.checkBodyRefused(
+        port,
+        "/forms",
+        MediaType.APPLICATION_FORM_URLENCODED_VALUE,
+        OVER_DEFAULT_LIMIT,
+        true,
+        TOO_LARGE);
   }
 }
