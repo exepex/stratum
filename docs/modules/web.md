@@ -71,7 +71,7 @@ Every feature works the same on both stacks.
 | Request log | One JSON line when each request ends, with its status and duration. Health checks and static files are left out |
 | Headers in logs | The request and response headers a team names are logged as fields. `Authorization`, `Cookie`, `Set-Cookie` and `X-Api-Key` never are |
 | Token payload in logs | When a team turns it on, the payload of the caller's JWT is logged. The token's header and signature never are |
-| Correlation ID (built) | Taken from the caller's `X-Correlation-Id` header when it has a safe format, otherwise the trace ID; always returned in the response header |
+| Correlation ID (built) | Taken from the caller's `X-Correlation-Id` header when it has a safe format, otherwise the trace ID; returned in the response header. Needs the observability starter |
 | Timeouts | A request that runs longer than its limit (10 seconds by default) is answered with `503` |
 | Body size limit | A request body larger than the limit is refused with `413` |
 
@@ -263,7 +263,9 @@ public class OrdersWebSettings implements WebPropertiesCustomizer {
                 .build())
         .userAgent(properties.userAgent().toBuilder().parse(true).build())
         .clientLocation(
-            new WebProperties.ClientLocationSettings(Path.of("/data/geoip/GeoLite2-City.mmdb")))
+            WebProperties.ClientLocationSettings.builder()
+                .database(Path.of("/data/geoip/GeoLite2-City.mmdb"))
+                .build())
         .build();
   }
 }

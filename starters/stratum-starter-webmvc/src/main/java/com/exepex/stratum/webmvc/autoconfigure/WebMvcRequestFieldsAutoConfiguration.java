@@ -11,6 +11,7 @@ import com.exepex.stratum.webmvc.CorrelationIdFilter;
 import com.exepex.stratum.webmvc.RequestFieldsFilter;
 import com.exepex.stratum.webmvc.RequestRouteInterceptor;
 import io.micrometer.tracing.Tracer;
+import jakarta.servlet.DispatcherType;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureOrder;
@@ -38,7 +39,8 @@ public final class WebMvcRequestFieldsAutoConfiguration {
    * Puts each request's fields in the logging context for the whole request.
    *
    * @param requestFieldsReader reads the fields
-   * @return the filter's registration, just inside the request IDs filter
+   * @return the filter's registration, just inside the request IDs filter, for the first dispatch
+   *     and the asynchronous one that writes a {@code Callable}'s response
    */
   @Bean
   @Fallback
@@ -49,6 +51,7 @@ public final class WebMvcRequestFieldsAutoConfiguration {
         new FilterRegistrationBean<>(
             new RequestFieldsFilter(requestFieldsReader, new RequestFieldsAccessor()));
     registration.setOrder(RequestFieldsFilter.ORDER);
+    registration.setDispatcherTypes(DispatcherType.REQUEST, DispatcherType.ASYNC);
     return registration;
   }
 

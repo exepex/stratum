@@ -1,5 +1,6 @@
 package com.exepex.stratum.test;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.Mockito.mock;
@@ -12,8 +13,12 @@ import com.exepex.stratum.core.properties.StratumPropertiesCustomizer;
 import com.exepex.stratum.test.fixture.UnswitchedGreeter;
 import com.exepex.stratum.test.fixture.autoconfigure.GreetingAutoConfiguration;
 import com.exepex.stratum.test.fixture.autoconfigure.GreetingFormatter;
+import com.sun.net.httpserver.HttpServer;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.http.HttpHeaders;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
@@ -144,6 +149,35 @@ class StarterTestSupportTest {
     private final Severity severity;
 
     private final String description;
+  }
+
+  @Nested
+  @DisplayName("getFromService")
+  class GetFromService {
+
+    @Test
+    @DisplayName("sends a GET request with the headers and returns the body")
+    void sendsRequestWithHeaders() throws IOException, InterruptedException {
+      var server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
+      server.createContext(
+          "/echo",
+          exchange -> {
+            var body = exchange.getRequestHeaders().getFirst("X-Order").getBytes(UTF_8);
+            exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+          });
+      server.start();
+      try {
+        var response =
+            StarterTestSupport.getFromService(
+                server.getAddress().getPort(), "/echo", "X-Order", "42");
+
+        assertThat(response.body()).isEqualTo("42");
+      } finally {
+        server.stop(0);
+      }
+    }
   }
 
   @Nested

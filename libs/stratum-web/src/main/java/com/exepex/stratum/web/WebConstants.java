@@ -49,6 +49,9 @@ public class WebConstants {
   /** The header that carries the correlation ID, in and out. */
   public static final String CORRELATION_ID_HEADER = "X-Correlation-Id";
 
+  /** The response header that asks browsers for client hints, such as the device model. */
+  public static final String ACCEPT_CLIENT_HINTS_HEADER = "Accept-CH";
+
   /** The error body member that holds the error code, such as {@code SX-WEB-1001}. */
   public static final String CODE = "code";
 

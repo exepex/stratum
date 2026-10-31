@@ -3,6 +3,7 @@ package com.exepex.stratum.webmvc;
 import com.exepex.stratum.web.RequestFieldValues;
 import com.exepex.stratum.web.RequestFieldsAccessor;
 import com.exepex.stratum.web.RequestFieldsReader;
+import com.exepex.stratum.web.WebConstants;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -25,9 +26,6 @@ public class RequestFieldsFilter extends OncePerRequestFilter {
 
   /** Runs just inside the request IDs filter, before the service's own filters. */
   public static final int ORDER = Ordered.HIGHEST_PRECEDENCE + 4;
-
-  /** The response header that asks browsers for client hints. */
-  private static final String ACCEPT_CLIENT_HINTS = "Accept-CH";
 
   /** Reads the fields. */
   private final RequestFieldsReader requestFieldsReader;
@@ -57,13 +55,26 @@ public class RequestFieldsFilter extends OncePerRequestFilter {
             socketAddressOf(request));
     requestFieldsReader
         .clientHintsToRequest()
-        .ifPresent(clientHints -> response.setHeader(ACCEPT_CLIENT_HINTS, clientHints));
+        .ifPresent(
+            clientHints ->
+                response.setHeader(WebConstants.ACCEPT_CLIENT_HINTS_HEADER, clientHints));
     requestFieldsAccessor.setValue(new RequestFieldValues(fields, () -> null));
     try {
       filterChain.doFilter(request, response);
     } finally {
       requestFieldsAccessor.setValue();
     }
+  }
+
+  /**
+   * Returns false, so the fields are put again when a {@code Callable} or {@code DeferredResult}
+   * finishes and its response is written on a second, asynchronous dispatch.
+   *
+   * @return false
+   */
+  @Override
+  protected boolean shouldNotFilterAsyncDispatch() {
+    return false;
   }
 
   /** Returns the address the request came from, without looking up a host name. */

@@ -3,17 +3,20 @@ package com.exepex.stratum.webflux;
 import com.exepex.stratum.web.RequestFieldValues;
 import com.exepex.stratum.web.RequestFieldsReader;
 import com.exepex.stratum.web.WebConstants;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.springframework.core.Ordered;
+import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.http.server.reactive.ServerHttpRequestDecorator;
 import org.springframework.web.reactive.HandlerMapping;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
 import org.springframework.web.util.pattern.PathPattern;
 import reactor.core.publisher.Mono;
+import reactor.netty.http.server.ConnectionInformation;
 import reactor.util.context.Context;
 
 /**
@@ -27,9 +30,6 @@ public class RequestFieldsWebFilter implements WebFilter, Ordered {
 
   /** Runs just inside the correlation ID filter, before the service's own filters. */
   public static final int ORDER = Ordered.HIGHEST_PRECEDENCE + 4;
-
-  /** The response header that asks browsers for client hints. */
-  private static final String ACCEPT_CLIENT_HINTS = "Accept-CH";
 
   /** Reads the fields. */
   private final RequestFieldsReader requestFieldsReader;
@@ -49,14 +49,15 @@ public class RequestFieldsWebFilter implements WebFilter, Ordered {
             request.getMethod(),
             request.getURI(),
             request.getHeaders(),
-            Optional.ofNullable(request.getRemoteAddress())
-                .map(InetSocketAddress::getAddress)
-                .orElse(null));
+            connectionAddressOf(request));
     requestFieldsReader
         .clientHintsToRequest()
         .ifPresent(
             clientHints ->
-                exchange.getResponse().getHeaders().set(ACCEPT_CLIENT_HINTS, clientHints));
+                exchange
+                    .getResponse()
+                    .getHeaders()
+                    .set(WebConstants.ACCEPT_CLIENT_HINTS_HEADER, clientHints));
     var values = new RequestFieldValues(fields, () -> routeOf(exchange));
     return chain
         .filter(exchange)
@@ -71,6 +72,29 @@ public class RequestFieldsWebFilter implements WebFilter, Ordered {
   @Override
   public int getOrder() {
     return ORDER;
+  }
+
+  /**
+   * Returns the address of the connection the request came on. On Reactor Netty this is never taken
+   * from a forwarded header, even when Spring Boot turns Netty's forwarded-header support on, as it
+   * does on Kubernetes: Netty trusts the leftmost {@code X-Forwarded-For} entry, which a client can
+   * write. Stratum's own check of the trusted proxies is then the only one.
+   */
+  private @Nullable InetAddress connectionAddressOf(ServerHttpRequest request) {
+    var address =
+        nativeRequestOf(request) instanceof ConnectionInformation connection
+            ? connection.connectionRemoteAddress()
+            : request.getRemoteAddress();
+    return address instanceof InetSocketAddress socketAddress ? socketAddress.getAddress() : null;
+  }
+
+  /** Returns the server's own request, or nothing for a test's mock request, which has none. */
+  private @Nullable Object nativeRequestOf(ServerHttpRequest request) {
+    try {
+      return ServerHttpRequestDecorator.getNativeRequest(request);
+    } catch (IllegalStateException | IllegalArgumentException noNativeRequest) {
+      return null;
+    }
   }
 
   /** Returns the route the request matched, once Spring has matched it. */

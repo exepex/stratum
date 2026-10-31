@@ -8,8 +8,8 @@ import com.exepex.stratum.web.RequestFieldsPropagation;
 import com.exepex.stratum.web.RequestFieldsReader;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebProperties;
+import com.exepex.stratum.webflux.CorrelationIdBaggageDecorator;
 import com.exepex.stratum.webflux.CorrelationIdWebFilter;
-import com.exepex.stratum.webflux.ReactorBaggagePropagation;
 import com.exepex.stratum.webflux.RequestFieldsWebFilter;
 import com.exepex.stratum.webflux.RequestRouteHandlerAdapter;
 import io.micrometer.tracing.Tracer;
@@ -58,7 +58,7 @@ class WebFluxRequestFieldsAutoConfigurationTest {
                       .hasSingleBean(RequestFieldsWebFilter.class)
                       .hasSingleBean(RequestRouteHandlerAdapter.class)
                       .hasSingleBean(CorrelationIdWebFilter.class)
-                      .hasSingleBean(ReactorBaggagePropagation.class));
+                      .hasSingleBean(CorrelationIdBaggageDecorator.class));
     }
 
     @Test
@@ -93,7 +93,7 @@ class WebFluxRequestFieldsAutoConfigurationTest {
                   assertThat(context)
                       .hasSingleBean(RequestFieldsWebFilter.class)
                       .doesNotHaveBean(CorrelationIdWebFilter.class)
-                      .doesNotHaveBean(ReactorBaggagePropagation.class));
+                      .doesNotHaveBean(CorrelationIdBaggageDecorator.class));
     }
 
     @Test

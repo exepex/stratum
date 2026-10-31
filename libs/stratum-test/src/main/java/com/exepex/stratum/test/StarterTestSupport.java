@@ -17,8 +17,11 @@ import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.CompositeArchRule;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -51,6 +54,9 @@ public class StarterTestSupport {
 
   /** The annotation every method in a starter's autoconfigure package carries (ST-ENG-23). */
   private static final String BEAN = "org.springframework.context.annotation.Bean";
+
+  /** Calls the services under test; one client serves every test. */
+  private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
 
   /** The number of bytes in an IPv4 address. */
   private static final int IPV4_BYTES = 4;
@@ -158,6 +164,26 @@ public class StarterTestSupport {
     assertThat(JsonPath.<Integer>read(response.body(), "$.status")).isEqualTo(status);
     assertThat(JsonPath.<String>read(response.body(), "$." + LoggingContextConstants.TRACE_ID))
         .matches("\\p{XDigit}{32}");
+  }
+
+  /**
+   * Sends a GET request to a service running on this machine, as its integration tests do.
+   *
+   * @param port the service's port
+   * @param pathAndQuery the path and query, such as {@code /orders/42?expand=lines}
+   * @param headers header names and values, in pairs
+   * @return the response, with its body as text
+   * @throws IOException if the request cannot be sent or the response read
+   * @throws InterruptedException if the thread is interrupted while it waits
+   */
+  public static HttpResponse<String> getFromService(
+      int port, String pathAndQuery, String... headers) throws IOException, InterruptedException {
+    var request =
+        HttpRequest.newBuilder(URI.create("http://localhost:" + port + pathAndQuery)).GET();
+    if (headers.length > 0) {
+      request.headers(headers);
+    }
+    return HTTP_CLIENT.send(request.build(), HttpResponse.BodyHandlers.ofString());
   }
 
   /**

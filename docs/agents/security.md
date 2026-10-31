@@ -16,6 +16,8 @@ A security flaw in Stratum is copied into every service that uses it, so the rul
 - **ST-SEC-03 Personal data.** Names, email addresses, phone numbers, postal addresses, government IDs, dates of
   birth, card numbers, IP addresses and precise locations never appear in logs, `toString` output, URLs, query
   strings, metric tags or error responses. A type that holds such data excludes it from `toString`.
+  The one exception: the web module logs the client's IP address (`clientIp`) for security use, and no other
+  personal data.
 - **ST-SEC-04 Injection.** SQL and JPQL use bind parameters, never string concatenation of input. Input never reaches
   `ProcessBuilder`, a file path or a log line without validation; carriage returns and line feeds are removed from
   logged values.

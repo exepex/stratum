@@ -6,11 +6,10 @@ import com.exepex.stratum.web.CorrelationIdChooser;
 import com.exepex.stratum.web.RequestFieldsReader;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.autoconfigure.RequestFieldsConfiguration;
+import com.exepex.stratum.webflux.CorrelationIdBaggageDecorator;
 import com.exepex.stratum.webflux.CorrelationIdWebFilter;
-import com.exepex.stratum.webflux.ReactorBaggagePropagation;
 import com.exepex.stratum.webflux.RequestFieldsWebFilter;
 import com.exepex.stratum.webflux.RequestRouteHandlerAdapter;
-import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.tracing.Tracer;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -89,20 +88,17 @@ public final class WebFluxRequestFieldsAutoConfiguration {
     }
 
     /**
-     * Opens the correlation ID's baggage on every thread a request's steps run on.
+     * Writes a caller's correlation ID into each request's baggage before tracing reads it.
      *
-     * @param observationRegistry the observations; without one, nothing is observed
-     * @param tracer opens the baggage; without one, nothing is opened
-     * @return the registration, removed when the application stops
+     * @param correlationIdChooser chooses the ID
+     * @return the decorator of Spring WebFlux's handler
      */
     @Bean
     @Fallback
     @ConditionalOnMissingBean
-    public ReactorBaggagePropagation reactorBaggagePropagation(
-        ObjectProvider<ObservationRegistry> observationRegistry, ObjectProvider<Tracer> tracer) {
-      return new ReactorBaggagePropagation(
-          observationRegistry.getIfAvailable(() -> ObservationRegistry.NOOP),
-          tracer.getIfAvailable(() -> Tracer.NOOP));
+    public CorrelationIdBaggageDecorator correlationIdBaggageDecorator(
+        CorrelationIdChooser correlationIdChooser) {
+      return new CorrelationIdBaggageDecorator(correlationIdChooser);
     }
   }
 }

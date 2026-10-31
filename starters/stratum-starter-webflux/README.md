@@ -231,7 +231,7 @@ Each bean below is Stratum's only until you declare your own:
 | `ProblemDetailIdsInterceptor` | What adds the IDs to the `ProblemDetail` bodies your handlers return |
 | `RequestFieldsWebFilter` or `CorrelationIdWebFilter` | The filter that puts the request fields in the logging context, or the one that chooses the correlation ID |
 | `RequestRouteHandlerAdapter` | What puts the matched route in the logging context before your handler runs |
-| `ReactorBaggagePropagation` | What carries the correlation ID in the baggage across Reactor's thread switches |
+| `CorrelationIdBaggageDecorator` | What writes a caller's correlation ID into the request's baggage before tracing reads it |
 | `RequestFieldsReader`, `CorrelationIdChooser` or `RequestFieldsPropagation` | How the fields are read, how the correlation ID is chosen, or how the fields follow the request across threads |
 
 Stratum's error auto-configuration is ordered before Spring Boot's `ErrorWebFluxAutoConfiguration`, because its

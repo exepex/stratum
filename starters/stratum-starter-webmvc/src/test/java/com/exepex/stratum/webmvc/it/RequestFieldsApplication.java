@@ -2,6 +2,7 @@ package com.exepex.stratum.webmvc.it;
 
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.MDC;
@@ -9,19 +10,70 @@ import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.web.server.context.WebServerApplicationContext;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.MethodParameter;
 import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.http.MediaType;
+import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.http.server.ServerHttpRequest;
+import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
 
 /** A service whose endpoints return the logging context their log lines would carry. */
 @SpringBootConfiguration
 @EnableAutoConfiguration
-@Import(RequestFieldsApplication.FieldsController.class)
+@Import({
+  RequestFieldsApplication.FieldsController.class,
+  RequestFieldsApplication.ResponseThreadFieldsAdvice.class
+})
 public class RequestFieldsApplication {
+
+  /** Answers the response thread endpoint with the logging context of the thread writing it. */
+  @RestControllerAdvice
+  static class ResponseThreadFieldsAdvice implements ResponseBodyAdvice<Object> {
+
+    /**
+     * Returns true: the advice checks the path itself.
+     *
+     * @param returnType the handler's return type
+     * @param converterType the converter that writes the body
+     * @return true
+     */
+    @Override
+    public boolean supports(
+        MethodParameter returnType, Class<? extends HttpMessageConverter<?>> converterType) {
+      return true;
+    }
+
+    /**
+     * Returns the logging context for the response thread endpoint, and any other body unchanged.
+     *
+     * @param body the body
+     * @param returnType the handler's return type
+     * @param contentType the body's media type
+     * @param converterType the converter that writes the body
+     * @param request the request
+     * @param response the response
+     * @return the body to write
+     */
+    @Override
+    public @Nullable Object beforeBodyWrite(
+        @Nullable Object body,
+        MethodParameter returnType,
+        MediaType contentType,
+        Class<? extends HttpMessageConverter<?>> converterType,
+        ServerHttpRequest request,
+        ServerHttpResponse response) {
+      return request.getURI().getPath().endsWith("/response-thread-fields")
+          ? Objects.requireNonNullElse(MDC.getCopyOfContextMap(), Map.of())
+          : body;
+    }
+  }
 
   /** The endpoints. */
   @RestController
@@ -62,6 +114,18 @@ public class RequestFieldsApplication {
     CompletableFuture<Map<String, String>> asyncFields(@PathVariable String orderId) {
       return taskExecutor.submitCompletable(
           () -> Objects.requireNonNullElse(MDC.getCopyOfContextMap(), Map.of()));
+    }
+
+    /**
+     * Finishes on another thread, so Spring MVC writes the response on a second, asynchronous
+     * dispatch, where {@link ResponseThreadFieldsAdvice} replaces the body.
+     *
+     * @param orderId the order's ID
+     * @return an empty body, replaced by the advice
+     */
+    @GetMapping("/orders/{orderId}/response-thread-fields")
+    Callable<Map<String, String>> responseThreadFields(@PathVariable String orderId) {
+      return Map::of;
     }
 
     /**

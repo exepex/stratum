@@ -113,6 +113,21 @@ class RequestFieldsReaderTest {
     }
 
     @Test
+    @DisplayName("does not ask for client hints when only parsing is on")
+    void noClientHintsWithParsingOnly() throws IOException {
+      var parser = mock(UserAgentParser.class);
+      when(parser.clientHintsToRequest()).thenReturn("Sec-CH-UA-Model");
+      var settings =
+          WebTestData.defaults()
+              .userAgent(WebProperties.UserAgentSettings.builder().parse(true).build())
+              .build();
+
+      try (var reader = reader(settings, parser, null)) {
+        assertThat(reader.clientHintsToRequest()).isEmpty();
+      }
+    }
+
+    @Test
     @DisplayName("adds the parsed user agent and the client's location when they are on")
     void addsParsedAgentAndLocation() throws IOException {
       var parser = mock(UserAgentParser.class);

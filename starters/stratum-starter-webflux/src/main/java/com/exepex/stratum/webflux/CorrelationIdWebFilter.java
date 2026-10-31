@@ -8,7 +8,6 @@ import io.micrometer.tracing.Baggage;
 import io.micrometer.tracing.Span;
 import io.micrometer.tracing.TraceContext;
 import io.micrometer.tracing.Tracer;
-import io.micrometer.tracing.contextpropagation.reactor.ReactorBaggage;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.Ordered;
@@ -19,9 +18,9 @@ import reactor.core.publisher.Mono;
 import reactor.util.context.ContextView;
 
 /**
- * Gives each reactive request its correlation ID and returns it in the {@code X-Correlation-Id}
- * response header. When the ID is not already the one tracing would use, it is put in the tracing
- * baggage for the rest of the request, so every log line and every service called gets it.
+ * Returns each reactive request's correlation ID in the {@code X-Correlation-Id} response header.
+ * {@link CorrelationIdBaggageDecorator} has already put a caller's ID in the request's baggage, so
+ * the ID is the baggage's, or the trace ID when there is none.
  */
 @RequiredArgsConstructor
 public class CorrelationIdWebFilter implements WebFilter, Ordered {
@@ -39,8 +38,7 @@ public class CorrelationIdWebFilter implements WebFilter, Ordered {
   private final CorrelationIdChooser correlationIdChooser;
 
   /**
-   * Chooses the request's correlation ID, returns it in the response header, and runs the rest of
-   * the chain with it in the baggage when it has to be put there.
+   * Returns the request's correlation ID in the response header, then runs the rest of the chain.
    *
    * @param exchange the request and its response
    * @param chain the rest of the chain
@@ -61,7 +59,7 @@ public class CorrelationIdWebFilter implements WebFilter, Ordered {
     return ORDER;
   }
 
-  /** Chooses the ID with the request's tracing context in place, then runs the chain. */
+  /** Reads the ID with the request's tracing context in place, then runs the chain. */
   private Mono<Void> filterWithCorrelationId(
       ServerWebExchange exchange, WebFilterChain chain, ContextView context) {
     var callerHeader =
@@ -85,13 +83,6 @@ public class CorrelationIdWebFilter implements WebFilter, Ordered {
                 .getResponse()
                 .getHeaders()
                 .set(WebConstants.CORRELATION_ID_HEADER, chosen.correlationId()));
-    if (choice.isEmpty() || !choice.get().setInBaggage()) {
-      return chain.filter(exchange);
-    }
-    return chain
-        .filter(exchange)
-        .contextWrite(
-            ReactorBaggage.append(
-                LoggingContextConstants.CORRELATION_ID, choice.get().correlationId()));
+    return chain.filter(exchange);
   }
 }
