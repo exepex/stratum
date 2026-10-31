@@ -27,6 +27,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 import java.util.regex.MatchResult;
 import java.util.regex.Pattern;
@@ -54,6 +55,9 @@ public class StarterTestSupport {
 
   /** The annotation every method in a starter's autoconfigure package carries (ST-ENG-23). */
   private static final String BEAN = "org.springframework.context.annotation.Bean";
+
+  /** The address that requests sent from this machine come from. */
+  private static final String LOOPBACK_ADDRESS = ipAddress(127, 0, 0, 1);
 
   /** Calls the services under test; one client serves every test. */
   private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
@@ -184,6 +188,32 @@ public class StarterTestSupport {
       request.headers(headers);
     }
     return HTTP_CLIENT.send(request.build(), HttpResponse.BodyHandlers.ofString());
+  }
+
+  /**
+   * Checks the request fields that both web starters put in the logging context of a GET request
+   * sent from this machine, as returned by a test endpoint that answers with its logging context:
+   * the method, route, path, query, client IP and raw user agent, and none of the parsed agent or
+   * location fields, which are off by default.
+   *
+   * @param response the endpoint's response, whose body is the logging context as JSON
+   * @param route the route template, such as {@code /orders/{orderId}/fields}
+   * @param pathAndQuery the path and query sent, such as {@code /orders/42/fields?expand=lines}
+   * @param userAgent the {@code User-Agent} header sent
+   */
+  public static void checkRequestFields(
+      HttpResponse<String> response, String route, String pathAndQuery, String userAgent) {
+    var sent = URI.create(pathAndQuery);
+    Map<String, String> fields = JsonPath.read(response.body(), "$");
+    assertThat(fields)
+        .containsEntry(LoggingContextConstants.HTTP_METHOD, "GET")
+        .containsEntry(LoggingContextConstants.HTTP_ROUTE, route)
+        .containsEntry(LoggingContextConstants.HTTP_PATH, sent.getPath())
+        .containsEntry(LoggingContextConstants.HTTP_QUERY, sent.getQuery())
+        .containsEntry(LoggingContextConstants.CLIENT_IP, LOOPBACK_ADDRESS)
+        .containsEntry(LoggingContextConstants.USER_AGENT, userAgent)
+        .doesNotContainKeys(
+            LoggingContextConstants.DEVICE_CLASS, LoggingContextConstants.CLIENT_COUNTRY);
   }
 
   /**

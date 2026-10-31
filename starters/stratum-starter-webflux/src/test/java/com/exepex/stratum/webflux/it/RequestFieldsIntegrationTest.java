@@ -6,7 +6,6 @@ import com.exepex.stratum.core.error.LoggingContextConstants;
 import com.exepex.stratum.test.StarterTestSupport;
 import com.exepex.stratum.web.WebConstants;
 import com.jayway.jsonpath.JsonPath;
-import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -17,9 +16,6 @@ import org.springframework.http.HttpStatus;
 
 @DisplayName("Every log line of a reactive request carries its fields and correlation ID")
 class RequestFieldsIntegrationTest {
-
-  /** The address the test's requests come from. */
-  private static final String LOOPBACK_ADDRESS = StarterTestSupport.ipAddress(127, 0, 0, 1);
 
   /** A client on the internet. */
   private static final String INTERNET_CLIENT_ADDRESS =
@@ -36,6 +32,9 @@ class RequestFieldsIntegrationTest {
 
   /** The query string of the test requests. */
   private static final String EXPAND_QUERY = "expand=lines";
+
+  /** The user agent the request sends. */
+  private static final String USER_AGENT = "orders-cli/1.0";
 
   /** The number of hex digits in a trace ID. */
   private static final int TRACE_ID_LENGTH = 32;
@@ -64,21 +63,10 @@ class RequestFieldsIntegrationTest {
     void handlerSeesRequestFields() throws Exception {
       var response =
           StarterTestSupport.getFromService(
-              port,
-              ORDER_FIELDS_PATH + "?" + EXPAND_QUERY,
-              HttpHeaders.USER_AGENT,
-              "orders-cli/1.0");
+              port, ORDER_FIELDS_PATH + "?" + EXPAND_QUERY, HttpHeaders.USER_AGENT, USER_AGENT);
 
-      Map<String, String> fields = JsonPath.read(response.body(), "$");
-      assertThat(fields)
-          .containsEntry(LoggingContextConstants.HTTP_METHOD, "GET")
-          .containsEntry(LoggingContextConstants.HTTP_ROUTE, "/orders/{orderId}/fields")
-          .containsEntry(LoggingContextConstants.HTTP_PATH, ORDER_FIELDS_PATH)
-          .containsEntry(LoggingContextConstants.HTTP_QUERY, EXPAND_QUERY)
-          .containsEntry(LoggingContextConstants.CLIENT_IP, LOOPBACK_ADDRESS)
-          .containsEntry(LoggingContextConstants.USER_AGENT, "orders-cli/1.0")
-          .doesNotContainKeys(
-              LoggingContextConstants.DEVICE_CLASS, LoggingContextConstants.CLIENT_COUNTRY);
+      StarterTestSupport.checkRequestFields(
+          response, "/orders/{orderId}/fields", ORDER_FIELDS_PATH + "?" + EXPAND_QUERY, USER_AGENT);
     }
 
     @Test

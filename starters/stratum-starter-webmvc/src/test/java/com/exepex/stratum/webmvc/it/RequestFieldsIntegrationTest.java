@@ -34,6 +34,9 @@ class RequestFieldsIntegrationTest {
   /** The query string of the test requests. */
   private static final String EXPAND_QUERY = "expand=lines";
 
+  /** The user agent the request sends. */
+  private static final String USER_AGENT = "orders-cli/1.0";
+
   /** The number of hex digits in a trace ID. */
   private static final int TRACE_ID_LENGTH = 32;
 
@@ -61,21 +64,10 @@ class RequestFieldsIntegrationTest {
     void handlerSeesRequestFields() throws Exception {
       var response =
           StarterTestSupport.getFromService(
-              port,
-              ORDER_FIELDS_PATH + "?" + EXPAND_QUERY,
-              HttpHeaders.USER_AGENT,
-              "orders-cli/1.0");
+              port, ORDER_FIELDS_PATH + "?" + EXPAND_QUERY, HttpHeaders.USER_AGENT, USER_AGENT);
 
-      Map<String, String> fields = JsonPath.read(response.body(), "$");
-      assertThat(fields)
-          .containsEntry(LoggingContextConstants.HTTP_METHOD, "GET")
-          .containsEntry(LoggingContextConstants.HTTP_ROUTE, "/orders/{orderId}/fields")
-          .containsEntry(LoggingContextConstants.HTTP_PATH, ORDER_FIELDS_PATH)
-          .containsEntry(LoggingContextConstants.HTTP_QUERY, EXPAND_QUERY)
-          .containsEntry(LoggingContextConstants.CLIENT_IP, LOOPBACK_ADDRESS)
-          .containsEntry(LoggingContextConstants.USER_AGENT, "orders-cli/1.0")
-          .doesNotContainKeys(
-              LoggingContextConstants.DEVICE_CLASS, LoggingContextConstants.CLIENT_COUNTRY);
+      StarterTestSupport.checkRequestFields(
+          response, "/orders/{orderId}/fields", ORDER_FIELDS_PATH + "?" + EXPAND_QUERY, USER_AGENT);
     }
 
     @Test
@@ -91,17 +83,23 @@ class RequestFieldsIntegrationTest {
     }
 
     @Test
-    @DisplayName("a response written on an asynchronous dispatch carries the request fields")
+    @DisplayName(
+        "a response written on an asynchronous dispatch carries the request fields and the"
+            + " caller's correlation ID")
     void asyncDispatchSeesRequestFields() throws Exception {
       var response =
           StarterTestSupport.getFromService(
-              port, "/orders/42/response-thread-fields?" + EXPAND_QUERY);
+              port,
+              "/orders/42/response-thread-fields?" + EXPAND_QUERY,
+              WebConstants.CORRELATION_ID_HEADER,
+              CALLER_ID);
 
       Map<String, String> fields = JsonPath.read(response.body(), "$");
       assertThat(fields)
           .containsEntry(LoggingContextConstants.HTTP_PATH, "/orders/42/response-thread-fields")
           .containsEntry(LoggingContextConstants.HTTP_QUERY, EXPAND_QUERY)
-          .containsEntry(LoggingContextConstants.CLIENT_IP, LOOPBACK_ADDRESS);
+          .containsEntry(LoggingContextConstants.CLIENT_IP, LOOPBACK_ADDRESS)
+          .containsEntry(LoggingContextConstants.CORRELATION_ID, CALLER_ID);
     }
 
     @Test

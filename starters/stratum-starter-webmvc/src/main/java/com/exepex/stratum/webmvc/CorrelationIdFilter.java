@@ -72,4 +72,16 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
       filterChain.doFilter(request, response);
     }
   }
+
+  /**
+   * Returns false, so the ID is chosen again, with the same result, when a {@code Callable} or
+   * {@code DeferredResult} finishes and its response is written on a second, asynchronous dispatch.
+   * The baggage set on the first dispatch has ended by then.
+   *
+   * @return false
+   */
+  @Override
+  protected boolean shouldNotFilterAsyncDispatch() {
+    return false;
+  }
 }
