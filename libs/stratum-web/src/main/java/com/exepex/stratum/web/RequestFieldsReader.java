@@ -4,14 +4,18 @@ import com.exepex.stratum.core.error.LoggingContextConstants;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.web.util.UriUtils;
 
 /**
  * Reads the fields that every log line of a request carries: its method, path and query, the
@@ -112,7 +116,7 @@ public class RequestFieldsReader implements AutoCloseable {
    * them, because it is known only once Spring has matched the request to a handler.
    *
    * @param method the request's method
-   * @param uri the request's URI, whose path and query are kept as the client encoded them
+   * @param uri the request's URI, whose path and query values are kept as the client encoded them
    * @param headers the request's headers
    * @param socketAddress the address the request came from, if known
    * @return the fields
@@ -123,7 +127,7 @@ public class RequestFieldsReader implements AutoCloseable {
     fields.put(LoggingContextConstants.HTTP_METHOD, method.name());
     fields.put(LoggingContextConstants.HTTP_PATH, Objects.requireNonNullElse(uri.getRawPath(), ""));
     if (uri.getRawQuery() != null) {
-      fields.put(LoggingContextConstants.HTTP_QUERY, uri.getRawQuery());
+      fields.put(LoggingContextConstants.HTTP_QUERY, withDecodedNames(uri.getRawQuery()));
     }
     var clientIp = clientIpResolver.clientIp(socketAddress, headers.getValuesAsList(FORWARDED_FOR));
     clientIp.ifPresent(
@@ -140,6 +144,30 @@ public class RequestFieldsReader implements AutoCloseable {
     }
     fields.replaceAll((name, value) -> safeForLogs(value));
     return fields;
+  }
+
+  /**
+   * Returns the query with each parameter name percent-decoded and each value as the client sent
+   * it, so that the logging starter's redaction sees a name such as {@code %74oken} as {@code
+   * token} and masks its value.
+   */
+  private String withDecodedNames(String rawQuery) {
+    return Arrays.stream(rawQuery.split("&", -1))
+        .map(
+            parameter -> {
+              var nameEnd = parameter.indexOf('=');
+              var name = nameEnd < 0 ? parameter : parameter.substring(0, nameEnd);
+              return decodedName(name) + parameter.substring(name.length());
+            })
+        .collect(Collectors.joining("&"));
+  }
+
+  /**
+   * Returns a parameter name percent-decoded. A {@link URI} holds only valid escapes, so decoding
+   * cannot fail.
+   */
+  private String decodedName(String name) {
+    return name.indexOf('%') < 0 ? name : UriUtils.decode(name, StandardCharsets.UTF_8);
   }
 
   /**

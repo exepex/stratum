@@ -119,7 +119,7 @@ SLF4J's MDC (the logging context, which the logging starter writes as JSON field
 | `httpMethod` | `GET` | The request |
 | `httpRoute` | `/orders/{orderId}` | The route Spring matched, once it has matched one |
 | `httpPath` | `/orders/42` | The request, as the client encoded it |
-| `httpQuery` | `expand=lines` | The request, without the `?` |
+| `httpQuery` | `expand=lines` | The request, without the `?`. Parameter names are decoded, such as `%74oken` to `token`, so redaction finds them; values stay as sent |
 | `clientIp` | `203.0.113.7` | The client's address; see [the client IP](#the-client-ip) |
 | `userAgent` | `Mozilla/5.0 (...)` | The `User-Agent` header, as sent |
 | `deviceClass`, `deviceName` | `Phone`, `Google Pixel 7` | Only with `stratum.web.user-agent.parse=true` |

@@ -70,6 +70,17 @@ class RequestFieldsReaderTest {
     }
 
     @Test
+    @DisplayName(
+        "decodes query parameter names, so redaction finds an encoded secret name, and keeps"
+            + " values as sent")
+    void decodesQueryParameterNames() {
+      var uri = URI.create("/orders?%74oken=abc%20123&flag&expand=a%3Db");
+
+      assertThat(reader.fieldsOf(HttpMethod.GET, uri, new HttpHeaders(), null))
+          .containsEntry(LoggingContextConstants.HTTP_QUERY, "token=abc%20123&flag&expand=a%3Db");
+    }
+
+    @Test
     @DisplayName("replaces control characters, so a value cannot forge a log line")
     void replacesControlCharacters() {
       var headers = new HttpHeaders();
