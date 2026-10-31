@@ -35,6 +35,9 @@ class WebMvcRequestFieldsAutoConfigurationTest {
   /** The name of the correlation ID filter's registration. */
   private static final String CORRELATION_FILTER = "stratumCorrelationIdFilter";
 
+  /** The name of the filter that writes a caller's correlation ID into the baggage. */
+  private static final String BAGGAGE_FILTER = "stratumCorrelationIdBaggageFilter";
+
   /** A trusted proxy range whose prefix is longer than its address. */
   private static final String TOO_LONG_RANGE = "10.0.0.0/33";
 
@@ -60,7 +63,8 @@ class WebMvcRequestFieldsAutoConfigurationTest {
                       .hasSingleBean(RequestFieldsPropagation.class)
                       .hasSingleBean(RequestRouteInterceptor.class)
                       .hasBean(FIELDS_FILTER)
-                      .hasBean(CORRELATION_FILTER));
+                      .hasBean(CORRELATION_FILTER)
+                      .hasBean(BAGGAGE_FILTER));
     }
 
     @Test
@@ -92,7 +96,11 @@ class WebMvcRequestFieldsAutoConfigurationTest {
           .withClassLoader(new FilteredClassLoader(Tracer.class))
           .run(
               context ->
-                  assertThat(context).hasBean(FIELDS_FILTER).doesNotHaveBean(CORRELATION_FILTER));
+                  assertThat(context)
+                      .hasBean(FIELDS_FILTER)
+                      .doesNotHaveBean(CorrelationIdChooser.class)
+                      .doesNotHaveBean(CORRELATION_FILTER)
+                      .doesNotHaveBean(BAGGAGE_FILTER));
     }
 
     @Test

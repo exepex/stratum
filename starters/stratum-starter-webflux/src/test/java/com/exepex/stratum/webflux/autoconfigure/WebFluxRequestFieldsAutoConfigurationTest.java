@@ -92,6 +92,7 @@ class WebFluxRequestFieldsAutoConfigurationTest {
               context ->
                   assertThat(context)
                       .hasSingleBean(RequestFieldsWebFilter.class)
+                      .doesNotHaveBean(CorrelationIdChooser.class)
                       .doesNotHaveBean(CorrelationIdWebFilter.class)
                       .doesNotHaveBean(CorrelationIdBaggageDecorator.class));
     }

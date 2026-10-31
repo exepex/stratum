@@ -229,7 +229,7 @@ Each bean below is Stratum's only until you declare your own:
 | `ErrorAttributes` | The body of failures outside your exception handlers; yours gets Spring Boot's error handler with its plain JSON and HTML page, as before |
 | `ErrorWebExceptionHandler` | All of the error handling outside your exception handlers, Stratum's and Spring Boot's |
 | `ProblemDetailIdsInterceptor` | What adds the IDs to the `ProblemDetail` bodies your handlers return |
-| `RequestFieldsWebFilter` or `CorrelationIdWebFilter` | The filter that puts the request fields in the logging context, or the one that chooses the correlation ID |
+| `RequestFieldsWebFilter` or `CorrelationIdWebFilter` | The filter that puts the request fields in the logging context, or the one that returns the correlation ID in the response header |
 | `RequestRouteHandlerAdapter` | What puts the matched route in the logging context before your handler runs |
 | `CorrelationIdBaggageDecorator` | What writes a caller's correlation ID into the request's baggage before tracing reads it |
 | `RequestFieldsReader`, `CorrelationIdChooser` or `RequestFieldsPropagation` | How the fields are read, how the correlation ID is chosen, or how the fields follow the request across threads |

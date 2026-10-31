@@ -157,8 +157,9 @@ an environment variable such as
 
 On Spring MVC with `server.forward-headers-strategy=native`, which Spring Boot turns on by itself on
 Kubernetes, Tomcat reads `X-Forwarded-For` first, trusting its own list,
-`server.tomcat.remoteip.internal-proxies`, which also defaults to the private and loopback ranges.
-If you change Stratum's list, set Tomcat's to match. WebFlux always uses the connection's own
+`server.tomcat.remoteip.internal-proxies`. That list defaults to the private and loopback ranges
+and also trusts the link-local (`169.254.0.0/16`, `fe80::/10`) and carrier-grade NAT
+(`100.64.0.0/10`) ranges. Set the two lists to match. WebFlux always uses the connection's own
 address, so only Stratum's list applies there.
 
 The client IP is personal data. It is logged because support and security need it, so keep your
@@ -198,8 +199,11 @@ back to the caller in the `X-Correlation-Id` response header. It is, in this ord
 3. the trace ID.
 
 A caller's value counts only if it is 1 to 128 letters, digits, `-`, `_`, `.` or `:`; any other value
-is ignored, so a caller cannot forge a log line. When the ID comes from the header, Stratum puts it
-in the tracing baggage, so every service the request calls gets it too. On a service that faces
+is ignored, so a caller cannot forge a log line. A baggage value some tracing libraries
+percent-encode, such as `checkout%3A777`, is checked once decoded. Before tracing starts, Stratum
+writes the chosen caller's ID into the request's `baggage` header, on both stacks, so tracing
+carries it to every log line, to work on other threads, to the error body and to every service the
+request calls. On a service that faces
 the internet, set `stratum.web.correlation.accept-from-caller=false`: the header and the caller's
 baggage are then ignored, and the ID is always the trace ID. The ID never identifies the caller:
 identity comes only from a verified token.

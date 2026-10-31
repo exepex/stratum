@@ -6,6 +6,7 @@ import com.exepex.stratum.web.RequestFieldsPropagation;
 import com.exepex.stratum.web.RequestFieldsReader;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebProperties;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.annotation.Bean;
@@ -37,7 +38,8 @@ public class RequestFieldsConfiguration {
   }
 
   /**
-   * Chooses each request's correlation ID.
+   * Chooses each request's correlation ID, when Micrometer Tracing is on the classpath. The ID
+   * travels in the tracing baggage, so without tracing there is none.
    *
    * @param environment the application's environment
    * @return the chooser
@@ -45,6 +47,7 @@ public class RequestFieldsConfiguration {
   @Bean
   @Fallback
   @ConditionalOnMissingBean
+  @ConditionalOnClass(name = "io.micrometer.tracing.Tracer")
   public CorrelationIdChooser correlationIdChooser(Environment environment) {
     return new CorrelationIdChooser(WebProperties.resolve(environment));
   }

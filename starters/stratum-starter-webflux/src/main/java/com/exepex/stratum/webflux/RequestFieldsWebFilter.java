@@ -88,11 +88,15 @@ public class RequestFieldsWebFilter implements WebFilter, Ordered {
     return address instanceof InetSocketAddress socketAddress ? socketAddress.getAddress() : null;
   }
 
-  /** Returns the server's own request, or nothing for a test's mock request, which has none. */
+  /**
+   * Returns the server's own request, or nothing for the mock request of a service's {@code
+   * WebTestClient} test, such as a {@code @WebFluxTest}. The mock has the same base class as a
+   * server's request and throws when asked for its own, so no type check can tell them apart.
+   */
   private @Nullable Object nativeRequestOf(ServerHttpRequest request) {
     try {
       return ServerHttpRequestDecorator.getNativeRequest(request);
-    } catch (IllegalStateException | IllegalArgumentException noNativeRequest) {
+    } catch (IllegalStateException mockRequest) {
       return null;
     }
   }

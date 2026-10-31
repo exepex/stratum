@@ -176,6 +176,25 @@ class RequestFieldsIntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "a percent-encoded baggage ID, as some tracing libraries send it, is logged and returned"
+            + " decoded")
+    void encodedBaggageIdDecoded() throws Exception {
+      var fields =
+          StarterTestSupport.getFromService(
+              port,
+              ORDER_FIELDS_PATH,
+              WebConstants.BAGGAGE_HEADER,
+              LoggingContextConstants.CORRELATION_ID + "=checkout%3A777");
+
+      assertThat(
+              JsonPath.<String>read(fields.body(), "$." + LoggingContextConstants.CORRELATION_ID))
+          .isEqualTo("checkout:777");
+      assertThat(fields.headers().firstValue(WebConstants.CORRELATION_ID_HEADER))
+          .hasValue("checkout:777");
+    }
+
+    @Test
     @DisplayName("the request fields are gone from the server thread after the request")
     void fieldsDoNotLeakIntoNextRequest() throws Exception {
       StarterTestSupport.getFromService(port, ORDER_FIELDS_PATH + "?" + EXPAND_QUERY);
@@ -211,7 +230,7 @@ class RequestFieldsIntegrationTest {
               ORDER_FIELDS_PATH,
               WebConstants.CORRELATION_ID_HEADER,
               CALLER_ID,
-              "baggage",
+              WebConstants.BAGGAGE_HEADER,
               LoggingContextConstants.CORRELATION_ID + "=from-baggage");
 
       var traceId = JsonPath.<String>read(fields.body(), "$." + LoggingContextConstants.TRACE_ID);

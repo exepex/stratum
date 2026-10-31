@@ -268,7 +268,8 @@ Each bean below is Stratum's only until you declare your own:
 | A `View` named `error` | The HTML error page |
 | `StratumExceptionHandler` or `ErrorBodyAdvice` | The handler of `StratumException`, or the advice that adds the IDs and the media type |
 | A bean named `stratumRequestIdsFilter` | The filter that keeps each request's IDs for its error page, which runs after tracing has ended |
-| A bean named `stratumRequestFieldsFilter` or `stratumCorrelationIdFilter` | The filter that puts the request fields in the logging context, or the one that chooses the correlation ID |
+| A bean named `stratumRequestFieldsFilter` or `stratumCorrelationIdFilter` | The filter that puts the request fields in the logging context, or the one that returns the correlation ID in the response header |
+| A bean named `stratumCorrelationIdBaggageFilter` | The filter that writes a caller's correlation ID into the request's baggage before tracing reads it |
 | `RequestRouteInterceptor` | What puts the matched route in the logging context |
 | `RequestFieldsReader`, `CorrelationIdChooser` or `RequestFieldsPropagation` | How the fields are read, how the correlation ID is chosen, or how the fields follow the request across threads |
 
