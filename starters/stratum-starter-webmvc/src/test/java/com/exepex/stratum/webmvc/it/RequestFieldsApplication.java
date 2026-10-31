@@ -10,6 +10,7 @@ import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.web.server.context.WebServerApplicationContext;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.task.AsyncTaskExecutor;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -89,12 +90,13 @@ public class RequestFieldsApplication {
     }
 
     /**
-     * Returns the baggage header this request arrived with.
+     * Returns the baggage header this request arrived with, as plain text so a browser never runs
+     * it.
      *
      * @param baggage the W3C baggage header, if any
      * @return the header, or an empty string
      */
-    @GetMapping("/echo-baggage")
+    @GetMapping(path = "/echo-baggage", produces = MediaType.TEXT_PLAIN_VALUE)
     String echoBaggage(
         @RequestHeader(name = "baggage", required = false) @Nullable String baggage) {
       return Objects.requireNonNullElse(baggage, "");
