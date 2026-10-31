@@ -6,11 +6,14 @@ import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.web.CorrelationIdChooser;
 import com.exepex.stratum.web.RequestFieldsPropagation;
 import com.exepex.stratum.web.RequestFieldsReader;
+import com.exepex.stratum.web.RequestLogWriter;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebProperties;
+import com.exepex.stratum.webmvc.RequestLogFilter;
 import com.exepex.stratum.webmvc.RequestRouteInterceptor;
 import io.micrometer.tracing.Tracer;
 import java.io.IOException;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -19,6 +22,7 @@ import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.mock.env.MockEnvironment;
 
@@ -37,6 +41,9 @@ class WebMvcRequestFieldsAutoConfigurationTest {
 
   /** The name of the filter that writes a caller's correlation ID into the baggage. */
   private static final String BAGGAGE_FILTER = "stratumCorrelationIdBaggageFilter";
+
+  /** The name of the request log filter's registration. */
+  private static final String REQUEST_LOG_FILTER = "stratumRequestLogFilter";
 
   /** A trusted proxy range whose prefix is longer than its address. */
   private static final String TOO_LONG_RANGE = "10.0.0.0/33";
@@ -64,7 +71,9 @@ class WebMvcRequestFieldsAutoConfigurationTest {
                       .hasSingleBean(RequestRouteInterceptor.class)
                       .hasBean(FIELDS_FILTER)
                       .hasBean(CORRELATION_FILTER)
-                      .hasBean(BAGGAGE_FILTER));
+                      .hasBean(BAGGAGE_FILTER)
+                      .hasSingleBean(RequestLogWriter.class)
+                      .hasBean(REQUEST_LOG_FILTER));
     }
 
     @Test
@@ -134,6 +143,27 @@ class WebMvcRequestFieldsAutoConfigurationTest {
             .run(
                 context ->
                     assertThat(context.getBean(RequestFieldsReader.class)).isSameAs(serviceReader));
+      }
+    }
+
+    @Test
+    @DisplayName("the service's own request log writer and filter replace Stratum's")
+    void serviceRequestLogBeansWin() throws IOException {
+      try (var reader = defaultReader()) {
+        var serviceWriter =
+            new RequestLogWriter(WebProperties.resolve(new MockEnvironment()), reader);
+        var serviceFilter = new FilterRegistrationBean<>(new RequestLogFilter(serviceWriter));
+        contextRunner
+            .withPropertyValues(MODULE_ON)
+            .withBean(RequestLogWriter.class, () -> serviceWriter)
+            .withBean(REQUEST_LOG_FILTER, FilterRegistrationBean.class, () -> serviceFilter)
+            .run(
+                context ->
+                    assertThat(
+                            List.of(
+                                context.getBean(RequestLogWriter.class),
+                                context.getBean(REQUEST_LOG_FILTER)))
+                        .containsExactly(serviceWriter, serviceFilter));
       }
     }
 

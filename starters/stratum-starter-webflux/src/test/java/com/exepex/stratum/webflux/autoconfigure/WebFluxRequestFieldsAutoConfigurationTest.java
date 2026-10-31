@@ -6,14 +6,17 @@ import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.web.CorrelationIdChooser;
 import com.exepex.stratum.web.RequestFieldsPropagation;
 import com.exepex.stratum.web.RequestFieldsReader;
+import com.exepex.stratum.web.RequestLogWriter;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebProperties;
 import com.exepex.stratum.webflux.CorrelationIdBaggageDecorator;
 import com.exepex.stratum.webflux.CorrelationIdWebFilter;
 import com.exepex.stratum.webflux.RequestFieldsWebFilter;
+import com.exepex.stratum.webflux.RequestLogWebFilter;
 import com.exepex.stratum.webflux.RequestRouteHandlerAdapter;
 import io.micrometer.tracing.Tracer;
 import java.io.IOException;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -58,7 +61,9 @@ class WebFluxRequestFieldsAutoConfigurationTest {
                       .hasSingleBean(RequestFieldsWebFilter.class)
                       .hasSingleBean(RequestRouteHandlerAdapter.class)
                       .hasSingleBean(CorrelationIdWebFilter.class)
-                      .hasSingleBean(CorrelationIdBaggageDecorator.class));
+                      .hasSingleBean(CorrelationIdBaggageDecorator.class)
+                      .hasSingleBean(RequestLogWriter.class)
+                      .hasSingleBean(RequestLogWebFilter.class));
     }
 
     @Test
@@ -128,6 +133,27 @@ class WebFluxRequestFieldsAutoConfigurationTest {
             .run(
                 context ->
                     assertThat(context.getBean(RequestFieldsReader.class)).isSameAs(serviceReader));
+      }
+    }
+
+    @Test
+    @DisplayName("the service's own request log writer and filter replace Stratum's")
+    void serviceRequestLogBeansWin() throws IOException {
+      try (var reader = defaultReader()) {
+        var serviceWriter =
+            new RequestLogWriter(WebProperties.resolve(new MockEnvironment()), reader);
+        var serviceFilter = new RequestLogWebFilter(serviceWriter);
+        contextRunner
+            .withPropertyValues(MODULE_ON)
+            .withBean(RequestLogWriter.class, () -> serviceWriter)
+            .withBean(RequestLogWebFilter.class, () -> serviceFilter)
+            .run(
+                context ->
+                    assertThat(
+                            List.of(
+                                context.getBean(RequestLogWriter.class),
+                                context.getBean(RequestLogWebFilter.class)))
+                        .containsExactly(serviceWriter, serviceFilter));
       }
     }
 
