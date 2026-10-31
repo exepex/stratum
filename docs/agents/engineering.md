@@ -182,10 +182,10 @@ Every starter follows these rules:
   calls `StratumCustomizers.rejectBeans`, so a customizer declared as a bean stops startup with `SX-CORE-1004` instead
   of being silently ignored. The module switches, shared properties and Spring Boot properties are set in Java through
   `SpringApplication`'s default properties; a module's defaults for Spring Boot properties are added with
-  `StratumDefaults`, so that any value the service sets, there or anywhere else, wins. A Spring Boot default that
-  Stratum changes comes from a setting of the module, or a shared `stratum.*` key, such as
-  `stratum.observability.actuator-endpoints-exposed-over-http`, so the IDE shows it with Stratum's default and a
-  customizer can change it.
+  `StratumDefaults`, so that any value the service sets, there or anywhere else, wins. Where Spring Boot has a key
+  for a setting, Stratum uses that key and adds no `stratum.*` key that duplicates it: a module that changes the
+  default sets it with `StratumDefaults`, and the module's README lists the Spring Boot key with Stratum's default.
+  A `stratum.*` key is added only for what Spring Boot has no key for.
 
 ## Java 25 and Spring Boot 4
 
