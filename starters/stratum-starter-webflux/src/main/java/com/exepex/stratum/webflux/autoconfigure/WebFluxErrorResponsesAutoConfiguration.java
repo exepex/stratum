@@ -6,7 +6,7 @@ import com.exepex.stratum.core.properties.StratumCustomizers;
 import com.exepex.stratum.web.ErrorResponseFactory;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebProperties;
-import com.exepex.stratum.web.WebPropertiesCustomizer;
+import com.exepex.stratum.web.autoconfigure.WebSettingsConfiguration;
 import com.exepex.stratum.webflux.ProblemDetailIdsInterceptor;
 import com.exepex.stratum.webflux.StratumErrorAttributes;
 import com.exepex.stratum.webflux.StratumErrorWebExceptionHandler;
@@ -24,8 +24,8 @@ import org.springframework.boot.webflux.error.ErrorWebExceptionHandler;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Fallback;
+import org.springframework.context.annotation.Import;
 import org.springframework.core.annotation.Order;
-import org.springframework.core.env.Environment;
 import org.springframework.http.codec.ServerCodecConfigurer;
 import org.springframework.web.reactive.result.view.ViewResolver;
 
@@ -38,6 +38,7 @@ import org.springframework.web.reactive.result.view.ViewResolver;
 @AutoConfigureOrder(StratumModuleConstants.AUTO_CONFIGURATION_ORDER)
 @ConditionalOnStratumModule(WebConstants.MODULE)
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.REACTIVE)
+@Import(WebSettingsConfiguration.class)
 @EnableConfigurationProperties(org.springframework.boot.autoconfigure.web.WebProperties.class)
 public final class WebFluxErrorResponsesAutoConfiguration {
 
@@ -55,17 +56,16 @@ public final class WebFluxErrorResponsesAutoConfiguration {
   }
 
   /**
-   * Makes every error body. Its settings come from {@link WebProperties#resolve}, so the service's
-   * {@link WebPropertiesCustomizer} classes win.
+   * Makes every error body.
    *
-   * @param environment the application's environment
+   * @param webProperties the web module's settings
    * @return the factory
    */
   @Bean
   @Fallback
   @ConditionalOnMissingBean
-  public ErrorResponseFactory errorResponseFactory(Environment environment) {
-    return new ErrorResponseFactory(WebProperties.resolve(environment));
+  public ErrorResponseFactory errorResponseFactory(WebProperties webProperties) {
+    return new ErrorResponseFactory(webProperties);
   }
 
   /**
