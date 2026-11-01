@@ -1,5 +1,6 @@
 package com.exepex.stratum.webflux;
 
+import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.condition.StratumModuleSwitch;
 import com.exepex.stratum.core.properties.StratumDefaults;
 import com.exepex.stratum.web.WebConstants;
@@ -12,12 +13,16 @@ import org.springframework.core.Ordered;
 import org.springframework.core.env.ConfigurableEnvironment;
 
 /**
- * Limits WebFlux multipart uploads, which Spring Boot leaves unlimited, once {@code
- * stratum.web.enabled=true} and {@code stratum.web.backward-compatible=false}: each part may use
- * 10MB of disk and an upload may have 50 parts. A multipart upload sent in chunks is limited by
- * these only, so without them one request could fill the disk. In backward-compatible mode they are
- * left unset, so an upload that worked before Stratum is not refused. Every value the service sets
- * for these Spring Boot keys wins.
+ * Sets the Spring Boot defaults the WebFlux starter needs once {@code stratum.web.enabled=true}.
+ * Reactor carries the logging and tracing context into every operator ({@code
+ * spring.reactor.context-propagation=auto}), so that error bodies, error pages and log lines have
+ * the request's trace ID even when the logging and observability modules, which set the same
+ * default, are off. With {@code stratum.web.backward-compatible=false}, multipart uploads, which
+ * Spring Boot leaves unlimited, are limited too: each part may use 10MB of disk and an upload may
+ * have 50 parts. A multipart upload sent in chunks is limited by these only, so without them one
+ * request could fill the disk. In backward-compatible mode they are left unset, so an upload that
+ * worked before Stratum is not refused. Every value the service sets for these Spring Boot keys
+ * wins.
  */
 public class WebFluxEnvironmentPostProcessor implements EnvironmentPostProcessor, Ordered {
 
@@ -28,6 +33,12 @@ public class WebFluxEnvironmentPostProcessor implements EnvironmentPostProcessor
           "10MB",
           "spring.webflux.multipart.max-parts",
           50);
+
+  /** Reactor carries the request's trace ID into every operator, as Spring MVC's thread does. */
+  private static final Map<String, Object> REACTOR_CONTEXT_IN_EVERY_OPERATOR =
+      Map.of(
+          StratumModuleConstants.REACTOR_CONTEXT_PROPAGATION,
+          StratumModuleConstants.REACTOR_CONTEXT_IN_EVERY_OPERATOR);
 
   /**
    * Runs right after the configuration files are read, so that the module switch is known.
@@ -40,8 +51,9 @@ public class WebFluxEnvironmentPostProcessor implements EnvironmentPostProcessor
   }
 
   /**
-   * Adds the multipart limits below the service's own values, when the web module is on and
-   * backward-compatible mode is off, as set in files or in a {@code WebPropertiesCustomizer}.
+   * Adds the context propagation default when the web module is on, and the multipart limits when
+   * backward-compatible mode is off too, as set in files or in a {@code WebPropertiesCustomizer}.
+   * Each is added below the service's own values.
    *
    * @param environment the application's environment
    * @param application the application being started
@@ -49,8 +61,11 @@ public class WebFluxEnvironmentPostProcessor implements EnvironmentPostProcessor
   @Override
   public void postProcessEnvironment(
       ConfigurableEnvironment environment, SpringApplication application) {
-    if (StratumModuleSwitch.isEnabled(environment, WebConstants.MODULE)
-        && !WebProperties.resolve(environment).backwardCompatible()) {
+    if (!StratumModuleSwitch.isEnabled(environment, WebConstants.MODULE)) {
+      return;
+    }
+    StratumDefaults.addBelowServiceValues(environment, REACTOR_CONTEXT_IN_EVERY_OPERATOR);
+    if (!WebProperties.resolve(environment).backwardCompatible()) {
       StratumDefaults.addBelowServiceValues(environment, MULTIPART_LIMITS);
     }
   }

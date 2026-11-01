@@ -324,6 +324,7 @@ which names the property but not the code or the value.
 | `stratum.web.body-limit.routes` | map of path pattern to data size | empty | The limit of the bodies of the requests whose path matches a pattern, such as `/uploads/**`. |
 | `spring.webflux.multipart.max-disk-usage-per-part` | data size | none, or `10MB` when `backward-compatible` is `false` (Spring Boot: no limit) | Spring Boot's key. The disk each part of a multipart upload may use. Stratum sets this default in standard mode; your value wins. |
 | `spring.webflux.multipart.max-parts` | integer | none, or `50` when `backward-compatible` is `false` (Spring Boot: no limit) | Spring Boot's key. The most parts a multipart upload may have. Stratum sets this default in standard mode; your value wins. |
+| `spring.reactor.context-propagation` | `limited` or `auto` | `auto` (Spring Boot: `limited`) | Spring Boot's key. With `auto`, Reactor carries the request's trace ID into every operator, so error bodies, error pages and log lines have it, as on Spring MVC. Stratum sets this default in both modes; your value wins. |
 
 These are the same keys as the Spring MVC starter's. Your IDE completes each and shows its
 description. The full list, with the allowed values, is in [Web](../../docs/modules/web.md#properties).

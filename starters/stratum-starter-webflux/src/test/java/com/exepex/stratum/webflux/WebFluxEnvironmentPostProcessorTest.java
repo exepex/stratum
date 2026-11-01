@@ -7,13 +7,17 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.SpringApplication;
 import org.springframework.mock.env.MockEnvironment;
 
-@DisplayName("WebFluxEnvironmentPostProcessor limits multipart uploads in standard mode")
+@DisplayName(
+    "WebFluxEnvironmentPostProcessor carries the trace ID through Reactor and limits multipart"
+        + " uploads in standard mode")
 class WebFluxEnvironmentPostProcessorTest {
 
   /** Spring Boot's keys, spelled out so a misspelt key in the module fails the test. */
   private static final String DISK_PER_PART = "spring.webflux.multipart.max-disk-usage-per-part";
 
   private static final String PARTS = "spring.webflux.multipart.max-parts";
+
+  private static final String REACTOR_CONTEXT_PROPAGATION = "spring.reactor.context-propagation";
 
   private static final String WEB_ON = "stratum.web.enabled";
 
@@ -56,7 +60,26 @@ class WebFluxEnvironmentPostProcessorTest {
   }
 
   @Test
-  @DisplayName("sets nothing in backward-compatible mode, so uploads that worked keep working")
+  @DisplayName("has Reactor carry the context into every operator, in both modes")
+  void reactorContextInEveryOperator() {
+    var standard = runPostProcessor(standardMode());
+    var backwardCompatible = runPostProcessor(new MockEnvironment().withProperty(WEB_ON, "true"));
+
+    assertThat(standard.getProperty(REACTOR_CONTEXT_PROPAGATION)).isEqualTo("auto");
+    assertThat(backwardCompatible.getProperty(REACTOR_CONTEXT_PROPAGATION)).isEqualTo("auto");
+  }
+
+  @Test
+  @DisplayName("keeps the service's own Reactor context setting")
+  void serviceReactorSettingWins() {
+    var environment =
+        runPostProcessor(standardMode().withProperty(REACTOR_CONTEXT_PROPAGATION, "limited"));
+
+    assertThat(environment.getProperty(REACTOR_CONTEXT_PROPAGATION)).isEqualTo("limited");
+  }
+
+  @Test
+  @DisplayName("sets no limits in backward-compatible mode, so uploads that worked keep working")
   void nothingInBackwardCompatibleMode() {
     var environment = runPostProcessor(new MockEnvironment().withProperty(WEB_ON, "true"));
 
@@ -71,5 +94,6 @@ class WebFluxEnvironmentPostProcessorTest {
 
     assertThat(environment.getProperty(DISK_PER_PART)).isNull();
     assertThat(environment.getProperty(PARTS)).isNull();
+    assertThat(environment.getProperty(REACTOR_CONTEXT_PROPAGATION)).isNull();
   }
 }
