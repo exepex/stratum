@@ -148,7 +148,7 @@ public class StratumErrorAttributes extends DefaultErrorAttributes {
   }
 
   /** Returns the status's reason phrase, or Spring MVC's "Http Status 499" for an unlisted one. */
-  private static String reasonPhraseOf(HttpStatusCode status) {
+  private String reasonPhraseOf(HttpStatusCode status) {
     return Optional.ofNullable(HttpStatus.resolve(status.value()))
         .map(HttpStatus::getReasonPhrase)
         .orElse("Http Status " + status.value());
