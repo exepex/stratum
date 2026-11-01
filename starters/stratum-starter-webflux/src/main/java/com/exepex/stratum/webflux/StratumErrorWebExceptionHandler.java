@@ -1,9 +1,12 @@
 package com.exepex.stratum.webflux;
 
 import com.exepex.stratum.core.error.LoggingContextConstants;
+import com.exepex.stratum.web.BootErrorBodyCounter;
 import com.exepex.stratum.web.ReferencePage;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.MDC;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.web.ErrorProperties;
 import org.springframework.boot.autoconfigure.web.WebProperties.Resources;
 import org.springframework.boot.web.error.ErrorAttributeOptions;
@@ -11,8 +14,11 @@ import org.springframework.boot.webflux.autoconfigure.error.DefaultErrorWebExcep
 import org.springframework.boot.webflux.error.ErrorAttributes;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.MediaType;
+import org.springframework.web.reactive.HandlerMapping;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
+import org.springframework.web.reactive.resource.ResourceWebHandler;
+import org.springframework.web.util.pattern.PathPattern;
 import reactor.core.publisher.Mono;
 
 /**
@@ -21,7 +27,8 @@ import reactor.core.publisher.Mono;
  * application/problem+json}, while Spring Boot's body keeps its media type, a browser's default
  * page is Stratum's {@link ReferencePage}, and a failure with an error code is not logged a second
  * time. The service's error templates, such as {@code templates/error/404.html}, still win, as in
- * Spring Boot.
+ * Spring Boot. Each JSON body that kept Spring Boot's format in backward-compatible mode is counted
+ * with the route of the service's handler.
  */
 public class StratumErrorWebExceptionHandler extends DefaultErrorWebExceptionHandler {
 
@@ -31,6 +38,9 @@ public class StratumErrorWebExceptionHandler extends DefaultErrorWebExceptionHan
    */
   private final boolean stratumBodies;
 
+  /** Counts Spring Boot's bodies, when the service has Micrometer. */
+  private final ObjectProvider<BootErrorBodyCounter> bootErrorBodyCounter;
+
   /**
    * Makes the handler, as Spring Boot makes its own.
    *
@@ -38,18 +48,22 @@ public class StratumErrorWebExceptionHandler extends DefaultErrorWebExceptionHan
    * @param resources where static error pages are looked for
    * @param errorProperties Spring Boot's error settings, such as whether the default page is on
    * @param applicationContext the application's context, where error templates are looked for
+   * @param bootErrorBodyCounter counts Spring Boot's bodies, when the service has Micrometer
    */
   public StratumErrorWebExceptionHandler(
       ErrorAttributes errorAttributes,
       Resources resources,
       ErrorProperties errorProperties,
-      ApplicationContext applicationContext) {
+      ApplicationContext applicationContext,
+      ObjectProvider<BootErrorBodyCounter> bootErrorBodyCounter) {
     super(errorAttributes, resources, errorProperties, applicationContext);
     this.stratumBodies = errorAttributes instanceof StratumErrorAttributes;
+    this.bootErrorBodyCounter = bootErrorBodyCounter;
   }
 
   /**
-   * Returns the error body as JSON, with the Problem Details media type when the body is Stratum's.
+   * Returns the error body as JSON, with the Problem Details media type when the body is Stratum's,
+   * and counts it when it is Spring Boot's.
    *
    * @param request the failed request
    * @return the response
@@ -61,6 +75,7 @@ public class StratumErrorWebExceptionHandler extends DefaultErrorWebExceptionHan
     }
     var body = getErrorAttributes(request, ErrorAttributeOptions.defaults());
     if (request.attribute(StratumErrorAttributes.BODY_ATTRIBUTE).isEmpty()) {
+      bootErrorBodyCounter.ifAvailable(counter -> counter.count(routeOf(request)));
       return super.renderErrorResponse(request);
     }
     return ServerResponse.status(getHttpStatus(body))
@@ -118,5 +133,19 @@ public class StratumErrorWebExceptionHandler extends DefaultErrorWebExceptionHan
     if (request.attribute(StratumErrorAttributes.LOGGED_ATTRIBUTE).isEmpty()) {
       super.logError(request, response, throwable);
     }
+  }
+
+  /**
+   * Returns the route of the service's handler that the request matched, or {@code null} for none.
+   * A static resource's catch-all route, which answers an unknown path, counts as none.
+   */
+  private @Nullable String routeOf(ServerRequest request) {
+    var exchange = request.exchange();
+    return exchange.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE)
+                instanceof PathPattern route
+            && !(exchange.getAttribute(HandlerMapping.BEST_MATCHING_HANDLER_ATTRIBUTE)
+                instanceof ResourceWebHandler)
+        ? route.getPatternString()
+        : null;
   }
 }

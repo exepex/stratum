@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.jayway.jsonpath.JsonPath;
 import java.io.IOException;
+import java.util.function.DoubleSupplier;
 import lombok.experimental.UtilityClass;
 
 /**
@@ -97,5 +98,28 @@ public class BackwardCompatibleErrorChecks {
       throws IOException, InterruptedException {
     StarterTestSupport.checkProblemDetails(
         StarterTestSupport.getFromService(port, path, ACCEPT, JSON), status, code);
+  }
+
+  /**
+   * Checks that one error answer for the path, to a caller that accepts the given media types, adds
+   * the expected amount to the counter of Spring Boot's bodies: 1 when it got Spring Boot's JSON
+   * body, 0 when it got Stratum's body or a browser's page.
+   *
+   * @param port the port the service listens on
+   * @param path the path to request
+   * @param accept the media types the caller accepts, such as {@code application/json}
+   * @param count reads the counter for the route the path should be counted under
+   * @param added how much the answer adds to the counter
+   * @throws IOException if the request fails
+   * @throws InterruptedException if the request is interrupted
+   */
+  public static void checkCounted(
+      int port, String path, String accept, DoubleSupplier count, double added)
+      throws IOException, InterruptedException {
+    var before = count.getAsDouble();
+
+    StarterTestSupport.getFromService(port, path, ACCEPT, accept);
+
+    assertThat(count.getAsDouble()).isEqualTo(before + added);
   }
 }

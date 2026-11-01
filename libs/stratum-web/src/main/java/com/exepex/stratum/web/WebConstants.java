@@ -86,6 +86,16 @@ public class WebConstants {
   /** The logger of the request log lines, whose level a service can change. */
   public static final String REQUEST_LOG_LOGGER = "com.exepex.stratum.web.request-log";
 
+  /**
+   * The counter of the error answers that kept Spring Boot's body in backward-compatible mode,
+   * tagged with the route.
+   */
+  public static final String BOOT_ERROR_BODY_COUNTER =
+      "stratum.web.requests.without.standard.errors";
+
+  /** The route tag's value when the request matched none of the service's routes. */
+  public static final String UNKNOWN_ROUTE = "UNKNOWN";
+
   /** The request log field that holds the response's HTTP status. */
   public static final String HTTP_STATUS = "httpStatus";
 

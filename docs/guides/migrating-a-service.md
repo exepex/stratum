@@ -62,7 +62,9 @@ Check: your existing consumers still get the error bodies they got before. With
 `stratum.web.backward-compatible=true`, the default, errors that Spring answers keep Spring Boot's
 body, and a consumer gets Problem Details only when it sends `Accept: application/problem+json`.
 Your own `StratumException` errors, timeouts and bodies over the limit always get Problem Details.
-Once every consumer reads Problem Details, set `stratum.web.backward-compatible=false`; see
+Once every consumer reads Problem Details, which the counter
+`stratum.web.requests.without.standard.errors` shows by staying at 0, set
+`stratum.web.backward-compatible=false`; see
 [Backward-compatible mode](../modules/web-compatible-mode.md), which also leaves the time and
 body size limits off until you set them.
 

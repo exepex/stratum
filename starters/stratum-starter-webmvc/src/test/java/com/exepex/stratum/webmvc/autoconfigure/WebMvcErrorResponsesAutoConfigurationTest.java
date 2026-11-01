@@ -4,8 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.error.CoreErrorCode;
 import com.exepex.stratum.core.error.StratumException;
+import com.exepex.stratum.web.BackwardCompatibleModeReport;
+import com.exepex.stratum.web.BootErrorBodyCounter;
 import com.exepex.stratum.web.ErrorResponseFactory;
-import com.exepex.stratum.web.StackTraceExposureWarning;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebProperties;
 import com.exepex.stratum.web.WebPropertiesCustomizer;
@@ -13,6 +14,7 @@ import com.exepex.stratum.webmvc.ErrorBodyAdvice;
 import com.exepex.stratum.webmvc.FailureWithErrorCodeResolver;
 import com.exepex.stratum.webmvc.ReferenceErrorPage;
 import com.exepex.stratum.webmvc.StratumErrorAttributes;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -20,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration;
+import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.assertj.AssertableWebApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
@@ -63,7 +66,8 @@ class WebMvcErrorResponsesAutoConfigurationTest {
                 assertThat(context)
                     .hasSingleBean(WebProperties.class)
                     .hasSingleBean(ErrorResponseFactory.class)
-                    .hasSingleBean(StackTraceExposureWarning.class)
+                    .hasSingleBean(BackwardCompatibleModeReport.class)
+                    .hasSingleBean(BootErrorBodyCounter.class)
                     .hasSingleBean(FailureWithErrorCodeResolver.class)
                     .hasSingleBean(ErrorBodyAdvice.class);
                 assertThat(context.getBean(ErrorAttributes.class))
@@ -99,6 +103,20 @@ class WebMvcErrorResponsesAutoConfigurationTest {
           .withConfiguration(AutoConfigurations.of(WebMvcErrorResponsesAutoConfiguration.class))
           .withPropertyValues(MODULE_ON)
           .run(context -> assertThat(context).doesNotHaveBean(ErrorResponseFactory.class));
+    }
+
+    @Test
+    @DisplayName("without Micrometer, there is no counter and the error beans still start")
+    void withoutMicrometerHasNoCounter() {
+      contextRunner
+          .withClassLoader(new FilteredClassLoader(MeterRegistry.class))
+          .withPropertyValues(MODULE_ON)
+          .run(
+              context ->
+                  assertThat(context)
+                      .hasNotFailed()
+                      .doesNotHaveBean(BootErrorBodyCounter.class)
+                      .hasSingleBean(ErrorBodyAdvice.class));
     }
 
     @Test
