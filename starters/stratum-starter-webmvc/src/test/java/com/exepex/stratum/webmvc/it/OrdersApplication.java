@@ -65,6 +65,20 @@ public class OrdersApplication {
   static class OrderGoneException extends RuntimeException {
 
     @Serial private static final long serialVersionUID = 1L;
+
+    /** Makes the exception with no cause. */
+    OrderGoneException() {
+      super();
+    }
+
+    /**
+     * Makes the exception with a cause.
+     *
+     * @param cause the failure behind it
+     */
+    OrderGoneException(Throwable cause) {
+      super(cause);
+    }
   }
 
   /**
@@ -142,14 +156,28 @@ public class OrdersApplication {
     }
 
     /**
-     * Fails with Spring's 404 whose cause has a code the service maps to 409.
+     * Fails with an exception annotated {@code @ResponseStatus(GONE)} whose cause has a code the
+     * service maps to 409.
      *
      * @return never returns
      */
-    @GetMapping("/orders/duplicate-not-found")
-    String duplicateNotFound() {
+    @GetMapping("/orders/duplicate-gone")
+    String duplicateGone() {
+      throw new OrderGoneException(new StratumException(OrderErrorCode.DUPLICATE_ORDER));
+    }
+
+    /**
+     * Fails with Spring's status set in the path, whose cause has a code the service maps to 409.
+     *
+     * @param status the status Spring is given
+     * @return never returns
+     */
+    @GetMapping("/orders/duplicate-with-status/{status}")
+    String duplicateWithStatus(@PathVariable int status) {
       throw new ResponseStatusException(
-          HttpStatus.NOT_FOUND, "no order", new StratumException(OrderErrorCode.DUPLICATE_ORDER));
+          HttpStatus.valueOf(status),
+          "no order",
+          new StratumException(OrderErrorCode.DUPLICATE_ORDER));
     }
 
     /**
