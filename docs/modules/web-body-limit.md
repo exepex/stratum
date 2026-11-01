@@ -7,11 +7,13 @@
 
 ## What it does
 
-Every request body has a size limit, 256KB unless you set another. While
-`stratum.web.backward-compatible` is `true`, the default, there is no limit unless you set one; see
-[Backward-compatible mode](web-compatible-mode.md#time-and-body-size-limits). A request whose body is larger
-is answered with `413 Content Too Large` and the code `SX-WEB-1008`, and the service logs one WARN
-line with the limit. A caller can no longer fill the service's memory with one huge request.
+With `stratum.web.backward-compatible=false`, every request body has a size limit, 256KB unless you
+set another. While `stratum.web.backward-compatible` is `true`, the default, there is no limit
+unless you set one; see
+[Backward-compatible mode](web-compatible-mode.md#time-and-body-size-limits). Once a limit applies,
+a request whose body is larger is answered with `413 Content Too Large` and the code `SX-WEB-1008`,
+the service logs one WARN line with the limit, and a caller can no longer fill the service's memory
+with one huge request.
 
 Stratum checks the body twice:
 
