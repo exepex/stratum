@@ -56,10 +56,11 @@ body never shows either, whatever these settings say.
 
 ## Time and body size limits
 
-With nothing set, a backward-compatible service has no time limit and no body size limit, because
-a request that worked before Stratum must not start failing with `503` or `413`. With
-`stratum.web.backward-compatible=false`, every request has 10 seconds until its response starts and
-a body of up to 256KB.
+With nothing set, a backward-compatible service has no time limit and no body size limit, and the
+WebFlux starter adds no multipart upload limit, because a request that worked before Stratum must
+not start failing with `503` or `413`. With `stratum.web.backward-compatible=false`, every request
+has 10 seconds until its response starts and a body of up to 256KB, and a WebFlux multipart upload
+may use 10MB of disk per part and have 50 parts.
 
 A limit the service sets always applies, in both modes: `stratum.web.timeout.default-limit`,
 `stratum.web.timeout.routes`, `@ResponseTimeout`, `stratum.web.body-limit.default-limit`,
