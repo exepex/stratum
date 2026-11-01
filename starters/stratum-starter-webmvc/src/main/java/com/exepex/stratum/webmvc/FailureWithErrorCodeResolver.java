@@ -4,6 +4,7 @@ import com.exepex.stratum.core.error.FailureWithErrorCode;
 import com.exepex.stratum.core.error.LoggingContextConstants;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.web.ErrorResponseFactory;
+import com.exepex.stratum.web.RequestDeadline;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -53,7 +54,8 @@ public class FailureWithErrorCodeResolver implements HandlerExceptionResolver, W
    * @param response the response
    * @param handler the controller method that failed, if known
    * @param failure what it failed with
-   * @return an empty model when answered, or {@code null} to leave the failure to the next resolver
+   * @return an empty model when answered, or {@code null} to leave the failure to the next
+   *     resolver, or to the timeout status when the request ran out of time
    */
   @Override
   public @Nullable ModelAndView resolveException(
@@ -61,6 +63,11 @@ public class FailureWithErrorCodeResolver implements HandlerExceptionResolver, W
       HttpServletResponse response,
       @Nullable Object handler,
       Exception failure) {
+    if (hasRunOutOfTime(request)) {
+      // Left to ResponseTimeoutFilter, which answers with the timeout status and clears the
+      // interrupt; writing on the interrupted thread would close the connection unanswered.
+      return null;
+    }
     return errorResponseFactory
         .forFailureWithErrorCode(failure)
         .map(body -> answer(request, response, body))
@@ -82,6 +89,13 @@ public class FailureWithErrorCodeResolver implements HandlerExceptionResolver, W
             .map(resolvers::indexOf)
             .orElse(-1);
     resolvers.add(exceptionHandlers + 1, this);
+  }
+
+  /** Returns whether the request ran out of its time limit before it failed. */
+  private boolean hasRunOutOfTime(HttpServletRequest request) {
+    return request.getAttribute(ResponseTimeoutFilter.DEADLINE_ATTRIBUTE)
+            instanceof RequestDeadline deadline
+        && deadline.hasExpired();
   }
 
   /** Sends the error page to a browser, or writes the body with the request's IDs. */

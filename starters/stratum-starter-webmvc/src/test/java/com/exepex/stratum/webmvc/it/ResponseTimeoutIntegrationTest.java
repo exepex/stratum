@@ -75,6 +75,15 @@ class ResponseTimeoutIntegrationTest {
   }
 
   @Test
+  @DisplayName("a handler that runs late and then throws a mapped code still gets SX-WEB-1007")
+  void lateFailureWithErrorCode() throws Exception {
+    var response = StarterTestSupport.getFromService(port, "/slow/ignores-interrupt-then-fails");
+
+    StarterTestSupport.checkProblemDetails(
+        response, HttpStatus.GATEWAY_TIMEOUT.value(), WebErrorCode.REQUEST_TIMED_OUT.getCode());
+  }
+
+  @Test
   @DisplayName("a method's @ResponseTimeout gives it more time than its route")
   void annotationWinsOverRoute() throws Exception {
     var response = StarterTestSupport.getFromService(port, "/slow/given-more-time");
