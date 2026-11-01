@@ -31,17 +31,6 @@ class SpringBootVersionCheckTest {
 
   private static final String WARNING_CODE = "SX-CORE-1005";
 
-  /** Patches of the supported line, and the supported version itself. */
-  private static final String[] VERSIONS_IN_THE_LINE = {"4.1.0", "4.1.2", "4.1.9", "4.1.10"};
-
-  /**
-   * Versions outside the line: older, newer, a minor that starts with the same digit, a release
-   * candidate.
-   */
-  private static final String[] VERSIONS_OUTSIDE_THE_LINE = {
-    "4.0.5", "4.2.0", "4.10.0", "5.0.0-RC1"
-  };
-
   /** Runs the check for a running version and writes out its log lines. */
   private void runCheck(@Nullable String runningVersion) {
     var logs = new DeferredLogs();
@@ -54,8 +43,11 @@ class SpringBootVersionCheckTest {
   @DisplayName("with a version in the supported line")
   class InTheLine {
 
+    /** Patches of the supported line, and the supported version itself. */
+    private static final String[] VERSIONS_IN_THE_LINE = {"4.1.0", "4.1.2", "4.1.9", "4.1.10"};
+
     @ParameterizedTest(name = "{0}")
-    @FieldSource("com.exepex.stratum.core.version.SpringBootVersionCheckTest#VERSIONS_IN_THE_LINE")
+    @FieldSource("VERSIONS_IN_THE_LINE")
     @DisplayName("nothing is logged")
     void logsNothing(String runningVersion, CapturedOutput output) {
       runCheck(runningVersion);
@@ -68,9 +60,16 @@ class SpringBootVersionCheckTest {
   @DisplayName("with a version outside the supported line")
   class OutsideTheLine {
 
+    /**
+     * Versions outside the line: older, newer, a minor that starts with the same digit, a release
+     * candidate.
+     */
+    private static final String[] VERSIONS_OUTSIDE_THE_LINE = {
+      "4.0.5", "4.2.0", "4.10.0", "5.0.0-RC1"
+    };
+
     @ParameterizedTest(name = "{0}")
-    @FieldSource(
-        "com.exepex.stratum.core.version.SpringBootVersionCheckTest#VERSIONS_OUTSIDE_THE_LINE")
+    @FieldSource("VERSIONS_OUTSIDE_THE_LINE")
     @DisplayName("one warning names the version found, the supported line and where to change it")
     void warnsOnce(String runningVersion, CapturedOutput output) {
       runCheck(runningVersion);
