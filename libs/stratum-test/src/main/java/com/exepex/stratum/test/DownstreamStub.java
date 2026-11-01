@@ -7,6 +7,8 @@ import java.io.UncheckedIOException;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -18,7 +20,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * A downstream service that the HTTP client starters' tests call on this machine. {@link
  * #STOCK_PATH} answers at once; {@link #HELD_PATH} keeps its connection busy until {@link
  * #releaseHeldRequests} is called or 10 seconds pass, so a test can fill a connection pool or run
- * out a read timeout.
+ * out a read timeout; {@link #UNAVAILABLE_PATH} answers 503 and counts its requests, so a test can
+ * see whether a client sent a call again.
  */
 public final class DownstreamStub implements AutoCloseable {
 
@@ -27,6 +30,9 @@ public final class DownstreamStub implements AutoCloseable {
 
   /** The path that answers only once the test releases it. */
   public static final String HELD_PATH = "/held";
+
+  /** The path that always answers 503 Service Unavailable. */
+  public static final String UNAVAILABLE_PATH = "/unavailable";
 
   /** The body every answer carries. */
   public static final String STOCK_BODY = "in stock";
@@ -46,12 +52,16 @@ public final class DownstreamStub implements AutoCloseable {
   /** How many requests to {@link #HELD_PATH} are waiting now. */
   private final AtomicInteger heldRequestCount = new AtomicInteger();
 
+  /** How many requests {@link #UNAVAILABLE_PATH} has received. */
+  private final AtomicInteger unavailableRequestCount = new AtomicInteger();
+
   /** Makes the stub on a free port of the loopback address. */
   private DownstreamStub() throws IOException {
     server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
     server.setExecutor(executor);
     server.createContext(STOCK_PATH, this::answer);
     server.createContext(HELD_PATH, this::answerWhenReleased);
+    server.createContext(UNAVAILABLE_PATH, this::answerUnavailable);
   }
 
   /**
@@ -70,13 +80,19 @@ public final class DownstreamStub implements AutoCloseable {
   }
 
   /**
-   * Returns the address the clients under test call, such as {@code http://127.0.0.1:50123}.
+   * Returns the address the clients under test call, such as {@code http://127.0.0.1:50123}, or
+   * {@code http://[::1]:50123} when the loopback address is IPv6.
    *
    * @return the address, without a trailing slash
    */
   public String baseUrl() {
     var address = server.getAddress();
-    return "http://" + address.getHostString() + ":" + address.getPort();
+    try {
+      return new URI("http", null, address.getHostString(), address.getPort(), null, null, null)
+          .toString();
+    } catch (URISyntaxException notAnAddress) {
+      throw new IllegalStateException(notAnAddress);
+    }
   }
 
   /**
@@ -86,6 +102,15 @@ public final class DownstreamStub implements AutoCloseable {
    */
   public int heldRequests() {
     return heldRequestCount.get();
+  }
+
+  /**
+   * Returns how many requests {@link #UNAVAILABLE_PATH} has received.
+   *
+   * @return the number of requests
+   */
+  public int unavailableRequests() {
+    return unavailableRequestCount.get();
   }
 
   /** Lets every held request, waiting now or arriving later, answer. */
@@ -116,6 +141,12 @@ public final class DownstreamStub implements AutoCloseable {
       heldRequestCount.decrementAndGet();
     }
     answer(exchange, released ? HttpURLConnection.HTTP_OK : HttpURLConnection.HTTP_UNAVAILABLE);
+  }
+
+  /** Counts a request and answers it with 503. */
+  private void answerUnavailable(HttpExchange exchange) throws IOException {
+    unavailableRequestCount.incrementAndGet();
+    answer(exchange, HttpURLConnection.HTTP_UNAVAILABLE);
   }
 
   /** Answers a request with 200 and {@link #STOCK_BODY}. */

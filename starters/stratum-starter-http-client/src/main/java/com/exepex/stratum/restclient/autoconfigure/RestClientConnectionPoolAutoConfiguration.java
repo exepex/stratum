@@ -7,6 +7,7 @@ import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientProperties;
 import com.exepex.stratum.httpclient.HttpClientPropertiesCustomizer;
 import com.exepex.stratum.restclient.RestClientConnectionPool;
+import com.exepex.stratum.restclient.RestClientRetries;
 import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
 import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -18,7 +19,8 @@ import org.springframework.context.annotation.Fallback;
 import org.springframework.core.env.Environment;
 
 /**
- * Bounds the connection pool of the blocking HTTP clients, when {@code
+ * Bounds the connection pool of the blocking HTTP clients, and stops Apache HttpClient 5 from
+ * sending a call again after a {@code 429} or {@code 503} answer, when {@code
  * stratum.http-client.enabled=true} and Apache HttpClient 5 is present.
  */
 @AutoConfiguration
@@ -50,5 +52,18 @@ public final class RestClientConnectionPoolAutoConfiguration {
   @ConditionalOnMissingBean
   public RestClientConnectionPool restClientConnectionPool(Environment environment) {
     return new RestClientConnectionPool(HttpClientProperties.resolve(environment).pool());
+  }
+
+  /**
+   * Stops Apache HttpClient 5 from sending a call again after a {@code 429} or {@code 503} answer,
+   * so a {@code POST} never reaches the downstream service twice.
+   *
+   * @return the retry settings for Spring Boot's builder
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean
+  public RestClientRetries restClientRetries() {
+    return new RestClientRetries();
   }
 }

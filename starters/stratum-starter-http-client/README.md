@@ -160,6 +160,7 @@ spring:
 | --- | --- |
 | Timeouts | Connect `2s` and read `5s` for every client, unless you set others with `spring.http.clients.*` or per client with `spring.http.serviceclient.<name>.*` |
 | Connection pool | One pool per HTTP interface group, and one per `RestClient` built from Spring Boot's builder, each with at most `50` connections; a call that finds them all busy fails after `2s` with `ResourceAccessException` |
+| No resent calls | Apache HttpClient 5 by itself sends a call again after a `429` or `503` answer, even a `POST`. Stratum turns that off, so a call reaches the downstream service once; Apache still resends a `GET` or other idempotent call when a connection drops. Retries you choose come with the planned resilience starter |
 | Pool metrics | None: Spring Boot builds Apache's pool without giving access to it. Each call's duration, from the [observability starter](../stratum-starter-observability/README.md), includes any wait for a connection |
 | Tracing and timings | A client span and an `http.client.requests` timing per call, from the observability starter |
 
@@ -169,4 +170,5 @@ and replacing Stratum's bean in [Replace a bean](../../docs/modules/http-client.
 ## Switch it on or off
 
 `stratum.http-client.enabled=true` switches it on. Leaving it unset is the same as `false`: Spring
-Boot's clients then have no timeouts and the pool keeps Apache's own limits.
+Boot's clients then have no timeouts, the pool keeps Apache's own limits, and Apache's default of
+sending a call again once after a `429` or `503` answer applies.

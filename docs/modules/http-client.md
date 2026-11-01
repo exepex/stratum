@@ -197,6 +197,7 @@ there wins over Stratum's defaults.
 | Bean | Starter | What it does | To replace it |
 | --- | --- | --- | --- |
 | `RestClientConnectionPool` | `stratum-starter-http-client` | Sets the pool's size and wait on Spring Boot's builder of Apache HttpClient 5 clients | Declare your own bean of this type. Or declare a `ClientHttpRequestFactoryBuilderCustomizer` of your own with no order: it runs after Stratum's, so its pool settings win |
+| `RestClientRetries` | `stratum-starter-http-client` | Stops Apache HttpClient 5 from sending a call again after a `429` or `503` answer, which it does by default even for a `POST`; Apache still resends an idempotent call when a connection drops | Declare your own bean of this type. Or declare a `ClientHttpRequestFactoryBuilderCustomizer` of your own with no order that sets a retry strategy: it runs after Stratum's, so it wins |
 | `WebClientConnectionPool` | `stratum-starter-reactive-http-client` | Gives Spring Boot's Reactor Netty clients a bounded pool, and closes it at shutdown | Declare your own bean of this type. Or declare a `ClientHttpConnectorBuilderCustomizer` of your own with no order: it runs after Stratum's, so its pool wins |
 | `WebClientGroupSettings` | `stratum-starter-reactive-http-client` | Makes each `WebClient` HTTP interface group use its own `spring.http.serviceclient.<name>.*` timeouts and SSL bundle (see below) | Declare your own bean of this type |
 

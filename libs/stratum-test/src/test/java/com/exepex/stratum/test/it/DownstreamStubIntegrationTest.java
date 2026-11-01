@@ -14,7 +14,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("DownstreamStub answers at once, or holds a request until the test releases it")
+@DisplayName("DownstreamStub answers at once, holds a request until released, or answers 503")
 class DownstreamStubIntegrationTest {
 
   /** The longest a test waits for the stub. */
@@ -59,6 +59,26 @@ class DownstreamStubIntegrationTest {
         .extracting(HttpResponse::body)
         .isEqualTo(DownstreamStub.STOCK_BODY);
     await().atMost(WAIT).until(() -> stub.heldRequests() == 0);
+  }
+
+  @Test
+  @DisplayName("the unavailable path answers 503 and counts each request")
+  void answersUnavailable() throws Exception {
+    var response =
+        httpClient.send(
+            request(DownstreamStub.UNAVAILABLE_PATH), HttpResponse.BodyHandlers.ofString());
+
+    assertThat(response.statusCode()).isEqualTo(HttpURLConnection.HTTP_UNAVAILABLE);
+    assertThat(stub.unavailableRequests()).isOne();
+  }
+
+  @Test
+  @DisplayName("the address is a URL whose host and port a client can read")
+  void baseUrlIsReadable() {
+    var address = URI.create(stub.baseUrl());
+
+    assertThat(address.getHost()).isNotBlank();
+    assertThat(address.getPort()).isPositive();
   }
 
   /** Returns a request for a path of the stub. */

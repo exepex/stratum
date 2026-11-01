@@ -8,6 +8,7 @@ import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientProperties;
 import com.exepex.stratum.httpclient.HttpClientPropertiesCustomizer;
 import com.exepex.stratum.restclient.RestClientConnectionPool;
+import com.exepex.stratum.restclient.RestClientRetries;
 import jakarta.validation.ConstraintViolationException;
 import java.time.Duration;
 import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
@@ -49,7 +50,11 @@ class RestClientConnectionPoolAutoConfigurationTest {
     void createsPool() {
       contextRunner
           .withPropertyValues(MODULE_ON)
-          .run(context -> assertThat(context).hasSingleBean(RestClientConnectionPool.class));
+          .run(
+              context ->
+                  assertThat(context)
+                      .hasSingleBean(RestClientConnectionPool.class)
+                      .hasSingleBean(RestClientRetries.class));
     }
 
     @Test
