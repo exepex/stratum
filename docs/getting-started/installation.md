@@ -139,7 +139,8 @@ A typical REST service that calls one other service:
 ```
 
 Every starter is off until you switch it on. Set `stratum.<module>.enabled=true` for each module
-your service uses, in step 3.
+your service uses, in step 3. A module that is present but off is named in one INFO line at
+startup, with the property that turns it on.
 
 Rules that keep you out of trouble:
 

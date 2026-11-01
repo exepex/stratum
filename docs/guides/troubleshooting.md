@@ -9,11 +9,15 @@ common problems. Module-specific problems are listed at the end of each module p
 
 ### 1. The startup line
 
-Every Stratum service logs its active modules at startup:
+When a Stratum starter is on the classpath but its module is switched off, the service logs one
+INFO line after startup that names each such module and the property that turns it on:
 
 ```text
-Stratum 0.1.0 active modules: web, logging, observability, http-client (disabled: cache)
+Stratum modules present but off: cache (stratum.cache.enabled=true), web (stratum.web.enabled=true)
 ```
+
+There is no line when every module present is on. A module you leave off on purpose, such as one a
+bundle brings, appears on every start; that is expected.
 
 ### 2. The conditions report
 

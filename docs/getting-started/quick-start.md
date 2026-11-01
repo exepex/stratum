@@ -6,6 +6,11 @@ you, so you know what is happening behind the scenes.
 
 Time: about 20 minutes. [← Documentation home](../README.md)
 
+> **Add the starter, then switch it on.** A Stratum starter does nothing until you set
+> `stratum.<module>.enabled=true` for its module, as step 3 does. If you forget, the service logs
+> one line at startup naming each module that is present but off, such as
+> `Stratum modules present but off: web (stratum.web.enabled=true)`.
+
 ## What you will build
 
 ```mermaid
