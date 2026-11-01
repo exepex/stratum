@@ -9,7 +9,7 @@
 
 A service that adds Stratum keeps the API contract it has with its consumers.
 `stratum.web.backward-compatible` is `true` by default, so the error bodies its consumers read
-stay the same. Each consumer moves to Stratum's
+stay the same and no request is cut off or refused by a new limit. Each consumer moves to Stratum's
 standard error body when it is ready, and the service switches the property to `false` once all
 have moved. A new service sets `false` from the start.
 
@@ -54,11 +54,32 @@ WARN  StackTraceExposureWarning : Security leak: errors keep Spring Boot's body 
 Set both back to Spring Boot's defaults, `never` and `false`, to stop the leak. Stratum's standard
 body never shows either, whatever these settings say.
 
+## Time and body size limits
+
+With nothing set, a backward-compatible service has no time limit and no body size limit, and the
+WebFlux starter adds no multipart upload limit, because a request that worked before Stratum must
+not start failing with `503` or `413`. With `stratum.web.backward-compatible=false`, every request
+has 10 seconds until its response starts and a body of up to 256KB, and a WebFlux multipart upload
+may use 10MB of disk per part and have 50 parts.
+
+A limit the service sets always applies, in both modes: `stratum.web.timeout.default-limit`,
+`stratum.web.timeout.routes`, `@ResponseTimeout`, `stratum.web.body-limit.default-limit`,
+`stratum.web.body-limit.routes` and `@RequestBodyLimit`. Give each new endpoint of a
+backward-compatible service its own limit, so it has one from its first release:
+
+```java
+@ResponseTimeout(2)
+@GetMapping("/orders/{id}")
+Order order(@PathVariable String id) {
+  return orders.find(id);
+}
+```
+
 ## Properties
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.web.backward-compatible` | boolean | `true` | Whether errors that Spring answers keep Spring Boot's body, unless the consumer sends `Accept: application/problem+json`. |
+| `stratum.web.backward-compatible` | boolean | `true` | Whether errors that Spring answers keep Spring Boot's body, unless the consumer sends `Accept: application/problem+json`, and whether the time and body size limits are off unless set. |
 
 ```properties
 stratum.web.backward-compatible=false

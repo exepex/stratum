@@ -4,7 +4,8 @@
 log, timeouts and the body size limit are built for both stacks; the error responses are described
 in the READMEs of [`stratum-starter-webmvc`](../../starters/stratum-starter-webmvc/README.md) and
 [`stratum-starter-webflux`](../../starters/stratum-starter-webflux/README.md), timeouts in
-[Response timeouts](web-timeouts.md), the body size limit in
+[Response timeouts](web-timeouts.md), backward-compatible mode in
+[Backward-compatible mode](web-compatible-mode.md), the body size limit in
 [Request body size limit](web-body-limit.md), and the rest on this page.
 
 [← Documentation home](../README.md) · Property prefix: `stratum.web` · Decision record:
@@ -72,8 +73,8 @@ Every feature works the same on both stacks.
 | Headers in logs (built) | The request and response headers a team names are logged as fields. `Authorization`, `Cookie`, `Set-Cookie` and `X-Api-Key` never are |
 | Token claims in logs (built) | When a team turns it on, the claims it lists from the caller's JWT, such as `sub` and `scope`, are logged. Other claims, the token's header and its signature never are |
 | Correlation ID (built) | Taken from the caller's `X-Correlation-Id` header when it has a safe format, otherwise the trace ID; returned in the response header. Needs the observability starter |
-| Timeouts (built) | A request whose response has not started within its limit, 10 seconds by default, is answered with `503`. One API can have its own limit. See [Response timeouts](web-timeouts.md) |
-| Body size limit (built) | A request body larger than its limit, 256KB by default, is refused with `413`. One path or API can have its own limit. See [Request body size limit](web-body-limit.md) |
+| Timeouts (built) | A request whose response has not started within its limit, 10 seconds by default once `stratum.web.backward-compatible=false`, is answered with `503`. One API can have its own limit. See [Response timeouts](web-timeouts.md) |
+| Body size limit (built) | A request body larger than its limit, 256KB by default once `stratum.web.backward-compatible=false`, is refused with `413`. One path or API can have its own limit. See [Request body size limit](web-body-limit.md) |
 
 Response times and error counts per API come from the
 [observability starter](../../starters/stratum-starter-observability/README.md), which records
@@ -99,8 +100,8 @@ field. The codes are listed in [Error and warning codes](../guides/error-codes.m
 
 ### Existing consumers keep their error body
 
-By default, adding the starter to a running service never changes the error body its consumers
-read: errors that Spring answers keep Spring Boot's body. See
+By default, adding the starter to a running service never changes what its consumers see: errors
+that Spring answers keep Spring Boot's body, and there is no default time or body size limit. See
 [Backward-compatible mode](web-compatible-mode.md).
 
 ### Your own error handling
@@ -402,10 +403,10 @@ Each works from `.properties`, `.yml` and Java, and your IDE completes it, on bo
 | `stratum.web.user-agent.request-client-hints` | boolean | `false` | Whether responses ask browsers for their device model and full OS version. Only used when `parse` is `true`. |
 | `stratum.web.client-location.database` | file path | none | Your MaxMind City or Country `.mmdb` file. Unset, no country or city is logged. |
 | `stratum.web.request-fields.max-value-length` | integer, 16 to 8192 | `512` | The most characters a request field keeps. |
-| `stratum.web.timeout.default-limit` | duration | `10s` | How long any request may take until its response starts. `0` means no limit. |
+| `stratum.web.timeout.default-limit` | duration | none, or `10s` when `backward-compatible` is `false` | How long any request may take until its response starts. `0` means no limit. |
 | `stratum.web.timeout.routes` | map of path pattern to duration | empty | The limit of the requests whose path matches a pattern, such as `/reports/**`. The most specific pattern wins. |
 | `stratum.web.timeout.status` | HTTP status, `400` to `599` | `503` | The status a request that ran out of time is answered with. |
-| `stratum.web.body-limit.default-limit` | data size | `256KB` | How large any request's body may be. `0` means no limit. |
+| `stratum.web.body-limit.default-limit` | data size | none, or `256KB` when `backward-compatible` is `false` | How large any request's body may be. `0` means no limit. |
 | `stratum.web.body-limit.routes` | map of path pattern to data size | empty | The limit of the bodies of the requests whose path matches a pattern, such as `/uploads/**`. The most specific pattern wins. |
 | `stratum.web.request-log.enabled` | boolean | `true` | Whether each request writes one log line when it is answered. |
 | `stratum.web.request-log.skip-paths` | list of path patterns | `/actuator/**` | Paths whose requests write no log line. Replaces the default; static files are always skipped. |

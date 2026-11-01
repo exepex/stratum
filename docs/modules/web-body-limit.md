@@ -7,9 +7,13 @@
 
 ## What it does
 
-Every request body has a size limit, 256KB unless you set another. A request whose body is larger
-is answered with `413 Content Too Large` and the code `SX-WEB-1008`, and the service logs one WARN
-line with the limit. A caller can no longer fill the service's memory with one huge request.
+With `stratum.web.backward-compatible=false`, every request body has a size limit, 256KB unless you
+set another. While `stratum.web.backward-compatible` is `true`, the default, there is no limit
+unless you set one; see
+[Backward-compatible mode](web-compatible-mode.md#time-and-body-size-limits). Once a limit applies,
+a request whose body is larger is answered with `413 Content Too Large` and the code `SX-WEB-1008`,
+the service logs one WARN line with the limit, and a caller can no longer fill the service's memory
+with one huge request.
 
 Stratum checks the body twice:
 
@@ -46,7 +50,7 @@ stratum:
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.web.body-limit.default-limit` | data size | `256KB` | How large any request's body may be. `0` means no limit. |
+| `stratum.web.body-limit.default-limit` | data size | none, or `256KB` when `stratum.web.backward-compatible` is `false` | How large any request's body may be. `0` means no limit. |
 | `stratum.web.body-limit.routes` | map of path pattern to data size | empty | The limit of the bodies of the requests whose path matches a pattern, such as `/uploads/**`. The most specific pattern wins. |
 
 ## Give one API its own limit
@@ -124,14 +128,15 @@ upload API that accepts more than they allow raises both.
 | Spring MVC on Tomcat | A form, `application/x-www-form-urlencoded` | `server.tomcat.max-http-form-post-size` | `2MB` |
 | WebFlux | A body decoded in memory, such as JSON or a `String` | `spring.http.codecs.max-in-memory-size` | `256KB` |
 | WebFlux | Each part of a multipart upload kept in memory | `spring.webflux.multipart.max-in-memory-size` | `256KB` |
-| WebFlux | Each part of a multipart upload written to disk | `spring.webflux.multipart.max-disk-usage-per-part` | `10MB`, set by Stratum |
-| WebFlux | The number of parts of a multipart upload | `spring.webflux.multipart.max-parts` | `50`, set by Stratum |
+| WebFlux | Each part of a multipart upload written to disk | `spring.webflux.multipart.max-disk-usage-per-part` | `10MB`, set by Stratum in standard mode |
+| WebFlux | The number of parts of a multipart upload | `spring.webflux.multipart.max-parts` | `50`, set by Stratum in standard mode |
 
 A WebFlux part larger than `max-in-memory-size` is written to disk. Spring Boot sets no limit on that
 disk use or on the number of parts, and a multipart upload sent in chunks is not limited by Stratum's
 own limit (see [What is counted](#what-is-counted)), so one request could fill the disk. With
-`stratum.web.enabled=true`, the WebFlux starter therefore gives each part `10MB` of disk and an
-upload `50` parts. Your own value for either key wins, from a file, an environment variable or
+`stratum.web.enabled=true` and `stratum.web.backward-compatible=false`, the WebFlux starter
+therefore gives each part `10MB` of disk and an upload `50` parts. In backward-compatible mode it
+sets neither, so an upload that worked before Stratum keeps working. Your own value for either key wins, from a file, an environment variable or
 Java. A part over its disk limit is answered with `413` and `SX-WEB-1008`, as a body over Stratum's
 limit is. An upload with more parts than allowed is answered with `400` and `SX-WEB-1002`, because
 Spring reports it as an upload it cannot read.
@@ -190,8 +195,9 @@ Spring reads forms and multipart uploads itself, such as for `@RequestParam`, `@
 reads a multipart upload, under Spring's limits above, before Stratum can refuse it. A form or
 multipart upload sent in chunks, with no `Content-Length`, is limited by Spring's limits only. The
 exception is a `PUT`, `PATCH` or `DELETE` form on Spring MVC: Spring's form filter reads it through Stratum's
-counter, so it is counted as it arrives. On WebFlux, a multipart upload is limited by Stratum's
-defaults for `spring.webflux.multipart.max-disk-usage-per-part` and `max-parts`, shown above.
+counter, so it is counted as it arrives. On WebFlux in standard mode, a multipart upload is limited
+by Stratum's defaults for `spring.webflux.multipart.max-disk-usage-per-part` and `max-parts`, shown
+above.
 
 ## Configure in Java
 

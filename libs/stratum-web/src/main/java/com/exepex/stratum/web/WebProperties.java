@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import lombok.Builder;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -51,6 +52,14 @@ public record WebProperties(
     @DefaultValue @Valid TimeoutSettings timeout,
     @DefaultValue BodyLimitSettings bodyLimit) {
 
+  /** How long a request may take when nothing sets a limit, unless backward-compatible is on. */
+  private static final Duration STANDARD_TIMEOUT = Duration.ofSeconds(10);
+
+  /**
+   * How large a request's body may be when nothing sets a limit, unless backward-compatible is on.
+   */
+  private static final DataSize STANDARD_BODY_LIMIT = DataSize.ofKilobytes(256);
+
   /**
    * Returns the settings the module uses: {@code stratum.web.*} with the defaults for anything
    * unset, changed by every {@link WebPropertiesCustomizer} in {@code META-INF/spring.factories},
@@ -64,6 +73,30 @@ public record WebProperties(
   public static WebProperties resolve(Environment environment) {
     return StratumCustomizers.resolveSettings(
         environment, WebConstants.PREFIX, WebProperties.class, WebPropertiesCustomizer.class);
+  }
+
+  /**
+   * Returns how long a request whose path matches no route may take: the default limit the service
+   * set, or else no limit while backward-compatible is on, so an existing service's requests are
+   * not cut off, and 10s otherwise.
+   *
+   * @return the limit, where 0 means none
+   */
+  public Duration defaultTimeout() {
+    return Objects.requireNonNullElse(
+        timeout.defaultLimit(), backwardCompatible ? Duration.ZERO : STANDARD_TIMEOUT);
+  }
+
+  /**
+   * Returns how large the body of a request whose path matches no route may be: the default limit
+   * the service set, or else no limit while backward-compatible is on, so an existing service's
+   * requests are not refused, and 256KB otherwise.
+   *
+   * @return the limit, where 0 means none
+   */
+  public DataSize defaultBodyLimit() {
+    return Objects.requireNonNullElse(
+        bodyLimit.defaultLimit(), backwardCompatible ? DataSize.ofBytes(0) : STANDARD_BODY_LIMIT);
   }
 
   /**
@@ -223,7 +256,8 @@ public record WebProperties(
    * {@code @ResponseTimeout} wins over a route, and a route wins over the default.
    *
    * @param defaultLimit How long any request may take until its response starts, such as 10s or
-   *     500ms. 0 means no limit. Defaults to 10s.
+   *     500ms. 0 means no limit. Defaults to 10s, or to no limit while backward-compatible is true,
+   *     so an existing service's requests are not cut off.
    * @param routes The limit of the requests whose path matches a pattern, such as /reports/** to
    *     60s. When several patterns match, the most specific one wins. 0 means no limit on those
    *     paths. Defaults to none.
@@ -232,7 +266,7 @@ public record WebProperties(
    */
   @Builder(toBuilder = true)
   public record TimeoutSettings(
-      @DefaultValue("10s") Duration defaultLimit,
+      @Nullable Duration defaultLimit,
       @DefaultValue Map<String, Duration> routes,
       @DefaultValue("503") @Min(400) @Max(599) int status) {
 
@@ -248,14 +282,15 @@ public record WebProperties(
    * method's {@code @RequestBodyLimit} wins over a route, and a route wins over the default.
    *
    * @param defaultLimit How large any request's body may be, such as 256KB or 20MB. 0 means no
-   *     limit. Defaults to 256KB.
+   *     limit. Defaults to 256KB, or to no limit while backward-compatible is true, so an existing
+   *     service's requests are not refused.
    * @param routes The limit of the bodies of the requests whose path matches a pattern, such as
    *     /uploads/** to 20MB. When several patterns match, the most specific one wins. 0 means no
    *     limit on those paths. Defaults to none.
    */
   @Builder(toBuilder = true)
   public record BodyLimitSettings(
-      @DefaultValue("256KB") DataSize defaultLimit, @DefaultValue Map<String, DataSize> routes) {
+      @Nullable DataSize defaultLimit, @DefaultValue Map<String, DataSize> routes) {
 
     /** Keeps an unchangeable copy of the routes. */
     public BodyLimitSettings {

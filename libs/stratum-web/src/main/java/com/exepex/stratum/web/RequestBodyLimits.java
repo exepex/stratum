@@ -24,7 +24,7 @@ public class RequestBodyLimits {
    *     path pattern
    */
   public RequestBodyLimits(WebProperties settings) {
-    this.defaultLimit = settings.bodyLimit().defaultLimit();
+    this.defaultLimit = settings.defaultBodyLimit();
     this.routeLimits = new RouteValues<>(settings.bodyLimit().routes());
   }
 

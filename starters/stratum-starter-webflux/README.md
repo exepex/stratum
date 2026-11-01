@@ -184,7 +184,8 @@ dashboard recipe, with PromQL examples, is in [Web](../../docs/modules/web.md#sl
 
 ## Timeouts
 
-Each request has 10 seconds until its response starts, unless you set another limit. A request that
+Each request has 10 seconds until its response starts, unless you set another limit; while
+`stratum.web.backward-compatible` is `true`, the default, it has no limit unless you set one. A request that
 runs out of time is answered with `503` and `SX-WEB-1007`, and the service logs a WARN line. A
 response that has started, such as a stream, is never cut off. Change the limits in
 `application.properties`:
@@ -224,7 +225,8 @@ status, are in [Response timeouts](../../docs/modules/web-timeouts.md).
 
 ## Body size limit
 
-Each request body may have 256KB, unless you set another limit. A larger body is answered with
+Each request body may have 256KB, unless you set another limit; while
+`stratum.web.backward-compatible` is `true`, the default, it has no limit unless you set one. A larger body is answered with
 `413` and `SX-WEB-1008`, and the service logs a WARN line. A body sent without `Content-Length` is
 counted as it arrives and stopped at the limit, before it is held in memory. Raise the limit for
 uploads by path, in `application.properties`:
@@ -257,7 +259,8 @@ Mono<DocumentId> upload(@RequestBody Flux<DataBuffer> body) {
 Spring's own limit of 256KB for a body decoded in memory, `spring.http.codecs.max-in-memory-size`,
 applies as well, so read a large upload as a `Flux<DataBuffer>`. Forms and multipart uploads are
 checked by their `Content-Length` only. Spring Boot sets no limit on a multipart upload's disk use or
-parts, so with the module on this starter gives each part `10MB` of disk and an upload `50` parts; set
+parts, so with the module on and `backward-compatible` set to `false` this starter gives each part
+`10MB` of disk and an upload `50` parts; set
 `spring.webflux.multipart.max-disk-usage-per-part` or `max-parts` to change them. The details, with
 `0` for no limit, are in
 [Request body size limit](../../docs/modules/web-body-limit.md).
@@ -314,13 +317,13 @@ which names the property but not the code or the value.
 | `stratum.web.request-log.denied-headers` | list of header names | empty | Headers never written, on top of the credential headers. |
 | `stratum.web.request-log.token-payload` | boolean | `false` | Whether the line carries the listed claims of the caller's bearer JWT. |
 | `stratum.web.request-log.token-claims` | list of claim names | `sub`, `azp`, `client_id`, `scope` | The claims written when `token-payload` is `true`. |
-| `stratum.web.timeout.default-limit` | duration | `10s` | How long any request may take until its response starts. `0` means no limit. |
+| `stratum.web.timeout.default-limit` | duration | none, or `10s` when `backward-compatible` is `false` | How long any request may take until its response starts. `0` means no limit. |
 | `stratum.web.timeout.routes` | map of path pattern to duration | empty | The limit of the requests whose path matches a pattern, such as `/reports/**`. |
 | `stratum.web.timeout.status` | HTTP status | `503` | The status a request that ran out of time is answered with. |
-| `stratum.web.body-limit.default-limit` | data size | `256KB` | How large any request's body may be. `0` means no limit. |
+| `stratum.web.body-limit.default-limit` | data size | none, or `256KB` when `backward-compatible` is `false` | How large any request's body may be. `0` means no limit. |
 | `stratum.web.body-limit.routes` | map of path pattern to data size | empty | The limit of the bodies of the requests whose path matches a pattern, such as `/uploads/**`. |
-| `spring.webflux.multipart.max-disk-usage-per-part` | data size | `10MB` (Spring Boot: no limit) | Spring Boot's key. The disk each part of a multipart upload may use. Stratum sets this default; your value wins. |
-| `spring.webflux.multipart.max-parts` | integer | `50` (Spring Boot: no limit) | Spring Boot's key. The most parts a multipart upload may have. Stratum sets this default; your value wins. |
+| `spring.webflux.multipart.max-disk-usage-per-part` | data size | none, or `10MB` when `backward-compatible` is `false` (Spring Boot: no limit) | Spring Boot's key. The disk each part of a multipart upload may use. Stratum sets this default in standard mode; your value wins. |
+| `spring.webflux.multipart.max-parts` | integer | none, or `50` when `backward-compatible` is `false` (Spring Boot: no limit) | Spring Boot's key. The most parts a multipart upload may have. Stratum sets this default in standard mode; your value wins. |
 
 These are the same keys as the Spring MVC starter's. Your IDE completes each and shows its
 description. The full list, with the allowed values, is in [Web](../../docs/modules/web.md#properties).

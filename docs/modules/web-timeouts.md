@@ -7,10 +7,13 @@
 
 ## What it does
 
-Every request has a time limit, 10 seconds unless you set another. A request whose response has not
-started when its time is up is answered with `503` and the code `SX-WEB-1007`, and the service logs
-one WARN line with the limit. The caller gets an answer it can act on, and a slow call can no longer
-hold a server thread, or a caller, for minutes.
+With `stratum.web.backward-compatible=false`, every request has a time limit, 10 seconds unless you
+set another. While `stratum.web.backward-compatible` is `true`, the default, there is no limit
+unless you set one; see
+[Backward-compatible mode](web-compatible-mode.md#time-and-body-size-limits). Once a limit applies,
+a request whose response has not started when its time is up is answered with `503` and the code
+`SX-WEB-1007`, and the service logs one WARN line with the limit. The caller gets an answer it can
+act on, and a slow call can no longer hold a server thread, or a caller, for minutes.
 
 The limit counts from when the request reaches the service, so the time Spring Security takes counts
 too, until the first byte of the response is sent. A response that has started, such as a stream or
@@ -48,7 +51,7 @@ stratum:
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.web.timeout.default-limit` | duration | `10s` | How long any request may take until its response starts. `0` means no limit. |
+| `stratum.web.timeout.default-limit` | duration | none, or `10s` when `stratum.web.backward-compatible` is `false` | How long any request may take until its response starts. `0` means no limit. |
 | `stratum.web.timeout.routes` | map of path pattern to duration | empty | The limit of the requests whose path matches a pattern, such as `/reports/**`. The most specific pattern wins. |
 | `stratum.web.timeout.status` | HTTP status, `400` to `599` | `503` | The status a request that ran out of time is answered with. |
 
