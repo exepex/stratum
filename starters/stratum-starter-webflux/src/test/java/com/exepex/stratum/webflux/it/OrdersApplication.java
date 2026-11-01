@@ -13,6 +13,7 @@ import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.ErrorResponseException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -50,6 +51,12 @@ public class OrdersApplication {
 
   /** The path that fails with Spring's {@code ErrorResponseException} and status 400. */
   static final String INVALID_STATE_PATH = "/orders/invalid-state";
+
+  /** The path that fails with an {@code ErrorResponseException} whose status has no name. */
+  static final String UNLISTED_STATUS_PATH = "/orders/unlisted-status";
+
+  /** A status that Spring's {@code HttpStatus} does not list. */
+  static final int UNLISTED_STATUS = 499;
 
   /** An internal detail in an exception message, which must never reach a caller. */
   static final String INTERNAL_DETAIL = "LEAK-db-password-wrong";
@@ -249,6 +256,16 @@ public class OrdersApplication {
     @GetMapping(OrdersApplication.INVALID_STATE_PATH)
     Mono<String> invalidState() {
       return Mono.error(new ErrorResponseException(HttpStatus.BAD_REQUEST));
+    }
+
+    /**
+     * Fails with an {@code ErrorResponseException} whose status has no reason phrase.
+     *
+     * @return never succeeds
+     */
+    @GetMapping(OrdersApplication.UNLISTED_STATUS_PATH)
+    Mono<String> unlistedStatus() {
+      return Mono.error(new ErrorResponseException(HttpStatusCode.valueOf(UNLISTED_STATUS)));
     }
 
     /**

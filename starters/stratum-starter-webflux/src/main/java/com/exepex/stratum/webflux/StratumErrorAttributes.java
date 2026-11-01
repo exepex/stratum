@@ -140,10 +140,17 @@ public class StratumErrorAttributes extends DefaultErrorAttributes {
         && attributes.containsKey(STATUS)) {
       var status = errorResponse.getStatusCode();
       attributes.put(STATUS, status.value());
-      Optional.ofNullable(HttpStatus.resolve(status.value()))
-          .filter(known -> attributes.containsKey(ERROR))
-          .ifPresent(known -> attributes.put(ERROR, known.getReasonPhrase()));
+      if (attributes.containsKey(ERROR)) {
+        attributes.put(ERROR, reasonPhraseOf(status));
+      }
     }
     return attributes;
+  }
+
+  /** Returns the status's reason phrase, or Spring MVC's "Http Status 499" for an unlisted one. */
+  private static String reasonPhraseOf(HttpStatusCode status) {
+    return Optional.ofNullable(HttpStatus.resolve(status.value()))
+        .map(HttpStatus::getReasonPhrase)
+        .orElse("Http Status " + status.value());
   }
 }
