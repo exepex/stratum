@@ -23,7 +23,7 @@ import org.springframework.core.io.support.PropertiesLoaderUtils;
  * and so is a version Spring Boot cannot report, such as from a repackaged jar.
  */
 @RequiredArgsConstructor(access = AccessLevel.PACKAGE)
-public class SpringBootVersionCheck implements EnvironmentPostProcessor {
+public final class SpringBootVersionCheck implements EnvironmentPostProcessor {
 
   /** The file the build fills in with the Spring Boot version Stratum is tested with. */
   private static final String SUPPORTED_VERSION_FILE =
@@ -50,7 +50,9 @@ public class SpringBootVersionCheck implements EnvironmentPostProcessor {
    * @param logFactory gives the log for the warning
    */
   public SpringBootVersionCheck(DeferredLogFactory logFactory) {
-    this(logFactory, readSupportedVersion(), SpringBootVersion.getVersion());
+    this.logFactory = logFactory;
+    this.supportedVersion = readSupportedVersion();
+    this.runningVersion = SpringBootVersion.getVersion();
   }
 
   /**
@@ -83,7 +85,7 @@ public class SpringBootVersionCheck implements EnvironmentPostProcessor {
   }
 
   /** Reads the Spring Boot version that the build wrote into Stratum's jar. */
-  private static String readSupportedVersion() {
+  private String readSupportedVersion() {
     try {
       return PropertiesLoaderUtils.loadProperties(new ClassPathResource(SUPPORTED_VERSION_FILE))
           .getProperty(SUPPORTED_VERSION_KEY);
