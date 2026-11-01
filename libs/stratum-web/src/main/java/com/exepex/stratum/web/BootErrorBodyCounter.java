@@ -15,9 +15,6 @@ import org.springframework.beans.factory.ObjectProvider;
 @RequiredArgsConstructor
 public class BootErrorBodyCounter {
 
-  /** The tag that holds the route. */
-  private static final String ROUTE = "route";
-
   /** The service's meter registry, if it has one. */
   private final ObjectProvider<MeterRegistry> meterRegistry;
 
@@ -34,7 +31,7 @@ public class BootErrorBodyCounter {
                 .description(
                     "Error answers that kept Spring Boot's body because the consumer did not ask"
                         + " for application/problem+json")
-                .tag(ROUTE, route == null ? WebConstants.UNKNOWN_ROUTE : route)
+                .tag(WebConstants.ROUTE_TAG, route == null ? WebConstants.UNKNOWN_ROUTE : route)
                 .register(registry)
                 .increment());
   }

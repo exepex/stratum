@@ -38,7 +38,8 @@ import org.springframework.web.server.ResponseStatusException;
 @Import({
   OrdersApplication.OrdersController.class,
   OrdersApplication.ServiceErrorHandlers.class,
-  OrdersApplication.FailingFilter.class
+  OrdersApplication.FailingFilter.class,
+  RejectingInterceptor.class
 })
 public class OrdersApplication {
 
@@ -252,6 +253,16 @@ public class OrdersApplication {
     @GetMapping(OrdersApplication.INVALID_STATE_PATH)
     String invalidState() {
       throw new ErrorResponseException(HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * The route {@link RejectingInterceptor} guards, which it never lets through.
+     *
+     * @return never returns
+     */
+    @GetMapping(RejectingInterceptor.GUARDED_ROUTE)
+    String guarded() {
+      return "never sent";
     }
 
     /**

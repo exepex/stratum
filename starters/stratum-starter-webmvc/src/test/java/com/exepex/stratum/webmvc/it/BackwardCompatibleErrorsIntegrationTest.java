@@ -116,6 +116,17 @@ class BackwardCompatibleErrorsIntegrationTest {
     }
 
     @Test
+    @DisplayName("counts an answer from a service interceptor under the route it rejected")
+    void countsRouteRejectedByServiceInterceptor() throws Exception {
+      BackwardCompatibleErrorChecks.checkCounted(
+          port,
+          RejectingInterceptor.GUARDED_ROUTE,
+          JSON,
+          () -> countOf(RejectingInterceptor.GUARDED_ROUTE),
+          1);
+    }
+
+    @Test
     @DisplayName("counts an unknown path under UNKNOWN")
     void countsUnknownPath() throws Exception {
       BackwardCompatibleErrorChecks.checkCounted(
@@ -140,7 +151,10 @@ class BackwardCompatibleErrorsIntegrationTest {
   /** Returns how many answers kept Spring Boot's body on a route, 0 before the first. */
   private double countOf(String route) {
     return Optional.ofNullable(
-            meterRegistry.find(WebConstants.BOOT_ERROR_BODY_COUNTER).tag("route", route).counter())
+            meterRegistry
+                .find(WebConstants.BOOT_ERROR_BODY_COUNTER)
+                .tag(WebConstants.ROUTE_TAG, route)
+                .counter())
         .map(Counter::count)
         .orElse(0.0);
   }

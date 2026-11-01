@@ -140,7 +140,10 @@ class BackwardCompatibleErrorsIntegrationTest {
   /** Returns how many answers kept Spring Boot's body on a route, 0 before the first. */
   private double countOf(String route) {
     return Optional.ofNullable(
-            meterRegistry.find(WebConstants.BOOT_ERROR_BODY_COUNTER).tag("route", route).counter())
+            meterRegistry
+                .find(WebConstants.BOOT_ERROR_BODY_COUNTER)
+                .tag(WebConstants.ROUTE_TAG, route)
+                .counter())
         .map(Counter::count)
         .orElse(0.0);
   }
