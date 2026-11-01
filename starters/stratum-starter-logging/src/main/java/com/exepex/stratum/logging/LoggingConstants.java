@@ -47,9 +47,6 @@ public class LoggingConstants {
    */
   public static final String ROOT_CAUSE_FIRST = "first";
 
-  /** Spring Boot's value of {@link #STACK_TRACE_ROOT} that starts with the outermost exception. */
-  public static final String OUTERMOST_EXCEPTION_FIRST = "last";
-
   /** The log field, and metric tag, with the name of the workflow a line belongs to. */
   public static final String WORKFLOW = "workflow";
 

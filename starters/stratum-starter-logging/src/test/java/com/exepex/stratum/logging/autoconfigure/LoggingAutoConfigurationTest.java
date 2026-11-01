@@ -192,7 +192,8 @@ class LoggingAutoConfigurationTest {
                       .hasMessage(
                           "SX-CORE-1004: "
                               + CoreErrorCode.CUSTOMIZER_DECLARED_AS_BEAN.getDescription()
-                              + ": customizer beans loggingCustomizer"));
+                              + ": customizer beans loggingCustomizer"
+                              + " (StratumPropertiesCustomizer)"));
     }
 
     @Test
@@ -206,7 +207,8 @@ class LoggingAutoConfigurationTest {
                   assertThat(context)
                       .getFailure()
                       .rootCause()
-                      .hasMessageEndingWith(": customizer beans untypedCustomizer"));
+                      .hasMessageEndingWith(
+                          ": customizer beans untypedCustomizer (StratumPropertiesCustomizer)"));
     }
 
     /** Returns a customizer, without its settings type, that keeps the settings it receives. */

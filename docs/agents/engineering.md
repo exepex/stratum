@@ -149,6 +149,11 @@ Every starter follows these rules:
   classes, field injection and test-method parameters are allowed, because a test class is not a bean that other beans
   depend on. Prefer constructor injection where it is practical, and always use it in test-support classes that are
   beans.
+- **ST-ENG-27** An error that stops startup is a `StratumException` with an `SX-` code whose `getFix()` says how to
+  fix it, in the same words that start the Fix column of `docs/guides/error-codes.md`; `ErrorCodeChecks` checks
+  they match. Its detail names where the fault is: the property key, class, bean or customizer. Spring Boot's failure
+  report then shows the code and message as the description and the fix as the action, through
+  `StratumStartupFailureAnalyzer`. Warnings and errors that a caller gets have no fix text.
 
 ## Configuration
 

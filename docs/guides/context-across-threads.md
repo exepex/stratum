@@ -86,7 +86,7 @@ Declaring a pool bean stops Spring Boot from creating its own task executor, whi
 it, as Spring Boot does for its own. Code that injects an `Executor` by type still gets your pool.
 Stratum does not do this when your service has its own `TaskExecutor`, a bean named `taskExecutor`
 or an `AsyncConfigurer`, because `@Async` then uses your choice, or when
-`stratum.context-propagation.async-threads` is `false`. For this, the logging and observability
+`spring.task.execution.propagate-context` is `false`. For this, the logging and observability
 modules run before Spring Boot's task scheduling: its scheduler is also a task executor, and would
 otherwise count as yours.
 
@@ -128,8 +128,8 @@ Blocking code that calls `block()` on a `Mono` passes its own MDC fields into th
 helper is needed there.
 
 This relies on Reactor's automatic context propagation, which the starter turns on by default
-(`stratum.context-propagation.reactor`). With it set to `false`, the fields appear only in
-`handle` and `tap`.
+(`spring.reactor.context-propagation=auto`). With it set to `limited`, Spring Boot's own default,
+the fields appear only in `handle` and `tap`.
 
 ## Virtual threads
 
@@ -182,8 +182,8 @@ such as a report written to S3, is linked back to the request with the observabi
 
 | Property | Default | Effect |
 | --- | --- | --- |
-| `stratum.context-propagation.async-threads` | `true` | Spring Boot's executors and `@Async` carry the fields. |
-| `stratum.context-propagation.reactor` | `true` | Every Reactor operator carries the fields. |
+| `spring.task.execution.propagate-context` | `true` | Spring Boot's executors and `@Async` carry the fields. Spring Boot's key; Stratum sets its default. |
+| `spring.reactor.context-propagation` | `auto` | Every Reactor operator carries the fields. Spring Boot's key; Stratum sets its default. |
 | `stratum.context-propagation.executor-beans` | `true` | Your `ExecutorService` and `ScheduledExecutorService` beans carry the fields. |
 
 All three are in the [configuration reference](../configuration/reference.md).

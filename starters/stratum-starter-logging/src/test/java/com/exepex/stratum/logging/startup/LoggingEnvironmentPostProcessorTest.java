@@ -35,10 +35,6 @@ class LoggingEnvironmentPostProcessorTest {
 
   private static final String OFF = "false";
 
-  /** The published key, spelled out so a misspelt key in the module fails the test. */
-  private static final String PROPAGATE_CONTEXT_TO_ASYNC_THREADS =
-      "stratum.context-propagation.async-threads";
-
   private static final String NOT_REDACTED = "plain text, which is not redacted";
 
   /** Holds the post-processor's log lines until the test writes them out. */
@@ -119,34 +115,24 @@ class LoggingEnvironmentPostProcessorTest {
     }
 
     @Test
-    @DisplayName("Spring's executors carry the context unless the service turns it off")
+    @DisplayName(
+        "Spring's executors and every Reactor operator carry the context, unless the service sets"
+            + " Spring Boot's keys")
     void propagatesContext() {
       var defaultEnvironment = runPostProcessor(environmentWithModuleOnAndServiceName());
-      var noPropagation =
+      var serviceSettings =
           runPostProcessor(
               environmentWithModuleOnAndServiceName()
-                  .withProperty(PROPAGATE_CONTEXT_TO_ASYNC_THREADS, OFF));
+                  .withProperty(StratumModuleConstants.PROPAGATE_TASK_CONTEXT, OFF)
+                  .withProperty(StratumModuleConstants.REACTOR_CONTEXT_PROPAGATION, "limited"));
 
       assertThat(defaultEnvironment.getProperty(StratumModuleConstants.PROPAGATE_TASK_CONTEXT))
           .isEqualTo("true");
-      assertThat(noPropagation.getProperty(StratumModuleConstants.PROPAGATE_TASK_CONTEXT))
-          .isEqualTo(OFF);
-    }
-
-    @Test
-    @DisplayName(
-        "every Reactor operator carries the context, unless"
-            + " stratum.context-propagation.reactor is false")
-    void propagatesContextToEveryReactorOperator() {
-      var defaultEnvironment = runPostProcessor(environmentWithModuleOnAndServiceName());
-      var handleAndTapOnly =
-          runPostProcessor(
-              environmentWithModuleOnAndServiceName()
-                  .withProperty("stratum.context-propagation.reactor", OFF));
-
       assertThat(defaultEnvironment.getProperty("spring.reactor.context-propagation"))
           .isEqualTo("auto");
-      assertThat(handleAndTapOnly.getProperty("spring.reactor.context-propagation"))
+      assertThat(serviceSettings.getProperty(StratumModuleConstants.PROPAGATE_TASK_CONTEXT))
+          .isEqualTo(OFF);
+      assertThat(serviceSettings.getProperty("spring.reactor.context-propagation"))
           .isEqualTo("limited");
     }
 
@@ -163,13 +149,12 @@ class LoggingEnvironmentPostProcessorTest {
     }
 
     @Test
-    @DisplayName("a stack trace can start with the exception the code caught")
+    @DisplayName("a stack trace can start with the exception the code caught, with Boot's key")
     void outermostExceptionFirst() {
       var environment =
           runPostProcessor(
               environmentWithModuleOnAndServiceName()
-                  .withProperty(
-                      LoggingConstants.PREFIX + ".stack-trace-starts-with-root-cause", OFF));
+                  .withProperty(LoggingConstants.STACK_TRACE_ROOT, "last"));
 
       assertThat(environment.getProperty(LoggingConstants.STACK_TRACE_ROOT)).isEqualTo("last");
     }

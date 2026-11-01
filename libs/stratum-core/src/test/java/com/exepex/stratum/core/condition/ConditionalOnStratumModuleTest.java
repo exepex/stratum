@@ -163,7 +163,7 @@ class ConditionalOnStratumModuleTest {
 
     @ParameterizedTest(name = "{1}")
     @FieldSource("BADLY_NAMED_MODULES")
-    @DisplayName("startup stops and names the bad module name")
+    @DisplayName("startup stops and names the bad module name and the class that has it")
     void badModuleNameStopsStartup(Class<?> module, String name) {
       new ApplicationContextRunner()
           .withUserConfiguration(module)
@@ -174,7 +174,7 @@ class ConditionalOnStratumModuleTest {
                       .rootCause()
                       .isInstanceOf(StratumException.class)
                       .hasMessageStartingWith("SX-CORE-1001: ")
-                      .hasMessageContaining("\"" + name + "\""));
+                      .hasMessageContaining("\"" + name + "\" on " + module.getName()));
     }
   }
 

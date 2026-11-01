@@ -14,24 +14,11 @@ public class StratumModuleConstants {
   public static final String SERVICE_ENVIRONMENT = PREFIX + ".environment";
 
   /**
-   * Whether the logging and observability modules make Spring Boot's executors carry their context,
-   * through {@link #PROPAGATE_TASK_CONTEXT}. Defaults to {@code true}.
-   */
-  public static final String PROPAGATE_CONTEXT_TO_ASYNC_THREADS =
-      PREFIX + ".context-propagation.async-threads";
-
-  /**
    * Spring Boot's switch that makes its executors carry the logging and tracing context, which the
-   * logging and observability modules turn on by default.
+   * logging and observability modules turn on by default. A service turns it off by setting it to
+   * {@code false}.
    */
   public static final String PROPAGATE_TASK_CONTEXT = "spring.task.execution.propagate-context";
-
-  /**
-   * Whether the logging and observability modules make Reactor carry their context into every
-   * operator, through {@link #REACTOR_CONTEXT_PROPAGATION}. Defaults to {@code true}.
-   */
-  public static final String PROPAGATE_CONTEXT_TO_EVERY_REACTOR_OPERATOR =
-      PREFIX + ".context-propagation.reactor";
 
   /**
    * Whether the logging and observability modules wrap the pool beans the service declares, such as
@@ -48,16 +35,15 @@ public class StratumModuleConstants {
   public static final String ASYNC_TASK_EXECUTOR = "taskExecutor";
 
   /**
-   * Spring Boot's setting for how Reactor carries the logging and tracing context: {@link
-   * #REACTOR_CONTEXT_IN_EVERY_OPERATOR} or {@link #REACTOR_CONTEXT_IN_HANDLE_AND_TAP_ONLY}.
+   * Spring Boot's setting for how Reactor carries the logging and tracing context, which the
+   * logging and observability modules set to {@link #REACTOR_CONTEXT_IN_EVERY_OPERATOR} by default.
+   * A service sets it to {@code limited}, Spring Boot's own default, to keep the context only in
+   * handle and tap.
    */
   public static final String REACTOR_CONTEXT_PROPAGATION = "spring.reactor.context-propagation";
 
   /** Reactor puts the context on the thread of every operator, so every log line carries it. */
   public static final String REACTOR_CONTEXT_IN_EVERY_OPERATOR = "auto";
-
-  /** Spring Boot's default: Reactor puts the context on the thread only in handle and tap. */
-  public static final String REACTOR_CONTEXT_IN_HANDLE_AND_TAP_ONLY = "limited";
 
   /**
    * The {@code @AutoConfigureOrder} of every Stratum auto-configuration: later than the default, so
