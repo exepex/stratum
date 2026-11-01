@@ -256,6 +256,16 @@ public class OrdersApplication {
     }
 
     /**
+     * The route {@link RejectingInterceptor} guards, which it never lets through.
+     *
+     * @return never returns
+     */
+    @GetMapping(RejectingInterceptor.GUARDED_ROUTE)
+    String guarded() {
+      return "never sent";
+    }
+
+    /**
      * Fails with an {@code ErrorResponseException} whose status has no reason phrase.
      *
      * @return never returns

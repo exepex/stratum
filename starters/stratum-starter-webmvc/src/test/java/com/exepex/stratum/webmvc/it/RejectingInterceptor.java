@@ -3,17 +3,14 @@ package com.exepex.stratum.webmvc.it;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
  * A service interceptor that rejects the caller of a matched route with {@code 401} before its
- * controller runs, as a team's own access check does, and the route it guards.
+ * controller runs, as a team's own access check does.
  */
-@RestController
 class RejectingInterceptor implements HandlerInterceptor, WebMvcConfigurer {
 
   /** The route the interceptor rejects. */
@@ -29,15 +26,5 @@ class RejectingInterceptor implements HandlerInterceptor, WebMvcConfigurer {
       throws IOException {
     response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
     return false;
-  }
-
-  /**
-   * The guarded route, which the interceptor never lets through.
-   *
-   * @return never returns
-   */
-  @GetMapping(GUARDED_ROUTE)
-  String guarded() {
-    return "never sent";
   }
 }
