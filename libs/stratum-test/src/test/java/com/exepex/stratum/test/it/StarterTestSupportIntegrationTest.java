@@ -42,7 +42,10 @@ class StarterTestSupportIntegrationTest {
 
   /** Spring Boot's body for an unknown path. */
   private static final String BOOT_BODY =
-      "{\"status\":404,\"error\":\"Not Found\",\"path\":\"" + UNKNOWN_PATH + "\"}";
+      "{\"status\":404,\"error\":\"Not Found\",\"message\":\"No static resource\","
+          + "\"path\":\""
+          + UNKNOWN_PATH
+          + "\"}";
 
   /** Stratum's body for an unknown path. */
   private static final String STANDARD_BODY =
