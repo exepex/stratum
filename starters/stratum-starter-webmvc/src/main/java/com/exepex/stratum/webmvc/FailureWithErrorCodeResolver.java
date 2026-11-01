@@ -29,8 +29,10 @@ import tools.jackson.databind.json.JsonMapper;
  * FailureWithErrorCode}, thrown by a controller with the status mapped to its code: Stratum's error
  * body for an API caller, the HTML error page for a browser. It runs right after the service's
  * {@code @ExceptionHandler} methods, so they win, and before Spring MVC's status resolvers, so the
- * code's status wins over an {@code @ResponseStatus} on the exception or a {@code
- * ResponseStatusException}, as on WebFlux.
+ * code's status wins over an {@code @ResponseStatus} on the exception, as on WebFlux. A failure
+ * whose code is only in one of its causes is answered last, after Spring MVC's resolvers, so that a
+ * wrapper with a status of its own, such as a {@code ResponseStatusException} or unreadable JSON,
+ * keeps Spring's answer, and a plain wrapper gets the code's status instead of 500.
  */
 @RequiredArgsConstructor
 public class FailureWithErrorCodeResolver implements HandlerExceptionResolver, WebMvcConfigurer {
@@ -46,9 +48,10 @@ public class FailureWithErrorCodeResolver implements HandlerExceptionResolver, W
   private final JsonMapper jsonMapper;
 
   /**
-   * Answers a failure with an error code, and leaves any other failure to the next resolver. A
-   * caller that asks for HTML, such as a browser, is sent to the error page, with the same status.
-   * The body holds no {@code instance}, because the request path can hold personal data.
+   * Answers a failure that has an error code itself, and leaves any other failure to the next
+   * resolver. A caller that asks for HTML, such as a browser, is sent to the error page, with the
+   * same status. The body holds no {@code instance}, because the request path can hold personal
+   * data.
    *
    * @param request the request
    * @param response the response
@@ -63,20 +66,14 @@ public class FailureWithErrorCodeResolver implements HandlerExceptionResolver, W
       HttpServletResponse response,
       @Nullable Object handler,
       Exception failure) {
-    if (hasRunOutOfTime(request)) {
-      // Left to ResponseTimeoutFilter, which answers with the timeout status and clears the
-      // interrupt; writing on the interrupted thread would close the connection unanswered.
-      return null;
-    }
-    return errorResponseFactory
-        .forFailureWithErrorCode(failure)
-        .map(body -> answer(request, response, body))
-        .orElse(null);
+    return failure instanceof FailureWithErrorCode
+        ? resolveFailureOrCause(request, response, failure)
+        : null;
   }
 
   /**
    * Places this resolver right after Spring MVC's {@code @ExceptionHandler} resolver, or first if
-   * the service removed it.
+   * the service removed it, and adds the resolver of a code in a cause after all the others.
    *
    * @param resolvers Spring MVC's resolvers, in the order they run
    */
@@ -89,6 +86,25 @@ public class FailureWithErrorCodeResolver implements HandlerExceptionResolver, W
             .map(resolvers::indexOf)
             .orElse(-1);
     resolvers.add(exceptionHandlers + 1, this);
+    resolvers.add(
+        (request, response, handler, failure) -> resolveFailureOrCause(request, response, failure));
+  }
+
+  /**
+   * Answers a failure with an error code, itself or in one of its causes, unless the request ran
+   * out of time. That request is left to {@link ResponseTimeoutFilter}, which answers with the
+   * timeout status and clears the interrupt; writing on the interrupted thread would close the
+   * connection unanswered.
+   */
+  private @Nullable ModelAndView resolveFailureOrCause(
+      HttpServletRequest request, HttpServletResponse response, Exception failure) {
+    if (hasRunOutOfTime(request)) {
+      return null;
+    }
+    return errorResponseFactory
+        .forFailureWithErrorCode(failure)
+        .map(body -> answer(request, response, body))
+        .orElse(null);
   }
 
   /** Returns whether the request ran out of its time limit before it failed. */

@@ -1,9 +1,7 @@
 package com.exepex.stratum.webflux;
 
-import com.exepex.stratum.web.ErrorResponseFactory;
 import com.exepex.stratum.web.ReferencePage;
 import java.util.Map;
-import java.util.function.Predicate;
 import org.springframework.boot.autoconfigure.web.ErrorProperties;
 import org.springframework.boot.autoconfigure.web.WebProperties.Resources;
 import org.springframework.boot.web.error.ErrorAttributeOptions;
@@ -31,32 +29,20 @@ public class StratumErrorWebExceptionHandler extends DefaultErrorWebExceptionHan
   private final boolean stratumBodies;
 
   /**
-   * Whether a failure was logged already: one with an error code that Stratum's error attributes
-   * answered.
-   */
-  private final Predicate<Throwable> loggedAlready;
-
-  /**
    * Makes the handler, as Spring Boot makes its own.
    *
    * @param errorAttributes the error attributes, Stratum's or the service's
    * @param resources where static error pages are looked for
    * @param errorProperties Spring Boot's error settings, such as whether the default page is on
    * @param applicationContext the application's context, where error templates are looked for
-   * @param errorResponseFactory finds the failure with an error code, which is not logged twice
    */
   public StratumErrorWebExceptionHandler(
       ErrorAttributes errorAttributes,
       Resources resources,
       ErrorProperties errorProperties,
-      ApplicationContext applicationContext,
-      ErrorResponseFactory errorResponseFactory) {
+      ApplicationContext applicationContext) {
     super(errorAttributes, resources, errorProperties, applicationContext);
     this.stratumBodies = errorAttributes instanceof StratumErrorAttributes;
-    this.loggedAlready =
-        stratumBodies
-            ? failure -> errorResponseFactory.findFailureWithErrorCode(failure).isPresent()
-            : failure -> false;
   }
 
   /**
@@ -123,7 +109,7 @@ public class StratumErrorWebExceptionHandler extends DefaultErrorWebExceptionHan
    */
   @Override
   protected void logError(ServerRequest request, ServerResponse response, Throwable throwable) {
-    if (!loggedAlready.test(throwable)) {
+    if (request.attribute(StratumErrorAttributes.LOGGED_ATTRIBUTE).isEmpty()) {
       super.logError(request, response, throwable);
     }
   }

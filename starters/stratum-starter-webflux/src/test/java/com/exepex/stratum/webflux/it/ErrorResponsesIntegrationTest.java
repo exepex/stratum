@@ -126,6 +126,25 @@ class ErrorResponsesIntegrationTest {
     assertThat(output).contains(DUPLICATE_ORDER_CODE + ": Order already exists: order 42");
   }
 
+  @Test
+  @DisplayName("a code in the cause of a plain exception gets the code's status and is logged")
+  void codeOfCauseReplaces500(CapturedOutput output) throws Exception {
+    StarterTestSupport.checkProblemDetails(
+        get("/orders/duplicate-wrapped", MediaType.APPLICATION_JSON),
+        HttpStatus.CONFLICT.value(),
+        DUPLICATE_ORDER_CODE);
+    assertThat(output).contains(DUPLICATE_ORDER_CODE + ": Order already exists: order 42");
+  }
+
+  @Test
+  @DisplayName("a code in the cause of Spring's 404 keeps Spring's status and body")
+  void springStatusWinsOverCodeOfCause() throws Exception {
+    StarterTestSupport.checkProblemDetails(
+        get("/orders/duplicate-not-found", MediaType.APPLICATION_JSON),
+        HttpStatus.NOT_FOUND.value(),
+        WebErrorCode.NOT_FOUND.getCode());
+  }
+
   @Nested
   @DisplayName("when Spring rejects the request or it fails unexpectedly")
   class SpringFailures {

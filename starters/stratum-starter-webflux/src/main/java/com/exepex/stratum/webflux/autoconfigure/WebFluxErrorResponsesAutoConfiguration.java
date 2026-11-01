@@ -91,7 +91,6 @@ public final class WebFluxErrorResponsesAutoConfiguration {
    * @param viewResolvers the service's view resolvers, for its error templates
    * @param codecs the service's codecs
    * @param applicationContext the application's context
-   * @param errorResponseFactory finds the failure with an error code
    * @return the handler
    */
   @Bean
@@ -103,15 +102,13 @@ public final class WebFluxErrorResponsesAutoConfiguration {
       org.springframework.boot.autoconfigure.web.WebProperties bootWebProperties,
       ObjectProvider<ViewResolver> viewResolvers,
       ServerCodecConfigurer codecs,
-      ApplicationContext applicationContext,
-      ErrorResponseFactory errorResponseFactory) {
+      ApplicationContext applicationContext) {
     var handler =
         new StratumErrorWebExceptionHandler(
             errorAttributes,
             bootWebProperties.getResources(),
             bootWebProperties.getError(),
-            applicationContext,
-            errorResponseFactory);
+            applicationContext);
     handler.setViewResolvers(viewResolvers.orderedStream().toList());
     handler.setMessageWriters(codecs.getWriters());
     handler.setMessageReaders(codecs.getReaders());

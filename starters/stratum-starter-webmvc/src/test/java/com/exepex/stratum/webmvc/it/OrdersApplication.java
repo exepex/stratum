@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.server.ResponseStatusException;
 
 /** A service with the web MVC starter, whose endpoints fail in every way a real one can. */
 @SpringBootConfiguration
@@ -41,6 +42,9 @@ public class OrdersApplication {
 
   /** An IBAN that a validation message would leak if it quoted the rejected value. */
   static final String IBAN = "DE89370400440532013000";
+
+  /** The detail of every duplicate order the endpoints fail with. */
+  static final String ORDER_DETAIL = "order 42";
 
   /** An internal detail in an exception message, which must never reach a caller. */
   static final String INTERNAL_DETAIL = "LEAK-db-password-wrong";
@@ -74,7 +78,7 @@ public class OrdersApplication {
 
     /** Makes the exception with a code the service maps to 409. */
     AnnotatedOrderException() {
-      super(OrderErrorCode.DUPLICATE_ORDER, "order 42");
+      super(OrderErrorCode.DUPLICATE_ORDER, ORDER_DETAIL);
     }
   }
 
@@ -101,7 +105,7 @@ public class OrdersApplication {
      */
     @GetMapping("/orders/duplicate")
     String duplicate() {
-      throw new StratumException(OrderErrorCode.DUPLICATE_ORDER, "order 42");
+      throw new StratumException(OrderErrorCode.DUPLICATE_ORDER, ORDER_DETAIL);
     }
 
     /**
@@ -112,7 +116,7 @@ public class OrdersApplication {
      */
     @GetMapping("/orders/duplicate-existing")
     String duplicateExisting() {
-      throw new ExistingOrderException(OrderErrorCode.DUPLICATE_ORDER, "order 42");
+      throw new ExistingOrderException(OrderErrorCode.DUPLICATE_ORDER, ORDER_DETAIL);
     }
 
     /**
@@ -124,6 +128,28 @@ public class OrdersApplication {
     @GetMapping("/orders/duplicate-annotated")
     String duplicateAnnotated() {
       throw new AnnotatedOrderException();
+    }
+
+    /**
+     * Fails with a plain exception whose cause has a code the service maps to 409.
+     *
+     * @return never returns
+     */
+    @GetMapping("/orders/duplicate-wrapped")
+    String duplicateWrapped() {
+      throw new IllegalStateException(
+          new StratumException(OrderErrorCode.DUPLICATE_ORDER, ORDER_DETAIL));
+    }
+
+    /**
+     * Fails with Spring's 404 whose cause has a code the service maps to 409.
+     *
+     * @return never returns
+     */
+    @GetMapping("/orders/duplicate-not-found")
+    String duplicateNotFound() {
+      throw new ResponseStatusException(
+          HttpStatus.NOT_FOUND, "no order", new StratumException(OrderErrorCode.DUPLICATE_ORDER));
     }
 
     /**

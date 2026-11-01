@@ -18,6 +18,7 @@ import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -120,13 +121,14 @@ class ErrorResponseFactoryTest {
     }
 
     @Test
+    @Timeout(5)
     @DisplayName("stops at a chain of causes that loops back on itself")
     void causesThatLoop() {
       var first = new IllegalStateException("first");
       var second = new IllegalArgumentException("second", first);
       first.initCause(second);
 
-      assertThat(factory.findFailureWithErrorCode(first)).isEmpty();
+      assertThat(factory.forFailureWithErrorCode(first)).isEmpty();
     }
 
     @Test
@@ -191,6 +193,19 @@ class ErrorResponseFactoryTest {
       assertThat(body.getStatus()).isEqualTo(HttpStatus.BAD_GATEWAY.value());
       assertThat(body.getDetail()).isEqualTo("Order already exists: order 42");
       assertThat(body.getProperties()).containsEntry(WebConstants.CODE, DUPLICATE_ORDER_CODE);
+    }
+
+    @Test
+    @DisplayName("gives Spring's body for the status when only a cause has an error code")
+    void codeOfCauseIsNotUsed() {
+      var body =
+          factory.forFailedRequest(
+              HttpStatus.NOT_FOUND,
+              new IllegalStateException(new StratumException(OrderErrorCode.DUPLICATE_ORDER)));
+
+      assertThat(body.getStatus()).isEqualTo(HttpStatus.NOT_FOUND.value());
+      assertThat(body.getProperties())
+          .containsEntry(WebConstants.CODE, WebErrorCode.NOT_FOUND.getCode());
     }
 
     @Test
