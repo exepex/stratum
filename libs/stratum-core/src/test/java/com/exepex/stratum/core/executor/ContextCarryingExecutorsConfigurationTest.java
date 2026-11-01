@@ -3,7 +3,6 @@ package com.exepex.stratum.core.executor;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.micrometer.context.ContextExecutorService;
-import io.micrometer.context.ContextScheduledExecutorService;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -64,7 +63,7 @@ class ContextCarryingExecutorsConfigurationTest {
               assertThat(context.getBean("invoiceRenderingPool"))
                   .isInstanceOf(ContextExecutorService.class);
               assertThat(context.getBean("reminderScheduler"))
-                  .isInstanceOf(ContextScheduledExecutorService.class);
+                  .isInstanceOf(OneShotContextScheduledExecutorService.class);
               assertThat(context.getBean("auditPool")).isInstanceOf(ContextExecutorService.class);
               assertThat(context.getBean("reportingPool")).isInstanceOf(ThreadPoolExecutor.class);
               assertThat(context.getBean("prewrappedPool"))

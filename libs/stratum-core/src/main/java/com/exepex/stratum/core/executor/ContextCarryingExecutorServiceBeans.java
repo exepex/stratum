@@ -1,7 +1,6 @@
 package com.exepex.stratum.core.executor;
 
 import io.micrometer.context.ContextExecutorService;
-import io.micrometer.context.ContextScheduledExecutorService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import lombok.RequiredArgsConstructor;
@@ -9,8 +8,9 @@ import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 
 /**
- * Wraps the pools the service declares as beans with Micrometer's context-carrying wrappers, so
- * that each task keeps the logging and tracing context of the code that submitted it. A pool is
+ * Wraps the pools the service declares as beans with context-carrying wrappers, so that each task
+ * keeps the logging and tracing context of the code that submitted it. A scheduled pool passes the
+ * context only to one-shot tasks ({@link OneShotContextScheduledExecutorService}). A pool is
  * wrapped when its bean is declared as a type the wrapper also has, such as {@code Executor},
  * {@code ExecutorService} or {@code ScheduledExecutorService}. A bean declared as a class, such as
  * {@code ThreadPoolExecutor}, is left alone, because the wrapper is not that class and the code
@@ -35,8 +35,8 @@ public class ContextCarryingExecutorServiceBeans implements BeanPostProcessor {
     return switch (bean) {
       case ContextExecutorService<?> alreadyWrapped -> alreadyWrapped;
       case ScheduledExecutorService scheduledPool
-          when isDeclaredAsTypeOf(beanName, ContextScheduledExecutorService.class) ->
-          ContextScheduledExecutorService.wrap(scheduledPool);
+          when isDeclaredAsTypeOf(beanName, OneShotContextScheduledExecutorService.class) ->
+          new OneShotContextScheduledExecutorService(scheduledPool);
       case ExecutorService pool when isDeclaredAsTypeOf(beanName, ContextExecutorService.class) ->
           ContextExecutorService.wrap(pool);
       default -> bean;
