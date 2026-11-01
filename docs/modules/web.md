@@ -104,7 +104,9 @@ field. The codes are listed in [Error and warning codes](../guides/error-codes.m
   Stratum only adds `traceId` and `correlationId` to it.
 - **`StratumException` with your own code:** you map each code to an HTTP status in
   `stratum.web.error.statuses`. A code with no status is answered with `500` and logged, so a
-  missing mapping shows up in testing.
+  missing mapping shows up in testing. Your existing exceptions can implement
+  [`FailureWithErrorCode`](../guides/error-codes.md#existing-exceptions-a-migration-path) to be
+  answered the same way while you move them to `StratumException`.
 - **An exception annotated `@ResponseStatus`** gets that status and Stratum's error body.
 - **Anything else** is answered with `500` and a fixed message; the real error goes to the log
   only.

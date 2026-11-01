@@ -8,10 +8,11 @@ import lombok.Getter;
  * SX-CORE-1002: ...}, and its {@linkplain #getReport() report} holds the code, message, details and
  * IDs. Log the exception itself, so the log shows its stack trace and cause.
  *
- * <p>Stratum throws it for its own errors; a service can throw it with its own codes.
+ * <p>Stratum throws it for its own errors; a service can throw it with its own codes. A service's
+ * existing exceptions can implement {@link FailureWithErrorCode} instead, while they move to it.
  */
 @Getter
-public final class StratumException extends RuntimeException {
+public final class StratumException extends RuntimeException implements FailureWithErrorCode {
 
   /** Version of the serialized form. */
   @Serial private static final long serialVersionUID = 1L;
@@ -67,5 +68,25 @@ public final class StratumException extends RuntimeException {
     }
     super(report.getCodeAndMessage(), report.getCause());
     this.report = report;
+  }
+
+  /**
+   * Returns the code of the failure, from its report.
+   *
+   * @return the code
+   */
+  @Override
+  public ErrorCode getErrorCode() {
+    return report.getErrorCode();
+  }
+
+  /**
+   * Returns what is specific to this failure, from its report; empty for none.
+   *
+   * @return the detail
+   */
+  @Override
+  public String getErrorDetail() {
+    return report.getDetail();
   }
 }

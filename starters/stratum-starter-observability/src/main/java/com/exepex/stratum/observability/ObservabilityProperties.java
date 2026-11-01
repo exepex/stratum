@@ -48,8 +48,8 @@ public record ObservabilityProperties(
    *
    * @param environment the application's environment
    * @return the settings
-   * @throws jakarta.validation.ConstraintViolationException {@code SX-CORE-1003} if a setting
-   *     breaks its rules
+   * @throws com.exepex.stratum.core.error.StratumException {@code SX-CORE-1003} if a setting breaks
+   *     its rules
    */
   public static ObservabilityProperties resolve(Environment environment) {
     return StratumCustomizers.resolveSettings(

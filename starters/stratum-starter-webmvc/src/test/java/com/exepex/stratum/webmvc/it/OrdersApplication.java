@@ -1,6 +1,7 @@
 package com.exepex.stratum.webmvc.it;
 
 import com.exepex.stratum.core.error.StratumException;
+import com.exepex.stratum.test.ExistingOrderException;
 import com.exepex.stratum.test.OrderErrorCode;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
@@ -62,6 +63,21 @@ public class OrdersApplication {
     @Serial private static final long serialVersionUID = 1L;
   }
 
+  /**
+   * An existing exception that implements {@code FailureWithErrorCode} and still has a status of
+   * its own, as a service has while it moves to Stratum.
+   */
+  @ResponseStatus(HttpStatus.GONE)
+  static class AnnotatedOrderException extends ExistingOrderException {
+
+    @Serial private static final long serialVersionUID = 1L;
+
+    /** Makes the exception with a code the service maps to 409. */
+    AnnotatedOrderException() {
+      super(OrderErrorCode.DUPLICATE_ORDER, "order 42");
+    }
+  }
+
   /** An exception the service answers with its own Problem Details body. */
   static class RefundRefusedException extends RuntimeException {
 
@@ -86,6 +102,28 @@ public class OrdersApplication {
     @GetMapping("/orders/duplicate")
     String duplicate() {
       throw new StratumException(OrderErrorCode.DUPLICATE_ORDER, "order 42");
+    }
+
+    /**
+     * Fails with a code the service maps to 409, in an exception that implements {@code
+     * FailureWithErrorCode} instead of extending {@code StratumException}.
+     *
+     * @return never returns
+     */
+    @GetMapping("/orders/duplicate-existing")
+    String duplicateExisting() {
+      throw new ExistingOrderException(OrderErrorCode.DUPLICATE_ORDER, "order 42");
+    }
+
+    /**
+     * Fails with a code the service maps to 409, in an exception that also has
+     * {@code @ResponseStatus(GONE)}.
+     *
+     * @return never returns
+     */
+    @GetMapping("/orders/duplicate-annotated")
+    String duplicateAnnotated() {
+      throw new AnnotatedOrderException();
     }
 
     /**

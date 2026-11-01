@@ -44,8 +44,7 @@ public class StratumCustomizers {
    * @param <P> the module's settings type
    * @param <C> the module's customizer interface
    * @return the settings
-   * @throws jakarta.validation.ConstraintViolationException {@code SX-CORE-1003} if a setting
-   *     breaks its rules
+   * @throws StratumException {@code SX-CORE-1003} if a setting breaks its rules
    */
   public static <P, C extends StratumPropertiesCustomizer<P>> P resolveSettings(
       Environment environment, String prefix, Class<P> settingsType, Class<C> customizerType) {

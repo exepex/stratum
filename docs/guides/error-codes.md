@@ -150,6 +150,36 @@ throw new StratumException(report);
 A warning cannot be thrown: `new StratumException(report)` rejects a report whose severity is
 `WARNING`.
 
+### Existing exceptions: a migration path
+
+A service that already has its own exceptions can let Stratum answer and log them before it moves
+them to `StratumException`. Make each one implement `FailureWithErrorCode`:
+
+```java
+public class PaymentDeclinedException extends RuntimeException implements FailureWithErrorCode {
+
+  private final String orderId;
+
+  @Override
+  public ErrorCode getErrorCode() {
+    return PaymentErrorCode.DECLINED;
+  }
+
+  @Override
+  public String getErrorDetail() {
+    return "order " + orderId; // never a secret or personal data; "" for none
+  }
+}
+```
+
+The web modules then answer it as they answer a `StratumException` with the same code and detail:
+the status mapped in `stratum.web.error.statuses`, the same body without `details`, and the same
+log line. An `@ResponseStatus` on the exception, or extending `ResponseStatusException`, does not
+change this on either stack: the status mapped to the code wins. The logging module writes its code
+in `error.code`. A warning code gets `500` and
+`SX-WEB-1005`, because a warning is never thrown. New code throws `StratumException`; this
+interface is only for moving existing exceptions over time.
+
 ## stratum-core
 
 Each of these but `SX-CORE-1005` is an error that stops the application at startup.
@@ -163,8 +193,8 @@ Each of these but `SX-CORE-1005` is an error that stops the application at start
 | `SX-CORE-1004` | A module's `StratumPropertiesCustomizer` is declared as a bean. Stratum reads customizers only from `META-INF/spring.factories`, so the bean would be ignored. This holds for a bean with or without its settings type. The message names the beans. | Implement the module's customizer interface, such as `LoggingPropertiesCustomizer`, in a class with a public no-argument constructor, list it in `META-INF/spring.factories` and remove the bean. See [Set the same values in Java](../configuration/overriding-defaults.md#set-the-same-values-in-java). |
 | `SX-CORE-1005` | Warning: the running Spring Boot version is outside the line this Stratum release supports, such as `4.1.x`. The service may fail later in ways that are hard to trace, such as `NoSuchMethodError`. The message names the version found and the supported line. Any patch release of the line, such as `4.1.9`, is quiet. | Set the Spring Boot version in your parent POM, such as your company parent, to the supported line, or use the Stratum release that supports your version. See the [compatibility table](upgrading.md#compatibility) and [ADR 0007](../adr/0007-spring-boot-version-warning.md). |
 
-`SX-CORE-1003` is a `ConstraintViolationException` with the code at the start of its message, so
-tools that read the broken constraints still can. The others are a `StratumException`.
+Each is a `StratumException`. For `SX-CORE-1003`, `getReport().getExternal().details()` also lists
+each broken rule, with the property key as `field` and the rule, such as `@NotBlank`, as `message`.
 
 ## stratum-starter-logging
 
@@ -205,7 +235,7 @@ codes. See the
 | `SX-WEB-1001` | The request broke validation rules, such as `@Valid` on a body or a constraint on a parameter. The status is `400`, and `details` lists each field with its rule's message. A message that would quote the rejected value is replaced with `is not valid`, and a map key in a field path is shown as `[*]`. | The caller corrects the fields named in `details`. |
 | `SX-WEB-1002` | The request could not be read, such as a malformed JSON body, a parameter of the wrong type, or a WebFlux multipart upload with more parts than `spring.webflux.multipart.max-parts` allows. The status is `400`. | The caller fixes the request. On Spring MVC, to see Spring's reason in the service's log, set `spring.mvc.log-resolved-exception=true`. |
 | `SX-WEB-1003` | Nothing answers at the request's path. The status is `404`. | The caller checks the path and the method. |
-| `SX-WEB-1004` | The request failed with the status shown for another reason, such as a method the path does not allow (`405`) or an exception annotated `@ResponseStatus`. | Depends on the status. To give the caller your own code, throw a `StratumException` and map its code in `stratum.web.error.statuses`. |
+| `SX-WEB-1004` | The request failed with the status shown for another reason, such as a method the path does not allow (`405`) or an exception annotated `@ResponseStatus`. | Depends on the status. A `ResponseStatusException` gets the code of its status, and its reason is not shown. To give the caller your own code, throw a `StratumException` and map its code in `stratum.web.error.statuses`. |
 | `SX-WEB-1005` | The service failed unexpectedly. The status is `500`, and the message is fixed, so no internal detail reaches the caller. | Search the service's log for the `traceId` in the body; the exception and its stack trace are there. |
 | `SX-WEB-1006` | Startup stopped: `stratum.web.client-location.database` names a file that is missing or is not a MaxMind `.mmdb` database. | Point the property at your GeoIP2 or GeoLite2 City or Country file, or remove it to log no country or city. |
 | `SX-WEB-1007` | The request ran out of time before its response started. The status is `stratum.web.timeout.status`, `503` by default, and the service logs a warning with the limit. | The service's team finds the slow call in the trace, adds a timeout to it, or gives the API more time with `stratum.web.timeout.routes` or `@ResponseTimeout`. The caller may retry an idempotent request later. |

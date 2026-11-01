@@ -47,8 +47,8 @@ public class ObservabilityEnvironmentPostProcessor implements EnvironmentPostPro
    *
    * @param environment the application's environment
    * @param application the application being started
-   * @throws jakarta.validation.ConstraintViolationException {@code SX-CORE-1003} if a setting
-   *     breaks its rules
+   * @throws com.exepex.stratum.core.error.StratumException {@code SX-CORE-1003} if a setting breaks
+   *     its rules
    */
   @Override
   public void postProcessEnvironment(

@@ -9,6 +9,8 @@ import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.LoggingErrorCode;
 import com.exepex.stratum.logging.testsupport.LoggingTestData;
+import com.exepex.stratum.test.ExistingOrderException;
+import com.exepex.stratum.test.OrderErrorCode;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -57,6 +59,15 @@ class ErrorCodeJsonMembersCustomizerTest {
   void writesCodeOfLoggedException() {
     assertThat(writeLogLine(moduleOn, CODED_FAILURE))
         .isEqualTo("{\"message\":\"order failed\",\"error.code\":\"" + CODE + "\"}");
+  }
+
+  @Test
+  @DisplayName("the code of an exception that implements FailureWithErrorCode is written too")
+  void writesCodeOfFailureWithErrorCode() {
+    var existingFailure = new ExistingOrderException(OrderErrorCode.DUPLICATE_ORDER, "order 42");
+
+    assertThat(writeLogLine(moduleOn, existingFailure))
+        .isEqualTo("{\"message\":\"order failed\",\"error.code\":\"ORD-0001\"}");
   }
 
   @Test

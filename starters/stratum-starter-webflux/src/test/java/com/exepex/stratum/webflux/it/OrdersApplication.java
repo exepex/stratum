@@ -1,6 +1,7 @@
 package com.exepex.stratum.webflux.it;
 
 import com.exepex.stratum.core.error.StratumException;
+import com.exepex.stratum.test.ExistingOrderException;
 import com.exepex.stratum.test.OrderErrorCode;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -64,6 +65,21 @@ public class OrdersApplication {
     @Serial private static final long serialVersionUID = 1L;
   }
 
+  /**
+   * An existing exception that implements {@code FailureWithErrorCode} and still has a status of
+   * its own, as a service has while it moves to Stratum.
+   */
+  @ResponseStatus(HttpStatus.GONE)
+  static class AnnotatedOrderException extends ExistingOrderException {
+
+    @Serial private static final long serialVersionUID = 1L;
+
+    /** Makes the exception with a code the service maps to 409. */
+    AnnotatedOrderException() {
+      super(OrderErrorCode.DUPLICATE_ORDER, "order 42");
+    }
+  }
+
   /** An exception the service answers with its own Problem Details body. */
   static class RefundRefusedException extends RuntimeException {
 
@@ -88,6 +104,28 @@ public class OrdersApplication {
     @GetMapping("/orders/duplicate")
     Mono<String> duplicate() {
       return Mono.error(new StratumException(OrderErrorCode.DUPLICATE_ORDER, "order 42"));
+    }
+
+    /**
+     * Fails with a code the service maps to 409, in an exception that implements {@code
+     * FailureWithErrorCode} instead of extending {@code StratumException}.
+     *
+     * @return never succeeds
+     */
+    @GetMapping("/orders/duplicate-existing")
+    Mono<String> duplicateExisting() {
+      return Mono.error(new ExistingOrderException(OrderErrorCode.DUPLICATE_ORDER, "order 42"));
+    }
+
+    /**
+     * Fails with a code the service maps to 409, in an exception that also has
+     * {@code @ResponseStatus(GONE)}.
+     *
+     * @return never returns
+     */
+    @GetMapping("/orders/duplicate-annotated")
+    Mono<String> duplicateAnnotated() {
+      return Mono.error(new AnnotatedOrderException());
     }
 
     /**
