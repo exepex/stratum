@@ -1,5 +1,6 @@
 package com.exepex.stratum.web;
 
+import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.SmartInitializingSingleton;
@@ -21,9 +22,6 @@ public class StackTraceExposureWarning implements SmartInitializingSingleton {
   /** Spring Boot's setting that puts the exception class in its error body. */
   static final String INCLUDE_EXCEPTION = "spring.web.error.include-exception";
 
-  /** The value of {@link #INCLUDE_STACKTRACE} that shows no stack trace, Spring Boot's default. */
-  private static final String NEVER = "never";
-
   /** The web module's settings. */
   private final WebProperties webProperties;
 
@@ -34,18 +32,33 @@ public class StackTraceExposureWarning implements SmartInitializingSingleton {
   @Override
   public void afterSingletonsInstantiated() {
     var binder = Binder.get(environment);
-    var stackTrace = binder.bind(INCLUDE_STACKTRACE, String.class).orElse(NEVER);
+    var stackTrace =
+        binder.bind(INCLUDE_STACKTRACE, IncludeStackTrace.class).orElse(IncludeStackTrace.NEVER);
     var exception = binder.bind(INCLUDE_EXCEPTION, Boolean.class).orElse(false);
-    if (webProperties.backwardCompatible() && (!NEVER.equalsIgnoreCase(stackTrace) || exception)) {
+    if (webProperties.backwardCompatible()
+        && (stackTrace != IncludeStackTrace.NEVER || exception)
+        && log.isWarnEnabled()) {
       log.warn(
           "Security leak: errors keep Spring Boot's body because {} is true, and {}={} with {}={}"
               + " show stack traces or exception classes to API callers. Set them to never and"
               + " false.",
           WebConstants.BACKWARD_COMPATIBLE,
           INCLUDE_STACKTRACE,
-          stackTrace,
+          stackTrace.name().toLowerCase(Locale.ROOT).replace('_', '-'),
           INCLUDE_EXCEPTION,
           exception);
     }
+  }
+
+  /**
+   * The values of Spring Boot's {@code include-stacktrace}, bound the way Spring Boot binds them.
+   */
+  private enum IncludeStackTrace {
+    /** Never shows the stack trace, Spring Boot's default. */
+    NEVER,
+    /** Always shows it. */
+    ALWAYS,
+    /** Shows it when the request has the {@code trace} parameter. */
+    ON_PARAM
   }
 }

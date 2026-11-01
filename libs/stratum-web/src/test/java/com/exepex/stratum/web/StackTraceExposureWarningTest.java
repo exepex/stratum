@@ -22,10 +22,13 @@ class StackTraceExposureWarningTest {
   /** The start of the warning. */
   private static final String WARNING = "Security leak";
 
+  /** The value of a setting that always shows its part. */
+  private static final String ALWAYS = "always";
+
   /** Settings that show stack traces or exception classes in Spring Boot's body. */
   static final List<Map<String, String>> SHOWING =
       List.of(
-          Map.of(StackTraceExposureWarning.INCLUDE_STACKTRACE, "always"),
+          Map.of(StackTraceExposureWarning.INCLUDE_STACKTRACE, ALWAYS),
           Map.of(StackTraceExposureWarning.INCLUDE_STACKTRACE, "on-param"),
           Map.of(StackTraceExposureWarning.INCLUDE_EXCEPTION, "true"));
 
@@ -34,9 +37,9 @@ class StackTraceExposureWarningTest {
       List.of(
           Arguments.of(Map.of(), true),
           Arguments.of(Map.of(StackTraceExposureWarning.INCLUDE_STACKTRACE, "never"), true),
-          Arguments.of(Map.of("spring.web.error.include-message", "always"), true),
-          Arguments.of(Map.of("spring.web.error.include-binding-errors", "always"), true),
-          Arguments.of(Map.of(StackTraceExposureWarning.INCLUDE_STACKTRACE, "always"), false));
+          Arguments.of(Map.of("spring.web.error.include-message", ALWAYS), true),
+          Arguments.of(Map.of("spring.web.error.include-binding-errors", ALWAYS), true),
+          Arguments.of(Map.of(StackTraceExposureWarning.INCLUDE_STACKTRACE, ALWAYS), false));
 
   @ParameterizedTest
   @FieldSource("SHOWING")
