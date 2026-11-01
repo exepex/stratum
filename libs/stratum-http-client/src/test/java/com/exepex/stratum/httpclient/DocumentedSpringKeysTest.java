@@ -62,6 +62,14 @@ class DocumentedSpringKeysTest {
         .toList();
   }
 
+  /**
+   * Returns whether a metadata entry is deprecated, in the current format (a {@code deprecation}
+   * object) or the older one (a {@code deprecated} flag).
+   */
+  private static boolean isDeprecated(Map<String, Object> entry) {
+    return entry.containsKey("deprecation") || Boolean.TRUE.equals(entry.get("deprecated"));
+  }
+
   /** Returns a page's text. */
   private static String read(Path page) {
     try {
@@ -87,7 +95,7 @@ class DocumentedSpringKeysTest {
               .collect(
                   Collectors.toMap(
                       entry -> (String) entry.get("name"),
-                      entry -> Boolean.TRUE.equals(entry.get("deprecated")),
+                      DocumentedSpringKeysTest::isDeprecated,
                       Boolean::logicalOr));
 
       assertThat(keys).isNotEmpty();

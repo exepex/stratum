@@ -204,8 +204,12 @@ Spring Boot 4.1.2 loses a `WebClient` group's own timeouts and SSL bundle: it bu
 connector from them, then replaces it with the connector for every client, so a group's
 `read-timeout` of `10s` is ignored and the `5s` for every client applies. Blocking groups are not
 affected. `WebClientGroupSettings` builds the group's connector again from its own keys, the way
-Spring Boot does, after Spring Boot has finished. A build test fails once a new Spring Boot version
-fixes this by itself, and Stratum then removes the bean.
+Spring Boot does, after Spring Boot has finished. It does this only for a group that sets a
+timeout, `redirects`, `cookie-handling` or `ssl.bundle` of its own; a group with only an address or
+headers keeps the connector it has. For such a group, a connector that your own `WebClientCustomizer`
+sets is replaced, so change the connection with a `ClientHttpConnectorBuilderCustomizer` instead,
+which Stratum keeps. A build test fails once a new Spring Boot version fixes this by itself, and
+Stratum then removes the bean.
 
 A service that picks another library with Spring Boot's `spring.http.clients.imperative.factory` or
 `spring.http.clients.reactive.connector` keeps Stratum's timeouts, but not its pool: that library's

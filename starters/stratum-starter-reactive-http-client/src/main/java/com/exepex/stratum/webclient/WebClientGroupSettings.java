@@ -1,6 +1,9 @@
 package com.exepex.stratum.webclient;
 
+import java.util.Objects;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.http.client.autoconfigure.HttpClientSettingsProperties;
 import org.springframework.boot.http.client.autoconfigure.HttpClientSettingsPropertyMapper;
 import org.springframework.boot.http.client.autoconfigure.service.HttpServiceClientProperties;
 import org.springframework.boot.http.client.reactive.ClientHttpConnectorBuilder;
@@ -52,11 +55,25 @@ public class WebClientGroupSettings implements WebClientHttpServiceGroupConfigur
     return AFTER_WEB_CLIENT_CUSTOMIZERS;
   }
 
-  /** Builds the group's connector from its own keys, if it has any. */
+  /**
+   * Builds the group's connector from its own keys, if it sets any of the connection's own. A group
+   * with only an address or headers keeps the connector it has, a service's own included.
+   */
   private void useOwnSettings(HttpServiceGroup group, WebClient.Builder webClientBuilder) {
     var ownProperties = groupProperties.get(group.name());
-    if (ownProperties != null) {
+    if (ownProperties != null && setsConnectionKeys(ownProperties)) {
       webClientBuilder.clientConnector(connectorBuilder.build(settingsMapper.map(ownProperties)));
     }
+  }
+
+  /** Returns whether a group sets a key that its connector is built from. */
+  private boolean setsConnectionKeys(HttpClientSettingsProperties ownProperties) {
+    return Stream.of(
+            ownProperties.getConnectTimeout(),
+            ownProperties.getReadTimeout(),
+            ownProperties.getRedirects(),
+            ownProperties.getCookieHandling(),
+            ownProperties.getSsl().getBundle())
+        .anyMatch(Objects::nonNull);
   }
 }
