@@ -5,6 +5,7 @@ import static org.awaitility.Awaitility.await;
 
 import com.exepex.stratum.core.error.LoggingContextConstants;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import io.micrometer.tracing.Tracer;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -96,7 +97,8 @@ class MessagingIntegrationTest {
 
   /**
    * Waits until the timers with these names each recorded one duration; a receiver's timer stops
-   * just after the event is handled.
+   * just after the event is handled. It uses {@code find}, whose missing timer fails the assertion
+   * and is retried, because {@code get} throws an exception that Awaitility does not retry.
    */
   private void assertTimedOnce(String... timerNames) {
     await()
@@ -105,7 +107,10 @@ class MessagingIntegrationTest {
                 assertThat(timerNames)
                     .allSatisfy(
                         timerName ->
-                            assertThat(meterRegistry.get(timerName).timer().count()).isOne()));
+                            assertThat(meterRegistry.find(timerName).timer())
+                                .as(timerName)
+                                .extracting(Timer::count)
+                                .isEqualTo(1L)));
   }
 
   @Test
