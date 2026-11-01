@@ -407,8 +407,9 @@ Full guide: [Testing with stratum-test](docs/modules/test.md).
   release may, and its release notes list the exact migration steps.
 - Each Stratum release supports one Spring Boot line, such as `4.1.x`, and is tested with one release
   in it. With `stratum-parent`, upgrading Stratum upgrades Spring Boot and every managed library
-  together. Under a company parent, the company parent sets the Spring Boot version, and Stratum
-  checks at startup that it supports it.
+  together. Under a company parent, the company parent sets the Spring Boot version. When it is
+  outside the supported line, Stratum logs one `SX-CORE-1005` warning at startup and starts anyway.
+- Stratum needs Java 25 and the Spring Boot 4.1.x line. Older versions are not supported.
 
 Details: [Versioning and upgrades](docs/guides/upgrading.md).
 

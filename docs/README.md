@@ -87,6 +87,7 @@ Each module page follows the same layout so you always know where to look:
 | [ADR 0004: Weekly dependency updates with Dependabot](adr/0004-dependency-updates.md) | Dependabot opens grouped upgrade pull requests every week, Spring upgrades together, each one runs the full build and the owner merges it. |
 | [ADR 0005: Every version in the root POM](adr/0005-versions-in-the-root-pom.md) | Replaces two parts of ADR 0004: the root `pom.xml` inherits Spring Boot's parent and sets every version Stratum chooses, so no version is copied by hand. |
 | [ADR 0006: Separate starters for Spring MVC and WebFlux](adr/0006-separate-mvc-and-webflux-starters.md) | `stratum-starter-webmvc` and `stratum-starter-webflux` share one library and one set of `stratum.web.*` keys, and a new reactive microservice bundle brings WebFlux. |
+| [ADR 0007: Warn when Spring Boot is outside the supported line](adr/0007-spring-boot-version-warning.md) | Amends ADR 0002: Stratum logs one `SX-CORE-1005` warning at startup for an unsupported Spring Boot version, and never stops the service. |
 
 ## Contributing
 

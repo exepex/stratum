@@ -20,10 +20,12 @@ tracks two: the company parent sets the Spring Boot version, and Stratum must su
 | --- | --- | --- | --- | --- | --- |
 | 0.1.x | 25 | 4.1.x | 4.1.2 | 7.x | Planned |
 
-The Spring Boot version is set by your parent POM, not checked by Stratum at runtime. With
-`stratum-parent` it is always the tested version. Under a company parent, check that the version the
-parent sets is in the supported line before you upgrade either one
-([ADR 0002](../adr/0002-no-startup-version-check.md)).
+Stratum supports Java 25 and one Spring Boot line per release, nothing older. Your parent POM sets
+the Spring Boot version. With `stratum-parent` it is always the tested version. Under a company
+parent, check that the version the parent sets is in the supported line before you upgrade either
+one. If it is not, Stratum logs one `SX-CORE-1005` warning at startup naming the version found and
+the supported line, and starts anyway; it never stops a service over the version
+([ADR 0007](../adr/0007-spring-boot-version-warning.md)).
 
 Spring Boot 4.1.2 was the latest stable release on 27 October 2026; 4.2.0 was at release candidate
 1. Stratum moves to a new Spring Boot minor release after it is generally available and has had its
