@@ -21,6 +21,7 @@ class ConfigurationMetadataTest {
   private static final List<String> PROPERTY_NAMES =
       List.of(
           WebConstants.ENABLED,
+          WebConstants.BACKWARD_COMPATIBLE,
           WebConstants.ERROR_STATUSES,
           WebConstants.CORRELATION_ACCEPT_FROM_CALLER,
           WebConstants.CLIENT_IP_TRUSTED_PROXIES,

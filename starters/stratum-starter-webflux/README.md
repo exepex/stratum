@@ -61,7 +61,12 @@ IDs, and everything else works the same.
 
 ### The error body
 
-Every error is sent with the media type `application/problem+json`:
+With `stratum.web.backward-compatible`, `true` by default, an error that Spring answers keeps
+Spring Boot's body unless the consumer sends `Accept: application/problem+json`, so existing
+consumers see no change. Errors with a code, timeouts and bodies too large always get the body
+below. See [Existing consumers keep their error body](../../docs/modules/web.md#existing-consumers-keep-their-error-body).
+
+Stratum's body is sent with the media type `application/problem+json`:
 
 ```json
 {
@@ -293,6 +298,7 @@ which names the property but not the code or the value.
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
 | `stratum.web.enabled` | boolean | `false` | Switches the module on. Until it is `true`, the starter only brings Spring WebFlux. |
+| `stratum.web.backward-compatible` | boolean | `true` | Whether errors that Spring answers keep Spring Boot's body unless the consumer sends `Accept: application/problem+json`. Set it to `false` to give every error the body above. |
 | `stratum.web.error.statuses` | map of code to status | empty | The HTTP status, from `400` to `599`, of each of your error codes. A code with no status is answered with `500` and logged. |
 | `stratum.web.correlation.accept-from-caller` | boolean | `true` | Whether a caller's correlation ID is used. Set it to `false` on a service that faces the internet. |
 | `stratum.web.client-ip.trusted-proxies` | list of address ranges | the private ranges | The load balancers and proxies whose `X-Forwarded-For` header is trusted. |

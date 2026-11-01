@@ -14,6 +14,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 
 @DisplayName("Every log line of a Spring MVC request carries its fields and correlation ID")
 class RequestFieldsIntegrationTest {
@@ -140,7 +141,12 @@ class RequestFieldsIntegrationTest {
     void callerCorrelationIdInErrorBody() throws Exception {
       var response =
           StarterTestSupport.getFromService(
-              port, "/no-such-path", WebConstants.CORRELATION_ID_HEADER, CALLER_ID);
+              port,
+              "/no-such-path",
+              WebConstants.CORRELATION_ID_HEADER,
+              CALLER_ID,
+              HttpHeaders.ACCEPT,
+              MediaType.APPLICATION_PROBLEM_JSON_VALUE);
 
       assertThat(response.statusCode()).isEqualTo(HttpStatus.NOT_FOUND.value());
       assertThat(

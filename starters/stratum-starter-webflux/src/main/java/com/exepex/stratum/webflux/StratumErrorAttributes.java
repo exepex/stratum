@@ -12,6 +12,7 @@ import org.springframework.boot.web.error.ErrorAttributeOptions.Include;
 import org.springframework.boot.webflux.error.DefaultErrorAttributes;
 import org.springframework.core.annotation.MergedAnnotations;
 import org.springframework.core.annotation.MergedAnnotations.SearchStrategy;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.ErrorResponse;
@@ -22,8 +23,10 @@ import org.springframework.web.reactive.function.server.ServerRequest;
  * Gives every request that failed outside the service's own exception handlers Stratum's error body
  * instead of Spring Boot's: a {@code StratumException}, or another exception that implements {@code
  * FailureWithErrorCode}, with the status mapped to its code, an unknown path, a failed validation,
- * an exception with {@code @ResponseStatus} or an unexpected exception. Spring Boot's error handler
- * writes it as JSON for an API caller and passes it to the error page of a browser.
+ * an exception with {@code @ResponseStatus} or an unexpected exception, when {@link
+ * ErrorResponseFactory#answersWithStandardBody} says so; otherwise Spring Boot's own body, as the
+ * service gave before Stratum. Spring Boot's error handler writes it as JSON for an API caller and
+ * passes it to the error page of a browser.
  */
 @RequiredArgsConstructor
 public class StratumErrorAttributes extends DefaultErrorAttributes {
@@ -32,10 +35,11 @@ public class StratumErrorAttributes extends DefaultErrorAttributes {
   private static final String STATUS = "status";
 
   /**
-   * The request attribute that keeps the body once made, so that a second read, as when a browser's
-   * page falls back to the JSON body, does not log the failure again.
+   * The request attribute that keeps Stratum's body once made, so that a second read, as when a
+   * browser's page falls back to the JSON body, does not log the failure again. Only a request that
+   * got Stratum's body has it.
    */
-  private static final String BODY = StratumErrorAttributes.class.getName() + ".body";
+  static final String BODY_ATTRIBUTE = StratumErrorAttributes.class.getName() + ".body";
 
   /**
    * The request attribute that marks a failure with an error code as logged by Stratum, so Spring
@@ -47,20 +51,23 @@ public class StratumErrorAttributes extends DefaultErrorAttributes {
   private final ErrorResponseFactory errorResponseFactory;
 
   /**
-   * Returns Stratum's error body for the failed request, with its IDs, made once per request. The
-   * options of {@code spring.web.error.include-*} do not apply: the body never holds a message,
-   * stack trace or path.
+   * Returns Stratum's error body for the failed request, with its IDs, made once per request, or
+   * Spring Boot's body. The options of {@code spring.web.error.include-*} apply only to Spring
+   * Boot's: Stratum's never holds a message, stack trace or path.
    *
    * @param request the failed request
-   * @param options ignored
+   * @param options what Spring Boot's body includes
    * @return the members of the error body
    */
   @Override
   public Map<String, Object> getErrorAttributes(
       ServerRequest request, ErrorAttributeOptions options) {
-    var body =
-        request.attribute(BODY).map(ProblemDetail.class::cast).orElseGet(() -> bodyOf(request));
-    request.attributes().put(BODY, body);
+    var madeBody = request.attribute(BODY_ATTRIBUTE).map(ProblemDetail.class::cast);
+    if (madeBody.isEmpty() && !answersWithStandardBody(request)) {
+      return super.getErrorAttributes(request, options);
+    }
+    var body = madeBody.orElseGet(() -> bodyOf(request));
+    request.attributes().put(BODY_ATTRIBUTE, body);
     return errorResponseFactory.membersOf(body);
   }
 
@@ -85,6 +92,17 @@ public class StratumErrorAttributes extends DefaultErrorAttributes {
         MDC.get(LoggingContextConstants.TRACE_ID),
         MDC.get(LoggingContextConstants.CORRELATION_ID));
     return body;
+  }
+
+  /**
+   * Returns whether the request gets Stratum's body: as the factory decides, or because a code in a
+   * cause answers it, which is Stratum's own error as on the servlet stack.
+   */
+  private boolean answersWithStandardBody(ServerRequest request) {
+    var failure = getError(request);
+    return errorResponseFactory.answersWithStandardBody(
+            failure, request.headers().header(HttpHeaders.ACCEPT))
+        || (!declaresStatus(failure) && errorResponseFactory.carriesErrorCode(failure));
   }
 
   /**

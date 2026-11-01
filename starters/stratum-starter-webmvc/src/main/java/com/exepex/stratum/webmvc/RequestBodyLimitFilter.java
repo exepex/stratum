@@ -26,6 +26,12 @@ public class RequestBodyLimitFilter extends OncePerRequestFilter {
   /** The request attribute that holds the request's counter, for its handler's own limit. */
   static final String COUNTER_ATTRIBUTE = RequestBodyLimitFilter.class.getName() + ".counter";
 
+  /**
+   * The request attribute that holds the refusal this filter answered, so the error page knows the
+   * body was too large.
+   */
+  static final String TOO_LARGE_ATTRIBUTE = RequestBodyLimitFilter.class.getName() + ".tooLarge";
+
   /** Decides each request's limit. */
   private final RequestBodyLimits requestBodyLimits;
 
@@ -54,6 +60,7 @@ public class RequestBodyLimitFilter extends OncePerRequestFilter {
       if (response.isCommitted()) {
         throw tooLarge;
       }
+      request.setAttribute(TOO_LARGE_ATTRIBUTE, tooLarge);
       response.sendError(tooLarge.getStatusCode().value());
     } finally {
       // The error page dispatch that answers a body that was too large must not be checked again.

@@ -10,6 +10,7 @@ import java.net.URI;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -18,11 +19,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.http.InvalidMediaTypeException;
+import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 
 /**
- * Makes the error body every caller gets: RFC 9457 Problem Details with the code, severity, field
- * details and request IDs, and never a stack trace, exception message or class name.
+ * Makes Stratum's standard error body: RFC 9457 Problem Details with the code, severity, field
+ * details and request IDs, and never a stack trace, exception message or class name. It also
+ * decides which failed requests get it while {@code stratum.web.backward-compatible} keeps Spring
+ * Boot's body for the rest.
  */
 @Slf4j
 public class ErrorResponseFactory {
@@ -55,6 +60,9 @@ public class ErrorResponseFactory {
   /** The HTTP status of each of the service's error codes, from {@code stratum.web.error}. */
   private final Map<String, Integer> statusesByCode;
 
+  /** Whether errors Spring answers keep Spring Boot's body unless the caller asks for Stratum's. */
+  private final boolean backwardCompatible;
+
   /**
    * Makes the factory.
    *
@@ -62,6 +70,29 @@ public class ErrorResponseFactory {
    */
   public ErrorResponseFactory(WebProperties settings) {
     this.statusesByCode = settings.error().statuses();
+    this.backwardCompatible = settings.backwardCompatible();
+  }
+
+  /**
+   * Returns whether a request that failed outside the service's own error handling gets Stratum's
+   * standard body. It always does with {@code stratum.web.backward-compatible=false}. Otherwise it
+   * does when the failure is Stratum's own, an error code, or a timeout or a body too large even
+   * when wrapped, which has no older body, or when the caller asks for it with {@code Accept:
+   * application/problem+json}. Every other failure keeps the body Spring Boot gives.
+   *
+   * @param failure what the request failed with, if known
+   * @param acceptHeaders the values of the request's {@code Accept} headers
+   * @return whether the body is Stratum's
+   */
+  public boolean answersWithStandardBody(@Nullable Throwable failure, List<String> acceptHeaders) {
+    return !backwardCompatible
+        || failure instanceof FailureWithErrorCode
+        || causesOf(failure)
+            .anyMatch(
+                cause ->
+                    cause instanceof RequestTimedOutException
+                        || cause instanceof RequestBodyTooLargeException)
+        || asksForProblemDetails(acceptHeaders);
   }
 
   /**
@@ -109,8 +140,7 @@ public class ErrorResponseFactory {
 
   /** Returns the failure itself or its first cause that implements {@link FailureWithErrorCode}. */
   private Optional<FailureWithErrorCode> findFailureWithErrorCode(Throwable failure) {
-    var seen = Collections.newSetFromMap(new IdentityHashMap<Throwable, Boolean>());
-    return Stream.iterate(failure, cause -> cause != null && seen.add(cause), Throwable::getCause)
+    return causesOf(failure)
         .filter(FailureWithErrorCode.class::isInstance)
         .map(FailureWithErrorCode.class::cast)
         .findFirst();
@@ -147,6 +177,38 @@ public class ErrorResponseFactory {
     members.put(DETAIL, Objects.requireNonNullElse(body.getDetail(), ""));
     Optional.ofNullable(body.getProperties()).ifPresent(members::putAll);
     return members;
+  }
+
+  /**
+   * Returns whether the failure carries an error code, itself or in one of its causes.
+   *
+   * @param failure what the request failed with
+   * @return whether {@link #forFailureWithErrorCode} would answer it
+   */
+  public boolean carriesErrorCode(Throwable failure) {
+    return findFailureWithErrorCode(failure).isPresent();
+  }
+
+  /** Returns the failure and its causes, following a chain that loops back on itself once. */
+  private Stream<Throwable> causesOf(@Nullable Throwable failure) {
+    var seen = Collections.newSetFromMap(new IdentityHashMap<Throwable, Boolean>());
+    return Stream.iterate(failure, cause -> cause != null && seen.add(cause), Throwable::getCause);
+  }
+
+  /**
+   * Returns whether the caller accepts {@code application/problem+json} by name; a wildcard, such
+   * as {@code *}{@code /*}, or an invalid header does not count.
+   */
+  private boolean asksForProblemDetails(List<String> acceptHeaders) {
+    try {
+      return MediaType.parseMediaTypes(acceptHeaders).stream()
+          .anyMatch(
+              type ->
+                  type.equalsTypeAndSubtype(MediaType.APPLICATION_PROBLEM_JSON)
+                      && type.getQualityValue() > 0);
+    } catch (InvalidMediaTypeException invalidHeader) {
+      return false;
+    }
   }
 
   /** Logs a failure with an error code once, and returns its body with the mapped status. */

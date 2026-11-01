@@ -19,6 +19,9 @@ public class WebConstants {
   /** The setting that maps a service's error codes to HTTP statuses. */
   public static final String ERROR_STATUSES = PREFIX + ".error.statuses";
 
+  /** The setting that keeps Spring Boot's error body for consumers that have not opted in. */
+  public static final String BACKWARD_COMPATIBLE = PREFIX + ".backward-compatible";
+
   /** The setting that says whether a caller's correlation ID is used. */
   public static final String CORRELATION_ACCEPT_FROM_CALLER =
       PREFIX + ".correlation.accept-from-caller";

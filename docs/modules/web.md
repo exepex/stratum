@@ -97,6 +97,29 @@ every request already; [SLA dashboards](#sla-dashboards) shows how to chart them
 A validation error has the status `400` and adds a `details` list, with one entry per invalid
 field. The codes are listed in [Error and warning codes](../guides/error-codes.md).
 
+### Existing consumers keep their error body
+
+`stratum.web.backward-compatible` is `true` by default, so adding the starter to a running service
+never changes the error body its consumers already read. An error that Spring or Spring Boot
+answers, such as an unknown path, a failed validation or an unexpected exception, keeps Spring
+Boot's body, as before Stratum:
+
+```json
+{ "timestamp": "2026-11-01T10:15:30.000+00:00", "status": 404, "error": "Not Found", "path": "/orders/42" }
+```
+
+Stratum's standard body, above, is sent instead when:
+
+- the consumer asks for it with `Accept: application/problem+json`, request by request, so each
+  consumer moves when it is ready;
+- the error is Stratum's own, which no consumer has seen before: a `StratumException` or an
+  exception that implements `FailureWithErrorCode`, a timeout or a body too large;
+- the service sets `stratum.web.backward-compatible=false`, which a new service does from the start.
+
+`traceId` and `correlationId` are still added to a `ProblemDetail` your own handler returns, and
+every response still has the `X-Correlation-Id` header. Once every consumer sends the header, set
+the property to `false`.
+
 ### Your own error handling
 
 - **Your own `@RestControllerAdvice` always wins.** Stratum handles only what your handlers leave,
@@ -387,6 +410,7 @@ Each works from `.properties`, `.yml` and Java, and your IDE completes it, on bo
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
 | `stratum.web.enabled` | boolean | `false` | Switches the module on. Until it is `true`, the starter sets up nothing of its own. |
+| `stratum.web.backward-compatible` | boolean | `true` | Whether errors that Spring answers keep Spring Boot's body, unless the consumer sends `Accept: application/problem+json`. Errors with a code, timeouts and bodies too large always get Stratum's body. See [Existing consumers keep their error body](#existing-consumers-keep-their-error-body). |
 | `stratum.web.error.statuses` | map of code to status | empty | The HTTP status of each of your error codes, such as `ORD-0001: 409`. |
 | `stratum.web.correlation.accept-from-caller` | boolean | `true` | Whether a caller's `X-Correlation-Id`, or the `correlationId` in its baggage, is used. Set it to `false` on a service that faces the internet, to always use the trace ID. |
 | `stratum.web.client-ip.trusted-proxies` | list of address ranges | `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `127.0.0.0/8`, `::1/128`, `fc00::/7` | The load balancers and proxies whose `X-Forwarded-For` header is trusted. An empty list trusts none. |

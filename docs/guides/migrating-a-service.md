@@ -58,8 +58,12 @@ Add `stratum-starter-webmvc`, or `stratum-starter-webflux` for a reactive servic
   exceptions, or turn those exceptions into `ErrorResponseException`);
 - correlation ID filters.
 
-Check: error bodies are now Problem Details. **This changes your API's error format.** Tell the
-teams that call your service, or give them a release where both formats are documented.
+Check: your existing consumers still get the error bodies they got before. With
+`stratum.web.backward-compatible=true`, the default, errors that Spring answers keep Spring Boot's
+body, and a consumer gets Problem Details only when it sends `Accept: application/problem+json`.
+Your own `StratumException` errors, timeouts and bodies over the limit always get Problem Details.
+Once every consumer reads Problem Details, set `stratum.web.backward-compatible=false`; see
+[Web](../modules/web.md#existing-consumers-keep-their-error-body).
 
 ## Step 5: security
 

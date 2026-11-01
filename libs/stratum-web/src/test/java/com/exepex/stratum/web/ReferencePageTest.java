@@ -42,4 +42,13 @@ class ReferencePageTest {
         .contains("&lt;script&gt;")
         .doesNotContain("Reference:");
   }
+
+  @Test
+  @DisplayName("Spring Boot's own error model shows its reason phrase as the title")
+  void showsBootReasonPhrase() {
+    var page =
+        ReferencePage.of(Map.of("error", "Not Found", "status", HttpStatus.NOT_FOUND.value()));
+
+    assertThat(page).contains("<title>Not Found</title>", "<h1>Not Found</h1>");
+  }
 }
