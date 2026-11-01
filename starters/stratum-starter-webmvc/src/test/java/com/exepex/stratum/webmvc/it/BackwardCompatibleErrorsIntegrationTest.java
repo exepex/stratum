@@ -88,6 +88,16 @@ class BackwardCompatibleErrorsIntegrationTest {
       BackwardCompatibleErrorChecks.checkBrowserPage(
           port, UNKNOWN_PATH, HttpStatus.NOT_FOUND.value(), HttpStatus.NOT_FOUND.getReasonPhrase());
     }
+
+    @Test
+    @DisplayName("gives a browser Stratum's page with an unnamed status, 499, and its status line")
+    void browserGetsReferencePageForUnlistedStatus() throws Exception {
+      BackwardCompatibleErrorChecks.checkBrowserPage(
+          port,
+          OrdersApplication.UNLISTED_STATUS_PATH,
+          OrdersApplication.UNLISTED_STATUS,
+          "Http Status " + OrdersApplication.UNLISTED_STATUS);
+    }
   }
 
   @Test
