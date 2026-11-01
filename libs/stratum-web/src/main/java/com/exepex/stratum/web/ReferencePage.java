@@ -2,7 +2,9 @@ package com.exepex.stratum.web;
 
 import com.exepex.stratum.core.error.LoggingContextConstants;
 import java.util.Map;
+import java.util.Optional;
 import lombok.experimental.UtilityClass;
+import org.jspecify.annotations.Nullable;
 import org.springframework.http.MediaType;
 import org.springframework.web.util.HtmlUtils;
 
@@ -34,9 +36,11 @@ public class ReferencePage {
    *
    * @param errorModel the error body's members: {@code status}, {@code title} and, when known,
    *     {@code traceId}; or Spring Boot's, whose reason phrase is {@code error}
+   * @param requestTraceId the request's trace ID, the reference when the model has none, as in
+   *     Spring Boot's own model
    * @return the page
    */
-  public static String of(Map<String, ?> errorModel) {
+  public static String of(Map<String, ?> errorModel, @Nullable String requestTraceId) {
     var reasonPhrase =
         errorModel.containsKey(TITLE) ? errorModel.get(TITLE) : errorModel.get(ERROR);
     var title = HtmlUtils.htmlEscape(String.valueOf(reasonPhrase));
@@ -48,7 +52,9 @@ public class ReferencePage {
         .append("</h1><p>The request could not be completed (status ")
         .append(HtmlUtils.htmlEscape(String.valueOf(errorModel.get(STATUS))))
         .append(").</p>");
-    var traceId = errorModel.get(LoggingContextConstants.TRACE_ID);
+    var traceId =
+        Optional.<Object>ofNullable(errorModel.get(LoggingContextConstants.TRACE_ID))
+            .orElse(requestTraceId);
     if (traceId != null) {
       page.append("<p>Reference: <code>")
           .append(HtmlUtils.htmlEscape(traceId.toString()))

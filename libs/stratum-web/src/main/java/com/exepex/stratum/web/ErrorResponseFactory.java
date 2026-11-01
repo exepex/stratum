@@ -17,6 +17,8 @@ import java.util.Optional;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
+import org.springframework.boot.web.error.ErrorAttributeOptions;
+import org.springframework.boot.web.error.ErrorAttributeOptions.Include;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.InvalidMediaTypeException;
@@ -177,6 +179,18 @@ public class ErrorResponseFactory {
     members.put(DETAIL, Objects.requireNonNullElse(body.getDetail(), ""));
     Optional.ofNullable(body.getProperties()).ifPresent(members::putAll);
     return members;
+  }
+
+  /**
+   * Returns Spring Boot's options for its own body without a stack trace, exception class or
+   * exception message, which no error body may show, even when {@code spring.web.error.include-*}
+   * turns them on.
+   *
+   * @param options what Spring Boot's body would include
+   * @return the same options without those members
+   */
+  public ErrorAttributeOptions withoutDiagnostics(ErrorAttributeOptions options) {
+    return options.excluding(Include.STACK_TRACE, Include.EXCEPTION, Include.MESSAGE);
   }
 
   /**

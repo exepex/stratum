@@ -1,7 +1,9 @@
 package com.exepex.stratum.webflux;
 
+import com.exepex.stratum.core.error.LoggingContextConstants;
 import com.exepex.stratum.web.ReferencePage;
 import java.util.Map;
+import org.slf4j.MDC;
 import org.springframework.boot.autoconfigure.web.ErrorProperties;
 import org.springframework.boot.autoconfigure.web.WebProperties.Resources;
 import org.springframework.boot.web.error.ErrorAttributeOptions;
@@ -100,7 +102,7 @@ public class StratumErrorWebExceptionHandler extends DefaultErrorWebExceptionHan
     }
     return responseBody
         .contentType(MediaType.parseMediaType(ReferencePage.CONTENT_TYPE))
-        .bodyValue(ReferencePage.of(error));
+        .bodyValue(ReferencePage.of(error, MDC.get(LoggingContextConstants.TRACE_ID)));
   }
 
   /**

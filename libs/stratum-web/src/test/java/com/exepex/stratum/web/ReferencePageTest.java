@@ -23,7 +23,8 @@ class ReferencePageTest {
                 "status",
                 HttpStatus.NOT_FOUND.value(),
                 LoggingContextConstants.TRACE_ID,
-                WebTestData.TRACE_ID));
+                WebTestData.TRACE_ID),
+            null);
 
     assertThat(page)
         .contains("<h1>Not Found</h1>", "(status 404)")
@@ -35,7 +36,8 @@ class ReferencePageTest {
   void escapesValues() {
     var page =
         ReferencePage.of(
-            Map.of("title", "<script>alert(1)</script>", "status", HttpStatus.BAD_REQUEST.value()));
+            Map.of("title", "<script>alert(1)</script>", "status", HttpStatus.BAD_REQUEST.value()),
+            null);
 
     assertThat(page)
         .doesNotContain("<script>")
@@ -44,11 +46,15 @@ class ReferencePageTest {
   }
 
   @Test
-  @DisplayName("Spring Boot's own error model shows its reason phrase as the title")
+  @DisplayName("Spring Boot's own model shows its reason phrase, and the request's trace ID")
   void showsBootReasonPhrase() {
     var page =
-        ReferencePage.of(Map.of("error", "Not Found", "status", HttpStatus.NOT_FOUND.value()));
+        ReferencePage.of(
+            Map.of("error", "Not Found", "status", HttpStatus.NOT_FOUND.value()),
+            WebTestData.TRACE_ID);
 
-    assertThat(page).contains("<title>Not Found</title>", "<h1>Not Found</h1>");
+    assertThat(page)
+        .contains("<title>Not Found</title>", "<h1>Not Found</h1>")
+        .contains("Reference: <code>" + WebTestData.TRACE_ID + "</code>");
   }
 }
