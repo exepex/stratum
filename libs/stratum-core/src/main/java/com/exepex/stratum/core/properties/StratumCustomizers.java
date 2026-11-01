@@ -3,7 +3,10 @@ package com.exepex.stratum.core.properties;
 import com.exepex.stratum.core.error.CoreErrorCode;
 import com.exepex.stratum.core.error.StratumException;
 import jakarta.validation.Validation;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
 import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.boot.context.properties.bind.Binder;
@@ -61,14 +64,37 @@ public class StratumCustomizers {
    * spring.factories} only, so the bean would be silently ignored.
    *
    * @param beanFactory the service's beans
-   * @throws StratumException {@code SX-CORE-1004} naming the customizer beans
+   * @throws StratumException {@code SX-CORE-1004} naming each customizer bean and the interface to
+   *     list it under in {@code spring.factories}
    */
   public static void rejectBeans(ListableBeanFactory beanFactory) {
     var customizerBeanNames = beanFactory.getBeanNamesForType(StratumPropertiesCustomizer.class);
     if (customizerBeanNames.length > 0) {
       throw new StratumException(
           CoreErrorCode.CUSTOMIZER_DECLARED_AS_BEAN,
-          "customizer beans " + String.join(", ", customizerBeanNames));
+          "customizer beans "
+              + Arrays.stream(customizerBeanNames)
+                  .map(
+                      beanName ->
+                          beanName + " (" + customizerInterfaceOf(beanFactory, beanName) + ")")
+                  .collect(Collectors.joining(", ")));
     }
+  }
+
+  /**
+   * Returns the simple name of the module's customizer interface the bean implements, which is the
+   * key to list it under, or {@code StratumPropertiesCustomizer} for an untyped customizer.
+   */
+  private static String customizerInterfaceOf(ListableBeanFactory beanFactory, String beanName) {
+    var beanType = beanFactory.getType(beanName);
+    var interfaces =
+        beanType == null ? Set.<Class<?>>of() : ClassUtils.getAllInterfacesForClassAsSet(beanType);
+    return interfaces.stream()
+        .filter(StratumPropertiesCustomizer.class::isAssignableFrom)
+        .filter(type -> type != StratumPropertiesCustomizer.class)
+        .map(Class::getSimpleName)
+        .sorted()
+        .findFirst()
+        .orElse(StratumPropertiesCustomizer.class.getSimpleName());
   }
 }

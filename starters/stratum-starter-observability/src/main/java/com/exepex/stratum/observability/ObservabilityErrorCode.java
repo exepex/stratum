@@ -20,7 +20,11 @@ public enum ObservabilityErrorCode implements ErrorCode {
   EXPORT_ENDPOINT_MISSING(
       "SX-OBSERVABILITY-1001",
       Severity.ERROR,
-      "An OTLP export address is not set, so metrics or traces would be lost"),
+      "An OTLP export address is not set, so metrics or traces would be lost",
+      "Set the named property to your OpenTelemetry Collector, such as"
+          + " http://otel-collector:4318/v1/metrics, or turn that export off with"
+          + " management.otlp.metrics.export.enabled=false or"
+          + " management.tracing.export.enabled=false."),
 
   /**
    * A metric was dropped because one of its tags is named like an ID, whose values would make a new
@@ -29,7 +33,8 @@ public enum ObservabilityErrorCode implements ErrorCode {
   METRIC_WITH_ID_TAG_DROPPED(
       "SX-OBSERVABILITY-1002",
       Severity.WARNING,
-      "A metric was dropped because a tag holds an ID; put IDs in logs or span attributes");
+      "A metric was dropped because a tag holds an ID; put IDs in logs or span attributes",
+      "");
 
   /** The code, such as {@code SX-OBSERVABILITY-1001}. */
   private final String code;
@@ -39,4 +44,7 @@ public enum ObservabilityErrorCode implements ErrorCode {
 
   /** What went wrong, in fixed text. */
   private final String description;
+
+  /** How to fix it, as the Fix column of the error codes page starts; empty for none. */
+  private final String fix;
 }

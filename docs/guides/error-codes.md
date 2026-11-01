@@ -180,6 +180,28 @@ in `error.code`. A warning code gets `500` and
 `SX-WEB-1005`, because a warning is never thrown. New code throws `StratumException`; this
 interface is only for moving existing exceptions over time.
 
+## When startup stops
+
+An error that stops startup appears in Spring Boot's failure report, with the code and message as
+the description and the first sentences of the Fix column below as the action:
+
+```text
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+SX-CORE-1003: Invalid settings: stratum.web.timeout.status breaks @Max(value=599)
+
+Action:
+
+Correct the named properties. See SX-CORE-1003 in https://github.com/exepex/stratum/blob/main/docs/guides/error-codes.md.
+```
+
+The report covers every Stratum code that stops startup. Your service's own codes are left to
+Spring Boot's usual report.
+
 ## stratum-core
 
 Each of these but `SX-CORE-1005` is an error that stops the application at startup.
@@ -187,10 +209,10 @@ Each of these but `SX-CORE-1005` is an error that stops the application at start
 
 | Code | Meaning | Fix |
 | --- | --- | --- |
-| `SX-CORE-1001` | A module name given to `@ConditionalOnStratumModule` is not one lower-case, kebab-case word, such as `http-client`. | Rename the module in the annotation. This is a fault in a starter, not in your service's configuration. |
+| `SX-CORE-1001` | A module name given to `@ConditionalOnStratumModule` is not one lower-case, kebab-case word, such as `http-client`. The message names the annotated class, or the method as `Class#method`. | Rename the module in the annotation. This is a fault in a starter, not in your service's configuration. |
 | `SX-CORE-1002` | A `StratumPropertiesCustomizer` is broken. The message names the customizer and says whether it returned `null` or settings of another type, or failed with a `ClassCastException`. | Return the settings it received to keep them unchanged, and implement the module's customizer interface, such as `LoggingPropertiesCustomizer`. If the cast that failed is in the customizer's own code, the cause shows where. |
 | `SX-CORE-1003` | A module's settings break their rules, after the files and the Java configuration are combined. The message names each property key and rule, never the value. | Correct the named properties. See [Validation](../configuration/basics.md#validation-wrong-values-fail-fast). |
-| `SX-CORE-1004` | A module's `StratumPropertiesCustomizer` is declared as a bean. Stratum reads customizers only from `META-INF/spring.factories`, so the bean would be ignored. This holds for a bean with or without its settings type. The message names the beans. | Implement the module's customizer interface, such as `LoggingPropertiesCustomizer`, in a class with a public no-argument constructor, list it in `META-INF/spring.factories` and remove the bean. See [Set the same values in Java](../configuration/overriding-defaults.md#set-the-same-values-in-java). |
+| `SX-CORE-1004` | A module's `StratumPropertiesCustomizer` is declared as a bean. Stratum reads customizers only from `META-INF/spring.factories`, so the bean would be ignored. This holds for a bean with or without its settings type. The message names each bean and the customizer interface it implements, such as `webCustomizer (WebPropertiesCustomizer)`. | Implement the module's customizer interface, such as `LoggingPropertiesCustomizer`, in a class with a public no-argument constructor, list it in `META-INF/spring.factories` and remove the bean. See [Set the same values in Java](../configuration/overriding-defaults.md#set-the-same-values-in-java). |
 | `SX-CORE-1005` | Warning: the running Spring Boot version is outside the line this Stratum release supports, such as `4.1.x`. The service may fail later in ways that are hard to trace, such as `NoSuchMethodError`. The message names the version found and the supported line. Any patch release of the line, such as `4.1.9`, is quiet. | Set the Spring Boot version in your parent POM, such as your company parent, to the supported line, or use the Stratum release that supports your version. See the [compatibility table](upgrading.md#compatibility) and [ADR 0007](../adr/0007-spring-boot-version-warning.md). |
 
 Each is a `StratumException`. For `SX-CORE-1003`, `getReport().getExternal().details()` also lists

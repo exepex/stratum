@@ -18,13 +18,17 @@ public enum LoggingErrorCode implements ErrorCode {
       "SX-LOGGING-1001",
       Severity.ERROR,
       LoggingConstants.APPLICATION_NAME
-          + " is not set; the logging module writes it on every line as service.name"),
+          + " is not set; the logging module writes it on every line as service.name",
+      "Set "
+          + LoggingConstants.APPLICATION_NAME
+          + " in application.properties or application.yml."),
 
   /** A pattern in {@code stratum.logging.redaction.extra-patterns} cannot be compiled. */
   INVALID_REDACTION_PATTERN(
       "SX-LOGGING-1002",
       Severity.ERROR,
-      "A pattern in " + LoggingConstants.EXTRA_PATTERNS + " is not a valid regular expression");
+      "A pattern in " + LoggingConstants.EXTRA_PATTERNS + " is not a valid regular expression",
+      "Correct the pattern. In .properties files, write each backslash twice.");
 
   /** The code, such as {@code SX-LOGGING-1001}. */
   private final String code;
@@ -34,4 +38,7 @@ public enum LoggingErrorCode implements ErrorCode {
 
   /** What went wrong, in fixed text. */
   private final String description;
+
+  /** How to fix it, as the Fix column of the error codes page starts; empty for none. */
+  private final String fix;
 }
