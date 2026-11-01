@@ -117,7 +117,7 @@ spring:
 | `stratum.http-client.enabled` | boolean | `false` | Switches the module on. Until it is `true`, Spring Boot's clients keep Spring Boot's defaults: no timeouts and no pool limits. |
 | `spring.http.clients.connect-timeout` | duration | `2s` (Stratum) | Time allowed to open a connection, for every client. |
 | `spring.http.clients.read-timeout` | duration | `5s` (Stratum) | Time allowed to wait for data of the response, for every client. |
-| `stratum.http-client.pool.max-connections` | int, 1 to 10000 | `50` | The most connections open at once to each downstream service. A call that finds them all busy waits for one. |
+| `stratum.http-client.pool.max-connections` | int, 1 to 10000 | `50` | The most connections a pool keeps open at once to one downstream service (which clients share a pool is [below](#the-connection-pool)). A call that finds them all busy waits for one. |
 | `stratum.http-client.pool.max-wait` | duration, more than 0 | `2s` | How long a call waits for a free connection before it fails. |
 | `spring.http.serviceclient.<name>.base-url` | URL | none | The address of the downstream service. |
 | `spring.http.serviceclient.<name>.connect-timeout` | duration | the one for every client | Time allowed to open a connection, for this client. |
@@ -142,13 +142,13 @@ new Spring Boot version, so the page cannot drift from Spring Boot.
 
 ## The connection pool
 
-Each downstream service gets at most `stratum.http-client.pool.max-connections` connections at
-once. A call that finds them all busy waits up to `stratum.http-client.pool.max-wait` for one, then
+Each pool keeps at most `stratum.http-client.pool.max-connections` connections open at once to
+one downstream service. A call that finds them all busy waits up to `stratum.http-client.pool.max-wait` for one, then
 fails, so a slow downstream service makes calls to it fail fast instead of piling up.
 
 | | Blocking (`stratum-starter-http-client`) | Reactive (`stratum-starter-reactive-http-client`) |
 | --- | --- | --- |
-| Pool | One pool per client group, and one for the plain `RestClient.Builder`; within it, at most `max-connections` in all and to each downstream service | One pool for every client; at most `max-connections` to each downstream service |
+| Pool | One pool per HTTP interface group, and one per `RestClient` built from Spring Boot's `RestClient.Builder`; each holds at most `max-connections` in all | One pool for every client; at most `max-connections` to each downstream service |
 | A call that finds the pool full | Fails after `max-wait` with `ResourceAccessException`, caused by Apache's `ConnectionRequestTimeoutException` | Fails after `max-wait` with `WebClientRequestException`, caused by Reactor Netty's `PoolAcquireTimeoutException` |
 | Pool metrics | **None.** Spring Boot builds Apache's pool without giving access to it, so nothing can read it. Each call's duration, from the observability starter, includes any time spent waiting for a connection. | Reactor Netty's `reactor.netty.connection.provider.*` gauges, such as `total.connections`, `active.connections` and `pending.connections`, tagged `name=stratum-http-client` and with the downstream address, when the service has Micrometer |
 
@@ -196,8 +196,8 @@ there wins over Stratum's defaults.
 
 | Bean | Starter | What it does | To replace it |
 | --- | --- | --- | --- |
-| `RestClientConnectionPool` | `stratum-starter-http-client` | Sets the pool's size and wait on Spring Boot's builder of Apache HttpClient 5 clients | Declare your own bean of this type, or a `ClientHttpRequestFactoryBuilderCustomizer` of your own, which Spring Boot also applies |
-| `WebClientConnectionPool` | `stratum-starter-reactive-http-client` | Gives Spring Boot's Reactor Netty clients a bounded pool, and closes it at shutdown | Declare your own bean of this type, or a `ClientHttpConnectorBuilderCustomizer` of your own |
+| `RestClientConnectionPool` | `stratum-starter-http-client` | Sets the pool's size and wait on Spring Boot's builder of Apache HttpClient 5 clients | Declare your own bean of this type. Or declare a `ClientHttpRequestFactoryBuilderCustomizer` of your own with no order: it runs after Stratum's, so its pool settings win |
+| `WebClientConnectionPool` | `stratum-starter-reactive-http-client` | Gives Spring Boot's Reactor Netty clients a bounded pool, and closes it at shutdown | Declare your own bean of this type. Or declare a `ClientHttpConnectorBuilderCustomizer` of your own with no order: it runs after Stratum's, so its pool wins |
 | `WebClientGroupSettings` | `stratum-starter-reactive-http-client` | Makes each `WebClient` HTTP interface group use its own `spring.http.serviceclient.<name>.*` timeouts and SSL bundle (see below) | Declare your own bean of this type |
 
 Spring Boot 4.1.2 loses a `WebClient` group's own timeouts and SSL bundle: it builds the group's

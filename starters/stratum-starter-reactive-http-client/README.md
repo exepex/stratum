@@ -112,6 +112,54 @@ class StockCheck {
 A plain `WebClient` gets the same timeouts and pool when you build it from the `WebClient.Builder`
 that Spring Boot provides; inject the builder instead of calling `WebClient.create()`.
 
+## Every key a client needs
+
+This example sets every key, with Stratum's defaults where it has one. Copy it and keep only the
+lines you need. The `spring.http.*` keys are Spring Boot's own; `inventory` is the group name from
+`@ImportHttpServices`. What each key does is in
+[Every key a client needs](../../docs/modules/http-client.md#every-key-a-client-needs).
+
+```properties
+# Switch the module on.
+stratum.http-client.enabled=true
+
+# Every client: Spring Boot's keys, with Stratum's defaults.
+spring.http.clients.connect-timeout=2s
+spring.http.clients.read-timeout=5s
+
+# Every client: the connection pool (Stratum's keys).
+stratum.http-client.pool.max-connections=50
+stratum.http-client.pool.max-wait=2s
+
+# One client, named by its group: Spring Boot's keys.
+spring.http.serviceclient.inventory.base-url=https://inventory.internal
+spring.http.serviceclient.inventory.connect-timeout=1s
+spring.http.serviceclient.inventory.read-timeout=10s
+spring.http.serviceclient.inventory.default-header.X-Api-Version=2
+```
+
+```yaml
+stratum:
+  http-client:
+    enabled: true
+    pool:
+      max-connections: 50
+      max-wait: 2s
+
+spring:
+  http:
+    clients:
+      connect-timeout: 2s
+      read-timeout: 5s
+    serviceclient:
+      inventory:
+        base-url: https://inventory.internal
+        connect-timeout: 1s
+        read-timeout: 10s
+        default-header:
+          X-Api-Version: "2"
+```
+
 ## What you get
 
 | Feature | Behaviour |
@@ -121,7 +169,6 @@ that Spring Boot provides; inject the builder instead of calling `WebClient.crea
 | Pool metrics | Reactor Netty's `reactor.netty.connection.provider.*` gauges, tagged `name=stratum-http-client`, when the service has Micrometer, as the [observability starter](../stratum-starter-observability/README.md) brings it |
 | Tracing and timings | A client span and an `http.client.requests` timing per call, from the observability starter |
 
-Every key, with its default, is in [Every key a client needs](../../docs/modules/http-client.md#every-key-a-client-needs).
 Changing the pool from Java is in [Configure in Java](../../docs/modules/http-client.md#configure-in-java),
 and replacing Stratum's bean in [Replace a bean](../../docs/modules/http-client.md#replace-a-bean).
 

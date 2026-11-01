@@ -2,13 +2,13 @@ package com.exepex.stratum.webclient.it;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.assertj.core.api.Assertions.entry;
 import static org.awaitility.Awaitility.await;
 
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.test.DownstreamStub;
-import io.micrometer.core.instrument.Gauge;
+import com.exepex.stratum.webclient.testsupport.PoolGauges;
 import io.micrometer.core.instrument.MeterRegistry;
-import java.net.URI;
 import java.time.Duration;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.DisplayName;
@@ -42,13 +42,6 @@ class WebClientPoolIntegrationTest {
 
   /** Less than the 2s connect timeout, so the pool's wait is what failed the call. */
   private static final Duration FAILS_WITHIN = Duration.ofMillis(1500);
-
-  /** Reactor Netty's gauge of the pool's limit. */
-  private static final String MAX_CONNECTIONS_GAUGE =
-      "reactor.netty.connection.provider.max.connections";
-
-  /** Reactor Netty's tag of the downstream service's address on each pool gauge. */
-  private static final String REMOTE_ADDRESS_TAG = "remote.address";
 
   @Autowired private InventoryClient inventoryClient;
 
@@ -93,16 +86,7 @@ class WebClientPoolIntegrationTest {
   void reportsPool() {
     assertThat(inventoryClient.stock().block(WAIT)).isEqualTo(DownstreamStub.STOCK_BODY);
 
-    // Reactor Netty reports to the JVM-wide registry, so other test contexts' pools are there too.
-    var inventoryAddress = ":" + URI.create(INVENTORY.baseUrl()).getPort();
-    var maxConnections =
-        meterRegistry
-            .find(MAX_CONNECTIONS_GAUGE)
-            .tag("name", HttpClientConstants.POOL_NAME)
-            .gauges()
-            .stream()
-            .filter(gauge -> gauge.getId().getTag(REMOTE_ADDRESS_TAG).endsWith(inventoryAddress))
-            .toList();
-    assertThat(maxConnections).singleElement().extracting(Gauge::value).isEqualTo(1.0);
+    assertThat(PoolGauges.maxConnectionsByPool(meterRegistry, INVENTORY))
+        .containsExactly(entry(HttpClientConstants.POOL_NAME, 1.0));
   }
 }

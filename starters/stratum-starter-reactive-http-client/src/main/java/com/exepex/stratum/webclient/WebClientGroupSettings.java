@@ -1,5 +1,6 @@
 package com.exepex.stratum.webclient;
 
+import com.exepex.stratum.httpclient.HttpClientConstants;
 import java.util.Objects;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -22,9 +23,6 @@ import org.springframework.web.service.registry.HttpServiceGroup;
  */
 @RequiredArgsConstructor
 public class WebClientGroupSettings implements WebClientHttpServiceGroupConfigurer, Ordered {
-
-  /** Runs after Spring Boot's configurer that applies the {@code WebClientCustomizer} beans. */
-  private static final int AFTER_WEB_CLIENT_CUSTOMIZERS = 1;
 
   /** Every group's {@code spring.http.serviceclient.<name>.*} keys. */
   private final HttpServiceClientProperties groupProperties;
@@ -52,7 +50,7 @@ public class WebClientGroupSettings implements WebClientHttpServiceGroupConfigur
    */
   @Override
   public int getOrder() {
-    return AFTER_WEB_CLIENT_CUSTOMIZERS;
+    return HttpClientConstants.CUSTOMIZER_ORDER;
   }
 
   /**

@@ -1,5 +1,6 @@
 package com.exepex.stratum.restclient;
 
+import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientProperties;
 import lombok.RequiredArgsConstructor;
 import org.apache.hc.client5.http.config.RequestConfig;
@@ -7,17 +8,20 @@ import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuil
 import org.apache.hc.core5.util.Timeout;
 import org.springframework.boot.http.client.HttpComponentsClientHttpRequestFactoryBuilder;
 import org.springframework.boot.http.client.autoconfigure.ClientHttpRequestFactoryBuilderCustomizer;
+import org.springframework.core.Ordered;
 
 /**
- * Bounds the connections of every blocking client that Spring Boot builds on Apache HttpClient 5,
- * the plain {@code RestClient.Builder} and each HTTP interface group alike: at most {@code
- * stratum.http-client.pool.max-connections} to each downstream service, and a call that finds them
- * all busy fails after {@code stratum.http-client.pool.max-wait}.
+ * Bounds the connections of every blocking client that Spring Boot builds on Apache HttpClient 5:
+ * each HTTP interface group, and each {@code RestClient} built from Spring Boot's builder, gets a
+ * pool of at most {@code stratum.http-client.pool.max-connections}, and a call that finds them all
+ * busy fails after {@code stratum.http-client.pool.max-wait}. A service's own customizer that
+ * declares no order runs later, so its pool settings win.
  */
 @RequiredArgsConstructor
 public class RestClientConnectionPool
     implements ClientHttpRequestFactoryBuilderCustomizer<
-        HttpComponentsClientHttpRequestFactoryBuilder> {
+            HttpComponentsClientHttpRequestFactoryBuilder>,
+        Ordered {
 
   /** The pool's size and wait. */
   private final HttpClientProperties.PoolSettings poolSettings;
@@ -34,6 +38,16 @@ public class RestClientConnectionPool
     return builder
         .withConnectionManagerCustomizer(this::boundConnections)
         .withDefaultRequestConfigCustomizer(this::boundWait);
+  }
+
+  /**
+   * Returns the order after Spring Boot's customizers and before a service's own.
+   *
+   * @return the order
+   */
+  @Override
+  public int getOrder() {
+    return HttpClientConstants.CUSTOMIZER_ORDER;
   }
 
   /** Allows the pool's size in all and to any one downstream service. */

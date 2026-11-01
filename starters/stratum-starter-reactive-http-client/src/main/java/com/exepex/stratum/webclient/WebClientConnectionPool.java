@@ -5,6 +5,7 @@ import com.exepex.stratum.httpclient.HttpClientProperties;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.boot.http.client.autoconfigure.reactive.ClientHttpConnectorBuilderCustomizer;
 import org.springframework.boot.http.client.reactive.ReactorClientHttpConnectorBuilder;
+import org.springframework.core.Ordered;
 import reactor.netty.http.client.HttpClient;
 import reactor.netty.resources.ConnectionProvider;
 
@@ -13,11 +14,13 @@ import reactor.netty.resources.ConnectionProvider;
  * WebClient.Builder} and each HTTP interface group alike, one bounded connection pool: at most
  * {@code stratum.http-client.pool.max-connections} to each downstream service, and a call that
  * finds them all busy fails after {@code stratum.http-client.pool.max-wait}. The clients run on
- * Reactor Netty's shared event loops, and the pool is closed when the application stops.
+ * Reactor Netty's shared event loops, and the pool is closed when the application stops. A
+ * service's own customizer that declares no order runs later, so its pool wins.
  */
 public class WebClientConnectionPool
     implements ClientHttpConnectorBuilderCustomizer<ReactorClientHttpConnectorBuilder>,
-        DisposableBean {
+        DisposableBean,
+        Ordered {
 
   /** The bounded pool every client shares. */
   private final ConnectionProvider connectionProvider;
@@ -47,6 +50,16 @@ public class WebClientConnectionPool
   @Override
   public ReactorClientHttpConnectorBuilder customize(ReactorClientHttpConnectorBuilder builder) {
     return builder.withHttpClientFactory(() -> HttpClient.create(connectionProvider));
+  }
+
+  /**
+   * Returns the order after Spring Boot's customizers and before a service's own.
+   *
+   * @return the order
+   */
+  @Override
+  public int getOrder() {
+    return HttpClientConstants.CUSTOMIZER_ORDER;
   }
 
   /** Closes the pool and its connections. */

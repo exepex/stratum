@@ -38,6 +38,13 @@ public class HttpClientConstants {
   /** Stratum's default for {@link #READ_TIMEOUT}. */
   public static final Duration DEFAULT_READ_TIMEOUT = Duration.ofSeconds(5);
 
+  /**
+   * The order of Stratum's customizers of Spring Boot's client builders: after Spring Boot's own,
+   * which have order 0, and before a service's customizers that declare no order, so the service's
+   * win.
+   */
+  public static final int CUSTOMIZER_ORDER = 1;
+
   /** The name of the reactive connection pool, as its metrics show it in their name tag. */
   public static final String POOL_NAME = "stratum-http-client";
 

@@ -45,8 +45,10 @@ public record HttpClientProperties(@DefaultValue @Valid PoolSettings pool) {
    * How many connections the clients keep open, so that a slow downstream service cannot use up the
    * service's sockets and threads.
    *
-   * @param maxConnections The most connections open at once to each downstream service, from 1 to
-   *     10000. A call that finds them all busy waits for one. Defaults to 50.
+   * @param maxConnections The most connections a pool keeps open at once to one downstream service,
+   *     from 1 to 10000. The reactive clients share one pool; each blocking HTTP interface group,
+   *     and each RestClient built from Spring Boot's builder, has its own. A call that finds them
+   *     all busy waits for one. Defaults to 50.
    * @param maxWait How long a call waits for a free connection before it fails, such as 2s or
    *     500ms. Defaults to 2s.
    */
