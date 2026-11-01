@@ -38,6 +38,9 @@ class ErrorResponsesIntegrationTest {
   /** The member of the error body that holds the trace ID. */
   private static final String TRACE_ID_PATH = "$." + LoggingContextConstants.TRACE_ID;
 
+  /** The path that fails with a code the service maps to 409. */
+  private static final String DUPLICATE_PATH = "/orders/duplicate";
+
   /** Calls the service. */
   private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
 
@@ -48,7 +51,7 @@ class ErrorResponsesIntegrationTest {
   @DisplayName(
       "a mapped StratumException gets its status, code and trace ID, and no stack trace or path")
   void mappedStratumException() throws Exception {
-    var path = "/orders/duplicate";
+    var path = DUPLICATE_PATH;
     var response = get(path, MediaType.APPLICATION_JSON);
 
     StarterTestSupport.checkProblemDetails(response, HttpStatus.CONFLICT.value(), "ORD-0001");
@@ -68,6 +71,38 @@ class ErrorResponsesIntegrationTest {
         get("/orders/unpriced", MediaType.APPLICATION_JSON),
         HttpStatus.INTERNAL_SERVER_ERROR.value(),
         "ORD-0003");
+  }
+
+  @Test
+  @DisplayName(
+      "an exception that implements FailureWithErrorCode gets the same status, code and detail")
+  void failureWithErrorCode() throws Exception {
+    var response = get("/orders/duplicate-existing", MediaType.APPLICATION_JSON);
+
+    StarterTestSupport.checkProblemDetails(response, HttpStatus.CONFLICT.value(), "ORD-0001");
+    assertThat(JsonPath.<String>read(response.body(), "$.detail"))
+        .isEqualTo("Order already exists: order 42");
+  }
+
+  @Test
+  @DisplayName("a browser gets the HTML page with the mapped status for a FailureWithErrorCode")
+  void browserGetsReferencePageForFailureWithErrorCode() throws Exception {
+    var response = get("/orders/duplicate-existing", MediaType.TEXT_HTML);
+
+    assertThat(response.statusCode()).isEqualTo(HttpStatus.CONFLICT.value());
+    assertThat(response.body()).contains("Conflict");
+  }
+
+  @Test
+  @DisplayName("a method the path does not allow still gets Spring's 405 and SX-WEB-1004")
+  void methodNotAllowed() throws Exception {
+    StarterTestSupport.checkProblemDetails(
+        send(
+            HttpRequest.newBuilder(uri(DUPLICATE_PATH))
+                .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
+                .DELETE()),
+        HttpStatus.METHOD_NOT_ALLOWED.value(),
+        WebErrorCode.REQUEST_FAILED.getCode());
   }
 
   @Test
@@ -173,13 +208,13 @@ class ErrorResponsesIntegrationTest {
   @DisplayName("a caller that accepts anything gets the Problem Details body")
   void anyMediaTypeGetsProblemDetails() throws Exception {
     StarterTestSupport.checkProblemDetails(
-        get("/orders/duplicate", MediaType.ALL), HttpStatus.CONFLICT.value(), "ORD-0001");
+        get(DUPLICATE_PATH, MediaType.ALL), HttpStatus.CONFLICT.value(), "ORD-0001");
   }
 
   @Test
   @DisplayName("a browser gets the HTML page with the mapped status for a StratumException")
   void browserGetsReferencePageForStratumException() throws Exception {
-    var response = get("/orders/duplicate", MediaType.TEXT_HTML);
+    var response = get(DUPLICATE_PATH, MediaType.TEXT_HTML);
 
     assertThat(response.statusCode()).isEqualTo(HttpStatus.CONFLICT.value());
     assertThat(response.body()).contains("Conflict").containsPattern("Reference: <code>\\w{32}");

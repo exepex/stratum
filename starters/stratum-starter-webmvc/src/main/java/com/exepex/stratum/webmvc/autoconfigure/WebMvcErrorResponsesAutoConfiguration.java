@@ -9,10 +9,10 @@ import com.exepex.stratum.web.WebProperties;
 import com.exepex.stratum.web.WebPropertiesCustomizer;
 import com.exepex.stratum.webmvc.ErrorBodyAdvice;
 import com.exepex.stratum.webmvc.ErrorTemplateMissingCondition;
+import com.exepex.stratum.webmvc.FailureWithErrorCodeResolver;
 import com.exepex.stratum.webmvc.ReferenceErrorPage;
 import com.exepex.stratum.webmvc.RequestIdsFilter;
 import com.exepex.stratum.webmvc.StratumErrorAttributes;
-import com.exepex.stratum.webmvc.StratumExceptionHandler;
 import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureOrder;
@@ -29,6 +29,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Fallback;
 import org.springframework.core.env.Environment;
 import org.springframework.web.servlet.View;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Creates Stratum's error responses for Spring MVC, when {@code stratum.web.enabled=true}. Ordered
@@ -66,17 +67,20 @@ public final class WebMvcErrorResponsesAutoConfiguration {
   }
 
   /**
-   * Answers a {@code StratumException} thrown by a controller, after the service's own handlers.
+   * Answers a {@code StratumException}, or another exception that implements {@code
+   * FailureWithErrorCode}, thrown by a controller, after the service's own handlers and Spring
+   * MVC's own resolvers.
    *
    * @param errorResponseFactory makes the error body
-   * @return the handler
+   * @param jsonMapper writes the error body
+   * @return the resolver
    */
   @Bean
   @Fallback
   @ConditionalOnMissingBean
-  public StratumExceptionHandler stratumExceptionHandler(
-      ErrorResponseFactory errorResponseFactory) {
-    return new StratumExceptionHandler(errorResponseFactory);
+  public FailureWithErrorCodeResolver failureWithErrorCodeResolver(
+      ErrorResponseFactory errorResponseFactory, JsonMapper jsonMapper) {
+    return new FailureWithErrorCodeResolver(errorResponseFactory, jsonMapper);
   }
 
   /**

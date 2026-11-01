@@ -9,7 +9,6 @@ import com.exepex.stratum.logging.LoggingErrorCode;
 import com.exepex.stratum.logging.LoggingProperties;
 import com.exepex.stratum.logging.LoggingProperties.LogFormat;
 import com.exepex.stratum.logging.redaction.Redactor;
-import jakarta.validation.ConstraintViolationException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -51,8 +50,8 @@ public class LoggingEnvironmentPostProcessor implements EnvironmentPostProcessor
    * @param environment the application's environment
    * @param application the application being started
    * @throws StratumException {@code SX-LOGGING-1001} if the service has no name, {@code
-   *     SX-LOGGING-1002} if an extra redaction pattern is invalid
-   * @throws ConstraintViolationException {@code SX-CORE-1003} if a setting breaks its rules
+   *     SX-LOGGING-1002} if an extra redaction pattern is invalid, {@code SX-CORE-1003} if a
+   *     setting breaks its rules
    */
   @Override
   public void postProcessEnvironment(

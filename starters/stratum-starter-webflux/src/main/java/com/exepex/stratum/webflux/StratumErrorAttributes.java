@@ -1,7 +1,6 @@
 package com.exepex.stratum.webflux;
 
 import com.exepex.stratum.core.error.LoggingContextConstants;
-import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.web.ErrorResponseFactory;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -15,10 +14,10 @@ import org.springframework.web.reactive.function.server.ServerRequest;
 
 /**
  * Gives every request that failed outside the service's own exception handlers Stratum's error body
- * instead of Spring Boot's: a {@code StratumException} with the status mapped to its code, an
- * unknown path, a failed validation, an exception with {@code @ResponseStatus} or an unexpected
- * exception. Spring Boot's error handler writes it as JSON for an API caller and passes it to the
- * error page of a browser.
+ * instead of Spring Boot's: a {@code StratumException}, or another exception that implements {@code
+ * FailureWithErrorCode}, with the status mapped to its code, an unknown path, a failed validation,
+ * an exception with {@code @ResponseStatus} or an unexpected exception. Spring Boot's error handler
+ * writes it as JSON for an API caller and passes it to the error page of a browser.
  */
 @RequiredArgsConstructor
 public class StratumErrorAttributes extends DefaultErrorAttributes {
@@ -53,13 +52,13 @@ public class StratumErrorAttributes extends DefaultErrorAttributes {
     return errorResponseFactory.membersOf(body);
   }
 
-  /** Makes the error body of the failed request, and logs a {@code StratumException}. */
+  /** Makes the error body of the failed request, and logs a failure with an error code. */
   private ProblemDetail bodyOf(ServerRequest request) {
     var failure = getError(request);
     var body =
-        failure instanceof StratumException stratumFailure
-            ? errorResponseFactory.forStratumException(stratumFailure)
-            : errorResponseFactory.forFailedRequest(statusOf(request), failure);
+        errorResponseFactory
+            .forFailureWithErrorCode(failure)
+            .orElseGet(() -> errorResponseFactory.forFailedRequest(statusOf(request), failure));
     errorResponseFactory.addRequestIds(
         body,
         MDC.get(LoggingContextConstants.TRACE_ID),

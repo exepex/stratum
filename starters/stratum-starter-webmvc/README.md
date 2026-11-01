@@ -107,6 +107,7 @@ whatever `spring.web.error.include-*` says.
 | --- | --- | --- |
 | Your `StratumException`, its code mapped in `stratum.web.error.statuses` | the mapped status | your code, such as `ORD-0001` |
 | Your `StratumException`, its code not mapped | `500` | your code |
+| Your exception that implements [`FailureWithErrorCode`](../../docs/guides/error-codes.md#existing-exceptions-a-migration-path) | as a `StratumException` with its code | your code |
 | `@Valid` on a body or form, or a constraint on a parameter | `400` | `SX-WEB-1001` |
 | A body that is not valid JSON, or a parameter of the wrong type | `400` | `SX-WEB-1002` |
 | A path nothing answers | `404` | `SX-WEB-1003` |
@@ -119,7 +120,8 @@ The codes, with how to fix each, are in [Error and warning codes](../../docs/gui
 
 ### What is logged
 
-- A `StratumException` with a `4xx` status: one WARN line with its code and message.
+- A `StratumException`, or an exception that implements `FailureWithErrorCode`, with a `4xx`
+  status: one WARN line with its code and message.
 - A `StratumException` with a `5xx` status: one ERROR line with its stack trace. When its code has
   no status in `stratum.web.error.statuses`, the line says so, so a missing mapping shows up in
   testing.
@@ -145,8 +147,9 @@ turns off Spring Boot's.
 
 ## Your own error handling
 
-Your handlers always win. Stratum's handler runs after every `@RestControllerAdvice` of yours, and
-answers only what yours leave:
+Your handlers always win. Stratum's resolver runs after every `@ExceptionHandler` of yours and
+after Spring MVC's own resolvers, such as the one for `@ResponseStatus`, and answers only what they
+leave:
 
 ```java
 @RestControllerAdvice
@@ -164,11 +167,13 @@ class OrderErrorHandlers {
   `instance` to the request path when you leave it empty; set it yourself if your paths can hold
   personal data.
 - **Your handler returns any other body:** it is sent untouched.
-- **Your handler handles `StratumException` itself:** yours is used, and the mapping in
-  `stratum.web.error.statuses` is not.
+- **Your handler handles `StratumException`, or your exception that implements
+  `FailureWithErrorCode`, itself:** yours is used, and the mapping in `stratum.web.error.statuses`
+  is not.
 
-Your advice runs before Stratum's whether it has an `@Order` or not: Stratum's has the lowest
-precedence, and with equal orders your beans come first.
+Your advice runs before Stratum's whether it has an `@Order` or not: Stratum's answer is a
+`HandlerExceptionResolver` with the lowest precedence, which Spring MVC asks only after every
+`@ExceptionHandler`.
 
 ## Request fields and the correlation ID
 
@@ -368,7 +373,7 @@ Each bean below is Stratum's only until you declare your own:
 | `ErrorResponseFactory` | How every error body is made and how a `StratumException` is logged |
 | `ErrorAttributes` | The body of failures outside your controllers, such as `404`; yours gets Spring Boot's error controller and HTML page as before |
 | A `View` named `error` | The HTML error page |
-| `StratumExceptionHandler` or `ErrorBodyAdvice` | The handler of `StratumException`, or the advice that adds the IDs and the media type |
+| `FailureWithErrorCodeResolver` or `ErrorBodyAdvice` | The answer to `StratumException` and `FailureWithErrorCode`, or the advice that adds the IDs and the media type |
 | A bean named `stratumRequestIdsFilter` | The filter that keeps each request's IDs for its error page, which runs after tracing has ended |
 | A bean named `stratumRequestFieldsFilter` or `stratumCorrelationIdFilter` | The filter that puts the request fields in the logging context, or the one that returns the correlation ID in the response header |
 | A bean named `stratumCorrelationIdBaggageFilter` | The filter that writes a caller's correlation ID into the request's baggage before tracing reads it |

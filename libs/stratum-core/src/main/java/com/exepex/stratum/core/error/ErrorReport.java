@@ -37,6 +37,12 @@ public class ErrorReport implements Serializable {
   /** Control characters and Unicode line and paragraph separators, which could forge a log line. */
   private static final Pattern CONTROL_CHARACTERS = Pattern.compile("[\\p{Cc}\\p{Zl}\\p{Zp}]");
 
+  /** The code of the error or warning, as declared. */
+  ErrorCode errorCode;
+
+  /** What is specific to this occurrence, as the message shows it; empty for none. */
+  String detail;
+
   /**
    * The part a caller may see: code, severity, message, field details, trace ID and correlation ID.
    */
@@ -61,7 +67,7 @@ public class ErrorReport implements Serializable {
    *     declared by Stratum
    */
   public static ErrorReport of(ErrorCode code) {
-    return create(code, code.getDescription());
+    return of(code, "");
   }
 
   /**
@@ -79,8 +85,10 @@ public class ErrorReport implements Serializable {
    */
   public static ErrorReport of(ErrorCode code, String detail) {
     var safeDetail = CONTROL_CHARACTERS.matcher(detail).replaceAll(" ");
+    var shownDetail = safeDetail.isBlank() ? "" : safeDetail;
     var description = code.getDescription();
-    return create(code, safeDetail.isBlank() ? description : description + ": " + safeDetail);
+    return create(
+        code, shownDetail, shownDetail.isEmpty() ? description : description + ": " + shownDetail);
   }
 
   /**
@@ -104,7 +112,7 @@ public class ErrorReport implements Serializable {
   }
 
   /** Makes a report with the given message, after checking the code. */
-  private static ErrorReport create(ErrorCode code, String message) {
+  private static ErrorReport create(ErrorCode code, String detail, String message) {
     requireOwnPrefix(code);
     var external =
         ExternalError.builder()
@@ -116,6 +124,8 @@ public class ErrorReport implements Serializable {
             .correlationId(safeIdOrNull(LoggingContextConstants.CORRELATION_ID))
             .build();
     return ErrorReport.builder()
+        .errorCode(code)
+        .detail(detail)
         .external(external)
         .spanId(safeIdOrNull(LoggingContextConstants.SPAN_ID))
         .build();

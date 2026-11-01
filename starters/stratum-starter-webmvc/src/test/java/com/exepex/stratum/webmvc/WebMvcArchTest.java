@@ -14,6 +14,6 @@ class WebMvcArchTest {
           + " core, and has no cycles")
   void followsStarterArchitecture() {
     StarterTestSupport.checkStarterArchitecture(
-        StratumExceptionHandler.class, WebConstants.class.getPackageName());
+        FailureWithErrorCodeResolver.class, WebConstants.class.getPackageName());
   }
 }

@@ -92,6 +92,7 @@ failure comes from a controller or a `WebFilter`.
 | --- | --- | --- |
 | Your `StratumException`, its code mapped in `stratum.web.error.statuses` | the mapped status | your code, such as `ORD-0001` |
 | Your `StratumException`, its code not mapped | `500` | your code |
+| Your exception that implements [`FailureWithErrorCode`](../../docs/guides/error-codes.md#existing-exceptions-a-migration-path) | as a `StratumException` with its code | your code |
 | `@Valid` on a body, or a constraint on a parameter | `400` | `SX-WEB-1001` |
 | A body that is not valid JSON, a parameter of the wrong type, or a multipart upload Spring cannot read, such as one with too many parts | `400` | `SX-WEB-1002` |
 | A path nothing answers | `404` | `SX-WEB-1003` |
@@ -104,7 +105,8 @@ The codes, with how to fix each, are in [Error and warning codes](../../docs/gui
 
 ### What is logged
 
-- A `StratumException` with a `4xx` status: one WARN line with its code and message.
+- A `StratumException`, or an exception that implements `FailureWithErrorCode`, with a `4xx`
+  status: one WARN line with its code and message.
 - A `StratumException` with a `5xx` status: one ERROR line with its stack trace. When its code has
   no status in `stratum.web.error.statuses`, the line says so, so a missing mapping shows up in
   testing. Spring Boot's own line for the same failure is left out, so it is logged once.
@@ -150,8 +152,9 @@ class OrderErrorHandlers {
   `instance` to the request path when you leave it empty; set it yourself if your paths can hold
   personal data.
 - **Your handler returns any other body:** it is sent untouched.
-- **Your handler handles `StratumException` itself:** yours is used, and the mapping in
-  `stratum.web.error.statuses` is not.
+- **Your handler handles `StratumException`, or your exception that implements
+  `FailureWithErrorCode`, itself:** yours is used, and the mapping in `stratum.web.error.statuses`
+  is not.
 - **Your own `ErrorWebExceptionHandler` or `ErrorAttributes` bean:** it replaces Stratum's, as it
   replaces Spring Boot's ([customize](#customize)).
 

@@ -7,7 +7,6 @@ import com.exepex.stratum.core.properties.fixture.GreetingAutoConfiguration;
 import com.exepex.stratum.core.properties.fixture.GreetingAutoConfiguration.Greeter;
 import com.exepex.stratum.core.properties.fixture.GreetingAutoConfiguration.GreetingProperties;
 import com.exepex.stratum.core.properties.testsupport.GreetingTestData;
-import jakarta.validation.ConstraintViolationException;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -93,7 +92,7 @@ class JavaConfigurationWinsTest {
                   assertThat(context)
                       .getFailure()
                       .rootCause()
-                      .isInstanceOf(ConstraintViolationException.class)
+                      .isInstanceOf(StratumException.class)
                       .hasMessage(
                           "SX-CORE-1003: Invalid settings:"
                               + " stratum.greeting.message breaks @NotBlank"));
@@ -137,7 +136,7 @@ class JavaConfigurationWinsTest {
                   assertThat(context)
                       .getFailure()
                       .rootCause()
-                      .isInstanceOf(ConstraintViolationException.class));
+                      .isInstanceOf(StratumException.class));
     }
 
     @Test

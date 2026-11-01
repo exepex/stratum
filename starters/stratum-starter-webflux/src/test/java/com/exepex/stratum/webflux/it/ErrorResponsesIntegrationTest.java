@@ -94,6 +94,17 @@ class ErrorResponsesIntegrationTest {
       StarterTestSupport.checkProblemDetails(
           get(DUPLICATE_PATH, MediaType.ALL), HttpStatus.CONFLICT.value(), "ORD-0001");
     }
+
+    @Test
+    @DisplayName(
+        "an exception that implements FailureWithErrorCode gets the same status, code and detail")
+    void failureWithErrorCode() throws Exception {
+      var response = get("/orders/duplicate-existing", MediaType.APPLICATION_JSON);
+
+      StarterTestSupport.checkProblemDetails(response, HttpStatus.CONFLICT.value(), "ORD-0001");
+      assertThat(JsonPath.<String>read(response.body(), "$.detail"))
+          .isEqualTo("Order already exists: order 42");
+    }
   }
 
   @Nested

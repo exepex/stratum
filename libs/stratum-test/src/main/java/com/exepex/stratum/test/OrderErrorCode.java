@@ -20,7 +20,10 @@ public enum OrderErrorCode implements ErrorCode {
   STORE_DOWN("ORD-0002", Severity.ERROR, "The order store is not available"),
 
   /** A code the service forgot to map. */
-  UNMAPPED("ORD-0003", Severity.ERROR, "The order could not be priced");
+  UNMAPPED("ORD-0003", Severity.ERROR, "The order could not be priced"),
+
+  /** The order will ship late; a warning, which is never thrown. */
+  SHIPS_LATE("ORD-0004", Severity.WARNING, "The order will ship late");
 
   /** The code. */
   private final String code;

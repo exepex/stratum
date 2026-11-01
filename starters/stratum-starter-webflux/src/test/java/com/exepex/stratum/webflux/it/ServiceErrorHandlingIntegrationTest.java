@@ -3,6 +3,7 @@ package com.exepex.stratum.webflux.it;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.error.StratumException;
+import com.exepex.stratum.test.ExistingOrderException;
 import com.exepex.stratum.test.OrderErrorCode;
 import java.io.IOException;
 import java.net.URI;
@@ -53,6 +54,15 @@ class ServiceErrorHandlingIntegrationTest {
 
       assertThat(response.statusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT.value());
       assertThat(response.body()).isEqualTo("{\"failed\":\"ORD-0001\"}");
+    }
+
+    @Test
+    @DisplayName("its handler of an exception that implements FailureWithErrorCode wins too")
+    void serviceHandlerOfFailureWithErrorCodeWins() throws Exception {
+      var response = get("/orders/existing", MediaType.APPLICATION_JSON);
+
+      assertThat(response.statusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT.value());
+      assertThat(response.body()).isEqualTo("{\"failedExisting\":\"ORD-0001\"}");
     }
   }
 
@@ -127,6 +137,16 @@ class ServiceErrorHandlingIntegrationTest {
       String duplicate() {
         throw new StratumException(OrderErrorCode.DUPLICATE_ORDER);
       }
+
+      /**
+       * Fails with the same code, in an exception that implements {@code FailureWithErrorCode}.
+       *
+       * @return never returns
+       */
+      @GetMapping("/orders/existing")
+      String duplicateExisting() {
+        throw new ExistingOrderException(OrderErrorCode.DUPLICATE_ORDER, "order 42");
+      }
     }
 
     /** The service's handler, with no order of its own. */
@@ -143,6 +163,18 @@ class ServiceErrorHandlingIntegrationTest {
       @ResponseStatus(HttpStatus.UNPROCESSABLE_CONTENT)
       Map<String, String> answer(StratumException failure) {
         return Map.of("failed", failure.getReport().getExternal().code());
+      }
+
+      /**
+       * Answers the service's existing exception with the code only, in the service's own shape.
+       *
+       * @param failure the exception
+       * @return the body
+       */
+      @ExceptionHandler(ExistingOrderException.class)
+      @ResponseStatus(HttpStatus.UNPROCESSABLE_CONTENT)
+      Map<String, String> answerExisting(ExistingOrderException failure) {
+        return Map.of("failedExisting", failure.getErrorCode().getCode());
       }
     }
   }

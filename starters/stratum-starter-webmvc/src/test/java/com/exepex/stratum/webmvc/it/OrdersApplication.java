@@ -1,6 +1,7 @@
 package com.exepex.stratum.webmvc.it;
 
 import com.exepex.stratum.core.error.StratumException;
+import com.exepex.stratum.test.ExistingOrderException;
 import com.exepex.stratum.test.OrderErrorCode;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
@@ -86,6 +87,17 @@ public class OrdersApplication {
     @GetMapping("/orders/duplicate")
     String duplicate() {
       throw new StratumException(OrderErrorCode.DUPLICATE_ORDER, "order 42");
+    }
+
+    /**
+     * Fails with a code the service maps to 409, in an exception that implements {@code
+     * FailureWithErrorCode} instead of extending {@code StratumException}.
+     *
+     * @return never returns
+     */
+    @GetMapping("/orders/duplicate-existing")
+    String duplicateExisting() {
+      throw new ExistingOrderException(OrderErrorCode.DUPLICATE_ORDER, "order 42");
     }
 
     /**
