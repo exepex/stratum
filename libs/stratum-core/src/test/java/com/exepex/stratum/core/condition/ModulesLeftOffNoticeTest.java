@@ -12,8 +12,10 @@ import org.springframework.boot.test.context.assertj.AssertableApplicationContex
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.support.SpringFactoriesLoader;
 
 @DisplayName("ModulesLeftOffNotice lists, in one line, the Stratum modules present but off")
 @ExtendWith(OutputCaptureExtension.class)
@@ -34,6 +36,15 @@ class ModulesLeftOffNoticeTest {
                 new String[0],
                 context.getSourceApplicationContext(),
                 Duration.ZERO));
+  }
+
+  @Test
+  @DisplayName("Spring Boot finds the notice in spring.factories, so every service runs it")
+  void springBootLoadsTheNotice() {
+    var listeners =
+        SpringFactoriesLoader.forDefaultResourceLocation().load(ApplicationListener.class);
+
+    assertThat(listeners).hasAtLeastOneElementOfType(ModulesLeftOffNotice.class);
   }
 
   @Test
