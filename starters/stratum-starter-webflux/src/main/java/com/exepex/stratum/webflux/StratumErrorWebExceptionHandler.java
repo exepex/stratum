@@ -1,7 +1,9 @@
 package com.exepex.stratum.webflux;
 
+import com.exepex.stratum.core.error.LoggingContextConstants;
 import com.exepex.stratum.web.ReferencePage;
 import java.util.Map;
+import org.slf4j.MDC;
 import org.springframework.boot.autoconfigure.web.ErrorProperties;
 import org.springframework.boot.autoconfigure.web.WebProperties.Resources;
 import org.springframework.boot.web.error.ErrorAttributeOptions;
@@ -16,9 +18,10 @@ import reactor.core.publisher.Mono;
 /**
  * Spring Boot's error handler for WebFlux, which answers every request that failed outside the
  * service's own exception handlers, with three changes: Stratum's body is sent as {@code
- * application/problem+json}, a browser's default page is Stratum's {@link ReferencePage}, and a
- * failure with an error code is not logged a second time. The service's error templates, such as
- * {@code templates/error/404.html}, still win, as in Spring Boot.
+ * application/problem+json}, while Spring Boot's body keeps its media type, a browser's default
+ * page is Stratum's {@link ReferencePage}, and a failure with an error code is not logged a second
+ * time. The service's error templates, such as {@code templates/error/404.html}, still win, as in
+ * Spring Boot.
  */
 public class StratumErrorWebExceptionHandler extends DefaultErrorWebExceptionHandler {
 
@@ -57,6 +60,9 @@ public class StratumErrorWebExceptionHandler extends DefaultErrorWebExceptionHan
       return super.renderErrorResponse(request);
     }
     var body = getErrorAttributes(request, ErrorAttributeOptions.defaults());
+    if (request.attribute(StratumErrorAttributes.BODY_ATTRIBUTE).isEmpty()) {
+      return super.renderErrorResponse(request);
+    }
     return ServerResponse.status(getHttpStatus(body))
         .contentType(MediaType.APPLICATION_PROBLEM_JSON)
         .bodyValue(body);
@@ -96,7 +102,7 @@ public class StratumErrorWebExceptionHandler extends DefaultErrorWebExceptionHan
     }
     return responseBody
         .contentType(MediaType.parseMediaType(ReferencePage.CONTENT_TYPE))
-        .bodyValue(ReferencePage.of(error));
+        .bodyValue(ReferencePage.of(error, MDC.get(LoggingContextConstants.TRACE_ID)));
   }
 
   /**

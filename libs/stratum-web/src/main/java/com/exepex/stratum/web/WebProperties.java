@@ -21,6 +21,12 @@ import org.springframework.util.unit.DataSize;
  * {@link WebPropertiesCustomizer} classes, which win. Both web starters read the same settings. The
  * descriptions of the components are what IDEs show, so they are plain sentences.
  *
+ * @param backwardCompatible Whether errors that Spring or Spring Boot answer, such as an unknown
+ *     path or a failed validation, keep the body Spring Boot gives without Stratum, so the contract
+ *     with the service's consumers does not change. A consumer that sends Accept:
+ *     application/problem+json gets Stratum's standard body, and so does every error with an error
+ *     code, such as a StratumException, and every timeout or body too large. Set it to false to
+ *     give every error the standard body. Defaults to true.
  * @param error How errors are answered.
  * @param correlation Where each request's correlation ID comes from.
  * @param clientIp How the client's IP address is found behind proxies.
@@ -34,6 +40,7 @@ import org.springframework.util.unit.DataSize;
 @Builder(toBuilder = true)
 @ConfigurationProperties(prefix = WebConstants.PREFIX)
 public record WebProperties(
+    @DefaultValue("true") boolean backwardCompatible,
     @DefaultValue @Valid ErrorSettings error,
     @DefaultValue CorrelationSettings correlation,
     @DefaultValue @Valid ClientIpSettings clientIp,

@@ -6,6 +6,7 @@ import com.exepex.stratum.core.properties.StratumCustomizers;
 import com.exepex.stratum.web.ErrorResponseFactory;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebProperties;
+import com.exepex.stratum.web.autoconfigure.BackwardCompatibleModeConfiguration;
 import com.exepex.stratum.web.autoconfigure.WebSettingsConfiguration;
 import com.exepex.stratum.webmvc.ErrorBodyAdvice;
 import com.exepex.stratum.webmvc.ErrorTemplateMissingCondition;
@@ -40,7 +41,7 @@ import tools.jackson.databind.json.JsonMapper;
 @AutoConfigureOrder(StratumModuleConstants.AUTO_CONFIGURATION_ORDER)
 @ConditionalOnStratumModule(WebConstants.MODULE)
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
-@Import(WebSettingsConfiguration.class)
+@Import({WebSettingsConfiguration.class, BackwardCompatibleModeConfiguration.class})
 public final class WebMvcErrorResponsesAutoConfiguration {
 
   /**

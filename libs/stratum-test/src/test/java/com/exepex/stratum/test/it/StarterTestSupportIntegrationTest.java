@@ -2,7 +2,9 @@ package com.exepex.stratum.test.it;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
+import com.exepex.stratum.test.BackwardCompatibleErrorChecks;
 import com.exepex.stratum.test.StarterTestSupport;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
@@ -31,6 +33,27 @@ class StarterTestSupportIntegrationTest {
   /** The error body the refusing endpoint answers with, as a web starter's is. */
   private static final String TOO_LARGE_BODY =
       "{\"status\":413,\"code\":\"" + TOO_LARGE_CODE + "\",\"traceId\":\"" + "a".repeat(32) + "\"}";
+
+  /** The path that answers as a backward-compatible service answers an unknown path. */
+  private static final String UNKNOWN_PATH = "/no-such-path";
+
+  /** The trace ID the answers carry. */
+  private static final String TRACE_ID = "b".repeat(32);
+
+  /** Spring Boot's body for an unknown path. */
+  private static final String BOOT_BODY =
+      "{\"status\":404,\"error\":\"Not Found\",\"message\":\"No static resource\","
+          + "\"path\":\""
+          + UNKNOWN_PATH
+          + "\"}";
+
+  /** Stratum's body for an unknown path. */
+  private static final String STANDARD_BODY =
+      "{\"status\":404,\"code\":\"SX-TEST-1001\",\"traceId\":\"" + TRACE_ID + "\"}";
+
+  /** Stratum's page for an unknown path. */
+  private static final String REFERENCE_PAGE =
+      "<title>Not Found</title><p>Reference: <code>" + TRACE_ID + "</code></p>";
 
   private HttpServer server;
 
@@ -62,6 +85,17 @@ class StarterTestSupportIntegrationTest {
                 HttpURLConnection.HTTP_ENTITY_TOO_LARGE,
                 "application/problem+json",
                 TOO_LARGE_BODY));
+    server.createContext(UNKNOWN_PATH, this::answerUnknownPath);
+    server.createContext(
+        "/coded",
+        exchange ->
+            answer(
+                exchange,
+                HttpURLConnection.HTTP_NOT_FOUND,
+                "application/json",
+                BOOT_BODY
+                    .replace(UNKNOWN_PATH, "/coded")
+                    .replace("}", ",\"code\":\"SX-TEST-1001\"}")));
     server.start();
   }
 
@@ -110,6 +144,40 @@ class StarterTestSupportIntegrationTest {
     void readsRefusal() throws IOException, InterruptedException {
       StarterTestSupport.checkBodyRefused(
           port(), "/refused", "text/plain", BODY_BYTES, true, TOO_LARGE_CODE);
+    }
+  }
+
+  @Nested
+  @DisplayName("BackwardCompatibleErrorChecks")
+  class BackwardCompatibleChecks {
+
+    @Test
+    @DisplayName("accepts Spring Boot's body, Stratum's body on request and the reference page")
+    void acceptsCompatibleAnswers() throws IOException, InterruptedException {
+      BackwardCompatibleErrorChecks.checkBootBody(port(), UNKNOWN_PATH);
+      BackwardCompatibleErrorChecks.checkOptedInBody(port(), UNKNOWN_PATH, "SX-TEST-1001");
+      BackwardCompatibleErrorChecks.checkBrowserPage(port(), UNKNOWN_PATH);
+      BackwardCompatibleErrorChecks.checkCodedFailureBody(
+          port(), "/refused", HttpURLConnection.HTTP_ENTITY_TOO_LARGE, TOO_LARGE_CODE);
+    }
+
+    @Test
+    @DisplayName("rejects a body that holds a Stratum code where Spring Boot's is expected")
+    void rejectsStratumCode() {
+      assertThatExceptionOfType(AssertionError.class)
+          .isThrownBy(() -> BackwardCompatibleErrorChecks.checkBootBody(port(), "/coded"));
+    }
+  }
+
+  /** Answers an unknown path with the body or page the request's Accept header asks for. */
+  private void answerUnknownPath(HttpExchange exchange) throws IOException {
+    var accept = String.valueOf(exchange.getRequestHeaders().getFirst("Accept"));
+    if (accept.contains("problem+json")) {
+      answer(exchange, HttpURLConnection.HTTP_NOT_FOUND, "application/problem+json", STANDARD_BODY);
+    } else if (accept.contains("text/html")) {
+      answer(exchange, HttpURLConnection.HTTP_NOT_FOUND, "text/html", REFERENCE_PAGE);
+    } else {
+      answer(exchange, HttpURLConnection.HTTP_NOT_FOUND, "application/json", BOOT_BODY);
     }
   }
 

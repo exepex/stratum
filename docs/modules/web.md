@@ -97,6 +97,12 @@ every request already; [SLA dashboards](#sla-dashboards) shows how to chart them
 A validation error has the status `400` and adds a `details` list, with one entry per invalid
 field. The codes are listed in [Error and warning codes](../guides/error-codes.md).
 
+### Existing consumers keep their error body
+
+By default, adding the starter to a running service never changes the error body its consumers
+read: errors that Spring answers keep Spring Boot's body. See
+[Backward-compatible mode](web-compatible-mode.md).
+
 ### Your own error handling
 
 - **Your own `@RestControllerAdvice` always wins.** Stratum handles only what your handlers leave,
@@ -387,6 +393,7 @@ Each works from `.properties`, `.yml` and Java, and your IDE completes it, on bo
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
 | `stratum.web.enabled` | boolean | `false` | Switches the module on. Until it is `true`, the starter sets up nothing of its own. |
+| `stratum.web.backward-compatible` | boolean | `true` | Whether errors that Spring answers keep Spring Boot's body, unless the consumer sends `Accept: application/problem+json`. Errors with a code, timeouts and bodies too large always get Stratum's body. See [Backward-compatible mode](web-compatible-mode.md). |
 | `stratum.web.error.statuses` | map of code to status | empty | The HTTP status of each of your error codes, such as `ORD-0001: 409`. |
 | `stratum.web.correlation.accept-from-caller` | boolean | `true` | Whether a caller's `X-Correlation-Id`, or the `correlationId` in its baggage, is used. Set it to `false` on a service that faces the internet, to always use the trace ID. |
 | `stratum.web.client-ip.trusted-proxies` | list of address ranges | `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `127.0.0.0/8`, `::1/128`, `fc00::/7` | The load balancers and proxies whose `X-Forwarded-For` header is trusted. An empty list trusts none. |

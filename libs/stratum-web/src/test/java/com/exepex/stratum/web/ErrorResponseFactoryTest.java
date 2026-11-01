@@ -27,7 +27,9 @@ import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
+import org.springframework.util.unit.DataSize;
 import org.springframework.validation.BindException;
 import org.springframework.validation.MapBindingResult;
 
@@ -40,6 +42,30 @@ class ErrorResponseFactoryTest {
   /** The code of a duplicate order, mapped to 409. */
   private static final String DUPLICATE_ORDER_CODE = OrderErrorCode.DUPLICATE_ORDER.getCode();
 
+  /** Failures and Accept headers that get Stratum's body while backward-compatible is on. */
+  static final List<Arguments> STANDARD_BODY_IN_COMPATIBLE_MODE =
+      List.of(
+          Arguments.of(
+              new IllegalStateException(), List.of(MediaType.APPLICATION_PROBLEM_JSON_VALUE)),
+          Arguments.of(
+              new IllegalStateException(), List.of("text/html, application/problem+json;q=0.5")),
+          Arguments.of(new StratumException(OrderErrorCode.DUPLICATE_ORDER), List.of()),
+          Arguments.of(
+              new IllegalStateException(new RequestBodyTooLargeException(DataSize.ofKilobytes(1))),
+              List.of()),
+          Arguments.of(
+              new RequestTimedOutException(HttpStatus.SERVICE_UNAVAILABLE, Duration.ofSeconds(1)),
+              List.of()));
+
+  /** Failures and Accept headers that keep Spring Boot's body while backward-compatible is on. */
+  static final List<Arguments> BOOT_BODY_IN_COMPATIBLE_MODE =
+      List.of(
+          Arguments.of(new IllegalStateException(), List.of()),
+          Arguments.of(new IllegalStateException(), List.of(MediaType.APPLICATION_JSON_VALUE)),
+          Arguments.of(new IllegalStateException(), List.of(MediaType.ALL_VALUE)),
+          Arguments.of(new IllegalStateException(), List.of("application/problem+json;q=0")),
+          Arguments.of(new IllegalStateException(), List.of("not a media type")));
+
   /** The factory, with ORD-0001 mapped to 409 and ORD-0002 to 503. */
   private final ErrorResponseFactory factory =
       new ErrorResponseFactory(
@@ -47,6 +73,35 @@ class ErrorResponseFactoryTest {
               Map.of(
                   OrderErrorCode.DUPLICATE_ORDER.getCode(), HttpStatus.CONFLICT.value(),
                   OrderErrorCode.STORE_DOWN.getCode(), HttpStatus.SERVICE_UNAVAILABLE.value())));
+
+  @Nested
+  @DisplayName("chooses Stratum's body or Spring Boot's")
+  class ChoosesBody {
+
+    @ParameterizedTest
+    @FieldSource("com.exepex.stratum.web.ErrorResponseFactoryTest#STANDARD_BODY_IN_COMPATIBLE_MODE")
+    @DisplayName("Stratum's for its own failures, and for a caller that asks for it by name")
+    void standardBody(Throwable failure, List<String> acceptHeaders) {
+      assertThat(factory.answersWithStandardBody(failure, acceptHeaders)).isTrue();
+    }
+
+    @ParameterizedTest
+    @FieldSource("com.exepex.stratum.web.ErrorResponseFactoryTest#BOOT_BODY_IN_COMPATIBLE_MODE")
+    @DisplayName("Spring Boot's for any other failure, also with a wildcard or invalid Accept")
+    void bootBody(Throwable failure, List<String> acceptHeaders) {
+      assertThat(factory.answersWithStandardBody(failure, acceptHeaders)).isFalse();
+    }
+
+    @Test
+    @DisplayName("always Stratum's with backward-compatible switched off")
+    void standardBodyWhenSwitchedOff() {
+      var standardFactory =
+          new ErrorResponseFactory(WebTestData.defaults().backwardCompatible(false).build());
+
+      assertThat(standardFactory.answersWithStandardBody(new IllegalStateException(), List.of()))
+          .isTrue();
+    }
+  }
 
   @Nested
   @DisplayName("for a StratumException")

@@ -2,7 +2,9 @@ package com.exepex.stratum.web;
 
 import com.exepex.stratum.core.error.LoggingContextConstants;
 import java.util.Map;
+import java.util.Optional;
 import lombok.experimental.UtilityClass;
+import org.jspecify.annotations.Nullable;
 import org.springframework.http.MediaType;
 import org.springframework.web.util.HtmlUtils;
 
@@ -20,6 +22,9 @@ public class ReferencePage {
   /** The member of the error model that holds the status's reason phrase. */
   private static final String TITLE = "title";
 
+  /** The member of Spring Boot's own error model that holds the status's reason phrase. */
+  private static final String ERROR = "error";
+
   /** The member of the error model that holds the status. */
   private static final String STATUS = "status";
 
@@ -30,11 +35,15 @@ public class ReferencePage {
    * Returns the page, with every value HTML-escaped.
    *
    * @param errorModel the error body's members: {@code status}, {@code title} and, when known,
-   *     {@code traceId}
+   *     {@code traceId}; or Spring Boot's, whose reason phrase is {@code error}
+   * @param requestTraceId the request's trace ID, the reference when the model has none, as in
+   *     Spring Boot's own model
    * @return the page
    */
-  public static String of(Map<String, ?> errorModel) {
-    var title = HtmlUtils.htmlEscape(String.valueOf(errorModel.get(TITLE)));
+  public static String of(Map<String, ?> errorModel, @Nullable String requestTraceId) {
+    var reasonPhrase =
+        errorModel.containsKey(TITLE) ? errorModel.get(TITLE) : errorModel.get(ERROR);
+    var title = HtmlUtils.htmlEscape(String.valueOf(reasonPhrase));
     var page = new StringBuilder(PAGE_LENGTH);
     page.append("<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>")
         .append(title)
@@ -43,7 +52,9 @@ public class ReferencePage {
         .append("</h1><p>The request could not be completed (status ")
         .append(HtmlUtils.htmlEscape(String.valueOf(errorModel.get(STATUS))))
         .append(").</p>");
-    var traceId = errorModel.get(LoggingContextConstants.TRACE_ID);
+    var traceId =
+        Optional.<Object>ofNullable(errorModel.get(LoggingContextConstants.TRACE_ID))
+            .orElse(requestTraceId);
     if (traceId != null) {
       page.append("<p>Reference: <code>")
           .append(HtmlUtils.htmlEscape(traceId.toString()))

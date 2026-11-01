@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.exepex.stratum.core.error.CoreErrorCode;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.web.ErrorResponseFactory;
+import com.exepex.stratum.web.StackTraceExposureWarning;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebProperties;
 import com.exepex.stratum.web.WebPropertiesCustomizer;
@@ -56,6 +57,7 @@ class WebFluxErrorResponsesAutoConfigurationTest {
                 assertThat(context)
                     .hasSingleBean(WebProperties.class)
                     .hasSingleBean(ErrorResponseFactory.class)
+                    .hasSingleBean(StackTraceExposureWarning.class)
                     .hasSingleBean(ProblemDetailIdsInterceptor.class)
                     .hasSingleBean(ErrorWebExceptionHandler.class);
                 assertThat(context.getBean(ErrorAttributes.class))

@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 import org.springframework.util.StreamUtils;
 import org.springframework.web.servlet.View;
@@ -29,7 +30,8 @@ public class ReferenceErrorPage implements View {
   /**
    * Writes the page, unless the response has been sent already.
    *
-   * @param model the error model: {@code status}, {@code title} and, when known, {@code traceId}
+   * @param model the error model: Stratum's, with {@code status}, {@code title} and, when known,
+   *     {@code traceId}, or Spring Boot's, when the page takes the trace ID from the request
    * @param request the request
    * @param response the response
    * @throws IOException if the page cannot be written
@@ -44,7 +46,9 @@ public class ReferenceErrorPage implements View {
     response.setContentType(getContentType());
     // ReferencePage has escaped every value in the page.
     StreamUtils.copy(
-        ReferencePage.of(model == null ? Map.of() : model),
+        ReferencePage.of(
+            model == null ? Map.of() : model,
+            Objects.toString(request.getAttribute(RequestIdsFilter.TRACE_ID_ATTRIBUTE), null)),
         StandardCharsets.UTF_8,
         response.getOutputStream());
   }

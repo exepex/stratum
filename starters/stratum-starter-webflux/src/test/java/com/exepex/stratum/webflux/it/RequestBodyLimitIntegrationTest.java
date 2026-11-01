@@ -25,6 +25,7 @@ import org.springframework.http.MediaType;
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = {
       "stratum.web.enabled=true",
+      "stratum.web.backward-compatible=false",
       WebConstants.BODY_LIMIT_DEFAULT_LIMIT + "=1KB",
       WebConstants.BODY_LIMIT_ROUTES + "[/uploads/**]=4KB",
       "stratum.observability.enabled=true",

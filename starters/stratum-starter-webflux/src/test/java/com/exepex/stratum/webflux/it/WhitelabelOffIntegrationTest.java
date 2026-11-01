@@ -25,6 +25,7 @@ import org.springframework.http.MediaType;
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = {
       "stratum.web.enabled=true",
+      "stratum.web.backward-compatible=false",
       "stratum.web.error.statuses.ORD-0001=409",
       "spring.web.error.whitelabel.enabled=false",
       "stratum.observability.enabled=true",
