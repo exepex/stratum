@@ -234,9 +234,8 @@ and then:
 
 Where Spring Boot has a key for a setting, Stratum keeps that key and only changes its default, so
 the IDE shows Spring Boot's description and default for it. Each module's README lists those keys
-with Stratum's default, and the value you set always wins. A few older Stratum keys cover a Spring
-Boot default, such as `stratum.observability.actuator-endpoints-exposed-over-http` for
-`management.endpoints.web.exposure.include`; there too, the Spring Boot key wins if you set it.
+with Stratum's default, and the value you set always wins. Stratum adds no key of its own for
+anything Spring Boot already has a key for.
 
 Each jar carries its own file, so with several starters on the classpath, a bundle included, the
 IDE shows the keys of all of them. NetBeans needs a Spring Boot plugin that reads the same

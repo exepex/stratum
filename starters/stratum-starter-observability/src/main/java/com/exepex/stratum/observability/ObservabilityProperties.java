@@ -12,33 +12,14 @@ import org.springframework.core.env.Environment;
 /**
  * The settings of the observability module, bound to {@code stratum.observability.*} and then
  * changed by the service's {@link ObservabilityPropertiesCustomizer} classes, which win. The
- * descriptions of the components are what IDEs show, so they are plain sentences. A Spring Boot
- * property the service sets itself wins over the setting that gives it Stratum's default.
+ * descriptions of the components are what IDEs show, so they are plain sentences. What Spring Boot
+ * already has a key for, such as the exposed actuator endpoints, is set with Spring Boot's key.
  *
- * @param actuatorEndpointsExposedOverHttp The actuator endpoints reachable over HTTP. Sets Spring
- *     Boot's management.endpoints.web.exposure.include. Defaults to health and info; add others
- *     only behind authentication.
- * @param recordTimingsAsHistograms Whether every timer and distribution summary is stored as an
- *     exponential histogram, so any percentile can be read for one pod or for all pods; false keeps
- *     only count, sum and max. Sets Spring Boot's
- *     management.metrics.distribution.percentiles-histogram.all. Defaults to true.
- * @param traceKafkaAndRabbitmqMessages Whether Kafka and RabbitMQ messages are traced and timed
- *     when they are sent and received. Sets Spring Boot's observation-enabled switches of the Kafka
- *     and RabbitMQ templates and listeners. Defaults to true.
  * @param tags Which metric tags are refused.
  */
 @Builder(toBuilder = true)
 @ConfigurationProperties(prefix = ObservabilityConstants.PREFIX)
-public record ObservabilityProperties(
-    @DefaultValue({"health", "info"}) List<@NotBlank String> actuatorEndpointsExposedOverHttp,
-    @DefaultValue("true") boolean recordTimingsAsHistograms,
-    @DefaultValue("true") boolean traceKafkaAndRabbitmqMessages,
-    @DefaultValue @Valid Tags tags) {
-
-  /** Keeps an unchangeable copy of the endpoints. */
-  public ObservabilityProperties {
-    actuatorEndpointsExposedOverHttp = List.copyOf(actuatorEndpointsExposedOverHttp);
-  }
+public record ObservabilityProperties(@DefaultValue @Valid Tags tags) {
 
   /**
    * Returns the settings the module uses: {@code stratum.observability.*} with the defaults for

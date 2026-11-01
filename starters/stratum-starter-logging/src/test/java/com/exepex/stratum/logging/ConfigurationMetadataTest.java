@@ -17,16 +17,12 @@ class ConfigurationMetadataTest {
   private static final Path METADATA =
       Path.of("target/classes/META-INF/spring-configuration-metadata.json");
 
-  private static final String STACK_TRACE_STARTS_WITH_ROOT_CAUSE =
-      LoggingConstants.PREFIX + ".stack-trace-starts-with-root-cause";
-
   /** Every property of the module, the switch included. */
   private static final List<String> PROPERTY_NAMES =
       List.of(
           LoggingConstants.ENABLED,
           LoggingConstants.FORMAT,
           LoggingConstants.PREFIX + ".max-field-length",
-          STACK_TRACE_STARTS_WITH_ROOT_CAUSE,
           LoggingConstants.PREFIX + ".redaction.extra-keys",
           LoggingConstants.EXTRA_PATTERNS);
 

@@ -1,21 +1,14 @@
 package com.exepex.stratum.observability;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.observability.testsupport.ObservabilityTestData;
-import com.exepex.stratum.observability.testsupport.PrometheusEndpointObservabilitySettings;
-import com.exepex.stratum.test.StarterTestSupport;
-import jakarta.validation.ConstraintViolationException;
-import java.io.IOException;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.env.DefaultPropertiesPropertySource;
 import org.springframework.core.env.MapPropertySource;
@@ -36,10 +29,6 @@ class ObservabilityEnvironmentPostProcessorTest {
 
   private static final String PROPAGATE_TASK_CONTEXT = "spring.task.execution.propagate-context";
 
-  /** The published key, spelled out so a misspelt key in the module fails the test. */
-  private static final String PROPAGATE_CONTEXT_TO_ASYNC_THREADS =
-      "stratum.context-propagation.async-threads";
-
   private static final String REACTOR_CONTEXT_PROPAGATION = "spring.reactor.context-propagation";
 
   private static final String KAFKA_LISTENER_SWITCH = "spring.kafka.listener.observation-enabled";
@@ -57,9 +46,6 @@ class ObservabilityEnvironmentPostProcessorTest {
           "spring.rabbitmq.listener.stream.observation-enabled");
 
   private static final String SERVICE_EXPOSURE = "health,loggers";
-
-  private static final String ACTUATOR_ENDPOINTS_EXPOSED_OVER_HTTP =
-      ObservabilityConstants.PREFIX + ".actuator-endpoints-exposed-over-http";
 
   private static final String ON = "true";
 
@@ -192,58 +178,20 @@ class ObservabilityEnvironmentPostProcessorTest {
     }
 
     @Test
-    @DisplayName("the stratum.observability settings change the Spring Boot properties they set")
-    void stratumSettingsChangeDefaults() {
+    @DisplayName("the service's own Spring Boot keys win over Stratum's defaults")
+    void serviceBootKeysWin() {
       var environment =
           runPostProcessor(
               ObservabilityTestData.environmentWithModuleOn()
-                  .withProperty(ACTUATOR_ENDPOINTS_EXPOSED_OVER_HTTP, "health,prometheus")
-                  .withProperty(
-                      ObservabilityConstants.PREFIX + ".record-timings-as-histograms", OFF)
-                  .withProperty(
-                      ObservabilityConstants.PREFIX + ".trace-kafka-and-rabbitmq-messages", OFF)
-                  .withProperty(PROPAGATE_CONTEXT_TO_ASYNC_THREADS, OFF));
+                  .withProperty(ObservabilityConstants.WEB_EXPOSURE, SERVICE_EXPOSURE)
+                  .withProperty(ObservabilityConstants.HISTOGRAM_FOR_EVERY_TIMING, OFF)
+                  .withProperty(PROPAGATE_TASK_CONTEXT, OFF));
 
       assertThat(environment.getProperty(ObservabilityConstants.WEB_EXPOSURE))
-          .isEqualTo("health,prometheus");
+          .isEqualTo(SERVICE_EXPOSURE);
       assertThat(environment.getProperty(ObservabilityConstants.HISTOGRAM_FOR_EVERY_TIMING))
           .isEqualTo(OFF);
-      assertThat(
-              ObservabilityConstants.MESSAGING_OBSERVATION_SWITCHES.stream()
-                  .map(environment::getProperty))
-          .containsOnly(OFF);
       assertThat(environment.getProperty(PROPAGATE_TASK_CONTEXT)).isEqualTo(OFF);
-    }
-
-    @Test
-    @DisplayName("settings from a customizer listed in spring.factories win before startup")
-    void javaSettingsWin(@TempDir Path folder) throws IOException {
-      var environment =
-          StarterTestSupport.withCustomizers(
-              folder,
-              ObservabilityPropertiesCustomizer.class,
-              List.of(PrometheusEndpointObservabilitySettings.class),
-              () ->
-                  runPostProcessor(
-                      ObservabilityTestData.environmentWithModuleOn()
-                          .withProperty(ACTUATOR_ENDPOINTS_EXPOSED_OVER_HTTP, "health")));
-
-      assertThat(environment.getProperty(ObservabilityConstants.WEB_EXPOSURE))
-          .isEqualTo(String.join(",", PrometheusEndpointObservabilitySettings.ENDPOINTS));
-      assertThat(environment.getProperty(ObservabilityConstants.HISTOGRAM_FOR_EVERY_TIMING))
-          .isEqualTo(OFF);
-    }
-
-    @Test
-    @DisplayName("a blank exposed endpoint stops startup")
-    void blankEndpointStopsStartup() {
-      var environment =
-          ObservabilityTestData.environmentWithModuleOn()
-              .withProperty(ACTUATOR_ENDPOINTS_EXPOSED_OVER_HTTP, "health, ");
-
-      assertThatExceptionOfType(ConstraintViolationException.class)
-          .isThrownBy(() -> runPostProcessor(environment))
-          .withMessageContaining(ACTUATOR_ENDPOINTS_EXPOSED_OVER_HTTP);
     }
 
     @Test
@@ -257,19 +205,6 @@ class ObservabilityEnvironmentPostProcessorTest {
       assertThat(environment.getProperty(APPLICATION_TAG)).isNull();
       assertThat(environment.getProperty(ENVIRONMENT_TAG)).isNull();
       assertThat(environment.getProperty(HOST_TAG)).isNull();
-    }
-
-    @Test
-    @DisplayName("the service's own exposure wins over Stratum's, and over its Stratum setting")
-    void serviceExposureWins() {
-      var environment =
-          runPostProcessor(
-              ObservabilityTestData.environmentWithModuleOn()
-                  .withProperty(ACTUATOR_ENDPOINTS_EXPOSED_OVER_HTTP, "health,prometheus")
-                  .withProperty(ObservabilityConstants.WEB_EXPOSURE, SERVICE_EXPOSURE));
-
-      assertThat(environment.getProperty(ObservabilityConstants.WEB_EXPOSURE))
-          .isEqualTo(SERVICE_EXPOSURE);
     }
 
     @Test

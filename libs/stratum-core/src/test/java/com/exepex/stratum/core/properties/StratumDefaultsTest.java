@@ -26,6 +26,10 @@ class StratumDefaultsTest {
   /** The exposure the service chose. */
   private static final String SERVICE_EXPOSURE = "health,loggers";
 
+  private static final String ON = "true";
+
+  private static final String OFF = "false";
+
   private static final Map<String, Object> STRATUM_DEFAULTS =
       Map.of(EXPOSURE, "health,info", HISTOGRAMS, true);
 
@@ -42,7 +46,7 @@ class StratumDefaultsTest {
     StratumDefaults.addBelowServiceValues(environment, STRATUM_DEFAULTS);
 
     assertThat(environment.getProperty(EXPOSURE)).isEqualTo(SERVICE_EXPOSURE);
-    assertThat(environment.getProperty(HISTOGRAMS)).isEqualTo("true");
+    assertThat(environment.getProperty(HISTOGRAMS)).isEqualTo(ON);
   }
 
   @Test
@@ -53,7 +57,7 @@ class StratumDefaultsTest {
     StratumDefaults.addBelowServiceValues(environment, STRATUM_DEFAULTS);
 
     assertThat(environment.getProperty(EXPOSURE)).isEqualTo(SERVICE_EXPOSURE);
-    assertThat(environment.getProperty(HISTOGRAMS)).isEqualTo("true");
+    assertThat(environment.getProperty(HISTOGRAMS)).isEqualTo(ON);
     assertThat(
             environment
                 .getPropertySources()
@@ -67,24 +71,24 @@ class StratumDefaultsTest {
   void contextCrossesEveryThreadByDefault() {
     var environment = new MockEnvironment();
 
-    assertThat(StratumDefaults.asyncThreadContextPropagation(environment))
-        .containsExactlyEntriesOf(Map.of(TASK_CONTEXT_PROPAGATION, true));
-    assertThat(StratumDefaults.reactorOperatorContextPropagation(environment))
-        .containsExactlyEntriesOf(Map.of(REACTOR_CONTEXT_PROPAGATION, "auto"));
+    StratumDefaults.addBelowServiceValues(environment, StratumDefaults.CONTEXT_PROPAGATION);
+
+    assertThat(environment.getProperty(TASK_CONTEXT_PROPAGATION)).isEqualTo(ON);
+    assertThat(environment.getProperty(REACTOR_CONTEXT_PROPAGATION)).isEqualTo("auto");
   }
 
   @Test
-  @DisplayName("each Stratum switch, set to false, turns its own propagation back to Spring Boot's")
-  void eachSwitchTurnsItsPropagationOff() {
+  @DisplayName("the service turns each propagation back with Spring Boot's own key")
+  void serviceBootKeysWin() {
     var environment =
         new MockEnvironment()
-            .withProperty("stratum.context-propagation.async-threads", "false")
-            .withProperty("stratum.context-propagation.reactor", "false");
+            .withProperty(TASK_CONTEXT_PROPAGATION, OFF)
+            .withProperty(REACTOR_CONTEXT_PROPAGATION, "limited");
 
-    assertThat(StratumDefaults.asyncThreadContextPropagation(environment))
-        .containsExactlyEntriesOf(Map.of(TASK_CONTEXT_PROPAGATION, false));
-    assertThat(StratumDefaults.reactorOperatorContextPropagation(environment))
-        .containsExactlyEntriesOf(Map.of(REACTOR_CONTEXT_PROPAGATION, "limited"));
+    StratumDefaults.addBelowServiceValues(environment, StratumDefaults.CONTEXT_PROPAGATION);
+
+    assertThat(environment.getProperty(TASK_CONTEXT_PROPAGATION)).isEqualTo(OFF);
+    assertThat(environment.getProperty(REACTOR_CONTEXT_PROPAGATION)).isEqualTo("limited");
   }
 
   @Test
@@ -102,6 +106,6 @@ class StratumDefaultsTest {
 
     assertThat(Binder.get(environment).bind(EXPOSURE, Bindable.listOf(String.class)).get())
         .containsExactly("health", "loggers");
-    assertThat(environment.getProperty(HISTOGRAMS)).isEqualTo("true");
+    assertThat(environment.getProperty(HISTOGRAMS)).isEqualTo(ON);
   }
 }

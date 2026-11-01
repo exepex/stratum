@@ -52,7 +52,9 @@ Each module page follows the same layout so you always know where to look:
 | Web MVC (error responses for Spring MVC services) | [stratum-starter-webmvc/README.md](../starters/stratum-starter-webmvc/README.md) |
 | WebFlux (error responses for reactive services) | [stratum-starter-webflux/README.md](../starters/stratum-starter-webflux/README.md) |
 | Logging | [stratum-starter-logging/README.md](../starters/stratum-starter-logging/README.md) |
+| Logging workflows (named business work in logs, metrics and traces) | [logging-workflows.md](modules/logging-workflows.md) |
 | Observability (metrics, tracing, health) | [stratum-starter-observability/README.md](../starters/stratum-starter-observability/README.md) |
+| Observability of Kafka, RabbitMQ and JMS messages | [observability-messages.md](modules/observability-messages.md) |
 | Security (resource server, JWT) | [security.md](modules/security.md) |
 | OAuth2 client (service-to-service tokens) | [oauth2-client.md](modules/oauth2-client.md) |
 | HTTP client | [http-client.md](modules/http-client.md) |
