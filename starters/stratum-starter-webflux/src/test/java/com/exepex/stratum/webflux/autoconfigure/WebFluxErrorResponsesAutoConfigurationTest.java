@@ -54,6 +54,7 @@ class WebFluxErrorResponsesAutoConfigurationTest {
           .run(
               context -> {
                 assertThat(context)
+                    .hasSingleBean(WebProperties.class)
                     .hasSingleBean(ErrorResponseFactory.class)
                     .hasSingleBean(ProblemDetailIdsInterceptor.class)
                     .hasSingleBean(ErrorWebExceptionHandler.class);

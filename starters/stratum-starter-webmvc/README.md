@@ -371,6 +371,7 @@ Each bean below is Stratum's only until you declare your own:
 
 | Your bean | What it replaces |
 | --- | --- |
+| `WebProperties` | The web settings every bean above uses, worked out once from `stratum.web.*` and your `WebPropertiesCustomizer` classes |
 | `ErrorResponseFactory` | How every error body is made and how a `StratumException` is logged |
 | `ErrorAttributes` | The body of failures outside your controllers, such as `404`; yours gets Spring Boot's error controller and HTML page as before |
 | A `View` named `error` | The HTML error page |

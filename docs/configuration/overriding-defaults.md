@@ -100,7 +100,9 @@ Rules that apply to every module:
 - Several customizers for the same settings run in `@Order` order. Each receives the result of the
   one before, so the last one wins.
 - A customizer needs a public constructor with no arguments, and may run more than once at
-  startup, so it only works out settings and has no side effects.
+  startup, so it only works out settings and has no side effects. The web module runs it once.
+  The logging and observability modules run it before the application starts and again when
+  their beans are made.
 - A customizer must not return `null`. To leave the settings unchanged, return what it received.
   A `null` stops the application at startup with a message naming the customizer.
 - The settings are checked once, after your customizers have run. So a customizer can correct or
