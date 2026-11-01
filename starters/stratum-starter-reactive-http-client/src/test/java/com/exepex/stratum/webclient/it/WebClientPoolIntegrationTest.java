@@ -6,7 +6,9 @@ import static org.awaitility.Awaitility.await;
 
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.test.DownstreamStub;
+import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
+import java.net.URI;
 import java.time.Duration;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.DisplayName;
@@ -44,6 +46,9 @@ class WebClientPoolIntegrationTest {
   /** Reactor Netty's gauge of the pool's limit. */
   private static final String MAX_CONNECTIONS_GAUGE =
       "reactor.netty.connection.provider.max.connections";
+
+  /** Reactor Netty's tag of the downstream service's address on each pool gauge. */
+  private static final String REMOTE_ADDRESS_TAG = "remote.address";
 
   @Autowired private InventoryClient inventoryClient;
 
@@ -88,12 +93,16 @@ class WebClientPoolIntegrationTest {
   void reportsPool() {
     assertThat(inventoryClient.stock().block(WAIT)).isEqualTo(DownstreamStub.STOCK_BODY);
 
+    // Reactor Netty reports to the JVM-wide registry, so other test contexts' pools are there too.
+    var inventoryAddress = ":" + URI.create(INVENTORY.baseUrl()).getPort();
     var maxConnections =
         meterRegistry
             .find(MAX_CONNECTIONS_GAUGE)
             .tag("name", HttpClientConstants.POOL_NAME)
-            .gauge();
-    assertThat(maxConnections).isNotNull();
-    assertThat(maxConnections.value()).isEqualTo(1);
+            .gauges()
+            .stream()
+            .filter(gauge -> gauge.getId().getTag(REMOTE_ADDRESS_TAG).endsWith(inventoryAddress))
+            .toList();
+    assertThat(maxConnections).singleElement().extracting(Gauge::value).isEqualTo(1.0);
   }
 }
