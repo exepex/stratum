@@ -2,12 +2,22 @@ package com.exepex.stratum.core.condition;
 
 import com.exepex.stratum.core.error.CoreErrorCode;
 import com.exepex.stratum.core.error.StratumException;
+import java.util.Objects;
+import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.StreamSupport;
 import org.springframework.boot.autoconfigure.condition.ConditionMessage;
 import org.springframework.boot.autoconfigure.condition.ConditionOutcome;
 import org.springframework.boot.autoconfigure.condition.SpringBootCondition;
+import org.springframework.boot.context.properties.source.ConfigurationProperty;
+import org.springframework.boot.context.properties.source.ConfigurationPropertyName;
+import org.springframework.boot.context.properties.source.ConfigurationPropertySource;
+import org.springframework.boot.context.properties.source.ConfigurationPropertySources;
 import org.springframework.context.annotation.ConditionContext;
 import org.springframework.core.annotation.MergedAnnotation;
+import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.PropertySource;
 import org.springframework.core.type.AnnotatedTypeMetadata;
 import org.springframework.core.type.ClassMetadata;
 import org.springframework.core.type.MethodMetadata;
@@ -29,7 +39,8 @@ class OnStratumModuleCondition extends SpringBootCondition {
    * @param metadata the annotated class or method
    * @return a match when the module is on, with the reason
    * @throws StratumException {@code SX-CORE-1001} if the module name is not in kebab-case; the
-   *     detail names the annotated class or method
+   *     detail names the annotated class or method. {@code SX-CORE-1006} if the module is switched
+   *     on only by a property source added after the modules' startup steps ran
    */
   @Override
   public ConditionOutcome getMatchOutcome(
@@ -38,8 +49,42 @@ class OnStratumModuleCondition extends SpringBootCondition {
     var property = StratumModuleConstants.enabledProperty(module);
     var message = ConditionMessage.forCondition(ConditionalOnStratumModule.class, module);
     var enabled = StratumModuleSwitch.isEnabled(context.getEnvironment(), module);
+    if (enabled) {
+      requireSwitchReadAtStartup(context.getEnvironment(), property);
+    }
     return new ConditionOutcome(
         enabled, message.because(property + (enabled ? " is true" : " is not true, so it is off")));
+  }
+
+  /**
+   * Stops startup when the property source that switches the module on was not there when the
+   * modules' startup steps ran. Without the record of {@link EarlyPropertySources}, as in a test
+   * that starts no Spring Boot application, there is nothing to compare, so it does nothing.
+   */
+  private void requireSwitchReadAtStartup(Environment environment, String property) {
+    if (!(environment instanceof ConfigurableEnvironment configurable)) {
+      return;
+    }
+    var record = configurable.getPropertySources().get(EarlyPropertySources.RECORD);
+    if (record == null
+        || !(record.getProperty(EarlyPropertySources.RECORD) instanceof Set<?> early)) {
+      return;
+    }
+    var name = ConfigurationPropertyName.of(property);
+    StreamSupport.stream(ConfigurationPropertySources.get(configurable).spliterator(), false)
+        .map(source -> source.getConfigurationProperty(name))
+        .filter(Objects::nonNull)
+        .findFirst()
+        .map(ConfigurationProperty::getSource)
+        .map(ConfigurationPropertySource::getUnderlyingSource)
+        .filter(PropertySource.class::isInstance)
+        .map(source -> ((PropertySource<?>) source).getName())
+        .filter(sourceName -> !early.contains(sourceName))
+        .ifPresent(
+            sourceName -> {
+              throw new StratumException(
+                  CoreErrorCode.MODULE_SWITCHED_ON_TOO_LATE, property + " in " + sourceName);
+            });
   }
 
   /** Returns the module name from the annotation and rejects one that is not in kebab-case. */
