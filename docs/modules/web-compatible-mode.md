@@ -24,6 +24,13 @@ Boot's body, as before Stratum:
 { "timestamp": "2026-11-01T10:15:30.000+00:00", "status": 404, "error": "Not Found", "path": "/orders/42" }
 ```
 
+Two statuses differ from a service without Stratum, so that Spring MVC and WebFlux answer the
+same, correct status. On WebFlux, a failure that carries its own status, such as
+`new ErrorResponseException(HttpStatus.BAD_REQUEST)`, is answered with that status, 400, where
+Spring Boot alone answers 500. On Spring MVC, a status that Spring's `HttpStatus` does not list,
+such as 499, is answered with that status line, where Spring Boot alone answers 500 with 499 in
+the body. Check that no consumer relies on the old 500 in either case.
+
 Stratum's standard body, described in [The error format](web.md#the-error-format), is sent instead
 when:
 
