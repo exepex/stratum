@@ -6,6 +6,7 @@ import java.util.stream.StreamSupport;
 import org.springframework.boot.EnvironmentPostProcessor;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.context.config.ConfigDataEnvironmentPostProcessor;
+import org.springframework.boot.context.properties.bind.BindException;
 import org.springframework.boot.context.properties.bind.Bindable;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.boot.context.properties.source.ConfigurationPropertyName;
@@ -61,15 +62,25 @@ public class EarlyModuleSwitches implements EnvironmentPostProcessor, Ordered {
             .filter(IterableConfigurationPropertySource.class::isInstance)
             .flatMap(source -> ((IterableConfigurationPropertySource) source).stream())
             .filter(this::isModuleSwitch)
-            .filter(
-                name ->
-                    Boolean.TRUE.equals(
-                        binder.bind(name, Bindable.of(Boolean.class)).orElse(false)))
+            .filter(name -> isOn(binder, name))
             .map(name -> name.getElement(1, Form.UNIFORM))
             .collect(Collectors.toUnmodifiableSet());
     environment
         .getPropertySources()
         .addLast(new MapPropertySource(RECORD, Map.of(RECORD, modulesOn)));
+  }
+
+  /**
+   * Returns whether a module switch is {@code true}. A value that is not a boolean counts as off
+   * here: it may belong to a module the service does not have, which nothing else reads, and a
+   * module the service has stops startup when its own condition reads the value.
+   */
+  private boolean isOn(Binder binder, ConfigurationPropertyName name) {
+    try {
+      return Boolean.TRUE.equals(binder.bind(name, Bindable.of(Boolean.class)).orElse(false));
+    } catch (BindException notBoolean) {
+      return false;
+    }
   }
 
   /** Returns whether a property is a module switch, {@code stratum.<module>.enabled}. */

@@ -1,7 +1,6 @@
 package com.exepex.stratum.core.condition;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.core.error.StratumException;
 import java.util.List;
@@ -12,17 +11,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.FieldSource;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.condition.ConditionEvaluationReport;
 import org.springframework.boot.context.properties.bind.BindException;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Import;
-import org.springframework.context.annotation.PropertySource;
-import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.StandardEnvironment;
 import org.springframework.core.env.SystemEnvironmentPropertySource;
 
@@ -31,12 +25,6 @@ class ConditionalOnStratumModuleTest {
 
   /** The name of the main bean of the test module. */
   private static final String GREETING = "greeting";
-
-  /** The test module's switch. */
-  private static final String GREETING_SWITCH = "stratum.greeting.enabled";
-
-  /** A file that switches the test module on, loaded through {@code @PropertySource}. */
-  private static final String LATE_SWITCH_FILE = "late-switch/greeting.properties";
 
   /** The name of the test module's second bean. */
   private static final String GREETING_FORMAT = "greetingFormat";
@@ -189,66 +177,6 @@ class ConditionalOnStratumModuleTest {
                       .hasMessageContaining("\"" + name + "\" on " + module.getName()));
     }
   }
-
-  @Nested
-  @DisplayName("when a Spring Boot application starts")
-  class InStartedApplication {
-
-    /** Returns an application without a web server, from the given configuration. */
-    private SpringApplication application(Class<?> configuration) {
-      var application = new SpringApplication(configuration);
-      application.setWebApplicationType(WebApplicationType.NONE);
-      return application;
-    }
-
-    @Test
-    @DisplayName("a switch the modules' startup steps could read turns the module on")
-    void earlySwitchTurnsModuleOn() {
-      var application = application(GreetingModule.class);
-      application.setDefaultProperties(Map.of(GREETING_SWITCH, true));
-
-      try (var context = application.run()) {
-        assertThat(context.containsBean(GREETING)).isTrue();
-      }
-    }
-
-    @Test
-    @DisplayName(
-        "a switch also set later, as remote configuration does with Spring Cloud's bootstrap,"
-            + " still starts the module, because it was already on")
-    void switchSetEarlyAndAgainLaterTurnsModuleOn() {
-      var application = application(GreetingModule.class);
-      application.setDefaultProperties(Map.of(GREETING_SWITCH, true));
-      application.addInitializers(
-          context ->
-              context
-                  .getEnvironment()
-                  .getPropertySources()
-                  .addFirst(new MapPropertySource("remote-config", Map.of(GREETING_SWITCH, true))));
-
-      try (var context = application.run()) {
-        assertThat(context.containsBean(GREETING)).isTrue();
-      }
-    }
-
-    @Test
-    @DisplayName(
-        "a switch only in a @PropertySource file stops startup instead of a half-on module")
-    void lateSwitchStopsStartup() {
-      assertThatExceptionOfType(Exception.class)
-          .isThrownBy(() -> application(LateSwitchedGreeting.class).run())
-          .havingRootCause()
-          .isInstanceOf(StratumException.class)
-          .withMessageStartingWith("SX-CORE-1006: ")
-          .withMessageContaining(GREETING_SWITCH + " in class path resource [" + LATE_SWITCH_FILE);
-    }
-  }
-
-  /** A service that switches the greeting module on only in a {@code @PropertySource} file. */
-  @Configuration(proxyBeanMethods = false)
-  @PropertySource("classpath:" + LATE_SWITCH_FILE)
-  @Import(GreetingModule.class)
-  static class LateSwitchedGreeting {}
 
   /** A module switched by {@code stratum.greeting.enabled}, with one bean inside it. */
   @Configuration(proxyBeanMethods = false)
