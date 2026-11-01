@@ -40,6 +40,31 @@ gets Stratum's page, with the trace ID as the reference to quote to support.
 every response still has the `X-Correlation-Id` header. Once every consumer sends the header, set
 the property to `false`.
 
+## Knowing when to switch
+
+While the mode is on, the service logs one INFO line at every start that says what the mode does:
+
+```text
+INFO  BackwardCompatibleModeReport : stratum.web.backward-compatible is true: errors that Spring answers keep Spring Boot's body unless the consumer sends Accept: application/problem+json, and no time or body size limit applies unless set. The counter stratum.web.requests.without.standard.errors shows which routes still answer with Spring Boot's body; set the property to false once it stays at 0.
+```
+
+When the service has Micrometer, as the observability starter and Spring Boot's actuator bring it,
+the counter `stratum.web.requests.without.standard.errors` counts each error answer that kept
+Spring Boot's JSON body because the consumer did not ask for `application/problem+json`. Its
+`route` tag is the route the request matched, such as `/orders/{orderId}`, or `UNKNOWN` for a path
+the service has no route for. A browser's page and Stratum's own body are not counted. In
+Prometheus, the routes that answered with Spring Boot's body in the last 7 days:
+
+```text
+max by (route) (max_over_time(stratum_web_requests_without_standard_errors_total[7d])) > 0
+```
+
+A route's series appears only with its first such answer, so the query checks whether a series
+exists in the window; `increase()` would miss a route whose only answer started its series. A pod
+that answered once keeps its series until it restarts, so the query can only err towards "not yet".
+Once it returns nothing for as long as your slowest consumer takes to call each route, set
+`stratum.web.backward-compatible=false`.
+
 ## Stack traces in the error body
 
 A stack trace or an exception class in an error body is a security leak: it tells any caller which
@@ -48,7 +73,7 @@ libraries, classes and code paths the service has. When `spring.web.error.includ
 shows them, and Stratum logs one WARN line at every start while backward-compatible mode is on:
 
 ```text
-WARN  StackTraceExposureWarning : Security leak: errors keep Spring Boot's body because stratum.web.backward-compatible is true, and spring.web.error.include-stacktrace=always with spring.web.error.include-exception=false show stack traces or exception classes to API callers. Set them to never and false.
+WARN  BackwardCompatibleModeReport : Security leak: errors keep Spring Boot's body because stratum.web.backward-compatible is true, and spring.web.error.include-stacktrace=always with spring.web.error.include-exception=false show stack traces or exception classes to API callers. Set them to never and false.
 ```
 
 Set both back to Spring Boot's defaults, `never` and `false`, to stop the leak. Stratum's standard

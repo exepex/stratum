@@ -3,6 +3,7 @@ package com.exepex.stratum.webmvc.autoconfigure;
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.properties.StratumCustomizers;
+import com.exepex.stratum.web.BootErrorBodyCounter;
 import com.exepex.stratum.web.ErrorResponseFactory;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebProperties;
@@ -15,6 +16,7 @@ import com.exepex.stratum.webmvc.ReferenceErrorPage;
 import com.exepex.stratum.webmvc.RequestIdsFilter;
 import com.exepex.stratum.webmvc.StratumErrorAttributes;
 import org.springframework.beans.factory.ListableBeanFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureOrder;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
@@ -89,13 +91,16 @@ public final class WebMvcErrorResponsesAutoConfiguration {
    * Problem Details media type.
    *
    * @param errorResponseFactory adds the IDs
+   * @param bootErrorBodyCounter counts Spring Boot's bodies, when the service has Micrometer
    * @return the advice
    */
   @Bean
   @Fallback
   @ConditionalOnMissingBean
-  public ErrorBodyAdvice errorBodyAdvice(ErrorResponseFactory errorResponseFactory) {
-    return new ErrorBodyAdvice(errorResponseFactory);
+  public ErrorBodyAdvice errorBodyAdvice(
+      ErrorResponseFactory errorResponseFactory,
+      ObjectProvider<BootErrorBodyCounter> bootErrorBodyCounter) {
+    return new ErrorBodyAdvice(errorResponseFactory, bootErrorBodyCounter);
   }
 
   /**

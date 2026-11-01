@@ -39,6 +39,12 @@ public class StratumErrorAttributes extends DefaultErrorAttributes {
    */
   static final String STRATUM_BODY_ATTRIBUTE = StratumErrorAttributes.class.getName() + ".body";
 
+  /**
+   * The request attribute that marks a body as Spring Boot's, kept in backward-compatible mode, so
+   * that it is counted when it is written as JSON to an API caller.
+   */
+  static final String BOOT_BODY_ATTRIBUTE = StratumErrorAttributes.class.getName() + ".boot-body";
+
   /** Makes the error body. */
   private final ErrorResponseFactory errorResponseFactory;
 
@@ -59,6 +65,7 @@ public class StratumErrorAttributes extends DefaultErrorAttributes {
             .map(List::of)
             .orElseGet(List::of);
     if (!errorResponseFactory.answersWithStandardBody(getError(webRequest), acceptHeaders)) {
+      webRequest.setAttribute(BOOT_BODY_ATTRIBUTE, true, RequestAttributes.SCOPE_REQUEST);
       return super.getErrorAttributes(webRequest, options);
     }
     var bootAttributes =
