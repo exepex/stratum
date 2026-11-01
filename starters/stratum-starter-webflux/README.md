@@ -324,6 +324,7 @@ which names the property but not the code or the value.
 | `stratum.web.body-limit.routes` | map of path pattern to data size | empty | The limit of the bodies of the requests whose path matches a pattern, such as `/uploads/**`. |
 | `spring.webflux.multipart.max-disk-usage-per-part` | data size | none, or `10MB` when `backward-compatible` is `false` (Spring Boot: no limit) | Spring Boot's key. The disk each part of a multipart upload may use. Stratum sets this default in standard mode; your value wins. |
 | `spring.webflux.multipart.max-parts` | integer | none, or `50` when `backward-compatible` is `false` (Spring Boot: no limit) | Spring Boot's key. The most parts a multipart upload may have. Stratum sets this default in standard mode; your value wins. |
+| `spring.reactor.context-propagation` | `limited` or `auto` | `auto` (Spring Boot: `limited`) | Spring Boot's key. With `auto`, Reactor carries the request's trace ID into every operator, so error bodies, error pages and log lines have it, as on Spring MVC. Stratum sets this default in both modes; your value wins. |
 
 These are the same keys as the Spring MVC starter's. Your IDE completes each and shows its
 description. The full list, with the allowed values, is in [Web](../../docs/modules/web.md#properties).
@@ -374,7 +375,7 @@ to change the wait.
 | What you see | Why, and the fix |
 | --- | --- |
 | Your code is answered with `500`, and the log says it has no status | Add the code to `stratum.web.error.statuses`. |
-| The body has no `traceId` | Tracing is off. Add the observability starter and set `stratum.observability.enabled=true`. |
+| The body has no `traceId` | Tracing is off: add the observability starter and set `stratum.observability.enabled=true`. Or the service sets `spring.reactor.context-propagation=limited`, so the error handler runs without the request's trace ID: remove it to get Stratum's default, `auto`. |
 | A failure gets Spring Boot's default body | The module is off, or the service declares its own `ErrorAttributes` or `ErrorWebExceptionHandler` bean. |
 | Your handler is not used for an exception | Another advice handles it first. Advice runs in `@Order` order. |
 | Spring's own failures, such as an invalid body, get a body without `code`, and with the request path as `instance` | The service sets `spring.webflux.problemdetails.enabled=true`, so Spring's own handler answers them before Stratum's. Remove the property, which is off by default, to get Stratum's body. |

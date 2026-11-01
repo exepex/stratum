@@ -60,8 +60,9 @@ the counter `stratum.web.requests.without.standard.errors` counts each error ans
 Spring Boot's JSON body because the consumer did not ask for `application/problem+json`. Its
 `route` tag is the route the request matched, such as `/orders/{orderId}`, or `UNKNOWN` for a path
 the service has no route for. A request that a filter rejects before Spring matches a route, as
-Spring Security's filters do, is counted under `UNKNOWN` too. A browser's page and Stratum's own body are not counted. In
-Prometheus, the routes that answered with Spring Boot's body in the last 7 days:
+Spring Security's filters do, is counted under `UNKNOWN` too. A browser's page and Stratum's own
+body are not counted. In Prometheus, the routes that answered with Spring Boot's body in the last 7
+days:
 
 ```text
 max by (route) (max_over_time(stratum_web_requests_without_standard_errors_total[7d])) > 0

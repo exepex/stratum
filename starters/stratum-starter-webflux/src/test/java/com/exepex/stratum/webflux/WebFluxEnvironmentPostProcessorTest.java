@@ -3,17 +3,22 @@ package com.exepex.stratum.webflux;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.SpringApplication;
 import org.springframework.mock.env.MockEnvironment;
 
-@DisplayName("WebFluxEnvironmentPostProcessor limits multipart uploads in standard mode")
+@DisplayName(
+    "WebFluxEnvironmentPostProcessor carries the trace ID through Reactor and limits multipart"
+        + " uploads in standard mode")
 class WebFluxEnvironmentPostProcessorTest {
 
   /** Spring Boot's keys, spelled out so a misspelt key in the module fails the test. */
   private static final String DISK_PER_PART = "spring.webflux.multipart.max-disk-usage-per-part";
 
   private static final String PARTS = "spring.webflux.multipart.max-parts";
+
+  private static final String REACTOR_CONTEXT_PROPAGATION = "spring.reactor.context-propagation";
 
   private static final String WEB_ON = "stratum.web.enabled";
 
@@ -35,41 +40,76 @@ class WebFluxEnvironmentPostProcessorTest {
     return environment;
   }
 
-  @Test
-  @DisplayName("sets 10MB of disk per part and 50 parts in standard mode")
-  void limitsWhenModuleOn() {
-    var environment = runPostProcessor(standardMode());
+  @Nested
+  @DisplayName("Reactor context propagation")
+  class ReactorContext {
 
-    assertThat(environment.getProperty(DISK_PER_PART)).isEqualTo("10MB");
-    assertThat(environment.getProperty(PARTS)).isEqualTo("50");
+    @Test
+    @DisplayName("has Reactor carry the context into every operator, in both modes")
+    void reactorContextInEveryOperator() {
+      var standard = runPostProcessor(standardMode());
+      var backwardCompatible = runPostProcessor(new MockEnvironment().withProperty(WEB_ON, "true"));
+
+      assertThat(standard.getProperty(REACTOR_CONTEXT_PROPAGATION)).isEqualTo("auto");
+      assertThat(backwardCompatible.getProperty(REACTOR_CONTEXT_PROPAGATION)).isEqualTo("auto");
+    }
+
+    @Test
+    @DisplayName("keeps the service's own Reactor context setting")
+    void serviceReactorSettingWins() {
+      var environment =
+          runPostProcessor(standardMode().withProperty(REACTOR_CONTEXT_PROPAGATION, "limited"));
+
+      assertThat(environment.getProperty(REACTOR_CONTEXT_PROPAGATION)).isEqualTo("limited");
+    }
   }
 
-  @Test
-  @DisplayName("keeps the service's own values")
-  void serviceValuesWin() {
-    var environment =
-        runPostProcessor(
-            standardMode().withProperty(DISK_PER_PART, "25MB").withProperty(PARTS, "5"));
+  @Nested
+  @DisplayName("multipart limits")
+  class MultipartLimits {
 
-    assertThat(environment.getProperty(DISK_PER_PART)).isEqualTo("25MB");
-    assertThat(environment.getProperty(PARTS)).isEqualTo("5");
+    @Test
+    @DisplayName("sets 10MB of disk per part and 50 parts in standard mode")
+    void limitsWhenModuleOn() {
+      var environment = runPostProcessor(standardMode());
+
+      assertThat(environment.getProperty(DISK_PER_PART)).isEqualTo("10MB");
+      assertThat(environment.getProperty(PARTS)).isEqualTo("50");
+    }
+
+    @Test
+    @DisplayName("keeps the service's own values")
+    void serviceValuesWin() {
+      var environment =
+          runPostProcessor(
+              standardMode().withProperty(DISK_PER_PART, "25MB").withProperty(PARTS, "5"));
+
+      assertThat(environment.getProperty(DISK_PER_PART)).isEqualTo("25MB");
+      assertThat(environment.getProperty(PARTS)).isEqualTo("5");
+    }
+
+    @Test
+    @DisplayName("sets no limits in backward-compatible mode, so uploads that worked keep working")
+    void nothingInBackwardCompatibleMode() {
+      var environment = runPostProcessor(new MockEnvironment().withProperty(WEB_ON, "true"));
+
+      assertThat(environment.getProperty(DISK_PER_PART)).isNull();
+      assertThat(environment.getProperty(PARTS)).isNull();
+    }
   }
 
-  @Test
-  @DisplayName("sets nothing in backward-compatible mode, so uploads that worked keep working")
-  void nothingInBackwardCompatibleMode() {
-    var environment = runPostProcessor(new MockEnvironment().withProperty(WEB_ON, "true"));
+  @Nested
+  @DisplayName("when the web module is off")
+  class ModuleOff {
 
-    assertThat(environment.getProperty(DISK_PER_PART)).isNull();
-    assertThat(environment.getProperty(PARTS)).isNull();
-  }
+    @Test
+    @DisplayName("sets nothing when the web module is off")
+    void nothingWhenModuleOff() {
+      var environment = runPostProcessor(new MockEnvironment());
 
-  @Test
-  @DisplayName("sets nothing when the web module is off")
-  void nothingWhenModuleOff() {
-    var environment = runPostProcessor(new MockEnvironment());
-
-    assertThat(environment.getProperty(DISK_PER_PART)).isNull();
-    assertThat(environment.getProperty(PARTS)).isNull();
+      assertThat(environment.getProperty(DISK_PER_PART)).isNull();
+      assertThat(environment.getProperty(PARTS)).isNull();
+      assertThat(environment.getProperty(REACTOR_CONTEXT_PROPAGATION)).isNull();
+    }
   }
 }
