@@ -12,13 +12,18 @@ import java.util.concurrent.TimeUnit;
  * submitted it, as Micrometer's {@code ContextScheduledExecutorService} does, but runs a periodic
  * task without it. A periodic task keeps running long after the code that scheduled it, such as a
  * request, has ended; replaying that request's trace and log fields on every run would tie
- * unrelated work to it.
+ * unrelated work to it. Each periodic run starts with an empty context and leaves the pool thread
+ * as it found it, so fields one run forgets to remove never reach another task.
  */
 public final class OneShotContextScheduledExecutorService
     extends ContextExecutorService<ScheduledExecutorService> implements ScheduledExecutorService {
 
   /** Captures the context from every registered source, as Micrometer's own wrappers do. */
   private static final ContextSnapshotFactory SNAPSHOTS = ContextSnapshotFactory.builder().build();
+
+  /** Makes the empty context of a periodic run, which clears every source while the run lasts. */
+  private static final ContextSnapshotFactory EMPTY_CONTEXT =
+      ContextSnapshotFactory.builder().clearMissing(true).build();
 
   /**
    * Wraps the pool.
@@ -57,7 +62,7 @@ public final class OneShotContextScheduledExecutorService
   }
 
   /**
-   * Runs the task periodically, without the caller's context.
+   * Runs the task periodically, each run with an empty context.
    *
    * @param command the task
    * @param initialDelay how long to wait before the first run
@@ -68,11 +73,11 @@ public final class OneShotContextScheduledExecutorService
   @Override
   public ScheduledFuture<?> scheduleAtFixedRate(
       Runnable command, long initialDelay, long period, TimeUnit unit) {
-    return getExecutorService().scheduleAtFixedRate(command, initialDelay, period, unit);
+    return getExecutorService().scheduleAtFixedRate(isolated(command), initialDelay, period, unit);
   }
 
   /**
-   * Runs the task periodically, without the caller's context.
+   * Runs the task periodically, each run with an empty context.
    *
    * @param command the task
    * @param initialDelay how long to wait before the first run
@@ -83,6 +88,12 @@ public final class OneShotContextScheduledExecutorService
   @Override
   public ScheduledFuture<?> scheduleWithFixedDelay(
       Runnable command, long initialDelay, long delay, TimeUnit unit) {
-    return getExecutorService().scheduleWithFixedDelay(command, initialDelay, delay, unit);
+    return getExecutorService()
+        .scheduleWithFixedDelay(isolated(command), initialDelay, delay, unit);
+  }
+
+  /** Wraps a periodic task so each run starts empty and the thread is restored afterwards. */
+  private Runnable isolated(Runnable command) {
+    return EMPTY_CONTEXT.captureFrom().wrap(command);
   }
 }

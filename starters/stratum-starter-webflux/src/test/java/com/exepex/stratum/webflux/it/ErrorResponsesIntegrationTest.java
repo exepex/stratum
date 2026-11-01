@@ -12,13 +12,15 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
@@ -142,12 +144,18 @@ class ErrorResponsesIntegrationTest {
     assertThat(output).contains(DUPLICATE_ORDER_CODE + ": Order already exists: order 42");
   }
 
+  /**
+   * Each path whose exception has a status of its own and a cause with a mapped code, with the
+   * status and code Spring's status gives.
+   */
+  private static final List<Arguments> STATUSES_OVER_CODE_OF_CAUSE =
+      List.of(
+          Arguments.of("/orders/duplicate-with-status/404", 404, "SX-WEB-1003"),
+          Arguments.of("/orders/duplicate-with-status/500", 500, "SX-WEB-1005"),
+          Arguments.of("/orders/duplicate-gone", 410, "SX-WEB-1004"));
+
   @ParameterizedTest
-  @CsvSource({
-    "/orders/duplicate-with-status/404, 404, SX-WEB-1003",
-    "/orders/duplicate-with-status/500, 500, SX-WEB-1005",
-    "/orders/duplicate-gone, 410, SX-WEB-1004"
-  })
+  @FieldSource("STATUSES_OVER_CODE_OF_CAUSE")
   @DisplayName(
       "a code in the cause of a status Spring is given, even an explicit 500 or @ResponseStatus,"
           + " keeps Spring's answer")

@@ -22,7 +22,6 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
@@ -211,15 +210,18 @@ class ErrorResponseFactoryTest {
   @DisplayName("for a request that failed outside the service's handlers")
   class ForFailedRequest {
 
+    /** Each status with the web code it gets. */
+    private static final List<Arguments> STATUS_CODES =
+        List.of(
+            Arguments.of(400, "SX-WEB-1002"),
+            Arguments.of(404, "SX-WEB-1003"),
+            Arguments.of(413, "SX-WEB-1008"),
+            Arguments.of(405, "SX-WEB-1004"),
+            Arguments.of(499, "SX-WEB-1004"),
+            Arguments.of(500, "SX-WEB-1005"));
+
     @ParameterizedTest(name = "{0} gets {1}")
-    @CsvSource({
-      "400, SX-WEB-1002",
-      "404, SX-WEB-1003",
-      "413, SX-WEB-1008",
-      "405, SX-WEB-1004",
-      "499, SX-WEB-1004",
-      "500, SX-WEB-1005"
-    })
+    @FieldSource("STATUS_CODES")
     @DisplayName("picks the web code of the status")
     void statusGetsItsCode(int status, String expectedCode) {
       var body = factory.forFailedRequest(HttpStatusCode.valueOf(status), null);

@@ -6,11 +6,14 @@ import io.micrometer.context.ContextRegistry;
 import io.micrometer.context.integration.Slf4jThreadLocalAccessor;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
 
@@ -23,6 +26,15 @@ class OneShotContextScheduledExecutorServiceTest {
 
   /** The value the caller's thread holds. */
   private static final String CALLER_VALUE = "from-caller";
+
+  /** What {@code String.valueOf} shows for a field that is not set. */
+  private static final String NOT_SET = "null";
+
+  /** The run of a repeating task that checks what the run before it left behind. */
+  private static final int SECOND_RUN = 2;
+
+  /** An MDC field a repeating task puts and forgets to remove. */
+  private static final String FORGOTTEN_FIELD = "batchId";
 
   /** How long a test waits for a task, so a broken pool fails the test instead of hanging. */
   private static final long WAIT_SECONDS = 5;
@@ -49,40 +61,107 @@ class OneShotContextScheduledExecutorServiceTest {
     MDC.clear();
   }
 
-  @Test
-  @DisplayName("a task that runs once, Runnable or Callable, sees the caller's value")
-  void oneShotTasksCarryContext() throws Exception {
-    MDC.put(FIELD, CALLER_VALUE);
-    var seenByRunnable = new CompletableFuture<String>();
+  @Nested
+  @DisplayName("for a task that runs once")
+  class OneShot {
 
-    pool.schedule(() -> seenByRunnable.complete(MDC.get(FIELD)), 1, TimeUnit.MILLISECONDS);
-    var seenByCallable =
-        pool.schedule(() -> MDC.get(FIELD), 1, TimeUnit.MILLISECONDS)
-            .get(WAIT_SECONDS, TimeUnit.SECONDS);
+    @Test
+    @DisplayName("a task that runs once, Runnable or Callable, sees the caller's value")
+    void oneShotTasksCarryContext() throws Exception {
+      MDC.put(FIELD, CALLER_VALUE);
+      var seenByRunnable = new CompletableFuture<String>();
 
-    assertThat(seenByRunnable.get(WAIT_SECONDS, TimeUnit.SECONDS)).isEqualTo(CALLER_VALUE);
-    assertThat(seenByCallable).isEqualTo(CALLER_VALUE);
+      Runnable recordField = () -> seenByRunnable.complete(MDC.get(FIELD));
+      pool.schedule(recordField, 1, TimeUnit.MILLISECONDS);
+      var seenByCallable =
+          pool.schedule(() -> MDC.get(FIELD), 1, TimeUnit.MILLISECONDS)
+              .get(WAIT_SECONDS, TimeUnit.SECONDS);
+
+      assertThat(seenByRunnable.get(WAIT_SECONDS, TimeUnit.SECONDS)).isEqualTo(CALLER_VALUE);
+      assertThat(seenByCallable).isEqualTo(CALLER_VALUE);
+    }
   }
 
-  @Test
-  @DisplayName("a repeating task, at a fixed rate or with a fixed delay, runs without it")
-  void repeatingTasksRunWithoutContext() throws Exception {
-    MDC.put(FIELD, CALLER_VALUE);
-    var seenAtFixedRate = new CompletableFuture<String>();
-    var seenWithFixedDelay = new CompletableFuture<String>();
+  @Nested
+  @DisplayName("for a repeating task")
+  class Repeating {
 
-    pool.scheduleAtFixedRate(
-        () -> seenAtFixedRate.complete(String.valueOf(MDC.get(FIELD))),
-        1,
-        1,
-        TimeUnit.MILLISECONDS);
-    pool.scheduleWithFixedDelay(
-        () -> seenWithFixedDelay.complete(String.valueOf(MDC.get(FIELD))),
-        1,
-        1,
-        TimeUnit.MILLISECONDS);
+    @Test
+    @DisplayName("a repeating task, at a fixed rate or with a fixed delay, runs without it")
+    void repeatingTasksRunWithoutContext() throws Exception {
+      MDC.put(FIELD, CALLER_VALUE);
+      var seenAtFixedRate = new CompletableFuture<String>();
+      var seenWithFixedDelay = new CompletableFuture<String>();
 
-    assertThat(seenAtFixedRate.get(WAIT_SECONDS, TimeUnit.SECONDS)).isEqualTo("null");
-    assertThat(seenWithFixedDelay.get(WAIT_SECONDS, TimeUnit.SECONDS)).isEqualTo("null");
+      pool.scheduleAtFixedRate(
+          () -> seenAtFixedRate.complete(String.valueOf(MDC.get(FIELD))),
+          1,
+          1,
+          TimeUnit.MILLISECONDS);
+      pool.scheduleWithFixedDelay(
+          () -> seenWithFixedDelay.complete(String.valueOf(MDC.get(FIELD))),
+          1,
+          1,
+          TimeUnit.MILLISECONDS);
+
+      assertThat(seenAtFixedRate.get(WAIT_SECONDS, TimeUnit.SECONDS)).isEqualTo(NOT_SET);
+      assertThat(seenWithFixedDelay.get(WAIT_SECONDS, TimeUnit.SECONDS)).isEqualTo(NOT_SET);
+    }
+
+    @Test
+    @DisplayName("a field a repeating task forgets to remove never reaches its next run")
+    void repeatingTaskLeavesNoFieldBehind() throws Exception {
+      var seenAtFixedRate = secondRunSees(pool::scheduleAtFixedRate);
+      var seenWithFixedDelay = secondRunSees(pool::scheduleWithFixedDelay);
+
+      assertThat(seenAtFixedRate).isEqualTo(NOT_SET);
+      assertThat(seenWithFixedDelay).isEqualTo(NOT_SET);
+    }
+
+    /**
+     * Schedules a repeating task that puts a field and never removes it, and returns what its
+     * second run sees of that field.
+     */
+    private String secondRunSees(RepeatingScheduler scheduler) throws Exception {
+      var runs = new AtomicInteger();
+      var seenBySecondRun = new CompletableFuture<String>();
+      var repeating =
+          scheduler.schedule(
+              () -> recordAndLeaveField(runs, seenBySecondRun), 1, 1, TimeUnit.MILLISECONDS);
+      try {
+        return seenBySecondRun.get(WAIT_SECONDS, TimeUnit.SECONDS);
+      } finally {
+        repeating.cancel(true);
+      }
+    }
+
+    /**
+     * One run of the repeating task: the second run records the field it finds, and every run puts
+     * the field and leaves it behind.
+     */
+    private void recordAndLeaveField(
+        AtomicInteger runs, CompletableFuture<String> seenBySecondRun) {
+      if (runs.incrementAndGet() == SECOND_RUN) {
+        seenBySecondRun.complete(String.valueOf(MDC.get(FORGOTTEN_FIELD)));
+      }
+      MDC.put(FORGOTTEN_FIELD, "left-behind");
+    }
+
+    /** Either of the pool's two ways to schedule a repeating task. */
+    @FunctionalInterface
+    private interface RepeatingScheduler {
+
+      /**
+       * Schedules the task to repeat.
+       *
+       * @param command the task
+       * @param initialDelay how long to wait before the first run
+       * @param interval the period or the delay between runs
+       * @param unit the unit of both
+       * @return the task's future
+       */
+      ScheduledFuture<?> schedule(
+          Runnable command, long initialDelay, long interval, TimeUnit unit);
+    }
   }
 }
