@@ -66,9 +66,9 @@ public enum CoreErrorCode implements ErrorCode {
       ""),
 
   /**
-   * A module's switch is set only in a property source that Spring Boot adds after the module's
-   * startup steps have run, such as a {@code @PropertySource} file, so the module would run half
-   * on. The detail names the switch and the property source.
+   * A module is on, but its switch was not {@code true} yet when the modules' startup steps ran, as
+   * with a switch set only in a {@code @PropertySource} file, so the module would run half on. The
+   * detail names the switch and the property source its value comes from.
    */
   MODULE_SWITCHED_ON_TOO_LATE(
       "SX-CORE-1006",

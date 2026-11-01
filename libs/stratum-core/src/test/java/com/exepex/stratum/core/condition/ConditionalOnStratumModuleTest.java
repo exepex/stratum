@@ -22,6 +22,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.PropertySource;
+import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.StandardEnvironment;
 import org.springframework.core.env.SystemEnvironmentPropertySource;
 
@@ -205,6 +206,25 @@ class ConditionalOnStratumModuleTest {
     void earlySwitchTurnsModuleOn() {
       var application = application(GreetingModule.class);
       application.setDefaultProperties(Map.of(GREETING_SWITCH, true));
+
+      try (var context = application.run()) {
+        assertThat(context.containsBean(GREETING)).isTrue();
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "a switch also set later, as remote configuration does with Spring Cloud's bootstrap,"
+            + " still starts the module, because it was already on")
+    void switchSetEarlyAndAgainLaterTurnsModuleOn() {
+      var application = application(GreetingModule.class);
+      application.setDefaultProperties(Map.of(GREETING_SWITCH, true));
+      application.addInitializers(
+          context ->
+              context
+                  .getEnvironment()
+                  .getPropertySources()
+                  .addFirst(new MapPropertySource("remote-config", Map.of(GREETING_SWITCH, true))));
 
       try (var context = application.run()) {
         assertThat(context.containsBean(GREETING)).isTrue();

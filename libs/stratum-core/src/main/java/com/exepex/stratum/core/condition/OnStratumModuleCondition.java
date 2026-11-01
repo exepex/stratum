@@ -11,6 +11,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionOutcome;
 import org.springframework.boot.autoconfigure.condition.SpringBootCondition;
 import org.springframework.boot.context.properties.source.ConfigurationProperty;
 import org.springframework.boot.context.properties.source.ConfigurationPropertyName;
+import org.springframework.boot.context.properties.source.ConfigurationPropertyName.Form;
 import org.springframework.boot.context.properties.source.ConfigurationPropertySource;
 import org.springframework.boot.context.properties.source.ConfigurationPropertySources;
 import org.springframework.context.annotation.ConditionContext;
@@ -40,7 +41,7 @@ class OnStratumModuleCondition extends SpringBootCondition {
    * @return a match when the module is on, with the reason
    * @throws StratumException {@code SX-CORE-1001} if the module name is not in kebab-case; the
    *     detail names the annotated class or method. {@code SX-CORE-1006} if the module is switched
-   *     on only by a property source added after the modules' startup steps ran
+   *     on now but was off when the modules' startup steps ran
    */
   @Override
   public ConditionOutcome getMatchOutcome(
@@ -57,21 +58,29 @@ class OnStratumModuleCondition extends SpringBootCondition {
   }
 
   /**
-   * Stops startup when the property source that switches the module on was not there when the
-   * modules' startup steps ran. Without the record of {@link EarlyPropertySources}, as in a test
-   * that starts no Spring Boot application, there is nothing to compare, so it does nothing.
+   * Stops startup when the module is on now but was not on when the modules' startup steps ran, so
+   * it would run without its startup defaults and checks. Without the record of {@link
+   * EarlyModuleSwitches}, as in a test that starts no Spring Boot application, there is nothing to
+   * compare, so it does nothing.
    */
   private void requireSwitchReadAtStartup(Environment environment, String property) {
     if (!(environment instanceof ConfigurableEnvironment configurable)) {
       return;
     }
-    var record = configurable.getPropertySources().get(EarlyPropertySources.RECORD);
-    if (record == null
-        || !(record.getProperty(EarlyPropertySources.RECORD) instanceof Set<?> early)) {
-      return;
-    }
+    var record = configurable.getPropertySources().get(EarlyModuleSwitches.RECORD);
     var name = ConfigurationPropertyName.of(property);
-    StreamSupport.stream(ConfigurationPropertySources.get(configurable).spliterator(), false)
+    if (record != null
+        && record.getProperty(EarlyModuleSwitches.RECORD) instanceof Set<?> modulesOnEarly
+        && !modulesOnEarly.contains(name.getElement(1, Form.UNIFORM))) {
+      throw new StratumException(
+          CoreErrorCode.MODULE_SWITCHED_ON_TOO_LATE,
+          property + " in " + sourceOf(configurable, name));
+    }
+  }
+
+  /** Returns the name of the property source the switch's value comes from, for the message. */
+  private String sourceOf(ConfigurableEnvironment environment, ConfigurationPropertyName name) {
+    return StreamSupport.stream(ConfigurationPropertySources.get(environment).spliterator(), false)
         .map(source -> source.getConfigurationProperty(name))
         .filter(Objects::nonNull)
         .findFirst()
@@ -79,12 +88,7 @@ class OnStratumModuleCondition extends SpringBootCondition {
         .map(ConfigurationPropertySource::getUnderlyingSource)
         .filter(PropertySource.class::isInstance)
         .map(source -> ((PropertySource<?>) source).getName())
-        .filter(sourceName -> !early.contains(sourceName))
-        .ifPresent(
-            sourceName -> {
-              throw new StratumException(
-                  CoreErrorCode.MODULE_SWITCHED_ON_TOO_LATE, property + " in " + sourceName);
-            });
+        .orElse("a property source added later");
   }
 
   /** Returns the module name from the annotation and rejects one that is not in kebab-case. */
