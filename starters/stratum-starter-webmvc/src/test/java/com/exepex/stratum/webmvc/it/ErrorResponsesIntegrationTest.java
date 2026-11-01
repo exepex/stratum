@@ -16,6 +16,8 @@ import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
@@ -113,13 +115,13 @@ class ErrorResponsesIntegrationTest {
     assertThat(output).contains(DUPLICATE_ORDER_CODE + ": Order already exists: order 42");
   }
 
-  @Test
-  @DisplayName("a code in the cause of Spring's 404 keeps Spring's status and body")
-  void springStatusWinsOverCodeOfCause() throws Exception {
+  @ParameterizedTest
+  @CsvSource({"404, SX-WEB-1003", "500, SX-WEB-1005"})
+  @DisplayName(
+      "a code in the cause of Spring's status, even an explicit 500, keeps Spring's answer")
+  void springStatusWinsOverCodeOfCause(int status, String code) throws Exception {
     StarterTestSupport.checkProblemDetails(
-        get("/orders/duplicate-not-found", MediaType.APPLICATION_JSON),
-        HttpStatus.NOT_FOUND.value(),
-        WebErrorCode.NOT_FOUND.getCode());
+        get("/orders/duplicate-with-status/" + status, MediaType.APPLICATION_JSON), status, code);
   }
 
   @Test

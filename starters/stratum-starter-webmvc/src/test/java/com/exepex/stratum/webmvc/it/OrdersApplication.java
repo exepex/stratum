@@ -142,14 +142,17 @@ public class OrdersApplication {
     }
 
     /**
-     * Fails with Spring's 404 whose cause has a code the service maps to 409.
+     * Fails with Spring's status set in the path, whose cause has a code the service maps to 409.
      *
+     * @param status the status Spring is given
      * @return never returns
      */
-    @GetMapping("/orders/duplicate-not-found")
-    String duplicateNotFound() {
+    @GetMapping("/orders/duplicate-with-status/{status}")
+    String duplicateWithStatus(@PathVariable int status) {
       throw new ResponseStatusException(
-          HttpStatus.NOT_FOUND, "no order", new StratumException(OrderErrorCode.DUPLICATE_ORDER));
+          HttpStatus.valueOf(status),
+          "no order",
+          new StratumException(OrderErrorCode.DUPLICATE_ORDER));
     }
 
     /**
