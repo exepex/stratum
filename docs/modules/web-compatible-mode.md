@@ -53,14 +53,16 @@ the counter `stratum.web.requests.without.standard.errors` counts each error ans
 Spring Boot's JSON body because the consumer did not ask for `application/problem+json`. Its
 `route` tag is the route the request matched, such as `/orders/{orderId}`, or `UNKNOWN` for a path
 the service has no route for. A browser's page and Stratum's own body are not counted. In
-Prometheus, the routes that still have consumers of the old body, and the check that none has:
+Prometheus, the routes that answered with Spring Boot's body in the last 7 days:
 
 ```text
-sum by (route) (increase(stratum_web_requests_without_standard_errors_total[24h])) > 0
-sum(increase(stratum_web_requests_without_standard_errors_total[7d])) == 0
+max by (route) (max_over_time(stratum_web_requests_without_standard_errors_total[7d])) > 0
 ```
 
-Once the second query holds for as long as your slowest consumer takes to call each route, set
+A route's series appears only with its first such answer, so the query checks whether a series
+exists in the window; `increase()` would miss a route whose only answer started its series. A pod
+that answered once keeps its series until it restarts, so the query can only err towards "not yet".
+Once it returns nothing for as long as your slowest consumer takes to call each route, set
 `stratum.web.backward-compatible=false`.
 
 ## Stack traces in the error body
