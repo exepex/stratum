@@ -3,6 +3,7 @@ package com.exepex.stratum.core.condition;
 import com.exepex.stratum.core.error.CoreErrorCode;
 import com.exepex.stratum.core.error.StratumException;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.StreamSupport;
@@ -14,6 +15,7 @@ import org.springframework.boot.context.properties.source.ConfigurationPropertyN
 import org.springframework.boot.context.properties.source.ConfigurationPropertyName.Form;
 import org.springframework.boot.context.properties.source.ConfigurationPropertySource;
 import org.springframework.boot.context.properties.source.ConfigurationPropertySources;
+import org.springframework.boot.context.properties.source.IterableConfigurationPropertySource;
 import org.springframework.context.annotation.ConditionContext;
 import org.springframework.core.annotation.MergedAnnotation;
 import org.springframework.core.env.ConfigurableEnvironment;
@@ -60,7 +62,9 @@ class OnStratumModuleCondition extends SpringBootCondition {
    * Stops startup when the module is on now but was off when the modules' startup steps ran, so it
    * would run without its startup defaults and checks, or the other way round, so its defaults
    * would apply without its beans. Without the record of {@link EarlyModuleSwitches}, as in a test
-   * that starts no Spring Boot application, there is nothing to compare, so it does nothing.
+   * that starts no Spring Boot application, there is nothing to compare, so it does nothing. Nor
+   * does it when the switch's value comes from a property source that cannot list its keys, which
+   * the record cannot see.
    */
   private void requireSameSwitchAsAtStartup(
       Environment environment, String property, boolean enabled) {
@@ -69,27 +73,35 @@ class OnStratumModuleCondition extends SpringBootCondition {
     }
     var record = configurable.getPropertySources().get(EarlyModuleSwitches.RECORD);
     var name = ConfigurationPropertyName.of(property);
+    var source = sourceOf(configurable, name);
     if (record != null
         && record.getProperty(EarlyModuleSwitches.RECORD) instanceof Set<?> modulesOnEarly
-        && modulesOnEarly.contains(name.getElement(1, Form.UNIFORM)) != enabled) {
+        && modulesOnEarly.contains(name.getElement(1, Form.UNIFORM)) != enabled
+        && source.map(IterableConfigurationPropertySource.class::isInstance).orElse(true)) {
       throw new StratumException(
           enabled
               ? CoreErrorCode.MODULE_SWITCHED_ON_TOO_LATE
               : CoreErrorCode.MODULE_SWITCHED_OFF_TOO_LATE,
-          property + " in " + sourceOf(configurable, name));
+          property + " in " + nameOf(source));
     }
   }
 
-  /** Returns the name of the property source the switch's value comes from, for the message. */
-  private String sourceOf(ConfigurableEnvironment environment, ConfigurationPropertyName name) {
+  /** Returns the property source the switch's value comes from, if it is set. */
+  private Optional<ConfigurationPropertySource> sourceOf(
+      ConfigurableEnvironment environment, ConfigurationPropertyName name) {
     return StreamSupport.stream(ConfigurationPropertySources.get(environment).spliterator(), false)
         .map(source -> source.getConfigurationProperty(name))
         .filter(Objects::nonNull)
         .findFirst()
-        .map(ConfigurationProperty::getSource)
+        .map(ConfigurationProperty::getSource);
+  }
+
+  /** Returns the name of the property source, for the message. */
+  private String nameOf(Optional<ConfigurationPropertySource> source) {
+    return source
         .map(ConfigurationPropertySource::getUnderlyingSource)
         .filter(PropertySource.class::isInstance)
-        .map(source -> ((PropertySource<?>) source).getName())
+        .map(underlying -> ((PropertySource<?>) underlying).getName())
         .orElse("a property source added later");
   }
 

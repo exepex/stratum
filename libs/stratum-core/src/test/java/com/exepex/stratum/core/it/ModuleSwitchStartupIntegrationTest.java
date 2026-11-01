@@ -91,6 +91,19 @@ class ModuleSwitchStartupIntegrationTest {
     }
 
     @Test
+    @DisplayName("in a property source that cannot list its keys, turns the module on")
+    void switchInUnlistedSourceTurnsModuleOn() {
+      var environment = new StandardEnvironment();
+      environment.getPropertySources().addFirst(new SingleSwitchSource());
+      var application = application(HttpClientModule.class);
+      application.setEnvironment(environment);
+
+      try (var context = application.run()) {
+        assertThat(context.containsBean(CLIENT)).isTrue();
+      }
+    }
+
+    @Test
     @DisplayName("with a value that is not a boolean, for a module the service lacks, is ignored")
     void badSwitchOfMissingModuleIsIgnored() {
       var application = application(HttpClientModule.class);
@@ -132,6 +145,26 @@ class ModuleSwitchStartupIntegrationTest {
         .isInstanceOf(StratumException.class)
         .withMessageStartingWith("SX-CORE-1007: ")
         .withMessageContaining(CLIENT_SWITCH + " in remote-config");
+  }
+
+  /** A property source that answers only the test module's switch and cannot list its keys. */
+  static class SingleSwitchSource extends org.springframework.core.env.PropertySource<Object> {
+
+    /** Names the source. */
+    SingleSwitchSource() {
+      super("single-switch");
+    }
+
+    /**
+     * Returns {@code true} for the test module's switch.
+     *
+     * @param name the property's name
+     * @return the value, or {@code null} for any other property
+     */
+    @Override
+    public Object getProperty(String name) {
+      return CLIENT_SWITCH.equals(name) ? "true" : null;
+    }
   }
 
   /** A service that switches the test module on only in a {@code @PropertySource} file. */
