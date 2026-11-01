@@ -34,6 +34,9 @@ public class StratumErrorAttributes extends DefaultErrorAttributes {
   /** The member of Spring Boot's error attributes that holds the status. */
   private static final String STATUS = "status";
 
+  /** The member of Spring Boot's error attributes that holds the status's reason phrase. */
+  private static final String ERROR = "error";
+
   /**
    * The request attribute that keeps Stratum's body once made, so that a second read, as when a
    * browser's page falls back to the JSON body, does not log the failure again. Only a request that
@@ -64,7 +67,7 @@ public class StratumErrorAttributes extends DefaultErrorAttributes {
       ServerRequest request, ErrorAttributeOptions options) {
     var madeBody = request.attribute(BODY_ATTRIBUTE).map(ProblemDetail.class::cast);
     if (madeBody.isEmpty() && !answersWithStandardBody(request)) {
-      return super.getErrorAttributes(request, options);
+      return bootAttributes(request, options);
     }
     var body = madeBody.orElseGet(() -> bodyOf(request));
     request.attributes().put(BODY_ATTRIBUTE, body);
@@ -118,10 +121,28 @@ public class StratumErrorAttributes extends DefaultErrorAttributes {
             .isPresent(ResponseStatus.class);
   }
 
-  /** Returns the status Spring Boot gives the failed request. */
+  /** Returns the status the failed request is answered with. */
   private HttpStatusCode statusOf(ServerRequest request) {
-    var bootAttributes =
-        super.getErrorAttributes(request, ErrorAttributeOptions.of(Include.STATUS));
-    return HttpStatusCode.valueOf((Integer) bootAttributes.get(STATUS));
+    return HttpStatusCode.valueOf(
+        (Integer) bootAttributes(request, ErrorAttributeOptions.of(Include.STATUS)).get(STATUS));
+  }
+
+  /**
+   * Returns Spring Boot's error attributes, with the status of a failure that is an {@link
+   * ErrorResponse}, such as {@code ErrorResponseException}. Spring Boot's WebFlux error handling
+   * reads the status only from a {@code ResponseStatusException} or {@link ResponseStatus}, and
+   * would answer 500, where Spring MVC answers with the failure's own status.
+   */
+  private Map<String, Object> bootAttributes(ServerRequest request, ErrorAttributeOptions options) {
+    var attributes = super.getErrorAttributes(request, options);
+    if (getError(request) instanceof ErrorResponse errorResponse
+        && attributes.containsKey(STATUS)) {
+      var status = errorResponse.getStatusCode();
+      attributes.put(STATUS, status.value());
+      if (attributes.containsKey(ERROR)) {
+        attributes.put(ERROR, errorResponseFactory.reasonPhraseOf(status));
+      }
+    }
+    return attributes;
   }
 }

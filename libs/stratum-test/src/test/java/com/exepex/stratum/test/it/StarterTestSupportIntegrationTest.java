@@ -156,7 +156,8 @@ class StarterTestSupportIntegrationTest {
     void acceptsCompatibleAnswers() throws IOException, InterruptedException {
       BackwardCompatibleErrorChecks.checkBootBody(port(), UNKNOWN_PATH);
       BackwardCompatibleErrorChecks.checkOptedInBody(port(), UNKNOWN_PATH, "SX-TEST-1001");
-      BackwardCompatibleErrorChecks.checkBrowserPage(port(), UNKNOWN_PATH);
+      BackwardCompatibleErrorChecks.checkBrowserPage(
+          port(), UNKNOWN_PATH, HttpURLConnection.HTTP_NOT_FOUND, "Not Found");
       BackwardCompatibleErrorChecks.checkCodedFailureBody(
           port(), "/refused", HttpURLConnection.HTTP_ENTITY_TOO_LARGE, TOO_LARGE_CODE);
     }

@@ -56,6 +56,26 @@ class BackwardCompatibleErrorsIntegrationTest {
     }
 
     @Test
+    @DisplayName("keeps Spring Boot's body with an ErrorResponseException's own status, 400")
+    void errorResponseKeepsItsStatus() throws Exception {
+      BackwardCompatibleErrorChecks.checkBootBodyStatus(
+          port,
+          OrdersApplication.INVALID_STATE_PATH,
+          HttpStatus.BAD_REQUEST.value(),
+          HttpStatus.BAD_REQUEST.getReasonPhrase());
+    }
+
+    @Test
+    @DisplayName("gives an unnamed status, 499, the phrase Spring MVC gives: Http Status 499")
+    void unlistedStatusKeepsBootPhrase() throws Exception {
+      BackwardCompatibleErrorChecks.checkBootBodyStatus(
+          port,
+          OrdersApplication.UNLISTED_STATUS_PATH,
+          OrdersApplication.UNLISTED_STATUS,
+          "Http Status " + OrdersApplication.UNLISTED_STATUS);
+    }
+
+    @Test
     @DisplayName("gets Stratum's body for a consumer that asks for application/problem+json")
     void optedInConsumerGetsStandardBody() throws Exception {
       BackwardCompatibleErrorChecks.checkOptedInBody(
@@ -65,7 +85,8 @@ class BackwardCompatibleErrorsIntegrationTest {
     @Test
     @DisplayName("gives a browser Stratum's page, titled from Spring Boot's body, with a reference")
     void browserGetsReferencePage() throws Exception {
-      BackwardCompatibleErrorChecks.checkBrowserPage(port, UNKNOWN_PATH);
+      BackwardCompatibleErrorChecks.checkBrowserPage(
+          port, UNKNOWN_PATH, HttpStatus.NOT_FOUND.value(), HttpStatus.NOT_FOUND.getReasonPhrase());
     }
   }
 

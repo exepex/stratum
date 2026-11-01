@@ -17,6 +17,9 @@ import org.springframework.web.servlet.View;
  */
 public class ReferenceErrorPage implements View {
 
+  /** The model's member that holds the status the page is answered with. */
+  private static final String STATUS = "status";
+
   /**
    * Returns the page's content type.
    *
@@ -42,6 +45,11 @@ public class ReferenceErrorPage implements View {
       throws IOException {
     if (response.isCommitted()) {
       return;
+    }
+    if (model != null && model.get(STATUS) instanceof Integer status) {
+      // Spring Boot's error controller answers 500 for a status HttpStatus does not list, such as
+      // 499, while the model keeps the thrown status; the page is answered with the model's.
+      response.setStatus(status);
     }
     response.setContentType(getContentType());
     // ReferencePage has escaped every value in the page.

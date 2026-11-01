@@ -180,6 +180,19 @@ public class ErrorResponseFactory {
   }
 
   /**
+   * Returns the status's reason phrase, or Spring MVC's {@code Http Status 499} for a status that
+   * {@code HttpStatus} does not list, so that both stacks name it the same way.
+   *
+   * @param status the status
+   * @return its reason phrase
+   */
+  public String reasonPhraseOf(HttpStatusCode status) {
+    return Optional.ofNullable(HttpStatus.resolve(status.value()))
+        .map(HttpStatus::getReasonPhrase)
+        .orElse("Http Status " + status.value());
+  }
+
+  /**
    * Returns whether the failure carries an error code, itself or in one of its causes.
    *
    * @param failure what the request failed with
@@ -263,6 +276,7 @@ public class ErrorResponseFactory {
   /** Returns the Problem Details body of an external error. */
   private ProblemDetail bodyOf(ExternalError external, HttpStatusCode status) {
     var body = ProblemDetail.forStatusAndDetail(status, external.message());
+    body.setTitle(reasonPhraseOf(status));
     body.setProperty(WebConstants.CODE, external.code());
     body.setProperty(WebConstants.SEVERITY, external.severity());
     if (!external.details().isEmpty()) {

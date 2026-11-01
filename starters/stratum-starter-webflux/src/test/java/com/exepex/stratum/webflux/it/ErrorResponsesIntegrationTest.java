@@ -3,6 +3,7 @@ package com.exepex.stratum.webflux.it;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.error.LoggingContextConstants;
+import com.exepex.stratum.test.BackwardCompatibleErrorChecks;
 import com.exepex.stratum.test.StarterTestSupport;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebErrorCode;
@@ -224,6 +225,37 @@ class ErrorResponsesIntegrationTest {
     }
 
     @Test
+    @DisplayName("an ErrorResponseException gets its own status, 400 and SX-WEB-1002, as on MVC")
+    void errorResponseKeepsItsStatus() throws Exception {
+      StarterTestSupport.checkProblemDetails(
+          get(OrdersApplication.INVALID_STATE_PATH, MediaType.APPLICATION_JSON),
+          HttpStatus.BAD_REQUEST.value(),
+          WebErrorCode.UNREADABLE_REQUEST.getCode());
+    }
+
+    @Test
+    @DisplayName(
+        "an ErrorResponseException with an unnamed status, 499, keeps it, with SX-WEB-1004")
+    void unlistedStatusKeepsItsStatus() throws Exception {
+      StarterTestSupport.checkProblemDetails(
+          get(OrdersApplication.UNLISTED_STATUS_PATH, MediaType.APPLICATION_JSON),
+          OrdersApplication.UNLISTED_STATUS,
+          WebErrorCode.REQUEST_FAILED.getCode());
+    }
+
+    @Test
+    @DisplayName("a method the path does not allow still gets Spring's 405 and SX-WEB-1004")
+    void methodNotAllowed() throws Exception {
+      StarterTestSupport.checkProblemDetails(
+          send(
+              HttpRequest.newBuilder(uri(DUPLICATE_PATH))
+                  .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
+                  .DELETE()),
+          HttpStatus.METHOD_NOT_ALLOWED.value(),
+          WebErrorCode.REQUEST_FAILED.getCode());
+    }
+
+    @Test
     @DisplayName("an unexpected exception gets SX-WEB-1005 and none of its message")
     void unexpectedException() throws Exception {
       var response = get("/orders/broken", MediaType.APPLICATION_JSON);
@@ -271,21 +303,38 @@ class ErrorResponsesIntegrationTest {
     @Test
     @DisplayName("a browser gets an HTML page with the trace ID as its reference")
     void browserGetsReferencePage() throws Exception {
-      var response = get("/no-such-path", MediaType.TEXT_HTML);
+      var response = checkReferencePage("/no-such-path", HttpStatus.NOT_FOUND);
 
-      assertThat(response.statusCode()).isEqualTo(HttpStatus.NOT_FOUND.value());
       assertThat(response.headers().firstValue(HttpHeaders.CONTENT_TYPE))
           .hasValueSatisfying(type -> assertThat(type).startsWith(MediaType.TEXT_HTML_VALUE));
-      assertThat(response.body()).contains("Not Found").containsPattern("Reference: <code>\\w{32}");
     }
 
     @Test
     @DisplayName("a browser gets the HTML page with the mapped status for a StratumException")
     void browserGetsReferencePageForStratumException() throws Exception {
-      var response = get(DUPLICATE_PATH, MediaType.TEXT_HTML);
+      checkReferencePage(DUPLICATE_PATH, HttpStatus.CONFLICT);
+    }
 
-      assertThat(response.statusCode()).isEqualTo(HttpStatus.CONFLICT.value());
-      assertThat(response.body()).contains("Conflict").containsPattern("Reference: <code>\\w{32}");
+    @Test
+    @DisplayName("a browser gets the HTML page with the mapped status for a FailureWithErrorCode")
+    void browserGetsReferencePageForFailureWithErrorCode() throws Exception {
+      checkReferencePage("/orders/duplicate-existing", HttpStatus.CONFLICT);
+    }
+
+    @Test
+    @DisplayName("a browser gets the HTML page with an ErrorResponseException's own status")
+    void browserGetsReferencePageForErrorResponse() throws Exception {
+      checkReferencePage(OrdersApplication.INVALID_STATE_PATH, HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    @DisplayName("a browser gets the HTML page with an unnamed status, 499")
+    void browserGetsReferencePageForUnlistedStatus() throws Exception {
+      BackwardCompatibleErrorChecks.checkBrowserPage(
+          port,
+          OrdersApplication.UNLISTED_STATUS_PATH,
+          OrdersApplication.UNLISTED_STATUS,
+          "Http Status " + OrdersApplication.UNLISTED_STATUS);
     }
   }
 
@@ -314,6 +363,13 @@ class ErrorResponsesIntegrationTest {
           HttpStatus.UNAUTHORIZED.value(),
           WebErrorCode.REQUEST_FAILED.getCode());
     }
+  }
+
+  /** Checks the browser page for the path, with the status and its reason phrase. */
+  private HttpResponse<String> checkReferencePage(String path, HttpStatus status)
+      throws IOException, InterruptedException {
+    return BackwardCompatibleErrorChecks.checkBrowserPage(
+        port, path, status.value(), status.getReasonPhrase());
   }
 
   /** Sends a GET that accepts the given media type. */
