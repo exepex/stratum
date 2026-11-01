@@ -116,20 +116,23 @@ class OneShotContextScheduledExecutorServiceTest {
     var seenBySecondRun = new CompletableFuture<String>();
     var repeating =
         scheduler.schedule(
-            () -> {
-              if (runs.incrementAndGet() == SECOND_RUN) {
-                seenBySecondRun.complete(String.valueOf(MDC.get(FORGOTTEN_FIELD)));
-              }
-              MDC.put(FORGOTTEN_FIELD, "left-behind");
-            },
-            1,
-            1,
-            TimeUnit.MILLISECONDS);
+            () -> recordAndLeaveField(runs, seenBySecondRun), 1, 1, TimeUnit.MILLISECONDS);
     try {
       return seenBySecondRun.get(WAIT_SECONDS, TimeUnit.SECONDS);
     } finally {
       repeating.cancel(true);
     }
+  }
+
+  /**
+   * One run of the repeating task: the second run records the field it finds, and every run puts
+   * the field and leaves it behind.
+   */
+  private void recordAndLeaveField(AtomicInteger runs, CompletableFuture<String> seenBySecondRun) {
+    if (runs.incrementAndGet() == SECOND_RUN) {
+      seenBySecondRun.complete(String.valueOf(MDC.get(FORGOTTEN_FIELD)));
+    }
+    MDC.put(FORGOTTEN_FIELD, "left-behind");
   }
 
   /** Either of the pool's two ways to schedule a repeating task. */
