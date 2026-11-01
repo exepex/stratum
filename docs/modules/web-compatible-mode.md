@@ -16,7 +16,7 @@ have moved. A new service sets `false` from the start.
 ## Error bodies
 
 `stratum.web.backward-compatible` is `true` by default, so adding the starter to a running service
-never changes the error body its consumers already read. An error that Spring or Spring Boot
+keeps the error body its consumers already read, apart from the two statuses below. An error that Spring or Spring Boot
 answers, such as an unknown path, a failed validation or an unexpected exception, keeps Spring
 Boot's body, as before Stratum:
 
