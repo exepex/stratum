@@ -59,7 +59,7 @@ public class StratumErrorAttributes extends DefaultErrorAttributes {
             .map(List::of)
             .orElseGet(List::of);
     if (!errorResponseFactory.answersWithStandardBody(getError(webRequest), acceptHeaders)) {
-      return super.getErrorAttributes(webRequest, errorResponseFactory.withoutDiagnostics(options));
+      return super.getErrorAttributes(webRequest, options);
     }
     var bootAttributes =
         super.getErrorAttributes(webRequest, ErrorAttributeOptions.of(Include.STATUS));

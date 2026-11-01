@@ -62,9 +62,8 @@ and everything else works the same.
 
 With `stratum.web.backward-compatible`, `true` by default, an error that Spring answers keeps
 Spring Boot's body unless the consumer sends `Accept: application/problem+json`, so existing
-consumers see no change; it never shows a stack trace, an exception, its message or binding errors, even when
-`spring.web.error.include-*` turns them on. Errors with a code, timeouts and bodies too large
-always get the body below. See [Existing consumers keep their error body](../../docs/modules/web.md#existing-consumers-keep-their-error-body).
+consumers see no change. Errors with a code, timeouts and bodies too large always get the body
+below. See [Existing consumers keep their error body](../../docs/modules/web-compatible-mode.md).
 
 Stratum's body is sent with the media type `application/problem+json`:
 

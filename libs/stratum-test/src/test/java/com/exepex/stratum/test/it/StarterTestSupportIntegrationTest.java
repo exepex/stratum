@@ -52,16 +52,6 @@ class StarterTestSupportIntegrationTest {
   private static final String REFERENCE_PAGE =
       "<title>Not Found</title><p>Reference: <code>" + TRACE_ID + "</code></p>";
 
-  /** Spring Boot's body for an invalid request body, without its binding errors. */
-  private static final String INVALID_BODY = "{\"status\":400,\"error\":\"Bad Request\"}";
-
-  /** A value an invalid request body holds, which the answer must not quote. */
-  private static final String REJECTED_VALUE = "DE89370400440532013000";
-
-  /** An invalid request body that holds the rejected value. */
-  private static final String INVALID_REQUEST_BODY =
-      String.format("{\"account\":\"%s\"}", REJECTED_VALUE);
-
   private HttpServer server;
 
   /** Starts a server that echoes a header, reads a body, or refuses a body as too large. */
@@ -94,17 +84,15 @@ class StarterTestSupportIntegrationTest {
                 TOO_LARGE_BODY));
     server.createContext(UNKNOWN_PATH, this::answerUnknownPath);
     server.createContext(
-        "/invalid",
-        exchange ->
-            answer(exchange, HttpURLConnection.HTTP_BAD_REQUEST, "application/json", INVALID_BODY));
-    server.createContext(
-        "/leaky",
+        "/coded",
         exchange ->
             answer(
                 exchange,
                 HttpURLConnection.HTTP_NOT_FOUND,
                 "application/json",
-                BOOT_BODY.replace("}", ",\"trace\":\"at Orders.find\"}")));
+                BOOT_BODY
+                    .replace(UNKNOWN_PATH, "/coded")
+                    .replace("}", ",\"code\":\"SX-TEST-1001\"}")));
     server.start();
   }
 
@@ -166,17 +154,15 @@ class StarterTestSupportIntegrationTest {
       BackwardCompatibleErrorChecks.checkBootBody(port(), UNKNOWN_PATH);
       BackwardCompatibleErrorChecks.checkOptedInBody(port(), UNKNOWN_PATH, "SX-TEST-1001");
       BackwardCompatibleErrorChecks.checkBrowserPage(port(), UNKNOWN_PATH);
-      BackwardCompatibleErrorChecks.checkInvalidBodyHidesValue(
-          port(), "/invalid", INVALID_REQUEST_BODY, REJECTED_VALUE);
       BackwardCompatibleErrorChecks.checkCodedFailureBody(
           port(), "/refused", HttpURLConnection.HTTP_ENTITY_TOO_LARGE, TOO_LARGE_CODE);
     }
 
     @Test
-    @DisplayName("rejects Spring Boot's body when it shows a stack trace")
-    void rejectsStackTrace() {
+    @DisplayName("rejects a body that holds a Stratum code where Spring Boot's is expected")
+    void rejectsStratumCode() {
       assertThatExceptionOfType(AssertionError.class)
-          .isThrownBy(() -> BackwardCompatibleErrorChecks.checkBootBody(port(), "/leaky"));
+          .isThrownBy(() -> BackwardCompatibleErrorChecks.checkBootBody(port(), "/coded"));
     }
   }
 

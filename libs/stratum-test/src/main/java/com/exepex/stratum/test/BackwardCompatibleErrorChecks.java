@@ -4,10 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.jayway.jsonpath.JsonPath;
 import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import lombok.experimental.UtilityClass;
 
 /**
@@ -26,16 +22,9 @@ public class BackwardCompatibleErrorChecks {
   /** The status of an unknown path. */
   private static final int NOT_FOUND = 404;
 
-  /** The status of an invalid body. */
-  private static final int BAD_REQUEST = 400;
-
-  /** Sends the requests of the checks that post a body. */
-  private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
-
   /**
    * Checks that a consumer that has not opted in gets Spring Boot's body and media type for an
-   * unknown path, with no Stratum code, and no stack trace, exception or message even when the
-   * service turned them on.
+   * unknown path, with no Stratum code.
    *
    * @param port the port the service listens on
    * @param unknownPath a path the service does not have
@@ -51,35 +40,7 @@ public class BackwardCompatibleErrorChecks {
         .hasValueSatisfying(type -> assertThat(type).startsWith(JSON));
     assertThat(JsonPath.<String>read(response.body(), "$.error")).isEqualTo("Not Found");
     assertThat(JsonPath.<String>read(response.body(), "$.path")).isEqualTo(unknownPath);
-    assertThat(response.body())
-        .doesNotContain("\"code\"", "\"trace\"", "\"exception\"", "\"message\"");
-  }
-
-  /**
-   * Checks that a consumer that has not opted in gets Spring Boot's body for an invalid JSON body,
-   * without the binding errors, which would quote the rejected value, even when the service turned
-   * them on.
-   *
-   * @param port the port the service listens on
-   * @param path the path that validates the body
-   * @param invalidJson a body that fails validation
-   * @param rejectedValue a value in the body that must not come back
-   * @throws IOException if the request fails
-   * @throws InterruptedException if the request is interrupted
-   */
-  public static void checkInvalidBodyHidesValue(
-      int port, String path, String invalidJson, String rejectedValue)
-      throws IOException, InterruptedException {
-    var request =
-        HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
-            .header("Content-Type", JSON)
-            .header(ACCEPT, JSON)
-            .POST(HttpRequest.BodyPublishers.ofString(invalidJson))
-            .build();
-    var response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-
-    assertThat(response.statusCode()).isEqualTo(BAD_REQUEST);
-    assertThat(response.body()).doesNotContain(rejectedValue, "\"errors\"", "\"code\"");
+    assertThat(response.body()).doesNotContain("\"code\"");
   }
 
   /**

@@ -15,10 +15,6 @@ import org.springframework.http.HttpStatus;
     properties = {
       "stratum.web.enabled=true",
       "stratum.web.error.statuses.ORD-0001=409",
-      "spring.web.error.include-stacktrace=always",
-      "spring.web.error.include-exception=true",
-      "spring.web.error.include-message=always",
-      "spring.web.error.include-binding-errors=always",
       "stratum.observability.enabled=true",
       "management.tracing.sampling.probability=1.0",
       "management.tracing.export.enabled=false",
@@ -39,19 +35,9 @@ class BackwardCompatibleErrorsIntegrationTest {
   class SpringError {
 
     @Test
-    @DisplayName("keeps Spring Boot's body, without diagnostics, for a consumer not opted in")
+    @DisplayName("keeps Spring Boot's body and media type for a consumer that has not opted in")
     void keepsBootBody() throws Exception {
       BackwardCompatibleErrorChecks.checkBootBody(port, UNKNOWN_PATH);
-    }
-
-    @Test
-    @DisplayName("keeps Spring Boot's body for an invalid body, without the rejected value")
-    void invalidBodyHidesValue() throws Exception {
-      BackwardCompatibleErrorChecks.checkInvalidBodyHidesValue(
-          port,
-          "/orders",
-          "{\"quantity\":0,\"account\":\"" + OrdersApplication.IBAN + "\"}",
-          OrdersApplication.IBAN);
     }
 
     @Test
@@ -73,5 +59,12 @@ class BackwardCompatibleErrorsIntegrationTest {
   void stratumExceptionGetsStandardBody() throws Exception {
     BackwardCompatibleErrorChecks.checkCodedFailureBody(
         port, "/orders/duplicate", HttpStatus.CONFLICT.value(), "ORD-0001");
+  }
+
+  @Test
+  @DisplayName("a StratumException wrapped in an exception with no status gets Stratum's body too")
+  void wrappedStratumExceptionGetsStandardBody() throws Exception {
+    BackwardCompatibleErrorChecks.checkCodedFailureBody(
+        port, "/orders/duplicate-wrapped", HttpStatus.CONFLICT.value(), "ORD-0001");
   }
 }

@@ -64,7 +64,7 @@ public class StratumErrorAttributes extends DefaultErrorAttributes {
       ServerRequest request, ErrorAttributeOptions options) {
     var madeBody = request.attribute(BODY_ATTRIBUTE).map(ProblemDetail.class::cast);
     if (madeBody.isEmpty() && !answersWithStandardBody(request)) {
-      return super.getErrorAttributes(request, errorResponseFactory.withoutDiagnostics(options));
+      return super.getErrorAttributes(request, options);
     }
     var body = madeBody.orElseGet(() -> bodyOf(request));
     request.attributes().put(BODY_ATTRIBUTE, body);

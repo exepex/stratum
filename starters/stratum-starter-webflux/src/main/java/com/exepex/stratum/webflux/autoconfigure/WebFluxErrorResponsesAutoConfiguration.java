@@ -4,6 +4,7 @@ import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.properties.StratumCustomizers;
 import com.exepex.stratum.web.ErrorResponseFactory;
+import com.exepex.stratum.web.StackTraceExposureWarning;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebProperties;
 import com.exepex.stratum.web.autoconfigure.WebSettingsConfiguration;
@@ -26,6 +27,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Fallback;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.annotation.Order;
+import org.springframework.core.env.Environment;
 import org.springframework.http.codec.ServerCodecConfigurer;
 import org.springframework.web.reactive.result.view.ViewResolver;
 
@@ -53,6 +55,20 @@ public final class WebFluxErrorResponsesAutoConfiguration {
    */
   public WebFluxErrorResponsesAutoConfiguration(ListableBeanFactory beanFactory) {
     StratumCustomizers.rejectBeans(beanFactory);
+  }
+
+  /**
+   * Warns once at startup when Spring Boot's error body, kept in backward-compatible mode, shows
+   * stack traces or exception classes.
+   *
+   * @param webProperties the web module's settings
+   * @param environment where Spring Boot's error settings are read from
+   * @return the warning
+   */
+  @Bean
+  public StackTraceExposureWarning stackTraceExposureWarning(
+      WebProperties webProperties, Environment environment) {
+    return new StackTraceExposureWarning(webProperties, environment);
   }
 
   /**
