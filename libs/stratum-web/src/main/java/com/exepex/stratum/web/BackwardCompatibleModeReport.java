@@ -39,8 +39,8 @@ public class BackwardCompatibleModeReport implements SmartInitializingSingleton 
       log.info(
           "{} is true: errors that Spring answers keep Spring Boot's body unless the consumer sends"
               + " Accept: application/problem+json, and no time or body size limit applies unless"
-              + " set. The counter {} shows which routes still answer with Spring Boot's body; set"
-              + " the property to false once it stays at 0.",
+              + " set. When the service has Micrometer, the counter {} shows which routes still"
+              + " answer with Spring Boot's body; set the property to false once it stays at 0.",
           WebConstants.BACKWARD_COMPATIBLE,
           WebConstants.BOOT_ERROR_BODY_COUNTER);
     }

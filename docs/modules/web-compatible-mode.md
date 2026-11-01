@@ -52,14 +52,15 @@ the property to `false`.
 While the mode is on, the service logs one INFO line at every start that says what the mode does:
 
 ```text
-INFO  BackwardCompatibleModeReport : stratum.web.backward-compatible is true: errors that Spring answers keep Spring Boot's body unless the consumer sends Accept: application/problem+json, and no time or body size limit applies unless set. The counter stratum.web.requests.without.standard.errors shows which routes still answer with Spring Boot's body; set the property to false once it stays at 0.
+INFO  BackwardCompatibleModeReport : stratum.web.backward-compatible is true: errors that Spring answers keep Spring Boot's body unless the consumer sends Accept: application/problem+json, and no time or body size limit applies unless set. When the service has Micrometer, the counter stratum.web.requests.without.standard.errors shows which routes still answer with Spring Boot's body; set the property to false once it stays at 0.
 ```
 
 When the service has Micrometer, as the observability starter and Spring Boot's actuator bring it,
 the counter `stratum.web.requests.without.standard.errors` counts each error answer that kept
 Spring Boot's JSON body because the consumer did not ask for `application/problem+json`. Its
 `route` tag is the route the request matched, such as `/orders/{orderId}`, or `UNKNOWN` for a path
-the service has no route for. A browser's page and Stratum's own body are not counted. In
+the service has no route for. A request that a filter rejects before Spring matches a route, as
+Spring Security's filters do, is counted under `UNKNOWN` too. A browser's page and Stratum's own body are not counted. In
 Prometheus, the routes that answered with Spring Boot's body in the last 7 days:
 
 ```text

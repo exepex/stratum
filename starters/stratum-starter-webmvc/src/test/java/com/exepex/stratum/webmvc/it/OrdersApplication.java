@@ -38,7 +38,8 @@ import org.springframework.web.server.ResponseStatusException;
 @Import({
   OrdersApplication.OrdersController.class,
   OrdersApplication.ServiceErrorHandlers.class,
-  OrdersApplication.FailingFilter.class
+  OrdersApplication.FailingFilter.class,
+  RejectingInterceptor.class
 })
 public class OrdersApplication {
 

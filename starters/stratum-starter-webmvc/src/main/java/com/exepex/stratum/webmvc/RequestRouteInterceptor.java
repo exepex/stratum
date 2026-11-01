@@ -5,6 +5,7 @@ import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.MDC;
+import org.springframework.core.Ordered;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
@@ -27,13 +28,14 @@ public class RequestRouteInterceptor implements HandlerInterceptor, WebMvcConfig
   static final String ROUTE_ATTRIBUTE = RequestRouteInterceptor.class.getName() + ".route";
 
   /**
-   * Registers this interceptor for every path.
+   * Registers this interceptor for every path, first, so that the route is known even when a
+   * service interceptor rejects the request.
    *
    * @param registry the interceptors Spring MVC calls
    */
   @Override
   public void addInterceptors(InterceptorRegistry registry) {
-    registry.addInterceptor(this);
+    registry.addInterceptor(this).order(Ordered.HIGHEST_PRECEDENCE);
   }
 
   /**

@@ -93,6 +93,9 @@ public class WebConstants {
   public static final String BOOT_ERROR_BODY_COUNTER =
       "stratum.web.requests.without.standard.errors";
 
+  /** The tag of {@link #BOOT_ERROR_BODY_COUNTER} that holds the route. */
+  public static final String ROUTE_TAG = "route";
+
   /** The route tag's value when the request matched none of the service's routes. */
   public static final String UNKNOWN_ROUTE = "UNKNOWN";
 
