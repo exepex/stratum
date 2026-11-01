@@ -1,6 +1,5 @@
 package com.exepex.stratum.webflux;
 
-import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.web.ReferencePage;
 import java.util.Map;
 import org.springframework.boot.autoconfigure.web.ErrorProperties;
@@ -18,7 +17,7 @@ import reactor.core.publisher.Mono;
  * Spring Boot's error handler for WebFlux, which answers every request that failed outside the
  * service's own exception handlers, with three changes: Stratum's body is sent as {@code
  * application/problem+json}, a browser's default page is Stratum's {@link ReferencePage}, and a
- * {@code StratumException} is not logged a second time. The service's error templates, such as
+ * failure with an error code is not logged a second time. The service's error templates, such as
  * {@code templates/error/404.html}, still win, as in Spring Boot.
  */
 public class StratumErrorWebExceptionHandler extends DefaultErrorWebExceptionHandler {
@@ -65,8 +64,8 @@ public class StratumErrorWebExceptionHandler extends DefaultErrorWebExceptionHan
 
   /**
    * Returns the service's error page for a browser, as Spring Boot does, or Stratum's body when
-   * there is none and Spring Boot's default page is off, so the mapped status of a {@code
-   * StratumException} is kept. Spring Boot would answer that case with 500.
+   * there is none and Spring Boot's default page is off, so the mapped status of a failure with an
+   * error code is kept. Spring Boot would answer that case with 500.
    *
    * @param request the failed request
    * @return the response
@@ -101,7 +100,7 @@ public class StratumErrorWebExceptionHandler extends DefaultErrorWebExceptionHan
   }
 
   /**
-   * Logs the failure as Spring Boot does, except a {@code StratumException} that Stratum's error
+   * Logs the failure as Spring Boot does, except a failure with an error code that Stratum's error
    * attributes answered, which logged it already.
    *
    * @param request the failed request
@@ -110,7 +109,7 @@ public class StratumErrorWebExceptionHandler extends DefaultErrorWebExceptionHan
    */
   @Override
   protected void logError(ServerRequest request, ServerResponse response, Throwable throwable) {
-    if (!(stratumBodies && throwable instanceof StratumException)) {
+    if (request.attribute(StratumErrorAttributes.LOGGED_ATTRIBUTE).isEmpty()) {
       super.logError(request, response, throwable);
     }
   }

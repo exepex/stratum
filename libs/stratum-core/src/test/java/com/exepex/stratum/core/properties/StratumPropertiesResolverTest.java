@@ -3,10 +3,10 @@ package com.exepex.stratum.core.properties;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
+import com.exepex.stratum.core.error.ErrorDetail;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.core.properties.fixture.GreetingAutoConfiguration.GreetingProperties;
 import com.exepex.stratum.core.properties.testsupport.GreetingTestData;
-import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validation;
 import jakarta.validation.ValidatorFactory;
 import java.util.stream.Stream;
@@ -156,14 +156,17 @@ class StratumPropertiesResolverTest {
     void rejectsInvalidValueSetInJava() {
       var blank = "   ";
 
-      assertThatExceptionOfType(ConstraintViolationException.class)
+      assertThatExceptionOfType(StratumException.class)
           .isThrownBy(
               () ->
                   resolver.resolve(
                       GreetingTestData.defaults().build(),
                       Stream.of(GreetingTestData.javaMessage(blank))))
           .withMessage("SX-CORE-1003: Invalid settings: stratum.greeting.message breaks @NotBlank")
-          .satisfies(failure -> assertThat(failure.getConstraintViolations()).hasSize(1));
+          .satisfies(
+              failure ->
+                  assertThat(failure.getReport().getExternal().details())
+                      .containsExactly(new ErrorDetail("stratum.greeting.message", "@NotBlank")));
     }
 
     @Test
@@ -173,14 +176,20 @@ class StratumPropertiesResolverTest {
           properties -> properties.toBuilder().timeout(null).build();
       StratumPropertiesCustomizer<GreetingProperties> blank = GreetingTestData.javaMessage("");
 
-      assertThatExceptionOfType(ConstraintViolationException.class)
+      assertThatExceptionOfType(StratumException.class)
           .isThrownBy(
               () ->
                   resolver.resolve(
                       GreetingTestData.defaults().build(), Stream.of(noTimeout, blank)))
           .withMessage(
               "SX-CORE-1003: Invalid settings: stratum.greeting.message breaks @NotBlank;"
-                  + " stratum.greeting.timeout breaks @NotNull");
+                  + " stratum.greeting.timeout breaks @NotNull")
+          .satisfies(
+              failure ->
+                  assertThat(failure.getReport().getExternal().details())
+                      .containsExactly(
+                          new ErrorDetail("stratum.greeting.message", "@NotBlank"),
+                          new ErrorDetail("stratum.greeting.timeout", "@NotNull")));
     }
   }
 

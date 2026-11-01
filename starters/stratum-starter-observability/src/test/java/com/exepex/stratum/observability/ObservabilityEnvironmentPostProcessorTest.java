@@ -4,10 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.core.condition.StratumModuleConstants;
+import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.observability.testsupport.ObservabilityTestData;
 import com.exepex.stratum.observability.testsupport.PrometheusEndpointObservabilitySettings;
 import com.exepex.stratum.test.StarterTestSupport;
-import jakarta.validation.ConstraintViolationException;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
@@ -241,7 +241,7 @@ class ObservabilityEnvironmentPostProcessorTest {
           ObservabilityTestData.environmentWithModuleOn()
               .withProperty(ACTUATOR_ENDPOINTS_EXPOSED_OVER_HTTP, "health, ");
 
-      assertThatExceptionOfType(ConstraintViolationException.class)
+      assertThatExceptionOfType(StratumException.class)
           .isThrownBy(() -> runPostProcessor(environment))
           .withMessageContaining(ACTUATOR_ENDPOINTS_EXPOSED_OVER_HTTP);
     }

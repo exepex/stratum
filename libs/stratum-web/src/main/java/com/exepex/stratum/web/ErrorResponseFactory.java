@@ -2,13 +2,18 @@ package com.exepex.stratum.web;
 
 import com.exepex.stratum.core.error.ErrorReport;
 import com.exepex.stratum.core.error.ExternalError;
+import com.exepex.stratum.core.error.FailureWithErrorCode;
 import com.exepex.stratum.core.error.LoggingContextConstants;
+import com.exepex.stratum.core.error.Severity;
 import com.exepex.stratum.core.error.StratumException;
 import java.net.URI;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
@@ -25,6 +30,12 @@ public class ErrorResponseFactory {
   /** What the log line of a code with no status adds. */
   private static final String UNMAPPED_CODE_NOTE =
       " (this code has no status in " + WebConstants.ERROR_STATUSES + ", so the caller got 500)";
+
+  /** What the log line of a thrown warning code adds. */
+  private static final String WARNING_THROWN_NOTE =
+      " (this code is a warning, which is never thrown, so the caller got 500 and "
+          + WebErrorCode.INTERNAL_ERROR.getCode()
+          + ")";
 
   /** The member that holds the URI of the error's type; {@code about:blank} for Stratum's. */
   private static final String TYPE = "type";
@@ -54,43 +65,36 @@ public class ErrorResponseFactory {
   }
 
   /**
-   * Returns the body of a {@link StratumException} the request failed with, with the status mapped
-   * to its code, and logs it once: a 5xx at ERROR with its stack trace, a 4xx at WARN with its code
-   * and message.
+   * Returns the body of a failure that carries an error code, a {@link StratumException} or an
+   * exception that implements {@link FailureWithErrorCode}, itself or as a cause of the failure,
+   * with the status mapped to its code, and logs it once: a 5xx at ERROR with its stack trace, a
+   * 4xx at WARN with its code and message. A warning code, which is never thrown, gets 500 and
+   * {@code SX-WEB-1005}. Each web stack calls it for a cause only when Spring has no status of its
+   * own for the failure, so a wrapper such as {@code ResponseStatusException} keeps its status. A
+   * chain of causes that loops back on itself is followed once.
    *
-   * @param failure the exception
-   * @return the body, which holds the status
+   * @param failure what the request failed with
+   * @return the body, which holds the status; empty if the failure carries no error code
    */
-  public ProblemDetail forStratumException(StratumException failure) {
-    var external = failure.getReport().getExternal();
-    var mappedStatus = Optional.ofNullable(statusesByCode.get(external.code()));
-    var status =
-        HttpStatusCode.valueOf(mappedStatus.orElse(HttpStatus.INTERNAL_SERVER_ERROR.value()));
-    var unmappedNote = mappedStatus.isEmpty() ? UNMAPPED_CODE_NOTE : "";
-    // The message is already free of control characters; this also satisfies the log checks.
-    var logLine =
-        (failure.getReport().getCodeAndMessage() + unmappedNote).replaceAll("[\r\n]", " ");
-    if (status.is5xxServerError()) {
-      log.error(logLine, failure);
-    } else {
-      log.warn(logLine);
-    }
-    return bodyOf(external, status);
+  public Optional<ProblemDetail> forFailureWithErrorCode(Throwable failure) {
+    return findFailureWithErrorCode(failure)
+        .map(codedFailure -> answerAndLog(failure, codedFailure.getReport()));
   }
 
   /**
    * Returns the body of a request that failed outside the service's own error handling, such as an
    * unknown path or a failed validation. It is not logged here: the server or Spring already did. A
-   * {@link StratumException} that gets here, such as one thrown by a filter, keeps the status the
-   * request failed with.
+   * failure with an error code that gets here, such as one thrown by a filter, keeps the status the
+   * request failed with. A code in one of its causes is not used: the body is Spring's for the
+   * status, as the request failed with Spring's answer.
    *
    * @param status the status the request failed with
    * @param failure what it failed with, if known
    * @return the body, which holds the status
    */
   public ProblemDetail forFailedRequest(HttpStatusCode status, @Nullable Throwable failure) {
-    if (failure instanceof StratumException stratumFailure) {
-      return bodyOf(stratumFailure.getReport().getExternal(), status);
+    if (failure instanceof FailureWithErrorCode codedFailure) {
+      return bodyOf(externalErrorOf(codedFailure.getReport()), status);
     }
     if (failure instanceof RequestTimedOutException) {
       return bodyOf(ErrorReport.of(WebErrorCode.REQUEST_TIMED_OUT).getExternal(), status);
@@ -101,6 +105,15 @@ public class ErrorResponseFactory {
       return bodyOf(report.getExternal(), status);
     }
     return bodyOf(ErrorReport.of(codeFor(status)).getExternal(), status);
+  }
+
+  /** Returns the failure itself or its first cause that implements {@link FailureWithErrorCode}. */
+  private Optional<FailureWithErrorCode> findFailureWithErrorCode(Throwable failure) {
+    var seen = Collections.newSetFromMap(new IdentityHashMap<Throwable, Boolean>());
+    return Stream.iterate(failure, cause -> cause != null && seen.add(cause), Throwable::getCause)
+        .filter(FailureWithErrorCode.class::isInstance)
+        .map(FailureWithErrorCode.class::cast)
+        .findFirst();
   }
 
   /**
@@ -134,6 +147,44 @@ public class ErrorResponseFactory {
     members.put(DETAIL, Objects.requireNonNullElse(body.getDetail(), ""));
     Optional.ofNullable(body.getProperties()).ifPresent(members::putAll);
     return members;
+  }
+
+  /** Logs a failure with an error code once, and returns its body with the mapped status. */
+  private ProblemDetail answerAndLog(Throwable failure, ErrorReport report) {
+    if (isWarning(report)) {
+      var logLine = logLineOf(report, WARNING_THROWN_NOTE);
+      log.error(logLine, failure);
+      return bodyOf(externalErrorOf(report), HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+    var external = report.getExternal();
+    var mappedStatus = Optional.ofNullable(statusesByCode.get(external.code()));
+    var status =
+        HttpStatusCode.valueOf(mappedStatus.orElse(HttpStatus.INTERNAL_SERVER_ERROR.value()));
+    var logLine = logLineOf(report, mappedStatus.isEmpty() ? UNMAPPED_CODE_NOTE : "");
+    if (status.is5xxServerError()) {
+      log.error(logLine, failure);
+    } else {
+      log.warn(logLine);
+    }
+    return bodyOf(external, status);
+  }
+
+  /** Returns the log line of a report, with a note after its code and message. */
+  private String logLineOf(ErrorReport report, String note) {
+    // The message is already free of control characters; this also satisfies the log checks.
+    return (report.getCodeAndMessage() + note).replaceAll("[\r\n]", " ");
+  }
+
+  /** Returns what the caller sees: the report's own error, or an internal error for a warning. */
+  private ExternalError externalErrorOf(ErrorReport report) {
+    return isWarning(report)
+        ? ErrorReport.of(WebErrorCode.INTERNAL_ERROR).getExternal()
+        : report.getExternal();
+  }
+
+  /** Returns whether the report's code is a warning, which a failure should never carry. */
+  private boolean isWarning(ErrorReport report) {
+    return report.getExternal().severity() == Severity.WARNING;
   }
 
   /** Returns the web code for a status that has no more specific cause. */

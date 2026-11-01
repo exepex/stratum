@@ -8,6 +8,7 @@ import com.exepex.stratum.core.error.ErrorDetail;
 import com.exepex.stratum.core.error.LoggingContextConstants;
 import com.exepex.stratum.core.error.Severity;
 import com.exepex.stratum.core.error.StratumException;
+import com.exepex.stratum.test.ExistingOrderException;
 import com.exepex.stratum.test.OrderErrorCode;
 import com.exepex.stratum.web.testsupport.WebTestData;
 import java.time.Duration;
@@ -17,6 +18,7 @@ import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -30,6 +32,12 @@ import org.springframework.validation.MapBindingResult;
 
 @DisplayName("ErrorResponseFactory makes the same error body for every failure")
 class ErrorResponseFactoryTest {
+
+  /** What is specific to a duplicate order. */
+  private static final String ORDER_DETAIL = "order 42";
+
+  /** The code of a duplicate order, mapped to 409. */
+  private static final String DUPLICATE_ORDER_CODE = OrderErrorCode.DUPLICATE_ORDER.getCode();
 
   /** The factory, with ORD-0001 mapped to 409 and ORD-0002 to 503. */
   private final ErrorResponseFactory factory =
@@ -48,13 +56,15 @@ class ErrorResponseFactoryTest {
     @DisplayName("answers with the mapped status, code, severity and message, and logs a WARN")
     void mappedCodeGetsItsStatus(CapturedOutput output) {
       var body =
-          factory.forStratumException(
-              new StratumException(OrderErrorCode.DUPLICATE_ORDER, "order 42"));
+          factory
+              .forFailureWithErrorCode(
+                  new StratumException(OrderErrorCode.DUPLICATE_ORDER, ORDER_DETAIL))
+              .orElseThrow();
 
       assertThat(body.getStatus()).isEqualTo(HttpStatus.CONFLICT.value());
       assertThat(body.getDetail()).isEqualTo("Order already exists: order 42");
       assertThat(body.getProperties())
-          .containsEntry(WebConstants.CODE, "ORD-0001")
+          .containsEntry(WebConstants.CODE, DUPLICATE_ORDER_CODE)
           .containsEntry(WebConstants.SEVERITY, Severity.ERROR)
           .doesNotContainKey(WebConstants.DETAILS);
       assertThat(output).contains("WARN", "ORD-0001: Order already exists: order 42");
@@ -63,7 +73,7 @@ class ErrorResponseFactoryTest {
     @Test
     @DisplayName("logs a mapped 5xx at ERROR with its stack trace")
     void mappedServerErrorLogsStackTrace(CapturedOutput output) {
-      var body = factory.forStratumException(new StratumException(OrderErrorCode.STORE_DOWN));
+      var body = answer(new StratumException(OrderErrorCode.STORE_DOWN));
 
       assertThat(body.getStatus()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE.value());
       assertThat(output).contains("ERROR", "ORD-0002", "at com.exepex.stratum.web.");
@@ -72,11 +82,71 @@ class ErrorResponseFactoryTest {
     @Test
     @DisplayName("answers an unmapped code with 500 and logs which setting is missing")
     void unmappedCodeGets500(CapturedOutput output) {
-      var body = factory.forStratumException(new StratumException(OrderErrorCode.UNMAPPED));
+      var body = answer(new StratumException(OrderErrorCode.UNMAPPED));
 
       assertThat(body.getStatus()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR.value());
       assertThat(body.getProperties()).containsEntry(WebConstants.CODE, "ORD-0003");
       assertThat(output).contains("ERROR", "ORD-0003", WebConstants.ERROR_STATUSES);
+    }
+  }
+
+  @Nested
+  @DisplayName("for an exception that implements FailureWithErrorCode")
+  @ExtendWith(OutputCaptureExtension.class)
+  class ForFailureWithErrorCode {
+
+    @Test
+    @DisplayName("answers with the same body as a StratumException with that code and detail")
+    void sameBodyAsStratumException(CapturedOutput output) {
+      var body = answer(new ExistingOrderException(OrderErrorCode.DUPLICATE_ORDER, ORDER_DETAIL));
+
+      assertThat(factory.membersOf(body))
+          .isEqualTo(
+              factory.membersOf(
+                  answer(new StratumException(OrderErrorCode.DUPLICATE_ORDER, ORDER_DETAIL))));
+      assertThat(output).contains("WARN", "ORD-0001: Order already exists: order 42");
+    }
+
+    @Test
+    @DisplayName("answers one wrapped as the cause of another exception in the same way")
+    void wrappedFailureWithErrorCode() {
+      var wrapped =
+          new IllegalStateException(
+              new StratumException(OrderErrorCode.DUPLICATE_ORDER, ORDER_DETAIL));
+
+      assertThat(factory.membersOf(answer(wrapped)))
+          .isEqualTo(
+              factory.membersOf(
+                  answer(new StratumException(OrderErrorCode.DUPLICATE_ORDER, ORDER_DETAIL))));
+    }
+
+    @Test
+    @Timeout(5)
+    @DisplayName("stops at a chain of causes that loops back on itself")
+    void causesThatLoop() {
+      var first = new IllegalStateException("first");
+      var second = new IllegalArgumentException("second", first);
+      first.initCause(second);
+
+      assertThat(factory.forFailureWithErrorCode(first)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("answers a warning code, which is never thrown, with 500 and SX-WEB-1005")
+    void warningCodeGets500(CapturedOutput output) {
+      var body = answer(new ExistingOrderException(OrderErrorCode.SHIPS_LATE, "3 days"));
+
+      assertThat(body.getStatus()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR.value());
+      assertThat(body.getProperties())
+          .containsEntry(WebConstants.CODE, WebErrorCode.INTERNAL_ERROR.getCode())
+          .containsEntry(WebConstants.SEVERITY, Severity.ERROR);
+      assertThat(output).contains("ERROR", "ORD-0004", "is a warning, which is never thrown");
+    }
+
+    @Test
+    @DisplayName("leaves any other failure alone")
+    void otherFailureGetsNothing() {
+      assertThat(factory.forFailureWithErrorCode(new IllegalStateException("broken"))).isEmpty();
     }
   }
 
@@ -109,7 +179,33 @@ class ErrorResponseFactoryTest {
               HttpStatus.BAD_GATEWAY, new StratumException(OrderErrorCode.DUPLICATE_ORDER));
 
       assertThat(body.getStatus()).isEqualTo(HttpStatus.BAD_GATEWAY.value());
-      assertThat(body.getProperties()).containsEntry(WebConstants.CODE, "ORD-0001");
+      assertThat(body.getProperties()).containsEntry(WebConstants.CODE, DUPLICATE_ORDER_CODE);
+    }
+
+    @Test
+    @DisplayName("keeps the status of a FailureWithErrorCode thrown outside the handlers")
+    void failureWithErrorCodeKeepsTheStatus() {
+      var body =
+          factory.forFailedRequest(
+              HttpStatus.BAD_GATEWAY,
+              new ExistingOrderException(OrderErrorCode.DUPLICATE_ORDER, ORDER_DETAIL));
+
+      assertThat(body.getStatus()).isEqualTo(HttpStatus.BAD_GATEWAY.value());
+      assertThat(body.getDetail()).isEqualTo("Order already exists: order 42");
+      assertThat(body.getProperties()).containsEntry(WebConstants.CODE, DUPLICATE_ORDER_CODE);
+    }
+
+    @Test
+    @DisplayName("gives Spring's body for the status when only a cause has an error code")
+    void codeOfCauseIsNotUsed() {
+      var body =
+          factory.forFailedRequest(
+              HttpStatus.NOT_FOUND,
+              new IllegalStateException(new StratumException(OrderErrorCode.DUPLICATE_ORDER)));
+
+      assertThat(body.getStatus()).isEqualTo(HttpStatus.NOT_FOUND.value());
+      assertThat(body.getProperties())
+          .containsEntry(WebConstants.CODE, WebErrorCode.NOT_FOUND.getCode());
     }
 
     @Test
@@ -194,7 +290,7 @@ class ErrorResponseFactoryTest {
   @Test
   @DisplayName("lists a body's members in the order they are written")
   void membersAreInWrittenOrder() {
-    var body = factory.forStratumException(new StratumException(OrderErrorCode.DUPLICATE_ORDER));
+    var body = answer(new StratumException(OrderErrorCode.DUPLICATE_ORDER));
 
     assertThat(factory.membersOf(body))
         .containsExactly(
@@ -202,7 +298,12 @@ class ErrorResponseFactoryTest {
             Map.entry("title", "Conflict"),
             Map.entry("status", HttpStatus.CONFLICT.value()),
             Map.entry("detail", "Order already exists"),
-            Map.entry(WebConstants.CODE, "ORD-0001"),
+            Map.entry(WebConstants.CODE, DUPLICATE_ORDER_CODE),
             Map.entry(WebConstants.SEVERITY, Severity.ERROR));
+  }
+
+  /** Answers a failure that carries an error code. */
+  private ProblemDetail answer(Throwable failure) {
+    return factory.forFailureWithErrorCode(failure).orElseThrow();
   }
 }

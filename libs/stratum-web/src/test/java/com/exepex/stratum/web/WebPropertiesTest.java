@@ -3,11 +3,11 @@ package com.exepex.stratum.web;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
+import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.test.OrderErrorCode;
 import com.exepex.stratum.test.StarterTestSupport;
 import com.exepex.stratum.web.testsupport.EdgeServiceWebSettings;
 import com.exepex.stratum.web.testsupport.GoneOrderWebSettings;
-import jakarta.validation.ConstraintViolationException;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -91,7 +91,7 @@ class WebPropertiesTest {
   void nonErrorStatusIsRejected() {
     var environment = new MockEnvironment().withProperty(DUPLICATE_ORDER_STATUS, "200");
 
-    assertThatExceptionOfType(ConstraintViolationException.class)
+    assertThatExceptionOfType(StratumException.class)
         .isThrownBy(() -> WebProperties.resolve(environment))
         .withMessageStartingWith(INVALID_SETTINGS + WebConstants.ERROR_STATUSES)
         .withMessageNotContaining(DUPLICATE_ORDER);
@@ -189,7 +189,7 @@ class WebPropertiesTest {
       var environment =
           new MockEnvironment().withProperty(WebConstants.REQUEST_FIELDS_MAX_VALUE_LENGTH, "8");
 
-      assertThatExceptionOfType(ConstraintViolationException.class)
+      assertThatExceptionOfType(StratumException.class)
           .isThrownBy(() -> WebProperties.resolve(environment))
           .withMessageStartingWith(INVALID_SETTINGS + WebConstants.REQUEST_FIELDS_MAX_VALUE_LENGTH);
     }
@@ -258,7 +258,7 @@ class WebPropertiesTest {
           new MockEnvironment()
               .withProperty(WebConstants.REQUEST_LOG_REQUEST_HEADERS + ".X-Tenant-Id", "tenant id");
 
-      assertThatExceptionOfType(ConstraintViolationException.class)
+      assertThatExceptionOfType(StratumException.class)
           .isThrownBy(() -> WebProperties.resolve(environment))
           .withMessageStartingWith(INVALID_SETTINGS + WebConstants.REQUEST_LOG_REQUEST_HEADERS);
     }
@@ -334,7 +334,7 @@ class WebPropertiesTest {
     void nonErrorStatusIsRejected() {
       var environment = new MockEnvironment().withProperty(WebConstants.TIMEOUT_STATUS, "200");
 
-      assertThatExceptionOfType(ConstraintViolationException.class)
+      assertThatExceptionOfType(StratumException.class)
           .isThrownBy(() -> WebProperties.resolve(environment))
           .withMessageStartingWith(INVALID_SETTINGS + WebConstants.TIMEOUT_STATUS);
     }
