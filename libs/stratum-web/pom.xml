@@ -46,6 +46,14 @@
         </exclusion>
       </exclusions>
     </dependency>
+    <!-- Counts the error answers that kept Spring Boot's body in backward-compatible mode. Optional:
+         the counter exists only when the service has Micrometer, as the observability starter and
+         Spring Boot's actuator bring it. -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-core</artifactId>
+      <optional>true</optional>
+    </dependency>
     <!-- Reads device, operating system and browser from the user agent. Its rules are loaded only
          when stratum.web.user-agent.parse is true, so a service that leaves it off pays nothing
          but the jar. -->

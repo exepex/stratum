@@ -3,6 +3,7 @@ package com.exepex.stratum.webflux.autoconfigure;
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.properties.StratumCustomizers;
+import com.exepex.stratum.web.BootErrorBodyCounter;
 import com.exepex.stratum.web.ErrorResponseFactory;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebProperties;
@@ -92,6 +93,7 @@ public final class WebFluxErrorResponsesAutoConfiguration {
    * @param viewResolvers the service's view resolvers, for its error templates
    * @param codecs the service's codecs
    * @param applicationContext the application's context
+   * @param bootErrorBodyCounter counts Spring Boot's bodies, when the service has Micrometer
    * @return the handler
    */
   @Bean
@@ -103,13 +105,15 @@ public final class WebFluxErrorResponsesAutoConfiguration {
       org.springframework.boot.autoconfigure.web.WebProperties bootWebProperties,
       ObjectProvider<ViewResolver> viewResolvers,
       ServerCodecConfigurer codecs,
-      ApplicationContext applicationContext) {
+      ApplicationContext applicationContext,
+      ObjectProvider<BootErrorBodyCounter> bootErrorBodyCounter) {
     var handler =
         new StratumErrorWebExceptionHandler(
             errorAttributes,
             bootWebProperties.getResources(),
             bootWebProperties.getError(),
-            applicationContext);
+            applicationContext,
+            bootErrorBodyCounter);
     handler.setViewResolvers(viewResolvers.orderedStream().toList());
     handler.setMessageWriters(codecs.getWriters());
     handler.setMessageReaders(codecs.getReaders());
