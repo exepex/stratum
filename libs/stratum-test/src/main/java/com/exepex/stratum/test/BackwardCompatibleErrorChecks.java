@@ -24,7 +24,8 @@ public class BackwardCompatibleErrorChecks {
 
   /**
    * Checks that a consumer that has not opted in gets Spring Boot's body and media type for an
-   * unknown path, with no Stratum code.
+   * unknown path, with no Stratum code, and with the message that the service's {@code
+   * spring.web.error.include-message=always} asks for: the body follows the team's settings.
    *
    * @param port the port the service listens on
    * @param unknownPath a path the service does not have
@@ -40,6 +41,7 @@ public class BackwardCompatibleErrorChecks {
         .hasValueSatisfying(type -> assertThat(type).startsWith(JSON));
     assertThat(JsonPath.<String>read(response.body(), "$.error")).isEqualTo("Not Found");
     assertThat(JsonPath.<String>read(response.body(), "$.path")).isEqualTo(unknownPath);
+    assertThat(JsonPath.<String>read(response.body(), "$.message")).isNotBlank();
     assertThat(response.body()).doesNotContain("\"code\"");
   }
 
