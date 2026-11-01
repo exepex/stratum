@@ -4,6 +4,7 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.classic.spi.IThrowableProxy;
 import ch.qos.logback.classic.spi.ThrowableProxy;
 import com.exepex.stratum.core.condition.StratumModuleSwitch;
+import com.exepex.stratum.core.error.FailureWithErrorCode;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.LoggingProperties.LogFormat;
@@ -17,12 +18,12 @@ import org.springframework.core.env.Environment;
 import org.springframework.util.ClassUtils;
 
 /**
- * Writes the code of a logged {@link StratumException}, such as {@code SX-CORE-1003} or a service's
- * {@code PAY-0001}, in its own field, so errors can be searched and counted by code: {@code
- * error.code}, or {@code _error_code} in GELF. The exception is the logged one or the first of its
- * causes that has a code. Spring Boot's logging loads it from {@code META-INF/spring.factories}. It
- * does nothing unless {@code stratum.logging.enabled=true}, and needs Logback, Spring Boot's
- * default.
+ * Writes the code of a logged {@link StratumException}, or of another exception that implements
+ * {@link FailureWithErrorCode}, such as {@code SX-CORE-1003} or a service's {@code PAY-0001}, in
+ * its own field, so errors can be searched and counted by code: {@code error.code}, or {@code
+ * _error_code} in GELF. The exception is the logged one or the first of its causes that has a code.
+ * Spring Boot's logging loads it from {@code META-INF/spring.factories}. It does nothing unless
+ * {@code stratum.logging.enabled=true}, and needs Logback, Spring Boot's default.
  */
 public final class ErrorCodeJsonMembersCustomizer
     implements StructuredLoggingJsonMembersCustomizer<Object> {
@@ -94,9 +95,9 @@ public final class ErrorCodeJsonMembersCustomizer
             .filter(ThrowableProxy.class::isInstance)
             .map(ThrowableProxy.class::cast)
             .map(ThrowableProxy::getThrowable)
-            .filter(StratumException.class::isInstance)
-            .map(StratumException.class::cast)
-            .map(stratumException -> stratumException.getReport().getExternal().code())
+            .filter(FailureWithErrorCode.class::isInstance)
+            .map(FailureWithErrorCode.class::cast)
+            .map(codedFailure -> codedFailure.getErrorCode().getCode())
             .findFirst()
             .orElse(null)
         : null;

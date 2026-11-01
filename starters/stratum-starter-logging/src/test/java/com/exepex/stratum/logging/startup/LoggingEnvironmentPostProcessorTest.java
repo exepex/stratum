@@ -7,7 +7,6 @@ import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.testsupport.LoggingTestData;
-import jakarta.validation.ConstraintViolationException;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -235,7 +234,7 @@ class LoggingEnvironmentPostProcessorTest {
           environmentWithModuleOnAndServiceName()
               .withProperty(LoggingConstants.PREFIX + ".max-field-length", maxFieldLength);
 
-      assertThatExceptionOfType(ConstraintViolationException.class)
+      assertThatExceptionOfType(StratumException.class)
           .isThrownBy(() -> runPostProcessor(environment))
           .withMessage(
               "SX-CORE-1003: Invalid settings: stratum.logging.max-field-length-in-range breaks"

@@ -3,11 +3,11 @@ package com.exepex.stratum.logging;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
+import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.logging.LoggingProperties.LogFormat;
 import com.exepex.stratum.logging.testsupport.LockerCodeLoggingSettings;
 import com.exepex.stratum.logging.testsupport.OversizedFieldLoggingSettings;
 import com.exepex.stratum.test.StarterTestSupport;
-import jakarta.validation.ConstraintViolationException;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
@@ -52,7 +52,7 @@ class LoggingPropertiesTest {
   @Test
   @DisplayName("a value set in Java is checked like one from a file, with SX-CORE-1003")
   void javaValueIsValidated(@TempDir Path folder) {
-    assertThatExceptionOfType(ConstraintViolationException.class)
+    assertThatExceptionOfType(StratumException.class)
         .isThrownBy(
             () ->
                 StarterTestSupport.withCustomizers(

@@ -1,10 +1,10 @@
 package com.exepex.stratum.core.properties;
 
 import com.exepex.stratum.core.error.CoreErrorCode;
+import com.exepex.stratum.core.error.ErrorDetail;
 import com.exepex.stratum.core.error.ErrorReport;
 import com.exepex.stratum.core.error.StratumException;
 import jakarta.validation.ConstraintViolation;
-import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.ElementKind;
 import jakarta.validation.Path;
 import jakarta.validation.Validator;
@@ -12,6 +12,7 @@ import jakarta.validation.metadata.ConstraintDescriptor;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -57,8 +58,8 @@ public final class StratumPropertiesResolver {
    * @param <P> the module's settings type
    * @return the settings after every customizer has run
    * @throws StratumException {@code SX-CORE-1002} if a customizer is broken
-   * @throws ConstraintViolationException {@code SX-CORE-1003} if the resulting settings break a
-   *     constraint
+   * @throws StratumException {@code SX-CORE-1003} if the resulting settings break a constraint; its
+   *     details name each property key and rule
    */
   public <P> P resolve(
       P boundProperties, Stream<? extends StratumPropertiesCustomizer<P>> customizers) {
@@ -83,10 +84,25 @@ public final class StratumPropertiesResolver {
    *     stratum.example.timeout breaks @NotNull"}
    */
   <P> String describeViolations(P properties, Set<ConstraintViolation<P>> violations) {
+    return describe(brokenRules(properties, violations));
+  }
+
+  /**
+   * Returns one detail per violation, sorted: the property key as the field and the rule as the
+   * message.
+   */
+  private <P> List<ErrorDetail> brokenRules(P properties, Set<ConstraintViolation<P>> violations) {
     var prefix = prefixOf(properties.getClass());
     return violations.stream()
-        .map(violation -> describeViolation(prefix, violation))
-        .sorted()
+        .map(violation -> brokenRule(prefix, violation))
+        .sorted(Comparator.comparing(ErrorDetail::field).thenComparing(ErrorDetail::message))
+        .toList();
+  }
+
+  /** Joins broken rules into one line, such as {@code "stratum.example.name breaks @NotBlank"}. */
+  private String describe(List<ErrorDetail> brokenRules) {
+    return brokenRules.stream()
+        .map(brokenRule -> brokenRule.field() + " breaks " + brokenRule.message())
         .collect(Collectors.joining("; "));
   }
 
@@ -136,10 +152,10 @@ public final class StratumPropertiesResolver {
   private <P> void validate(P properties) {
     var violations = validator.validate(properties);
     if (!violations.isEmpty()) {
-      throw new ConstraintViolationException(
-          ErrorReport.of(CoreErrorCode.INVALID_SETTINGS, describeViolations(properties, violations))
-              .getCodeAndMessage(),
-          violations);
+      var brokenRules = brokenRules(properties, violations);
+      throw new StratumException(
+          ErrorReport.of(CoreErrorCode.INVALID_SETTINGS, describe(brokenRules))
+              .withDetails(brokenRules));
     }
   }
 
@@ -148,11 +164,11 @@ public final class StratumPropertiesResolver {
    *
    * <p>A constraint on the settings type itself has an empty path and is named by the prefix alone.
    */
-  private String describeViolation(String prefix, ConstraintViolation<?> violation) {
+  private ErrorDetail brokenRule(String prefix, ConstraintViolation<?> violation) {
     var key = propertyKey(violation.getPropertyPath());
-    return (key.isEmpty() ? prefix : prefix + "." + key)
-        + " breaks "
-        + ruleWithLimits(violation.getConstraintDescriptor());
+    return new ErrorDetail(
+        key.isEmpty() ? prefix : prefix + "." + key,
+        ruleWithLimits(violation.getConstraintDescriptor()));
   }
 
   /** Returns the prefix that {@code @ConfigurationProperties} gives the settings type. */

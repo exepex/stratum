@@ -44,8 +44,8 @@ public record LoggingProperties(
    *
    * @param environment the application's environment
    * @return the settings
-   * @throws jakarta.validation.ConstraintViolationException {@code SX-CORE-1003} if a setting
-   *     breaks its rules
+   * @throws com.exepex.stratum.core.error.StratumException {@code SX-CORE-1003} if a setting breaks
+   *     its rules
    */
   public static LoggingProperties resolve(Environment environment) {
     return StratumCustomizers.resolveSettings(

@@ -114,7 +114,7 @@ The line above comes out as one JSON object in the
 | `service.environment` | [`stratum.environment`](../../docs/configuration/reference.md#shared-properties), when set |
 | `service.version` | Your jar's manifest, when it has a version |
 | `error.type`, `error.message`, `error.stack_trace` | The exception you pass to the log call. The root cause comes first, so a cut stack trace still shows why it failed. |
-| `error.code` | The code of a `StratumException`, such as `SX-CORE-1003` or your own `PAY-0001`, when it is the exception you log or one of its causes ([error codes](../../docs/guides/error-codes.md)). Search and count errors by this field. In GELF it is `_error_code`; when the console and the file use different formats, the console format decides the name. |
+| `error.code` | The code of a `StratumException`, or of an exception that implements [`FailureWithErrorCode`](../../docs/guides/error-codes.md#existing-exceptions-a-migration-path), such as `SX-CORE-1003` or your own `PAY-0001`, when it is the exception you log or one of its causes ([error codes](../../docs/guides/error-codes.md)). Search and count errors by this field. In GELF it is `_error_code`; when the console and the file use different formats, the console format decides the name. |
 | `workflow`, `root_workflow`, `workflow_id` | The [workflow](#workflows) the line was written in |
 | Your own fields | Key-value pairs (`addKeyValue`) and MDC entries, at the top level |
 
