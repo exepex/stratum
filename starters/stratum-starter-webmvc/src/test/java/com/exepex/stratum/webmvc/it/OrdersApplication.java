@@ -65,6 +65,20 @@ public class OrdersApplication {
   static class OrderGoneException extends RuntimeException {
 
     @Serial private static final long serialVersionUID = 1L;
+
+    /** Makes the exception with no cause. */
+    OrderGoneException() {
+      super();
+    }
+
+    /**
+     * Makes the exception with a cause.
+     *
+     * @param cause the failure behind it
+     */
+    OrderGoneException(Throwable cause) {
+      super(cause);
+    }
   }
 
   /**
@@ -139,6 +153,17 @@ public class OrdersApplication {
     String duplicateWrapped() {
       throw new IllegalStateException(
           new StratumException(OrderErrorCode.DUPLICATE_ORDER, ORDER_DETAIL));
+    }
+
+    /**
+     * Fails with an exception annotated {@code @ResponseStatus(GONE)} whose cause has a code the
+     * service maps to 409.
+     *
+     * @return never returns
+     */
+    @GetMapping("/orders/duplicate-gone")
+    String duplicateGone() {
+      throw new OrderGoneException(new StratumException(OrderErrorCode.DUPLICATE_ORDER));
     }
 
     /**

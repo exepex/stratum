@@ -88,8 +88,11 @@ public class StratumErrorAttributes extends DefaultErrorAttributes {
   }
 
   /**
-   * Returns whether the failure sets its own status, which Spring Boot then answers with, as it
-   * does for an {@link ErrorResponse} or an exception with {@link ResponseStatus}.
+   * Returns whether the failure sets its own status: it is an {@link ErrorResponse}, which Spring
+   * MVC answers with its status, or it has {@link ResponseStatus}. Spring Boot's WebFlux error
+   * handling reads the status only from a {@code ResponseStatusException} or {@code
+   * ResponseStatus}, but any {@code ErrorResponse} counts here so that both stacks keep the
+   * wrapper's answer.
    */
   private boolean declaresStatus(Throwable failure) {
     return failure instanceof ErrorResponse
