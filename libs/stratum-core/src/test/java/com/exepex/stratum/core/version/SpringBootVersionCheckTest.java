@@ -10,13 +10,17 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.FieldSource;
+import org.springframework.boot.EnvironmentPostProcessor;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.SpringBootVersion;
+import org.springframework.boot.logging.DeferredLogFactory;
 import org.springframework.boot.logging.DeferredLogs;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.support.PropertiesLoaderUtils;
+import org.springframework.core.io.support.SpringFactoriesLoader;
+import org.springframework.core.io.support.SpringFactoriesLoader.ArgumentResolver;
 import org.springframework.mock.env.MockEnvironment;
 
 @DisplayName("SpringBootVersionCheck warns once when Spring Boot is outside the supported line")
@@ -108,5 +112,17 @@ class SpringBootVersionCheckTest {
     logs.switchOverAll();
 
     assertThat(output).doesNotContain(WARNING_CODE);
+  }
+
+  @Test
+  @DisplayName("Spring Boot finds the check in spring.factories, so every service runs it")
+  void springBootLoadsTheCheck() {
+    var postProcessors =
+        SpringFactoriesLoader.forDefaultResourceLocation()
+            .load(
+                EnvironmentPostProcessor.class,
+                ArgumentResolver.of(DeferredLogFactory.class, new DeferredLogs()));
+
+    assertThat(postProcessors).hasAtLeastOneElementOfType(SpringBootVersionCheck.class);
   }
 }
