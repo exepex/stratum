@@ -258,7 +258,9 @@ asks for a login. See [Security](docs/modules/security.md).
 
 ### Starters
 
-Every starter is off until its `stratum.<module>.enabled` property is `true`.
+Every starter is off until its `stratum.<module>.enabled` property is `true`. A starter that is
+present but off is named in one INFO line at startup, such as
+`Stratum modules present but off: web (stratum.web.enabled=true)`.
 
 | Starter | In one sentence | Property prefix |
 | --- | --- | --- |
