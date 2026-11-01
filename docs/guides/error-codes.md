@@ -174,7 +174,9 @@ public class PaymentDeclinedException extends RuntimeException implements Failur
 
 The web modules then answer it as they answer a `StratumException` with the same code and detail:
 the status mapped in `stratum.web.error.statuses`, the same body without `details`, and the same
-log line. The logging module writes its code in `error.code`. A warning code gets `500` and
+log line. An `@ResponseStatus` on the exception, or extending `ResponseStatusException`, does not
+change this on either stack: the status mapped to the code wins. The logging module writes its code
+in `error.code`. A warning code gets `500` and
 `SX-WEB-1005`, because a warning is never thrown. New code throws `StratumException`; this
 interface is only for moving existing exceptions over time.
 

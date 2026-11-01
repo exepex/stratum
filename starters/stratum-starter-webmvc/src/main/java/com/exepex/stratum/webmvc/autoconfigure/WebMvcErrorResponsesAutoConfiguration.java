@@ -68,8 +68,8 @@ public final class WebMvcErrorResponsesAutoConfiguration {
 
   /**
    * Answers a {@code StratumException}, or another exception that implements {@code
-   * FailureWithErrorCode}, thrown by a controller, after the service's own handlers and Spring
-   * MVC's own resolvers.
+   * FailureWithErrorCode}, thrown by a controller, after the service's own handlers and before
+   * Spring MVC's status resolvers.
    *
    * @param errorResponseFactory makes the error body
    * @param jsonMapper writes the error body

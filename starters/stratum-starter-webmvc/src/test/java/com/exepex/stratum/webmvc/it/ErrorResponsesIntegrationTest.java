@@ -15,12 +15,16 @@ import java.net.http.HttpResponse;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 
+@ExtendWith(OutputCaptureExtension.class)
 @SpringBootTest(
     classes = OrdersApplication.class,
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -41,6 +45,9 @@ class ErrorResponsesIntegrationTest {
   /** The path that fails with a code the service maps to 409. */
   private static final String DUPLICATE_PATH = "/orders/duplicate";
 
+  /** The code the service maps to 409. */
+  private static final String DUPLICATE_ORDER_CODE = "ORD-0001";
+
   /** Calls the service. */
   private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
 
@@ -54,7 +61,8 @@ class ErrorResponsesIntegrationTest {
     var path = DUPLICATE_PATH;
     var response = get(path, MediaType.APPLICATION_JSON);
 
-    StarterTestSupport.checkProblemDetails(response, HttpStatus.CONFLICT.value(), "ORD-0001");
+    StarterTestSupport.checkProblemDetails(
+        response, HttpStatus.CONFLICT.value(), DUPLICATE_ORDER_CODE);
     assertThat(JsonPath.<String>read(response.body(), "$.detail"))
         .isEqualTo("Order already exists: order 42");
     assertThat(JsonPath.<String>read(response.body(), "$.severity")).isEqualTo("ERROR");
@@ -79,9 +87,20 @@ class ErrorResponsesIntegrationTest {
   void failureWithErrorCode() throws Exception {
     var response = get("/orders/duplicate-existing", MediaType.APPLICATION_JSON);
 
-    StarterTestSupport.checkProblemDetails(response, HttpStatus.CONFLICT.value(), "ORD-0001");
+    StarterTestSupport.checkProblemDetails(
+        response, HttpStatus.CONFLICT.value(), DUPLICATE_ORDER_CODE);
     assertThat(JsonPath.<String>read(response.body(), "$.detail"))
         .isEqualTo("Order already exists: order 42");
+  }
+
+  @Test
+  @DisplayName("a FailureWithErrorCode with @ResponseStatus gets its code's status and is logged")
+  void failureWithErrorCodeWinsOverResponseStatus(CapturedOutput output) throws Exception {
+    StarterTestSupport.checkProblemDetails(
+        get("/orders/duplicate-annotated", MediaType.APPLICATION_JSON),
+        HttpStatus.CONFLICT.value(),
+        DUPLICATE_ORDER_CODE);
+    assertThat(output).contains(DUPLICATE_ORDER_CODE + ": Order already exists: order 42");
   }
 
   @Test
@@ -208,7 +227,7 @@ class ErrorResponsesIntegrationTest {
   @DisplayName("a caller that accepts anything gets the Problem Details body")
   void anyMediaTypeGetsProblemDetails() throws Exception {
     StarterTestSupport.checkProblemDetails(
-        get(DUPLICATE_PATH, MediaType.ALL), HttpStatus.CONFLICT.value(), "ORD-0001");
+        get(DUPLICATE_PATH, MediaType.ALL), HttpStatus.CONFLICT.value(), DUPLICATE_ORDER_CODE);
   }
 
   @Test

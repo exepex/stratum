@@ -8,10 +8,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.MDC;
-import org.springframework.core.Ordered;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.HttpMediaTypeNotAcceptableException;
@@ -19,16 +19,20 @@ import org.springframework.web.accept.HeaderContentNegotiationStrategy;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.servlet.mvc.method.annotation.ExceptionHandlerExceptionResolver;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Answers a {@link StratumException}, or another exception that implements {@link
  * FailureWithErrorCode}, thrown by a controller with the status mapped to its code: Stratum's error
- * body for an API caller, the HTML error page for a browser. It runs after Spring MVC's own
- * resolvers, so the service's {@code @ExceptionHandler} methods and Spring's own answers win.
+ * body for an API caller, the HTML error page for a browser. It runs right after the service's
+ * {@code @ExceptionHandler} methods, so they win, and before Spring MVC's status resolvers, so the
+ * code's status wins over an {@code @ResponseStatus} on the exception or a {@code
+ * ResponseStatusException}, as on WebFlux.
  */
 @RequiredArgsConstructor
-public class FailureWithErrorCodeResolver implements HandlerExceptionResolver, Ordered {
+public class FailureWithErrorCodeResolver implements HandlerExceptionResolver, WebMvcConfigurer {
 
   /** Reads the media types the caller accepts from its {@code Accept} header. */
   private static final HeaderContentNegotiationStrategy ACCEPTED_MEDIA_TYPES =
@@ -64,13 +68,20 @@ public class FailureWithErrorCodeResolver implements HandlerExceptionResolver, O
   }
 
   /**
-   * Runs after Spring MVC's own resolvers.
+   * Places this resolver right after Spring MVC's {@code @ExceptionHandler} resolver, or first if
+   * the service removed it.
    *
-   * @return the lowest precedence
+   * @param resolvers Spring MVC's resolvers, in the order they run
    */
   @Override
-  public int getOrder() {
-    return Ordered.LOWEST_PRECEDENCE;
+  public void extendHandlerExceptionResolvers(List<HandlerExceptionResolver> resolvers) {
+    var exceptionHandlers =
+        resolvers.stream()
+            .filter(ExceptionHandlerExceptionResolver.class::isInstance)
+            .findFirst()
+            .map(resolvers::indexOf)
+            .orElse(-1);
+    resolvers.add(exceptionHandlers + 1, this);
   }
 
   /** Sends the error page to a browser, or writes the body with the request's IDs. */

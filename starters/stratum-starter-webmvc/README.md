@@ -147,9 +147,10 @@ turns off Spring Boot's.
 
 ## Your own error handling
 
-Your handlers always win. Stratum's resolver runs after every `@ExceptionHandler` of yours and
-after Spring MVC's own resolvers, such as the one for `@ResponseStatus`, and answers only what they
-leave:
+Your handlers always win. Stratum's resolver runs right after every `@ExceptionHandler` of yours
+and answers only a failure with an error code that they leave. It runs before Spring MVC's
+resolver for `@ResponseStatus`, so a code mapped in `stratum.web.error.statuses` wins over the
+annotation, as on WebFlux:
 
 ```java
 @RestControllerAdvice
