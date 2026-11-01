@@ -25,8 +25,8 @@ Every default is a property. Find it on the module page or in the
 ```yaml
 stratum:
   http-client:
-    defaults:
-      read-timeout: 10s
+    pool:
+      max-connections: 100
   logging:
     redaction:
       extra-keys:
@@ -35,7 +35,7 @@ stratum:
 ```
 
 ```properties
-stratum.http-client.defaults.read-timeout=10s
+stratum.http-client.pool.max-connections=100
 stratum.logging.redaction.extra-keys=iban,date-of-birth
 ```
 
@@ -162,12 +162,12 @@ class HttpClientConfig {
 }
 ```
 
-Customizers Stratum supports (all planned):
+Customizers Stratum supports. Spring's HTTP client ones work today; the others are planned:
 
 | Customizer | Adjusts | Module |
 | --- | --- | --- |
-| `RestClientCustomizer` (Spring Boot) | Every HTTP client | http-client |
-| `StratumHttpClientCustomizer` | One named client group | http-client |
+| `RestClientCustomizer`, `WebClientCustomizer` (Spring Boot) | Every `RestClient` or `WebClient` built by Spring Boot | http-client |
+| `RestClientHttpServiceGroupConfigurer`, `WebClientHttpServiceGroupConfigurer` (Spring) | The clients of HTTP interface groups, one group or all | http-client |
 | `StratumSecurityCustomizer` | The `HttpSecurity` before Stratum's chain is built | security |
 | `StratumErrorResponseCustomizer` | Extra fields on every error response | web |
 | `MeterFilter` / `ObservationFilter` (Micrometer) | Metric names, tags and observations | observability |

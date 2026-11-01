@@ -55,7 +55,9 @@ Each module page follows the same layout so you always know where to look:
 | Observability (metrics, tracing, health) | [stratum-starter-observability/README.md](../starters/stratum-starter-observability/README.md) |
 | Security (resource server, JWT) | [security.md](modules/security.md) |
 | OAuth2 client (service-to-service tokens) | [oauth2-client.md](modules/oauth2-client.md) |
-| HTTP client | [http-client.md](modules/http-client.md) |
+| HTTP client, what both stacks share (every key, defaults) | [http-client.md](modules/http-client.md) |
+| HTTP client for blocking code (`RestClient`) | [stratum-starter-http-client/README.md](../starters/stratum-starter-http-client/README.md) |
+| HTTP client for reactive code (`WebClient`) | [stratum-starter-reactive-http-client/README.md](../starters/stratum-starter-reactive-http-client/README.md) |
 | Resilience | [resilience.md](modules/resilience.md) |
 | Data (JPA, connection pool, migrations) | [data-jpa.md](modules/data-jpa.md) |
 | Cache | [cache.md](modules/cache.md) |

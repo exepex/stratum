@@ -40,6 +40,7 @@
 
     <!-- Shared libraries -->
     <module>libs/stratum-core</module>
+    <module>libs/stratum-http-client</module>
     <module>libs/stratum-test</module>
     <module>libs/stratum-web</module>
 
@@ -54,6 +55,7 @@
     <module>starters/stratum-starter-microservice</module>
     <module>starters/stratum-starter-oauth2-client</module>
     <module>starters/stratum-starter-observability</module>
+    <module>starters/stratum-starter-reactive-http-client</module>
     <module>starters/stratum-starter-reactive-microservice</module>
     <module>starters/stratum-starter-resilience</module>
     <module>starters/stratum-starter-security</module>

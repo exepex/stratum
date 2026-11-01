@@ -58,16 +58,21 @@ stratum:
 **On an HTTP client** (no code): every client uses the `default` policy, or the one you name:
 
 ```yaml
+spring:
+  http:
+    serviceclient:
+      payments:
+        base-url: https://payments.internal
+
 stratum:
   http-client:
     clients:
       payments:
-        base-url: https://payments.internal
         resilience-policy: payments
 ```
 
 ```properties
-stratum.http-client.clients.payments.base-url=https://payments.internal
+spring.http.serviceclient.payments.base-url=https://payments.internal
 stratum.http-client.clients.payments.resilience-policy=payments
 ```
 

@@ -1,0 +1,10 @@
+{
+  "properties": [
+    {
+      "name": "stratum.http-client.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether the HTTP client module is on. Until it is true, the starter sets up nothing, and Spring Boot's clients keep its own defaults: no timeouts and no pool limits.",
+      "defaultValue": false
+    }
+  ]
+}

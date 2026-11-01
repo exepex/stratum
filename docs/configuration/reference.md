@@ -42,7 +42,7 @@ stratum.environment=prod
 | `stratum.observability.*` | `stratum-starter-observability` | [Observability → Properties](../../starters/stratum-starter-observability/README.md#properties) | Collector addresses, once enabled |
 | `stratum.security.*` | `stratum-starter-security` | [Security → Properties](../modules/security.md#properties) | `resource-server.issuer-uri` |
 | `stratum.oauth2-client.*` | `stratum-starter-oauth2-client` | [OAuth2 client → Properties](../modules/oauth2-client.md#properties) | a `spring.security.oauth2.client.registration.<name>` |
-| `stratum.http-client.*` | `stratum-starter-http-client` | [HTTP client → Properties](../modules/http-client.md#properties) | `clients.<name>.base-url` |
+| `stratum.http-client.*` | `stratum-starter-http-client`, `stratum-starter-reactive-http-client` | [HTTP client → Every key a client needs](../modules/http-client.md#every-key-a-client-needs) | `spring.http.serviceclient.<name>.base-url` for each client |
 | `stratum.resilience.*` | `stratum-starter-resilience` | [Resilience → Properties](../modules/resilience.md#properties) | none |
 | `stratum.data.*` | `stratum-starter-data-jpa` | [Data → Properties](../modules/data-jpa.md#properties) | `spring.datasource.url`, `username`, `password` |
 | `stratum.cache.*` | `stratum-starter-cache` | [Cache → Properties](../modules/cache.md#properties) | `spring.data.redis.*` when `type=redis` |
@@ -63,7 +63,7 @@ such as `stratum.web.request-log.enabled`, apply only once the module is on.
 | `stratum.observability.enabled` | Stratum's metrics, tracing and health settings |
 | `stratum.security.enabled` | Stratum's security chain (Spring Security's defaults then apply) |
 | `stratum.oauth2-client.enabled` | Token handling for outgoing calls |
-| `stratum.http-client.enabled` | Stratum's HTTP client setup |
+| `stratum.http-client.enabled` | HTTP client timeouts and the bounded connection pool |
 | `stratum.resilience.enabled` | All resilience policies |
 | `stratum.data.enabled` | Stratum's data defaults |
 | `stratum.cache.enabled` | Caching |
@@ -94,6 +94,8 @@ it and shows what it does. Details are on each module page.
 | `management.otlp.metrics.export.histogram-flavor` | `base2-exponential-bucket-histogram` | observability |
 | `spring.kafka.template.observation-enabled`, `spring.kafka.listener.observation-enabled` | `true` (from `stratum.observability.trace-kafka-and-rabbitmq-messages`) | observability |
 | `spring.rabbitmq.template.observation-enabled`, `spring.rabbitmq.listener.simple.observation-enabled`, `.direct.observation-enabled`, `.stream.observation-enabled` | `true` (from `stratum.observability.trace-kafka-and-rabbitmq-messages`) | observability |
+| `spring.http.clients.connect-timeout` | `2s` | http-client |
+| `spring.http.clients.read-timeout` | `5s` | http-client |
 | `spring.jpa.open-in-view` | `false` | data |
 | `spring.jpa.hibernate.ddl-auto` | `validate` | data |
 | `spring.kafka.producer.acks` | `all` | kafka |
@@ -111,6 +113,13 @@ spring:
     url: jdbc:postgresql://orders-db:5432/orders
     username: orders
     password: ${ORDERS_DB_PASSWORD}
+  http:
+    serviceclient:
+      inventory:
+        base-url: http://inventory-service
+      payments:
+        base-url: http://payments-service
+        read-timeout: 10s
 
 # Where the observability starter sends metrics and traces: your OpenTelemetry Collector.
 # Required in every profile once stratum.observability.enabled is true.
@@ -138,11 +147,8 @@ stratum:
     enabled: true
     clients:
       inventory:
-        base-url: http://inventory-service
         token-relay: true
       payments:
-        base-url: http://payments-service
-        read-timeout: 10s
         resilience-policy: payments
   resilience:
     enabled: true
@@ -169,10 +175,10 @@ stratum.http-client.enabled=true
 stratum.resilience.enabled=true
 stratum.security.resource-server.issuer-uri=https://idp.acme.com/realms/acme
 stratum.security.resource-server.audiences=order-service
-stratum.http-client.clients.inventory.base-url=http://inventory-service
+spring.http.serviceclient.inventory.base-url=http://inventory-service
+spring.http.serviceclient.payments.base-url=http://payments-service
+spring.http.serviceclient.payments.read-timeout=10s
 stratum.http-client.clients.inventory.token-relay=true
-stratum.http-client.clients.payments.base-url=http://payments-service
-stratum.http-client.clients.payments.read-timeout=10s
 stratum.http-client.clients.payments.resilience-policy=payments
 stratum.resilience.policies.payments.retry.enabled=false
 ```

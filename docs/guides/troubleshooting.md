@@ -30,7 +30,7 @@ Look for `Stratum...AutoConfiguration` entries:
 
 ```text
 Positive matches:
-   StratumHttpClientAutoConfiguration matched:
+   RestClientConnectionPoolAutoConfiguration matched:
       - @ConditionalOnStratumModule http-client stratum.http-client.enabled is true
 
 Negative matches:

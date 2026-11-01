@@ -36,6 +36,11 @@
       </dependency>
       <dependency>
         <groupId>com.exepex.stratum</groupId>
+        <artifactId>stratum-http-client</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.exepex.stratum</groupId>
         <artifactId>stratum-starter-batch</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -82,6 +87,11 @@
       <dependency>
         <groupId>com.exepex.stratum</groupId>
         <artifactId>stratum-starter-observability</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.exepex.stratum</groupId>
+        <artifactId>stratum-starter-reactive-http-client</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>

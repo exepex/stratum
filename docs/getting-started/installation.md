@@ -97,7 +97,7 @@ service does. You can add more later.
 | --- | --- |
 | Exposes a REST API | `stratum-starter-webmvc` (or `stratum-starter-webflux` if it is reactive), `stratum-starter-observability`, `stratum-starter-logging` |
 | Requires a valid token on its API | `stratum-starter-security` |
-| Calls other services over HTTP | `stratum-starter-http-client` (and `stratum-starter-resilience` for retries and circuit breakers) |
+| Calls other services over HTTP | `stratum-starter-http-client` (or `stratum-starter-reactive-http-client` if its clients return `Mono` or `Flux`; add `stratum-starter-resilience` for retries and circuit breakers) |
 | Calls secured services | `stratum-starter-oauth2-client` |
 | Uses a relational database | `stratum-starter-data-jpa` |
 | Caches results | `stratum-starter-cache` |
@@ -191,7 +191,6 @@ message if it is missing:
 | --- | --- |
 | `stratum-starter-observability` | `management.otlp.metrics.export.url` and `management.opentelemetry.tracing.export.otlp.endpoint`, in every profile once enabled |
 | `stratum-starter-security` | `stratum.security.resource-server.issuer-uri` |
-| `stratum-starter-http-client` | `stratum.http-client.clients.<name>.base-url` for each client |
 | `stratum-starter-data-jpa` | `spring.datasource.url`, `username`, `password` |
 | `stratum-starter-kafka` | `spring.kafka.bootstrap-servers` |
 
