@@ -1,8 +1,9 @@
-package com.exepex.stratum.test;
+package com.exepex.stratum.test.it;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+import com.exepex.stratum.test.DownstreamStub;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -14,7 +15,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("DownstreamStub answers at once, or holds a request until the test releases it")
-class DownstreamStubTest {
+class DownstreamStubIntegrationTest {
 
   /** The longest a test waits for the stub. */
   private static final Duration WAIT = Duration.ofSeconds(5);
