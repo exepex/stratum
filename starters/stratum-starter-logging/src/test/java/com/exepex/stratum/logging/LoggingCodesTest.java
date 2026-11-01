@@ -1,6 +1,6 @@
 package com.exepex.stratum.logging;
 
-import com.exepex.stratum.test.StarterTestSupport;
+import com.exepex.stratum.test.ErrorCodeChecks;
 import java.io.IOException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -12,6 +12,6 @@ class LoggingCodesTest {
   @DisplayName(
       "every code is SX-LOGGING- and four digits, unique, and listed on the error codes page")
   void codesFollowFormatAndAreDocumented() throws IOException {
-    StarterTestSupport.checkErrorCodes("LOGGING", LoggingErrorCode.values());
+    ErrorCodeChecks.checkErrorCodes("LOGGING", LoggingErrorCode.values());
   }
 }

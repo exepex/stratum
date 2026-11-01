@@ -8,7 +8,6 @@ import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.sli
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
-import com.exepex.stratum.core.error.ErrorCode;
 import com.exepex.stratum.core.error.LoggingContextConstants;
 import com.exepex.stratum.core.properties.StratumPropertiesCustomizer;
 import com.jayway.jsonpath.JsonPath;
@@ -33,8 +32,6 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
-import java.util.regex.MatchResult;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -46,9 +43,6 @@ import lombok.experimental.UtilityClass;
  */
 @UtilityClass
 public class StarterTestSupport {
-
-  /** The page that lists every Stratum code, relative to a module's directory. */
-  static final Path ERROR_CODES_PAGE = Path.of("../../docs/guides/error-codes.md");
 
   /** The annotation every class in a starter's autoconfigure package carries (ST-ENG-23). */
   private static final String CONFIGURATION =
@@ -133,31 +127,6 @@ public class StarterTestSupport {
    */
   public static void checkSafeToScan(Class<?> classInModulePackage) {
     checkModuleClasses(safeToScan(), classInModulePackage);
-  }
-
-  /**
-   * Checks that every code of a module is {@code SX-<module>-} and four digits, that no two share a
-   * number, and that the error codes page lists exactly the module's codes.
-   *
-   * @param module the module's part of the code, such as {@code LOGGING}
-   * @param codes every code of the module
-   * @throws IOException if the error codes page cannot be read
-   */
-  public static void checkErrorCodes(String module, ErrorCode... codes) throws IOException {
-    var codeFormat = Pattern.compile("SX-" + module + "-\\d{4}");
-    var moduleCodes = Arrays.stream(codes).map(ErrorCode::getCode).toList();
-    var documentedCodes =
-        codeFormat
-            .matcher(Files.readString(ERROR_CODES_PAGE))
-            .results()
-            .map(MatchResult::group)
-            .distinct()
-            .toList();
-
-    assertThat(moduleCodes)
-        .allSatisfy(code -> assertThat(code).matches(codeFormat))
-        .doesNotHaveDuplicates();
-    assertThat(documentedCodes).containsExactlyInAnyOrderElementsOf(moduleCodes);
   }
 
   /**

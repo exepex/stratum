@@ -9,6 +9,8 @@ import org.springframework.boot.autoconfigure.condition.SpringBootCondition;
 import org.springframework.context.annotation.ConditionContext;
 import org.springframework.core.annotation.MergedAnnotation;
 import org.springframework.core.type.AnnotatedTypeMetadata;
+import org.springframework.core.type.ClassMetadata;
+import org.springframework.core.type.MethodMetadata;
 
 /**
  * Decides whether a Stratum module is switched on, for {@link ConditionalOnStratumModule}. Its
@@ -26,7 +28,8 @@ class OnStratumModuleCondition extends SpringBootCondition {
    * @param context the context whose environment holds the property
    * @param metadata the annotated class or method
    * @return a match when the module is on, with the reason
-   * @throws StratumException {@code SX-CORE-1001} if the module name is not in kebab-case
+   * @throws StratumException {@code SX-CORE-1001} if the module name is not in kebab-case; the
+   *     detail names the annotated class or method
    */
   @Override
   public ConditionOutcome getMatchOutcome(
@@ -48,9 +51,19 @@ class OnStratumModuleCondition extends SpringBootCondition {
             .getString(MergedAnnotation.VALUE);
     if (!isKebabCase(module)) {
       throw new StratumException(
-          CoreErrorCode.MODULE_NAME_NOT_KEBAB_CASE, "got \"" + module + "\"");
+          CoreErrorCode.MODULE_NAME_NOT_KEBAB_CASE,
+          "got \"" + module + "\" on " + annotatedElementName(metadata));
     }
     return module;
+  }
+
+  /** Names the annotated class, or the method as {@code Class#method}, so the fault is found. */
+  private String annotatedElementName(AnnotatedTypeMetadata metadata) {
+    return switch (metadata) {
+      case ClassMetadata type -> type.getClassName();
+      case MethodMetadata method -> method.getDeclaringClassName() + "#" + method.getMethodName();
+      default -> metadata.toString();
+    };
   }
 
   /** Returns whether a module name is one kebab-case word, such as {@code http-client}. */

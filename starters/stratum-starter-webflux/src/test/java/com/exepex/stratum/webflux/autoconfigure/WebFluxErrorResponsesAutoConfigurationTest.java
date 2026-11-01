@@ -158,7 +158,7 @@ class WebFluxErrorResponsesAutoConfigurationTest {
                     .hasMessage(
                         "SX-CORE-1004: "
                             + CoreErrorCode.CUSTOMIZER_DECLARED_AS_BEAN.getDescription()
-                            + ": customizer beans webCustomizer"));
+                            + ": customizer beans webCustomizer (WebPropertiesCustomizer)"));
   }
 
   /** Returns a factory with no error statuses. */

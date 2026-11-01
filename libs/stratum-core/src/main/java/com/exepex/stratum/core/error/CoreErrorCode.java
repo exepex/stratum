@@ -20,16 +20,25 @@ public enum CoreErrorCode implements ErrorCode {
       "SX-CORE-1001",
       Severity.ERROR,
       "@ConditionalOnStratumModule needs one lower-case, kebab-case module name, such as"
-          + " http-client"),
+          + " http-client",
+      "Rename the module in the annotation. This is a fault in a starter, not in your service's"
+          + " configuration."),
 
   /**
    * A {@code StratumPropertiesCustomizer} returned {@code null} or settings of another type, or
    * failed with a {@code ClassCastException}. The detail says which, and names the customizer.
    */
-  CUSTOMIZER_BROKEN("SX-CORE-1002", Severity.ERROR, "A StratumPropertiesCustomizer is broken"),
+  CUSTOMIZER_BROKEN(
+      "SX-CORE-1002",
+      Severity.ERROR,
+      "A StratumPropertiesCustomizer is broken",
+      "Return the settings it received to keep them unchanged, and implement the module's"
+          + " customizer interface, such as LoggingPropertiesCustomizer. If the cast that failed is"
+          + " in the customizer's own code, the cause shows where."),
 
   /** A module's settings break their rules; the detail names each property key and rule. */
-  INVALID_SETTINGS("SX-CORE-1003", Severity.ERROR, "Invalid settings"),
+  INVALID_SETTINGS(
+      "SX-CORE-1003", Severity.ERROR, "Invalid settings", "Correct the named properties."),
 
   /**
    * A module's customizer is declared as a bean, but modules read customizers only from {@code
@@ -39,7 +48,10 @@ public enum CoreErrorCode implements ErrorCode {
       "SX-CORE-1004",
       Severity.ERROR,
       "A StratumPropertiesCustomizer is declared as a bean, which Stratum ignores; list its class"
-          + " in META-INF/spring.factories under the module's customizer interface instead"),
+          + " in META-INF/spring.factories under the module's customizer interface instead",
+      "Implement the module's customizer interface, such as LoggingPropertiesCustomizer, in a"
+          + " class with a public no-argument constructor, list it in META-INF/spring.factories and"
+          + " remove the bean."),
 
   /**
    * Warning: the running Spring Boot version is outside the line this Stratum release supports. The
@@ -50,7 +62,8 @@ public enum CoreErrorCode implements ErrorCode {
       Severity.WARNING,
       "Spring Boot's version is outside the line this Stratum release supports, so the service may"
           + " fail in ways that are hard to trace; set the Spring Boot version in the parent POM,"
-          + " such as your company parent, to the supported line");
+          + " such as your company parent, to the supported line",
+      "");
 
   /** The code, such as {@code SX-CORE-1001}. */
   private final String code;
@@ -60,4 +73,7 @@ public enum CoreErrorCode implements ErrorCode {
 
   /** What went wrong, in fixed text. */
   private final String description;
+
+  /** How to fix it, as the Fix column of the error codes page starts; empty for none. */
+  private final String fix;
 }

@@ -5,9 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.exepex.stratum.core.error.CoreErrorCode;
-import com.exepex.stratum.core.error.ErrorCode;
-import com.exepex.stratum.core.error.Severity;
 import com.exepex.stratum.core.properties.StratumPropertiesCustomizer;
 import com.exepex.stratum.test.fixture.UnswitchedGreeter;
 import com.exepex.stratum.test.fixture.autoconfigure.GreetingAutoConfiguration;
@@ -20,8 +17,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -55,31 +50,6 @@ class StarterTestSupportTest {
           .isEqualTo(
               GreetingPropertiesCustomizer.class.getName() + "=" + ShortGreeting.class.getName());
       assertThat(thread.getContextClassLoader()).isSameAs(originalClassLoader);
-    }
-  }
-
-  @Nested
-  @DisplayName("checkErrorCodes")
-  class CheckErrorCodes {
-
-    @Test
-    @DisplayName("passes when the codes have the format and the page lists exactly them")
-    void passesForDocumentedCodes() throws IOException {
-      StarterTestSupport.checkErrorCodes("CORE", CoreErrorCode.values());
-    }
-
-    @Test
-    @DisplayName("fails when a code is not on the error codes page")
-    void failsForUndocumentedCode() {
-      assertThatExceptionOfType(AssertionError.class)
-          .isThrownBy(() -> StarterTestSupport.checkErrorCodes("CORE", UndocumentedCode.values()));
-    }
-
-    @Test
-    @DisplayName("fails when a code does not have the module's format")
-    void failsForBadlyFormattedCode() {
-      assertThatExceptionOfType(AssertionError.class)
-          .isThrownBy(() -> StarterTestSupport.checkErrorCodes("LOGGING", CoreErrorCode.values()));
     }
   }
 
@@ -131,19 +101,6 @@ class StarterTestSupportTest {
     public String customize(String greeting) {
       return "Hi";
     }
-  }
-
-  /** A code in the right format that the error codes page does not list. */
-  @Getter
-  @RequiredArgsConstructor
-  enum UndocumentedCode implements ErrorCode {
-    NOT_ON_THE_PAGE("SX-CORE-9999", Severity.ERROR, "Not on the error codes page");
-
-    private final String code;
-
-    private final Severity severity;
-
-    private final String description;
   }
 
   @Nested
