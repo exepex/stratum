@@ -27,9 +27,10 @@ import org.springframework.util.ObjectUtils;
 
 /**
  * Works out the settings a Stratum module uses: the values bound from properties, changed by the
- * service's {@link StratumPropertiesCustomizer} beans. Java configuration wins because it is
- * applied last. Only the result is validated, so Java can correct or supply a value that the files
- * leave invalid or unset, and a bad value from either place stops the application at startup.
+ * service's {@link StratumPropertiesCustomizer} classes listed in {@code
+ * META-INF/spring.factories}. Java configuration wins because it is applied last. Only the result
+ * is validated, so Java can correct or supply a value that the files leave invalid or unset, and a
+ * bad value from either place stops the application at startup.
  *
  * <p>A module's auto-configuration calls {@link #resolve} once, at startup, and builds its beans
  * from the result.

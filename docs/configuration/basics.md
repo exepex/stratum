@@ -216,7 +216,8 @@ SX-CORE-1003: Invalid settings: stratum.example.clients[*].name breaks @Size(max
 ```
 
 This is deliberate: a broken setting found at deploy time is far cheaper than one found by a
-customer's request at 3 a.m.
+customer's request at 3 a.m. To find it before the deploy, start the service in your CI pipeline
+with production-like configuration, so a bad value fails the pipeline instead.
 
 ## IDE completion
 

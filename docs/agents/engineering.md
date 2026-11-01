@@ -125,16 +125,22 @@ Every starter follows these rules:
   when another framework's bean of the same type exists, Spring injects that one
   ([ADR 0001](../adr/0001-coexistence-with-company-frameworks.md)). For a type that Spring Boot already
   auto-configures, such as `RestClient.Builder`, Stratum does not define its own bean: it adjusts Boot's bean through
-  a customizer (ST-ENG-24). A Stratum auto-configuration is ordered before a Spring Boot one only when it must
-  replace a bean Boot would otherwise create, such as the default `SecurityFilterChain`, and its module page says so.
+  a customizer (ST-ENG-24). One exception: when Spring Boot backs off from its `applicationTaskExecutor` because the
+  service declares an executor of another kind, `stratum-core` defines that executor with Boot's own builder, so
+  `@Async` keeps the logging and tracing context. Boot's `spring.task.execution.mode=force` is not used instead,
+  because it would move `@Async` off a task executor the service declared. A Stratum auto-configuration is ordered
+  before a Spring Boot one only when it must replace a bean Boot would otherwise create, such as the default
+  `SecurityFilterChain`, and its module page says so.
 - **ST-ENG-22** Ordering between auto-configurations is declared with `before` and `after` on `@AutoConfiguration`,
   never left to classpath order. Every Stratum auto-configuration also has an `@AutoConfigureOrder` value later than
   the default, defined once in `stratum-core`, so that auto-configurations from other frameworks that declare no
   order run first and their beans win (ADR 0001).
 - **ST-ENG-23** The `autoconfigure` package only creates and wires beans. Behaviour lives in ordinary classes that can
   be unit tested without Spring.
-- **ST-ENG-24** Services adjust behaviour through customizer beans (Spring's, such as `RestClientCustomizer`, or
-  Stratum's own `*Customizer` interfaces) instead of replacing whole beans.
+- **ST-ENG-24** Services adjust behaviour through customizers instead of replacing whole beans: Spring's customizer
+  beans, such as `RestClientCustomizer`, and Stratum's own `*Customizer` interfaces. A module's settings customizer,
+  `<Module>PropertiesCustomizer`, is the one kind that is never a bean: it is listed in `META-INF/spring.factories`
+  (ST-ENG-34).
 - **ST-ENG-25** The defaults are safe for production: timeouts set, sensitive values redacted, endpoints secured,
   resources bounded. A service needs no configuration to be safe.
 - **ST-ENG-26** Dependencies are injected through constructors (in auto-configuration, through `@Bean` method
