@@ -160,6 +160,11 @@ public class PaymentDeclinedException extends RuntimeException implements Failur
 
   private final String orderId;
 
+  public PaymentDeclinedException(String orderId) {
+    super("payment declined");
+    this.orderId = orderId;
+  }
+
   @Override
   public ErrorCode getErrorCode() {
     return PaymentErrorCode.DECLINED;
@@ -175,7 +180,13 @@ public class PaymentDeclinedException extends RuntimeException implements Failur
 The web modules then answer it as they answer a `StratumException` with the same code and detail:
 the status mapped in `stratum.web.error.statuses`, the same body without `details`, and the same
 log line. An `@ResponseStatus` on the exception, or extending `ResponseStatusException`, does not
-change this on either stack: the status mapped to the code wins. The logging module writes its code
+change this on either stack: the status mapped to the code wins.
+
+When another exception wraps it as its cause, the code is used only where Spring has no status for
+the wrapper, which would otherwise answer `500`. A plain `RuntimeException` around it gets the code's
+status. A wrapper with a status of its own keeps Spring's answer, so existing callers see no change:
+a `ResponseStatusException(NOT_FOUND)` with it as the cause still answers `404` with `SX-WEB-1003`,
+and unreadable JSON still answers `400` with `SX-WEB-1002`. The logging module writes its code
 in `error.code`. A warning code gets `500` and
 `SX-WEB-1005`, because a warning is never thrown. New code throws `StratumException`; this
 interface is only for moving existing exceptions over time.

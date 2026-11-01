@@ -44,6 +44,9 @@ public class OrdersApplication {
   /** An IBAN that a validation message would leak if it quoted the rejected value. */
   static final String IBAN = "DE89370400440532013000";
 
+  /** The detail of every duplicate order the endpoints fail with. */
+  static final String ORDER_DETAIL = "order 42";
+
   /** An internal detail in an exception message, which must never reach a caller. */
   static final String INTERNAL_DETAIL = "LEAK-db-password-wrong";
 
@@ -76,7 +79,7 @@ public class OrdersApplication {
 
     /** Makes the exception with a code the service maps to 409. */
     AnnotatedOrderException() {
-      super(OrderErrorCode.DUPLICATE_ORDER, "order 42");
+      super(OrderErrorCode.DUPLICATE_ORDER, ORDER_DETAIL);
     }
   }
 
@@ -103,7 +106,7 @@ public class OrdersApplication {
      */
     @GetMapping("/orders/duplicate")
     Mono<String> duplicate() {
-      return Mono.error(new StratumException(OrderErrorCode.DUPLICATE_ORDER, "order 42"));
+      return Mono.error(new StratumException(OrderErrorCode.DUPLICATE_ORDER, ORDER_DETAIL));
     }
 
     /**
@@ -114,7 +117,7 @@ public class OrdersApplication {
      */
     @GetMapping("/orders/duplicate-existing")
     Mono<String> duplicateExisting() {
-      return Mono.error(new ExistingOrderException(OrderErrorCode.DUPLICATE_ORDER, "order 42"));
+      return Mono.error(new ExistingOrderException(OrderErrorCode.DUPLICATE_ORDER, ORDER_DETAIL));
     }
 
     /**
@@ -126,6 +129,32 @@ public class OrdersApplication {
     @GetMapping("/orders/duplicate-annotated")
     Mono<String> duplicateAnnotated() {
       return Mono.error(new AnnotatedOrderException());
+    }
+
+    /**
+     * Fails with a plain exception whose cause has a code the service maps to 409.
+     *
+     * @return never returns
+     */
+    @GetMapping("/orders/duplicate-wrapped")
+    Mono<String> duplicateWrapped() {
+      return Mono.error(
+          new IllegalStateException(
+              new StratumException(OrderErrorCode.DUPLICATE_ORDER, ORDER_DETAIL)));
+    }
+
+    /**
+     * Fails with Spring's 404 whose cause has a code the service maps to 409.
+     *
+     * @return never returns
+     */
+    @GetMapping("/orders/duplicate-not-found")
+    Mono<String> duplicateNotFound() {
+      return Mono.error(
+          new ResponseStatusException(
+              HttpStatus.NOT_FOUND,
+              "no order",
+              new StratumException(OrderErrorCode.DUPLICATE_ORDER)));
     }
 
     /**

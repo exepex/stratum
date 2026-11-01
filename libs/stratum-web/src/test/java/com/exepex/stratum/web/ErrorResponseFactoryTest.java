@@ -18,6 +18,7 @@ import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -107,6 +108,30 @@ class ErrorResponseFactoryTest {
     }
 
     @Test
+    @DisplayName("answers one wrapped as the cause of another exception in the same way")
+    void wrappedFailureWithErrorCode() {
+      var wrapped =
+          new IllegalStateException(
+              new StratumException(OrderErrorCode.DUPLICATE_ORDER, ORDER_DETAIL));
+
+      assertThat(factory.membersOf(answer(wrapped)))
+          .isEqualTo(
+              factory.membersOf(
+                  answer(new StratumException(OrderErrorCode.DUPLICATE_ORDER, ORDER_DETAIL))));
+    }
+
+    @Test
+    @Timeout(5)
+    @DisplayName("stops at a chain of causes that loops back on itself")
+    void causesThatLoop() {
+      var first = new IllegalStateException("first");
+      var second = new IllegalArgumentException("second", first);
+      first.initCause(second);
+
+      assertThat(factory.forFailureWithErrorCode(first)).isEmpty();
+    }
+
+    @Test
     @DisplayName("answers a warning code, which is never thrown, with 500 and SX-WEB-1005")
     void warningCodeGets500(CapturedOutput output) {
       var body = answer(new ExistingOrderException(OrderErrorCode.SHIPS_LATE, "3 days"));
@@ -168,6 +193,19 @@ class ErrorResponseFactoryTest {
       assertThat(body.getStatus()).isEqualTo(HttpStatus.BAD_GATEWAY.value());
       assertThat(body.getDetail()).isEqualTo("Order already exists: order 42");
       assertThat(body.getProperties()).containsEntry(WebConstants.CODE, DUPLICATE_ORDER_CODE);
+    }
+
+    @Test
+    @DisplayName("gives Spring's body for the status when only a cause has an error code")
+    void codeOfCauseIsNotUsed() {
+      var body =
+          factory.forFailedRequest(
+              HttpStatus.NOT_FOUND,
+              new IllegalStateException(new StratumException(OrderErrorCode.DUPLICATE_ORDER)));
+
+      assertThat(body.getStatus()).isEqualTo(HttpStatus.NOT_FOUND.value());
+      assertThat(body.getProperties())
+          .containsEntry(WebConstants.CODE, WebErrorCode.NOT_FOUND.getCode());
     }
 
     @Test

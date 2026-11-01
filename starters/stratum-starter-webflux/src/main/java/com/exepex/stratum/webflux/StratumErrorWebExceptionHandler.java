@@ -1,6 +1,5 @@
 package com.exepex.stratum.webflux;
 
-import com.exepex.stratum.core.error.FailureWithErrorCode;
 import com.exepex.stratum.web.ReferencePage;
 import java.util.Map;
 import org.springframework.boot.autoconfigure.web.ErrorProperties;
@@ -110,7 +109,7 @@ public class StratumErrorWebExceptionHandler extends DefaultErrorWebExceptionHan
    */
   @Override
   protected void logError(ServerRequest request, ServerResponse response, Throwable throwable) {
-    if (!(stratumBodies && throwable instanceof FailureWithErrorCode)) {
+    if (request.attribute(StratumErrorAttributes.LOGGED_ATTRIBUTE).isEmpty()) {
       super.logError(request, response, throwable);
     }
   }

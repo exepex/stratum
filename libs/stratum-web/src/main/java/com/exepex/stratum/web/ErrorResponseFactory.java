@@ -7,10 +7,13 @@ import com.exepex.stratum.core.error.LoggingContextConstants;
 import com.exepex.stratum.core.error.Severity;
 import com.exepex.stratum.core.error.StratumException;
 import java.net.URI;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
@@ -63,24 +66,27 @@ public class ErrorResponseFactory {
 
   /**
    * Returns the body of a failure that carries an error code, a {@link StratumException} or an
-   * exception that implements {@link FailureWithErrorCode}, with the status mapped to its code, and
-   * logs it once: a 5xx at ERROR with its stack trace, a 4xx at WARN with its code and message. A
-   * warning code, which is never thrown, gets 500 and {@code SX-WEB-1005}.
+   * exception that implements {@link FailureWithErrorCode}, itself or as a cause of the failure,
+   * with the status mapped to its code, and logs it once: a 5xx at ERROR with its stack trace, a
+   * 4xx at WARN with its code and message. A warning code, which is never thrown, gets 500 and
+   * {@code SX-WEB-1005}. Each web stack calls it for a cause only when Spring has no status of its
+   * own for the failure, so a wrapper such as {@code ResponseStatusException} keeps its status. A
+   * chain of causes that loops back on itself is followed once.
    *
    * @param failure what the request failed with
    * @return the body, which holds the status; empty if the failure carries no error code
    */
   public Optional<ProblemDetail> forFailureWithErrorCode(Throwable failure) {
-    return failure instanceof FailureWithErrorCode codedFailure
-        ? Optional.of(answerAndLog(failure, codedFailure.getReport()))
-        : Optional.empty();
+    return findFailureWithErrorCode(failure)
+        .map(codedFailure -> answerAndLog(failure, codedFailure.getReport()));
   }
 
   /**
    * Returns the body of a request that failed outside the service's own error handling, such as an
    * unknown path or a failed validation. It is not logged here: the server or Spring already did. A
    * failure with an error code that gets here, such as one thrown by a filter, keeps the status the
-   * request failed with.
+   * request failed with. A code in one of its causes is not used: the body is Spring's for the
+   * status, as the request failed with Spring's answer.
    *
    * @param status the status the request failed with
    * @param failure what it failed with, if known
@@ -99,6 +105,15 @@ public class ErrorResponseFactory {
       return bodyOf(report.getExternal(), status);
     }
     return bodyOf(ErrorReport.of(codeFor(status)).getExternal(), status);
+  }
+
+  /** Returns the failure itself or its first cause that implements {@link FailureWithErrorCode}. */
+  private Optional<FailureWithErrorCode> findFailureWithErrorCode(Throwable failure) {
+    var seen = Collections.newSetFromMap(new IdentityHashMap<Throwable, Boolean>());
+    return Stream.iterate(failure, cause -> cause != null && seen.add(cause), Throwable::getCause)
+        .filter(FailureWithErrorCode.class::isInstance)
+        .map(FailureWithErrorCode.class::cast)
+        .findFirst();
   }
 
   /**

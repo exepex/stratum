@@ -1,5 +1,7 @@
 package com.exepex.stratum.webmvc.it;
 
+import com.exepex.stratum.core.error.StratumException;
+import com.exepex.stratum.test.OrderErrorCode;
 import com.exepex.stratum.web.ResponseTimeout;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -33,6 +35,24 @@ public class SlowApplication {
      */
     @GetMapping("/slow/ignores-interrupt")
     String ignoresInterrupt() {
+      runPastTheLimit();
+      return "late";
+    }
+
+    /**
+     * Ignores the interrupt, runs past the route's limit and then fails with a code the service
+     * maps, as a slow call followed by a business check does.
+     *
+     * @return never
+     */
+    @GetMapping("/slow/ignores-interrupt-then-fails")
+    String ignoresInterruptThenFails() {
+      runPastTheLimit();
+      throw new StratumException(OrderErrorCode.DUPLICATE_ORDER, "order 42");
+    }
+
+    /** Runs past the route's limit, ignoring the interrupt, and leaves the thread interrupted. */
+    private void runPastTheLimit() {
       var answerAt = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(IGNORES_INTERRUPT_MILLIS);
       var neverReleased = new CountDownLatch(1);
       var interrupted = false;
@@ -46,7 +66,6 @@ public class SlowApplication {
       if (interrupted) {
         Thread.currentThread().interrupt();
       }
-      return "late";
     }
 
     /**
