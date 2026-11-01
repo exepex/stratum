@@ -3,8 +3,9 @@
 **Status: Planned.** One test dependency with everything a Stratum service needs for unit, mock and
 integration tests: JUnit 5, AssertJ, Mockito, Testcontainers, HTTP stubs and security helpers.
 Today the module holds only what Stratum's own starters' tests share: `StarterTestSupport`, their
-shared checks, and `OrderErrorCode`, the sample error codes of an orders service that the web tests
-use. A service has no use for it yet.
+shared checks, `OrderErrorCode`, the sample error codes of an orders service that the web tests
+use, and `DownstreamStub`, a downstream service on this machine that the HTTP client tests call.
+A service has no use for it yet.
 
 [← Documentation home](../README.md) · Property prefix: `stratum.test`
 

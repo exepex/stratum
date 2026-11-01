@@ -37,6 +37,7 @@ stratum/
 │   └── stratum-parent/             # parent POM for services: adds the executable jar and build info
 ├── libs/
 │   ├── stratum-core/               # shared internals: constants, property defaults
+│   ├── stratum-http-client/        # what both HTTP client starters share: settings, timeouts
 │   ├── stratum-test/               # test support for services
 │   └── stratum-web/                # what both web starters share: settings, error format
 ├── starters/
@@ -44,13 +45,14 @@ stratum/
 │   ├── stratum-starter-cache/
 │   ├── stratum-starter-cli/        # bundle: logging
 │   ├── stratum-starter-data-jpa/
-│   ├── stratum-starter-http-client/
+│   ├── stratum-starter-http-client/        # blocking: RestClient on Apache HttpClient 5
 │   ├── stratum-starter-kafka/
 │   ├── stratum-starter-logging/
 │   ├── stratum-starter-microservice/ # bundle: webmvc, logging, observability, http-client, resilience, security
 │   ├── stratum-starter-oauth2-client/
 │   ├── stratum-starter-observability/
-│   ├── stratum-starter-reactive-microservice/ # bundle: webflux, logging, observability, http-client, resilience, security
+│   ├── stratum-starter-reactive-http-client/ # reactive: WebClient on Reactor Netty
+│   ├── stratum-starter-reactive-microservice/ # bundle: webflux, logging, observability, reactive-http-client, resilience, security
 │   ├── stratum-starter-resilience/
 │   ├── stratum-starter-security/
 │   ├── stratum-starter-web-ui/     # bundle: webmvc, logging, observability, security
@@ -117,14 +119,14 @@ flowchart TD
 Every starter has the same shape:
 
 ```text
-stratum-starter-http-client/
+stratum-starter-logging/
 ├── pom.xml
 └── src/
     ├── main/
-    │   ├── java/com/exepex/stratum/httpclient/
+    │   ├── java/com/exepex/stratum/logging/
     │   │   ├── autoconfigure/                       # wiring only: @AutoConfiguration classes
-    │   │   │   └── StratumHttpClientAutoConfiguration.java
-    │   │   ├── StratumHttpClientProperties.java     # @ConfigurationProperties("stratum.http-client")
+    │   │   │   └── LoggingAutoConfiguration.java
+    │   │   ├── LoggingProperties.java               # @ConfigurationProperties("stratum.logging")
     │   │   └── ...                                  # behaviour, testable without Spring
     │   └── resources/META-INF/
     │       ├── spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports

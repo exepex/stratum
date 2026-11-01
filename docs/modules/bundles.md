@@ -23,7 +23,7 @@ classpath. A single starter never pulls in another unrelated starter.
 | Bundle | For | Single starters it adds |
 | --- | --- | --- |
 | `stratum-starter-microservice` | A REST service that other services call | webmvc, logging, observability, http-client, resilience, security |
-| `stratum-starter-reactive-microservice` | The same, written with WebFlux (`Mono` and `Flux`) | webflux, logging, observability, http-client, resilience, security |
+| `stratum-starter-reactive-microservice` | The same, written with WebFlux (`Mono` and `Flux`) | webflux, logging, observability, reactive-http-client, resilience, security |
 | `stratum-starter-web-ui` | A server-rendered web application | webmvc, logging, observability, security |
 | `stratum-starter-batch` | A batch job that reads and writes a database | data-jpa, logging, observability |
 | `stratum-starter-cli` | A command-line application | logging |

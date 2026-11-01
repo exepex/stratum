@@ -75,12 +75,15 @@ spring:
             client-id: order-service
             client-secret: ${INVENTORY_CLIENT_SECRET}   # from the environment, never in the file
             scope: inventory:read
+  http:
+    serviceclient:
+      inventory:
+        base-url: https://inventory.internal
 
 stratum:
   http-client:
     clients:
       inventory:
-        base-url: https://inventory.internal
         oauth2-registration: inventory
 ```
 
@@ -92,7 +95,7 @@ spring.security.oauth2.client.registration.inventory.client-id=order-service
 spring.security.oauth2.client.registration.inventory.client-secret=${INVENTORY_CLIENT_SECRET}
 spring.security.oauth2.client.registration.inventory.scope=inventory:read
 
-stratum.http-client.clients.inventory.base-url=https://inventory.internal
+spring.http.serviceclient.inventory.base-url=https://inventory.internal
 stratum.http-client.clients.inventory.oauth2-registration=inventory
 ```
 
@@ -102,16 +105,21 @@ change.
 Pass the user's own token on instead (token relay):
 
 ```yaml
+spring:
+  http:
+    serviceclient:
+      profile:
+        base-url: https://profile.internal
+
 stratum:
   http-client:
     clients:
       profile:
-        base-url: https://profile.internal
         token-relay: true
 ```
 
 ```properties
-stratum.http-client.clients.profile.base-url=https://profile.internal
+spring.http.serviceclient.profile.base-url=https://profile.internal
 stratum.http-client.clients.profile.token-relay=true
 ```
 
@@ -137,7 +145,7 @@ Stratum's own properties tune the token handling. Registrations themselves use
 | `stratum.oauth2-client.token-request.read-timeout` | duration | `5s` | Read timeout towards the identity provider. |
 | `stratum.oauth2-client.token-request.retry-attempts` | int | `2` | Retries on network errors and `5xx` answers from the provider. |
 
-On the HTTP client side (documented on the [HTTP client page](http-client.md#properties)):
+On the HTTP client side (planned on the [HTTP client page](http-client.md#planned)):
 
 | Property | Meaning |
 | --- | --- |

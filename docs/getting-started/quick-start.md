@@ -109,6 +109,11 @@ Nothing Stratum-specific: Stratum is switched on by its starters, not by an anno
 spring:
   application:
     name: order-service
+  http:
+    serviceclient:
+      inventory:
+        base-url: http://localhost:8081
+        read-timeout: 2s
 
 stratum:
   web:
@@ -119,10 +124,6 @@ stratum:
     enabled: true
   http-client:
     enabled: true
-    clients:
-      inventory:
-        base-url: http://localhost:8081
-        read-timeout: 2s
 ```
 
 The same in `src/main/resources/application.properties` (use one file, not both):
@@ -133,8 +134,8 @@ stratum.web.enabled=true
 stratum.logging.enabled=true
 stratum.observability.enabled=true
 stratum.http-client.enabled=true
-stratum.http-client.clients.inventory.base-url=http://localhost:8081
-stratum.http-client.clients.inventory.read-timeout=2s
+spring.http.serviceclient.inventory.base-url=http://localhost:8081
+spring.http.serviceclient.inventory.read-timeout=2s
 ```
 
 Once it is on, the observability module also needs your OpenTelemetry Collector's addresses, in
@@ -143,9 +144,10 @@ every profile, or it stops at startup. To try it without a Collector, point both
 quietly ([Observability](../../starters/stratum-starter-observability/README.md#running-without-a-collector)).
 
 **What Stratum did:** it switched on the four modules (each is off until its `enabled` property
-is `true`) and registered an HTTP client group named `inventory`. Everything you did not
-set (connect timeout, trace propagation, correlation header, logging) uses Stratum's defaults. See
-[HTTP client](../modules/http-client.md#properties).
+is `true`) and gave the HTTP client group `inventory`, which you declare in step 4, its address and
+a 2s read timeout. Everything you did not set (connect timeout, connection pool, trace propagation,
+logging) uses Stratum's defaults. See
+[HTTP client](../modules/http-client.md#every-key-a-client-needs).
 
 ## Step 4: declare the downstream client
 
@@ -237,7 +239,7 @@ class OutOfStockException extends RuntimeException {
 | Invalid input returns `400` with a list of field errors | `stratum-starter-webmvc` validation and error handling |
 | `OutOfStockException` returns `409` as Problem Details JSON | `stratum-starter-webmvc` error handling |
 | Every log line carries `trace.id`, `span.id` and `correlation_id` | `stratum-starter-logging` |
-| The call to inventory carries the trace and correlation headers | `stratum-starter-http-client` |
+| The call to inventory carries the trace header | `stratum-starter-observability` |
 | The call to inventory times out after 2 s instead of hanging | Your `read-timeout` plus Stratum's connect timeout |
 | `http.server.requests` and `http.client.requests` metrics | `stratum-starter-observability` |
 

@@ -27,15 +27,15 @@
   <dependencies>
     <dependency>
       <groupId>com.exepex.stratum</groupId>
-      <artifactId>stratum-starter-http-client</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.exepex.stratum</groupId>
       <artifactId>stratum-starter-logging</artifactId>
     </dependency>
     <dependency>
       <groupId>com.exepex.stratum</groupId>
       <artifactId>stratum-starter-observability</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.exepex.stratum</groupId>
+      <artifactId>stratum-starter-reactive-http-client</artifactId>
     </dependency>
     <dependency>
       <groupId>com.exepex.stratum</groupId>

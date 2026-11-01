@@ -14,5 +14,33 @@
   <artifactId>stratum-starter-http-client</artifactId>
 
   <name>Stratum starter: HTTP client</name>
-  <description>Planned: Declarative HTTP clients with timeouts, tracing, tokens and retries.</description>
+  <description>Blocking HTTP clients (RestClient and HTTP interface clients) on Apache HttpClient 5, with timeouts and a bounded connection pool.</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.exepex.stratum</groupId>
+      <artifactId>stratum-http-client</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-restclient</artifactId>
+    </dependency>
+    <!-- Sends the calls. Unlike the JDK's own client, which Spring Boot uses otherwise, it has a
+         connection pool that can be bounded, and Spring Boot picks it first when it is present. -->
+    <dependency>
+      <groupId>org.apache.httpcomponents.client5</groupId>
+      <artifactId>httpclient5</artifactId>
+    </dependency>
+    <!-- The checks and set-up that every starter's tests share. -->
+    <dependency>
+      <groupId>com.exepex.stratum</groupId>
+      <artifactId>stratum-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
 </project>

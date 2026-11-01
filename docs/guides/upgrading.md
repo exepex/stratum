@@ -60,15 +60,24 @@ notes.
 
 ## Deprecated properties
 
-When a property is renamed, the old name keeps working for at least one minor release. At startup
-Stratum logs:
+When a Stratum property is renamed, the old name stays in the configuration metadata for at least
+one release, marked deprecated and naming its replacement, and the release notes list the rename.
+Your IDE marks deprecated keys in `application.yml` and `application.properties`, using the
+configuration metadata shipped with each starter.
 
-```text
-WARN  Property 'stratum.http-client.timeout' is deprecated; use 'stratum.http-client.defaults.read-timeout' instead.
+To find and carry over old keys while you upgrade, add Spring Boot's properties migrator for the
+time of the upgrade, and remove it afterwards:
+
+```xml
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-properties-migrator</artifactId>
+  <scope>runtime</scope>
+</dependency>
 ```
 
-Your IDE also marks deprecated keys in `application.yml` and `application.properties`, using the
-configuration metadata shipped with each starter.
+At startup it reads the metadata of every jar, Stratum's included, reports each old key your service
+sets with its replacement, and applies the value to the new key for that run.
 
 ## Security fixes
 

@@ -251,7 +251,7 @@ asks for a login. See [Security](docs/modules/security.md).
 | Bundle | Single starters it adds |
 | --- | --- |
 | `stratum-starter-microservice` | webmvc, logging, observability, http-client, resilience, security |
-| `stratum-starter-reactive-microservice` | webflux, logging, observability, http-client, resilience, security |
+| `stratum-starter-reactive-microservice` | webflux, logging, observability, reactive-http-client, resilience, security |
 | `stratum-starter-web-ui` | webmvc, logging, observability, security |
 | `stratum-starter-batch` | data-jpa, logging, observability |
 | `stratum-starter-cli` | logging |
@@ -267,7 +267,7 @@ Every starter is off until its `stratum.<module>.enabled` property is `true`.
 | [`stratum-starter-observability`](starters/stratum-starter-observability/README.md) | Metrics, traces and health, sent over OTLP to an OpenTelemetry Collector. | `stratum.observability` |
 | [`stratum-starter-security`](docs/modules/security.md) | OAuth2 resource server: JWT validation, roles, public paths, CORS. | `stratum.security` |
 | [`stratum-starter-oauth2-client`](docs/modules/oauth2-client.md) | Gets and refreshes tokens for calls to other services. | `stratum.oauth2-client` |
-| [`stratum-starter-http-client`](docs/modules/http-client.md) | Declarative HTTP clients with timeouts, tracing, tokens and retries. | `stratum.http-client` |
+| [`stratum-starter-http-client`](starters/stratum-starter-http-client/README.md), [`stratum-starter-reactive-http-client`](starters/stratum-starter-reactive-http-client/README.md) | `RestClient`, `WebClient` and HTTP interfaces with timeouts and a bounded connection pool; tokens and retries planned. | `stratum.http-client` |
 | [`stratum-starter-resilience`](docs/modules/resilience.md) | Named retry, circuit breaker, bulkhead and time limit policies. | `stratum.resilience` |
 | [`stratum-starter-data-jpa`](docs/modules/data-jpa.md) | Connection pool, JPA defaults, Flyway migrations, auditing. | `stratum.data` |
 | [`stratum-starter-cache`](docs/modules/cache.md) | Caffeine or Redis caching with per-cache TTL and size. | `stratum.cache` |
@@ -292,22 +292,18 @@ The same setting, three ways:
 # application.yml
 stratum:
   http-client:
-    clients:
-      inventory:
-        base-url: https://inventory.internal
-        read-timeout: 3s
+    pool:
+      max-connections: 100
 ```
 
 ```properties
 # application.properties
-stratum.http-client.clients.inventory.base-url=https://inventory.internal
-stratum.http-client.clients.inventory.read-timeout=3s
+stratum.http-client.pool.max-connections=100
 ```
 
 ```bash
 # Environment variables (for example in Kubernetes)
-STRATUM_HTTPCLIENT_CLIENTS_INVENTORY_BASEURL=https://inventory.internal
-STRATUM_HTTPCLIENT_CLIENTS_INVENTORY_READTIMEOUT=3s
+STRATUM_HTTPCLIENT_POOL_MAXCONNECTIONS=100
 ```
 
 Things worth knowing from day one:
@@ -330,7 +326,7 @@ You stay in control at three levels, from lightest to strongest:
 
 | You want to | Do this | Example |
 | --- | --- | --- |
-| Change a value | Set a property | `stratum.http-client.defaults.read-timeout=10s` |
+| Change a value | Set a property | `stratum.http-client.pool.max-connections=100` |
 | Adjust a bean Stratum created | Declare a customizer bean | A `RestClientCustomizer` that adds a header |
 | Replace a bean entirely | Declare your own bean of the same type | Your own `SecurityFilterChain` |
 | Switch a whole module on or off | Set `enabled`; every module is off until set to `true` | `stratum.cache.enabled=true` |

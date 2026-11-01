@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.exepex.stratum</groupId>
+    <artifactId>stratum-library-parent</artifactId>
+    <version>${revision}</version>
+    <relativePath>../../platform/stratum-library-parent/pom.xml</relativePath>
+  </parent>
+
+  <artifactId>stratum-http-client</artifactId>
+
+  <name>Stratum HTTP client</name>
+  <description>What stratum-starter-http-client and stratum-starter-reactive-http-client share: the HTTP client settings and Spring Boot's timeout defaults.</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.exepex.stratum</groupId>
+      <artifactId>stratum-core</artifactId>
+    </dependency>
+    <!-- The checks and set-up that every starter's tests share. -->
+    <dependency>
+      <groupId>com.exepex.stratum</groupId>
+      <artifactId>stratum-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Spring Boot's HTTP client keys, to prove that every one the module page documents still
+         exists and is not deprecated. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-http-client</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>

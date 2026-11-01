@@ -1,0 +1,5 @@
+stratum:
+  http-client:
+    pool:
+      max-connections: 20
+      max-wait: 500ms

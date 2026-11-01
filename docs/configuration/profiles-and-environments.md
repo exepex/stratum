@@ -31,14 +31,14 @@ A profile file applies only when its profile is active. Values in it override th
 spring:
   application:
     name: order-service
+  http:
+    serviceclient:
+      inventory:
+        base-url: http://inventory-service   # name inside the cluster
 
 stratum:
   logging:
     format: ecs              # JSON for log platforms
-  http-client:
-    clients:
-      inventory:
-        base-url: http://inventory-service   # name inside the cluster
 ```
 
 `application-local.yml`:
@@ -48,13 +48,14 @@ management:
   tracing:
     sampling:
       probability: 1.0       # trace every request while developing
+spring:
+  http:
+    serviceclient:
+      inventory:
+        base-url: http://localhost:8081
 stratum:
   logging:
     format: text             # easy to read in a terminal
-  http-client:
-    clients:
-      inventory:
-        base-url: http://localhost:8081
 ```
 
 Or, as `application-local.properties`:
@@ -62,7 +63,7 @@ Or, as `application-local.properties`:
 ```properties
 stratum.logging.format=text
 management.tracing.sampling.probability=1.0
-stratum.http-client.clients.inventory.base-url=http://localhost:8081
+spring.http.serviceclient.inventory.base-url=http://localhost:8081
 ```
 
 ### Switching a profile on
@@ -97,7 +98,7 @@ In containers, set properties with environment variables. Kubernetes example:
 env:
   - name: SPRING_PROFILES_ACTIVE
     value: prod
-  - name: STRATUM_HTTPCLIENT_CLIENTS_INVENTORY_BASEURL
+  - name: SPRING_HTTP_SERVICECLIENT_INVENTORY_BASEURL
     value: http://inventory-service.prod.svc.cluster.local
   - name: STRATUM_OBSERVABILITY_TRACING_SAMPLINGPROBABILITY
     value: "0.05"
@@ -112,7 +113,7 @@ spring:
     import: "optional:configtree:/etc/config/"
 ```
 
-A file `/etc/config/stratum.http-client.clients.inventory.base-url` then sets that property.
+A file `/etc/config/spring.http.serviceclient.inventory.base-url` then sets that property.
 
 The rules for converting a property name into an environment variable are in
 [Configuration basics](basics.md#environment-variables-and-command-line-arguments).

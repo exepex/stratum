@@ -41,9 +41,9 @@ stratum:
     enabled: true
     format: ecs
   http-client:
-    defaults:
-      connect-timeout: 1s
-      read-timeout: 5s
+    pool:
+      max-connections: 100
+      max-wait: 1s
 ```
 
 ```properties
@@ -52,8 +52,8 @@ spring.application.name=order-service
 
 stratum.logging.enabled=true
 stratum.logging.format=ecs
-stratum.http-client.defaults.connect-timeout=1s
-stratum.http-client.defaults.read-timeout=5s
+stratum.http-client.pool.max-connections=100
+stratum.http-client.pool.max-wait=1s
 ```
 
 > [!TIP]
@@ -67,8 +67,8 @@ Each level of YAML indentation becomes one dot-separated part of the key:
 ```text
 stratum:                    →  stratum
   http-client:              →  stratum.http-client
-    defaults:               →  stratum.http-client.defaults
-      read-timeout: 5s      →  stratum.http-client.defaults.read-timeout=5s
+    pool:                   →  stratum.http-client.pool
+      max-connections: 100  →  stratum.http-client.pool.max-connections=100
 ```
 
 ## How property names are built
@@ -77,14 +77,14 @@ Every Stratum property follows the same pattern:
 
 ```text
 stratum . <module> . <group> . <setting>
-   │         │         │          └── what you set, e.g. read-timeout
-   │         │         └── optional sub-area, e.g. defaults, redaction, clients.inventory
+   │         │         │          └── what you set, e.g. max-connections
+   │         │         └── optional sub-area, e.g. pool, redaction, request-log
    │         └── the starter, e.g. http-client, logging, security
    └── always "stratum"
 ```
 
 Examples: `stratum.logging.redaction.extra-keys`, `stratum.security.public-paths`,
-`stratum.http-client.clients.inventory.base-url`.
+`stratum.http-client.pool.max-wait`.
 
 Names are written in **kebab-case** (lower case, words joined by `-`). Spring Boot's **relaxed
 binding** also accepts `readTimeout` or `read_timeout`, but kebab-case is the standard; use it so
@@ -133,13 +133,13 @@ one path, repeat the full list.
 
 ### Maps (named entries)
 
-Many Stratum settings are maps keyed by a name you choose, such as one entry per downstream
-service:
+Many settings, Stratum's and Spring Boot's, are maps keyed by a name you choose, such as Spring
+Boot's one entry per downstream service:
 
 ```yaml
-stratum:
-  http-client:
-    clients:
+spring:
+  http:
+    serviceclient:
       inventory:
         base-url: https://inventory.internal
       payments:
@@ -148,9 +148,9 @@ stratum:
 ```
 
 ```properties
-stratum.http-client.clients.inventory.base-url=https://inventory.internal
-stratum.http-client.clients.payments.base-url=https://payments.internal
-stratum.http-client.clients.payments.read-timeout=10s
+spring.http.serviceclient.inventory.base-url=https://inventory.internal
+spring.http.serviceclient.payments.base-url=https://payments.internal
+spring.http.serviceclient.payments.read-timeout=10s
 ```
 
 Use lower-case kebab-case for the names you choose (`inventory`, `payment-gateway`). If a name
@@ -166,8 +166,8 @@ environment in containers and Kubernetes.
 | Property | Environment variable |
 | --- | --- |
 | `stratum.logging.format` | `STRATUM_LOGGING_FORMAT` |
-| `stratum.http-client.defaults.read-timeout` | `STRATUM_HTTPCLIENT_DEFAULTS_READTIMEOUT` |
-| `stratum.http-client.clients.inventory.base-url` | `STRATUM_HTTPCLIENT_CLIENTS_INVENTORY_BASEURL` |
+| `stratum.http-client.pool.max-connections` | `STRATUM_HTTPCLIENT_POOL_MAXCONNECTIONS` |
+| `spring.http.serviceclient.inventory.base-url` | `SPRING_HTTP_SERVICECLIENT_INVENTORY_BASEURL` |
 | `stratum.security.public-paths[0]` | `STRATUM_SECURITY_PUBLICPATHS_0` |
 
 **Command-line arguments:** prefix with `--`:
