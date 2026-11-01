@@ -60,6 +60,7 @@ class WebMvcErrorResponsesAutoConfigurationTest {
           .run(
               context -> {
                 assertThat(context)
+                    .hasSingleBean(WebProperties.class)
                     .hasSingleBean(ErrorResponseFactory.class)
                     .hasSingleBean(FailureWithErrorCodeResolver.class)
                     .hasSingleBean(ErrorBodyAdvice.class);
