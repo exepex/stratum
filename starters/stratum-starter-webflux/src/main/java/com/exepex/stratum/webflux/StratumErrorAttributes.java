@@ -1,7 +1,5 @@
 package com.exepex.stratum.webflux;
 
-import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
-
 import com.exepex.stratum.core.error.FailureWithErrorCode;
 import com.exepex.stratum.core.error.LoggingContextConstants;
 import com.exepex.stratum.web.ErrorResponseFactory;
@@ -12,8 +10,12 @@ import org.slf4j.MDC;
 import org.springframework.boot.web.error.ErrorAttributeOptions;
 import org.springframework.boot.web.error.ErrorAttributeOptions.Include;
 import org.springframework.boot.webflux.error.DefaultErrorAttributes;
+import org.springframework.core.annotation.MergedAnnotations;
+import org.springframework.core.annotation.MergedAnnotations.SearchStrategy;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
+import org.springframework.web.ErrorResponse;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.reactive.function.server.ServerRequest;
 
 /**
@@ -64,23 +66,38 @@ public class StratumErrorAttributes extends DefaultErrorAttributes {
 
   /**
    * Makes the error body of the failed request, and logs a failure with an error code. A code in a
-   * cause is used only when Spring Boot would answer 500, so that a wrapper with a status of its
-   * own, such as a {@code ResponseStatusException} or unreadable JSON, keeps Spring's answer.
+   * cause is used only when the wrapper has no status of its own, as on the servlet stack: a {@code
+   * ResponseStatusException}, unreadable JSON or an exception with {@code @ResponseStatus} keeps
+   * Spring's answer, even an explicit 500.
    */
   private ProblemDetail bodyOf(ServerRequest request) {
     var failure = getError(request);
-    var status = statusOf(request);
     var codedBody =
-        failure instanceof FailureWithErrorCode || status.isSameCodeAs(INTERNAL_SERVER_ERROR)
+        failure instanceof FailureWithErrorCode || !declaresStatus(failure)
             ? errorResponseFactory.forFailureWithErrorCode(failure)
             : Optional.<ProblemDetail>empty();
     codedBody.ifPresent(answered -> request.attributes().put(LOGGED_ATTRIBUTE, true));
-    var body = codedBody.orElseGet(() -> errorResponseFactory.forFailedRequest(status, failure));
+    var body =
+        codedBody.orElseGet(
+            () -> errorResponseFactory.forFailedRequest(statusOf(request), failure));
     errorResponseFactory.addRequestIds(
         body,
         MDC.get(LoggingContextConstants.TRACE_ID),
         MDC.get(LoggingContextConstants.CORRELATION_ID));
     return body;
+  }
+
+  /**
+   * Returns whether the failure sets its own status: it is an {@link ErrorResponse}, which Spring
+   * MVC answers with its status, or it has {@link ResponseStatus}. Spring Boot's WebFlux error
+   * handling reads the status only from a {@code ResponseStatusException} or {@code
+   * ResponseStatus}, but any {@code ErrorResponse} counts here so that both stacks keep the
+   * wrapper's answer.
+   */
+  private boolean declaresStatus(Throwable failure) {
+    return failure instanceof ErrorResponse
+        || MergedAnnotations.from(failure.getClass(), SearchStrategy.TYPE_HIERARCHY)
+            .isPresent(ResponseStatus.class);
   }
 
   /** Returns the status Spring Boot gives the failed request. */
