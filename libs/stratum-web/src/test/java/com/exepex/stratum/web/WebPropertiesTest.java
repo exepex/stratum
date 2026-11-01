@@ -8,31 +8,20 @@ import com.exepex.stratum.test.OrderErrorCode;
 import com.exepex.stratum.test.StarterTestSupport;
 import com.exepex.stratum.web.testsupport.EdgeServiceWebSettings;
 import com.exepex.stratum.web.testsupport.GoneOrderWebSettings;
+import com.exepex.stratum.web.testsupport.WebTestData;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.springframework.boot.env.YamlPropertySourceLoader;
-import org.springframework.core.env.StandardEnvironment;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.env.MockEnvironment;
-import org.springframework.util.unit.DataSize;
 
 @DisplayName("WebProperties come from properties, changed by Java configuration, which wins")
 class WebPropertiesTest {
-
-  /** How every message about a broken setting starts. */
-  private static final String INVALID_SETTINGS = "SX-CORE-1003: Invalid settings: ";
-
-  /** The name of the tests that show a service's Java configuration wins. */
-  private static final String JAVA_CONFIGURATION_WINS =
-      "a customizer listed in spring.factories wins over the files";
 
   /** The code of a duplicate order. */
   private static final String DUPLICATE_ORDER = OrderErrorCode.DUPLICATE_ORDER.getCode();
@@ -59,7 +48,7 @@ class WebPropertiesTest {
   @Test
   @DisplayName("statuses are read from a .yml file, with the code as written")
   void statusesFromYaml() throws IOException {
-    var environment = yamlEnvironment();
+    var environment = WebTestData.yamlEnvironment();
 
     assertThat(WebProperties.resolve(environment).error().statuses())
         .isEqualTo(
@@ -71,7 +60,7 @@ class WebPropertiesTest {
   }
 
   @Test
-  @DisplayName(JAVA_CONFIGURATION_WINS)
+  @DisplayName(WebTestData.JAVA_CONFIGURATION_WINS)
   void javaConfigurationWins(@TempDir Path folder) throws IOException {
     var environment = new MockEnvironment().withProperty(DUPLICATE_ORDER_STATUS, "409");
 
@@ -93,7 +82,7 @@ class WebPropertiesTest {
 
     assertThatExceptionOfType(StratumException.class)
         .isThrownBy(() -> WebProperties.resolve(environment))
-        .withMessageStartingWith(INVALID_SETTINGS + WebConstants.ERROR_STATUSES)
+        .withMessageStartingWith(WebTestData.INVALID_SETTINGS + WebConstants.ERROR_STATUSES)
         .withMessageNotContaining(DUPLICATE_ORDER);
   }
 
@@ -156,7 +145,7 @@ class WebPropertiesTest {
     @Test
     @DisplayName("are read from a .yml file")
     void fromYaml() throws IOException {
-      var environment = yamlEnvironment();
+      var environment = WebTestData.yamlEnvironment();
 
       var settings = WebProperties.resolve(environment);
 
@@ -168,7 +157,7 @@ class WebPropertiesTest {
     }
 
     @Test
-    @DisplayName(JAVA_CONFIGURATION_WINS)
+    @DisplayName(WebTestData.JAVA_CONFIGURATION_WINS)
     void javaConfigurationWins(@TempDir Path folder) throws IOException {
       var environment =
           new MockEnvironment().withProperty(WebConstants.CORRELATION_ACCEPT_FROM_CALLER, "true");
@@ -191,7 +180,8 @@ class WebPropertiesTest {
 
       assertThatExceptionOfType(StratumException.class)
           .isThrownBy(() -> WebProperties.resolve(environment))
-          .withMessageStartingWith(INVALID_SETTINGS + WebConstants.REQUEST_FIELDS_MAX_VALUE_LENGTH);
+          .withMessageStartingWith(
+              WebTestData.INVALID_SETTINGS + WebConstants.REQUEST_FIELDS_MAX_VALUE_LENGTH);
     }
   }
 
@@ -242,7 +232,7 @@ class WebPropertiesTest {
     @Test
     @DisplayName("are read from a .yml file")
     void fromYaml() throws IOException {
-      var environment = yamlEnvironment();
+      var environment = WebTestData.yamlEnvironment();
 
       var requestLog = WebProperties.resolve(environment).requestLog();
 
@@ -260,140 +250,8 @@ class WebPropertiesTest {
 
       assertThatExceptionOfType(StratumException.class)
           .isThrownBy(() -> WebProperties.resolve(environment))
-          .withMessageStartingWith(INVALID_SETTINGS + WebConstants.REQUEST_LOG_REQUEST_HEADERS);
+          .withMessageStartingWith(
+              WebTestData.INVALID_SETTINGS + WebConstants.REQUEST_LOG_REQUEST_HEADERS);
     }
-  }
-
-  @Nested
-  @DisplayName("the timeout settings")
-  class TimeoutSettings {
-
-    /** The limit of a request when nothing is set. */
-    private static final Duration DEFAULT_LIMIT = Duration.ofSeconds(10);
-
-    /** The default limit the files set. */
-    private static final Duration FILE_LIMIT = Duration.ofSeconds(5);
-
-    /** The limit of the report paths that the files set. */
-    private static final Map<String, Duration> REPORT_ROUTES =
-        Map.of("/reports/**", Duration.ofSeconds(60));
-
-    @Test
-    @DisplayName("with nothing set, every request has 10 seconds and is answered with 503")
-    void defaults() {
-      assertThat(WebProperties.resolve(new MockEnvironment()).timeout())
-          .isEqualTo(
-              new WebProperties.TimeoutSettings(
-                  DEFAULT_LIMIT, Map.of(), HttpStatus.SERVICE_UNAVAILABLE.value()));
-    }
-
-    @Test
-    @DisplayName("are read from a .properties file, with the routes as path patterns")
-    void fromProperties() {
-      var environment =
-          new MockEnvironment()
-              .withProperty(WebConstants.TIMEOUT_DEFAULT_LIMIT, "5s")
-              .withProperty(WebConstants.TIMEOUT_ROUTES + "[/reports/**]", "60s")
-              .withProperty(WebConstants.TIMEOUT_STATUS, "504");
-
-      assertThat(WebProperties.resolve(environment).timeout())
-          .isEqualTo(
-              new WebProperties.TimeoutSettings(
-                  FILE_LIMIT, REPORT_ROUTES, HttpStatus.GATEWAY_TIMEOUT.value()));
-    }
-
-    @Test
-    @DisplayName("are read from a .yml file")
-    void fromYaml() throws IOException {
-      var environment = yamlEnvironment();
-
-      assertThat(WebProperties.resolve(environment).timeout())
-          .isEqualTo(
-              new WebProperties.TimeoutSettings(
-                  FILE_LIMIT, REPORT_ROUTES, HttpStatus.GATEWAY_TIMEOUT.value()));
-    }
-
-    @Test
-    @DisplayName(JAVA_CONFIGURATION_WINS)
-    void javaConfigurationWins(@TempDir Path folder) throws IOException {
-      var environment =
-          new MockEnvironment().withProperty(WebConstants.TIMEOUT_DEFAULT_LIMIT, "5s");
-
-      var properties =
-          StarterTestSupport.withCustomizers(
-              folder,
-              WebPropertiesCustomizer.class,
-              List.of(EdgeServiceWebSettings.class),
-              () -> WebProperties.resolve(environment));
-
-      assertThat(properties.timeout().defaultLimit()).isEqualTo(Duration.ofSeconds(2));
-    }
-
-    @Test
-    @DisplayName("a status that is not an error stops startup with SX-CORE-1003")
-    void nonErrorStatusIsRejected() {
-      var environment = new MockEnvironment().withProperty(WebConstants.TIMEOUT_STATUS, "200");
-
-      assertThatExceptionOfType(StratumException.class)
-          .isThrownBy(() -> WebProperties.resolve(environment))
-          .withMessageStartingWith(INVALID_SETTINGS + WebConstants.TIMEOUT_STATUS);
-    }
-  }
-
-  @Nested
-  @DisplayName("the body limit settings")
-  class BodyLimitSettings {
-
-    /** The body limit the files set. */
-    private static final DataSize FILE_LIMIT = DataSize.ofKilobytes(64);
-
-    /** The limit of the upload paths that the files set. */
-    private static final Map<String, DataSize> UPLOAD_ROUTES =
-        Map.of("/uploads/**", DataSize.ofMegabytes(20));
-
-    @Test
-    @DisplayName("with nothing set, every request body may have 256KB")
-    void defaults() {
-      assertThat(WebProperties.resolve(new MockEnvironment()).bodyLimit())
-          .isEqualTo(new WebProperties.BodyLimitSettings(DataSize.parse("256KB"), Map.of()));
-    }
-
-    @Test
-    @DisplayName("are read from a .properties file and from a .yml file")
-    void fromFiles() throws IOException {
-      var properties =
-          new MockEnvironment()
-              .withProperty(WebConstants.BODY_LIMIT_DEFAULT_LIMIT, "64KB")
-              .withProperty(WebConstants.BODY_LIMIT_ROUTES + "[/uploads/**]", "20MB");
-      var expected = new WebProperties.BodyLimitSettings(FILE_LIMIT, UPLOAD_ROUTES);
-
-      assertThat(WebProperties.resolve(properties).bodyLimit()).isEqualTo(expected);
-      assertThat(WebProperties.resolve(yamlEnvironment()).bodyLimit()).isEqualTo(expected);
-    }
-
-    @Test
-    @DisplayName(JAVA_CONFIGURATION_WINS)
-    void javaConfigurationWins(@TempDir Path folder) throws IOException {
-      var environment =
-          new MockEnvironment().withProperty(WebConstants.BODY_LIMIT_DEFAULT_LIMIT, "64KB");
-
-      var properties =
-          StarterTestSupport.withCustomizers(
-              folder,
-              WebPropertiesCustomizer.class,
-              List.of(EdgeServiceWebSettings.class),
-              () -> WebProperties.resolve(environment));
-
-      assertThat(properties.bodyLimit().defaultLimit()).isEqualTo(DataSize.parse("16KB"));
-    }
-  }
-
-  /** Returns an environment holding the settings of web-yaml.yml, as a service's file does. */
-  private static StandardEnvironment yamlEnvironment() throws IOException {
-    var environment = new StandardEnvironment();
-    new YamlPropertySourceLoader()
-        .load("web-yaml", new ClassPathResource("web-yaml.yml"))
-        .forEach(environment.getPropertySources()::addFirst);
-    return environment;
   }
 }

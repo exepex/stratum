@@ -63,7 +63,8 @@ Check: your existing consumers still get the error bodies they got before. With
 body, and a consumer gets Problem Details only when it sends `Accept: application/problem+json`.
 Your own `StratumException` errors, timeouts and bodies over the limit always get Problem Details.
 Once every consumer reads Problem Details, set `stratum.web.backward-compatible=false`; see
-[Backward-compatible mode](../modules/web-compatible-mode.md).
+[Backward-compatible mode](../modules/web-compatible-mode.md), which also leaves the time and
+body size limits off until you set them.
 
 ## Step 5: security
 

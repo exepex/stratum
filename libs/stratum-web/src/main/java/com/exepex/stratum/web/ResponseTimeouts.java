@@ -37,7 +37,7 @@ public class ResponseTimeouts implements AutoCloseable {
    */
   public ResponseTimeouts(WebProperties settings) {
     var timeout = settings.timeout();
-    this.defaultLimit = timeout.defaultLimit();
+    this.defaultLimit = settings.defaultTimeout();
     this.routeLimits = new RouteValues<>(timeout.routes());
     this.status = HttpStatusCode.valueOf(timeout.status());
     this.timer =

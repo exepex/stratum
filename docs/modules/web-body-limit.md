@@ -7,7 +7,9 @@
 
 ## What it does
 
-Every request body has a size limit, 256KB unless you set another. A request whose body is larger
+Every request body has a size limit, 256KB unless you set another. While
+`stratum.web.backward-compatible` is `true`, the default, there is no limit unless you set one; see
+[Backward-compatible mode](web-compatible-mode.md#time-and-body-size-limits). A request whose body is larger
 is answered with `413 Content Too Large` and the code `SX-WEB-1008`, and the service logs one WARN
 line with the limit. A caller can no longer fill the service's memory with one huge request.
 
@@ -46,7 +48,7 @@ stratum:
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.web.body-limit.default-limit` | data size | `256KB` | How large any request's body may be. `0` means no limit. |
+| `stratum.web.body-limit.default-limit` | data size | none, or `256KB` when `stratum.web.backward-compatible` is `false` | How large any request's body may be. `0` means no limit. |
 | `stratum.web.body-limit.routes` | map of path pattern to data size | empty | The limit of the bodies of the requests whose path matches a pattern, such as `/uploads/**`. The most specific pattern wins. |
 
 ## Give one API its own limit
