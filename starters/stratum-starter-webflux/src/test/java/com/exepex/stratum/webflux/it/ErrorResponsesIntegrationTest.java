@@ -224,6 +224,27 @@ class ErrorResponsesIntegrationTest {
     }
 
     @Test
+    @DisplayName("an ErrorResponseException gets its own status, 400 and SX-WEB-1002, as on MVC")
+    void errorResponseKeepsItsStatus() throws Exception {
+      StarterTestSupport.checkProblemDetails(
+          get(OrdersApplication.INVALID_STATE_PATH, MediaType.APPLICATION_JSON),
+          HttpStatus.BAD_REQUEST.value(),
+          WebErrorCode.UNREADABLE_REQUEST.getCode());
+    }
+
+    @Test
+    @DisplayName("a method the path does not allow still gets Spring's 405 and SX-WEB-1004")
+    void methodNotAllowed() throws Exception {
+      StarterTestSupport.checkProblemDetails(
+          send(
+              HttpRequest.newBuilder(uri(DUPLICATE_PATH))
+                  .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
+                  .DELETE()),
+          HttpStatus.METHOD_NOT_ALLOWED.value(),
+          WebErrorCode.REQUEST_FAILED.getCode());
+    }
+
+    @Test
     @DisplayName("an unexpected exception gets SX-WEB-1005 and none of its message")
     void unexpectedException() throws Exception {
       var response = get("/orders/broken", MediaType.APPLICATION_JSON);
@@ -286,6 +307,24 @@ class ErrorResponsesIntegrationTest {
 
       assertThat(response.statusCode()).isEqualTo(HttpStatus.CONFLICT.value());
       assertThat(response.body()).contains("Conflict").containsPattern("Reference: <code>\\w{32}");
+    }
+
+    @Test
+    @DisplayName("a browser gets the HTML page with the mapped status for a FailureWithErrorCode")
+    void browserGetsReferencePageForFailureWithErrorCode() throws Exception {
+      var response = get("/orders/duplicate-existing", MediaType.TEXT_HTML);
+
+      assertThat(response.statusCode()).isEqualTo(HttpStatus.CONFLICT.value());
+      assertThat(response.body()).contains("Conflict");
+    }
+
+    @Test
+    @DisplayName("a browser gets the HTML page with an ErrorResponseException's own status")
+    void browserGetsReferencePageForErrorResponse() throws Exception {
+      var response = get(OrdersApplication.INVALID_STATE_PATH, MediaType.TEXT_HTML);
+
+      assertThat(response.statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+      assertThat(response.body()).contains("Bad Request");
     }
   }
 

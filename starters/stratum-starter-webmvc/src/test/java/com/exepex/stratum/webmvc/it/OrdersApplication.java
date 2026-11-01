@@ -18,6 +18,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.web.ErrorResponseException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -45,6 +46,9 @@ public class OrdersApplication {
 
   /** The detail of every duplicate order the endpoints fail with. */
   static final String ORDER_DETAIL = "order 42";
+
+  /** The path that fails with Spring's {@code ErrorResponseException} and status 400. */
+  static final String INVALID_STATE_PATH = "/orders/invalid-state";
 
   /** An internal detail in an exception message, which must never reach a caller. */
   static final String INTERNAL_DETAIL = "LEAK-db-password-wrong";
@@ -231,6 +235,16 @@ public class OrdersApplication {
     @GetMapping("/orders/gone")
     String gone() {
       throw new OrderGoneException();
+    }
+
+    /**
+     * Fails with Spring's {@code ErrorResponseException}, which carries its own status.
+     *
+     * @return never returns
+     */
+    @GetMapping(OrdersApplication.INVALID_STATE_PATH)
+    String invalidState() {
+      throw new ErrorResponseException(HttpStatus.BAD_REQUEST);
     }
 
     /**

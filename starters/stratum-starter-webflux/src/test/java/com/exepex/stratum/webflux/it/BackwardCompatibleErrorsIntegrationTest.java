@@ -42,6 +42,16 @@ class BackwardCompatibleErrorsIntegrationTest {
     }
 
     @Test
+    @DisplayName("keeps Spring Boot's body with an ErrorResponseException's own status, 400")
+    void errorResponseKeepsItsStatus() throws Exception {
+      BackwardCompatibleErrorChecks.checkBootBodyStatus(
+          port,
+          OrdersApplication.INVALID_STATE_PATH,
+          HttpStatus.BAD_REQUEST.value(),
+          HttpStatus.BAD_REQUEST.getReasonPhrase());
+    }
+
+    @Test
     @DisplayName("gets Stratum's body for a consumer that asks for application/problem+json")
     void optedInConsumerGetsStandardBody() throws Exception {
       BackwardCompatibleErrorChecks.checkOptedInBody(

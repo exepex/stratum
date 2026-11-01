@@ -98,4 +98,25 @@ public class BackwardCompatibleErrorChecks {
     StarterTestSupport.checkProblemDetails(
         StarterTestSupport.getFromService(port, path, ACCEPT, JSON), status, code);
   }
+
+  /**
+   * Checks that a consumer that has not opted in gets Spring Boot's body, with the status and
+   * reason phrase the failure itself carries, such as an {@code ErrorResponseException}'s.
+   *
+   * @param port the port the service listens on
+   * @param path a path that fails with the status
+   * @param status the status
+   * @param reasonPhrase the status's reason phrase, such as {@code Bad Request}
+   * @throws IOException if the request fails
+   * @throws InterruptedException if the request is interrupted
+   */
+  public static void checkBootBodyStatus(int port, String path, int status, String reasonPhrase)
+      throws IOException, InterruptedException {
+    var response = StarterTestSupport.getFromService(port, path, ACCEPT, JSON);
+
+    assertThat(response.statusCode()).isEqualTo(status);
+    assertThat(JsonPath.<Integer>read(response.body(), "$.status")).isEqualTo(status);
+    assertThat(JsonPath.<String>read(response.body(), "$.error")).isEqualTo(reasonPhrase);
+    assertThat(response.body()).doesNotContain("\"code\"");
+  }
 }

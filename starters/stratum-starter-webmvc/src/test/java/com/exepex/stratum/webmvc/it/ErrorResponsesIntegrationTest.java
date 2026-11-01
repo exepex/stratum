@@ -196,6 +196,24 @@ class ErrorResponsesIntegrationTest {
   }
 
   @Test
+  @DisplayName("an ErrorResponseException gets its own status, 400 and SX-WEB-1002")
+  void errorResponseKeepsItsStatus() throws Exception {
+    StarterTestSupport.checkProblemDetails(
+        get(OrdersApplication.INVALID_STATE_PATH, MediaType.APPLICATION_JSON),
+        HttpStatus.BAD_REQUEST.value(),
+        WebErrorCode.UNREADABLE_REQUEST.getCode());
+  }
+
+  @Test
+  @DisplayName("a browser gets the HTML page with an ErrorResponseException's own status")
+  void browserGetsReferencePageForErrorResponse() throws Exception {
+    var response = get(OrdersApplication.INVALID_STATE_PATH, MediaType.TEXT_HTML);
+
+    assertThat(response.statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+    assertThat(response.body()).contains("Bad Request");
+  }
+
+  @Test
   @DisplayName("an unknown path gets SX-WEB-1003 with the trace ID")
   void unknownPath() throws Exception {
     StarterTestSupport.checkProblemDetails(
