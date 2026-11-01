@@ -7,10 +7,13 @@ import com.exepex.stratum.core.error.LoggingContextConstants;
 import com.exepex.stratum.core.error.Severity;
 import com.exepex.stratum.core.error.StratumException;
 import java.net.URI;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
@@ -72,7 +75,7 @@ public class ErrorResponseFactory {
    * @return the body, which holds the status; empty if the failure carries no error code
    */
   public Optional<ProblemDetail> forFailureWithErrorCode(Throwable failure) {
-    return FailureWithErrorCode.findIn(failure)
+    return findFailureWithErrorCode(failure)
         .map(codedFailure -> answerAndLog(failure, codedFailure.getReport()));
   }
 
@@ -87,7 +90,7 @@ public class ErrorResponseFactory {
    * @return the body, which holds the status
    */
   public ProblemDetail forFailedRequest(HttpStatusCode status, @Nullable Throwable failure) {
-    var codedFailure = Optional.ofNullable(failure).flatMap(FailureWithErrorCode::findIn);
+    var codedFailure = Optional.ofNullable(failure).flatMap(this::findFailureWithErrorCode);
     if (codedFailure.isPresent()) {
       return bodyOf(externalErrorOf(codedFailure.get().getReport()), status);
     }
@@ -100,6 +103,23 @@ public class ErrorResponseFactory {
       return bodyOf(report.getExternal(), status);
     }
     return bodyOf(ErrorReport.of(codeFor(status)).getExternal(), status);
+  }
+
+  /**
+   * Finds the failure with an error code in a failure or its causes, such as a {@link
+   * StratumException} wrapped by a framework or by the service's own code. A chain of causes that
+   * loops back on itself is followed once.
+   *
+   * @param failure what the request failed with
+   * @return the failure itself or its first cause that implements {@link FailureWithErrorCode}, if
+   *     any
+   */
+  public Optional<FailureWithErrorCode> findFailureWithErrorCode(Throwable failure) {
+    var seen = Collections.newSetFromMap(new IdentityHashMap<Throwable, Boolean>());
+    return Stream.iterate(failure, cause -> cause != null && seen.add(cause), Throwable::getCause)
+        .filter(FailureWithErrorCode.class::isInstance)
+        .map(FailureWithErrorCode.class::cast)
+        .findFirst();
   }
 
   /**

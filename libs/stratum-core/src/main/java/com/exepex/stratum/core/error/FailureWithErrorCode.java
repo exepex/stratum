@@ -1,9 +1,5 @@
 package com.exepex.stratum.core.error;
 
-import java.util.Objects;
-import java.util.Optional;
-import java.util.stream.Stream;
-
 /**
  * An exception that carries an {@link ErrorCode}, so Stratum answers and logs it as it does a
  * {@link StratumException}: the status mapped to its code, the same error body without field
@@ -40,19 +36,5 @@ public interface FailureWithErrorCode {
    */
   default ErrorReport getReport() {
     return ErrorReport.of(getErrorCode(), getErrorDetail());
-  }
-
-  /**
-   * Finds the failure with a code in a failure or its causes, such as a {@code StratumException}
-   * wrapped by a framework or by the service's own code.
-   *
-   * @param failure what an operation failed with
-   * @return the failure itself or its first cause that implements this interface, if any
-   */
-  static Optional<FailureWithErrorCode> findIn(Throwable failure) {
-    return Stream.iterate(failure, Objects::nonNull, Throwable::getCause)
-        .filter(FailureWithErrorCode.class::isInstance)
-        .map(FailureWithErrorCode.class::cast)
-        .findFirst();
   }
 }

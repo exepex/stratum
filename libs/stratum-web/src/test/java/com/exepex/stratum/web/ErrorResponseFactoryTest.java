@@ -120,6 +120,16 @@ class ErrorResponseFactoryTest {
     }
 
     @Test
+    @DisplayName("stops at a chain of causes that loops back on itself")
+    void causesThatLoop() {
+      var first = new IllegalStateException("first");
+      var second = new IllegalArgumentException("second", first);
+      first.initCause(second);
+
+      assertThat(factory.findFailureWithErrorCode(first)).isEmpty();
+    }
+
+    @Test
     @DisplayName("answers a warning code, which is never thrown, with 500 and SX-WEB-1005")
     void warningCodeGets500(CapturedOutput output) {
       var body = answer(new ExistingOrderException(OrderErrorCode.SHIPS_LATE, "3 days"));
