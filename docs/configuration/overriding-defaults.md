@@ -117,8 +117,8 @@ customizer interface.
 ### Switches, shared properties and Spring Boot properties in Java
 
 The module switches (`stratum.<module>.enabled`), the shared properties (`stratum.environment`,
-`stratum.context-propagation.async-threads`, `stratum.context-propagation.executor-beans`,
-`stratum.context-propagation.reactor`) and any Spring Boot property can be set in Java as default
+`stratum.context-propagation.executor-beans`) and any Spring Boot property, such as
+`management.endpoints.web.exposure.include`, can be set in Java as default
 properties of the application, in its `main` method.
 They are read before any bean exists, so a customizer cannot set them:
 
@@ -138,9 +138,8 @@ public static void main(String[] args) {
 Default properties come last, so the same key in a file, an environment variable or a command-line
 argument wins over them. Each module page lists the Spring Boot properties Stratum sets by default.
 Stratum gives those only to keys you leave unset, so a value you set anywhere, default properties
-included, wins over Stratum's. Where a module has its own setting for one of them, such as
-`stratum.observability.actuator-endpoints-exposed-over-http`, prefer the setting: a customizer can change it, and the
-IDE shows it with Stratum's default.
+included, wins over Stratum's. Stratum has no setting of its own for these keys, so default
+properties are the Java route for them.
 
 ## Level 2: adjust a bean with a customizer
 

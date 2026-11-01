@@ -62,12 +62,9 @@ public class ObservabilityEnvironmentPostProcessor implements EnvironmentPostPro
 
   /** Returns the exposure, histogram, executor, messaging, tag and resource defaults. */
   private Map<String, Object> defaultsWithModuleOn(ConfigurableEnvironment environment) {
-    var observabilityProperties = ObservabilityProperties.resolve(environment);
     var serviceEnvironment = environment.getProperty(StratumModuleConstants.SERVICE_ENVIRONMENT);
     var defaults = new HashMap<String, Object>();
-    defaults.put(
-        ObservabilityConstants.WEB_EXPOSURE,
-        String.join(",", observabilityProperties.actuatorEndpointsExposedOverHttp()));
+    defaults.put(ObservabilityConstants.WEB_EXPOSURE, ObservabilityConstants.EXPOSED_OVER_HTTP);
     putIfSet(
         defaults,
         ObservabilityConstants.METRIC_TAGS + ObservabilityConstants.APPLICATION_TAG,
@@ -81,17 +78,12 @@ public class ObservabilityEnvironmentPostProcessor implements EnvironmentPostPro
         defaults,
         ObservabilityConstants.METRIC_TAGS + ObservabilityConstants.HOST_TAG,
         environment.getProperty(ObservabilityConstants.HOSTNAME));
-    defaults.put(
-        ObservabilityConstants.HISTOGRAM_FOR_EVERY_TIMING,
-        observabilityProperties.recordTimingsAsHistograms());
+    defaults.put(ObservabilityConstants.HISTOGRAM_FOR_EVERY_TIMING, true);
     defaults.put(
         ObservabilityConstants.HISTOGRAM_FLAVOR, ObservabilityConstants.EXPONENTIAL_HISTOGRAM);
     ObservabilityConstants.MESSAGING_OBSERVATION_SWITCHES.forEach(
-        observationSwitch ->
-            defaults.put(
-                observationSwitch, observabilityProperties.traceKafkaAndRabbitmqMessages()));
-    defaults.putAll(StratumDefaults.asyncThreadContextPropagation(environment));
-    defaults.putAll(StratumDefaults.reactorOperatorContextPropagation(environment));
+        observationSwitch -> defaults.put(observationSwitch, true));
+    defaults.putAll(StratumDefaults.CONTEXT_PROPAGATION);
     return defaults;
   }
 

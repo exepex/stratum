@@ -195,51 +195,17 @@ The web starters also take it from the `X-Correlation-Id` header ([web](../../do
 
 ### Messages
 
-With the module on, sending and handling a message are observed like an HTTP call:
-
-- **Traces.** The sender adds the W3C `traceparent` and `baggage` headers to the message. The
-  consumer reads them, so its span is part of the sender's trace, and its log lines carry the
-  sender's trace ID and [correlation ID](#correlation-id).
-- **Timings.** Each send and each handled message is timed, as a [histogram](#timings) like every
-  other timing.
-- **Errors.** A Kafka or RabbitMQ listener that throws records its timing with the `error` tag set
-  to an exception's class name: on Kafka the listener's own exception, such as
-  `IllegalStateException`; on RabbitMQ Spring's wrapper, `ListenerExecutionFailedException`. Every
-  retry is counted. A message handled without error has `error=none`. JMS timers do not show
-  failures: a `@JmsListener` that throws is still recorded with `error=none`, so count JMS failures
-  from your logs.
-- **Kafka batch listeners.** Spring Kafka observes listeners that take one record at a time. A
-  `@KafkaListener` with `batch = "true"` does not join the sender's trace and has no correlation ID,
-  and its `spring.kafka.listener` timer carries Spring Kafka's older tags, `name`, `result` and
-  `exception`, instead of the ones below. Spring Kafka can observe each record of a batch, if you
-  turn on `setRecordObservationsInBatch(true)` on the listener container's properties.
-
-| Technology | Timers | How it is switched on |
-| --- | --- | --- |
-| Kafka (`spring-kafka`) | `spring.kafka.template` (send), `spring.kafka.listener` (handle) | Stratum sets `spring.kafka.template.observation-enabled` and `spring.kafka.listener.observation-enabled` to `true`; Spring Boot leaves them off |
-| JMS, such as IBM MQ or ActiveMQ | `jms.message.publish` (send), `jms.message.process` (handle) | Spring Boot observes `JmsTemplate` and `@JmsListener` on its own |
-| RabbitMQ (`spring-rabbit`) | `spring.rabbit.template` (send), `spring.rabbit.listener` (handle) | Stratum sets `spring.rabbitmq.template.observation-enabled` and `spring.rabbitmq.listener.{simple,direct,stream}.observation-enabled` to `true`; Spring Boot leaves them off |
-
-Kafka and RabbitMQ timers carry the topic or queue name, such as `messaging.destination.name`.
-JMS timers do not: Micrometer keeps the JMS queue name on the span only. No timer carries a message
-ID or a Kafka record key.
-
-Spring also tags the RabbitMQ send timer, `spring.rabbit.template`, with the message's routing key
-(`messaging.rabbitmq.destination.routing_key`). A routing key can hold an ID, such as
-`order.42.created`, and each value would make its own time series, so the [tag guard](#tag-guard)
-always removes that tag. Sends are still timed per destination, just not per routing key.
-
-This works with the senders and listeners Spring Boot sets up, such as `KafkaTemplate`,
-`@KafkaListener`, `JmsTemplate` and `@JmsListener`. This starter adds no messaging library, so
-Stratum's switches do nothing until your service brings Kafka or RabbitMQ.
-
-To turn them all off, set `stratum.observability.trace-kafka-and-rabbitmq-messages=false`. To turn
-one off, set its switch to `false`, for example `spring.kafka.listener.observation-enabled=false`.
+With the module on, sending and handling a Kafka, RabbitMQ or JMS message is traced and timed like
+an HTTP call: the consumer joins the sender's trace, its log lines carry the sender's trace and
+correlation IDs, and each send and handled message is a [histogram](#timings). Stratum turns on
+Spring Boot's Kafka and RabbitMQ switches, which Spring Boot leaves off.
+[Messages](../../docs/modules/observability-messages.md) lists the timers, their tags, the cases
+that are not covered, such as Kafka batch listeners, and how to turn each switch off.
 
 ### Threads and reactive code
 
-Stratum sets Spring Boot's `spring.task.execution.propagate-context=true`, unless
-`stratum.context-propagation.async-threads=false`, so `@Async` methods, Spring Boot's task executor
+Stratum sets Spring Boot's `spring.task.execution.propagate-context=true`, which you can set to
+`false`, so `@Async` methods, Spring Boot's task executor
 and executors built with its `ThreadPoolTaskExecutorBuilder` keep the caller's trace and correlation
 ID. Pools you declare as `Executor`, `ExecutorService` or `ScheduledExecutorService` beans keep them
 too, unless `stratum.context-propagation.executor-beans=false` (boolean, default `true`); pools made
@@ -249,9 +215,9 @@ across threads](../../docs/guides/context-across-threads.md) explains why and li
 In reactive code, Stratum sets Spring Boot's `spring.reactor.context-propagation=auto` and turns on
 Reactor's context propagation, even without WebFlux or WebClient. Every line in a WebFlux handler or
 any operator carries the request's trace and correlation ID, never another request's, and `WebClient`
-sends `baggage` like `RestClient`. `stratum.context-propagation.reactor=false` keeps Spring Boot's
-`limited` mode, where only `handle` and `tap` lines carry them. The same setting carries the logging
-starter's [workflow fields](../stratum-starter-logging/README.md#async-and-reactive-work).
+sends `baggage` like `RestClient`. Setting `spring.reactor.context-propagation=limited` keeps
+Spring Boot's own mode, where only `handle` and `tap` lines carry them. The same setting carries the logging
+starter's [workflow fields](../../docs/modules/logging-workflows.md#async-and-reactive-work).
 
 ### URLs on spans and metrics
 
@@ -320,9 +286,6 @@ noticed. The service keeps running.
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
 | `stratum.observability.enabled` | boolean | `false` | Switches the whole starter on. Until it is `true`, the starter sets up nothing and turns export off. |
-| `stratum.observability.actuator-endpoints-exposed-over-http` | list of strings | `health,info` | The actuator endpoints reachable over HTTP. Add others only behind authentication. A blank name stops startup with `SX-CORE-1003`. |
-| `stratum.observability.record-timings-as-histograms` | boolean | `true` | Whether every timing is stored as a base-2 exponential histogram ([timings](#timings)). `false` keeps only count, sum and max. |
-| `stratum.observability.trace-kafka-and-rabbitmq-messages` | boolean | `true` | Whether Kafka and RabbitMQ messages are traced and timed ([messages](#messages)). `false` turns Spring Boot's switches off. |
 | `stratum.observability.tags.extra-forbidden` | list of strings | empty | More tag names the [tag guard](#tag-guard) refuses, added to the built-in ones. Case, `_`, `-` and `.` are ignored. A blank name stops startup with `SX-CORE-1003`. |
 | `stratum.observability.tags.allowed` | list of strings | empty | Tag names the [tag guard](#tag-guard) keeps even though they are refused by default, such as `customerId`. Compared like `extra-forbidden`. A blank name stops startup with `SX-CORE-1003`. |
 
@@ -330,24 +293,25 @@ The shared [`stratum.environment`](../../docs/configuration/reference.md#shared-
 `environment` tag and the `deployment.environment.name` resource attribute. The shared context
 switches are described in [threads and reactive code](#threads-and-reactive-code).
 
-Spring Boot properties this starter sets by default. A value you set wins, from any file, the
+Spring Boot properties this starter sets by default. Where Spring Boot has a key, Stratum has none
+of its own: set Spring Boot's key to change the default. A value you set wins, from any file, the
 environment, the command line or Java default properties:
 
 | Spring Boot property | Stratum default |
 | --- | --- |
 | `management.otlp.metrics.export.enabled` | `false` while the module is off |
 | `management.tracing.export.enabled` | `false` while the module is off |
-| `management.endpoints.web.exposure.include` | value of `stratum.observability.actuator-endpoints-exposed-over-http` |
+| `management.endpoints.web.exposure.include` | `health,info`. Add other endpoints only behind authentication. |
 | `management.metrics.tags.application` | value of `spring.application.name` |
 | `management.metrics.tags.environment` | value of `stratum.environment` |
 | `management.metrics.tags.host` | value of the `HOSTNAME` environment variable |
 | `management.opentelemetry.resource-attributes[deployment.environment.name]` | value of `stratum.environment` |
-| `management.metrics.distribution.percentiles-histogram.all` | value of `stratum.observability.record-timings-as-histograms` |
+| `management.metrics.distribution.percentiles-histogram.all` | `true`: every timing is a [histogram](#timings). `false` keeps only count, sum and max. |
 | `management.otlp.metrics.export.histogram-flavor` | `base2-exponential-bucket-histogram` |
-| `spring.task.execution.propagate-context` | value of `stratum.context-propagation.async-threads` ([threads](#threads-and-reactive-code)) |
-| `spring.reactor.context-propagation` | `auto`, or `limited` when `stratum.context-propagation.reactor=false` |
-| `spring.kafka.template.observation-enabled`, `spring.kafka.listener.observation-enabled` | value of `stratum.observability.trace-kafka-and-rabbitmq-messages` |
-| `spring.rabbitmq.template.observation-enabled`, `spring.rabbitmq.listener.simple.observation-enabled`, `.direct.observation-enabled`, `.stream.observation-enabled` | value of `stratum.observability.trace-kafka-and-rabbitmq-messages` |
+| `spring.task.execution.propagate-context` | `true` ([threads](#threads-and-reactive-code)) |
+| `spring.reactor.context-propagation` | `auto` ([threads](#threads-and-reactive-code)) |
+| `spring.kafka.template.observation-enabled`, `spring.kafka.listener.observation-enabled` | `true` ([messages](#messages)) |
+| `spring.rabbitmq.template.observation-enabled`, `spring.rabbitmq.listener.simple.observation-enabled`, `.direct.observation-enabled`, `.stream.observation-enabled` | `true` ([messages](#messages)) |
 
 ## Examples
 
@@ -399,21 +363,25 @@ management:
 Send metrics to Prometheus by scraping instead of pushing. Add `io.micrometer:micrometer-registry-prometheus`
 (its version comes from Spring Boot), expose the endpoint, and turn OTLP metrics off. With Stratum's
 histograms on, each timer becomes about 70 `_bucket` series per set of tags in the scrape. The
-`record-timings-as-histograms` line below turns them off, leaving count, sum and max; to keep them
+`percentiles-histogram.all` line below turns them off, leaving count, sum and max; to keep them
 for one metric, also set `management.metrics.distribution.percentiles-histogram.<metric-name>=true`.
 
 ```properties
-stratum.observability.actuator-endpoints-exposed-over-http=health,info,prometheus
-stratum.observability.record-timings-as-histograms=false
+management.endpoints.web.exposure.include=health,info,prometheus
+management.metrics.distribution.percentiles-histogram.all=false
 management.otlp.metrics.export.enabled=false
 ```
 
 ```yaml
-stratum:
-  observability:
-    actuator-endpoints-exposed-over-http: health,info,prometheus
-    record-timings-as-histograms: false
 management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  metrics:
+    distribution:
+      percentiles-histogram:
+        all: false
   otlp:
     metrics:
       export:
@@ -426,7 +394,8 @@ management:
 
 ## Configure in Java
 
-Every setting above can also be set in a Java class, which receives your files' settings and wins:
+Every `stratum.observability.*` setting above can also be set in a Java class, which receives your
+files' settings and wins:
 
 ```java
 public class OrdersObservabilitySettings implements ObservabilityPropertiesCustomizer {

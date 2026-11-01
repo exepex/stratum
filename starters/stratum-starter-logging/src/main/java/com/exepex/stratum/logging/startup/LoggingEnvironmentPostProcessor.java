@@ -100,13 +100,8 @@ public class LoggingEnvironmentPostProcessor implements EnvironmentPostProcessor
     }
     defaultProperties.put(
         LoggingConstants.STACK_TRACE_MAX_LENGTH, loggingProperties.maxFieldLength().toBytes());
-    defaultProperties.put(
-        LoggingConstants.STACK_TRACE_ROOT,
-        loggingProperties.stackTraceStartsWithRootCause()
-            ? LoggingConstants.ROOT_CAUSE_FIRST
-            : LoggingConstants.OUTERMOST_EXCEPTION_FIRST);
-    defaultProperties.putAll(StratumDefaults.asyncThreadContextPropagation(environment));
-    defaultProperties.putAll(StratumDefaults.reactorOperatorContextPropagation(environment));
+    defaultProperties.put(LoggingConstants.STACK_TRACE_ROOT, LoggingConstants.ROOT_CAUSE_FIRST);
+    defaultProperties.putAll(StratumDefaults.CONTEXT_PROPAGATION);
     return defaultProperties;
   }
 

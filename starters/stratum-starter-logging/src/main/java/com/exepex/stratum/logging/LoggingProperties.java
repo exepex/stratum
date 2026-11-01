@@ -21,11 +21,6 @@ import org.springframework.util.unit.DataSize;
  *     ecs. Text is plain and not redacted.
  * @param maxFieldLength The longest a single value or stack trace may be; anything longer is cut.
  *     From 1KB to 1MB. Defaults to 16KB.
- * @param stackTraceStartsWithRootCause Whether a stack trace starts with the root cause, the
- *     exception that started the failure, so that a stack trace cut at max-field-length still shows
- *     why it failed. When false, it starts with the outermost exception, the one the code caught,
- *     as Java prints it. Sets Spring Boot's logging.structured.json.stacktrace.root, which wins if
- *     the service sets it. Defaults to true.
  * @param redaction What is masked on top of Stratum's built-in rules.
  */
 @Builder(toBuilder = true)
@@ -33,7 +28,6 @@ import org.springframework.util.unit.DataSize;
 public record LoggingProperties(
     @DefaultValue("ecs") LogFormat format,
     @DefaultValue("16KB") DataSize maxFieldLength,
-    @DefaultValue("true") boolean stackTraceStartsWithRootCause,
     @DefaultValue Redaction redaction) {
 
   /** The shortest allowed {@code max-field-length}. */

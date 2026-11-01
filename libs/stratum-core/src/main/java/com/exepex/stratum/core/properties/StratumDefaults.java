@@ -10,7 +10,6 @@ import org.springframework.boot.context.properties.source.ConfigurationPropertyS
 import org.springframework.boot.context.properties.source.ConfigurationPropertyState;
 import org.springframework.boot.env.DefaultPropertiesPropertySource;
 import org.springframework.core.env.ConfigurableEnvironment;
-import org.springframework.core.env.Environment;
 
 /**
  * Adds a module's defaults for Spring Boot properties so that every value the service sets wins,
@@ -43,42 +42,18 @@ public class StratumDefaults {
   }
 
   /**
-   * Returns Spring Boot's switch that makes its executors carry the logging and tracing context, so
-   * that {@code @Async} methods and work on Spring's executors keep the trace and workflow fields,
-   * set from {@code stratum.context-propagation.async-threads}, which defaults to {@code true}.
-   *
-   * @param environment the application's environment
-   * @return the settings and their values
+   * Spring Boot's settings that the logging and observability modules give their default: its
+   * executors carry the logging and tracing context, so that {@code @Async} methods keep the trace
+   * and workflow fields, and Reactor carries it into every operator, so that log lines in WebFlux
+   * handlers and in operators such as {@code map} keep them too. A service changes either by
+   * setting the Spring Boot key.
    */
-  public static Map<String, Object> asyncThreadContextPropagation(Environment environment) {
-    return Map.of(
-        StratumModuleConstants.PROPAGATE_TASK_CONTEXT,
-        environment.getProperty(
-            StratumModuleConstants.PROPAGATE_CONTEXT_TO_ASYNC_THREADS, Boolean.class, true));
-  }
-
-  /**
-   * Returns Spring Boot's setting that makes Reactor carry the logging and tracing context into
-   * every operator, so that log lines in WebFlux handlers and in operators such as {@code map} keep
-   * the trace and workflow fields and WebClient sends the correlation ID on, set from {@code
-   * stratum.context-propagation.reactor}, which defaults to {@code true}.
-   *
-   * @param environment the application's environment
-   * @return the setting and its value
-   */
-  public static Map<String, Object> reactorOperatorContextPropagation(Environment environment) {
-    var contextInEveryReactorOperator =
-        Boolean.TRUE.equals(
-            environment.getProperty(
-                StratumModuleConstants.PROPAGATE_CONTEXT_TO_EVERY_REACTOR_OPERATOR,
-                Boolean.class,
-                true));
-    return Map.of(
-        StratumModuleConstants.REACTOR_CONTEXT_PROPAGATION,
-        contextInEveryReactorOperator
-            ? StratumModuleConstants.REACTOR_CONTEXT_IN_EVERY_OPERATOR
-            : StratumModuleConstants.REACTOR_CONTEXT_IN_HANDLE_AND_TAP_ONLY);
-  }
+  public static final Map<String, Object> CONTEXT_PROPAGATION =
+      Map.of(
+          StratumModuleConstants.PROPAGATE_TASK_CONTEXT,
+          true,
+          StratumModuleConstants.REACTOR_CONTEXT_PROPAGATION,
+          StratumModuleConstants.REACTOR_CONTEXT_IN_EVERY_OPERATOR);
 
   /** Returns whether the service's default properties hold the key or any element of it. */
   private static boolean isSet(@Nullable ConfigurationPropertySource serviceDefaults, String key) {
