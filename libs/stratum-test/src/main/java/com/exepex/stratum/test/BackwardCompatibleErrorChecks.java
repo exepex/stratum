@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.jayway.jsonpath.JsonPath;
 import java.io.IOException;
+import java.net.http.HttpResponse;
 import java.util.function.DoubleSupplier;
 import lombok.experimental.UtilityClass;
 
@@ -37,13 +38,11 @@ public class BackwardCompatibleErrorChecks {
       throws IOException, InterruptedException {
     var response = StarterTestSupport.getFromService(port, unknownPath, ACCEPT, JSON);
 
-    assertThat(response.statusCode()).isEqualTo(NOT_FOUND);
+    checkBootBodyMembers(response, NOT_FOUND, "Not Found");
     assertThat(response.headers().firstValue("Content-Type"))
         .hasValueSatisfying(type -> assertThat(type).startsWith(JSON));
-    assertThat(JsonPath.<String>read(response.body(), "$.error")).isEqualTo("Not Found");
     assertThat(JsonPath.<String>read(response.body(), "$.path")).isEqualTo(unknownPath);
     assertThat(JsonPath.<String>read(response.body(), "$.message")).isNotBlank();
-    assertThat(response.body()).doesNotContain("\"code\"");
   }
 
   /**
@@ -65,22 +64,27 @@ public class BackwardCompatibleErrorChecks {
   }
 
   /**
-   * Checks that a browser gets Stratum's page, titled from Spring Boot's body, with the trace ID as
-   * the reference to quote to support.
+   * Checks that a browser gets Stratum's page with the status, titled with its reason phrase, and
+   * with the trace ID as the reference to quote to support, in either mode.
    *
    * @param port the port the service listens on
-   * @param unknownPath a path the service does not have
+   * @param path a path that fails with the status
+   * @param status the status
+   * @param reasonPhrase the status's reason phrase, such as {@code Not Found}
+   * @return the answer, for further checks
    * @throws IOException if the request fails
    * @throws InterruptedException if the request is interrupted
    */
-  public static void checkBrowserPage(int port, String unknownPath)
+  public static HttpResponse<String> checkBrowserPage(
+      int port, String path, int status, String reasonPhrase)
       throws IOException, InterruptedException {
-    var response = StarterTestSupport.getFromService(port, unknownPath, ACCEPT, "text/html");
+    var response = StarterTestSupport.getFromService(port, path, ACCEPT, "text/html");
 
-    assertThat(response.statusCode()).isEqualTo(NOT_FOUND);
+    assertThat(response.statusCode()).isEqualTo(status);
     assertThat(response.body())
-        .contains("<title>Not Found</title>")
+        .contains("<title>" + reasonPhrase + "</title>")
         .containsPattern("Reference: <code>[0-9a-f]{32}</code>");
+    return response;
   }
 
   /**
@@ -113,8 +117,13 @@ public class BackwardCompatibleErrorChecks {
    */
   public static void checkBootBodyStatus(int port, String path, int status, String reasonPhrase)
       throws IOException, InterruptedException {
-    var response = StarterTestSupport.getFromService(port, path, ACCEPT, JSON);
+    checkBootBodyMembers(
+        StarterTestSupport.getFromService(port, path, ACCEPT, JSON), status, reasonPhrase);
+  }
 
+  /** Checks an answer with Spring Boot's body: status line, status and error, and no code. */
+  private static void checkBootBodyMembers(
+      HttpResponse<String> response, int status, String reasonPhrase) {
     assertThat(response.statusCode()).isEqualTo(status);
     assertThat(JsonPath.<Integer>read(response.body(), "$.status")).isEqualTo(status);
     assertThat(JsonPath.<String>read(response.body(), "$.error")).isEqualTo(reasonPhrase);

@@ -85,7 +85,8 @@ class BackwardCompatibleErrorsIntegrationTest {
     @Test
     @DisplayName("gives a browser Stratum's page, titled from Spring Boot's body, with a reference")
     void browserGetsReferencePage() throws Exception {
-      BackwardCompatibleErrorChecks.checkBrowserPage(port, UNKNOWN_PATH);
+      BackwardCompatibleErrorChecks.checkBrowserPage(
+          port, UNKNOWN_PATH, HttpStatus.NOT_FOUND.value(), HttpStatus.NOT_FOUND.getReasonPhrase());
     }
   }
 
