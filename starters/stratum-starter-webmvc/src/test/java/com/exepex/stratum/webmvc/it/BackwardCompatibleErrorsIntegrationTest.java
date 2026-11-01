@@ -18,6 +18,7 @@ import org.springframework.http.HttpStatus;
       "spring.web.error.include-stacktrace=always",
       "spring.web.error.include-exception=true",
       "spring.web.error.include-message=always",
+      "spring.web.error.include-binding-errors=always",
       "stratum.observability.enabled=true",
       "management.tracing.sampling.probability=1.0",
       "management.tracing.export.enabled=false",
@@ -41,6 +42,16 @@ class BackwardCompatibleErrorsIntegrationTest {
     @DisplayName("keeps Spring Boot's body, without diagnostics, for a consumer not opted in")
     void keepsBootBody() throws Exception {
       BackwardCompatibleErrorChecks.checkBootBody(port, UNKNOWN_PATH);
+    }
+
+    @Test
+    @DisplayName("keeps Spring Boot's body for an invalid body, without the rejected value")
+    void invalidBodyHidesValue() throws Exception {
+      BackwardCompatibleErrorChecks.checkInvalidBodyHidesValue(
+          port,
+          "/orders",
+          "{\"quantity\":0,\"account\":\"" + OrdersApplication.IBAN + "\"}",
+          OrdersApplication.IBAN);
     }
 
     @Test

@@ -116,8 +116,8 @@ Stratum's standard body, above, is sent instead when:
   exception that implements `FailureWithErrorCode`, a timeout or a body too large;
 - the service sets `stratum.web.backward-compatible=false`, which a new service does from the start.
 
-Spring Boot's body never shows a stack trace, an exception class or an exception message, even when
-`spring.web.error.include-*` turns them on, because an error body must not show them. A browser
+Spring Boot's body never shows a stack trace, an exception, its message or the binding errors with
+their rejected values, even when `spring.web.error.include-*` turns them on. A browser
 still gets Stratum's page, with the trace ID as the reference to quote to support.
 
 `traceId` and `correlationId` are still added to a `ProblemDetail` your own handler returns, and

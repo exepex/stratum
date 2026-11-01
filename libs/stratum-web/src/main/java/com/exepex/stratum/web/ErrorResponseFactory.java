@@ -182,15 +182,17 @@ public class ErrorResponseFactory {
   }
 
   /**
-   * Returns Spring Boot's options for its own body without a stack trace, exception class or
-   * exception message, which no error body may show, even when {@code spring.web.error.include-*}
-   * turns them on.
+   * Returns Spring Boot's options for its own body without a stack trace, exception class,
+   * exception message or binding errors, which no error body may show, even when {@code
+   * spring.web.error.include-*} turns them on: binding errors hold the rejected values, which can
+   * be personal data.
    *
    * @param options what Spring Boot's body would include
    * @return the same options without those members
    */
   public ErrorAttributeOptions withoutDiagnostics(ErrorAttributeOptions options) {
-    return options.excluding(Include.STACK_TRACE, Include.EXCEPTION, Include.MESSAGE);
+    return options.excluding(
+        Include.STACK_TRACE, Include.EXCEPTION, Include.MESSAGE, Include.BINDING_ERRORS);
   }
 
   /**
