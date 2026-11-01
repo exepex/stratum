@@ -55,10 +55,12 @@ so their order does not matter.
 ### The supported Spring Boot version
 
 Each Stratum release supports one Spring Boot line, such as `4.1.x`. Your parent POM sets the
-Spring Boot version, and Stratum does not check it when your service starts. With `stratum-parent`
-it is always the tested version. Under a company parent, check that its version is in the
-[supported line](../guides/upgrading.md#compatibility) before you upgrade either one
-([ADR 0002](../adr/0002-no-startup-version-check.md)).
+Spring Boot version. With `stratum-parent` it is always the tested version. Under a company
+parent, check that its version is in the [supported line](../guides/upgrading.md#compatibility)
+before you upgrade either one. When it is not, Stratum logs one `SX-CORE-1005` warning at startup
+and the service keeps running; it never stops the service
+([ADR 0007](../adr/0007-spring-boot-version-warning.md), which amends
+[ADR 0002](../adr/0002-no-startup-version-check.md)).
 
 ### Overriding one managed version
 
