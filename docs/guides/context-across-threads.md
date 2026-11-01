@@ -109,7 +109,8 @@ ThreadPoolTaskExecutor reportPool(ThreadPoolTaskExecutorBuilder builder) {
 A wrapped `ScheduledExecutorService` carries the fields only into tasks that run once
 (`schedule`). A task that repeats (`scheduleAtFixedRate`, `scheduleWithFixedDelay`) runs without
 the fields of the code that scheduled it, because it keeps running long after a request that
-scheduled it has ended. Spring's `ThreadPoolTaskScheduler` built by Spring Boot behaves otherwise:
+scheduled it has ended. Each run starts with no fields, and a field a run forgets to remove is
+gone before the next task on that thread. Spring's `ThreadPoolTaskScheduler` built by Spring Boot behaves otherwise:
 its decorator wraps a repeating task once, so every run logs the fields of the code that scheduled
 it. `@Scheduled` methods are registered at startup with no fields, so this matters only when code
 schedules a repeating task from inside a request; schedule it at startup instead.

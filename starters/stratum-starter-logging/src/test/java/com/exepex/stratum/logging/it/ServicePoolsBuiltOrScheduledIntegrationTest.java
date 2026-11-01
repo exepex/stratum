@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,49 +53,58 @@ class ServicePoolsBuiltOrScheduledIntegrationTest {
     MDC.clear();
   }
 
-  @Test
-  @DisplayName("a pool built with the builder carries the field and also runs the team's decorator")
-  void builderPoolCarriesFieldAndRunsTeamDecorator() throws Exception {
-    MDC.put(CUSTOMER_ID, CUSTOMER);
-    var runsBefore = teamDecorator.decoratedTasks.get();
+  @Nested
+  @DisplayName("a Spring pool built with Spring Boot's builder")
+  class BuiltWithBootBuilder {
 
-    var seenInTask =
-        reportPool.submit(() -> MDC.get(CUSTOMER_ID)).get(WAIT_SECONDS, TimeUnit.SECONDS);
+    @Test
+    @DisplayName("carries the field and also runs the team's decorator")
+    void builderPoolCarriesFieldAndRunsTeamDecorator() throws Exception {
+      MDC.put(CUSTOMER_ID, CUSTOMER);
+      var runsBefore = teamDecorator.decoratedTasks.get();
 
-    assertThat(seenInTask).isEqualTo(CUSTOMER);
-    assertThat(teamDecorator.decoratedTasks.get()).isGreaterThan(runsBefore);
+      var seenInTask =
+          reportPool.submit(() -> MDC.get(CUSTOMER_ID)).get(WAIT_SECONDS, TimeUnit.SECONDS);
+
+      assertThat(seenInTask).isEqualTo(CUSTOMER);
+      assertThat(teamDecorator.decoratedTasks.get()).isGreaterThan(runsBefore);
+    }
   }
 
-  @Test
-  @DisplayName("a scheduled pool carries the field into a task that runs once")
-  void oneShotTaskCarriesField() throws Exception {
-    MDC.put(CUSTOMER_ID, CUSTOMER);
+  @Nested
+  @DisplayName("a pool the service declares as a ScheduledExecutorService")
+  class ScheduledPool {
 
-    var seenInTask =
-        reminderScheduler
-            .schedule(() -> MDC.get(CUSTOMER_ID), 1, TimeUnit.MILLISECONDS)
-            .get(WAIT_SECONDS, TimeUnit.SECONDS);
+    @Test
+    @DisplayName("carries the field into a task that runs once")
+    void oneShotTaskCarriesField() throws Exception {
+      MDC.put(CUSTOMER_ID, CUSTOMER);
 
-    assertThat(seenInTask).isEqualTo(CUSTOMER);
-  }
+      var seenInTask =
+          reminderScheduler
+              .schedule(() -> MDC.get(CUSTOMER_ID), 1, TimeUnit.MILLISECONDS)
+              .get(WAIT_SECONDS, TimeUnit.SECONDS);
 
-  @Test
-  @DisplayName(
-      "a scheduled pool runs a repeating task without the field of the code that scheduled it")
-  void repeatingTaskRunsWithoutField() throws Exception {
-    MDC.put(CUSTOMER_ID, CUSTOMER);
-    var firstRun = new CompletableFuture<String>();
+      assertThat(seenInTask).isEqualTo(CUSTOMER);
+    }
 
-    var repeating =
-        reminderScheduler.scheduleAtFixedRate(
-            () -> firstRun.complete(String.valueOf(MDC.get(CUSTOMER_ID))),
-            1,
-            1,
-            TimeUnit.MILLISECONDS);
-    try {
-      assertThat(firstRun.get(WAIT_SECONDS, TimeUnit.SECONDS)).isEqualTo("null");
-    } finally {
-      repeating.cancel(true);
+    @Test
+    @DisplayName("runs a repeating task without the field of the code that scheduled it")
+    void repeatingTaskRunsWithoutField() throws Exception {
+      MDC.put(CUSTOMER_ID, CUSTOMER);
+      var firstRun = new CompletableFuture<String>();
+
+      var repeating =
+          reminderScheduler.scheduleAtFixedRate(
+              () -> firstRun.complete(String.valueOf(MDC.get(CUSTOMER_ID))),
+              1,
+              1,
+              TimeUnit.MILLISECONDS);
+      try {
+        assertThat(firstRun.get(WAIT_SECONDS, TimeUnit.SECONDS)).isEqualTo("null");
+      } finally {
+        repeating.cancel(true);
+      }
     }
   }
 
