@@ -88,12 +88,15 @@ class ErrorResponsesIntegrationTest {
     }
 
     @Test
-    @DisplayName("an unmapped StratumException gets 500 with its own code")
-    void unmappedStratumException() throws Exception {
+    @DisplayName("an unmapped StratumException gets 500 with its own code, and is logged once")
+    void unmappedStratumException(CapturedOutput output) throws Exception {
       StarterTestSupport.checkProblemDetails(
           get("/orders/unpriced", MediaType.APPLICATION_JSON),
           HttpStatus.INTERNAL_SERVER_ERROR.value(),
           "ORD-0003");
+      assertThat(output.getAll())
+          .containsOnlyOnce("StratumException: ORD-0003")
+          .doesNotContain("500 Server Error");
     }
 
     @Test
