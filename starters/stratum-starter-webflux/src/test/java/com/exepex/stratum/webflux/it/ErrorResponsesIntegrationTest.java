@@ -3,6 +3,7 @@ package com.exepex.stratum.webflux.it;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.error.LoggingContextConstants;
+import com.exepex.stratum.test.BackwardCompatibleErrorChecks;
 import com.exepex.stratum.test.StarterTestSupport;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebErrorCode;
@@ -233,6 +234,16 @@ class ErrorResponsesIntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "an ErrorResponseException with an unnamed status, 499, keeps it, with SX-WEB-1004")
+    void unlistedStatusKeepsItsStatus() throws Exception {
+      StarterTestSupport.checkProblemDetails(
+          get(OrdersApplication.UNLISTED_STATUS_PATH, MediaType.APPLICATION_JSON),
+          OrdersApplication.UNLISTED_STATUS,
+          WebErrorCode.REQUEST_FAILED.getCode());
+    }
+
+    @Test
     @DisplayName("a method the path does not allow still gets Spring's 405 and SX-WEB-1004")
     void methodNotAllowed() throws Exception {
       StarterTestSupport.checkProblemDetails(
@@ -315,6 +326,16 @@ class ErrorResponsesIntegrationTest {
     void browserGetsReferencePageForErrorResponse() throws Exception {
       checkReferencePage(OrdersApplication.INVALID_STATE_PATH, HttpStatus.BAD_REQUEST);
     }
+
+    @Test
+    @DisplayName("a browser gets the HTML page with an unnamed status, 499")
+    void browserGetsReferencePageForUnlistedStatus() throws Exception {
+      BackwardCompatibleErrorChecks.checkBrowserPage(
+          port,
+          OrdersApplication.UNLISTED_STATUS_PATH,
+          OrdersApplication.UNLISTED_STATUS,
+          "Http Status " + OrdersApplication.UNLISTED_STATUS);
+    }
   }
 
   @Nested
@@ -344,16 +365,11 @@ class ErrorResponsesIntegrationTest {
     }
   }
 
-  /** Checks the browser page for the path: status, reason phrase, trace ID as reference. */
+  /** Checks the browser page for the path, with the status and its reason phrase. */
   private HttpResponse<String> checkReferencePage(String path, HttpStatus status)
       throws IOException, InterruptedException {
-    var response = get(path, MediaType.TEXT_HTML);
-
-    assertThat(response.statusCode()).isEqualTo(status.value());
-    assertThat(response.body())
-        .contains(status.getReasonPhrase())
-        .containsPattern("Reference: <code>\\w{32}");
-    return response;
+    return BackwardCompatibleErrorChecks.checkBrowserPage(
+        port, path, status.value(), status.getReasonPhrase());
   }
 
   /** Sends a GET that accepts the given media type. */

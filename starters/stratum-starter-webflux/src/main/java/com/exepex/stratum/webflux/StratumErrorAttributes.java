@@ -13,7 +13,6 @@ import org.springframework.boot.webflux.error.DefaultErrorAttributes;
 import org.springframework.core.annotation.MergedAnnotations;
 import org.springframework.core.annotation.MergedAnnotations.SearchStrategy;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.ErrorResponse;
@@ -141,16 +140,9 @@ public class StratumErrorAttributes extends DefaultErrorAttributes {
       var status = errorResponse.getStatusCode();
       attributes.put(STATUS, status.value());
       if (attributes.containsKey(ERROR)) {
-        attributes.put(ERROR, reasonPhraseOf(status));
+        attributes.put(ERROR, errorResponseFactory.reasonPhraseOf(status));
       }
     }
     return attributes;
-  }
-
-  /** Returns the status's reason phrase, or Spring MVC's "Http Status 499" for an unlisted one. */
-  private String reasonPhraseOf(HttpStatusCode status) {
-    return Optional.ofNullable(HttpStatus.resolve(status.value()))
-        .map(HttpStatus::getReasonPhrase)
-        .orElse("Http Status " + status.value());
   }
 }

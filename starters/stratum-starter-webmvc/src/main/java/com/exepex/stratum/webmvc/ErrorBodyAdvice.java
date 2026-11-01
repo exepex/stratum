@@ -6,12 +6,14 @@ import com.exepex.stratum.web.BootErrorBodyCounter;
 import com.exepex.stratum.web.ErrorResponseFactory;
 import com.exepex.stratum.web.WebConstants;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.core.MethodParameter;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageConverter;
@@ -34,6 +36,9 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @RequiredArgsConstructor
 public class ErrorBodyAdvice implements ResponseBodyAdvice<Object> {
+
+  /** The body's member that holds the status of the answer. */
+  private static final String STATUS = "status";
 
   /** Adds the IDs. */
   private final ErrorResponseFactory errorResponseFactory;
@@ -81,7 +86,7 @@ public class ErrorBodyAdvice implements ResponseBodyAdvice<Object> {
           MDC.get(LoggingContextConstants.CORRELATION_ID));
     } else if (request instanceof ServletServerHttpRequest servletRequest
         && MediaType.APPLICATION_JSON.isCompatibleWith(contentType)) {
-      finishErrorControllerBody(servletRequest.getServletRequest(), response);
+      finishErrorControllerBody(servletRequest.getServletRequest(), body, response);
     }
     return body;
   }
@@ -92,14 +97,26 @@ public class ErrorBodyAdvice implements ResponseBodyAdvice<Object> {
    * has neither mark, keeps its media type and is not counted.
    */
   private void finishErrorControllerBody(
-      HttpServletRequest servletRequest, ServerHttpResponse response) {
+      HttpServletRequest servletRequest, @Nullable Object body, ServerHttpResponse response) {
     if (servletRequest.getAttribute(StratumErrorAttributes.STRATUM_BODY_ATTRIBUTE) != null) {
+      answerWithBodyStatus(body, response);
       response.getHeaders().setContentType(MediaType.APPLICATION_PROBLEM_JSON);
     } else if (servletRequest.getAttribute(StratumErrorAttributes.BOOT_BODY_ATTRIBUTE) != null) {
+      answerWithBodyStatus(body, response);
       bootErrorBodyCounter.ifAvailable(
           counter ->
               counter.count(
                   (String) servletRequest.getAttribute(RequestRouteInterceptor.ROUTE_ATTRIBUTE)));
+    }
+  }
+
+  /**
+   * Answers with the body's status. Spring Boot's error controller answers 500 for a status that
+   * {@code HttpStatus} does not list, such as 499, while the body keeps the thrown status.
+   */
+  private void answerWithBodyStatus(@Nullable Object body, ServerHttpResponse response) {
+    if (body instanceof Map<?, ?> members && members.get(STATUS) instanceof Integer status) {
+      response.setStatusCode(HttpStatusCode.valueOf(status));
     }
   }
 }
