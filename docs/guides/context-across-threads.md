@@ -75,9 +75,11 @@ ExecutorService invoiceRenderingPool() {
 
 A bean declared as its class, such as `ThreadPoolExecutor`, is left alone, because the wrapper is
 not that class and code that injects it would fail to start. Declare it as `ExecutorService`
-instead. A pool you create in code, outside a bean, needs wrapping once with Micrometer's
-`ContextExecutorService` or `ContextScheduledExecutorService`, which the logging starter brings:
-`ContextExecutorService.wrap(Executors.newFixedThreadPool(4))`.
+instead. A pool you create in code, outside a bean, needs wrapping once: an `ExecutorService` with
+Micrometer's `ContextExecutorService`, which the logging starter brings, as in
+`ContextExecutorService.wrap(Executors.newFixedThreadPool(4))`, and a `ScheduledExecutorService`
+with Stratum's `new OneShotContextScheduledExecutorService(pool)`, which carries the fields as
+described below for scheduled pools.
 
 Declaring a pool bean stops Spring Boot from creating its own task executor, which would leave
 `@Async` methods on a new thread per call with no fields, or on the single thread of the
@@ -90,8 +92,27 @@ or an `AsyncConfigurer`, because `@Async` then uses your choice, or when
 modules run before Spring Boot's task scheduling: its scheduler is also a task executor, and would
 otherwise count as yours.
 
-A wrapped pool is Micrometer's wrapper, so code that casts it to `ThreadPoolExecutor` fails; inject
-it as declared.
+A wrapped pool is a wrapper, so code that casts it to `ThreadPoolExecutor` fails; inject it as
+declared.
+
+To get a Spring `ThreadPoolTaskExecutor` or `ThreadPoolTaskScheduler` of your own, build it with
+Spring Boot's builder, which adds the decorator that carries the fields, together with any
+`TaskDecorator` bean of yours. One made with `new` carries nothing:
+
+```java
+@Bean
+ThreadPoolTaskExecutor reportPool(ThreadPoolTaskExecutorBuilder builder) {
+  return builder.threadNamePrefix("report-").corePoolSize(4).build();
+}
+```
+
+A wrapped `ScheduledExecutorService` carries the fields only into tasks that run once
+(`schedule`). A task that repeats (`scheduleAtFixedRate`, `scheduleWithFixedDelay`) runs without
+the fields of the code that scheduled it, because it keeps running long after a request that
+scheduled it has ended. Spring's `ThreadPoolTaskScheduler` built by Spring Boot behaves otherwise:
+its decorator wraps a repeating task once, so every run logs the fields of the code that scheduled
+it. `@Scheduled` methods are registered at startup with no fields, so this matters only when code
+schedules a repeating task from inside a request; schedule it at startup instead.
 
 Give `CompletableFuture` methods an executor instead of using the common pool:
 `CompletableFuture.supplyAsync(task, invoiceRenderingPool)`. Nothing can reach a bare
