@@ -2,12 +2,25 @@ package com.exepex.stratum.core.condition;
 
 import com.exepex.stratum.core.error.CoreErrorCode;
 import com.exepex.stratum.core.error.StratumException;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.StreamSupport;
 import org.springframework.boot.autoconfigure.condition.ConditionMessage;
 import org.springframework.boot.autoconfigure.condition.ConditionOutcome;
 import org.springframework.boot.autoconfigure.condition.SpringBootCondition;
+import org.springframework.boot.context.properties.source.ConfigurationProperty;
+import org.springframework.boot.context.properties.source.ConfigurationPropertyName;
+import org.springframework.boot.context.properties.source.ConfigurationPropertyName.Form;
+import org.springframework.boot.context.properties.source.ConfigurationPropertySource;
+import org.springframework.boot.context.properties.source.ConfigurationPropertySources;
+import org.springframework.boot.context.properties.source.IterableConfigurationPropertySource;
 import org.springframework.context.annotation.ConditionContext;
 import org.springframework.core.annotation.MergedAnnotation;
+import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.PropertySource;
 import org.springframework.core.type.AnnotatedTypeMetadata;
 import org.springframework.core.type.ClassMetadata;
 import org.springframework.core.type.MethodMetadata;
@@ -29,7 +42,9 @@ class OnStratumModuleCondition extends SpringBootCondition {
    * @param metadata the annotated class or method
    * @return a match when the module is on, with the reason
    * @throws StratumException {@code SX-CORE-1001} if the module name is not in kebab-case; the
-   *     detail names the annotated class or method
+   *     detail names the annotated class or method. {@code SX-CORE-1006} if the module is switched
+   *     on now but was off when the modules' startup steps ran, {@code SX-CORE-1007} the other way
+   *     round
    */
   @Override
   public ConditionOutcome getMatchOutcome(
@@ -38,8 +53,56 @@ class OnStratumModuleCondition extends SpringBootCondition {
     var property = StratumModuleConstants.enabledProperty(module);
     var message = ConditionMessage.forCondition(ConditionalOnStratumModule.class, module);
     var enabled = StratumModuleSwitch.isEnabled(context.getEnvironment(), module);
+    requireSameSwitchAsAtStartup(context.getEnvironment(), property, enabled);
     return new ConditionOutcome(
         enabled, message.because(property + (enabled ? " is true" : " is not true, so it is off")));
+  }
+
+  /**
+   * Stops startup when the module is on now but was off when the modules' startup steps ran, so it
+   * would run without its startup defaults and checks, or the other way round, so its defaults
+   * would apply without its beans. Without the record of {@link EarlyModuleSwitches}, as in a test
+   * that starts no Spring Boot application, there is nothing to compare, so it does nothing. Nor
+   * does it when the switch's value comes from a property source that cannot list its keys, which
+   * the record cannot see.
+   */
+  private void requireSameSwitchAsAtStartup(
+      Environment environment, String property, boolean enabled) {
+    if (!(environment instanceof ConfigurableEnvironment configurable)) {
+      return;
+    }
+    var record = configurable.getPropertySources().get(EarlyModuleSwitches.RECORD);
+    var name = ConfigurationPropertyName.of(property);
+    var source = sourceOf(configurable, name);
+    if (record != null
+        && record.getProperty(EarlyModuleSwitches.RECORD) instanceof Set<?> modulesOnEarly
+        && modulesOnEarly.contains(name.getElement(1, Form.UNIFORM)) != enabled
+        && source.map(IterableConfigurationPropertySource.class::isInstance).orElse(true)) {
+      throw new StratumException(
+          enabled
+              ? CoreErrorCode.MODULE_SWITCHED_ON_TOO_LATE
+              : CoreErrorCode.MODULE_SWITCHED_OFF_TOO_LATE,
+          property + " in " + nameOf(source));
+    }
+  }
+
+  /** Returns the property source the switch's value comes from, if it is set. */
+  private Optional<ConfigurationPropertySource> sourceOf(
+      ConfigurableEnvironment environment, ConfigurationPropertyName name) {
+    return StreamSupport.stream(ConfigurationPropertySources.get(environment).spliterator(), false)
+        .map(source -> source.getConfigurationProperty(name))
+        .filter(Objects::nonNull)
+        .findFirst()
+        .map(ConfigurationProperty::getSource);
+  }
+
+  /** Returns the name of the property source, for the message. */
+  private String nameOf(Optional<ConfigurationPropertySource> source) {
+    return source
+        .map(ConfigurationPropertySource::getUnderlyingSource)
+        .filter(PropertySource.class::isInstance)
+        .map(underlying -> ((PropertySource<?>) underlying).getName())
+        .orElse("a property source added later");
   }
 
   /** Returns the module name from the annotation and rejects one that is not in kebab-case. */

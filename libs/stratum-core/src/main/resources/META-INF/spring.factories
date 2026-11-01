@@ -1,5 +1,6 @@
 org.springframework.boot.EnvironmentPostProcessor=\
-com.exepex.stratum.core.version.SpringBootVersionCheck
+com.exepex.stratum.core.version.SpringBootVersionCheck,\
+com.exepex.stratum.core.condition.EarlyModuleSwitches
 org.springframework.context.ApplicationListener=\
 com.exepex.stratum.core.condition.ModulesLeftOffNotice
 org.springframework.boot.diagnostics.FailureAnalyzer=\

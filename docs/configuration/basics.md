@@ -91,6 +91,12 @@ binding** also accepts `readTimeout` or `read_timeout`, but kebab-case is the st
 everyone can search for one spelling.
 
 Every module has an on/off switch, `stratum.<module>.enabled`, and is off until you set it to `true`.
+Set the switch in `application.properties` or `application.yml`, an environment variable, the
+command line or Java default properties. A `@PropertySource` file loads too late for it: a module
+switched on only there stops startup with `SX-CORE-1006`, instead of running without its startup
+defaults and checks. A switch turned off later, such as by remote configuration that an
+`ApplicationContextInitializer` adds, stops startup with `SX-CORE-1007`, instead of keeping the
+module's defaults without its beans. A module is either fully on or fully off.
 
 ## Writing values: types and formats
 

@@ -63,7 +63,34 @@ public enum CoreErrorCode implements ErrorCode {
       "Spring Boot's version is outside the line this Stratum release supports, so the service may"
           + " fail in ways that are hard to trace; set the Spring Boot version in the parent POM,"
           + " such as your company parent, to the supported line",
-      "");
+      ""),
+
+  /**
+   * A module is on, but its switch was not {@code true} yet when the modules' startup steps ran, as
+   * with a switch set only in a {@code @PropertySource} file, so the module would run half on. The
+   * detail names the switch and the property source its value comes from.
+   */
+  MODULE_SWITCHED_ON_TOO_LATE(
+      "SX-CORE-1006",
+      Severity.ERROR,
+      "A module is switched on where Spring Boot reads it too late for the module's startup steps,"
+          + " so it would run half on",
+      "Set the switch in application.properties or application.yml, an environment variable or the"
+          + " command line. A @PropertySource file loads too late for it."),
+
+  /**
+   * A module is off, but its switch was {@code true} when the modules' startup steps ran, so its
+   * startup defaults would apply without its beans, and it would run half off. The detail names the
+   * switch and the property source that turns it off.
+   */
+  MODULE_SWITCHED_OFF_TOO_LATE(
+      "SX-CORE-1007",
+      Severity.ERROR,
+      "A module is switched off where Spring Boot reads it too late for the module's startup steps,"
+          + " so it would run half off",
+      "Set the switch in one place that Spring Boot reads early: application.properties or"
+          + " application.yml, an environment variable or the command line. A source added after"
+          + " the configuration files is read too late for it.");
 
   /** The code, such as {@code SX-CORE-1001}. */
   private final String code;
