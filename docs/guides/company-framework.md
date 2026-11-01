@@ -40,9 +40,10 @@ does not compete with the company parent for that decision:
   company parent in setups B and C.
 - Each Stratum release supports one Spring Boot line, such as `4.1.x`. The
   [compatibility table](upgrading.md#compatibility) lists it.
-- Stratum does not check the Spring Boot version at startup
-  ([ADR 0002](../adr/0002-no-startup-version-check.md)). Before the company parent moves to a new
-  Spring Boot version, check that a Stratum release supports it.
+- Stratum never stops a service over the Spring Boot version. When the version is outside the
+  supported line, it logs one `SX-CORE-1005` warning at startup that names the version found and
+  the supported line ([ADR 0007](../adr/0007-spring-boot-version-warning.md)). Before the company
+  parent moves to a new Spring Boot version, check that a Stratum release supports it.
 
 So the company decides when to move to a new Spring Boot version, and the compatibility table tells
 you which Stratum release to use with it.
@@ -195,8 +196,8 @@ as shown in Rule 3.
 **Step 4.** Check the result:
 
 - `mvn dependency:tree` shows one version of each Spring Boot artifact.
-- The service starts. If the Spring Boot version is outside Stratum's supported line, Stratum stops
-  it with a message.
+- The service starts with no `SX-CORE-1005` warning. That warning means the Spring Boot version is
+  outside Stratum's supported line.
 - Starting with `--debug` prints Spring Boot's conditions report. Under "Negative matches", each
   Stratum bean the company replaced is listed with `@ConditionalOnMissingBean` and the bean that
   was found. See [Troubleshooting](troubleshooting.md).
@@ -254,6 +255,6 @@ scan picks up stays off until its module is switched on.
 
 | Problem | Likely cause | Fix |
 | --- | --- | --- |
-| `NoSuchMethodError` or `ClassNotFoundException` from a Spring class at startup | The company parent manages a Spring Boot version outside Stratum's line | Use the Stratum release that supports it, or wait for one. See [Versioning and upgrades](upgrading.md) |
+| `NoSuchMethodError` or `ClassNotFoundException` from a Spring class at startup, after an `SX-CORE-1005` warning | The company parent manages a Spring Boot version outside Stratum's line | Use the Stratum release that supports it, or wait for one. See [Versioning and upgrades](upgrading.md) |
 | A Stratum bean is used instead of the company's | The company bean is created later or has a different type | Order the company auto-configuration with `beforeName`, or turn the Stratum module off |
 | `NoSuchMethodError` at startup | A library's version comes from the company parent and is older than Stratum needs | Compare `mvn dependency:tree` with the release notes and align the company parent |

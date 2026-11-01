@@ -62,4 +62,25 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+
+  <build>
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+        <excludes>
+          <exclude>META-INF/stratum/**</exclude>
+        </excludes>
+      </resource>
+      <!-- Writes the Spring Boot version, the parent of the root pom.xml, into the jar for the
+           startup version warning. SpringBootVersionCheckTest fails if this ever names another
+           version. -->
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>true</filtering>
+        <includes>
+          <include>META-INF/stratum/**</include>
+        </includes>
+      </resource>
+    </resources>
+  </build>
 </project>
