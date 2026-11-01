@@ -36,9 +36,9 @@ public class StratumModuleConstants {
 
   /**
    * Spring Boot's setting for how Reactor carries the logging and tracing context, which the
-   * logging and observability modules set to {@link #REACTOR_CONTEXT_IN_EVERY_OPERATOR} by default.
-   * A service sets it to {@code limited}, Spring Boot's own default, to keep the context only in
-   * handle and tap.
+   * logging and observability modules, and the web module on WebFlux, set to {@link
+   * #REACTOR_CONTEXT_IN_EVERY_OPERATOR} by default. A service sets it to {@code limited}, Spring
+   * Boot's own default, to keep the context only in handle and tap.
    */
   public static final String REACTOR_CONTEXT_PROPAGATION = "spring.reactor.context-propagation";
 

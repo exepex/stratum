@@ -82,7 +82,7 @@ it and shows what it does. Details are on each module page.
 | `logging.structured.json.stacktrace.max-length` | `16384` (from `stratum.logging.max-field-length`) | logging |
 | `logging.structured.json.stacktrace.root` | `first`, the root cause | logging |
 | `spring.task.execution.propagate-context` | `true` | logging, observability |
-| `spring.reactor.context-propagation` | `auto` | logging, observability |
+| `spring.reactor.context-propagation` | `auto` | logging, observability, web (WebFlux) |
 | `management.otlp.metrics.export.enabled` | `false` while the module is off | observability |
 | `management.tracing.export.enabled` | `false` while the module is off | observability |
 | `management.endpoints.web.exposure.include` | `health,info` | observability |

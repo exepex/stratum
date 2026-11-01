@@ -375,7 +375,7 @@ to change the wait.
 | What you see | Why, and the fix |
 | --- | --- |
 | Your code is answered with `500`, and the log says it has no status | Add the code to `stratum.web.error.statuses`. |
-| The body has no `traceId` | Tracing is off. Add the observability starter and set `stratum.observability.enabled=true`. |
+| The body has no `traceId` | Tracing is off: add the observability starter and set `stratum.observability.enabled=true`. Or the service sets `spring.reactor.context-propagation=limited`, so the error handler runs without the request's trace ID: remove it to get Stratum's default, `auto`. |
 | A failure gets Spring Boot's default body | The module is off, or the service declares its own `ErrorAttributes` or `ErrorWebExceptionHandler` bean. |
 | Your handler is not used for an exception | Another advice handles it first. Advice runs in `@Order` order. |
 | Spring's own failures, such as an invalid body, get a body without `code`, and with the request path as `instance` | The service sets `spring.webflux.problemdetails.enabled=true`, so Spring's own handler answers them before Stratum's. Remove the property, which is off by default, to get Stratum's body. |
