@@ -140,10 +140,7 @@ class ErrorResponsesIntegrationTest {
   @Test
   @DisplayName("a browser gets the HTML page with the mapped status for a FailureWithErrorCode")
   void browserGetsReferencePageForFailureWithErrorCode() throws Exception {
-    var response = get("/orders/duplicate-existing", MediaType.TEXT_HTML);
-
-    assertThat(response.statusCode()).isEqualTo(HttpStatus.CONFLICT.value());
-    assertThat(response.body()).contains("Conflict");
+    checkReferencePage("/orders/duplicate-existing", HttpStatus.CONFLICT);
   }
 
   @Test
@@ -207,10 +204,7 @@ class ErrorResponsesIntegrationTest {
   @Test
   @DisplayName("a browser gets the HTML page with an ErrorResponseException's own status")
   void browserGetsReferencePageForErrorResponse() throws Exception {
-    var response = get(OrdersApplication.INVALID_STATE_PATH, MediaType.TEXT_HTML);
-
-    assertThat(response.statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
-    assertThat(response.body()).contains("Bad Request");
+    checkReferencePage(OrdersApplication.INVALID_STATE_PATH, HttpStatus.BAD_REQUEST);
   }
 
   @Test
@@ -267,12 +261,10 @@ class ErrorResponsesIntegrationTest {
   @Test
   @DisplayName("a browser gets an HTML page with the trace ID as its reference")
   void browserGetsReferencePage() throws Exception {
-    var response = get("/no-such-path", MediaType.TEXT_HTML);
+    var response = checkReferencePage("/no-such-path", HttpStatus.NOT_FOUND);
 
-    assertThat(response.statusCode()).isEqualTo(HttpStatus.NOT_FOUND.value());
     assertThat(response.headers().firstValue(HttpHeaders.CONTENT_TYPE))
         .hasValueSatisfying(type -> assertThat(type).startsWith(MediaType.TEXT_HTML_VALUE));
-    assertThat(response.body()).contains("Not Found").containsPattern("Reference: <code>\\w{32}");
   }
 
   @Test
@@ -285,10 +277,7 @@ class ErrorResponsesIntegrationTest {
   @Test
   @DisplayName("a browser gets the HTML page with the mapped status for a StratumException")
   void browserGetsReferencePageForStratumException() throws Exception {
-    var response = get(DUPLICATE_PATH, MediaType.TEXT_HTML);
-
-    assertThat(response.statusCode()).isEqualTo(HttpStatus.CONFLICT.value());
-    assertThat(response.body()).contains("Conflict").containsPattern("Reference: <code>\\w{32}");
+    checkReferencePage(DUPLICATE_PATH, HttpStatus.CONFLICT);
   }
 
   @Test
@@ -317,6 +306,18 @@ class ErrorResponsesIntegrationTest {
         get(OrdersApplication.FailingFilter.REJECTING_PATH, MediaType.APPLICATION_JSON),
         HttpStatus.UNAUTHORIZED.value(),
         WebErrorCode.REQUEST_FAILED.getCode());
+  }
+
+  /** Checks the browser page for the path: status, reason phrase, trace ID as reference. */
+  private HttpResponse<String> checkReferencePage(String path, HttpStatus status)
+      throws IOException, InterruptedException {
+    var response = get(path, MediaType.TEXT_HTML);
+
+    assertThat(response.statusCode()).isEqualTo(status.value());
+    assertThat(response.body())
+        .contains(status.getReasonPhrase())
+        .containsPattern("Reference: <code>\\w{32}");
+    return response;
   }
 
   /** Sends a GET that accepts the given media type. */
