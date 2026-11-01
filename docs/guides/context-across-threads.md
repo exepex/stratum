@@ -75,9 +75,11 @@ ExecutorService invoiceRenderingPool() {
 
 A bean declared as its class, such as `ThreadPoolExecutor`, is left alone, because the wrapper is
 not that class and code that injects it would fail to start. Declare it as `ExecutorService`
-instead. A pool you create in code, outside a bean, needs wrapping once with Micrometer's
-`ContextExecutorService` or `ContextScheduledExecutorService`, which the logging starter brings:
-`ContextExecutorService.wrap(Executors.newFixedThreadPool(4))`.
+instead. A pool you create in code, outside a bean, needs wrapping once: an `ExecutorService` with
+Micrometer's `ContextExecutorService`, which the logging starter brings, as in
+`ContextExecutorService.wrap(Executors.newFixedThreadPool(4))`, and a `ScheduledExecutorService`
+with Stratum's `new OneShotContextScheduledExecutorService(pool)`, which carries the fields as
+described below for scheduled pools.
 
 Declaring a pool bean stops Spring Boot from creating its own task executor, which would leave
 `@Async` methods on a new thread per call with no fields, or on the single thread of the
