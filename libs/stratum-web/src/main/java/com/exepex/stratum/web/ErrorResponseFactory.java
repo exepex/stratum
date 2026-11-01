@@ -63,17 +63,17 @@ public class ErrorResponseFactory {
 
   /**
    * Returns the body of a failure that carries an error code, a {@link StratumException} or an
-   * exception that implements {@link FailureWithErrorCode}, with the status mapped to its code, and
-   * logs it once: a 5xx at ERROR with its stack trace, a 4xx at WARN with its code and message. A
-   * warning code, which is never thrown, gets 500 and {@code SX-WEB-1005}.
+   * exception that implements {@link FailureWithErrorCode}, itself or as a cause of the failure,
+   * with the status mapped to its code, and logs it once: a 5xx at ERROR with its stack trace, a
+   * 4xx at WARN with its code and message. A warning code, which is never thrown, gets 500 and
+   * {@code SX-WEB-1005}.
    *
    * @param failure what the request failed with
    * @return the body, which holds the status; empty if the failure carries no error code
    */
   public Optional<ProblemDetail> forFailureWithErrorCode(Throwable failure) {
-    return failure instanceof FailureWithErrorCode codedFailure
-        ? Optional.of(answerAndLog(failure, codedFailure.getReport()))
-        : Optional.empty();
+    return FailureWithErrorCode.findIn(failure)
+        .map(codedFailure -> answerAndLog(failure, codedFailure.getReport()));
   }
 
   /**
@@ -87,8 +87,9 @@ public class ErrorResponseFactory {
    * @return the body, which holds the status
    */
   public ProblemDetail forFailedRequest(HttpStatusCode status, @Nullable Throwable failure) {
-    if (failure instanceof FailureWithErrorCode codedFailure) {
-      return bodyOf(externalErrorOf(codedFailure.getReport()), status);
+    var codedFailure = Optional.ofNullable(failure).flatMap(FailureWithErrorCode::findIn);
+    if (codedFailure.isPresent()) {
+      return bodyOf(externalErrorOf(codedFailure.get().getReport()), status);
     }
     if (failure instanceof RequestTimedOutException) {
       return bodyOf(ErrorReport.of(WebErrorCode.REQUEST_TIMED_OUT).getExternal(), status);

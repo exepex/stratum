@@ -107,6 +107,19 @@ class ErrorResponseFactoryTest {
     }
 
     @Test
+    @DisplayName("answers one wrapped as the cause of another exception in the same way")
+    void wrappedFailureWithErrorCode() {
+      var wrapped =
+          new IllegalStateException(
+              new StratumException(OrderErrorCode.DUPLICATE_ORDER, ORDER_DETAIL));
+
+      assertThat(factory.membersOf(answer(wrapped)))
+          .isEqualTo(
+              factory.membersOf(
+                  answer(new StratumException(OrderErrorCode.DUPLICATE_ORDER, ORDER_DETAIL))));
+    }
+
+    @Test
     @DisplayName("answers a warning code, which is never thrown, with 500 and SX-WEB-1005")
     void warningCodeGets500(CapturedOutput output) {
       var body = answer(new ExistingOrderException(OrderErrorCode.SHIPS_LATE, "3 days"));

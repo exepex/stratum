@@ -110,7 +110,7 @@ public class StratumErrorWebExceptionHandler extends DefaultErrorWebExceptionHan
    */
   @Override
   protected void logError(ServerRequest request, ServerResponse response, Throwable throwable) {
-    if (!(stratumBodies && throwable instanceof FailureWithErrorCode)) {
+    if (!(stratumBodies && FailureWithErrorCode.findIn(throwable).isPresent())) {
       super.logError(request, response, throwable);
     }
   }
