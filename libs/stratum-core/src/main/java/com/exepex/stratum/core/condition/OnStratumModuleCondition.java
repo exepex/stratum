@@ -41,7 +41,8 @@ class OnStratumModuleCondition extends SpringBootCondition {
    * @return a match when the module is on, with the reason
    * @throws StratumException {@code SX-CORE-1001} if the module name is not in kebab-case; the
    *     detail names the annotated class or method. {@code SX-CORE-1006} if the module is switched
-   *     on now but was off when the modules' startup steps ran
+   *     on now but was off when the modules' startup steps ran, {@code SX-CORE-1007} the other way
+   *     round
    */
   @Override
   public ConditionOutcome getMatchOutcome(
@@ -50,20 +51,19 @@ class OnStratumModuleCondition extends SpringBootCondition {
     var property = StratumModuleConstants.enabledProperty(module);
     var message = ConditionMessage.forCondition(ConditionalOnStratumModule.class, module);
     var enabled = StratumModuleSwitch.isEnabled(context.getEnvironment(), module);
-    if (enabled) {
-      requireSwitchReadAtStartup(context.getEnvironment(), property);
-    }
+    requireSameSwitchAsAtStartup(context.getEnvironment(), property, enabled);
     return new ConditionOutcome(
         enabled, message.because(property + (enabled ? " is true" : " is not true, so it is off")));
   }
 
   /**
-   * Stops startup when the module is on now but was not on when the modules' startup steps ran, so
-   * it would run without its startup defaults and checks. Without the record of {@link
-   * EarlyModuleSwitches}, as in a test that starts no Spring Boot application, there is nothing to
-   * compare, so it does nothing.
+   * Stops startup when the module is on now but was off when the modules' startup steps ran, so it
+   * would run without its startup defaults and checks, or the other way round, so its defaults
+   * would apply without its beans. Without the record of {@link EarlyModuleSwitches}, as in a test
+   * that starts no Spring Boot application, there is nothing to compare, so it does nothing.
    */
-  private void requireSwitchReadAtStartup(Environment environment, String property) {
+  private void requireSameSwitchAsAtStartup(
+      Environment environment, String property, boolean enabled) {
     if (!(environment instanceof ConfigurableEnvironment configurable)) {
       return;
     }
@@ -71,9 +71,11 @@ class OnStratumModuleCondition extends SpringBootCondition {
     var name = ConfigurationPropertyName.of(property);
     if (record != null
         && record.getProperty(EarlyModuleSwitches.RECORD) instanceof Set<?> modulesOnEarly
-        && !modulesOnEarly.contains(name.getElement(1, Form.UNIFORM))) {
+        && modulesOnEarly.contains(name.getElement(1, Form.UNIFORM)) != enabled) {
       throw new StratumException(
-          CoreErrorCode.MODULE_SWITCHED_ON_TOO_LATE,
+          enabled
+              ? CoreErrorCode.MODULE_SWITCHED_ON_TOO_LATE
+              : CoreErrorCode.MODULE_SWITCHED_OFF_TOO_LATE,
           property + " in " + sourceOf(configurable, name));
     }
   }

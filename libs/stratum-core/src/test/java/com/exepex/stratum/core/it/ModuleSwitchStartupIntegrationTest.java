@@ -114,6 +114,26 @@ class ModuleSwitchStartupIntegrationTest {
         .withMessageContaining(CLIENT_SWITCH + " in class path resource [" + LATE_SWITCH_FILE);
   }
 
+  @Test
+  @DisplayName("turned off later stops startup instead of a module with defaults but no beans")
+  void switchTurnedOffLaterStopsStartup() {
+    var application = application(HttpClientModule.class);
+    application.setDefaultProperties(Map.of(CLIENT_SWITCH, true));
+    application.addInitializers(
+        context ->
+            context
+                .getEnvironment()
+                .getPropertySources()
+                .addFirst(new MapPropertySource("remote-config", Map.of(CLIENT_SWITCH, false))));
+
+    assertThatExceptionOfType(Exception.class)
+        .isThrownBy(application::run)
+        .havingRootCause()
+        .isInstanceOf(StratumException.class)
+        .withMessageStartingWith("SX-CORE-1007: ")
+        .withMessageContaining(CLIENT_SWITCH + " in remote-config");
+  }
+
   /** A service that switches the test module on only in a {@code @PropertySource} file. */
   @Configuration(proxyBeanMethods = false)
   @PropertySource("classpath:" + LATE_SWITCH_FILE)
