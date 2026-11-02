@@ -25,7 +25,7 @@
         },
         {
           "value": "text",
-          "description": "Plain text for a laptop. It is not redacted."
+          "description": "One masked line of text per event, for people to read."
         }
       ]
     }

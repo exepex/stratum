@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A service's own Logback configuration with a pattern of its own, which Stratum leaves as it is. -->
+<configuration>
+  <appender name="OWN" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>OWN-PATTERN %level %msg%n</pattern>
+    </encoder>
+  </appender>
+  <root level="INFO">
+    <appender-ref ref="OWN"/>
+  </root>
+</configuration>

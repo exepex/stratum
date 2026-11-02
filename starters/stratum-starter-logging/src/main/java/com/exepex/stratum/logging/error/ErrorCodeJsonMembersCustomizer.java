@@ -9,6 +9,7 @@ import com.exepex.stratum.core.error.FailureWithErrorCode;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.LoggingProperties.LogFormat;
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -33,7 +34,7 @@ public final class ErrorCodeJsonMembersCustomizer
   /** Logback's log event, the only one this customizer reads. */
   private static final String LOGBACK_EVENT = "ch.qos.logback.classic.spi.ILoggingEvent";
 
-  /** The field the code goes in; {@code null} when the module is off or logs are plain text. */
+  /** The field the code goes in; {@code null} when the module is off or no output writes JSON. */
   private final @Nullable String errorCodeField;
 
   /**
@@ -63,15 +64,25 @@ public final class ErrorCodeJsonMembersCustomizer
   }
 
   /**
-   * Returns the structured format Spring Boot writes, the console's first and then the file's,
-   * including a service's own choice over Stratum's default. A customizer is not told which output
-   * it customizes, so when only one of the two is GELF, the console's format decides the name.
+   * Returns the JSON format Spring Boot writes, the console's first and then the file's, including
+   * a service's own choice over Stratum's default. A customizer is not told which output it
+   * customizes, so when only one of the two is GELF, the first JSON format decides the name. The
+   * text format, a class name, writes no JSON and is skipped.
    */
   private Optional<String> structuredFormat(Environment environment) {
     return Stream.of(LoggingConstants.CONSOLE_FORMAT, LoggingConstants.FILE_FORMAT)
         .map(environment::getProperty)
         .filter(Objects::nonNull)
+        .filter(this::isJsonFormat)
         .findFirst();
+  }
+
+  /** Returns whether a format is one of Spring Boot's JSON formats. Case is ignored, as by Boot. */
+  private boolean isJsonFormat(String structuredFormat) {
+    return Arrays.stream(LogFormat.values())
+        .map(LogFormat::getStructuredFormat)
+        .filter(Objects::nonNull)
+        .anyMatch(structuredFormat::equalsIgnoreCase);
   }
 
   /**

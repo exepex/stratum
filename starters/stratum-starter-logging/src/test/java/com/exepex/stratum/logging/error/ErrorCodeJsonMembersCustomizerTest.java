@@ -8,6 +8,7 @@ import ch.qos.logback.classic.spi.LoggingEvent;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.LoggingErrorCode;
+import com.exepex.stratum.logging.format.LogbackMaskedTextFormatter;
 import com.exepex.stratum.logging.testsupport.LoggingTestData;
 import com.exepex.stratum.test.ExistingOrderException;
 import com.exepex.stratum.test.OrderErrorCode;
@@ -116,6 +117,19 @@ class ErrorCodeJsonMembersCustomizerTest {
             .withProperty(LoggingConstants.FILE_FORMAT, "ecs");
 
     assertThat(writeLogLine(textConsoleJsonFile, CODED_FAILURE)).contains(CODE);
+  }
+
+  @Test
+  @DisplayName("with the masked text console and a GELF file, the file's field is _error_code")
+  void skipsTextFormatClassName() {
+    var textConsoleGelfFile =
+        LoggingTestData.environmentWithModuleOn()
+            .withProperty(
+                LoggingConstants.CONSOLE_FORMAT, LogbackMaskedTextFormatter.class.getName())
+            .withProperty(LoggingConstants.FILE_FORMAT, "gelf");
+
+    assertThat(writeLogLine(textConsoleGelfFile, CODED_FAILURE))
+        .endsWith(",\"_error_code\":\"" + CODE + "\"}");
   }
 
   @Test

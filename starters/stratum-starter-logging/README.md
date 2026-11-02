@@ -84,8 +84,9 @@ replace it:
   properties and `spring.task.execution.propagate-context`, listed [below](#properties). A value
   you set in a configuration file, an environment variable, a system property or a command-line
   argument wins over Stratum's.
-- It adds redaction to Spring Boot's `ecs`, `logstash` and `gelf` formats, so every line in those
-  formats is masked, on the console and in a log file.
+- It adds redaction to Spring Boot's `ecs`, `logstash` and `gelf` formats, and writes the `text`
+  format itself through Spring Boot's structured logging, so every line in every format is masked,
+  on the console and in a log file, with Logback or Log4j2 ([What is masked](#what-is-masked)).
 
 Everything else, such as `logging.level.*`, `logging.file.name` and `logging.structured.json.add.*`,
 works as the Spring Boot documentation describes. To use your own Logback file, see
@@ -179,11 +180,36 @@ overflows the stack on long text. A `toString()` that returns `null` is written 
 > no telltale key cannot be found. Keep secrets out of `toString()`: mark them with Lombok's
 > `@ToString.Exclude`, or leave them out of a record's `toString()`.
 
-The `text` format writes plain lines that are **not** redacted. It is meant for your laptop. Unless
-every active profile is `local` or `test`, the `text` format logs a warning at startup.
-
 A log file, written when you set `logging.file.name`, gets the same format and the same redaction
 as the console.
+
+## What is masked
+
+Stratum's formats are always masked, `text` included, in every profile; no setting turns masking
+off. Outputs that Stratum does not write are not masked by it:
+
+| Output | Masked by Stratum |
+| --- | --- |
+| The console and the log file, in any `stratum.logging.format`, with Logback or Log4j2 | Yes |
+| Your own Logback appender with Spring Boot's `StructuredLogEncoder`, or Log4j2 appender with `<StructuredLogLayout format="ecs"/>` | Yes |
+| Your own appender with a pattern, such as Logback's `PatternLayoutEncoder` or Log4j2's `PatternLayout` | No: it writes exactly what you log |
+| The OpenTelemetry Java agent or OpenTelemetry's log appender | No: they read each event before any format. Mask in the OpenTelemetry Collector instead |
+| logstash-logback-encoder, or an encoder or formatter of your own | No |
+| A logging backend other than Logback or Log4j2 | No: with `text`, Stratum sets no format and Spring Boot writes its plain text |
+
+The `text` format writes one line per event for people to read: time, level, thread, logger and
+message, then each MDC entry and key-value pair as `key=value`. A stack trace follows on indented
+lines, so no line of it can pass for a log line of its own. Line breaks inside a value are shown as
+`\r` and `\n`, so one event stays one line:
+
+```text
+2026-11-02T10:15:30.123Z  INFO [main] com.acme.orders.OrderService : login password=**** api_key=****
+```
+
+Spring Boot's structured logging writes it, so `logging.pattern.*` and console colours do not apply
+to it. `logging.charset.*` and `logging.structured.json.stacktrace.*` do; the other
+`logging.structured.json.*` keys, such as `include`, `exclude`, `rename`, `add` and `context`, do
+not.
 
 ## Properties
 
@@ -194,15 +220,15 @@ value you set wins, from any file, the environment, the command line or Java def
 | Property | Type | Stratum's default | Spring Boot's default | Description |
 | --- | --- | --- | --- | --- |
 | `stratum.logging.enabled` | boolean | `false` | no such key | Switches the whole starter on. Until it is `true`, the starter sets up nothing. |
-| `stratum.logging.format` | `ecs`, `logstash`, `gelf`, `text` | `ecs` | no such key | The format of the console and of the log file. `text` is plain and not redacted; the others are JSON. |
+| `stratum.logging.format` | `ecs`, `logstash`, `gelf`, `text` | `ecs` | no such key | The format of the console and of the log file. `text` is one masked line of text per event; the others are JSON. |
 | `stratum.logging.max-field-length` | data size, `1KB` to `1MB` | `16KB` | no such key | The longest value written, also used as the stack trace limit. It counts characters; for English text, 16KB is 16,384 characters. Outside the range, startup stops with `SX-CORE-1003`, which names the rule `stratum.logging.max-field-length-in-range`. |
 | `stratum.logging.redaction.extra-keys` | list | *(empty)* | no such key | More field and key names whose values are masked in full, added to the built-in names. |
 | `stratum.logging.redaction.extra-patterns` | list of regex | *(empty)* | no such key | More patterns whose matches are masked in full. An invalid pattern stops startup with `SX-LOGGING-1002`; the message gives its position in the list, never the pattern. |
-| `logging.structured.format.console` | `ecs`, `logstash`, `gelf` | value of `stratum.logging.format` (unset when `text`) | unset, so plain text | The console's JSON format. |
-| `logging.structured.format.file` | `ecs`, `logstash`, `gelf` | value of `stratum.logging.format` (unset when `text`) | unset, so plain text | The log file's JSON format. |
+| `logging.structured.format.console` | `ecs`, `logstash`, `gelf` or a class name | value of `stratum.logging.format`; for `text`, Stratum's masked text class for Logback or Log4j2 | unset, so plain text | The console's format. |
+| `logging.structured.format.file` | `ecs`, `logstash`, `gelf` or a class name | value of `stratum.logging.format`; for `text`, Stratum's masked text class for Logback or Log4j2 | unset, so plain text | The log file's format. |
 | `logging.structured.ecs.service.environment` | string | value of `stratum.environment` | unset | `service.environment` in each line. |
-| `logging.structured.json.stacktrace.max-length` | integer | value of `stratum.logging.max-field-length` (`16KB` by default) | unset, so no limit | The longest stack trace written. |
-| `logging.structured.json.stacktrace.root` | `first` or `last` | `first`: the root cause first, so a cut stack trace still shows why it failed | unset, so as Java prints it | `last` starts with the exception your code caught, as Java prints it. |
+| `logging.structured.json.stacktrace.max-length` | integer | value of `stratum.logging.max-field-length` (`16KB` by default) | unset, so no limit | The longest stack trace written, in every format, `text` included. |
+| `logging.structured.json.stacktrace.root` | `first` or `last` | `first`: the root cause first, so a cut stack trace still shows why it failed | unset, so as Java prints it | `last` starts with the exception your code caught, as Java prints it. It applies to `text` too. |
 | `spring.task.execution.propagate-context` | boolean | `true` | `false` | Whether `@Async` methods and Spring Boot's executors keep the workflow fields. |
 | `spring.reactor.context-propagation` | `limited` or `auto` | `auto` | `limited` | Whether every Reactor operator keeps them, not only `handle` and `tap`. |
 
@@ -238,7 +264,8 @@ stratum.logging.redaction.extra-patterns[0]=\\bEMP-\\d{6}\\b
 > In `.properties` files a backslash must be doubled (`\\d`). In YAML, single-quote the pattern
 > and write each backslash once.
 
-Readable logs on your laptop, in `application-local.yml` or `application-local.properties`:
+Readable logs on your laptop, still masked, in `application-local.yml` or
+`application-local.properties`:
 
 ```yaml
 stratum:
@@ -346,7 +373,8 @@ shows. A Stratum endpoint that switches DEBUG on for a limited time is [planned]
 
   For a log file, also include `structured-file-appender.xml` and add `<appender-ref ref="FILE"/>`.
   Redaction applies to any appender that uses Spring Boot's `StructuredLogEncoder`; an appender
-  with a pattern encoder writes plain, unredacted text.
+  with a pattern encoder writes plain, unredacted text. With Log4j2, use
+  `<StructuredLogLayout format="ecs"/>` in your `log4j2-spring.xml` instead of a `PatternLayout`.
 
 ## Switch it on or off
 
@@ -369,7 +397,9 @@ which keeps Spring Boot's default plain-text logging, with no checks and no reda
 | Startup stops with `SX-LOGGING-1001` | Set `spring.application.name`. |
 | Startup stops with `SX-CORE-1004` | A logging customizer is a `@Bean`; list its class in `META-INF/spring.factories` instead. |
 | Startup stops with `SX-LOGGING-1002` | An `extra-patterns` entry is not a valid regular expression; the message gives its position, never the pattern. |
-| Logs are plain text in production | `stratum.logging.enabled` is not `true`, or `stratum.logging.format=text` is set somewhere. Look for the startup warning. |
+| Logs are plain, unmasked text | `stratum.logging.enabled` is not `true`, or your own Logback or Log4j2 file uses a pattern ([What is masked](#what-is-masked)). |
+| `logging.pattern.*` or console colours have no effect | With the module on, every format, `text` included, is written by Spring Boot's structured logging, which uses no pattern. |
+| A value shows `\n` instead of a line break | Stratum shows line breaks inside a value as text, so that one event stays one line. |
 | A secret still appears in logs | Add its key to `extra-keys` or its shape to `extra-patterns`, then rotate the secret. Report the format so it can be added to the built-in list. |
 | A value shows `[REDACTION_FAILED]` | Masking that value failed, so it was hidden. Report the log call so the cause can be fixed. |
 | Duplicate log lines | Your service has its own `logback-spring.xml` adding a second appender. |

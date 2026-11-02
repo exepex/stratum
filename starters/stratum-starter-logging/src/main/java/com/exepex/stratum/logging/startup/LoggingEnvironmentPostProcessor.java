@@ -8,18 +8,18 @@ import com.exepex.stratum.core.properties.StratumDefaults;
 import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.LoggingErrorCode;
 import com.exepex.stratum.logging.LoggingProperties;
-import com.exepex.stratum.logging.LoggingProperties.LogFormat;
+import com.exepex.stratum.logging.format.Log4j2MaskedTextFormatter;
+import com.exepex.stratum.logging.format.LogbackMaskedTextFormatter;
 import com.exepex.stratum.logging.redaction.Redactor;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import lombok.RequiredArgsConstructor;
+import java.util.Optional;
 import org.springframework.boot.EnvironmentPostProcessor;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.context.config.ConfigDataEnvironmentPostProcessor;
-import org.springframework.boot.logging.DeferredLogFactory;
 import org.springframework.core.Ordered;
 import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.util.ClassUtils;
 import org.springframework.util.StringUtils;
 
 /**
@@ -29,11 +29,13 @@ import org.springframework.util.StringUtils;
  * default properties included.
  */
 @StratumInternal
-@RequiredArgsConstructor
 public class LoggingEnvironmentPostProcessor implements EnvironmentPostProcessor, Ordered {
 
-  /** Gives the log for the plain-text warning, which waits until logging is ready. */
-  private final DeferredLogFactory logFactory;
+  /** Logback's log event, present when the service logs with Logback. */
+  private static final String LOGBACK_EVENT = "ch.qos.logback.classic.spi.ILoggingEvent";
+
+  /** Log4j2's log event, present when the service logs with Log4j2. */
+  private static final String LOG4J2_EVENT = "org.apache.logging.log4j.core.LogEvent";
 
   /**
    * Runs right after the configuration files are read, so that the profiles and every property are
@@ -67,15 +69,8 @@ public class LoggingEnvironmentPostProcessor implements EnvironmentPostProcessor
     var loggingProperties = LoggingProperties.resolve(environment);
     requireValidRedactionPatterns(loggingProperties);
     StratumDefaults.addBelowServiceValues(
-        environment, stratumLoggingDefaults(loggingProperties, environment));
-    if (loggingProperties.format() == LogFormat.TEXT && !onlyLocalProfiles(environment)) {
-      logFactory
-          .getLog(LoggingEnvironmentPostProcessor.class)
-          .warn(
-              LoggingConstants.FORMAT
-                  + "=text writes plain text, which is not redacted."
-                  + " Use it only in the local or test profile.");
-    }
+        environment,
+        stratumLoggingDefaults(loggingProperties, environment, application.getClassLoader()));
   }
 
   /**
@@ -88,13 +83,17 @@ public class LoggingEnvironmentPostProcessor implements EnvironmentPostProcessor
 
   /** Returns Spring Boot's logging properties that Stratum sets by default. */
   private Map<String, Object> stratumLoggingDefaults(
-      LoggingProperties loggingProperties, ConfigurableEnvironment environment) {
+      LoggingProperties loggingProperties,
+      ConfigurableEnvironment environment,
+      ClassLoader classLoader) {
     var defaultProperties = new HashMap<String, Object>();
-    var structuredFormat = loggingProperties.format().getStructuredFormat();
-    if (structuredFormat != null) {
-      // The file too: a plain-text file would hold every value unredacted.
-      defaultProperties.put(LoggingConstants.CONSOLE_FORMAT, structuredFormat);
-      defaultProperties.put(LoggingConstants.FILE_FORMAT, structuredFormat);
+    var structuredFormat =
+        Optional.ofNullable(loggingProperties.format().getStructuredFormat())
+            .or(() -> maskedTextFormatter(classLoader));
+    if (structuredFormat.isPresent()) {
+      // The file too: Spring Boot's own plain-text file would hold every value unmasked.
+      defaultProperties.put(LoggingConstants.CONSOLE_FORMAT, structuredFormat.get());
+      defaultProperties.put(LoggingConstants.FILE_FORMAT, structuredFormat.get());
     }
     var serviceEnvironment = environment.getProperty(StratumModuleConstants.SERVICE_ENVIRONMENT);
     if (StringUtils.hasText(serviceEnvironment)) {
@@ -107,10 +106,16 @@ public class LoggingEnvironmentPostProcessor implements EnvironmentPostProcessor
     return defaultProperties;
   }
 
-  /** Returns whether every active profile is one in which plain-text logs are expected. */
-  private boolean onlyLocalProfiles(ConfigurableEnvironment environment) {
-    var profiles = environment.getActiveProfiles();
-    return profiles.length > 0
-        && Arrays.stream(profiles).allMatch(LoggingConstants.LOCAL_PROFILES::contains);
+  /**
+   * Returns the class name of the masked text format for the service's logging backend, Logback
+   * first as Spring Boot picks it, or empty when the service has neither.
+   */
+  private Optional<String> maskedTextFormatter(ClassLoader classLoader) {
+    if (ClassUtils.isPresent(LOGBACK_EVENT, classLoader)) {
+      return Optional.of(LogbackMaskedTextFormatter.class.getName());
+    }
+    return ClassUtils.isPresent(LOG4J2_EVENT, classLoader)
+        ? Optional.of(Log4j2MaskedTextFormatter.class.getName())
+        : Optional.empty();
   }
 }
