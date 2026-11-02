@@ -25,7 +25,7 @@ public class WorkflowFieldsAccessor extends Slf4jThreadLocalAccessor {
       List.of(
           LoggingConstants.WORKFLOW, LoggingConstants.ROOT_WORKFLOW, LoggingConstants.WORKFLOW_ID);
 
-  /** Creates the accessor for {@code workflow}, {@code root_workflow} and {@code workflow_id}. */
+  /** Creates the accessor for {@code workflow}, {@code rootWorkflow} and {@code workflowId}. */
   public WorkflowFieldsAccessor() {
     super(WORKFLOW_FIELD_NAMES.toArray(String[]::new));
   }

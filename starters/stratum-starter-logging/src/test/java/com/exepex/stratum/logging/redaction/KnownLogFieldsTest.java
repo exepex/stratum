@@ -78,7 +78,7 @@ class KnownLogFieldsTest {
             "correlationId",
             "clientIp",
             "clientCity",
-            "workflow_id");
+            "workflowId");
 
     private final KnownLogFields fields = KnownLogFields.from(environmentWithConsoleFormat(ECS));
 
