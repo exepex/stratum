@@ -23,6 +23,7 @@ class ConfigurationMetadataTest {
           LoggingConstants.ENABLED,
           LoggingConstants.FORMAT,
           LoggingConstants.PREFIX + ".max-field-length",
+          LoggingConstants.PREFIX + ".max-elements",
           LoggingConstants.PREFIX + ".redaction.extra-keys",
           LoggingConstants.EXTRA_PATTERNS);
 

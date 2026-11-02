@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.logging.LoggingPropertiesCustomizer;
+import com.exepex.stratum.logging.testsupport.ElementsTestData;
 import com.exepex.stratum.logging.testsupport.LockerCodeLoggingSettings;
 import com.exepex.stratum.test.StarterTestSupport;
 import java.io.IOException;
@@ -34,6 +35,9 @@ class LoggingStartupIntegrationTest {
   /** The same logging settings, written once as YAML and once as properties. */
   private static final List<String> CONFIGURATION_NAMES =
       List.of("logging-yaml", "logging-properties");
+
+  /** The element limit both configuration files set. */
+  private static final int MAX_ELEMENTS_IN_FILES = 3;
 
   /** Gives the test application its service name. */
   private static final String SERVICE_NAME = "--spring.application.name=orders";
@@ -75,13 +79,17 @@ class LoggingStartupIntegrationTest {
   @DisplayName("the same settings work from application.yml and application.properties")
   void settingsBindFromBothFormats(String configName, CapturedOutput output) {
     try (var _ = start("--spring.config.name=" + configName)) {
-      log.atInfo().addKeyValue("badge_no", "B-77").log("badge checked");
+      log.atInfo()
+          .addKeyValue("badge_no", "B-77")
+          .addKeyValue("orderIds", ElementsTestData.numbers(MAX_ELEMENTS_IN_FILES + 2))
+          .log("badge checked");
     }
 
     assertThat(output)
         .contains("\"message\":\"badge checked\"")
         .contains("\"environment\":\"staging\"")
-        .contains("\"badge_no\":\"****\"");
+        .contains("\"badge_no\":\"****\"")
+        .contains("\"orderIds\":[0,1,2,\"...[2 more]\"]");
   }
 
   @Test

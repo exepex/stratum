@@ -144,8 +144,8 @@ class SecretRedactionTest {
     @Test
     @DisplayName("an ordinary field and value are left as they are")
     void ordinaryFieldIsKept() {
-      assertThat(DEFAULT_REDACTOR.redact("orderId", LoggingTestData.ORDER_ID))
-          .isEqualTo(LoggingTestData.ORDER_ID);
+      assertThat(LoggingTestData.redactedAsJson("orderId", LoggingTestData.ORDER_ID))
+          .isEqualTo(String.valueOf(LoggingTestData.ORDER_ID));
       assertThat(DEFAULT_REDACTOR.redact("name", "order-service")).isEqualTo("order-service");
     }
   }

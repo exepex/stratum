@@ -7,7 +7,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.testsupport.LoggingTestData;
+import com.exepex.stratum.logging.testsupport.SpringBootJsonLines;
+import com.exepex.stratum.logging.testsupport.ValueTextTestData;
+import java.io.IOException;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -254,6 +258,47 @@ class RedactingJsonMembersCustomizerTest {
                   "level_value",
                   members -> members.add("level_value", INFO_LEVEL_VALUE)))
           .contains("\"level_value\":\"****\"");
+    }
+  }
+
+  @Nested
+  @DisplayName("Spring Boot's own JSON and a value that cannot be read")
+  class BootJsonAndUnreadableValues {
+
+    /** GELF on the console, with the service name GELF needs as its host. */
+    private final MockEnvironment gelf =
+        LoggingTestData.environmentWithConsoleFormat("gelf")
+            .withProperty("spring.application.name", SERVICE);
+
+    @Test
+    @DisplayName("GELF's timestamp, a safe field, stays a JSON number with Logback and Log4j2")
+    void gelfTimestampStaysNumber() throws IOException {
+      var numericTimestamp = Pattern.compile("\"timestamp\":\\d+\\.\\d+[,}]");
+
+      assertThat(SpringBootJsonLines.logbackLine("gelf", gelf, MESSAGE))
+          .containsPattern(numericTimestamp)
+          .doesNotContain(CARD);
+      assertThat(SpringBootJsonLines.log4j2Line("gelf", gelf, MESSAGE))
+          .containsPattern(numericTimestamp)
+          .doesNotContain(CARD);
+    }
+
+    @Test
+    @DisplayName("a value whose toString() throws NullPointerException is replaced; the rest stays")
+    void unreadableValueKeepsTheLine() {
+      var broken = ValueTextTestData.throwing(new NullPointerException());
+      var line =
+          writeWithServiceRule(
+              ECS, EXTRA_KEYS, "badge-no", members -> addBrokenValue(members, broken));
+
+      assertThat(line)
+          .isEqualTo("{\"order\":\"[REDACTION_FAILED]\",\"service\":\"" + SERVICE + "\"}");
+    }
+
+    /** Adds the broken value and an ordinary field. */
+    private void addBrokenValue(Members<Object> members, Object broken) {
+      members.add("order", broken);
+      members.add("service", SERVICE);
     }
   }
 }
