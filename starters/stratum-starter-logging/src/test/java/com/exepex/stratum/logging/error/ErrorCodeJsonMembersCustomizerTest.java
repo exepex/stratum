@@ -136,6 +136,18 @@ class ErrorCodeJsonMembersCustomizerTest {
   }
 
   @Test
+  @DisplayName("a service's own JSON formatter class on both outputs still gets error.code")
+  void keepsFieldForServiceFormatterClass() {
+    var ownFormatter =
+        LoggingTestData.environmentWithModuleOn()
+            .withProperty(LoggingConstants.CONSOLE_FORMAT, "com.acme.orders.logging.OrdersFormat")
+            .withProperty(LoggingConstants.FILE_FORMAT, "com.acme.orders.logging.OrdersFormat");
+
+    assertThat(writeLogLine(ownFormatter, CODED_FAILURE))
+        .endsWith(",\"error.code\":\"" + CODE + "\"}");
+  }
+
+  @Test
   @DisplayName("with the module unset or off, nothing is added")
   void addsNothingWhenModuleIsOff() {
     assertThat(writeLogLine(new MockEnvironment(), CODED_FAILURE)).isEqualTo(LINE_WITHOUT_CODE);

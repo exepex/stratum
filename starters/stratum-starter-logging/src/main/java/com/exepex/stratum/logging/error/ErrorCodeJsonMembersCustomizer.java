@@ -9,7 +9,7 @@ import com.exepex.stratum.core.error.FailureWithErrorCode;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.LoggingProperties.LogFormat;
-import java.util.Arrays;
+import com.exepex.stratum.logging.format.LogbackMaskedTextFormatter;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -66,23 +66,23 @@ public final class ErrorCodeJsonMembersCustomizer
   /**
    * Returns the JSON format Spring Boot writes, the console's first and then the file's, including
    * a service's own choice over Stratum's default. A customizer is not told which output it
-   * customizes, so when only one of the two is GELF, the first JSON format decides the name. The
-   * text format, a class name, writes no JSON and is skipped.
+   * customizes, so when only one of the two is GELF, the first JSON format decides the name.
+   * Stratum's text format writes no JSON and is skipped; a service's own formatter class is kept.
    */
   private Optional<String> structuredFormat(Environment environment) {
     return Stream.of(LoggingConstants.CONSOLE_FORMAT, LoggingConstants.FILE_FORMAT)
         .map(environment::getProperty)
         .filter(Objects::nonNull)
-        .filter(this::isJsonFormat)
+        .filter(this::writesJson)
         .findFirst();
   }
 
-  /** Returns whether a format is one of Spring Boot's JSON formats. Case is ignored, as by Boot. */
-  private boolean isJsonFormat(String structuredFormat) {
-    return Arrays.stream(LogFormat.values())
-        .map(LogFormat::getStructuredFormat)
-        .filter(Objects::nonNull)
-        .anyMatch(structuredFormat::equalsIgnoreCase);
+  /**
+   * Returns whether a format writes JSON: any format but Stratum's text format. This customizer
+   * runs only with Logback, so the Logback class is the one text format to skip.
+   */
+  private boolean writesJson(String structuredFormat) {
+    return !LogbackMaskedTextFormatter.class.getName().equals(structuredFormat);
   }
 
   /**
