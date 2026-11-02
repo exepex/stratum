@@ -37,7 +37,8 @@ Add `stratum-starter-logging`. Remove:
 - your `logback-spring.xml` or `logback.xml`, unless it does something Stratum does not;
 - custom JSON encoders and MDC filters for trace IDs.
 
-Check: log lines are JSON with `trace.id` and `service.name`.
+Check: log lines are JSON with `service.name`. After step 3, lines written inside a traced operation
+also carry `traceId`, `spanId` and `correlationId`.
 
 ## Step 3: observability
 
