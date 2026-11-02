@@ -138,10 +138,17 @@ as `addKeyValue("customer", customer)`, is masked through the value's `toString(
 is masked element by element. Ready-made JSON, such as a `WritableJson`, is masked through its text;
 if anything in it is masked, it is written as a JSON string. It cannot be switched off.
 
+> [!IMPORTANT]
+> Redaction is a safety net, not a licence to log personal data or secrets. A name, address, phone
+> number or social security number with no telltale key cannot be found: in text, Stratum masks only
+> what it can confirm, such as a card number that passes the Luhn check. Keep secrets out of
+> `toString()`: mark them with Lombok's `@ToString.Exclude`, or leave them out of a record's
+> `toString()`.
+
 | What | Found by | Written as |
 | --- | --- | --- |
-| Credentials: any name that contains `password`, `passwd`, `passphrase`, `passcode`, `secret`, `token`, `apikey`, `credential`, `privatekey`, `sessionid`, `cookie` or `authorization`, such as `dbPassword`, `aws_secret_access_key`, `X-CSRF-Token` or `JSESSIONID`; and the whole names `pwd`, `pass`, `auth`, `pin`, `otp`, `cvv` and `cvc` | Field or key name | `****` |
-| Payment cards and national IDs: `card_number`, `pan`, `ssn`, `national_id`, `tax_id`, `passport` | Field or key name | `****1234` (last four kept) |
+| Credentials: any name that contains `password`, `passwd`, `passphrase`, `passcode`, `secret`, `token`, `apikey`, `credential`, `privatekey`, `sessionid`, `cookie` or `authorization`, such as `dbPassword`, `aws_secret_access_key`, `X-CSRF-Token` or `JSESSIONID`; and any name with the word `pwd`, `pass`, `auth`, `pin`, `otp`, `cvv`, `cvc`, `jwt`, `access key`, `encryption key` or `signing key`, such as `dbPwd`, `card_cvv` or `accessKey` | Field or key name | `****` |
+| Payment cards, accounts and national IDs: `card_number`, `pan`, `account_number`, `ssn`, `national_id`, `tax_id`, `passport` | Field or key name | `****1234` (last four kept) |
 | Card numbers in text | 13 to 19 digits that pass the Luhn check, in groups split by a space or `-`; or split by two spaces, `.`, `/` or `_` used between every group of a card layout (4-4-4-4, 4-4-4-4-3, or American Express's 4-6-5) | `****1111` |
 | JSON Web Tokens | `eyJ…` with two or three parts | `****` |
 | `Basic`, `Bearer`, `Digest` and `Negotiate` credentials; Digest's `name="value"` list runs to the end of the line | The scheme name | `Bearer ****` |
@@ -152,8 +159,13 @@ if anything in it is masked, it is written as a JSON string. It cannot be switch
 | IBANs in text | A valid IBAN (checksum checked) | `****5432` |
 | Your own keys and patterns | [`extra-keys` and `extra-patterns`](#properties) | `****` |
 
-Names are compared without case, `_` or `-`, and only their last part counts, so `password`,
-`spring.datasource.password` and `PASSWORD` all match. A name is matched in a field, in an MDC
+A name is split into words at capitals, digits, `_`, `-` and `.`, and matches when one word, or a
+few words written together, is a listed word: `password`, `spring.datasource.password`,
+`PASSWORD`, `userPin` and `X-Api-Key` all match, while `shipping` and `passenger` do not. A name
+whose last word only describes the value (`count`, `type`, `length`, `size`, `expiry`, `expires`,
+`enabled`, `required`, `consent` or `rotated`), such as `tokenCount`, is not masked. A name with no
+listed word is not found, whatever it holds: add your own to `extra-keys`, which match the whole
+name, compared without case, `_` or `-` on its last dot-separated part. A name is matched in a field, in an MDC
 entry, and in text such as `password=x`, `"token":"x"`, `'token': 'x'`, escaped JSON
 (`\"token\":\"x\"`), `?api_key=x&`, `password%3Dx` or Lombok's `User(email=x, …)`. An unquoted value in text runs until the next key, a comma, `;`, `&`, a closing
 bracket or the end of the line. The values of `Cookie`, `Set-Cookie` and `Authorization` run to the
@@ -171,13 +183,6 @@ Every value is also cut to `stratum.logging.max-field-length` (16KB by default) 
 it, so a token or card number that crosses the limit is never left half visible. If masking a value fails, `[REDACTION_FAILED]` is written
 instead; the value is never written as it was. That includes an `extra-patterns` expression that
 overflows the stack on long text. A `toString()` that returns `null` is written as `null`.
-
-> [!IMPORTANT]
-> Redaction is a safety net, not a licence to log personal data or secrets. A name, address, phone
-> number or social security number with no telltale key cannot be found: in text, Stratum masks only
-> what it can confirm, such as a card number that passes the Luhn check. Keep secrets out of
-> `toString()`: mark them with Lombok's `@ToString.Exclude`, or leave them out of a record's
-> `toString()`.
 
 The `text` format writes plain lines that are **not** redacted. It is meant for your laptop. Unless
 every active profile is `local` or `test`, the `text` format logs a warning at startup.

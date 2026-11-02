@@ -7,31 +7,48 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 
 /**
  * Masks a value by the name of its field or key, such as {@code password} or {@code email},
- * whatever the value looks like. Names are compared without case, {@code _} or {@code -}, and only
- * their last part counts, so {@code spring.datasource.password}, {@code X-Api-Key} and {@code
- * first_name} all match.
+ * whatever the value looks like. A name is split into words ({@link FieldNameWords}), and it is
+ * sensitive when one word, or a few words written together, is a sensitive word: {@code dbPwd},
+ * {@code card_cvv}, {@code X-API-Key} and {@code spring.datasource.password} all match, while
+ * {@code shipping} and {@code passenger} do not. A name whose last word only describes the value,
+ * such as {@code tokenCount} or {@code passwordExpiry}, is not sensitive.
  *
  * <p>Most names are masked in full. Payment cards, national IDs and personal identifiers such as
- * {@code email} keep their last four characters.
+ * {@code email} keep their last four characters, unless the name also holds a word masked in full.
+ * The service's own names are matched whole, without case, {@code _} or {@code -}, on their last
+ * dot-separated part.
  */
 final class SensitiveFieldNames {
 
-  /** Short credential names, masked in full only when the whole name matches. */
-  private static final Set<String> SHORT_SECRET_NAMES =
-      Set.of("pwd", "pass", "auth", "pin", "otp", "cvv", "cvc");
+  /** Credential words, masked in full. */
+  private static final Set<String> SECRET_WORDS =
+      Set.of(
+          "pwd",
+          "pass",
+          "auth",
+          "pin",
+          "otp",
+          "cvv",
+          "cvc",
+          "jwt",
+          "accesskey",
+          "encryptionkey",
+          "signingkey");
 
-  /** Payment cards and national IDs, always masked; the last four characters stay visible. */
-  private static final Set<String> SECRET_IDENTIFIER_NAMES =
+  /** Payment cards, accounts and national IDs; the last four characters stay visible. */
+  private static final Set<String> SECRET_IDENTIFIER_WORDS =
       Set.of(
           "card",
           "cardnumber",
           "creditcard",
           "pan",
+          "accountnumber",
           "ssn",
           "nationalid",
           "taxid",
@@ -39,7 +56,7 @@ final class SensitiveFieldNames {
           "passportnumber");
 
   /** Personal data with no telltale shape, masked in full. */
-  private static final Set<String> PERSONAL_DATA_NAMES =
+  private static final Set<String> PERSONAL_DATA_WORDS =
       Set.of(
           "firstname",
           "lastname",
@@ -56,12 +73,12 @@ final class SensitiveFieldNames {
           "streetaddress");
 
   /** Personal identifiers, masked with the last four characters visible. */
-  private static final Set<String> PERSONAL_IDENTIFIER_NAMES =
+  private static final Set<String> PERSONAL_IDENTIFIER_WORDS =
       Set.of("email", "phone", "mobile", "telephone", "fax", "cell", "msisdn", "iban");
 
   /**
-   * Parts of a name that mark it as a secret wherever they appear, as in {@code dbPassword}, {@code
-   * apiToken} or {@code aws_secret_access_key}. Short names such as {@code pin} only match whole.
+   * Long credential words that mark a name as a secret wherever they appear, even inside a word, as
+   * in {@code dbpassword} or {@code JSESSIONID}.
    */
   private static final List<String> SECRET_NAME_PARTS =
       List.of(
@@ -78,29 +95,62 @@ final class SensitiveFieldNames {
           "cookie",
           "authorization");
 
-  /** Headers whose value is a list, such as {@code Cookie: a=1; b=2}, masked as a whole. */
-  private static final Set<String> LIST_HEADER_NAMES =
-      Set.of("cookie", "setcookie", "authorization", "proxyauthorization");
+  /**
+   * Last words that say something about a secret rather than hold it, such as {@code tokenCount} or
+   * {@code pinRequired}; a name ending in one is not masked.
+   */
+  private static final Set<String> ABOUT_WORDS =
+      Set.of(
+          "count",
+          "type",
+          "length",
+          "size",
+          "expiry",
+          "expires",
+          "enabled",
+          "required",
+          "consent",
+          "rotated");
 
-  /** Names whose values are masked in full. */
-  private final Set<String> maskedInFull;
+  /** Last words of headers whose value is a list, such as {@code Cookie: a=1; b=2}. */
+  private static final Set<String> LIST_HEADER_WORDS = Set.of("cookie", "authorization");
 
-  /** Names whose values keep their last four characters. */
-  private final Set<String> maskedKeepingLastFour;
+  /** The most words a sensitive word is written in, as {@code date_of_birth} is. */
+  private static final int LONGEST_RUN = 3;
+
+  /** Words and runs of words masked in full. */
+  private static final Set<String> MASKED_IN_FULL =
+      Stream.of(SECRET_WORDS, PERSONAL_DATA_WORDS)
+          .flatMap(Set::stream)
+          .collect(Collectors.toUnmodifiableSet());
+
+  /** Words and runs of words that keep their last four characters. */
+  private static final Set<String> MASKED_KEEPING_LAST_FOUR =
+      Stream.of(SECRET_IDENTIFIER_WORDS, PERSONAL_IDENTIFIER_WORDS)
+          .flatMap(Set::stream)
+          .collect(Collectors.toUnmodifiableSet());
+
+  /** How a name's values are masked. */
+  private enum Masking {
+    /** Replaced by the mask. */
+    IN_FULL,
+    /** Replaced by the mask, keeping the last four characters. */
+    KEEPING_LAST_FOUR,
+    /** Not masked by name. */
+    NONE
+  }
+
+  /** The service's own names, normalized, masked in full. */
+  private final Set<String> extraKeys;
 
   /**
-   * Takes Stratum's names plus the service's own, which are masked in full.
+   * Takes the service's own names, which are masked in full.
    *
    * @param extraKeys the service's names from {@code stratum.logging.redaction.extra-keys}
    */
   SensitiveFieldNames(Collection<String> extraKeys) {
-    maskedInFull =
-        normalized(
-            Stream.of(SHORT_SECRET_NAMES, PERSONAL_DATA_NAMES, extraKeys)
-                .flatMap(Collection::stream));
-    maskedKeepingLastFour =
-        normalized(
-            Stream.of(SECRET_IDENTIFIER_NAMES, PERSONAL_IDENTIFIER_NAMES).flatMap(Set::stream));
+    this.extraKeys =
+        extraKeys.stream().map(this::normalize).collect(Collectors.toUnmodifiableSet());
   }
 
   /**
@@ -114,15 +164,11 @@ final class SensitiveFieldNames {
     if (name == null) {
       return Optional.empty();
     }
-    var key = normalize(name);
-    // A name listed to be masked in full, such as an extra key, wins over keeping the last four.
-    if (maskedInFull.contains(key)) {
-      return Optional.of(MaskedText.MASK);
-    }
-    if (maskedKeepingLastFour.contains(key)) {
-      return Optional.of(MaskedText.keepingLastFour(valueSupplier.get()));
-    }
-    return isSecret(key) ? Optional.of(MaskedText.MASK) : Optional.empty();
+    return switch (maskingOf(name)) {
+      case IN_FULL -> Optional.of(MaskedText.MASK);
+      case KEEPING_LAST_FOUR -> Optional.of(MaskedText.keepingLastFour(valueSupplier.get()));
+      case NONE -> Optional.empty();
+    };
   }
 
   /**
@@ -132,13 +178,7 @@ final class SensitiveFieldNames {
    * @return whether the name is sensitive
    */
   boolean isSensitive(String name) {
-    var key = normalize(name);
-    return maskedKeepingLastFour.contains(key) || isSecret(key);
-  }
-
-  /** Returns whether a normalized name is masked in full. */
-  private boolean isSecret(String key) {
-    return maskedInFull.contains(key) || SECRET_NAME_PARTS.stream().anyMatch(key::contains);
+    return maskingOf(name) != Masking.NONE;
   }
 
   /**
@@ -148,12 +188,42 @@ final class SensitiveFieldNames {
    * @return whether its value is a list masked as a whole
    */
   boolean isHeaderList(String name) {
-    return LIST_HEADER_NAMES.contains(normalize(name));
+    var words = FieldNameWords.wordsOf(name);
+    return !words.isEmpty() && LIST_HEADER_WORDS.contains(words.getLast());
   }
 
-  /** Normalizes every name in the stream. */
-  private Set<String> normalized(Stream<String> names) {
-    return names.map(this::normalize).collect(Collectors.toUnmodifiableSet());
+  /** Returns how values under the name are masked; a service's own name is masked in full. */
+  private Masking maskingOf(String name) {
+    return extraKeys.contains(normalize(name))
+        ? Masking.IN_FULL
+        : maskingOfWords(FieldNameWords.wordsOf(name));
+  }
+
+  /** Returns how values are masked under a name with these words; masking in full wins. */
+  private Masking maskingOfWords(List<String> words) {
+    if (words.isEmpty() || ABOUT_WORDS.contains(words.getLast())) {
+      return Masking.NONE;
+    }
+    var runs = runsOf(words);
+    var joined = String.join("", words);
+    if (runs.stream().anyMatch(MASKED_IN_FULL::contains)
+        || SECRET_NAME_PARTS.stream().anyMatch(joined::contains)) {
+      return Masking.IN_FULL;
+    }
+    return runs.stream().anyMatch(MASKED_KEEPING_LAST_FOUR::contains)
+        ? Masking.KEEPING_LAST_FOUR
+        : Masking.NONE;
+  }
+
+  /** Returns every word and every run of up to three consecutive words, written together. */
+  private List<String> runsOf(List<String> words) {
+    return IntStream.range(0, words.size())
+        .boxed()
+        .flatMap(
+            start ->
+                IntStream.rangeClosed(start + 1, Math.min(words.size(), start + LONGEST_RUN))
+                    .mapToObj(end -> String.join("", words.subList(start, end))))
+        .toList();
   }
 
   /** Keeps the part after the last dot, in lower case, without {@code _} or {@code -}. */
