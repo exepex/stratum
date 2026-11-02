@@ -153,7 +153,10 @@ A warning cannot be thrown: `new StratumException(report)` rejects a report whos
 ### Existing exceptions: a migration path
 
 A service that already has its own exceptions can let Stratum answer and log them before it moves
-them to `StratumException`. Make each one implement `FailureWithErrorCode`:
+them to `StratumException`. This changes what their consumers get, even in backward-compatible
+mode: map each code to the status the exception has today, and tell its consumers, before you mark
+it ([Marking an existing exception](../modules/web-compatible-mode.md#marking-an-existing-exception)).
+Make each one implement `FailureWithErrorCode`:
 
 ```java
 public class PaymentDeclinedException extends RuntimeException implements FailureWithErrorCode {

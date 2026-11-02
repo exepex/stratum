@@ -143,6 +143,11 @@ Every starter follows these rules:
   (ST-ENG-34).
 - **ST-ENG-25** The defaults are safe for production: timeouts set, sensitive values redacted, endpoints secured,
   resources bounded. A service needs no configuration to be safe.
+  One exception: while `stratum.web.backward-compatible` is `true`, its default, the web module sets no default
+  response time limit, request body size limit or WebFlux multipart limit, so a running service's requests are not
+  refused or cut off ([ADR 0008](../adr/0008-error-format-and-backward-compatible-mode.md)). A new web feature
+  follows that ADR's decision 7: in that mode it changes no existing response and refuses no request unless the
+  service turns it on.
 - **ST-ENG-26** Dependencies are injected through constructors (in auto-configuration, through `@Bean` method
   parameters). Never field injection (`@Autowired` on a field) or setter injection. Constructor injection makes
   dependencies explicit, keeps fields `final` and makes Spring report circular dependencies at startup. In test
@@ -249,7 +254,8 @@ Every starter follows these rules:
   503, connection resets), with a limit on attempts and backoff with jitter. Retrying a non-idempotent write is a
   bug. Use a circuit breaker for a dependency that can fail.
 - **ST-ENG-52 Bound everything.** Pools, queues, caches, batch sizes, request bodies and page sizes all have limits.
-  Never build an unbounded collection from external input.
+  Never build an unbounded collection from external input. One exception: request bodies have no default limit while
+  `stratum.web.backward-compatible` is `true`, as ST-ENG-25 says.
 - **ST-ENG-53 Work with virtual threads.** Do not block event-loop threads. Do not cache in `ThreadLocal`s that grow
   with each virtual thread. When work moves to another thread, pass the logging and tracing context explicitly.
 - **ST-ENG-54 Keep request paths cheap.** No reflection, regex compilation, large allocations or quadratic loops per

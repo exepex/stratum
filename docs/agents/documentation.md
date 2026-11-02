@@ -14,7 +14,7 @@ the documentation must work for both. Documentation is part of every change and 
 | `README.md` | What Stratum is and why it exists, its modules, a quick start and how to build. A clear overview that links to `docs/` for detail. |
 | `docs/README.md` | The index of the user documentation. Every page in `docs/` and every module `README.md` is linked from it, except the agent rules in `docs/agents/`, which `AGENTS.md` indexes. |
 | `docs/getting-started/` | Installing Stratum, the core concepts and a first service, step by step. |
-| `docs/configuration/` | How configuration works, overriding defaults, profiles, and `reference.md`: every `stratum.*` property in one table. |
+| `docs/configuration/` | How configuration works, overriding defaults, profiles, and `reference.md`: the keys every module shares, and a link to each module's property table. |
 | `README.md` of a starter or library | The module's own page, for a developer who uses that module: what it sets up, each of its properties (type, default, meaning), how to replace each bean, and usage examples. It links to `docs/` for everything that is not about the module. |
 | `docs/modules/<module>.md` | The page of a module that has no `README.md` of its own yet, with the same content. |
 | `docs/contributing.md` | How a person proposes a change: issues, branches, build commands. It links to `AGENTS.md` for the rules and repeats none of them. |
@@ -29,13 +29,17 @@ the documentation must work for both. Documentation is part of every change and 
   version updates every document that describes it in the same pull request. A pull request that leaves a document
   describing the old behaviour is not finished, and the judge fails it.
 - **ST-DOC-02 One place per topic.** Each topic is described fully in one document. Other documents link to it with
-  one line instead of describing it again. The one exception is `docs/configuration/reference.md`, which lists every
-  property with a link to its module page; the two must agree.
+  one line instead of describing it again. A module's property table is never copied, not even into
+  `docs/configuration/reference.md`, which links to it.
 - **ST-DOC-03 Edit in place.** Update the document that owns the topic. Do not add dated summaries, handover notes or
   "update" files.
-- **ST-DOC-04 Every property documented.** Each `stratum.*` property appears on its module page and in the reference
-  table, with type, default and meaning. The Javadoc on its `@ConfigurationProperties` field says the same, because
-  IDEs show it.
+- **ST-DOC-04 Every property documented.** Each module has one property table, on the page that owns its prefix:
+  the starter's `README.md` when one starter owns it, or `docs/modules/<module>.md` when several starters share it,
+  as `docs/modules/web.md` does for both web starters. The table lists every `stratum.*` key of the module and every
+  Spring Boot key the module gives a default, with its type, Stratum's default, Spring Boot's own default and its
+  meaning, checked against the code and against Spring Boot's configuration metadata. A key that several modules
+  share is listed in `docs/configuration/reference.md` instead. The Javadoc on a `@ConfigurationProperties` field
+  says the same as the table, because IDEs show it.
 - **ST-DOC-05 Every way to configure.** Every configuration example is shown in both `application.properties` and
   `application.yml`, with the same values. Each module page with `stratum.*` properties also has a "Configure in Java"
   section showing the same settings through the module's customizer or builder (ST-ENG-34). Until a module's Java API

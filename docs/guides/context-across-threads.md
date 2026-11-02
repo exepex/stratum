@@ -81,6 +81,15 @@ Micrometer's `ContextExecutorService`, which the logging starter brings, as in
 with Stratum's `new OneShotContextScheduledExecutorService(pool)`, which carries the fields as
 described below for scheduled pools.
 
+A pool that Stratum wraps has no pool metrics, such as its active threads and queued tasks:
+Micrometer's `ExecutorServiceMetrics` reads them only from the pool classes it knows, such as
+`ThreadPoolExecutor`, and the wrapper is none of them. Spring Boot binds pool metrics only for
+`ThreadPoolTaskExecutor` and `ThreadPoolTaskScheduler` beans, so a JDK pool bean has none even
+without Stratum. When you want them, declare a `ThreadPoolTaskExecutor` built with Spring Boot's
+`ThreadPoolTaskExecutorBuilder`: Stratum does not wrap it, Spring Boot binds its metrics, and the
+builder makes its tasks carry the fields. A `new ThreadPoolTaskExecutor()` without the builder gets
+the metrics but not the fields.
+
 Declaring a pool bean stops Spring Boot from creating its own task executor, which would leave
 `@Async` methods on a new thread per call with no fields, or on the single thread of the
 `@Scheduled` jobs. Stratum then creates the executor Spring Boot would have made, named
@@ -202,10 +211,16 @@ such as a report written to S3, is linked back to the request with the observabi
 
 ## Settings
 
-| Property | Default | Effect |
-| --- | --- | --- |
-| `spring.task.execution.propagate-context` | `true` | Spring Boot's executors and `@Async` carry the fields. Spring Boot's key; Stratum sets its default. |
-| `spring.reactor.context-propagation` | `auto` | Every Reactor operator carries the fields. Spring Boot's key; Stratum sets its default. |
-| `stratum.context-propagation.executor-beans` | `true` | Your `ExecutorService` and `ScheduledExecutorService` beans carry the fields. |
+Three keys decide what carries the fields:
 
-All three are in the [configuration reference](../configuration/reference.md).
+- `spring.task.execution.propagate-context`: Spring Boot's executors and `@Async`;
+- `spring.reactor.context-propagation`: every Reactor operator;
+- `stratum.context-propagation.executor-beans`: your `ExecutorService` and
+  `ScheduledExecutorService` beans.
+
+The first two are Spring Boot's keys, which the logging and observability modules give a default;
+they are listed, with both defaults, in [Logging](../../starters/stratum-starter-logging/README.md#properties)
+and [Observability](../../starters/stratum-starter-observability/README.md#properties); the WebFlux
+starter also sets the second ([Web](../modules/web.md#properties)). The third is
+shared by both modules, so it is in the
+[configuration reference](../configuration/reference.md#shared-properties).

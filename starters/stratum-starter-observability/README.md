@@ -283,35 +283,34 @@ noticed. The service keeps running.
 
 ## Properties
 
-| Property | Type | Default | Description |
-| --- | --- | --- | --- |
-| `stratum.observability.enabled` | boolean | `false` | Switches the whole starter on. Until it is `true`, the starter sets up nothing and turns export off. |
-| `stratum.observability.tags.extra-forbidden` | list of strings | empty | More tag names the [tag guard](#tag-guard) refuses, added to the built-in ones. Case, `_`, `-` and `.` are ignored. A blank name stops startup with `SX-CORE-1003`. |
-| `stratum.observability.tags.allowed` | list of strings | empty | Tag names the [tag guard](#tag-guard) keeps even though they are refused by default, such as `customerId`. Compared like `extra-forbidden`. A blank name stops startup with `SX-CORE-1003`. |
+Every key this starter reads or gives a default. Stratum's own keys come first. For a Spring Boot
+key, Stratum only sets a default: where Spring Boot has a key, Stratum has none of its own, and a
+value you set wins, from any file, the environment, the command line or Java default properties.
+
+| Property | Type | Stratum's default | Spring Boot's default | Description |
+| --- | --- | --- | --- | --- |
+| `stratum.observability.enabled` | boolean | `false` | no such key | Switches the whole starter on. Until it is `true`, the starter sets up nothing and turns export off. |
+| `stratum.observability.tags.extra-forbidden` | list of strings | empty | no such key | More tag names the [tag guard](#tag-guard) refuses, added to the built-in ones. Case, `_`, `-` and `.` are ignored. A blank name stops startup with `SX-CORE-1003`. |
+| `stratum.observability.tags.allowed` | list of strings | empty | no such key | Tag names the [tag guard](#tag-guard) keeps even though they are refused by default, such as `customerId`. Compared like `extra-forbidden`. A blank name stops startup with `SX-CORE-1003`. |
+| `management.otlp.metrics.export.enabled` | boolean | `false` while the module is off | `true` | Whether metrics are sent. |
+| `management.tracing.export.enabled` | boolean | `false` while the module is off | `true` | Whether spans are sent. |
+| `management.endpoints.web.exposure.include` | list of endpoint IDs | `health,info` | `health` | The actuator endpoints served over HTTP. Add other endpoints only behind authentication. |
+| `management.metrics.tags.application` | string | value of `spring.application.name` | none | The `application` tag on every metric. |
+| `management.metrics.tags.environment` | string | value of `stratum.environment` | none | The `environment` tag on every metric. |
+| `management.metrics.tags.host` | string | value of the `HOSTNAME` environment variable | none | The `host` tag on every metric, the pod's name on Kubernetes. |
+| `management.opentelemetry.resource-attributes[deployment.environment.name]` | string | value of `stratum.environment` | none | The environment on every span. |
+| `management.metrics.distribution.percentiles-histogram.all` | boolean | `true` | none, so no histogram | Every timing is a [histogram](#timings). `false` keeps only count, sum and max. |
+| `management.otlp.metrics.export.histogram-flavor` | `explicit-bucket-histogram` or `base2-exponential-bucket-histogram` | `base2-exponential-bucket-histogram` | `explicit-bucket-histogram` | How histograms are sent. |
+| `spring.task.execution.propagate-context` | boolean | `true` | `false` | Whether `@Async` methods and Spring Boot's executors keep the trace ([threads](#threads-and-reactive-code)). |
+| `spring.reactor.context-propagation` | `limited` or `auto` | `auto` | `limited` | Whether every Reactor operator keeps the trace, not only `handle` and `tap` ([threads](#threads-and-reactive-code)). |
+| `spring.kafka.template.observation-enabled`, `spring.kafka.listener.observation-enabled` | boolean | `true` | `false` | Whether Kafka sends and listeners are traced and timed ([messages](#messages)). |
+| `spring.rabbitmq.template.observation-enabled`, `spring.rabbitmq.listener.simple.observation-enabled`, `.direct.observation-enabled`, `.stream.observation-enabled` | boolean | `true` | `false` | Whether RabbitMQ sends and listeners are traced and timed ([messages](#messages)). |
+| `logging.level.io.micrometer.registry.otlp.OtlpMeterRegistry` | log level | `off` when `management.otlp.metrics.export.url` is on this machine, otherwise unset | unset, so the root level | Hides the warning of a failed metrics push ([running without a Collector](#running-without-a-collector)). |
+| `logging.level.io.opentelemetry.exporter.internal.http.HttpExporter`, `logging.level.io.opentelemetry.exporter.internal.grpc.GrpcExporter` | log level | `off` when `management.opentelemetry.tracing.export.otlp.endpoint` is on this machine, otherwise unset | unset, so the root level | Hides the error of a failed span send ([running without a Collector](#running-without-a-collector)). |
 
 The shared [`stratum.environment`](../../docs/configuration/reference.md#shared-properties) sets the
 `environment` tag and the `deployment.environment.name` resource attribute. The shared context
 switches are described in [threads and reactive code](#threads-and-reactive-code).
-
-Spring Boot properties this starter sets by default. Where Spring Boot has a key, Stratum has none
-of its own: set Spring Boot's key to change the default. A value you set wins, from any file, the
-environment, the command line or Java default properties:
-
-| Spring Boot property | Stratum default |
-| --- | --- |
-| `management.otlp.metrics.export.enabled` | `false` while the module is off |
-| `management.tracing.export.enabled` | `false` while the module is off |
-| `management.endpoints.web.exposure.include` | `health,info`. Add other endpoints only behind authentication. |
-| `management.metrics.tags.application` | value of `spring.application.name` |
-| `management.metrics.tags.environment` | value of `stratum.environment` |
-| `management.metrics.tags.host` | value of the `HOSTNAME` environment variable |
-| `management.opentelemetry.resource-attributes[deployment.environment.name]` | value of `stratum.environment` |
-| `management.metrics.distribution.percentiles-histogram.all` | `true`: every timing is a [histogram](#timings). `false` keeps only count, sum and max. |
-| `management.otlp.metrics.export.histogram-flavor` | `base2-exponential-bucket-histogram` |
-| `spring.task.execution.propagate-context` | `true` ([threads](#threads-and-reactive-code)) |
-| `spring.reactor.context-propagation` | `auto` ([threads](#threads-and-reactive-code)) |
-| `spring.kafka.template.observation-enabled`, `spring.kafka.listener.observation-enabled` | `true` ([messages](#messages)) |
-| `spring.rabbitmq.template.observation-enabled`, `spring.rabbitmq.listener.simple.observation-enabled`, `.direct.observation-enabled`, `.stream.observation-enabled` | `true` ([messages](#messages)) |
 
 ## Examples
 

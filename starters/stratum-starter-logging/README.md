@@ -187,31 +187,28 @@ as the console.
 
 ## Properties
 
-| Property | Type | Default | Description |
-| --- | --- | --- | --- |
-| `stratum.logging.enabled` | boolean | `false` | Switches the whole starter on. Until it is `true`, the starter sets up nothing. |
-| `stratum.logging.format` | `ecs`, `logstash`, `gelf`, `text` | `ecs` | Console log format. `text` is plain and not redacted; the others are JSON. |
-| `stratum.logging.max-field-length` | data size, `1KB` to `1MB` | `16KB` | The longest value written, also used as the stack trace limit. Outside the range, startup stops with `SX-CORE-1003`, which names the rule `stratum.logging.max-field-length-in-range`. |
-| `stratum.logging.redaction.extra-keys` | list | *(empty)* | More field and key names whose values are masked in full, added to the built-in names. |
-| `stratum.logging.redaction.extra-patterns` | list of regex | *(empty)* | More patterns whose matches are masked in full. An invalid pattern stops startup with `SX-LOGGING-1002`; the message gives its position in the list, never the pattern. |
+Every key this starter reads or gives a default. Stratum's own keys come first. For a Spring Boot
+key, Stratum only sets a default: where Spring Boot has a key, Stratum has none of its own, and a
+value you set wins, from any file, the environment, the command line or Java default properties.
+
+| Property | Type | Stratum's default | Spring Boot's default | Description |
+| --- | --- | --- | --- | --- |
+| `stratum.logging.enabled` | boolean | `false` | no such key | Switches the whole starter on. Until it is `true`, the starter sets up nothing. |
+| `stratum.logging.format` | `ecs`, `logstash`, `gelf`, `text` | `ecs` | no such key | The format of the console and of the log file. `text` is plain and not redacted; the others are JSON. |
+| `stratum.logging.max-field-length` | data size, `1KB` to `1MB` | `16KB` | no such key | The longest value written, also used as the stack trace limit. Outside the range, startup stops with `SX-CORE-1003`, which names the rule `stratum.logging.max-field-length-in-range`. |
+| `stratum.logging.redaction.extra-keys` | list | *(empty)* | no such key | More field and key names whose values are masked in full, added to the built-in names. |
+| `stratum.logging.redaction.extra-patterns` | list of regex | *(empty)* | no such key | More patterns whose matches are masked in full. An invalid pattern stops startup with `SX-LOGGING-1002`; the message gives its position in the list, never the pattern. |
+| `logging.structured.format.console` | `ecs`, `logstash`, `gelf` | value of `stratum.logging.format` (unset when `text`) | unset, so plain text | The console's JSON format. |
+| `logging.structured.format.file` | `ecs`, `logstash`, `gelf` | value of `stratum.logging.format` (unset when `text`) | unset, so plain text | The log file's JSON format. |
+| `logging.structured.ecs.service.environment` | string | value of `stratum.environment` | unset | `service.environment` in each line. |
+| `logging.structured.json.stacktrace.max-length` | integer | value of `stratum.logging.max-field-length`, in bytes | unset, so no limit | The longest stack trace written. |
+| `logging.structured.json.stacktrace.root` | `first` or `last` | `first`: the root cause first, so a cut stack trace still shows why it failed | unset, so as Java prints it | `last` starts with the exception your code caught, as Java prints it. |
+| `spring.task.execution.propagate-context` | boolean | `true` | `false` | Whether `@Async` methods and Spring Boot's executors keep the workflow fields. |
+| `spring.reactor.context-propagation` | `limited` or `auto` | `auto` | `limited` | Whether every Reactor operator keeps them, not only `handle` and `tap`. |
 
 The shared [`stratum.environment`](../../docs/configuration/reference.md#shared-properties) sets
 `service.environment`. The shared boolean `stratum.context-propagation.executor-beans` (default
 `true`) decides whether the pool beans you declare keep the workflow fields.
-
-Spring Boot properties this starter sets by default. Where Spring Boot has a key, Stratum has none
-of its own: set Spring Boot's key to change the default. A value you set wins, from any file, the
-environment, the command line or Java default properties:
-
-| Spring Boot property | Stratum default |
-| --- | --- |
-| `logging.structured.format.console` | value of `stratum.logging.format` (unset when `text`) |
-| `logging.structured.format.file` | value of `stratum.logging.format` (unset when `text`) |
-| `logging.structured.ecs.service.environment` | value of `stratum.environment` |
-| `logging.structured.json.stacktrace.max-length` | value of `stratum.logging.max-field-length`, in bytes |
-| `logging.structured.json.stacktrace.root` | `first`: the root cause first, so a cut stack trace still shows why it failed. `last` starts with the exception your code caught, as Java prints it. |
-| `spring.task.execution.propagate-context` | `true`: `@Async` methods and Spring Boot's executors keep the workflow fields. `false` turns it off. |
-| `spring.reactor.context-propagation` | `auto`: every Reactor operator keeps them. `limited`, Spring Boot's own default, keeps them only in `handle` and `tap`. |
 
 ## Examples
 
@@ -306,7 +303,8 @@ List the class in `src/main/resources/META-INF/spring.factories`:
 com.exepex.stratum.logging.LoggingPropertiesCustomizer=com.acme.orders.config.OrdersLoggingSettings
 ```
 
-It needs a public no-argument constructor and may run more than once at startup. Declared as a
+It needs a public no-argument constructor and may run more than once at startup, so it must return
+the same settings every time and have no side effects. Declared as a
 `@Bean` instead, it stops startup with `SX-CORE-1004`. To set the switch in Java, see
 [default properties](../../docs/configuration/overriding-defaults.md#switches-shared-properties-and-spring-boot-properties-in-java).
 

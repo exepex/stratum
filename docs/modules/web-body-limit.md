@@ -48,10 +48,7 @@ stratum:
 - `routes` maps a Spring path pattern to its limit. Write each pattern in square brackets, as above,
   so Spring Boot keeps its `/` and `*`. When several patterns match a path, the most specific wins.
 
-| Property | Type | Default | Description |
-| --- | --- | --- | --- |
-| `stratum.web.body-limit.default-limit` | data size | none, or `256KB` when `stratum.web.backward-compatible` is `false` | How large any request's body may be. `0` means no limit. |
-| `stratum.web.body-limit.routes` | map of path pattern to data size | empty | The limit of the bodies of the requests whose path matches a pattern, such as `/uploads/**`. The most specific pattern wins. |
+Each key, with its type and default, is listed in [Web → Properties](web.md#properties).
 
 ## Give one API its own limit
 

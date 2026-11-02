@@ -36,8 +36,10 @@ when:
 
 - the consumer asks for it with `Accept: application/problem+json`, request by request, so each
   consumer moves when it is ready;
-- the error is Stratum's own, which no consumer has seen before: a `StratumException` or an
-  exception that implements `FailureWithErrorCode`, a timeout or a body too large;
+- the error is Stratum's own, which no consumer has seen before: a `StratumException`, a timeout
+  or a body too large;
+- the exception implements `FailureWithErrorCode`, so mark an existing exception only as the
+  next section says;
 - the service sets `stratum.web.backward-compatible=false`, which a new service does from the start.
 
 Spring Boot's body holds what `spring.web.error.include-*` says, as before Stratum. A browser still
@@ -46,6 +48,24 @@ gets Stratum's page, with the trace ID as the reference to quote to support.
 `traceId` and `correlationId` are still added to a `ProblemDetail` your own handler returns, and
 every response still has the `X-Correlation-Id` header. Once every consumer sends the header, set
 the property to `false`.
+
+## Marking an existing exception
+
+[`FailureWithErrorCode`](../guides/error-codes.md#existing-exceptions-a-migration-path) lets Stratum
+answer and log your existing exceptions with a code. Once an exception implements it, its consumers
+get Stratum's body, even in backward-compatible mode, and its status comes only from
+`stratum.web.error.statuses`. An `@ResponseStatus` on it no longer counts, and a code with no
+status is answered with `500`.
+
+For example, `@ResponseStatus(CONFLICT) class DuplicateOrderException` answers `409` with Spring
+Boot's body. Mark it with the code `ORD-0001` and forget the mapping, and it answers `500` with
+Stratum's body. Before you mark an exception:
+
+1. Map its code to the status it has today, such as `stratum.web.error.statuses.ORD-0001=409`.
+2. Tell its consumers that its error body changes to Problem Details.
+
+Your own `@ExceptionHandler` or `@RestControllerAdvice` for the exception still wins in both modes,
+so an exception it handles keeps the body it returns.
 
 ## Knowing when to switch
 
@@ -88,6 +108,11 @@ WARN  BackwardCompatibleModeReport : Security leak: errors keep Spring Boot's bo
 Set both back to Spring Boot's defaults, `never` and `false`, to stop the leak. Stratum's standard
 body never shows either, whatever these settings say.
 
+`spring.web.error.include-message` and `spring.web.error.include-binding-errors` add the
+exception's message and the rejected fields to Spring Boot's body. A message can hold internal
+detail, such as part of a SQL statement, and the binding errors echo the values the caller sent.
+Stratum logs no warning for these two; turn them on only if your consumers need them.
+
 ## Time and body size limits
 
 With nothing set, a backward-compatible service has no time limit and no body size limit, and the
@@ -111,13 +136,14 @@ Order order(@PathVariable String id) {
 
 ## Properties
 
-| Property | Type | Default | Description |
-| --- | --- | --- | --- |
-| `stratum.web.backward-compatible` | boolean | `true` | Whether errors that Spring answers keep Spring Boot's body, unless the consumer sends `Accept: application/problem+json`, and whether the time and body size limits are off unless set. |
+`stratum.web.backward-compatible` is listed with every other web property in
+[Web → Properties](web.md#properties). Set it in `application.properties`:
 
 ```properties
 stratum.web.backward-compatible=false
 ```
+
+or in `application.yml`:
 
 ```yaml
 stratum:

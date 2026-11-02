@@ -1,6 +1,5 @@
 package com.exepex.stratum.webflux;
 
-import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.condition.StratumModuleSwitch;
 import com.exepex.stratum.core.properties.StratumDefaults;
 import com.exepex.stratum.web.WebConstants;
@@ -34,12 +33,6 @@ public class WebFluxEnvironmentPostProcessor implements EnvironmentPostProcessor
           "spring.webflux.multipart.max-parts",
           50);
 
-  /** Reactor carries the request's trace ID into every operator, as Spring MVC's thread does. */
-  private static final Map<String, Object> REACTOR_CONTEXT_IN_EVERY_OPERATOR =
-      Map.of(
-          StratumModuleConstants.REACTOR_CONTEXT_PROPAGATION,
-          StratumModuleConstants.REACTOR_CONTEXT_IN_EVERY_OPERATOR);
-
   /**
    * Runs right after the configuration files are read, so that the module switch is known.
    *
@@ -64,7 +57,7 @@ public class WebFluxEnvironmentPostProcessor implements EnvironmentPostProcessor
     if (!StratumModuleSwitch.isEnabled(environment, WebConstants.MODULE)) {
       return;
     }
-    StratumDefaults.addBelowServiceValues(environment, REACTOR_CONTEXT_IN_EVERY_OPERATOR);
+    StratumDefaults.addBelowServiceValues(environment, StratumDefaults.REACTOR_CONTEXT_PROPAGATION);
     if (!WebProperties.resolve(environment).backwardCompatible()) {
       StratumDefaults.addBelowServiceValues(environment, MULTIPART_LIMITS);
     }

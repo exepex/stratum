@@ -17,6 +17,10 @@ package com.exepex.stratum.core.properties;
  * they run in {@link org.springframework.core.annotation.Order @Order} order, each receiving the
  * result of the one before.
  *
+ * <p>A module may read its settings more than once during startup, in each phase that needs them,
+ * so a customizer may run more than once. It must return the same settings every time and have no
+ * side effects: no I/O, clock, random value or remote flag decides what it returns.
+ *
  * @param <P> the module's settings type, such as the record bound to {@code stratum.<module>.*}
  */
 @FunctionalInterface
