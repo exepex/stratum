@@ -15,7 +15,7 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Runs a piece of work as a named workflow. While it runs, every log line it writes carries {@code
- * workflow}, {@code root_workflow} (the outermost workflow) and, when given, {@code workflow_id}.
+ * workflow}, {@code rootWorkflow} (the outermost workflow) and, when given, {@code workflowId}.
  * When the service has an {@code ObservationRegistry}, as with the observability starter, the work
  * is also timed and traced as one span. Use it where {@link Workflow @Workflow} does not apply, and
  * {@link ReactiveWorkflows} for a {@code Mono} or {@code Flux}.
@@ -141,12 +141,12 @@ public class Workflows {
     var observation =
         Observation.createNotStarted(LoggingConstants.WORKFLOW_OBSERVATION, observationRegistry)
             .contextualName(name)
-            .lowCardinalityKeyValue(LoggingConstants.WORKFLOW, name)
+            .lowCardinalityKeyValue(LoggingConstants.WORKFLOW_NAME_KEY, name)
             .lowCardinalityKeyValue(
-                LoggingConstants.ROOT_WORKFLOW, fields.get(LoggingConstants.ROOT_WORKFLOW));
+                LoggingConstants.ROOT_WORKFLOW_KEY, fields.get(LoggingConstants.ROOT_WORKFLOW));
     return workflowId == null
         ? observation
-        : observation.highCardinalityKeyValue(LoggingConstants.WORKFLOW_ID, workflowId);
+        : observation.highCardinalityKeyValue(LoggingConstants.WORKFLOW_ID_KEY, workflowId);
   }
 
   /**
