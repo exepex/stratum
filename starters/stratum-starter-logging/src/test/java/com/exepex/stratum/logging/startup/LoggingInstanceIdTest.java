@@ -1,6 +1,7 @@
 package com.exepex.stratum.logging.startup;
 
 import static com.exepex.stratum.logging.testsupport.LoggingTestData.environmentWithModuleOnAndServiceName;
+import static com.exepex.stratum.logging.testsupport.LoggingTestData.runLoggingPostProcessor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
@@ -16,7 +17,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.FieldSource;
-import org.springframework.boot.SpringApplication;
 import org.springframework.boot.context.properties.bind.Bindable;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.boot.env.DefaultPropertiesPropertySource;
@@ -57,15 +57,6 @@ class LoggingInstanceIdTest {
   private static final String GELF = "gelf";
 
   private static final String OWN_FORMATTER = "com.example.OwnFormatter";
-
-  private final LoggingEnvironmentPostProcessor postProcessor =
-      new LoggingEnvironmentPostProcessor();
-
-  /** Runs the post-processor on the environment and returns it. */
-  private MockEnvironment runPostProcessor(MockEnvironment environment) {
-    postProcessor.postProcessEnvironment(environment, new SpringApplication());
-    return environment;
-  }
 
   /** Returns an environment with the module on, a service name and the given properties. */
   private MockEnvironment environmentWith(Map<String, String> properties) {
@@ -113,7 +104,7 @@ class LoggingInstanceIdTest {
     @FieldSource("FORMATS")
     @DisplayName("the instance ID goes in that format's own field, and in no other")
     void instanceIdGoesInFormatsField(Map<String, String> settings, Set<String> expectedKeys) {
-      var environment = runPostProcessor(environmentWith(settings));
+      var environment = runLoggingPostProcessor(environmentWith(settings));
 
       assertThat(instanceIdKeysIn(environment)).isEqualTo(expectedKeys);
       var instanceId = ServiceInstanceId.of(new MockEnvironment()).value();
@@ -129,7 +120,7 @@ class LoggingInstanceIdTest {
     @Test
     @DisplayName("the service's instance ID from Spring Boot's key is written")
     void teamInstanceIdIsWritten() {
-      var environment = runPostProcessor(environmentWith(Map.of(INSTANCE_ID_KEY, TEAM_ID)));
+      var environment = runLoggingPostProcessor(environmentWith(Map.of(INSTANCE_ID_KEY, TEAM_ID)));
 
       assertThat(environment.getProperty(ECS_NODE_NAME)).isEqualTo(TEAM_ID);
     }
@@ -137,7 +128,7 @@ class LoggingInstanceIdTest {
     @Test
     @DisplayName("the service's own service.node.name wins")
     void teamNodeNameWins() {
-      var environment = runPostProcessor(environmentWith(Map.of(ECS_NODE_NAME, "node-7")));
+      var environment = runLoggingPostProcessor(environmentWith(Map.of(ECS_NODE_NAME, "node-7")));
 
       assertThat(environment.getProperty(ECS_NODE_NAME)).isEqualTo("node-7");
     }
@@ -146,7 +137,7 @@ class LoggingInstanceIdTest {
     @DisplayName("the service's own added fields stay, next to the instance ID")
     void teamAddedFieldsStay() {
       var environment =
-          runPostProcessor(
+          runLoggingPostProcessor(
               environmentWith(
                   Map.of(STRATUM_FORMAT, LOGSTASH, "logging.structured.json.add.team", "pay")));
 
@@ -166,7 +157,7 @@ class LoggingInstanceIdTest {
     @Test
     @DisplayName("with the logging module off, no log field is set")
     void moduleOffSetsNothing() {
-      var environment = runPostProcessor(new MockEnvironment().withProperty("x", "y"));
+      var environment = runLoggingPostProcessor(new MockEnvironment().withProperty("x", "y"));
 
       assertThat(instanceIdKeysIn(environment)).isEmpty();
     }
@@ -174,7 +165,7 @@ class LoggingInstanceIdTest {
     @Test
     @DisplayName("the logging module sets no OpenTelemetry key: that is the observability module's")
     void setsNoOpenTelemetryKey() {
-      var environment = runPostProcessor(environmentWith(Map.of()));
+      var environment = runLoggingPostProcessor(environmentWith(Map.of()));
       var defaults =
           (EnumerablePropertySource<?>)
               environment.getPropertySources().get(DefaultPropertiesPropertySource.NAME);

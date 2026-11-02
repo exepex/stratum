@@ -4,8 +4,10 @@ import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.LoggingProperties;
 import com.exepex.stratum.logging.LoggingProperties.LogFormat;
 import com.exepex.stratum.logging.redaction.Redactor;
+import com.exepex.stratum.logging.startup.LoggingEnvironmentPostProcessor;
 import java.util.List;
 import lombok.experimental.UtilityClass;
+import org.springframework.boot.SpringApplication;
 import org.springframework.mock.env.MockEnvironment;
 import org.springframework.util.unit.DataSize;
 
@@ -102,6 +104,30 @@ public class LoggingTestData {
    */
   public static MockEnvironment environmentWithModuleOnAndServiceName() {
     return environmentWithModuleOn().withProperty(LoggingConstants.APPLICATION_NAME, "orders");
+  }
+
+  /**
+   * Runs the logging module's startup post-processor on the environment, as Spring Boot does at
+   * startup.
+   *
+   * @param environment the environment to set up
+   * @return the same environment, with the module's defaults added
+   */
+  public static MockEnvironment runLoggingPostProcessor(MockEnvironment environment) {
+    return runLoggingPostProcessor(environment, new SpringApplication());
+  }
+
+  /**
+   * Runs the logging module's startup post-processor on the environment for the application.
+   *
+   * @param environment the environment to set up
+   * @param application the application being started, such as one without Logback
+   * @return the same environment, with the module's defaults added
+   */
+  public static MockEnvironment runLoggingPostProcessor(
+      MockEnvironment environment, SpringApplication application) {
+    new LoggingEnvironmentPostProcessor().postProcessEnvironment(environment, application);
+    return environment;
   }
 
   /**

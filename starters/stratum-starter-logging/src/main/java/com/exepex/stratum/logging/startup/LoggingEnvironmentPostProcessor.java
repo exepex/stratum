@@ -130,7 +130,9 @@ public class LoggingEnvironmentPostProcessor implements EnvironmentPostProcessor
         .findFirst()
         .ifPresent(
             field ->
-                fields.put(LoggingConstants.JSON_ADDED_FIELDS + "[" + field + "]", instanceId));
+                fields.put(
+                    StratumModuleConstants.mapEntry(LoggingConstants.JSON_ADDED_FIELDS, field),
+                    instanceId));
     return fields;
   }
 

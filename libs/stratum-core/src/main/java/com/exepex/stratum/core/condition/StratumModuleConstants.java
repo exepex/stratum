@@ -35,7 +35,19 @@ public class StratumModuleConstants {
    *     management.opentelemetry.resource-attributes[service.instance.id]}
    */
   public static String resourceAttribute(String attribute) {
-    return RESOURCE_ATTRIBUTES + "[" + attribute + "]";
+    return mapEntry(RESOURCE_ATTRIBUTES, attribute);
+  }
+
+  /**
+   * Returns the key of one entry of a Spring Boot map property, in the bracket form that keeps a
+   * map key with dots or capitals as it is.
+   *
+   * @param mapProperty the map property, such as {@code logging.structured.json.add}
+   * @param mapKey the entry's key, such as {@code instanceId}
+   * @return the key, such as {@code logging.structured.json.add[instanceId]}
+   */
+  public static String mapEntry(String mapProperty, String mapKey) {
+    return mapProperty + "[" + mapKey + "]";
   }
 
   /**
