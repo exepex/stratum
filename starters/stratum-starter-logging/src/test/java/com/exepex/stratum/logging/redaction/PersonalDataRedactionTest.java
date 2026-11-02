@@ -68,14 +68,10 @@ class PersonalDataRedactionTest {
     }
 
     @Test
-    @DisplayName("an international phone number keeps only its last four digits")
-    void phoneIsMasked() {
-      assertThat(redactUnnamedText("call " + PHONE + " now")).isEqualTo("call ****0958 now");
-    }
-
-    @Test
-    @DisplayName("a number without a country code is kept")
-    void nationalNumberIsKept() {
+    @DisplayName("a phone number is masked after its key, and kept with no key")
+    void phoneIsMaskedOnlyByKey() {
+      assertThat(redactUnnamedText("phone=" + PHONE)).isEqualTo("phone=****0958");
+      assertThat(redactUnnamedText("call " + PHONE + " now")).isEqualTo("call " + PHONE + " now");
       assertThat(redactUnnamedText("retry 2079460958")).isEqualTo("retry 2079460958");
     }
 

@@ -143,14 +143,12 @@ if anything in it is masked, it is written as a JSON string. It cannot be switch
 | Credentials: any name that contains `password`, `passwd`, `passphrase`, `passcode`, `secret`, `token`, `apikey`, `credential`, `privatekey`, `sessionid`, `cookie` or `authorization`, such as `dbPassword`, `aws_secret_access_key`, `X-CSRF-Token` or `JSESSIONID`; and the whole names `pwd`, `pass`, `auth`, `pin`, `otp`, `cvv` and `cvc` | Field or key name | `****` |
 | Payment cards and national IDs: `card_number`, `pan`, `ssn`, `national_id`, `tax_id`, `passport` | Field or key name | `****1234` (last four kept) |
 | Card numbers in text | 13 to 19 digits that pass the Luhn check, in groups split by a space or `-`; or split by two spaces, `.`, `/` or `_` used between every group of a card layout (4-4-4-4, 4-4-4-4-3, or American Express's 4-6-5) | `****1111` |
-| US social security numbers in text | `123-45-6789` | `****6789` |
 | JSON Web Tokens | `eyJ…` with two or three parts | `****` |
 | `Basic`, `Bearer`, `Digest` and `Negotiate` credentials; Digest's `name="value"` list runs to the end of the line | The scheme name | `Bearer ****` |
 | A password in a URL, with or without a user | `https://user:pass@host`, `redis://:pass@host`; a password with a raw `@` is masked up to the last `@` before the host, never past a space, `/`, `?`, `#`, a quote, `<` or `>`. When another `@` follows a `,`, `;`, `&` or `=`, it is unclear where the password ends, so the rest of the line is masked | `https://****@host`, `redis://****@host` |
 | Names, dates of birth and addresses: `first_name`, `last_name`, `full_name`, `username`, `date_of_birth`, `address` and similar | Field or key name | `****` |
 | Email, phone and IBAN fields | Field or key name | `****` plus last four |
 | Email addresses in text | A valid address | `****.com` |
-| International phone numbers in text | A valid number starting with `+` | `****0958` |
 | IBANs in text | A valid IBAN (checksum checked) | `****5432` |
 | Your own keys and patterns | [`extra-keys` and `extra-patterns`](#properties) | `****` |
 
@@ -165,8 +163,8 @@ in `4111 1111 1111 1111 43`, is still found. Digits split by dots or underscores
 layout, such as the timestamp `2026.10.29.07.39.22.124`, the file name
 `export_20261029_073922_124.csv` or the two sides of a decimal point, are not read as one card
 number; only a part that alone holds 13 to 19 digits and passes the Luhn check is masked. Card numbers,
-social security numbers, email addresses, IBANs and phone numbers are all looked for in the same
-text, and two that overlap, such as digits inside an email address, are masked as one.
+email addresses and IBANs are all looked for in the same text, and two that overlap, such as digits
+inside an email address, are masked as one.
 
 Every value is also cut to `stratum.logging.max-field-length` (16KB by default) and ends with
 `...[truncated]` when it was longer. The cut drops the word it falls in and any digits just before
@@ -175,9 +173,11 @@ instead; the value is never written as it was. That includes an `extra-patterns`
 overflows the stack on long text. A `toString()` that returns `null` is written as `null`.
 
 > [!IMPORTANT]
-> Redaction is a safety net, not a licence to log personal data or secrets. A name or address with
-> no telltale key cannot be found. Keep secrets out of `toString()`: mark them with Lombok's
-> `@ToString.Exclude`, or leave them out of a record's `toString()`.
+> Redaction is a safety net, not a licence to log personal data or secrets. A name, address, phone
+> number or social security number with no telltale key cannot be found: in text, Stratum masks only
+> what it can confirm, such as a card number that passes the Luhn check. Keep secrets out of
+> `toString()`: mark them with Lombok's `@ToString.Exclude`, or leave them out of a record's
+> `toString()`.
 
 The `text` format writes plain lines that are **not** redacted. It is meant for your laptop. Unless
 every active profile is `local` or `test`, the `text` format logs a warning at startup.

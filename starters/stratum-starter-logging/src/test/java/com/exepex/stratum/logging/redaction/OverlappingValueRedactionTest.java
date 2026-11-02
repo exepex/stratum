@@ -24,13 +24,6 @@ class OverlappingValueRedactionTest {
   }
 
   @Test
-  @DisplayName("a social security number that a card number runs into is still masked")
-  void ssnAfterCardIsMasked() {
-    assertThat(redactUnnamedText("10 123-45-678900004111.123-45-6789"))
-        .isEqualTo("****4111.****6789");
-  }
-
-  @Test
   @DisplayName("an IBAN next to a card number is masked, not cut into by the card")
   void ibanNextToCardIsMasked() {
     assertThat(redactUnnamedText("GB82 WEST 1234 5698 7654 32  4111-1111-1111-1111"))
@@ -38,10 +31,10 @@ class OverlappingValueRedactionTest {
   }
 
   @Test
-  @DisplayName("a phone number next to a card number is masked")
-  void phoneNextToCardIsMasked() {
+  @DisplayName("a card number next to a phone number is masked, and the phone number is kept")
+  void cardNextToPhoneIsMasked() {
     assertThat(redactUnnamedText("+1 415 555 2671  4111 1111 1111 1111"))
-        .isEqualTo("****2671  ****1111");
+        .isEqualTo("+1 415 555 2671  ****1111");
   }
 
   @Test
