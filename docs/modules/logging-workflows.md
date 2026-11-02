@@ -81,7 +81,19 @@ Stratum records only how long a workflow took. It never labels a workflow slow o
 dashboards and alerts decide that. Without a registry, workflows only set the log fields.
 
 To turn the timer and span off for every workflow, set Spring Boot's
-`management.observations.enable.stratum.workflow=false`. The log fields stay.
+`management.observations.enable.stratum.workflow` to `false`. The log fields stay.
+
+```properties
+management.observations.enable.stratum.workflow=false
+```
+
+```yaml
+management:
+  observations:
+    enable:
+      stratum:
+        workflow: false
+```
 
 A workflow lasts as long as its work. Logging adds no timeout, so work that never finishes, such
 as a remote call that hangs or a `CompletionStage` that never completes, keeps its workflow open

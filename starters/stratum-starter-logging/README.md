@@ -114,7 +114,7 @@ The line above comes out as one JSON object in the
 | `service.environment` | [`stratum.environment`](../../docs/configuration/reference.md#shared-properties), when set |
 | `service.version` | Your jar's manifest, when it has a version |
 | `error.type`, `error.message`, `error.stack_trace` | The exception you pass to the log call. The root cause comes first, so a cut stack trace still shows why it failed. |
-| `error.code` | The code of a `StratumException`, or of an exception that implements [`FailureWithErrorCode`](../../docs/guides/error-codes.md#existing-exceptions-a-migration-path), such as `SX-CORE-1003` or your own `PAY-0001`, when it is the exception you log or one of its causes ([error codes](../../docs/guides/error-codes.md)). Search and count errors by this field. In GELF it is `_error_code`; when the console and the file use different formats, the console format decides the name. |
+| `error.code` | The code of a `StratumException`, or of an exception that implements [`FailureWithErrorCode`](../../docs/guides/error-codes.md#existing-exceptions-a-migration-path), such as `SX-CORE-1003` or your own `PAY-0001`, when it is the exception you log or one of its causes ([error codes](../../docs/guides/error-codes.md)). Search and count errors by this field. It is a separate key next to the `error` group, not inside it: Elasticsearch merges it into `error`, while Loki and Datadog see the literal `error.code`. In GELF it is `_error_code`; when the console and the file use different formats, the console format decides the name. |
 | `workflow`, `root_workflow`, `workflow_id` | The [workflow](#workflows) the line was written in |
 | Your own fields | Key-value pairs (`addKeyValue`) and MDC entries, at the top level |
 
@@ -195,7 +195,7 @@ value you set wins, from any file, the environment, the command line or Java def
 | --- | --- | --- | --- | --- |
 | `stratum.logging.enabled` | boolean | `false` | no such key | Switches the whole starter on. Until it is `true`, the starter sets up nothing. |
 | `stratum.logging.format` | `ecs`, `logstash`, `gelf`, `text` | `ecs` | no such key | The format of the console and of the log file. `text` is plain and not redacted; the others are JSON. |
-| `stratum.logging.max-field-length` | data size, `1KB` to `1MB` | `16KB` | no such key | The longest value written, also used as the stack trace limit. Outside the range, startup stops with `SX-CORE-1003`, which names the rule `stratum.logging.max-field-length-in-range`. |
+| `stratum.logging.max-field-length` | data size, `1KB` to `1MB` | `16KB` | no such key | The longest value written, also used as the stack trace limit. It counts characters; for English text, 16KB is 16,384 characters. Outside the range, startup stops with `SX-CORE-1003`, which names the rule `stratum.logging.max-field-length-in-range`. |
 | `stratum.logging.redaction.extra-keys` | list | *(empty)* | no such key | More field and key names whose values are masked in full, added to the built-in names. |
 | `stratum.logging.redaction.extra-patterns` | list of regex | *(empty)* | no such key | More patterns whose matches are masked in full. An invalid pattern stops startup with `SX-LOGGING-1002`; the message gives its position in the list, never the pattern. |
 | `logging.structured.format.console` | `ecs`, `logstash`, `gelf` | value of `stratum.logging.format` (unset when `text`) | unset, so plain text | The console's JSON format. |
