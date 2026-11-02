@@ -319,7 +319,7 @@ try (var ignored = MDC.putCloseable("tenant_id", tenantId)) {
 ```
 
 In a servlet service, add `stratum-starter-webmvc` and set `stratum.web.enabled=true` so each
-request ends with a clean log context, or remove your own fields with `MDC.putCloseable`, as above.
+request ends with a clean log context, or remove your own fields with `MDC.putCloseable`.
 
 ## Configure in Java
 

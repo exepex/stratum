@@ -202,6 +202,9 @@ actuator's paths and static files write none. The headers you name, and the clai
 caller's token when you turn it on, can be added to it; credentials never are. See
 [Web](../../docs/modules/web.md#request-log).
 
+Response times and error rates per API come from the observability starter's metrics. The SLA
+dashboard recipe, with PromQL examples, is in [Web](../../docs/modules/web.md#sla-dashboards).
+
 ### A clean log context after each request
 
 When each request ends, the module puts the server thread's logging context (SLF4J's MDC) back as
@@ -213,9 +216,6 @@ When a request fails with an exception nothing handles, the fields stay until To
 failure, so that line still names the request. The error page's dispatch then cleans them, or a
 request listener when there is no error page. Jetty writes its line after the request ends, so on
 Jetty that line has no request fields; nothing leaks there either.
-
-Response times and error rates per API come from the observability starter's metrics. The SLA
-dashboard recipe, with PromQL examples, is in [Web](../../docs/modules/web.md#sla-dashboards).
 
 ## Timeouts
 
