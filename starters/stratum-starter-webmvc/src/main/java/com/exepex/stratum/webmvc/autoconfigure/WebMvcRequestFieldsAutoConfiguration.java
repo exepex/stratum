@@ -20,6 +20,8 @@ import com.exepex.stratum.webmvc.RequestLogFilter;
 import com.exepex.stratum.webmvc.RequestRouteInterceptor;
 import com.exepex.stratum.webmvc.ResponseTimeoutFilter;
 import com.exepex.stratum.webmvc.ResponseTimeoutInterceptor;
+import com.exepex.stratum.webmvc.ServletRequestMdcCleanupFilter;
+import com.exepex.stratum.webmvc.ServletRequestMdcCleanupListener;
 import io.micrometer.tracing.Tracer;
 import jakarta.servlet.DispatcherType;
 import org.springframework.beans.factory.ObjectProvider;
@@ -29,6 +31,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.boot.web.servlet.ServletListenerRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Fallback;
@@ -36,7 +39,8 @@ import org.springframework.context.annotation.Import;
 
 /**
  * Gives every log line of a Spring MVC request its fields, every request its correlation ID, one
- * closing log line and a time limit, when {@code stratum.web.enabled=true}.
+ * closing log line and a time limit, and leaves the server thread's logging context clean when the
+ * request ends, when {@code stratum.web.enabled=true}.
  */
 @StratumInternal
 @AutoConfiguration
@@ -45,6 +49,37 @@ import org.springframework.context.annotation.Import;
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @Import(RequestFieldsConfiguration.class)
 public final class WebMvcRequestFieldsAutoConfiguration {
+
+  /**
+   * Puts the logging context back as it was when each request ends, so a field the service put and
+   * never removed does not reach the next request on the thread.
+   *
+   * @return the filter's registration, first in the chain, for the first dispatch and the
+   *     asynchronous and error ones, which run outside the first pass through the filters
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean(name = "stratumMdcCleanupFilter")
+  public FilterRegistrationBean<ServletRequestMdcCleanupFilter> stratumMdcCleanupFilter() {
+    var registration = new FilterRegistrationBean<>(new ServletRequestMdcCleanupFilter());
+    registration.setOrder(ServletRequestMdcCleanupFilter.ORDER);
+    registration.setDispatcherTypes(
+        DispatcherType.REQUEST, DispatcherType.ASYNC, DispatcherType.ERROR);
+    return registration;
+  }
+
+  /**
+   * Cleans the logging context after a failed request once the server has logged the failure.
+   *
+   * @return the listener's registration
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean(name = "stratumMdcCleanupListener")
+  public ServletListenerRegistrationBean<ServletRequestMdcCleanupListener>
+      stratumMdcCleanupListener() {
+    return new ServletListenerRegistrationBean<>(new ServletRequestMdcCleanupListener());
+  }
 
   /**
    * Puts each request's fields in the logging context for the whole request.
