@@ -74,9 +74,9 @@ traced, with no extra code:
   as histograms, so a dashboard reads any percentile per workflow, for one pod or for all.
   Prometheus writes the tags as `workflow_name` and `workflow_root`.
 - A span named after the workflow, with the attributes `workflow.name`, `workflow.root` and, when
-  given, the ID as `workflow.id`, so a trace can be found by an order number. A failure marks the span as failed. Log lines mask an ID that looks
-  like a card or national ID, but the span gets it as it is: use an order number or a similar
-  business ID, never personal data.
+  given, the ID as `workflow.id`, so a trace can be found by an order number. A failure marks the
+  span as failed. Log lines mask an ID that looks like a card or national ID, but the span gets it
+  as it is: use an order number or a similar business ID, never personal data.
 
 Stratum records only how long a workflow took. It never labels a workflow slow or fast; your
 dashboards and alerts decide that. Without a registry, workflows only set the log fields.
