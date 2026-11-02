@@ -61,7 +61,7 @@ class WorkflowsTest {
     return new Workflows(observations.getRegistry());
   }
 
-  /** Returns {@code workflow}, {@code root_workflow} and {@code workflow_id}, as they are now. */
+  /** Returns {@code workflow}, {@code rootWorkflow} and {@code workflowId}, as they are now. */
   private List<String> workflowFields() {
     return Arrays.asList(
         MDC.get(LoggingConstants.WORKFLOW),
@@ -136,7 +136,7 @@ class WorkflowsTest {
   }
 
   @Test
-  @DisplayName("with a registry, each workflow is one observation tagged with its names")
+  @DisplayName("with a registry, each workflow is one observation keyed in the workflow. group")
   void observesEachWorkflow() {
     var workflows = observedWorkflows();
 
@@ -149,14 +149,11 @@ class WorkflowsTest {
     assertThat(payment.getName()).isEqualTo(LoggingConstants.WORKFLOW_OBSERVATION);
     assertThat(payment.getLowCardinalityKeyValues())
         .containsExactlyInAnyOrder(
-            KeyValue.of(LoggingConstants.WORKFLOW, PAYMENT),
-            KeyValue.of(LoggingConstants.ROOT_WORKFLOW, CHECKOUT));
+            KeyValue.of("workflow.name", PAYMENT), KeyValue.of("workflow.root", CHECKOUT));
     assertThat(finishedObservations)
         .extracting(Observation.Context::getHighCardinalityKeyValues)
         .allSatisfy(
-            idTags ->
-                assertThat(idTags)
-                    .containsExactly(KeyValue.of(LoggingConstants.WORKFLOW_ID, ORDER_NUMBER)));
+            idTags -> assertThat(idTags).containsExactly(KeyValue.of("workflow.id", ORDER_NUMBER)));
   }
 
   @Test

@@ -26,7 +26,7 @@ You keep logging the usual way, with SLF4J:
 class OrderService {
 
   void place(Order order) {
-    log.atInfo().addKeyValue("order_id", order.id()).log("Order placed");
+    log.atInfo().addKeyValue("orderId", order.id()).log("Order placed");
   }
 }
 ```
@@ -104,7 +104,7 @@ The line above comes out as one JSON object in the
   "process": { "pid": 4120, "thread": { "name": "tomcat-handler-12" } },
   "service": { "name": "order-service", "environment": "prod", "node": {} },
   "message": "Order placed",
-  "order_id": "8f14e45f",
+  "orderId": "8f14e45f",
   "ecs": { "version": "8.11" }
 }
 ```
@@ -116,7 +116,7 @@ The line above comes out as one JSON object in the
 | `service.version` | Your jar's manifest, when it has a version |
 | `error.type`, `error.message`, `error.stack_trace` | The exception you pass to the log call. The root cause comes first, so a cut stack trace still shows why it failed. |
 | `error.code` | The code of a `StratumException`, or of an exception that implements [`FailureWithErrorCode`](../../docs/guides/error-codes.md#existing-exceptions-a-migration-path), such as `SX-CORE-1003` or your own `PAY-0001`, when it is the exception you log or one of its causes ([error codes](../../docs/guides/error-codes.md)). Search and count errors by this field. It is a separate key next to the `error` group, not inside it: Elasticsearch merges it into `error`, while Loki and Datadog see the literal `error.code`. In GELF it is `_error_code`; when the console and the file use different formats, the console format decides the name. |
-| `workflow`, `root_workflow`, `workflow_id` | The [workflow](#workflows) the line was written in |
+| `workflow`, `rootWorkflow`, `workflowId` | The [workflow](#workflows) the line was written in |
 | Your own fields | Key-value pairs (`addKeyValue`) and MDC entries, at the top level |
 
 Elastic reads ECS as it is; Grafana Loki and Datadog parse any JSON line. If your platform needs
@@ -297,7 +297,7 @@ methods, Spring Boot's executors, event listeners and Reactor's thread changes; 
 also covers reactive steps outside Reactor ([across threads](../../docs/guides/context-across-threads.md)):
 
 ```java
-try (var ignored = MDC.putCloseable("tenant_id", tenantId)) {
+try (var ignored = MDC.putCloseable("tenantId", tenantId)) {
   orderService.place(order);
 }
 ```

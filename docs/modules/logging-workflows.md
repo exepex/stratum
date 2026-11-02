@@ -14,7 +14,7 @@ class CheckoutService {
 
   @Workflow("ORDER_CHECKOUT")
   public Receipt checkOut(Order order) {
-    log.info("Order checked out"); // carries "workflow":"ORDER_CHECKOUT"
+    log.info("Order checked out"); // carries "workflow":"ORDER_CHECKOUT","rootWorkflow":"ORDER_CHECKOUT"
     return paymentService.pay(order); // its own @Workflow("PAYMENT") is nested inside
   }
 }
@@ -57,8 +57,8 @@ exception the work throws, unchanged.
 | Field | Value |
 | --- | --- |
 | `workflow` | The name of the workflow the line was written in: the innermost one when workflows are nested |
-| `root_workflow` | The name of the outermost workflow, so `ORDER_CHECKOUT` failures can be counted even when they happen inside `PAYMENT` |
-| `workflow_id` | The ID given to `Workflows`, kept by the workflows nested inside it. Left out when none was given, or when it is not 1 to 128 letters, digits, `-`, `_`, `.` or `:`, so it cannot forge a log line |
+| `rootWorkflow` | The name of the outermost workflow, so `ORDER_CHECKOUT` failures can be counted even when they happen inside `PAYMENT` |
+| `workflowId` | The ID given to `Workflows`, kept by the workflows nested inside it. Left out when none was given, or when it is not 1 to 128 letters, digits, `-`, `_`, `.` or `:`, so it cannot forge a log line |
 
 When the workflow ends, the outer workflow's fields come back, or the fields are removed. A name is
 a fixed word of 1 to 128 letters, digits, `-`, `_`, `.` or `:`, such as `ORDER_CHECKOUT`; any other
@@ -69,11 +69,12 @@ When the service has an `ObservationRegistry`, as with the
 [observability starter](../../starters/stratum-starter-observability/README.md), each workflow is also timed and
 traced, with no extra code:
 
-- A timer named `stratum.workflow`, tagged with `workflow` and `root_workflow`, counts the calls,
-  the failures (tag `error`) and their durations. The observability starter stores durations as
-  histograms, so a dashboard reads any percentile per workflow, for one pod or for all.
-- A span named after the workflow, with the ID as the `workflow_id` attribute, so a trace can be
-  found by an order number. A failure marks the span as failed. Log lines mask an ID that looks
+- A timer named `stratum.workflow`, tagged with `workflow.name` and `workflow.root`, counts the
+  calls, the failures (tag `error`) and their durations. The observability starter stores durations
+  as histograms, so a dashboard reads any percentile per workflow, for one pod or for all.
+  Prometheus writes the tags as `workflow_name` and `workflow_root`.
+- A span named after the workflow, with the attributes `workflow.name`, `workflow.root` and, when
+  given, the ID as `workflow.id`, so a trace can be found by an order number. A failure marks the span as failed. Log lines mask an ID that looks
   like a card or national ID, but the span gets it as it is: use an order number or a similar
   business ID, never personal data.
 

@@ -48,7 +48,8 @@ class WorkflowIntegrationTest {
     assertThat(output)
         .contains("\"message\":\"order checked out\"")
         .contains("\"workflow\":\"ORDER_CHECKOUT\"")
-        .contains("\"root_workflow\":\"ORDER_CHECKOUT\"");
+        .contains("\"rootWorkflow\":\"ORDER_CHECKOUT\"")
+        .doesNotContain("\"root_workflow\"");
   }
 
   @Test
@@ -58,7 +59,9 @@ class WorkflowIntegrationTest {
 
     assertThat(output)
         .contains("\"workflow\":\"ORDER_REFUND\"")
-        .contains("\"workflow_id\":\"ORD-1042\"");
+        .contains("\"rootWorkflow\":\"ORDER_REFUND\"")
+        .contains("\"workflowId\":\"ORD-1042\"")
+        .doesNotContain("\"workflow_id\"");
   }
 
   @Test
@@ -68,7 +71,7 @@ class WorkflowIntegrationTest {
 
     assertThat(lineWith(output, "receipt sent"))
         .contains("\"workflow\":\"ORDER_CHECKOUT\"")
-        .contains("\"workflow_id\":\"ORD-1042\"")
+        .contains("\"workflowId\":\"ORD-1042\"")
         .doesNotContain("\"process.thread.name\":\"main\"");
   }
 
@@ -106,7 +109,7 @@ class WorkflowIntegrationTest {
 
     assertThat(lineWith(output, "parcel shipped in map"))
         .contains("\"workflow\":\"ORDER_SHIPPING\"")
-        .contains("\"workflow_id\":\"ORD-2044\"");
+        .contains("\"workflowId\":\"ORD-2044\"");
   }
 
   @Test

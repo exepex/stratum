@@ -70,7 +70,7 @@ class ReactiveWorkflowsTest {
     MdcFieldsRegistrations.remove();
   }
 
-  /** Returns {@code workflow}, {@code root_workflow} and {@code workflow_id}, as they are now. */
+  /** Returns {@code workflow}, {@code rootWorkflow} and {@code workflowId}, as they are now. */
   private List<String> workflowFields() {
     return Arrays.asList(
         MDC.get(LoggingConstants.WORKFLOW),
