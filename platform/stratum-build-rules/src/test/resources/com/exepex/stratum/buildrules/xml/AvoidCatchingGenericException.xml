@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Cases for AvoidCatchingGenericException in stratum/pmd-ruleset.xml: the one method allowed to catch
+  RuntimeException, then the same catch in every other place, which must still be reported.
+-->
+<test-data
+    xmlns="http://pmd.sourceforge.net/rule-tests"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://pmd.sourceforge.net/rule-tests http://pmd.sourceforge.net/rule-tests_1_0_0.xsd">
+
+  <test-code>
+    <description>the logging redactor's failingClosed may catch RuntimeException</description>
+    <expected-problems>0</expected-problems>
+    <code><![CDATA[
+package com.exepex.stratum.logging.redaction;
+final class Redactor {
+  private Object failingClosed(java.util.function.Supplier<Object> value) {
+    try {
+      return value.get();
+    } catch (RuntimeException | StackOverflowError e) {
+      return "[REDACTION_FAILED]";
+    }
+  }
+}
+]]></code>
+  </test-code>
+
+  <test-code>
+    <description>another method of the redactor is reported</description>
+    <expected-problems>1</expected-problems>
+    <expected-linenumbers>6</expected-linenumbers>
+    <code><![CDATA[
+package com.exepex.stratum.logging.redaction;
+final class Redactor {
+  private Object readOnce(java.util.function.Supplier<Object> value) {
+    try {
+      return value.get();
+    } catch (RuntimeException e) {
+      return null;
+    }
+  }
+}
+]]></code>
+  </test-code>
+
+  <test-code>
+    <description>a method named failingClosed in another class of the same package is reported</description>
+    <expected-problems>1</expected-problems>
+    <expected-linenumbers>6</expected-linenumbers>
+    <code><![CDATA[
+package com.exepex.stratum.logging.redaction;
+final class ElementLimit {
+  private Object failingClosed(java.util.function.Supplier<Object> value) {
+    try {
+      return value.get();
+    } catch (RuntimeException e) {
+      return null;
+    }
+  }
+}
+]]></code>
+  </test-code>
+
+  <test-code>
+    <description>a class named Redactor in another package, such as a service's, is reported</description>
+    <expected-problems>1</expected-problems>
+    <expected-linenumbers>6</expected-linenumbers>
+    <code><![CDATA[
+package com.acme.orders;
+final class Redactor {
+  private Object failingClosed(java.util.function.Supplier<Object> value) {
+    try {
+      return value.get();
+    } catch (RuntimeException e) {
+      return null;
+    }
+  }
+}
+]]></code>
+  </test-code>
+
+  <test-code>
+    <description>a catch of NullPointerException is reported too</description>
+    <expected-problems>1</expected-problems>
+    <expected-linenumbers>6</expected-linenumbers>
+    <code><![CDATA[
+package com.acme.orders;
+final class Orders {
+  Object place(java.util.function.Supplier<Object> order) {
+    try {
+      return order.get();
+    } catch (NullPointerException e) {
+      return null;
+    }
+  }
+}
+]]></code>
+  </test-code>
+</test-data>

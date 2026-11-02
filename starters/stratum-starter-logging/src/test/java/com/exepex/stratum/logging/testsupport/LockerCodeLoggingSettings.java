@@ -11,10 +11,14 @@ public class LockerCodeLoggingSettings implements LoggingPropertiesCustomizer {
   /** The extra name this configuration masks. */
   public static final String LOCKER_CODE = "locker-code";
 
+  /** The lower element limit this configuration sets. */
+  public static final int FEW_ELEMENTS = 3;
+
   @Override
   public LoggingProperties customize(LoggingProperties properties) {
     return properties.toBuilder()
         .format(LogFormat.ECS)
+        .maxElements(FEW_ELEMENTS)
         .redaction(properties.redaction().toBuilder().extraKeys(List.of(LOCKER_CODE)).build())
         .build();
   }

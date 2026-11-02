@@ -2,6 +2,8 @@ package com.exepex.stratum.logging;
 
 import com.exepex.stratum.core.properties.StratumCustomizers;
 import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import java.util.List;
 import lombok.Builder;
 import lombok.Getter;
@@ -21,6 +23,8 @@ import org.springframework.util.unit.DataSize;
  *     ecs. Text is one masked line per event, for people to read.
  * @param maxFieldLength The longest a single value or stack trace may be; anything longer is cut.
  *     From 1KB to 1MB. Defaults to 16KB.
+ * @param maxElements The most elements kept of each logged list, map or array, nested ones too; the
+ *     rest are left out and counted in one marker. From 1 to 20. Defaults to 10.
  * @param redaction What is masked on top of Stratum's built-in rules.
  */
 @Builder(toBuilder = true)
@@ -28,6 +32,7 @@ import org.springframework.util.unit.DataSize;
 public record LoggingProperties(
     @DefaultValue("ecs") LogFormat format,
     @DefaultValue("16KB") DataSize maxFieldLength,
+    @DefaultValue("10") @Min(1) @Max(20) int maxElements,
     @DefaultValue Redaction redaction) {
 
   /** The shortest allowed {@code max-field-length}. */

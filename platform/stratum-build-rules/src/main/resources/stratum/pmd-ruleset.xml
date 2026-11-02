@@ -14,7 +14,23 @@
     <exclude name="UnitTestAssertionsShouldIncludeMessage"/>
     <exclude name="UnitTestContainsTooManyAsserts"/>
   </rule>
-  <rule ref="category/java/errorprone.xml"/>
+  <rule ref="category/java/errorprone.xml">
+    <exclude name="AvoidCatchingGenericException"/>
+  </rule>
+  <!--
+    The logging starter's redactor must hide any value that fails while it is masked, such as a
+    toString() that throws a NullPointerException, so that a secret is never written and the rest
+    of the log line is kept. The owner allowed that one method to catch RuntimeException
+    (2026-11-02); every other method is still checked.
+  -->
+  <rule ref="category/java/errorprone.xml/AvoidCatchingGenericException">
+    <properties>
+      <property name="violationSuppressXPath"
+          value="./ancestor::MethodDeclaration[@Name='failingClosed']
+              [ancestor::ClassDeclaration[@SimpleName='Redactor']]
+              [ancestor::CompilationUnit/PackageDeclaration[@Name='com.exepex.stratum.logging.redaction']]"/>
+    </properties>
+  </rule>
   <rule ref="category/java/multithreading.xml">
     <!-- A Java EE rule: Stratum manages threads through Spring's bounded executors (ST-ENG-52). -->
     <exclude name="DoNotUseThreads"/>
