@@ -126,7 +126,8 @@ skips step 4: a text-only change needs no build (AGENTS.md, Build).
 
 1. **Gate.** The Claims are complete, with the design note on Fix and Feature; for a design-note review, the note is
    complete. For a pull request, CI is green at the head commit, and every Codex and Sonar finding is answered and
-   its thread resolved; the judge reads Sonar through the pull request's GitHub checks. When the gate fails, the
+   its thread resolved; where the answer says the finding does not apply (ST-AG-04), the judge accepts or rejects it
+   with its own evidence. The judge reads Sonar through the pull request's GitHub checks. When the gate fails, the
    verdict is FAIL with that one finding, and the judge checks nothing else. A missing design note on Fix or Feature
    is a blocking finding that fails the gate.
 2. **Requirements and owner decisions.**
