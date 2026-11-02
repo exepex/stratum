@@ -74,7 +74,10 @@ public class PublicApiRule {
     };
   }
 
-  /** Every type that the API type's supertypes, type parameters and visible members name. */
+  /**
+   * Every type named by the API type's supertypes, type parameters and visible members, including
+   * the members it inherits.
+   */
   private static Stream<Exposure> exposures(JavaClass apiType) {
     var supertypes =
         Stream.concat(apiType.getSuperclass().stream(), apiType.getInterfaces().stream())
@@ -83,7 +86,7 @@ public class PublicApiRule {
         apiType.getTypeParameters().stream()
             .flatMap(typeParameter -> namedTypes(typeParameter, "its type parameters"));
     var members =
-        apiType.getMembers().stream()
+        apiType.getAllMembers().stream()
             .filter(PublicApiRule::isVisible)
             .flatMap(PublicApiRule::memberExposures);
     return Stream.of(supertypes, typeParameters, members).flatMap(Function.identity());

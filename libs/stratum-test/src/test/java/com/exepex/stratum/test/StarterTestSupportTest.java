@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import com.exepex.stratum.core.properties.StratumPropertiesCustomizer;
 import com.exepex.stratum.test.fixture.BoundLeakingGreeter;
+import com.exepex.stratum.test.fixture.InheritingGreeter;
 import com.exepex.stratum.test.fixture.InternalGreeting;
 import com.exepex.stratum.test.fixture.InternalGreetingFailure;
 import com.exepex.stratum.test.fixture.LeakingGreeter;
@@ -138,6 +139,19 @@ class StarterTestSupportTest {
 
       assertThat(result.getFailureReport().getDetails())
           .anyMatch(detail -> detail.contains(InternalGreetingFailure.class.getName()));
+    }
+
+    @Test
+    @DisplayName("fail for an API type that inherits a public method naming an internal type")
+    void failForInheritedMemberNamingInternalType() {
+      var result =
+          PublicApiRule.apiExposesOnlyApi()
+              .evaluate(
+                  new ClassFileImporter()
+                      .importClasses(InheritingGreeter.class, InternalGreeting.class));
+
+      assertThat(result.getFailureReport().getDetails())
+          .anyMatch(detail -> detail.startsWith(InheritingGreeter.class.getName() + " exposes"));
     }
 
     @Test
