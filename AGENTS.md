@@ -66,8 +66,9 @@ Each rule has an ID so that reviews and judge verdicts can cite it.
   Do not paper over a symptom. When the same component keeps breaking, question its design.
 - **ST-AG-04 Check every review comment.** Whether it comes from the owner, a reviewer or the judge, check it against
   the code, and run it where you can. Accept it when the check confirms it; push back with your evidence when it does
-  not. Say which parts you accept and which you reject. A finding counts only if it can happen on a real setup: a
-  path that a running service reaches with its normal configuration. A case that is only theoretical goes in Notes.
+  not. Say which parts you accept and which you reject. Prove every accept and every reject with that evidence. A
+  finding counts only if it can happen on a real setup: a path that a running service reaches with its normal
+  configuration. A case that is only theoretical goes in Notes.
 - **ST-AG-05 Do not stop silently.** When something blocks you, look for another legitimate route or ask the owner one
   clear question. If the task cannot be done, say so and why.
 - **ST-AG-06 Do only what was asked.** Do not add files, tools, scripts, dependencies or features the request did not
