@@ -133,6 +133,8 @@ own judge.
   - after each review fix to code, the module's `mvn -pl <module> -am verify` again, and a test of the sibling
     cases of the fixed one;
   - after fixing a leak, a search of every module for the same pattern;
+  - for a change to a rule or an ADR, a search of AGENTS.md, docs/agents/ and docs/adr/ for the rule's ID and its
+    old wording, with every file that states or depends on that rule updated, or named with the reason it stays;
   - a rebase on `main`, and a read of the CI results at the head commit.
 - **ST-AG-18 Every implementer gets the same brief.** The coordinator starts each implementer with the brief
   template in [judge](docs/agents/judge.md#the-implementer-brief). The brief cites rule IDs and the owner's decisions

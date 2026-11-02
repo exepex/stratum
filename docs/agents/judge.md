@@ -145,6 +145,8 @@ implementer can fix them all in one round. The track sets the steps:
      to ST-TEST-17. A class with a second job, copied logic or repeated test setup is a should-fix finding
      (ST-ENG-01, ST-ENG-06, ST-ENG-16 to ST-ENG-18).
    - Read each changed document against the code at the head commit (documentation rules).
+   - For a change to a rule or an ADR, check that every file that states or depends on that rule was updated
+     (ST-AG-17).
 4. **Behaviour.**
    - Run the build and the tests, and any small check or probe you need.
    - Look for what the Claims do not mention: bugs, edge cases (empty input, a property unset, an optional library
