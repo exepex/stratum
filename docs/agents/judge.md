@@ -164,7 +164,7 @@ skips step 4: a text-only change needs no build (AGENTS.md, Build).
 
 Then give the verdict: **PASS**, or **FAIL** with numbered findings, each **blocking**, **should fix** or **minor**
 (as defined in [review](review.md)), with evidence and the fix expected. A change passes only when no blocking or
-should-fix finding remains.
+should-fix finding remains, apart from a finding the judge has deferred to a GitHub issue.
 
 Judge honestly in both directions. Do not invent findings to look thorough, and do not pass work to be agreeable.
 
@@ -179,6 +179,7 @@ Judge honestly in both directions. Do not invent findings to look thorough, and 
 Only the judge may move a real finding that is not blocking to a GitHub issue, when its fix is large compared with
 its harm. The verdict says so, and the coordinator opens the issue and tells the owner in one line. The owner may
 object; the finding is then fixed in the pull request. The implementer never defers a finding.
+A deferred finding does not hold the PASS. If the owner objects, the PASS waits until the finding is fixed.
 
 ## The verdict
 
