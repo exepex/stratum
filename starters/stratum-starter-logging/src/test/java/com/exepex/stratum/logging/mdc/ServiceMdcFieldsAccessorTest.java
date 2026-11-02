@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import ch.qos.logback.classic.util.LogbackMDCAdapter;
 import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.logging.LoggingConstants;
+import com.exepex.stratum.logging.testsupport.MdcFieldsRegistrations;
 import io.micrometer.context.ContextExecutorService;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -129,8 +130,8 @@ class ServiceMdcFieldsAccessorTest {
           + " ContextExecutorService.wrap(pool), a task sees the submitting thread's fields and the"
           + " pool thread holds none afterwards")
   void poolTaskSeesFieldsAndThreadIsClearedAfter() throws ExecutionException, InterruptedException {
-    try (var _ = new ServiceMdcFieldsPropagation();
-        var singleThreadPool = Executors.newSingleThreadExecutor();
+    new MdcFieldsPropagation().afterSingletonsInstantiated();
+    try (var singleThreadPool = Executors.newSingleThreadExecutor();
         var contextCarryingPool = ContextExecutorService.wrap(singleThreadPool)) {
       MDC.put(CUSTOMER_ID, CUSTOMER);
 
@@ -140,6 +141,8 @@ class ServiceMdcFieldsAccessorTest {
 
       assertThat(seenInTask).isEqualTo(CUSTOMER);
       assertThat(seenOnIdleThread).isNull();
+    } finally {
+      MdcFieldsRegistrations.remove();
     }
   }
 }

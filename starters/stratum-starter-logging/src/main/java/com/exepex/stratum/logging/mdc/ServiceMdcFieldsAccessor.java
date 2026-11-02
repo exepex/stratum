@@ -23,7 +23,7 @@ import org.springframework.util.ClassUtils;
  * what each thread held before once the work there ends. The trace, span and correlation IDs and
  * the workflow fields are left to tracing and the workflow accessor, which keep them in step with
  * each span and workflow, and the request fields to the web module. Registered with Micrometer's
- * context propagation by {@link ServiceMdcFieldsPropagation} while the logging module is on.
+ * context propagation by {@link MdcFieldsPropagation} while the logging module is on.
  *
  * <p>Reactor calls it around every operator for every element, so it reads the MDC without copying
  * it when the backend is Logback, and writes only when the fields differ. Its methods use loops

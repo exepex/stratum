@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 import com.exepex.stratum.core.logging.LoggingContextConstants;
+import com.exepex.stratum.logging.testsupport.MdcFieldsRegistrations;
 import io.micrometer.context.ContextRegistry;
 import io.micrometer.context.integration.Slf4jThreadLocalAccessor;
 import java.util.List;
@@ -35,15 +36,12 @@ class ReactiveMdcFieldsTest {
   /** Another field of the service's own. */
   private static final String TENANT_ID = "tenantId";
 
-  /** Carries the service's own fields, as the logging module does while it is on. */
-  private ServiceMdcFieldsPropagation serviceMdcFieldsPropagation;
-
   /**
    * Turns on Reactor's context propagation and the fields' accessor, as the logging module does.
    */
   @BeforeEach
   void propagateContextToEveryOperator() {
-    serviceMdcFieldsPropagation = new ServiceMdcFieldsPropagation();
+    new MdcFieldsPropagation().afterSingletonsInstantiated();
     Hooks.enableAutomaticContextPropagation();
   }
 
@@ -51,7 +49,7 @@ class ReactiveMdcFieldsTest {
   @AfterEach
   void restoreReactorAndLoggingContext() {
     Hooks.disableAutomaticContextPropagation();
-    serviceMdcFieldsPropagation.close();
+    MdcFieldsRegistrations.remove();
     MDC.clear();
   }
 

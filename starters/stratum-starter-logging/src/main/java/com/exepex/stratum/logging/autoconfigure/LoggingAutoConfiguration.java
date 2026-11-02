@@ -7,7 +7,7 @@ import com.exepex.stratum.core.executor.ContextCarryingExecutorsConfiguration;
 import com.exepex.stratum.core.properties.StratumCustomizers;
 import com.exepex.stratum.core.reactor.ReactorOperatorContextPropagation;
 import com.exepex.stratum.logging.LoggingConstants;
-import com.exepex.stratum.logging.mdc.ServiceMdcFieldsPropagation;
+import com.exepex.stratum.logging.mdc.MdcFieldsPropagation;
 import com.exepex.stratum.logging.mdc.ServletRequestMdcCleanupFilter;
 import com.exepex.stratum.logging.mdc.ServletRequestMdcCleanupListener;
 import com.exepex.stratum.logging.workflow.ReactiveWorkflows;
@@ -62,16 +62,17 @@ public final class LoggingAutoConfiguration {
   }
 
   /**
-   * Carries the MDC fields the service puts itself, such as {@code customerId}, to the threads a
-   * request's work moves to, while the module is on.
+   * Carries the MDC fields the service puts itself, such as {@code customerId}, and the workflow
+   * fields to the threads a request's work moves to, while the module is on, also with lazy
+   * initialization.
    *
-   * @return the registration, removed when the application stops
+   * @return the registration, kept for the rest of the JVM
    */
   @Bean
   @Fallback
   @ConditionalOnMissingBean
-  public ServiceMdcFieldsPropagation serviceMdcFieldsPropagation() {
-    return new ServiceMdcFieldsPropagation();
+  public MdcFieldsPropagation mdcFieldsPropagation() {
+    return new MdcFieldsPropagation();
   }
 
   /**

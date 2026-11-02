@@ -11,7 +11,7 @@ import org.slf4j.MDC;
 /**
  * Reads and writes the workflow fields of the logging context, so that Spring's executors and
  * Reactor carry them to the threads the work moves to. Registered with Micrometer's context
- * propagation through {@code META-INF/services}.
+ * propagation by {@code MdcFieldsPropagation} while the logging module is on.
  *
  * <p>Reactor calls it around every operator. It writes a field only when its value changes, because
  * every MDC write makes Logback copy the whole MDC the next time it is read, by each log line and
