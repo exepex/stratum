@@ -4,8 +4,9 @@
 
 A request's work often moves to other threads: an `@Async` method, a task on an executor, an event
 listener, a Reactor operator after `publishOn`. With the logging starter on, every log line written
-there carries the same fields as the request's own lines, and never another request's. This page
-says what travels, where, and the few places your code has to help.
+there carries the same fields as the request's own lines, and never another request's; for a
+Spring MVC request, that last part also needs the web module on ([below](#the-servers-own-threads)).
+This page says what travels, where, and the few places your code has to help.
 
 ## What travels
 
@@ -23,20 +24,14 @@ services you call; your own MDC fields never do.
 When the work on another thread ends, that thread's MDC goes back to what it held before, normally
 nothing. The next request served by the same pool thread starts clean.
 
-The server's own request threads are cleaned too. In a servlet application, the logging starter
-registers `ServletRequestMdcCleanupFilter` first in the filter chain, and it puts the MDC back as it
-was when each request ends, also on async and error dispatches. A field a handler puts and forgets
-to remove therefore never shows up in the next request on that thread.
+### The server's own threads
 
-When a request fails with an exception nothing handles, the fields stay until Tomcat has logged the
-failure, so that line still names the request. They are then cleaned by the error page's dispatch,
-or by `ServletRequestMdcCleanupListener` when there is no error page. Jetty writes its line after
-the request ends, so on Jetty that line has no request fields; nothing leaks there either.
-
-To replace the filter, declare a `FilterRegistrationBean<ServletRequestMdcCleanupFilter>` with the
-same order and dispatcher types, and keep the listener registered; a plain `ServletRequestMdcCleanupFilter` bean also replaces it, but Spring Boot then runs it last
-and on the first dispatch only, so fields set on async and error dispatches stay behind. WebFlux
-needs no filter, because Reactor resets the MDC for each piece of work it runs.
+The starter that owns a request cleans its server thread when the request ends. On Spring MVC,
+the web module does it
+([details](../../starters/stratum-starter-webmvc/README.md#a-clean-log-context-after-each-request));
+without the web module, remove your own fields with `MDC.putCloseable`, as below. On WebFlux,
+Reactor resets the MDC for each piece of work while the logging module is on; WebFlux without it is
+still open ([#126](https://github.com/exepex/stratum/issues/126)).
 
 ## Blocking code
 

@@ -149,9 +149,11 @@ them in a header or the body.
 The fields follow the request's work to other threads: `@Async` methods and Spring's executors on
 Spring MVC, every Reactor operator on WebFlux, as described in
 [log fields across threads](../guides/context-across-threads.md). On WebFlux this needs Reactor's
-automatic context propagation, which the logging and observability starters turn on. Caller
-fields, such as the calling service and user, are planned for the security starter, which reads
-them from a verified token only.
+automatic context propagation, which the logging and observability starters turn on. When each
+Spring MVC request ends, the module cleans the server thread's logging context
+([Web MVC](../../starters/stratum-starter-webmvc/README.md#a-clean-log-context-after-each-request)).
+Caller fields, such as the calling service and user, are planned for the security starter, which
+reads them from a verified token only.
 
 ### The client IP
 

@@ -1,5 +1,6 @@
-package com.exepex.stratum.logging.mdc;
+package com.exepex.stratum.webmvc;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import jakarta.servlet.ServletRequestEvent;
 import jakarta.servlet.ServletRequestListener;
 
@@ -8,6 +9,7 @@ import jakarta.servlet.ServletRequestListener;
  * server's own log line for the failure still carries the request's fields and the next request on
  * the thread does not.
  */
+@StratumInternal
 public class ServletRequestMdcCleanupListener implements ServletRequestListener {
 
   /**
