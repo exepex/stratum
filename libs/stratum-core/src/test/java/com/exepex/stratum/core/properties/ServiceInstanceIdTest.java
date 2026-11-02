@@ -11,6 +11,10 @@ import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
 import java.util.List;
 import java.util.Map;
+import java.util.SplittableRandom;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -32,10 +36,35 @@ class ServiceInstanceIdTest {
   @DisplayName("with no ID set by the service")
   class Generated {
 
+    /** A fixed seed, so the drawn IDs are the same on every run. */
+    private static final long SEED = 42L;
+
+    /** Enough IDs (1,000 characters) for every one of the 36 characters to appear. */
+    private static final int GENERATED_IDS = 100;
+
+    /** The characters an ID may hold, in order. */
+    private static final String DIGITS_AND_LOWERCASE_LETTERS =
+        "0123456789abcdefghijklmnopqrstuvwxyz";
+
     @Test
     @DisplayName("it is ten random digits and lowercase letters")
     void isTenDigitsAndLowercaseLetters() {
       assertThat(generatedInThisJvm()).matches(GENERATED_ID);
+    }
+
+    @Test
+    @DisplayName(
+        "its characters come from all 36 digits and lowercase letters, as the clash odds need")
+    void usesAllDigitsAndLowercaseLetters() {
+      var seeded = new SplittableRandom(SEED);
+      var usedCharacters =
+          IntStream.range(0, GENERATED_IDS)
+              .mapToObj(ignored -> ServiceInstanceId.generate(seeded))
+              .flatMapToInt(String::chars)
+              .mapToObj(Character::toString)
+              .collect(Collectors.toCollection(TreeSet::new));
+
+      assertThat(String.join("", usedCharacters)).isEqualTo(DIGITS_AND_LOWERCASE_LETTERS);
     }
 
     @Test

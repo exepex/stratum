@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Optional;
+import java.util.random.RandomGenerator;
 import java.util.stream.Collectors;
 import org.springframework.boot.context.properties.bind.Bindable;
 import org.springframework.boot.context.properties.bind.Binder;
@@ -41,7 +42,7 @@ public record ServiceInstanceId(String value) {
    * The ID for this JVM when the service sets none, drawn when this class first loads. Only the
    * logging and observability modules use this class, and only while they are on.
    */
-  private static final String GENERATED_IN_THIS_JVM = generate();
+  private static final String GENERATED_IN_THIS_JVM = generate(RANDOM);
 
   /**
    * Returns the instance ID: Spring Boot's {@code
@@ -119,9 +120,14 @@ public record ServiceInstanceId(String value) {
     }
   }
 
-  /** Returns a new random ID of digits and lowercase letters. */
-  private static String generate() {
-    return RANDOM
+  /**
+   * Returns a new random ID of ten digits and lowercase letters, drawn from the source.
+   *
+   * @param random the source of randomness: {@code SecureRandom} in use, a seeded one in tests
+   * @return the ID, such as {@code k3x9q2m7ab}
+   */
+  static String generate(RandomGenerator random) {
+    return random
         .ints(GENERATED_LENGTH, 0, GENERATED_RADIX)
         .mapToObj(digit -> Character.toString(Character.forDigit(digit, GENERATED_RADIX)))
         .collect(Collectors.joining());
