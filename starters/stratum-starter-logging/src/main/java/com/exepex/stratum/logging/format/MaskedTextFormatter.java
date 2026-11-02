@@ -47,6 +47,9 @@ abstract class MaskedTextFormatter<E> implements StructuredLogFormatter<E> {
   /** The field name of the stack trace. */
   private static final String STACK_TRACE_FIELD = "error.stack_trace";
 
+  /** Written for a value that is {@code null} or whose {@code toString()} returns {@code null}. */
+  private static final String NULL_TEXT = "null";
+
   /** Prints stack traces in Java's own layout, when no Spring Boot printer is set. */
   private static final StackTracePrinter JAVA_LAYOUT = StandardStackTracePrinter.rootLast();
 
@@ -221,14 +224,21 @@ abstract class MaskedTextFormatter<E> implements StructuredLogFormatter<E> {
     }
 
     /**
-     * Returns the value's text, {@code null} written as {@code null}, read once.
+     * Returns the value's text, read once; {@code null} and a {@code toString()} that returns
+     * {@code null} are written as {@code null}.
      *
      * @return the text
      */
     @Override
     public String toString() {
-      return Objects.requireNonNull(
-          text.updateAndGet(read -> read != null ? read : Objects.toString(value)));
+      return Objects.requireNonNull(text.updateAndGet(this::readOnce));
+    }
+
+    /**
+     * Returns the text already read, or reads it: {@code null}, or a null text, as {@code null}.
+     */
+    private String readOnce(@Nullable String read) {
+      return read != null ? read : Objects.requireNonNullElse(String.valueOf(value), NULL_TEXT);
     }
   }
 }

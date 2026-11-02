@@ -32,6 +32,12 @@ class LogbackMaskedTextFormatterTest {
   /** The message of the test events with an exception. */
   private static final String PAYMENT_FAILED = "payment failed";
 
+  /** The message of the test events that log an order as a key-value pair. */
+  private static final String ORDER_CHECKED = "order checked";
+
+  /** The key under which those events log the order. */
+  private static final String ORDER_KEY = "order";
+
   /** The time every test event happened. */
   private static final Instant TIME = Instant.parse("2026-11-02T10:15:30.123Z");
 
@@ -56,6 +62,15 @@ class LogbackMaskedTextFormatterTest {
         @Override
         public String toString() {
           throw new IllegalStateException("not initialised");
+        }
+      };
+
+  /** A logged value whose {@code toString()} returns {@code null}, as a careless one can. */
+  private static final Object NULL_TO_STRING =
+      new Object() {
+        @Override
+        public String toString() {
+          return null;
         }
       };
 
@@ -130,11 +145,20 @@ class LogbackMaskedTextFormatterTest {
   class Masking {
 
     @Test
+    @DisplayName("writes a value whose toString() returns null as null, and keeps the event")
+    void writesNullText() {
+      var event = event(ORDER_CHECKED, null);
+      event.addKeyValuePair(new KeyValuePair(ORDER_KEY, NULL_TO_STRING));
+
+      assertThat(formatter.format(event)).contains(" : order checked order=null");
+    }
+
+    @Test
     @DisplayName("reads a value's toString() once, so a value that fails the second time is kept")
     void readsValueOnce() {
       var calls = new AtomicInteger();
-      var event = event("order checked", null);
-      event.addKeyValuePair(new KeyValuePair("order", new FailsAfterFirstRead(calls)));
+      var event = event(ORDER_CHECKED, null);
+      event.addKeyValuePair(new KeyValuePair(ORDER_KEY, new FailsAfterFirstRead(calls)));
 
       assertThat(formatter.format(event)).contains(" : order checked order=order-42");
       assertThat(calls).hasValue(ONE_READ);
@@ -143,8 +167,8 @@ class LogbackMaskedTextFormatterTest {
     @Test
     @DisplayName("hides a value whose toString() fails, alone or in a list, and keeps the event")
     void hidesValueThatCannotBeWritten() {
-      var event = event("order checked", null);
-      event.addKeyValuePair(new KeyValuePair("order", FAILING_TO_STRING));
+      var event = event(ORDER_CHECKED, null);
+      event.addKeyValuePair(new KeyValuePair(ORDER_KEY, FAILING_TO_STRING));
       event.addKeyValuePair(new KeyValuePair("items", List.of(FAILING_TO_STRING)));
 
       assertThat(formatter.format(event))
@@ -154,8 +178,8 @@ class LogbackMaskedTextFormatterTest {
     @Test
     @DisplayName("masks the entries of a map or list logged as a key-value pair under a plain key")
     void masksContainerContents() {
-      var event = event("order checked", null);
-      event.addKeyValuePair(new KeyValuePair("order", Map.of("card", LoggingTestData.CARD)));
+      var event = event(ORDER_CHECKED, null);
+      event.addKeyValuePair(new KeyValuePair(ORDER_KEY, Map.of("card", LoggingTestData.CARD)));
       event.addKeyValuePair(
           new KeyValuePair("details", Map.of("password", LoggingTestData.PASSWORD)));
       event.addKeyValuePair(
