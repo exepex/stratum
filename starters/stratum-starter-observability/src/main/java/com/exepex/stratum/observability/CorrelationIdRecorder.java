@@ -1,6 +1,6 @@
 package com.exepex.stratum.observability;
 
-import com.exepex.stratum.core.error.LoggingContextConstants;
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import io.micrometer.tracing.otel.bridge.EventListener;
 import io.micrometer.tracing.otel.bridge.EventPublishingContextWrapper.ScopeAttachedEvent;
 import io.micrometer.tracing.otel.bridge.EventPublishingContextWrapper.ScopeClosedEvent;

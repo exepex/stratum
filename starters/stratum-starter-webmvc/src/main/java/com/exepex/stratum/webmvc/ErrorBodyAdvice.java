@@ -1,7 +1,7 @@
 package com.exepex.stratum.webmvc;
 
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
-import com.exepex.stratum.core.error.LoggingContextConstants;
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.web.BootErrorBodyCounter;
 import com.exepex.stratum.web.ErrorResponseFactory;
 import com.exepex.stratum.web.WebConstants;

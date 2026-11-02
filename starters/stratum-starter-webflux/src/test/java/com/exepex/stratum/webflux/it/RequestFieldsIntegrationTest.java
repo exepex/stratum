@@ -2,7 +2,7 @@ package com.exepex.stratum.webflux.it;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.exepex.stratum.core.error.LoggingContextConstants;
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.test.StarterTestSupport;
 import com.exepex.stratum.web.WebConstants;
 import com.jayway.jsonpath.JsonPath;

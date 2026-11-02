@@ -1,6 +1,6 @@
 package com.exepex.stratum.webflux;
 
-import com.exepex.stratum.core.error.LoggingContextConstants;
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.web.ErrorResponseFactory;
 import java.util.List;
 import lombok.RequiredArgsConstructor;

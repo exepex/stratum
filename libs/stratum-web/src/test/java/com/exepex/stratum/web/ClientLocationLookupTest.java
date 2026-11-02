@@ -5,8 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.exepex.stratum.core.error.LoggingContextConstants;
 import com.exepex.stratum.core.error.StratumException;
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.test.StarterTestSupport;
 import com.maxmind.db.Reader;
 import java.io.IOException;

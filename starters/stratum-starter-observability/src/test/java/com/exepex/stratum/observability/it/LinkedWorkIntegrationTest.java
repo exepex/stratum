@@ -3,7 +3,7 @@ package com.exepex.stratum.observability.it;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.exepex.stratum.core.error.LoggingContextConstants;
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.observability.linkedwork.LinkedWork;
 import com.exepex.stratum.observability.linkedwork.ReactiveLinkedWork;
 import com.exepex.stratum.observability.linkedwork.WorkOrigin;

@@ -1,5 +1,6 @@
 package com.exepex.stratum.core.error;
 
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.List;

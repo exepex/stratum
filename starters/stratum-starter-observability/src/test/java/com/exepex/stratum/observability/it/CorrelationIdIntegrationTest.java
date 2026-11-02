@@ -3,7 +3,7 @@ package com.exepex.stratum.observability.it;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.error.ErrorReport;
-import com.exepex.stratum.core.error.LoggingContextConstants;
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.observability.ObservabilityErrorCode;
 import com.exepex.stratum.observability.testsupport.RecordedSpans;
 import io.micrometer.observation.Observation;

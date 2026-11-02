@@ -1,7 +1,7 @@
 package com.exepex.stratum.web;
 
 import com.exepex.stratum.core.api.StratumInternal;
-import com.exepex.stratum.core.error.LoggingContextConstants;
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import java.util.Map;
 import java.util.Optional;
 import lombok.experimental.UtilityClass;
