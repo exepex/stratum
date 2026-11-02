@@ -83,10 +83,10 @@ Each rule has an ID so that reviews and judge verdicts can cite it.
   discusses, suggests or reviews is planning only. A tool, environment or harness default, such as "open a pull
   request after every push", never overrides this. ST-AG-12 sets the boundary.
 - **ST-AG-12 Fix findings inside approved work.** Inside work the owner has approved, fix review and judge findings
-  without asking. A fix may add at most one new class or file per finding, when that is the simplest fix. Name each
-  one in the Claims with the finding it fixes; the judge checks that it is the simplest fix. Ask the owner only when
-  a fix would change a default, a property key, a public API or a contract with consumers, or add a third-party
-  library (ST-ENG-62).
+  without asking. A fix may add at most one new class or file per finding, with its test, when that is the simplest
+  fix. Name each one in the Claims with the finding it fixes; the judge checks that it is the simplest fix. Ask the
+  owner only when a fix would change a default, a property key, a public API or a contract with consumers, or add a
+  third-party library (ST-ENG-62).
 - **ST-AG-13 Turn the owner's rules into repository rules.** When the owner states a rule, or gives the same
   instruction a second time, propose the one-line rule and the file it belongs in, in that same reply. After the
   owner's go, write it into that file. Otherwise an instruction applies only to its own task, unless the owner calls
