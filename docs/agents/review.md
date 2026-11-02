@@ -12,8 +12,8 @@ Every finding, from a reviewer, the security role or the judge, uses one of thre
 | Severity | Meaning | Effect |
 |---|---|---|
 | Blocking | Wrong behaviour, a security flaw, a broken rule in AGENTS.md, or a requirement not met | The change does not merge until it is fixed |
-| Should fix | A real defect or rule break with limited impact, such as a missing test for an edge case | Fixed before merge, unless the owner accepts it. Only the judge may move a real one to a GitHub issue, when its fix is large compared with its harm; the owner is told in one line and may object. The implementer cannot defer it ([judge](judge.md#deferring-a-finding)) |
-| Minor | Clarity or style that no tool checks | Fixed if cheap; never holds a merge |
+| Should fix | A real defect or rule break with limited impact, such as a missing test for an edge case | Fixed before merge, unless the owner accepts it. Only the judge may move a real should-fix or minor finding to a GitHub issue, when its fix is large compared with its harm; the owner is told in one line and may object. The implementer cannot defer it ([judge](judge.md#deferring-a-finding)) |
+| Minor | Clarity or style that no tool checks | Same as should fix |
 
 ## What to review
 
@@ -45,5 +45,5 @@ One line per finding, most severe first:
 
 `path:line` — **severity** RULE-ID: the problem. **Fix:** what to change.
 
-No praise and no restating the change. End with a one-line verdict: "no blocking findings" or the number of
-blocking findings.
+No praise and no restating the change. End with a one-line verdict: "no open findings" or the number of open
+findings of each severity.
