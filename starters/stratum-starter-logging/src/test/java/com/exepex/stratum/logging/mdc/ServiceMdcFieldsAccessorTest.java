@@ -130,7 +130,7 @@ class ServiceMdcFieldsAccessorTest {
           + " ContextExecutorService.wrap(pool), a task sees the submitting thread's fields and the"
           + " pool thread holds none afterwards")
   void poolTaskSeesFieldsAndThreadIsClearedAfter() throws ExecutionException, InterruptedException {
-    new MdcFieldsPropagation().afterSingletonsInstantiated();
+    MdcFieldsRegistrations.register();
     try (var singleThreadPool = Executors.newSingleThreadExecutor();
         var contextCarryingPool = ContextExecutorService.wrap(singleThreadPool)) {
       MDC.put(CUSTOMER_ID, CUSTOMER);

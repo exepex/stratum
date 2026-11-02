@@ -41,7 +41,7 @@ class ReactiveMdcFieldsTest {
    */
   @BeforeEach
   void propagateContextToEveryOperator() {
-    new MdcFieldsPropagation().afterSingletonsInstantiated();
+    MdcFieldsRegistrations.register();
     Hooks.enableAutomaticContextPropagation();
   }
 

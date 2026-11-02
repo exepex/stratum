@@ -54,10 +54,13 @@ class ReactiveWorkflowsTest {
   private final IllegalStateException paymentDeclined =
       new IllegalStateException("payment declined");
 
-  /** Carries the workflow fields to other threads, as the logging module does while it is on. */
+  /**
+   * Carries the service and workflow fields to other threads, as the logging module does while it
+   * is on.
+   */
   @BeforeEach
-  void registerWorkflowFieldsAccessor() {
-    ContextRegistry.getInstance().registerThreadLocalAccessor(new WorkflowFieldsAccessor());
+  void registerMdcFieldsAccessors() {
+    MdcFieldsRegistrations.register();
   }
 
   /** Clears the logging context and the registry, so no test sees what another left. */
