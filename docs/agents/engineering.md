@@ -20,15 +20,17 @@ cite it.
   interface, helper, option or branch without a use that exists today. Prefer one type with a field to a hierarchy,
   inline code to a one-call helper that does part of the same job, and the JDK, Spring or Lombok to hand-written
   code. No clever tricks, and no handling for cases that cannot happen. When a rule or tool pushes toward more
-  structure, ask the owner first. Moving a second job or copied logic into its own class is not new structure: do it
-  without asking (ST-ENG-16). Tunable values are still properties (ST-ENG-33).
+  structure, ask the owner first, except to fix a finding inside approved work (ST-AG-12). A push from a rule or tool
+  that is not a finding still needs the owner's answer first. Moving a second job or copied logic into its own class
+  is not new structure: do it without asking (ST-ENG-16). Tunable values are still properties (ST-ENG-33).
 - **ST-ENG-06 No duplication.** Do not copy logic, within a module or across modules. Before writing cross-cutting
   behaviour (headers, HTTP clients, error responses, retries, logging, test containers), find the Stratum module that
   already provides it and use it. When the same lines appear in a second place, move them into one method or class
   that both call. When a rule would have every module repeat the same code, the rule names a shared method for the
   modules to call instead. Test code that several starters need goes into `StarterTestSupport` in `stratum-test`,
   which the starters use in test scope; for any other shared test code with no shared place yet, ask the owner where
-  it goes instead of copying it. A copy the owner has approved is not a finding.
+  it goes instead of copying it, except to fix a finding inside approved work (ST-AG-12). A copy the owner has
+  approved is not a finding.
 - **ST-ENG-07 Patterns where they remove complexity.** Before writing an `if` or `switch` chain, copying a sequence
   of steps or adding a constructor with many arguments, check whether one of these fits:
   - Strategy, for behaviour that varies by type or setting;
@@ -151,8 +153,6 @@ Every starter follows these rules:
   refused or cut off ([ADR 0008](../adr/0008-error-format-and-backward-compatible-mode.md)). A new web feature
   follows that ADR's decision 7: in that mode it changes no existing response and refuses no request unless the
   service turns it on.
-  Never break an existing service's contract with its consumers: its API, its error responses and the behaviour its
-  callers rely on.
 - **ST-ENG-26** Dependencies are injected through constructors (in auto-configuration, through `@Bean` method
   parameters). Never field injection (`@Autowired` on a field) or setter injection. Constructor injection makes
   dependencies explicit, keeps fields `final` and makes Spring report circular dependencies at startup. In test
@@ -164,6 +164,8 @@ Every starter follows these rules:
   they match. Its detail names where the fault is: the property key, class, bean or customizer. Spring Boot's failure
   report then shows the code and message as the description and the fix as the action, through
   `StratumStartupFailureAnalyzer`. Warnings and errors that a caller gets have no fix text.
+- **ST-ENG-28** Never break an existing service's contract with its consumers: its API, its error responses and the
+  behaviour its callers rely on.
 
 ## Configuration
 
