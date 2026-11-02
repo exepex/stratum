@@ -233,8 +233,12 @@ topic file wins.
   judge as [judge](docs/agents/judge.md) describes, or the owner when there is no coordinator; the implementer never
   judges its own work.
 - Nothing is pushed to a pull request while a judge reviews it.
-- The coordinator says "Ready to merge at <sha>" once, when the judge's PASS, green CI and an answer in every Codex
-  and Sonar thread all hold at that commit.
+- The coordinator says "Ready to merge at <sha>" once per head commit, when at that commit the judge's PASS and green
+  CI hold, and every finding from the owner, a reviewer, the security role, the judge, Codex and Sonar is fixed,
+  accepted by the owner, answered with evidence that it does not apply (ST-AG-04) which the judge accepted, or
+  deferred by the judge to an issue named in the line, with each thread answered and resolved. A later commit
+  withdraws it until these hold again at the new head. No agent, in any role, calls a pull request ready to merge
+  before then.
 - Agents never merge a pull request; only the owner merges.
 
 ## Reporting to the owner
