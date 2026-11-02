@@ -106,8 +106,8 @@ own judge.
   | Track | What it covers |
   |---|---|
   | Docs | Only Markdown, text or AsciiDoc files change, and none of them is an agent rule file or an ADR |
-  | Fix | Code that restores documented behaviour, with no change to a key, a default, a public API, a dependency or a contract with consumers |
-  | Feature | A new feature, key, default, public API or dependency; a change in behaviour; anything on the trigger list; any change to `AGENTS.md`, `docs/agents/` or an ADR |
+  | Fix | Code that restores documented behaviour, a refactor that keeps behaviour, or a change to tests only; with no change to a key, a default, a public API, a dependency or a contract with consumers |
+  | Feature | A new feature, key, default, public API or dependency; a change to documented behaviour; a change to the build (POMs, plugins, CI); anything on the trigger list; any change to `AGENTS.md`, `docs/agents/` or an ADR |
 
   - The trigger list: the change touches untrusted input, masking, logged data or a contract with consumers.
   - A change that fits more than one track takes the heavier one. Feature is heavier than Fix, and Fix than Docs.
