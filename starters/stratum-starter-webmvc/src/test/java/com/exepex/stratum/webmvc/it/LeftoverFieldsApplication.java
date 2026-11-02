@@ -26,15 +26,13 @@ public class LeftoverFieldsApplication {
   static class CustomersController {
 
     /**
-     * Puts the customer in the logging context and answers without removing it.
+     * Puts the customer in the logging context and answers with no body, without removing it.
      *
      * @param customerId the customer
-     * @return the customer
      */
     @GetMapping("/customers/{customerId}")
-    String leaveCustomer(@PathVariable String customerId) {
+    void leaveCustomer(@PathVariable String customerId) {
       MDC.put(CUSTOMER_ID, customerId);
-      return customerId;
     }
 
     /**
