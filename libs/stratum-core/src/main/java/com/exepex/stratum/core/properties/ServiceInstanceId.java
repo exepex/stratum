@@ -34,6 +34,9 @@ public record ServiceInstanceId(String value) {
   /** Separates an attribute's key from its value. */
   private static final char KEY_VALUE_SEPARATOR = '=';
 
+  /** Draws the random characters of the generated ID. */
+  private static final SecureRandom RANDOM = new SecureRandom();
+
   /**
    * The ID for this JVM when the service sets none, drawn when this class first loads. Only the
    * logging and observability modules use this class, and only while they are on.
@@ -107,14 +110,14 @@ public record ServiceInstanceId(String value) {
     try {
       return Optional.of(
           StringUtils.uriDecode(attribute.substring(separator + 1).trim(), StandardCharsets.UTF_8));
-    } catch (IllegalArgumentException invalidEncoding) {
+    } catch (IllegalArgumentException _) {
       return Optional.empty();
     }
   }
 
   /** Returns a new random ID of digits and lowercase letters. */
   private static String generate() {
-    return new SecureRandom()
+    return RANDOM
         .ints(GENERATED_LENGTH, 0, GENERATED_RADIX)
         .mapToObj(digit -> Character.toString(Character.forDigit(digit, GENERATED_RADIX)))
         .collect(Collectors.joining());
