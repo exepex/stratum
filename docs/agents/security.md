@@ -53,6 +53,10 @@ of defence.
   checked against an allow-list first.
 - **ST-SEC-18 Trust boundaries.** Correlation and context headers arriving from outside are not trusted as identity.
   Identity comes only from a verified token.
+- **ST-SEC-19 Masking by name.** Check that the logging starter finds personal data by field or key name,
+  including keys inside text such as `email=x`. In text with no key, it masks only values it can confirm by shape
+  or checksum: JWTs, authorization headers, URL passwords, card numbers (Luhn), IBANs (checksum), email addresses,
+  and the service's own `extra-patterns`. Any other field name is the team's job, through `extra-keys`.
 
 ## How to check a change
 
