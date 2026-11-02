@@ -33,13 +33,14 @@ the documentation must work for both. Documentation is part of every change and 
   `docs/configuration/reference.md`, which links to it.
 - **ST-DOC-03 Edit in place.** Update the document that owns the topic. Do not add dated summaries, handover notes or
   "update" files.
-- **ST-DOC-04 Every property documented.** Each module has one property table, on the page that owns its prefix:
-  the starter's `README.md` when one starter owns it, or `docs/modules/<module>.md` when several starters share it,
-  as `docs/modules/web.md` does for both web starters. The table lists every `stratum.*` key of the module and every
+- **ST-DOC-04 Every property documented.** Each module has one property table, on the page that owns its prefix: the
+  starter's `README.md` when one starter owns it, or `docs/modules/<module>.md` when several starters share it, as
+  `docs/modules/web.md` does for both web starters. The table lists every `stratum.*` key of the module and every
   Spring Boot key the module gives a default, with its type, Stratum's default, Spring Boot's own default and its
-  meaning, checked against the code and against Spring Boot's configuration metadata. A key that several modules
-  share is listed in `docs/configuration/reference.md` instead. The Javadoc on a `@ConfigurationProperties` field
-  says the same as the table, because IDEs show it.
+  meaning, checked against the code and against Spring Boot's configuration metadata. A `stratum.*` key that belongs
+  to no module is listed in `docs/configuration/reference.md` instead; a Spring Boot key that several modules give a
+  default stays in each of their tables. The Javadoc on a `@ConfigurationProperties` field says the same as the
+  table, because IDEs show it.
 - **ST-DOC-05 Every way to configure.** Every configuration example is shown in both `application.properties` and
   `application.yml`, with the same values. Each module page with `stratum.*` properties also has a "Configure in Java"
   section showing the same settings through the module's customizer or builder (ST-ENG-34). Until a module's Java API

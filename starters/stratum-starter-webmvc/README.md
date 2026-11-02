@@ -207,11 +207,11 @@ dashboard recipe, with PromQL examples, is in [Web](../../docs/modules/web.md#sl
 
 ## Timeouts
 
-While `stratum.web.backward-compatible` is `true`, the default, a request has no time limit
-unless you set one. With `false`, each request has 10 seconds until its response starts, unless
-you set another limit. A request that runs out of time is answered with `503` and `SX-WEB-1007`,
-and the service logs a WARN line. A response that has started, such as a stream, is never cut off. Change the limits in
-`application.properties`:
+While `stratum.web.backward-compatible` is `true`, the default, a request has no time limit unless
+you set one. With `false`, each request has 10 seconds until its response starts, unless you set
+another limit. A request that runs out of time is answered with `503` and `SX-WEB-1007`, and the
+service logs a WARN line. A response that has started, such as a stream, is never cut off. Change
+the limits in `application.properties`:
 
 ```properties
 stratum.web.timeout.default-limit=5s
@@ -251,10 +251,10 @@ The details, with `0` for no limit and the status, are in [Response timeouts](..
 ## Body size limit
 
 While `stratum.web.backward-compatible` is `true`, the default, a request body has no size limit
-unless you set one. With `false`, each request body may have 256KB, unless you set another limit.
-A larger body is answered with `413` and `SX-WEB-1008`, and the service logs a WARN line. A body
-sent without `Content-Length` is counted as it arrives and stopped at the limit, before it is held in memory. Raise the limit for
-uploads by path, in `application.properties`:
+unless you set one. With `false`, each request body may have 256KB, unless you set another limit. A
+larger body is answered with `413` and `SX-WEB-1008`, and the service logs a WARN line. A body sent
+without `Content-Length` is counted as it arrives and stopped at the limit, before it is held in
+memory. Raise the limit for uploads by path, in `application.properties`:
 
 ```properties
 stratum.web.body-limit.routes[/uploads/**]=20MB

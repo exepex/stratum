@@ -29,8 +29,10 @@ consumers on the day it adopted Stratum.
    `stratum.web.enabled=true`, a service gets:
    - Spring Boot's own error body for every error that Spring or Spring Boot answers, holding what
      the service's `spring.web.error.include-*` settings say;
-   - Stratum's body for errors that no consumer has relied on before: a `StratumException`, an
-     exception that implements `FailureWithErrorCode`, a timeout and a body too large;
+   - Stratum's body for errors that no consumer has relied on before: a `StratumException`, a
+     timeout and a body too large;
+   - Stratum's body for an exception that implements `FailureWithErrorCode`, which can be one its
+     consumers already know (decision 5);
    - Stratum's body for any request that sends `Accept: application/problem+json`;
    - no default time limit, no default body size limit and, on WebFlux, no default multipart limit;
    - the `X-Correlation-Id` header on every response, and `traceId` and `correlationId` added to a
