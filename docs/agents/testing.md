@@ -52,11 +52,13 @@ conventions. Each rule has an ID so that reviews and judge verdicts can cite it.
   - property binding from both `.properties` and `.yml`, including a bad value stopping startup;
   - the same settings applied through the Java configuration (ST-ENG-34), and the Java value winning when both are
     set.
-- **ST-TEST-21** ArchUnit tests (`*ArchTest`) check that the `autoconfigure` package only wires beans, that no
-  starter uses another starter's internal classes, that packages have no cycles, and that every class a component
-  scan picks up carries the module switch (ST-ENG-20). A starter checks these with
-  `StarterTestSupport.checkStarterArchitecture`, and its codes with `StarterTestSupport.checkErrorCodes`. A library
-  other than `stratum-core` checks the switch rule and the cycles with `StarterTestSupport.checkLibraryArchitecture`.
+- **ST-TEST-21** ArchUnit tests (`*ArchTest`) check that the `autoconfigure` package only wires beans, that no starter
+  uses another starter's internal classes, that packages have no cycles, that no API type exposes a `@StratumInternal`
+  type (`PublicApiRule`, ST-ENG-56), and that every class a component scan picks up carries the module switch
+  (ST-ENG-20). `stratum-core` cannot depend on `stratum-test`, so `StarterTestSupportTest` checks the API rule on core's
+  classes. A starter checks these with `StarterTestSupport.checkStarterArchitecture`, and its codes with
+  `StarterTestSupport.checkErrorCodes`. A library other than `stratum-core` checks the switch rule, the cycles and the
+  API rule with `StarterTestSupport.checkLibraryArchitecture`.
 
 ## Integration tests
 
