@@ -7,12 +7,14 @@ import static org.awaitility.Awaitility.await;
 
 import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.testsupport.FinishedObservations;
+import com.exepex.stratum.logging.testsupport.MdcFieldsRegistrations;
 import io.micrometer.context.ContextRegistry;
 import io.micrometer.context.integration.Slf4jThreadLocalAccessor;
 import io.micrometer.observation.Observation;
 import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.reactivestreams.Publisher;
@@ -52,10 +54,17 @@ class ReactiveWorkflowsTest {
   private final IllegalStateException paymentDeclined =
       new IllegalStateException("payment declined");
 
-  /** Clears the logging context, so no test sees fields left by another. */
+  /** Carries the workflow fields to other threads, as the logging module does while it is on. */
+  @BeforeEach
+  void registerWorkflowFieldsAccessor() {
+    ContextRegistry.getInstance().registerThreadLocalAccessor(new WorkflowFieldsAccessor());
+  }
+
+  /** Clears the logging context and the registry, so no test sees what another left. */
   @AfterEach
   void clearLoggingContext() {
     MDC.clear();
+    MdcFieldsRegistrations.remove();
   }
 
   /** Returns {@code workflow}, {@code root_workflow} and {@code workflow_id}, as they are now. */
