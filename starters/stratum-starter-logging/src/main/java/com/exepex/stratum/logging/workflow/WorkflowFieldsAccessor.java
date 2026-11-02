@@ -1,5 +1,6 @@
 package com.exepex.stratum.logging.workflow;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.logging.LoggingConstants;
 import io.micrometer.context.integration.Slf4jThreadLocalAccessor;
 import java.util.List;
@@ -16,6 +17,7 @@ import org.slf4j.MDC;
  * every MDC write makes Logback copy the whole MDC the next time it is read, by each log line and
  * by the service fields accessor.
  */
+@StratumInternal
 public class WorkflowFieldsAccessor extends Slf4jThreadLocalAccessor {
 
   /** The MDC fields this accessor carries. */

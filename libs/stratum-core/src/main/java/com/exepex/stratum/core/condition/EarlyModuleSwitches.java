@@ -1,5 +1,6 @@
 package com.exepex.stratum.core.condition;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -23,6 +24,7 @@ import org.springframework.core.env.MapPropertySource;
  * when a module is on only later, as with a switch in a {@code @PropertySource} file: that module's
  * beans would run, but its startup defaults and checks would have been skipped.
  */
+@StratumInternal
 public class EarlyModuleSwitches implements EnvironmentPostProcessor, Ordered {
 
   /**

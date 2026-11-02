@@ -2,6 +2,7 @@ package com.exepex.stratum.test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.error.ErrorCode;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -16,6 +17,7 @@ import lombok.experimental.UtilityClass;
  * Checks a module's error codes against the error codes page, so that the code, the page and Spring
  * Boot's failure report always agree.
  */
+@StratumInternal
 @UtilityClass
 public class ErrorCodeChecks {
 

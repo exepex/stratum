@@ -1,5 +1,6 @@
 package com.exepex.stratum.logging.redaction;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.logging.LoggingErrorCode;
 import com.exepex.stratum.logging.LoggingProperties;
@@ -28,6 +29,7 @@ import org.springframework.boot.json.WritableJson;
  * <p>Names, addresses and other data with no telltale shape are found only by their field or key
  * name. This is a safety net, not a licence to log personal data.
  */
+@StratumInternal
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(access = AccessLevel.PRIVATE)
 public final class Redactor {

@@ -1,5 +1,6 @@
 package com.exepex.stratum.web;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import java.util.Map;
 import java.util.function.Supplier;
 import org.jspecify.annotations.Nullable;
@@ -10,6 +11,7 @@ import org.jspecify.annotations.Nullable;
  * @param fields the fields known when the request arrived, by their names in the logging context
  * @param route the route the request matched, which is known only once Spring has matched it
  */
+@StratumInternal
 public record RequestFieldValues(Map<String, String> fields, Supplier<@Nullable String> route) {
 
   /** Keeps an unchangeable copy of the fields. */

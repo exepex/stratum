@@ -1,5 +1,6 @@
 package com.exepex.stratum.core.properties;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.error.CoreErrorCode;
 import com.exepex.stratum.core.error.ErrorDetail;
 import com.exepex.stratum.core.error.ErrorReport;
@@ -36,6 +37,7 @@ import org.springframework.util.ObjectUtils;
  * <p>A module calls {@link #resolve} in each startup phase that needs its settings, so the
  * customizers may run more than once and must return the same result every time.
  */
+@StratumInternal
 @RequiredArgsConstructor
 public final class StratumPropertiesResolver {
 

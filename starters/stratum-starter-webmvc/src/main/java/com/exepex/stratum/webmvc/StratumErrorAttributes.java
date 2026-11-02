@@ -1,5 +1,6 @@
 package com.exepex.stratum.webmvc;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.error.LoggingContextConstants;
 import com.exepex.stratum.web.ErrorResponseFactory;
 import java.util.List;
@@ -27,6 +28,7 @@ import org.springframework.web.context.request.WebRequest;
  * <p>The error controller runs in a second dispatch, after tracing has closed the request's scope,
  * so the request's IDs come from {@link RequestIdsFilter}.
  */
+@StratumInternal
 @RequiredArgsConstructor
 public class StratumErrorAttributes extends DefaultErrorAttributes {
 

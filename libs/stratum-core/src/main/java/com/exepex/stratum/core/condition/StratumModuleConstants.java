@@ -1,9 +1,11 @@
 package com.exepex.stratum.core.condition;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import lombok.experimental.UtilityClass;
 import org.springframework.boot.autoconfigure.AutoConfigureOrder;
 
 /** The property keys that every Stratum module shares (ST-ENG-45). */
+@StratumInternal
 @UtilityClass
 public class StratumModuleConstants {
 

@@ -1,10 +1,12 @@
 package com.exepex.stratum.logging;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import java.util.Set;
 import lombok.experimental.UtilityClass;
 
 /** The property keys, log fields and metric names the logging module uses (ST-ENG-45). */
+@StratumInternal
 @UtilityClass
 public class LoggingConstants {
 

@@ -1,6 +1,7 @@
 package com.exepex.stratum.logging.mdc;
 
 import ch.qos.logback.classic.util.LogbackMDCAdapter;
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.error.LoggingContextConstants;
 import com.exepex.stratum.logging.LoggingConstants;
 import io.micrometer.context.ThreadLocalAccessor;
@@ -28,6 +29,7 @@ import org.springframework.util.ClassUtils;
  * it when the backend is Logback, and writes only when the fields differ. Its methods use loops
  * rather than streams for the same reason.
  */
+@StratumInternal
 @RequiredArgsConstructor(access = AccessLevel.PACKAGE)
 public class ServiceMdcFieldsAccessor implements ThreadLocalAccessor<Map<String, String>> {
 

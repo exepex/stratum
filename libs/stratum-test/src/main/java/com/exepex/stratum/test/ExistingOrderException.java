@@ -1,5 +1,6 @@
 package com.exepex.stratum.test;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.error.FailureWithErrorCode;
 import java.io.Serial;
 import lombok.Getter;
@@ -9,6 +10,7 @@ import lombok.Getter;
  * FailureWithErrorCode} instead of extending {@code StratumException}, for the tests that check
  * both are answered and logged the same way.
  */
+@StratumInternal
 @Getter
 public class ExistingOrderException extends RuntimeException implements FailureWithErrorCode {
 

@@ -1,5 +1,6 @@
 package com.exepex.stratum.webflux;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.StratumModuleSwitch;
 import com.exepex.stratum.core.properties.StratumDefaults;
 import com.exepex.stratum.web.WebConstants;
@@ -23,6 +24,7 @@ import org.springframework.core.env.ConfigurableEnvironment;
  * worked before Stratum is not refused. Every value the service sets for these Spring Boot keys
  * wins.
  */
+@StratumInternal
 public class WebFluxEnvironmentPostProcessor implements EnvironmentPostProcessor, Ordered {
 
   /** Spring Boot's limits on a multipart upload and the values Stratum gives them. */

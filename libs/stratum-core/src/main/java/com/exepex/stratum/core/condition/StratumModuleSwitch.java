@@ -1,10 +1,12 @@
 package com.exepex.stratum.core.condition;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import lombok.experimental.UtilityClass;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.core.env.Environment;
 
 /** Reads a module's on/off property, {@code stratum.<module>.enabled}, for every Stratum module. */
+@StratumInternal
 @UtilityClass
 public class StratumModuleSwitch {
 

@@ -1,5 +1,6 @@
 package com.exepex.stratum.webmvc;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.web.RequestDeadline;
 import com.exepex.stratum.web.ResponseTimeouts;
 import jakarta.servlet.FilterChain;
@@ -20,6 +21,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * interrupted. For a handler that returns a {@code Callable} or {@code DeferredResult}, the limit
  * ends when the handler returns.
  */
+@StratumInternal
 @RequiredArgsConstructor
 public class ResponseTimeoutFilter extends OncePerRequestFilter {
 

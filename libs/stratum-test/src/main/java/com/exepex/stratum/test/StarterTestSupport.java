@@ -7,6 +7,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.core.error.LoggingContextConstants;
 import com.exepex.stratum.core.properties.StratumPropertiesCustomizer;
@@ -41,6 +42,7 @@ import lombok.experimental.UtilityClass;
  * The checks and set-up that the tests of every Stratum starter share, so that each starter calls
  * them instead of keeping its own copy.
  */
+@StratumInternal
 @UtilityClass
 public class StarterTestSupport {
 
@@ -119,14 +121,15 @@ public class StarterTestSupport {
   }
 
   /**
-   * Checks that a module's classes stay off while the module is off, even when a service's
-   * component scan reaches Stratum's packages (ST-ENG-20). A starter gets this check from {@link
-   * #checkStarterArchitecture}; a library calls it itself.
+   * Checks a library's classes: they stay off while the module is off, even when a service's
+   * component scan reaches Stratum's packages (ST-ENG-20), and its packages have no cycles
+   * (ST-ENG-57). A starter gets these checks from {@link #checkStarterArchitecture}.
    *
-   * @param classInModulePackage any class in the module's top package, such as its constants
+   * @param classInLibraryPackage any class in the library's top package, such as its constants
    */
-  public static void checkSafeToScan(Class<?> classInModulePackage) {
-    checkModuleClasses(safeToScan(), classInModulePackage);
+  public static void checkLibraryArchitecture(Class<?> classInLibraryPackage) {
+    checkModuleClasses(
+        CompositeArchRule.of(safeToScan()).and(noPackageCycles()), classInLibraryPackage);
   }
 
   /**
@@ -332,8 +335,17 @@ public class StarterTestSupport {
                 .onlyDependOnClassesThat(
                     resideOutsideOfPackage("com.exepex.stratum..")
                         .or(resideInAnyPackage(allowedStratumPackages))))
-        .and(slices().matching("com.exepex.stratum.(**)").should().beFreeOfCycles())
+        .and(noPackageCycles())
         .and(safeToScan());
+  }
+
+  /**
+   * Returns the rule that no two Stratum packages depend on each other, directly or through others.
+   *
+   * @return the rule
+   */
+  static ArchRule noPackageCycles() {
+    return slices().matching("com.exepex.stratum.(**)").should().beFreeOfCycles();
   }
 
   /**

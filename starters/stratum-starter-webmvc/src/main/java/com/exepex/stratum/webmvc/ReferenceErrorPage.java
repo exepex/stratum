@@ -1,5 +1,6 @@
 package com.exepex.stratum.webmvc;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.web.ReferencePage;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -15,6 +16,7 @@ import org.springframework.web.servlet.View;
  * Spring MVC's view of Stratum's {@link ReferencePage}, named {@code error} like Spring Boot's
  * whitelabel page, which it replaces.
  */
+@StratumInternal
 public class ReferenceErrorPage implements View {
 
   /** The model's member that holds the status the page is answered with. */

@@ -1,5 +1,6 @@
 package com.exepex.stratum.core.executor;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import java.util.concurrent.Executor;
 import org.springframework.beans.factory.BeanFactory;
@@ -26,6 +27,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
  * It and its nested class have no {@code @Configuration}, so a service whose component scan reaches
  * Stratum's packages does not pick them up while both modules are off.
  */
+@StratumInternal
 @Import(ContextCarryingExecutorsConfiguration.AsyncExecutorConfiguration.class)
 public class ContextCarryingExecutorsConfiguration {
 

@@ -1,5 +1,6 @@
 package com.exepex.stratum.webflux;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.error.LoggingContextConstants;
 import com.exepex.stratum.web.BootErrorBodyCounter;
 import com.exepex.stratum.web.ReferencePage;
@@ -30,6 +31,7 @@ import reactor.core.publisher.Mono;
  * Spring Boot. Each JSON body that kept Spring Boot's format in backward-compatible mode is counted
  * with the route of the service's handler.
  */
+@StratumInternal
 public class StratumErrorWebExceptionHandler extends DefaultErrorWebExceptionHandler {
 
   /**

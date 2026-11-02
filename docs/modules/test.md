@@ -4,7 +4,8 @@
 integration tests: JUnit 5, AssertJ, Mockito, Testcontainers, HTTP stubs and security helpers.
 Today the module holds only what Stratum's own starters' tests share: `StarterTestSupport`, their
 shared checks, and `OrderErrorCode`, the sample error codes of an orders service that the web tests
-use. A service has no use for it yet.
+use. A service has no use for it yet, and each of these types is marked `@StratumInternal`
+([Public API](../guides/upgrading.md#public-api)).
 
 [← Documentation home](../README.md) · Property prefix: `stratum.test`
 

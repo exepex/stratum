@@ -1,5 +1,6 @@
 package com.exepex.stratum.web;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.error.ErrorDetail;
 import jakarta.validation.ConstraintViolation;
 import java.util.List;
@@ -20,6 +21,7 @@ import org.springframework.validation.method.ParameterValidationResult;
  * Turns a failed validation of a request into one {@link ErrorDetail} per field, with messages that
  * never quote the rejected value, which can be personal data.
  */
+@StratumInternal
 @UtilityClass
 public class FieldErrorDetails {
 

@@ -1,5 +1,6 @@
 package com.exepex.stratum.core.reactor;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import lombok.experimental.UtilityClass;
 import org.springframework.core.env.Environment;
@@ -13,6 +14,7 @@ import reactor.core.publisher.Hooks;
  * uses Reactor without them, for example through R2DBC or Reactor Kafka, would otherwise lose the
  * trace and workflow fields after a thread change.
  */
+@StratumInternal
 @UtilityClass
 public class ReactorOperatorContextPropagation {
 

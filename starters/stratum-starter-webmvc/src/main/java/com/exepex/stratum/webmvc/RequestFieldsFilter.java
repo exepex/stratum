@@ -1,5 +1,6 @@
 package com.exepex.stratum.webmvc;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.web.RequestFieldValues;
 import com.exepex.stratum.web.RequestFieldsAccessor;
 import com.exepex.stratum.web.RequestFieldsReader;
@@ -21,6 +22,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * log line written while it runs carries them, and removes them when it ends. When browsers are
  * asked for client hints, it also adds the {@code Accept-CH} response header.
  */
+@StratumInternal
 @RequiredArgsConstructor
 public class RequestFieldsFilter extends OncePerRequestFilter {
 

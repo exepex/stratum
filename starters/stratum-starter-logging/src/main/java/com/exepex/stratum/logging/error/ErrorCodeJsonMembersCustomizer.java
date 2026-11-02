@@ -3,6 +3,7 @@ package com.exepex.stratum.logging.error;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.classic.spi.IThrowableProxy;
 import ch.qos.logback.classic.spi.ThrowableProxy;
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.StratumModuleSwitch;
 import com.exepex.stratum.core.error.FailureWithErrorCode;
 import com.exepex.stratum.core.error.StratumException;
@@ -25,6 +26,7 @@ import org.springframework.util.ClassUtils;
  * Spring Boot's logging loads it from {@code META-INF/spring.factories}. It does nothing unless
  * {@code stratum.logging.enabled=true}, and needs Logback, Spring Boot's default.
  */
+@StratumInternal
 public final class ErrorCodeJsonMembersCustomizer
     implements StructuredLoggingJsonMembersCustomizer<Object> {
 

@@ -167,8 +167,10 @@ or command line therefore overrides it, with no special syntax. The defaults of 
 
 ## How starters work together
 
-Starters never import each other's internal classes. They cooperate through Spring and Micrometer's
-public extension points:
+Starters never import each other's classes. They may use the types of `stratum-core`, and of the
+library they are built on, that are marked `@StratumInternal`, which services must not use
+([ADR 0009](../adr/0009-public-api-and-no-package-cycles.md)). They cooperate through Spring and
+Micrometer's public extension points:
 
 | Collaboration | Mechanism |
 | --- | --- |
@@ -198,6 +200,7 @@ planned next:
 | [0006: Separate starters for Spring MVC and WebFlux](../adr/0006-separate-mvc-and-webflux-starters.md) | Accepted |
 | [0007: Warn when Spring Boot is outside the supported line](../adr/0007-spring-boot-version-warning.md) | Accepted |
 | [0008: One error format, with a backward-compatible mode on by default](../adr/0008-error-format-and-backward-compatible-mode.md) | Accepted |
+| [0009: Mark internal types with `@StratumInternal`, and keep packages free of cycles](../adr/0009-public-api-and-no-package-cycles.md) | Accepted |
 | Maven `groupId` and Java package names | Decided by the owner: `com.exepex.stratum`, and packages under `com.exepex.stratum` |
 | Resilience4j as the resilience engine | Proposed |
 | First cloud provider | Open |

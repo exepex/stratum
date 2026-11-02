@@ -1,5 +1,6 @@
 package com.exepex.stratum.observability;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.StratumModuleSwitch;
 import com.exepex.stratum.core.properties.StratumDefaults;
 import java.net.InetAddress;
@@ -20,6 +21,7 @@ import org.springframework.core.Ordered;
  * Micrometer and OpenTelemetry would otherwise log a stack trace at every failed send. Each address
  * is checked on its own, and a service's own {@code logging.level} wins.
  */
+@StratumInternal
 public class LocalCollectorLogging
     implements ApplicationListener<ApplicationEnvironmentPreparedEvent>, Ordered {
 

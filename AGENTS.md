@@ -114,6 +114,10 @@ topic file wins.
   pattern where it removes branching or copying (ST-ENG-07, ST-ENG-16 to ST-ENG-18).
 - Tests get the same care: shared data and setup in `testsupport`, repeated checks in assertion helpers and related
   tests grouped with `@Nested` (ST-TEST-13 to ST-TEST-17).
+- **Public API and no package cycles.** Every public type a service must not use carries `@StratumInternal`; a type
+  without it is API and exposes only API types. Two packages never depend on each other, directly or through
+  others: before adding an import, check the other package does not already depend on yours, and never loosen the
+  cycle check (ST-ENG-56, ST-ENG-57, ADR 0009).
 - Each starter owns one cross-cutting concern and is optional. Code depends on interfaces, and every external
   system sits behind one. Before writing something new, use the Stratum module that already does it.
 - A service can replace every bean Stratum defines (`@ConditionalOnMissingBean`) and change every default through a

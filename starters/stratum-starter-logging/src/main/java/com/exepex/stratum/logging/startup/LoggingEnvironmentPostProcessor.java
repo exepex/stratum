@@ -1,5 +1,6 @@
 package com.exepex.stratum.logging.startup;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.condition.StratumModuleSwitch;
 import com.exepex.stratum.core.error.StratumException;
@@ -27,6 +28,7 @@ import org.springframework.util.StringUtils;
  * its executors Stratum's defaults. Every value the service sets for those properties wins, Java
  * default properties included.
  */
+@StratumInternal
 @RequiredArgsConstructor
 public class LoggingEnvironmentPostProcessor implements EnvironmentPostProcessor, Ordered {
 

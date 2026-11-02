@@ -1,5 +1,6 @@
 package com.exepex.stratum.observability;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.StratumModuleSwitch;
 import com.exepex.stratum.core.error.StratumException;
 import java.util.List;
@@ -19,6 +20,7 @@ import org.springframework.util.StringUtils;
  * so only the metrics address is needed. It runs after every environment post-processor, so an
  * address that Spring Boot maps from the {@code OTEL_EXPORTER_OTLP_*} environment variables counts.
  */
+@StratumInternal
 public class ObservabilityExportAddressCheck
     implements ApplicationListener<ApplicationEnvironmentPreparedEvent>, Ordered {
 

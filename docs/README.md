@@ -92,6 +92,7 @@ Each module page follows the same layout so you always know where to look:
 | [ADR 0006: Separate starters for Spring MVC and WebFlux](adr/0006-separate-mvc-and-webflux-starters.md) | `stratum-starter-webmvc` and `stratum-starter-webflux` share one library and one set of `stratum.web.*` keys, and a new reactive microservice bundle brings WebFlux. |
 | [ADR 0007: Warn when Spring Boot is outside the supported line](adr/0007-spring-boot-version-warning.md) | Amends ADR 0002: Stratum logs one `SX-CORE-1005` warning at startup for an unsupported Spring Boot version, and never stops the service. |
 | [ADR 0008: One error format, with a backward-compatible mode on by default](adr/0008-error-format-and-backward-compatible-mode.md) | RFC 9457 Problem Details is the standard; `stratum.web.backward-compatible` is `true` by default so running services keep their consumers' error bodies and get no new limits, and the mode is permanent and frozen. |
+| [ADR 0009: Mark internal types with `@StratumInternal`, and keep packages free of cycles](adr/0009-public-api-and-no-package-cycles.md) | Every public type a service must not use carries `@StratumInternal`, a type without it is API, an API type exposes only API types, no class moves, and no package ever depends on another in a cycle. |
 
 ## Contributing
 

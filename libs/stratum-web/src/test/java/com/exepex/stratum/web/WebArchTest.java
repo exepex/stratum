@@ -8,8 +8,9 @@ import org.junit.jupiter.api.Test;
 class WebArchTest {
 
   @Test
-  @DisplayName("every class a component scan picks up carries the module switch")
-  void safeToScan() {
-    StarterTestSupport.checkSafeToScan(WebConstants.class);
+  @DisplayName(
+      "every class a component scan picks up carries the module switch, and no package cycle")
+  void libraryArchitecture() {
+    StarterTestSupport.checkLibraryArchitecture(WebConstants.class);
   }
 }

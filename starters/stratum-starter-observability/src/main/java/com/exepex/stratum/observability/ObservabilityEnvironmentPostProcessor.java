@@ -1,5 +1,6 @@
 package com.exepex.stratum.observability;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.condition.StratumModuleSwitch;
 import com.exepex.stratum.core.properties.StratumDefaults;
@@ -22,6 +23,7 @@ import org.springframework.util.StringUtils;
  * the service sets for those Spring Boot properties wins, Java default properties included. {@link
  * ObservabilityExportAddressCheck} checks the export addresses.
  */
+@StratumInternal
 public class ObservabilityEnvironmentPostProcessor implements EnvironmentPostProcessor, Ordered {
 
   /** Turns off sending metrics and spans, for a module that is off. */

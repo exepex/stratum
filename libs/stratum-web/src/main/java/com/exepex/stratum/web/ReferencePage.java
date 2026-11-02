@@ -1,5 +1,6 @@
 package com.exepex.stratum.web;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.error.LoggingContextConstants;
 import java.util.Map;
 import java.util.Optional;
@@ -13,6 +14,7 @@ import org.springframework.web.util.HtmlUtils;
  * and a reference, the trace ID, that the user can quote to support. Like Spring Boot's whitelabel
  * page, which it replaces on both web stacks, it shows no stack trace or exception message.
  */
+@StratumInternal
 @UtilityClass
 public class ReferencePage {
 

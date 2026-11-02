@@ -44,6 +44,18 @@ Stratum versions are `MAJOR.MINOR.PATCH`:
 Before 1.0, minor releases may still contain breaking changes; each one is listed in the release
 notes.
 
+## Public API
+
+These rules cover Stratum's public API: its `stratum.*` properties, and every public Stratum type
+that does not carry `@StratumInternal`. That covers the types you implement, call or put on your
+code, such as `StratumException`, `WebPropertiesCustomizer` or `@ResponseTimeout`, and each bean
+type a module page's "Customize" section lets you replace.
+
+A type marked `@StratumInternal` is used only by Stratum's own modules. It can change or go away in
+any release, even a patch, so do not import it. Your IDE and the Javadoc show the label. Every type
+in `stratum-test` is internal today
+([ADR 0009](../adr/0009-public-api-and-no-package-cycles.md)).
+
 ## How to upgrade a service
 
 1. **Read the release notes** for every version between yours and the target. Look at "Breaking

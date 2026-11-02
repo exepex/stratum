@@ -1,5 +1,6 @@
 package com.exepex.stratum.webmvc;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.web.RequestBodyLimits;
 import com.exepex.stratum.web.RequestBodyTooLargeException;
 import jakarta.servlet.FilterChain;
@@ -17,6 +18,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * the handler's own limit and checks the declared length before the handler reads the body. A body
  * found too large while a later filter reads it is answered here with {@code 413}.
  */
+@StratumInternal
 @RequiredArgsConstructor
 public class RequestBodyLimitFilter extends OncePerRequestFilter {
 

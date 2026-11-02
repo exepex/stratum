@@ -1,5 +1,6 @@
 package com.exepex.stratum.webmvc;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.web.RequestLogWriter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -22,6 +23,7 @@ import org.springframework.web.servlet.resource.ResourceHttpRequestHandler;
  * request whose {@code Callable} or {@code DeferredResult} finishes later writes it once its
  * response is written, on the second, asynchronous dispatch. Static files served write none.
  */
+@StratumInternal
 @RequiredArgsConstructor
 public class RequestLogFilter extends OncePerRequestFilter {
 

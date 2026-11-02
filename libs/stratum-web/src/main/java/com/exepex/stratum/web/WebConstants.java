@@ -1,9 +1,11 @@
 package com.exepex.stratum.web;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import lombok.experimental.UtilityClass;
 
 /** The property keys, headers and error body members the web module uses (ST-ENG-45). */
+@StratumInternal
 @UtilityClass
 public class WebConstants {
 

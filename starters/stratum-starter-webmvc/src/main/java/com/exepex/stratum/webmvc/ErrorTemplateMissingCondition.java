@@ -1,5 +1,6 @@
 package com.exepex.stratum.webmvc;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import org.springframework.boot.autoconfigure.condition.ConditionOutcome;
 import org.springframework.boot.autoconfigure.condition.SpringBootCondition;
 import org.springframework.boot.autoconfigure.template.TemplateAvailabilityProviders;
@@ -10,6 +11,7 @@ import org.springframework.core.type.AnnotatedTypeMetadata;
  * Matches when the service has no {@code error} template of its own, such as {@code
  * templates/error.html} for Thymeleaf, so that Stratum's error page never hides the service's.
  */
+@StratumInternal
 public class ErrorTemplateMissingCondition extends SpringBootCondition {
 
   /** The view name of the error page. */
