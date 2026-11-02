@@ -47,7 +47,7 @@ Each role then has these duties:
 | Security | Reviews the change against every security rule |
 | Reviewer | Reviews a change and reports findings; does not edit it |
 | Judge | Independently verifies one review step of a change; writes only its verdict |
-| Coordinator | Puts each item on a track and runs the vote; writes each implementer's brief; starts a fresh judge from the pool for each review step; says when a pull request is ready to merge; proposes a stronger check for each miss |
+| Coordinator | Puts each item on a track and runs the vote; writes each implementer's brief; starts a fresh judge from the pool for each review step; says when a pull request is ready to merge; proposes a stronger check for each miss; never builds a change (writes code, tests, project documents or rule text) itself: it hands every item to an implementer agent |
 
 One agent can hold several roles in one task, such as implementer and tester. It then has the duties of each. The
 judge role can never be combined with any other role on the same change.
@@ -68,7 +68,10 @@ Each rule has an ID so that reviews and judge verdicts can cite it.
   the code, and run it where you can. Accept it when the check confirms it; push back with your evidence when it does
   not. Say which parts you accept and which you reject. Prove every accept and every reject with that evidence. A
   finding counts only if it can happen on a real setup: a path that a running service reaches with its normal
-  configuration. A case that is only theoretical goes in Notes.
+  configuration. A case that is only theoretical goes in Notes. Until a service runs on Stratum, a finding that rests
+  on breaking services that already use Stratum, or on their upgrade cost, is not a real setup: answer it with that
+  evidence and resolve the thread. A finding that cites a written rule, such as ST-DOC-10's migration note, still
+  holds unless the owner decides otherwise for that item.
 - **ST-AG-05 Do not stop silently.** When something blocks you, look for another legitimate route or ask the owner one
   clear question. If the task cannot be done, say so and why.
 - **ST-AG-06 Do only what was asked.** Do not add files, tools, scripts, dependencies or features the request did not
@@ -97,8 +100,8 @@ Each rule has an ID so that reviews and judge verdicts can cite it.
 ## How work flows
 
 Every item of work follows these rules. The coordinator runs them. When there is no coordinator, the implementer
-does the coordinator's duties except one: the owner starts the judge. The implementer never starts or chooses its
-own judge.
+does the coordinator's duties except two: the owner starts the judge, and the implementer builds its own item
+rather than handing it on. It never starts or chooses its own judge.
 
 - **ST-AG-15 Put each item on a track first.** Before work on an item starts, the coordinator puts it on one of three
   tracks. The track sets the design note and the judge reviews ([judge](docs/agents/judge.md)).
@@ -135,7 +138,9 @@ own judge.
   - after fixing a leak, a search of every module for the same pattern;
   - for a change to a rule or an ADR, a search of AGENTS.md, docs/agents/ and docs/adr/ for the rule's ID and its
     old wording, with every file that states or depends on that rule updated, or named with the reason it stays;
-  - a rebase on `main`, and a read of the CI results at the head commit.
+  - for a matching rule that replaces another, the replay of the old rule's inputs that judge step 4 describes;
+  - a rebase on `main`, and a read of CI and Sonar at the head commit once both have finished, with the Claims
+    updated to their results before asking for the judge.
 - **ST-AG-18 Every implementer gets the same brief.** The coordinator starts each implementer with the brief
   template in [judge](docs/agents/judge.md#the-implementer-brief). The brief cites rule IDs and the owner's decisions
   not yet written into a rule (ST-AG-13). It never restates or replaces a rule.
@@ -221,6 +226,8 @@ topic file wins.
 
 - Never push to `main`.
 - After the owner's go (ST-AG-11), work on a branch and open a pull request.
+- Open every pull request ready for review, never as a draft, so Codex reviews it alongside the judge; only parked
+  work the owner has put on hold stays a draft.
 - A pull request does one thing and is small enough to review in one sitting.
 - The pull request description contains the Claims defined in [judge](docs/agents/judge.md): the request and its
   track, every requirement with its evidence, what is out of scope and why, the design note, the self-review

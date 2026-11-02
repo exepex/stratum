@@ -78,8 +78,8 @@ The pull request description contains a **Claims** section, written by the imple
 4. **Broken-code proof.** For each requirement with code, the fault the implementer planted and the test that
    caught it.
 5. **Self-review.** The evidence of ST-AG-17: each search command with its number of hits, the most-broken rules
-   checked, the rebase and the CI result at the head, and each class or file added to fix a finding (ST-AG-12),
-   with that finding.
+   checked, the rebase and the CI and Sonar results at the head, and each class or file added to fix a finding
+   (ST-AG-12), with that finding.
 6. **Not done or not verified.** Anything left open, stated plainly.
 7. **Files read.** Confirmation that the implementer read `AGENTS.md` and all six topic files before starting.
 8. **Line counts.** Each changed file with its line count.
@@ -105,7 +105,8 @@ contradicts.
    that changes it, a Spring Boot key first, and the Java customizer (ST-ENG-34).
 3. **Is it safe and fast?** The eight parameters of ST-AG-14; the hostile inputs, each written as a test; for web
    code, the table of cases, each tested on both stacks (ADR 0006); each thread hop and how the logging and tracing
-   context moves with it (ST-ENG-53); for code that parses, matches a regex or masks, the test with a large input.
+   context moves with it (ST-ENG-53); for code that parses, matches a regex or masks, the test with a large input;
+   for a matching rule that replaces another, which inputs the old rule matched that the new one does not.
 4. **Which rules and owner decisions does it follow?** The rule IDs it touches; each owner decision with the test
    that protects it; each Spring Boot or library fact with its source; the documents it updates.
 
@@ -125,11 +126,11 @@ When every changed file is Markdown, text or AsciiDoc, as for a change to the ag
 skips step 4: a text-only change needs no build (AGENTS.md, Build).
 
 1. **Gate.** The Claims are complete, with the design note on Fix and Feature; for a design-note review, the note is
-   complete. For a pull request, CI is green at the head commit, and every Codex and Sonar finding is answered and
-   its thread resolved; where the answer says the finding does not apply (ST-AG-04), the judge accepts or rejects it
-   with its own evidence. The judge reads Sonar through the pull request's GitHub checks. When the gate fails, the
-   verdict is FAIL with that one finding, and the judge checks nothing else. A missing design note on Fix or Feature
-   is a blocking finding that fails the gate.
+   complete. For a pull request, it is open ready for review, not as a draft; CI is green at the head commit; and
+   every Codex and Sonar finding is answered and its thread resolved. Where the answer says the finding does not
+   apply (ST-AG-04), the judge accepts or rejects it with its own evidence. The judge reads Sonar through the pull
+   request's GitHub checks. When the gate fails, the verdict is FAIL with that one finding, and the judge checks
+   nothing else. A missing design note on Fix or Feature is a blocking finding that fails the gate.
 2. **Requirements and owner decisions.**
    - **Build the gap list first.** Read the owner's request and write your own list of every requirement in it,
      before reading the implementer's list. Then compare. A requirement that is neither met nor declared out of
@@ -150,7 +151,8 @@ skips step 4: a text-only change needs no build (AGENTS.md, Build).
      any module, that an existing helper or `testsupport` method was not bypassed, and that tests follow ST-TEST-13
      to ST-TEST-17. A class with a second job, copied logic or repeated test setup is a should-fix finding
      (ST-ENG-01, ST-ENG-06, ST-ENG-16 to ST-ENG-18).
-   - Read each changed document against the code at the head commit (documentation rules).
+   - Read each changed document against the code at the head commit, and check each finding that documentation's
+     "How documentation is checked" lists (ST-DOC-05 and the other documentation rules).
    - For a change to a rule or an ADR, check that every file that states or depends on that rule was updated
      (ST-AG-17).
 4. **Behaviour.**
@@ -158,12 +160,15 @@ skips step 4: a text-only change needs no build (AGENTS.md, Build).
    - Look for what the Claims do not mention: bugs, edge cases (empty input, a property unset, an optional library
      missing, a timeout, concurrent calls, a service replacing the bean), missing or hollow tests, documentation
      left out of date, dead code, files the request did not ask for.
+   - When the change replaces a rule that matches names, keys or text, run every input the old rule's tests covered
+     against the new rule, including hostile casing such as `AUTHORIZATION` or `X-Api-KEY`.
    - **Plant faults.** For each important requirement, break the code on purpose (invert a condition, remove a bean,
      change a default) and check that a test fails. Restore the code afterwards. Record how many faults you planted
      and how many the tests caught.
 5. **Security.** Check ST-SEC-01 to ST-SEC-06 on every change, and each other rule in [security](security.md) that
    the change touches. Only when the change is on the trigger list (ST-AG-15), also follow each untrusted value from
-   where it enters to where it is used, as security's "How to check a change" describes.
+   where it enters to where it is used, and run its masking checks when the change touches masking or logged data,
+   as security's "How to check a change" describes.
 
 Then give the verdict: **PASS**, or **FAIL** with numbered findings, each **blocking**, **should fix** or **minor**
 (as defined in [review](review.md)), with evidence and the fix expected. A change passes only when no finding of any

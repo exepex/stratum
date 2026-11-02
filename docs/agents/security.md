@@ -63,6 +63,13 @@ masking, logged data or a contract with consumers), also follow each untrusted v
 body, downstream response, message) from where it enters to where it is used (SQL, log, file, process, URL,
 response).
 
+When the change touches masking or logged data (ST-AG-15), also check these two, each with a test:
+
+- Every conversion of a logged value to text, such as its `toString()`, stays inside the redactor's fail-closed
+  boundary. Test it with a `toString()` that throws and with one that returns a different text on each call.
+- Every path where new code returns early or skips masking still applies ST-SEC-19 in full, and every protection
+  the code had before the change (compare with the base commit).
+
 Report a finding only for a path that can actually be reached, and describe that path in the finding. Static
 analysis and dependency scans miss most of these rules, so the security role, the reviewer and the judge check them
 by reading the change.
