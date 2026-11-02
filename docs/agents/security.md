@@ -27,7 +27,7 @@ A security flaw in Stratum is copied into every service that uses it, so the rul
   Unsigned tokens and `alg: none` are rejected. A caller's credentials are passed to another service only when token
   relay is explicitly configured.
 
-## Checked on every change
+## Checked when a change touches them
 
 Each of these is blocking when the change creates a reachable weakness, and should fix when it only removes a layer
 of defence.
