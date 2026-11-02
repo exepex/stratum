@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.IntPredicate;
+import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -54,6 +55,9 @@ public final class Redactor {
   /** Masks values by what the text looks like. */
   private final UnaryOperator<String> contentMaskingRules;
 
+  /** Masks stack traces, leaving their frame lines as they are. */
+  private final StackTraceMasker stackTraceMasker;
+
   /** The longest a value may be, in characters. */
   private final int maxFieldLength;
 
@@ -73,6 +77,7 @@ public final class Redactor {
     return Redactor.builder()
         .fieldNames(fieldNames)
         .contentMaskingRules(contentMaskingRules)
+        .stackTraceMasker(new StackTraceMasker(contentMaskingRules))
         .maxFieldLength((int) loggingProperties.maxFieldLength().toBytes())
         .build();
   }
@@ -86,14 +91,35 @@ public final class Redactor {
    * @return the value to write
    */
   public @Nullable Object redact(@Nullable String fieldName, @Nullable Object logValue) {
+    return failingClosed(
+        () ->
+            switch (logValue) {
+              case null -> null;
+              case String text -> redactText(fieldName, truncateToMaxFieldLength(text));
+              case WritableJson json -> redactJson(fieldName, json);
+              case Map<?, ?> _, Iterable<?> _, Object[] _ -> maskByName(fieldName, logValue);
+              default -> redactOther(fieldName, logValue);
+            });
+  }
+
+  /**
+   * Returns a stack trace as it may be written: cut to the maximum length and masked, except its
+   * frame lines, which hold only class, method and file names. A value that is not text is masked
+   * as any other value.
+   *
+   * @param stackTrace the stack trace
+   * @return the stack trace to write
+   */
+  public @Nullable Object redactStackTrace(@Nullable Object stackTrace) {
+    return stackTrace instanceof String text
+        ? failingClosed(() -> stackTraceMasker.mask(truncateToMaxFieldLength(text)))
+        : redact(null, stackTrace);
+  }
+
+  /** Returns the masked value, or {@link #REDACTION_FAILED} if masking it failed. */
+  private @Nullable Object failingClosed(Supplier<@Nullable Object> maskedValue) {
     try {
-      return switch (logValue) {
-        case null -> null;
-        case String text -> redactText(fieldName, truncateToMaxFieldLength(text));
-        case WritableJson json -> redactJson(fieldName, json);
-        case Map<?, ?> _, Iterable<?> _, Object[] _ -> maskByName(fieldName, logValue);
-        default -> redactOther(fieldName, logValue);
-      };
+      return maskedValue.get();
     } catch (IllegalArgumentException
         | IllegalStateException
         | IndexOutOfBoundsException

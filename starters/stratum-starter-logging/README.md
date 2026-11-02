@@ -178,6 +178,16 @@ number; only a part that alone holds 13 to 19 digits and passes the Luhn check i
 email addresses and IBANs are all looked for in the same text, and two that overlap, such as digits
 inside an email address, are masked as one.
 
+Fields that Spring Boot, Stratum or the web module fill and that never hold personal data, such as
+`@timestamp`, `log.level`, `service.name`, `error.type`, `traceId`, `httpRoute` or `userAgent`, are
+written as they are. Each field is matched by its whole path in the format Spring Boot writes, so
+your own field `service.contact` is still masked. Every other field, including your own MDC entries
+and key-value pairs, is masked by name and then searched. When the console and the log file use
+different formats, only fields known in both are written as they are. In a stack trace, only the
+lines that are wholly a frame (`at com.example.Orders.place(Orders.java:42)`) or an omission
+(`... 12 more`) are written as they are; the exception's message and the `Caused by:`,
+`Suppressed:` and `Wrapped by:` lines are searched.
+
 Every value is also cut to `stratum.logging.max-field-length` (16KB by default) and ends with
 `...[truncated]` when it was longer. The cut drops the word it falls in and any digits just before
 it, so a token or card number that crosses the limit is never left half visible. If masking a value fails, `[REDACTION_FAILED]` is written
@@ -376,5 +386,7 @@ which keeps Spring Boot's default plain-text logging, with no checks and no reda
 | Startup stops with `SX-LOGGING-1002` | An `extra-patterns` entry is not a valid regular expression; the message gives its position, never the pattern. |
 | Logs are plain text in production | `stratum.logging.enabled` is not `true`, or `stratum.logging.format=text` is set somewhere. Look for the startup warning. |
 | A secret still appears in logs | Add its key to `extra-keys` or its shape to `extra-patterns`, then rotate the secret. Report the format so it can be added to the built-in list. |
+| A phone number or SSN in a message is not masked | Text is searched only for values Stratum can confirm. Log it under a field named `phone` or `ssn`, or add your own name to `extra-keys`. |
+| `com.google.i18n.phonenumbers` classes are not found after an upgrade | Stratum no longer brings libphonenumber. Declare `com.googlecode.libphonenumber:libphonenumber` in your own POM, with its version. |
 | A value shows `[REDACTION_FAILED]` | Masking that value failed, so it was hidden. Report the log call so the cause can be fixed. |
 | Duplicate log lines | Your service has its own `logback-spring.xml` adding a second appender. |

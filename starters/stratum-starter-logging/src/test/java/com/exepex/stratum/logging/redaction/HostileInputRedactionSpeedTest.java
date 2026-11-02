@@ -57,6 +57,26 @@ class HostileInputRedactionSpeedTest {
   private static final Supplier<Stream<String>> LARGEST_HOSTILE_INPUTS =
       () -> largeHostileInputs(LARGEST_LENGTH);
 
+  /** Stack traces of about 16KB that would be slow if a frame line were matched by backtracking. */
+  private static final Supplier<Stream<String>> HOSTILE_STACK_TRACES =
+      () -> hostileStackTraces(DEFAULT_LENGTH);
+
+  /** The same stack traces at about 1MB, built only when the test runs. */
+  private static final Supplier<Stream<String>> LARGEST_HOSTILE_STACK_TRACES =
+      () -> hostileStackTraces(LARGEST_LENGTH);
+
+  /** Hostile stack traces: frames with no end, frames with text after them, and repeated words. */
+  private static Stream<String> hostileStackTraces(int length) {
+    return Stream.of(
+        filled("\tat ", length),
+        filled("\tat a.b(C.java:1", length),
+        filled("\tat a.b(C.java:1) 4111111111111111\n", length),
+        filled("\tat a.b(C.java:1)\n", length),
+        filled("at at ", length),
+        filled("\tat a.", length) + "b(",
+        filled("\t... 1 more\n", length));
+  }
+
   /** Hostile texts that are also checked at the largest allowed size. */
   private static Stream<String> largeHostileInputs(int length) {
     return Stream.of(
@@ -99,6 +119,28 @@ class HostileInputRedactionSpeedTest {
     var masked =
         assertTimeoutPreemptively(
             LARGEST_INPUT_TIME_LIMIT, () -> largestRedactor.redact("message", input));
+
+    assertThat(masked).isNotEqualTo(Redactor.REDACTION_FAILED);
+  }
+
+  @ParameterizedTest
+  @FieldSource("HOSTILE_STACK_TRACES")
+  @DisplayName("each 16KB stack trace is masked within a second")
+  void hostileStackTraceIsFast(String stackTrace) {
+    var masked =
+        assertTimeoutPreemptively(
+            DEFAULT_INPUT_TIME_LIMIT, () -> redactor.redactStackTrace(stackTrace));
+
+    assertThat(masked).isNotEqualTo(Redactor.REDACTION_FAILED);
+  }
+
+  @ParameterizedTest
+  @FieldSource("LARGEST_HOSTILE_STACK_TRACES")
+  @DisplayName("each 1MB stack trace is masked in linear time")
+  void largestHostileStackTraceIsLinear(String stackTrace) {
+    var masked =
+        assertTimeoutPreemptively(
+            LARGEST_INPUT_TIME_LIMIT, () -> largestRedactor.redactStackTrace(stackTrace));
 
     assertThat(masked).isNotEqualTo(Redactor.REDACTION_FAILED);
   }
