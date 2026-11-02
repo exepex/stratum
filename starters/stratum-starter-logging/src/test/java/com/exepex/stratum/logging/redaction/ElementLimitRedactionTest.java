@@ -128,10 +128,7 @@ class ElementLimitRedactionTest {
     @Test
     @DisplayName("the first ten entries are kept and the rest counted in a ... entry")
     void keepsTenEntries() {
-      var map = new LinkedHashMap<Integer, Integer>();
-      ElementsTestData.numbers(LIMIT + 2).forEach(number -> map.put(number, number));
-
-      assertThat(jsonLine(map))
+      assertThat(jsonLine(ElementsTestData.numberedMap(LIMIT + 2)))
           .endsWith("\"8\":8,\"9\":9,\"" + ElementLimit.MAP_MARKER_KEY + "\":\"[2 more]\"}}");
     }
 
@@ -172,6 +169,15 @@ class ElementLimitRedactionTest {
 
       assertThat(LoggingTestData.DEFAULT_REDACTOR.redactAsText(FIELD, nested))
           .isEqualTo("{ids=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, ...[1 more]]}");
+    }
+
+    @Test
+    @DisplayName("a map keeps its first ten entries and ends with ...=[2 more]")
+    void textMapIsLimited() {
+      assertThat(
+              LoggingTestData.DEFAULT_REDACTOR.redactAsText(
+                  FIELD, ElementsTestData.numberedMap(LIMIT + 2)))
+          .isEqualTo("{0=0, 1=1, 2=2, 3=3, 4=4, 5=5, 6=6, 7=7, 8=8, 9=9, ...=[2 more]}");
     }
 
     @Test

@@ -2,7 +2,9 @@ package com.exepex.stratum.logging.testsupport;
 
 import java.util.AbstractList;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.IntStream;
 import lombok.experimental.UtilityClass;
 
@@ -18,6 +20,18 @@ public class ElementsTestData {
    */
   public static List<Integer> numbers(int count) {
     return IntStream.range(0, count).boxed().toList();
+  }
+
+  /**
+   * Returns the numbers from 0, each mapped to itself, in order.
+   *
+   * @param count how many entries
+   * @return the map
+   */
+  public static Map<Integer, Integer> numberedMap(int count) {
+    var map = new LinkedHashMap<Integer, Integer>();
+    numbers(count).forEach(number -> map.put(number, number));
+    return map;
   }
 
   /**
