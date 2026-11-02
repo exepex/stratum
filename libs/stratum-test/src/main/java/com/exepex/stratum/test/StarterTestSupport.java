@@ -122,14 +122,18 @@ public class StarterTestSupport {
 
   /**
    * Checks a library's classes: they stay off while the module is off, even when a service's
-   * component scan reaches Stratum's packages (ST-ENG-20), and its packages have no cycles
-   * (ST-ENG-57). A starter gets these checks from {@link #checkStarterArchitecture}.
+   * component scan reaches Stratum's packages (ST-ENG-20), its packages have no cycles (ST-ENG-57),
+   * and its API exposes no internal type (ST-ENG-56). A starter gets these checks from {@link
+   * #checkStarterArchitecture}.
    *
    * @param classInLibraryPackage any class in the library's top package, such as its constants
    */
   public static void checkLibraryArchitecture(Class<?> classInLibraryPackage) {
     checkModuleClasses(
-        CompositeArchRule.of(safeToScan()).and(noPackageCycles()), classInLibraryPackage);
+        CompositeArchRule.of(safeToScan())
+            .and(noPackageCycles())
+            .and(PublicApiRule.apiExposesOnlyApi()),
+        classInLibraryPackage);
   }
 
   /**
@@ -300,7 +304,8 @@ public class StarterTestSupport {
   /**
    * Returns Stratum's architecture rules for a starter: its autoconfigure package only creates and
    * wires beans (ST-ENG-23), it uses no class of another starter, only of {@code stratum-core} and
-   * the shared libraries it is built on, and its packages have no cycles.
+   * the shared libraries it is built on, its packages have no cycles, and its API exposes no
+   * internal type.
    *
    * @param starterPackage the starter's top package, such as {@code com.exepex.stratum.logging}
    * @param sharedLibraryPackages the packages of the Stratum libraries the starter is built on
@@ -336,6 +341,7 @@ public class StarterTestSupport {
                     resideOutsideOfPackage("com.exepex.stratum..")
                         .or(resideInAnyPackage(allowedStratumPackages))))
         .and(noPackageCycles())
+        .and(PublicApiRule.apiExposesOnlyApi())
         .and(safeToScan());
   }
 

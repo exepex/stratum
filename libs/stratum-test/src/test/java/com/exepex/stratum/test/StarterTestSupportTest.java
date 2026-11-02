@@ -6,10 +6,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.exepex.stratum.core.properties.StratumPropertiesCustomizer;
+import com.exepex.stratum.test.fixture.InternalGreeting;
+import com.exepex.stratum.test.fixture.LeakingGreeter;
 import com.exepex.stratum.test.fixture.UnswitchedGreeter;
 import com.exepex.stratum.test.fixture.autoconfigure.GreetingAutoConfiguration;
 import com.exepex.stratum.test.fixture.autoconfigure.GreetingFormatter;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
+import com.tngtech.archunit.core.importer.ImportOption;
 import java.io.IOException;
 import java.net.http.HttpHeaders;
 import java.net.http.HttpResponse;
@@ -87,6 +90,37 @@ class StarterTestSupportTest {
 
       assertThat(result.getFailureReport().getDetails())
           .anyMatch(detail -> detail.contains(UnswitchedGreeter.class.getName()));
+    }
+  }
+
+  @Nested
+  @DisplayName("the public API rule")
+  class PublicApi {
+
+    @Test
+    @DisplayName("fail for an API type whose public method returns an internal type")
+    void failForApiExposingInternalType() {
+      var result =
+          PublicApiRule.apiExposesOnlyApi()
+              .evaluate(
+                  new ClassFileImporter()
+                      .importClasses(LeakingGreeter.class, InternalGreeting.class));
+
+      assertThat(result.getFailureReport().getDetails())
+          .anyMatch(detail -> detail.contains(InternalGreeting.class.getName()));
+    }
+
+    @Test
+    @DisplayName("pass for stratum-core and stratum-test, which no other module's tests check")
+    void passForCoreAndTestLibraries() {
+      var result =
+          PublicApiRule.apiExposesOnlyApi()
+              .evaluate(
+                  new ClassFileImporter()
+                      .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                      .importPackages("com.exepex.stratum.core", "com.exepex.stratum.test"));
+
+      assertThat(result.hasViolation()).isFalse();
     }
   }
 
