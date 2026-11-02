@@ -49,6 +49,15 @@ class LogbackMaskedTextFormatterTest {
   private static final long CUT_LINE_MAX_LENGTH =
       LoggingTestData.DEFAULT_MAX_FIELD_LENGTH.toBytes() + 1024;
 
+  /** A logged value whose {@code toString()} fails, as a broken domain object's can. */
+  private static final Object FAILING_TO_STRING =
+      new Object() {
+        @Override
+        public String toString() {
+          throw new IllegalStateException("not initialised");
+        }
+      };
+
   /** The environment with the module on, as a service has it. */
   private final MockEnvironment moduleOn = LoggingTestData.environmentWithModuleOn();
 
@@ -115,6 +124,17 @@ class LogbackMaskedTextFormatterTest {
   @Nested
   @DisplayName("masking")
   class Masking {
+
+    @Test
+    @DisplayName("hides a value whose toString() fails, alone or in a list, and keeps the event")
+    void hidesValueThatCannotBeWritten() {
+      var event = event("order checked", null);
+      event.addKeyValuePair(new KeyValuePair("order", FAILING_TO_STRING));
+      event.addKeyValuePair(new KeyValuePair("items", List.of(FAILING_TO_STRING)));
+
+      assertThat(formatter.format(event))
+          .contains(" : order checked order=[REDACTION_FAILED] items=[REDACTION_FAILED]");
+    }
 
     @Test
     @DisplayName("masks the entries of a map or list logged as a key-value pair under a plain key")

@@ -178,10 +178,11 @@ abstract class MaskedTextFormatter<E> implements StructuredLogFormatter<E> {
   /**
    * Masks a value under its field name: the one place this format calls the redactor. The value is
    * masked as text, so the entries of a map or a list are masked too: the redactor leaves those to
-   * the JSON writer, which this format does not use.
+   * the JSON writer, which this format does not use. The redactor turns the value into text itself,
+   * so a {@code toString()} that fails hides the value instead of losing the event.
    */
   private String mask(String fieldName, @Nullable Object value) {
-    return Objects.toString(redactor.redact(fieldName, Objects.toString(value)));
+    return Objects.toString(redactor.redact(fieldName, new LoggedText(value)));
   }
 
   /**
@@ -197,5 +198,24 @@ abstract class MaskedTextFormatter<E> implements StructuredLogFormatter<E> {
     return !line.isEmpty() && Character.isWhitespace(line.charAt(0))
         ? line
         : STACK_TRACE_INDENT + line;
+  }
+
+  /**
+   * A logged value as the redactor sees it: text, never a map or a list, so that the redactor masks
+   * it by its text.
+   *
+   * @param value the logged value
+   */
+  private record LoggedText(@Nullable Object value) {
+
+    /**
+     * Returns the value's text, {@code null} written as {@code null}.
+     *
+     * @return the text
+     */
+    @Override
+    public String toString() {
+      return Objects.toString(value);
+    }
   }
 }
