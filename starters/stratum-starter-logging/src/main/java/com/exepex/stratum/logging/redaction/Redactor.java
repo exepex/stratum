@@ -55,6 +55,9 @@ public final class Redactor {
   /** Masks values by what the text looks like. */
   private final UnaryOperator<String> contentMaskingRules;
 
+  /** Masks text with the service's own patterns only. */
+  private final UnaryOperator<String> serviceRules;
+
   /** Masks stack traces, leaving their frame lines as they are. */
   private final StackTraceMasker stackTraceMasker;
 
@@ -72,11 +75,12 @@ public final class Redactor {
   public static Redactor from(LoggingProperties loggingProperties) {
     var redaction = loggingProperties.redaction();
     var fieldNames = new SensitiveFieldNames(redaction.extraKeys());
-    var contentMaskingRules =
-        ContentMaskingRules.allRulesInOrder(fieldNames, compile(redaction.extraPatterns()));
+    var serviceRules = ContentMaskingRules.serviceRules(compile(redaction.extraPatterns()));
+    var contentMaskingRules = ContentMaskingRules.allRulesInOrder(fieldNames, serviceRules);
     return Redactor.builder()
         .fieldNames(fieldNames)
         .contentMaskingRules(contentMaskingRules)
+        .serviceRules(serviceRules)
         .stackTraceMasker(new StackTraceMasker(contentMaskingRules))
         .maxFieldLength((int) loggingProperties.maxFieldLength().toBytes())
         .build();
@@ -125,6 +129,31 @@ public final class Redactor {
     return fieldNames
         .mask(fieldName, () -> truncated)
         .orElseGet(() -> stackTraceMasker.mask(truncated));
+  }
+
+  /**
+   * Returns a field that Stratum knows holds no personal data, such as {@code userAgent}, as it may
+   * be written: cut to the maximum length, and masked only by the service's own extra keys and
+   * extra patterns, which always win over Stratum's defaults. A value that is not text is masked
+   * only by an extra key.
+   *
+   * @param fieldName the field's name
+   * @param logValue the value
+   * @return the value to write
+   */
+  public @Nullable Object redactKnownSafe(@Nullable String fieldName, @Nullable Object logValue) {
+    return failingClosed(
+        () ->
+            switch (logValue) {
+              case null -> null;
+              case String text -> redactKnownSafeText(fieldName, truncateToMaxFieldLength(text));
+              default -> fieldNames.isExtraKey(fieldName) ? MaskedText.MASK : logValue;
+            });
+  }
+
+  /** Masks safe text by the service's extra keys, or else by its extra patterns. */
+  private String redactKnownSafeText(@Nullable String fieldName, String text) {
+    return fieldNames.isExtraKey(fieldName) ? MaskedText.MASK : serviceRules.apply(text);
   }
 
   /** Returns the masked value, or {@link #REDACTION_FAILED} if masking it failed. */

@@ -57,15 +57,15 @@ public final class RedactingJsonMembersCustomizer
   }
 
   /**
-   * Masks a value by the kind of its field: a safe field as it is, a stack trace without its frame
-   * lines, any other field by its name and then its content. The name is the field's full path, so
-   * a nested {@code password.new} is still matched by its words.
+   * Masks a value by the kind of its field: a safe field only by the service's own rules, a stack
+   * trace without its frame lines, any other field by its name and then its content. The name is
+   * the field's full path, so a nested {@code password.new} is still matched by its words.
    */
   private @Nullable Object redactAt(
       Redactor enabledRedactor, MemberPath path, @Nullable Object value) {
     var fullPath = path.toUnescapedString();
     if (knownLogFields.isSafe(fullPath)) {
-      return value;
+      return enabledRedactor.redactKnownSafe(fullPath, value);
     }
     return knownLogFields.isStackTrace(fullPath)
         ? enabledRedactor.redactStackTrace(fullPath, value)

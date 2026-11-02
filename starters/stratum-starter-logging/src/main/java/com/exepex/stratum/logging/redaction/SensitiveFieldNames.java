@@ -172,6 +172,16 @@ final class SensitiveFieldNames {
   }
 
   /**
+   * Returns whether the name is one of the service's own extra keys.
+   *
+   * @param name the field or key name; {@code null} when the value has none
+   * @return whether the service listed the name
+   */
+  boolean isExtraKey(@Nullable String name) {
+    return name != null && extraKeys.contains(normalize(name));
+  }
+
+  /**
    * Returns whether values under the name are masked.
    *
    * @param name the field or key name
@@ -195,9 +205,7 @@ final class SensitiveFieldNames {
 
   /** Returns how values under the name are masked; a service's own name is masked in full. */
   private Masking maskingOf(String name) {
-    return extraKeys.contains(normalize(name))
-        ? Masking.IN_FULL
-        : maskingOfWords(FieldNameWords.wordsOf(name));
+    return isExtraKey(name) ? Masking.IN_FULL : maskingOfWords(FieldNameWords.wordsOf(name));
   }
 
   /** Returns how values are masked under a name with these words; masking in full wins. */

@@ -5,6 +5,7 @@ import static com.exepex.stratum.logging.testsupport.LoggingTestData.DEFAULT_RED
 import static com.exepex.stratum.logging.testsupport.LoggingTestData.EMAIL;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.exepex.stratum.logging.testsupport.LoggingTestData;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.boot.logging.StandardStackTracePrinter;
+import org.springframework.util.unit.DataSize;
 
 @DisplayName("A stack trace is masked except its frame lines")
 class StackTraceRedactionTest {
@@ -57,6 +59,9 @@ class StackTraceRedactionTest {
   @DisplayName("a line that is wholly a frame or an omission")
   class SkippedLines {
 
+    /** What the marking content rule writes in place of any text it is given. */
+    private static final String SEARCHED = "<searched>";
+
     /** Frame and omission lines in the shapes Spring Boot and Logback print. */
     private static final List<String> SKIPPED_LINES =
         List.of(
@@ -75,13 +80,16 @@ class StackTraceRedactionTest {
             "\t\t... 3 filtered",
             "\t... 5 common frames omitted");
 
+    /** Marks every text the content rules were given, so a test sees which lines were searched. */
+    private final StackTraceMasker markingMasker =
+        new StackTraceMasker(text -> text.isEmpty() ? text : SEARCHED);
+
     @ParameterizedTest
     @FieldSource("SKIPPED_LINES")
-    @DisplayName("is written as it is")
-    void lineIsKept(String line) {
-      var stackTrace = "java.lang.IllegalStateException: failed\n" + line + "\n";
-
-      assertThat(redactStackTrace(stackTrace)).isEqualTo(stackTrace);
+    @DisplayName("is not searched, and written as it is")
+    void lineIsNotSearched(String line) {
+      assertThat(markingMasker.mask("java.lang.IllegalStateException: failed\n" + line + "\n"))
+          .isEqualTo(SEARCHED + line + "\n");
     }
   }
 
@@ -139,6 +147,36 @@ class StackTraceRedactionTest {
       assertThat(DEFAULT_REDACTOR.redactStackTrace(null, new StringBuilder("card " + CARD)))
           .isEqualTo("card ****1111");
       assertThat(DEFAULT_REDACTOR.redactStackTrace(null, null)).isNull();
+    }
+  }
+
+  @Nested
+  @DisplayName("a stack trace longer than the maximum field length")
+  class TooLong {
+
+    /** The smallest allowed limit. */
+    private static final DataSize SMALL_LIMIT = DataSize.ofKilobytes(1);
+
+    /** Frame lines enough to pass the limit several times over. */
+    private static final int FRAME_COUNT = 200;
+
+    /** Masks with the smallest allowed limit. */
+    private final Redactor smallLimitRedactor =
+        Redactor.from(LoggingTestData.defaults().maxFieldLength(SMALL_LIMIT).build());
+
+    @Test
+    @DisplayName("is cut to the limit and ends with the truncation marker")
+    void longStackTraceIsCut() {
+      var stackTrace =
+          "java.lang.IllegalStateException: failed\n"
+              + "\tat a.B.c(B.java:1)\n".repeat(FRAME_COUNT);
+
+      var redacted = (String) smallLimitRedactor.redactStackTrace(null, stackTrace);
+
+      assertThat(redacted)
+          .endsWith(Redactor.TRUNCATION_MARKER)
+          .hasSizeLessThanOrEqualTo(
+              (int) SMALL_LIMIT.toBytes() + Redactor.TRUNCATION_MARKER.length());
     }
   }
 }

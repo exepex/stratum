@@ -180,8 +180,9 @@ inside an email address, are masked as one.
 
 Fields that Spring Boot, Stratum or the web module fill and that never hold personal data, such as
 `@timestamp`, `log.level`, `service.name`, `error.type`, `traceId`, `httpRoute` or `userAgent`, are
-written as they are. Each field is matched by its whole path in the format Spring Boot writes, so
-your own field `service.contact` is still masked. Every other field, including your own MDC entries
+written as they are, unless you name them in `extra-keys` or `extra-patterns`: your own rules
+always win. Each field is matched by its whole path in the format Spring Boot writes, so your own
+field `service.contact` is still masked. Every other field, including your own MDC entries
 and key-value pairs, is masked by name and then searched. When the console and the log file use
 different formats, only fields known in both are written as they are. In a stack trace, only the
 lines that are wholly a frame (`at com.example.Orders.place(Orders.java:42)`) or an omission

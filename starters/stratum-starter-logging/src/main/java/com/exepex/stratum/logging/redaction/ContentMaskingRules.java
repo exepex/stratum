@@ -69,11 +69,11 @@ class ContentMaskingRules {
    * Returns all the rules as one: secrets first, then personal data, then the service's own.
    *
    * @param fieldNames the names whose values a key-value pair masks
-   * @param extraPatterns the service's own patterns, masked in full
+   * @param serviceRules the service's own patterns, from {@link #serviceRules}
    * @return a function that applies every rule in turn
    */
   static UnaryOperator<String> allRulesInOrder(
-      SensitiveFieldNames fieldNames, List<Pattern> extraPatterns) {
+      SensitiveFieldNames fieldNames, UnaryOperator<String> serviceRules) {
     var keyValuePairMasker = new KeyValuePairMasker(fieldNames);
     var builtInRules =
         Stream.of(
@@ -91,9 +91,21 @@ class ContentMaskingRules {
                 maskingMatches(URL_CREDENTIALS, ContentMaskingRules::maskUrlCredentials)),
             guardedRule(ContentMaskingRules::mayHoldKeyValuePair, keyValuePairMasker::mask),
             ContentMaskingRules::maskPersonalDataTwice);
-    var extraRules =
-        extraPatterns.stream().map(pattern -> maskingMatches(pattern, match -> MaskedText.MASK));
-    return Stream.concat(builtInRules, extraRules)
+    return earlierThenLater(
+        builtInRules.reduce(UnaryOperator.identity(), ContentMaskingRules::earlierThenLater),
+        serviceRules);
+  }
+
+  /**
+   * Returns the service's own patterns as one rule, each match masked in full.
+   *
+   * @param extraPatterns the service's patterns from {@code
+   *     stratum.logging.redaction.extra-patterns}
+   * @return a function that applies every pattern in turn
+   */
+  static UnaryOperator<String> serviceRules(List<Pattern> extraPatterns) {
+    return extraPatterns.stream()
+        .map(pattern -> maskingMatches(pattern, match -> MaskedText.MASK))
         .reduce(UnaryOperator.identity(), ContentMaskingRules::earlierThenLater);
   }
 

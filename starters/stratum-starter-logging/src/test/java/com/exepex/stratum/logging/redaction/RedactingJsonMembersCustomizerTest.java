@@ -21,6 +21,39 @@ class RedactingJsonMembersCustomizerTest {
   /** The stack trace field of ECS and Logstash. */
   private static final String STACK_TRACE_FIELD = "stack_trace";
 
+  /** Spring Boot's name for ECS. */
+  private static final String ECS = "ecs";
+
+  /** The web module's user agent field in ECS and Logstash. */
+  private static final String USER_AGENT_FIELD = "userAgent";
+
+  /** The service's extra-keys property. */
+  private static final String EXTRA_KEYS = LoggingConstants.PREFIX + ".redaction.extra-keys";
+
+  /** The service's extra-patterns property. */
+  private static final String EXTRA_PATTERNS =
+      LoggingConstants.PREFIX + ".redaction.extra-patterns";
+
+  /** Writes a line holding only the given fields, with one of the service's own rules set. */
+  private String writeWithServiceRule(
+      String format, String property, String rule, Consumer<Members<Object>> addFields) {
+    var customizer =
+        new RedactingJsonMembersCustomizer(
+            LoggingTestData.environmentWithConsoleFormat(format).withProperty(property, rule));
+    JsonWriter<Object> writer =
+        JsonWriter.of(members -> addThenCustomize(members, addFields, customizer));
+    return writer.writeToString(new Object());
+  }
+
+  /** Adds the fields, then customizes the members. */
+  private void addThenCustomize(
+      Members<Object> members,
+      Consumer<Members<Object>> addFields,
+      RedactingJsonMembersCustomizer customizer) {
+    addFields.accept(members);
+    customizer.customize(members);
+  }
+
   /** The log line's message, which holds a card number. */
   private static final String MESSAGE = "paid with " + CARD;
 
@@ -81,14 +114,14 @@ class RedactingJsonMembersCustomizerTest {
     /** Writes an ECS log line with a safe field, a nested secret and a stack trace. */
     private String writeEcsLogLine() {
       var customizer =
-          new RedactingJsonMembersCustomizer(LoggingTestData.environmentWithConsoleFormat("ecs"));
+          new RedactingJsonMembersCustomizer(LoggingTestData.environmentWithConsoleFormat(ECS));
       JsonWriter<Object> writer = JsonWriter.of(members -> addEcsLogLine(members, customizer));
       return writer.writeToString(new Object());
     }
 
     /** Adds a safe field, a nested secret and an error with a stack trace, then customizes them. */
     private void addEcsLogLine(Members<Object> members, RedactingJsonMembersCustomizer customizer) {
-      members.add("userAgent", "bot (+mailto:" + EMAIL + ")");
+      members.add(USER_AGENT_FIELD, "bot (+mailto:" + EMAIL + ")");
       members.add("password").usingMembers(nested -> nested.add("new", PASSWORD));
       members.add("error").usingMembers(error -> error.add(STACK_TRACE_FIELD, STACK_TRACE));
       customizer.customize(members);
@@ -119,40 +152,17 @@ class RedactingJsonMembersCustomizerTest {
   @DisplayName("a stack trace field the service names in extra-keys")
   class StackTraceInExtraKeys {
 
-    /** The service's extra-keys property. */
-    private static final String EXTRA_KEYS = LoggingConstants.PREFIX + ".redaction.extra-keys";
-
     /** A stack trace whose frame line is written as it is unless the whole field is masked. */
     private static final String STACK_TRACE =
         "java.lang.Exception: failed\n\tat com.example.Orders.place(Orders.java:42)";
-
-    /** Writes a line holding only the stack trace field, with that field listed in extra-keys. */
-    private String writeWithExtraKey(
-        String format, String extraKey, Consumer<Members<Object>> addStackTrace) {
-      var customizer =
-          new RedactingJsonMembersCustomizer(
-              LoggingTestData.environmentWithConsoleFormat(format)
-                  .withProperty(EXTRA_KEYS, extraKey));
-      JsonWriter<Object> writer =
-          JsonWriter.of(members -> addThenCustomize(members, addStackTrace, customizer));
-      return writer.writeToString(new Object());
-    }
-
-    /** Adds the stack trace field, then customizes the members. */
-    private void addThenCustomize(
-        Members<Object> members,
-        Consumer<Members<Object>> addStackTrace,
-        RedactingJsonMembersCustomizer customizer) {
-      addStackTrace.accept(members);
-      customizer.customize(members);
-    }
 
     @Test
     @DisplayName("is masked in full under ECS")
     void ecsStackTraceIsMasked() {
       assertThat(
-              writeWithExtraKey(
-                  "ecs",
+              writeWithServiceRule(
+                  ECS,
+                  EXTRA_KEYS,
                   STACK_TRACE_FIELD,
                   members ->
                       members
@@ -165,8 +175,9 @@ class RedactingJsonMembersCustomizerTest {
     @DisplayName("is masked in full under Logstash")
     void logstashStackTraceIsMasked() {
       assertThat(
-              writeWithExtraKey(
+              writeWithServiceRule(
                   "logstash",
+                  EXTRA_KEYS,
                   STACK_TRACE_FIELD,
                   members -> members.add(STACK_TRACE_FIELD, STACK_TRACE)))
           .contains("\"stack_trace\":\"****\"");
@@ -176,9 +187,73 @@ class RedactingJsonMembersCustomizerTest {
     @DisplayName("is masked in full under GELF, for the full message too")
     void gelfFullMessageIsMasked() {
       assertThat(
-              writeWithExtraKey(
-                  "gelf", "full_message", members -> members.add("full_message", STACK_TRACE)))
+              writeWithServiceRule(
+                  "gelf",
+                  EXTRA_KEYS,
+                  "full_message",
+                  members -> members.add("full_message", STACK_TRACE)))
           .contains("\"full_message\":\"****\"");
+    }
+  }
+
+  @Nested
+  @DisplayName("a safe field the service names in its own rules")
+  class SafeFieldInServiceRules {
+
+    /** A user agent holding an employee ID that the service's pattern masks. */
+    private static final String USER_AGENT = "orders-app/1.0 (EMP-123456)";
+
+    /** Logback's number for the INFO level, as Logstash writes it. */
+    private static final int INFO_LEVEL_VALUE = 20_000;
+
+    @Test
+    @DisplayName("is masked in full by an extra key, in ECS, Logstash and GELF")
+    void extraKeyMasksSafeField() {
+      assertThat(
+              writeWithServiceRule(
+                  ECS,
+                  EXTRA_KEYS,
+                  USER_AGENT_FIELD,
+                  members -> members.add(USER_AGENT_FIELD, USER_AGENT)))
+          .contains("\"userAgent\":\"****\"");
+      assertThat(
+              writeWithServiceRule(
+                  "logstash",
+                  EXTRA_KEYS,
+                  USER_AGENT_FIELD,
+                  members -> members.add(USER_AGENT_FIELD, USER_AGENT)))
+          .contains("\"userAgent\":\"****\"");
+      assertThat(
+              writeWithServiceRule(
+                  "gelf",
+                  EXTRA_KEYS,
+                  USER_AGENT_FIELD,
+                  members -> members.add("_userAgent", USER_AGENT)))
+          .contains("\"_userAgent\":\"****\"");
+    }
+
+    @Test
+    @DisplayName("has an extra pattern's matches masked, and the rest kept")
+    void extraPatternMasksInsideSafeField() {
+      assertThat(
+              writeWithServiceRule(
+                  ECS,
+                  EXTRA_PATTERNS,
+                  "EMP-\\d{6}",
+                  members -> members.add(USER_AGENT_FIELD, USER_AGENT)))
+          .contains("\"userAgent\":\"orders-app/1.0 (****)\"");
+    }
+
+    @Test
+    @DisplayName("is masked by an extra key even when its value is not text")
+    void extraKeyMasksNonTextSafeField() {
+      assertThat(
+              writeWithServiceRule(
+                  "logstash",
+                  EXTRA_KEYS,
+                  "level_value",
+                  members -> members.add("level_value", INFO_LEVEL_VALUE)))
+          .contains("\"level_value\":\"****\"");
     }
   }
 }
