@@ -66,17 +66,15 @@ class ContentMaskingRules {
       Pattern.compile("(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]++@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}");
 
   /**
-   * Returns all the rules as one: secrets first, then personal data, then the service's own.
+   * Returns Stratum's own rules as one: secrets first, then personal data. The service's patterns
+   * are a separate rule ({@link #serviceRules}), so that they also reach what these rules skip.
    *
    * @param fieldNames the names whose values a key-value pair masks
-   * @param serviceRules the service's own patterns, from {@link #serviceRules}
-   * @return a function that applies every rule in turn
+   * @return a function that applies every built-in rule in turn
    */
-  static UnaryOperator<String> allRulesInOrder(
-      SensitiveFieldNames fieldNames, UnaryOperator<String> serviceRules) {
+  static UnaryOperator<String> builtInRules(SensitiveFieldNames fieldNames) {
     var keyValuePairMasker = new KeyValuePairMasker(fieldNames);
-    var builtInRules =
-        Stream.of(
+    return Stream.of(
             guardedRule(
                 text -> text.contains("eyJ"), maskingMatches(JWT, match -> MaskedText.MASK)),
             guardedRule(
@@ -90,10 +88,8 @@ class ContentMaskingRules {
                 text -> text.contains("://"),
                 maskingMatches(URL_CREDENTIALS, ContentMaskingRules::maskUrlCredentials)),
             guardedRule(ContentMaskingRules::mayHoldKeyValuePair, keyValuePairMasker::mask),
-            ContentMaskingRules::maskPersonalDataTwice);
-    return earlierThenLater(
-        builtInRules.reduce(UnaryOperator.identity(), ContentMaskingRules::earlierThenLater),
-        serviceRules);
+            ContentMaskingRules::maskPersonalDataTwice)
+        .reduce(UnaryOperator.identity(), ContentMaskingRules::earlierThenLater);
   }
 
   /**

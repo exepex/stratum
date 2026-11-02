@@ -58,7 +58,7 @@ public final class Redactor {
   /** Masks text with the service's own patterns only. */
   private final UnaryOperator<String> serviceRules;
 
-  /** Masks stack traces, leaving their frame lines as they are. */
+  /** Masks stack traces with Stratum's rules, leaving their frame lines as they are. */
   private final StackTraceMasker stackTraceMasker;
 
   /** The longest a value may be, in characters. */
@@ -76,12 +76,12 @@ public final class Redactor {
     var redaction = loggingProperties.redaction();
     var fieldNames = new SensitiveFieldNames(redaction.extraKeys());
     var serviceRules = ContentMaskingRules.serviceRules(compile(redaction.extraPatterns()));
-    var contentMaskingRules = ContentMaskingRules.allRulesInOrder(fieldNames, serviceRules);
+    var builtInRules = ContentMaskingRules.builtInRules(fieldNames);
     return Redactor.builder()
         .fieldNames(fieldNames)
-        .contentMaskingRules(contentMaskingRules)
+        .contentMaskingRules(text -> serviceRules.apply(builtInRules.apply(text)))
         .serviceRules(serviceRules)
-        .stackTraceMasker(new StackTraceMasker(contentMaskingRules))
+        .stackTraceMasker(new StackTraceMasker(builtInRules))
         .maxFieldLength((int) loggingProperties.maxFieldLength().toBytes())
         .build();
   }
@@ -123,12 +123,15 @@ public final class Redactor {
         : redact(fieldName, stackTrace);
   }
 
-  /** Masks stack trace text by its field name, or else every line but its frames. */
+  /**
+   * Masks stack trace text by its field name, or else every line but its frames with Stratum's
+   * rules, and then the whole trace with the service's own patterns.
+   */
   private String redactStackTraceText(@Nullable String fieldName, String text) {
     var truncated = truncateToMaxFieldLength(text);
     return fieldNames
         .mask(fieldName, () -> truncated)
-        .orElseGet(() -> stackTraceMasker.mask(truncated));
+        .orElseGet(() -> serviceRules.apply(stackTraceMasker.mask(truncated)));
   }
 
   /**

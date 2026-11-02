@@ -179,4 +179,32 @@ class StackTraceRedactionTest {
               (int) SMALL_LIMIT.toBytes() + Redactor.TRUNCATION_MARKER.length());
     }
   }
+
+  @Nested
+  @DisplayName("with the service's own patterns")
+  class ServicePatterns {
+
+    /** A trace whose only frame names the service's class. */
+    private static final String STACK_TRACE =
+        "java.lang.IllegalStateException: failed\n\tat com.example.Orders.place(Orders.java:42)\n";
+
+    /** Returns a redactor with one of the service's own patterns. */
+    private Redactor redactorWithPattern(String pattern) {
+      return Redactor.from(LoggingTestData.withRedaction(List.of(), List.of(pattern)).build());
+    }
+
+    @Test
+    @DisplayName("a pattern also masks frame lines")
+    void patternMasksFrameLines() {
+      assertThat(redactorWithPattern("com\\.example\\.Orders").redactStackTrace(null, STACK_TRACE))
+          .isEqualTo("java.lang.IllegalStateException: failed\n\tat ****.place(Orders.java:42)\n");
+    }
+
+    @Test
+    @DisplayName("a pattern that matches everything masks the whole trace")
+    void patternMasksWholeTrace() {
+      assertThat(redactorWithPattern("(?s).+").redactStackTrace(null, STACK_TRACE))
+          .isEqualTo(MaskedText.MASK);
+    }
+  }
 }
