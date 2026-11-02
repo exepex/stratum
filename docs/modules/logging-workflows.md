@@ -85,7 +85,9 @@ dashboards and alerts decide that. Without a registry, workflows only set the lo
 A workflow ends when its work has finished, even when that is after the call returns:
 
 - Work that returns a `CompletableFuture` or another `CompletionStage` is timed and traced until
-  the stage completes, and its failure is recorded.
+  the stage completes, and its failure is recorded. A stage that never completes keeps its
+  workflow open: it is never timed, and its span is never ended or sent. Give such work its own
+  timeout, for example with `orTimeout`.
 - A `@Workflow` method that returns a `Mono` or `Flux` only builds the work. The workflow runs
   each time the result is subscribed, until it completes, fails or is cancelled. Lines written
   while the method builds it are outside the workflow, and so is an exception it throws instead of

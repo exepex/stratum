@@ -201,7 +201,7 @@ value you set wins, from any file, the environment, the command line or Java def
 | `logging.structured.format.console` | `ecs`, `logstash`, `gelf` | value of `stratum.logging.format` (unset when `text`) | unset, so plain text | The console's JSON format. |
 | `logging.structured.format.file` | `ecs`, `logstash`, `gelf` | value of `stratum.logging.format` (unset when `text`) | unset, so plain text | The log file's JSON format. |
 | `logging.structured.ecs.service.environment` | string | value of `stratum.environment` | unset | `service.environment` in each line. |
-| `logging.structured.json.stacktrace.max-length` | integer | value of `stratum.logging.max-field-length`, in bytes | unset, so no limit | The longest stack trace written. |
+| `logging.structured.json.stacktrace.max-length` | integer | value of `stratum.logging.max-field-length`, as a number of characters | unset, so no limit | The longest stack trace written. |
 | `logging.structured.json.stacktrace.root` | `first` or `last` | `first`: the root cause first, so a cut stack trace still shows why it failed | unset, so as Java prints it | `last` starts with the exception your code caught, as Java prints it. |
 | `spring.task.execution.propagate-context` | boolean | `true` | `false` | Whether `@Async` methods and Spring Boot's executors keep the workflow fields. |
 | `spring.reactor.context-propagation` | `limited` or `auto` | `auto` | `limited` | Whether every Reactor operator keeps them, not only `handle` and `tap`. |
@@ -358,7 +358,7 @@ which keeps Spring Boot's default plain-text logging, with no checks and no reda
 | Feature | What it adds |
 | --- | --- |
 | Workflows across services | The workflow fields sent to the service's own downstream services, planned with the HTTP client starter |
-| Management endpoint | Secured, timed switches for DEBUG on one logger, timing lines for one workflow, and unmasking personal data for a short time, each switching back by itself |
+| Management endpoint | Secured, timed switches for DEBUG on one logger, and timing lines for one workflow, each switching back by itself |
 | ECS names for trace IDs | Today's `traceId`, `spanId` and `correlationId` fields renamed to ECS's `trace.id`, `span.id` and `correlation_id`, with the observability and web starters |
 | Body logging on demand | Request and response bodies in the logs when you need them, planned for the web and HTTP client starters rather than this one |
 
