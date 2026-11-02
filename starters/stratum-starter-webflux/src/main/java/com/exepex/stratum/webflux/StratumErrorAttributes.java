@@ -1,5 +1,6 @@
 package com.exepex.stratum.webflux;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.error.FailureWithErrorCode;
 import com.exepex.stratum.core.error.LoggingContextConstants;
 import com.exepex.stratum.web.ErrorResponseFactory;
@@ -28,6 +29,7 @@ import org.springframework.web.reactive.function.server.ServerRequest;
  * service gave before Stratum. Spring Boot's error handler writes it as JSON for an API caller and
  * passes it to the error page of a browser.
  */
+@StratumInternal
 @RequiredArgsConstructor
 public class StratumErrorAttributes extends DefaultErrorAttributes {
 

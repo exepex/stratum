@@ -1,5 +1,6 @@
 package com.exepex.stratum.webmvc;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.error.LoggingContextConstants;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -15,6 +16,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * error page runs in a second dispatch after that scope has closed, so it reads them from here,
  * whatever failed: a controller, a later filter or a {@code sendError} call.
  */
+@StratumInternal
 public class RequestIdsFilter extends OncePerRequestFilter {
 
   /** Runs just inside the correlation ID filter, so the error page gets the ID it chose. */

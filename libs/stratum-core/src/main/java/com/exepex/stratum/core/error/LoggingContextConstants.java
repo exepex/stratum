@@ -1,5 +1,6 @@
 package com.exepex.stratum.core.error;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import java.util.List;
 import java.util.regex.Pattern;
 import lombok.experimental.UtilityClass;
@@ -8,6 +9,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * The keys under which tracing and Stratum put request IDs in the logging context (SLF4J's MDC).
  */
+@StratumInternal
 @UtilityClass
 public class LoggingContextConstants {
 

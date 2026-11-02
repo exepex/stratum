@@ -1,5 +1,6 @@
 package com.exepex.stratum.logging.mdc;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.logging.LoggingConstants;
 import io.micrometer.context.ContextRegistry;
 
@@ -8,6 +9,7 @@ import io.micrometer.context.ContextRegistry;
  * logging module is on, and removes it when the application stops, so that the service's own MDC
  * fields travel only when the module is enabled.
  */
+@StratumInternal
 public class ServiceMdcFieldsPropagation implements AutoCloseable {
 
   /** Starts carrying the service's own MDC fields to other threads. */

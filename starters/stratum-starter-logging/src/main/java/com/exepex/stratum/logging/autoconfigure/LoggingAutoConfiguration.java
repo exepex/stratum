@@ -1,5 +1,6 @@
 package com.exepex.stratum.logging.autoconfigure;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.executor.ContextCarryingExecutorsConfiguration;
@@ -38,6 +39,7 @@ import org.springframework.core.env.Environment;
 import reactor.core.publisher.Mono;
 
 /** Creates the logging module's beans, when {@code stratum.logging.enabled=true}. */
+@StratumInternal
 @AutoConfiguration(
     after = TaskExecutionAutoConfiguration.class,
     before = TaskSchedulingAutoConfiguration.class)

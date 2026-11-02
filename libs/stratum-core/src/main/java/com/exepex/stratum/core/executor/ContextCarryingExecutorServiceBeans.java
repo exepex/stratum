@@ -1,5 +1,6 @@
 package com.exepex.stratum.core.executor;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import io.micrometer.context.ContextExecutorService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
@@ -16,6 +17,7 @@ import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
  * {@code ThreadPoolExecutor}, is left alone, because the wrapper is not that class and the code
  * that injects it would break.
  */
+@StratumInternal
 @RequiredArgsConstructor
 public class ContextCarryingExecutorServiceBeans implements BeanPostProcessor {
 

@@ -1,5 +1,6 @@
 package com.exepex.stratum.web.autoconfigure;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.web.CorrelationIdChooser;
 import com.exepex.stratum.web.RequestBodyLimits;
@@ -22,6 +23,7 @@ import org.springframework.context.annotation.Import;
  * its correlation ID, its one closing log line, its time limit and its body size limit. The web MVC
  * and WebFlux auto-configurations import it.
  */
+@StratumInternal
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnStratumModule(WebConstants.MODULE)
 @ConditionalOnWebApplication

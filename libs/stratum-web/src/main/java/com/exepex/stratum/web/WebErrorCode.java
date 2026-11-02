@@ -1,5 +1,6 @@
 package com.exepex.stratum.web;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.error.ErrorCode;
 import com.exepex.stratum.core.error.Severity;
 import lombok.Getter;
@@ -10,6 +11,7 @@ import lombok.RequiredArgsConstructor;
  * caller sees all but {@code SX-WEB-1006} in the error body of a request that failed outside the
  * service's own error handling; {@code SX-WEB-1006} stops the service at startup.
  */
+@StratumInternal
 @Getter
 @RequiredArgsConstructor
 public enum WebErrorCode implements ErrorCode {

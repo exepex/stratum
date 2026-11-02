@@ -1,5 +1,6 @@
 package com.exepex.stratum.web;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,6 +14,7 @@ import org.springframework.core.env.Environment;
  * exception classes to API callers: a security leak that the service's own {@code
  * spring.web.error.include-stacktrace} or {@code include-exception} turned on.
  */
+@StratumInternal
 @Slf4j
 @RequiredArgsConstructor
 public class BackwardCompatibleModeReport implements SmartInitializingSingleton {

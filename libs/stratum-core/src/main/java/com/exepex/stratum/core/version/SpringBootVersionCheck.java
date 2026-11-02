@@ -1,5 +1,6 @@
 package com.exepex.stratum.core.version;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.error.CoreErrorCode;
 import com.exepex.stratum.core.error.ErrorReport;
 import java.io.IOException;
@@ -22,6 +23,7 @@ import org.springframework.core.io.support.PropertiesLoaderUtils;
  * service's parent POM decides the version (ADR 0007). Any patch of the supported line is quiet,
  * and so is a version Spring Boot cannot report, such as from a repackaged jar.
  */
+@StratumInternal
 @RequiredArgsConstructor(access = AccessLevel.PACKAGE)
 public final class SpringBootVersionCheck implements EnvironmentPostProcessor {
 

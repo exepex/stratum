@@ -1,5 +1,6 @@
 package com.exepex.stratum.core.error;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -8,6 +9,7 @@ import lombok.RequiredArgsConstructor;
  * docs/guides/error-codes.md}. Every error here stops the application at startup; the warning only
  * logs.
  */
+@StratumInternal
 @Getter
 @RequiredArgsConstructor
 public enum CoreErrorCode implements ErrorCode {

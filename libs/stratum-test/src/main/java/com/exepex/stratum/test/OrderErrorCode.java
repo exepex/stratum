@@ -1,5 +1,6 @@
 package com.exepex.stratum.test;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.error.ErrorCode;
 import com.exepex.stratum.core.error.Severity;
 import lombok.Getter;
@@ -9,6 +10,7 @@ import lombok.RequiredArgsConstructor;
  * The error codes of a sample orders service, with the service's own prefix, for the web tests that
  * check how a service's codes are answered.
  */
+@StratumInternal
 @Getter
 @RequiredArgsConstructor
 public enum OrderErrorCode implements ErrorCode {

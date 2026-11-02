@@ -1,5 +1,6 @@
 package com.exepex.stratum.core.properties;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.error.CoreErrorCode;
 import com.exepex.stratum.core.error.StratumException;
 import jakarta.validation.Validation;
@@ -20,6 +21,7 @@ import org.springframework.util.ClassUtils;
  * same way, before any bean exists, so the same customizer works whether the module needs its
  * settings early, like logging, or later.
  */
+@StratumInternal
 @UtilityClass
 public class StratumCustomizers {
 

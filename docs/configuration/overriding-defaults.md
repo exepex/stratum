@@ -263,8 +263,9 @@ spring:
 spring.autoconfigure.exclude=com.exepex.stratum.webmvc.autoconfigure.WebMvcRequestFieldsAutoConfiguration
 ```
 
-Class names are internal and may change between minor versions. Prefer the `enabled` switches,
-which are part of Stratum's public contract.
+Auto-configuration classes are marked `@StratumInternal`: their names may change in any release
+([Public API](../guides/upgrading.md#public-api)). Prefer the `enabled` switches, which are part of
+Stratum's public contract.
 
 ## Tell us when you override
 

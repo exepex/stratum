@@ -56,7 +56,7 @@ conventions. Each rule has an ID so that reviews and judge verdicts can cite it.
   starter uses another starter's internal classes, that packages have no cycles, and that every class a component
   scan picks up carries the module switch (ST-ENG-20). A starter checks these with
   `StarterTestSupport.checkStarterArchitecture`, and its codes with `StarterTestSupport.checkErrorCodes`. A library
-  other than `stratum-core` checks the switch rule with `StarterTestSupport.checkSafeToScan`.
+  other than `stratum-core` checks the switch rule and the cycles with `StarterTestSupport.checkLibraryArchitecture`.
 
 ## Integration tests
 

@@ -1,5 +1,6 @@
 package com.exepex.stratum.observability.autoconfigure;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.executor.ContextCarryingExecutorsConfiguration;
@@ -34,6 +35,7 @@ import org.springframework.core.env.Environment;
 import reactor.core.publisher.Mono;
 
 /** Creates the observability module's beans, when {@code stratum.observability.enabled=true}. */
+@StratumInternal
 @AutoConfiguration(
     after = TaskExecutionAutoConfiguration.class,
     before = TaskSchedulingAutoConfiguration.class)

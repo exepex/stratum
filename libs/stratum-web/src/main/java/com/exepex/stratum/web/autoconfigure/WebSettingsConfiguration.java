@@ -1,5 +1,6 @@
 package com.exepex.stratum.web.autoconfigure;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebProperties;
@@ -14,6 +15,7 @@ import org.springframework.core.env.Environment;
  * Works out the web module's settings once per web application, for every web bean that needs them.
  * The request-field and error configurations of both web starters import it.
  */
+@StratumInternal
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnStratumModule(WebConstants.MODULE)
 @ConditionalOnWebApplication

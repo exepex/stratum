@@ -1,5 +1,6 @@
 package com.exepex.stratum.webmvc;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.web.CorrelationIdChooser;
 import com.exepex.stratum.web.WebConstants;
 import jakarta.servlet.FilterChain;
@@ -24,6 +25,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * services it calls, the asynchronous dispatch of a {@code Callable} or {@code DeferredResult}, and
  * Spring Boot's error page. {@link CorrelationIdChooser#rewrittenBaggage} decides the entries.
  */
+@StratumInternal
 @RequiredArgsConstructor
 public class CorrelationIdBaggageFilter extends OncePerRequestFilter {
 

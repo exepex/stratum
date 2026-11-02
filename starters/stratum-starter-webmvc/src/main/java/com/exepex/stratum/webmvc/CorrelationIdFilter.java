@@ -1,5 +1,6 @@
 package com.exepex.stratum.webmvc;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.web.CorrelationIdChooser;
 import com.exepex.stratum.web.WebConstants;
 import io.micrometer.tracing.Tracer;
@@ -17,6 +18,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * CorrelationIdBaggageFilter} has already put a caller's ID in the request's baggage, so the ID is
  * the baggage's, or the trace ID when there is none.
  */
+@StratumInternal
 @RequiredArgsConstructor
 public class CorrelationIdFilter extends OncePerRequestFilter {
 

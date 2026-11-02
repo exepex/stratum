@@ -1,10 +1,12 @@
 package com.exepex.stratum.observability;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import java.util.List;
 import lombok.experimental.UtilityClass;
 
 /** The property keys, tag names and span attributes the observability module uses (ST-ENG-45). */
+@StratumInternal
 @UtilityClass
 public class ObservabilityConstants {
 

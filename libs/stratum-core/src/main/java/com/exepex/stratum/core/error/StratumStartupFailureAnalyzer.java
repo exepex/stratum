@@ -1,5 +1,6 @@
 package com.exepex.stratum.core.error;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import java.util.Objects;
 import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
@@ -12,6 +13,7 @@ import org.springframework.boot.diagnostics.FailureAnalyzer;
  * says how to fix it and where the error codes page explains it. Spring Boot loads it from {@code
  * META-INF/spring.factories}.
  */
+@StratumInternal
 public final class StratumStartupFailureAnalyzer implements FailureAnalyzer {
 
   /** The start of every Stratum code. */

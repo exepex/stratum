@@ -1,5 +1,6 @@
 package com.exepex.stratum.logging.redaction;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.StratumModuleSwitch;
 import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.LoggingProperties;
@@ -15,6 +16,7 @@ import org.springframework.core.env.Environment;
  * from {@code META-INF/spring.factories} before the application starts. It does nothing unless
  * {@code stratum.logging.enabled=true}.
  */
+@StratumInternal
 public final class RedactingJsonMembersCustomizer
     implements StructuredLoggingJsonMembersCustomizer<Object> {
 

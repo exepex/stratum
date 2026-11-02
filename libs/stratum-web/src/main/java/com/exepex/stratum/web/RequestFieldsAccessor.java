@@ -1,5 +1,6 @@
 package com.exepex.stratum.web;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.error.LoggingContextConstants;
 import io.micrometer.context.ThreadLocalAccessor;
 import java.util.Objects;
@@ -16,6 +17,7 @@ import org.slf4j.MDC;
  *
  * <p>Reactor calls it around every operator, so it writes a field only when its value changes.
  */
+@StratumInternal
 public class RequestFieldsAccessor implements ThreadLocalAccessor<RequestFieldValues> {
 
   /** Returns no route: on a thread, the route is in the logging context once it is known. */

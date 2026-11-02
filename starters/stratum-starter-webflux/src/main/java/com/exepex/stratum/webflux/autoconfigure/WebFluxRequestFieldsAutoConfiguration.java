@@ -1,5 +1,6 @@
 package com.exepex.stratum.webflux.autoconfigure;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.web.CorrelationIdChooser;
@@ -35,6 +36,7 @@ import org.springframework.web.reactive.HandlerAdapter;
  * Gives every log line of a reactive request its fields, every request its correlation ID, one
  * closing log line and a time limit, when {@code stratum.web.enabled=true}.
  */
+@StratumInternal
 @AutoConfiguration
 @AutoConfigureOrder(StratumModuleConstants.AUTO_CONFIGURATION_ORDER)
 @ConditionalOnStratumModule(WebConstants.MODULE)

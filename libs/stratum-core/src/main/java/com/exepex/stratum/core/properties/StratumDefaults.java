@@ -1,5 +1,6 @@
 package com.exepex.stratum.core.properties;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -16,6 +17,7 @@ import org.springframework.core.env.ConfigurableEnvironment;
  * Adds a module's defaults for Spring Boot properties so that every value the service sets wins,
  * from files, environment variables, the command line, {@code @PropertySource} or Java.
  */
+@StratumInternal
 @UtilityClass
 public class StratumDefaults {
 

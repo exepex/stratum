@@ -6,6 +6,7 @@ import static org.awaitility.Awaitility.await;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import com.exepex.stratum.core.api.StratumInternal;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -15,6 +16,7 @@ import org.slf4j.LoggerFactory;
  * Captures the lines one logger writes, so a test can check a line's message, fields and logging
  * context. A test calls {@link #start} before the code under test runs and {@link #stop} after.
  */
+@StratumInternal
 public class LogLineCapture {
 
   /** The logger whose lines are captured. */

@@ -1,5 +1,6 @@
 package com.exepex.stratum.observability;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.error.ErrorCode;
 import com.exepex.stratum.core.error.Severity;
 import lombok.Getter;
@@ -9,6 +10,7 @@ import lombok.RequiredArgsConstructor;
  * The codes of the observability module, each listed with its fix in {@code
  * docs/guides/error-codes.md}. Every error here stops the application at startup.
  */
+@StratumInternal
 @Getter
 @RequiredArgsConstructor
 public enum ObservabilityErrorCode implements ErrorCode {

@@ -1,5 +1,6 @@
 package com.exepex.stratum.webflux.autoconfigure;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.properties.StratumCustomizers;
@@ -36,6 +37,7 @@ import org.springframework.web.reactive.result.view.ViewResolver;
  * Ordered before Spring Boot's {@code ErrorWebFluxAutoConfiguration}, because its error attributes
  * and error handler replace Boot's.
  */
+@StratumInternal
 @AutoConfiguration(before = ErrorWebFluxAutoConfiguration.class)
 @AutoConfigureOrder(StratumModuleConstants.AUTO_CONFIGURATION_ORDER)
 @ConditionalOnStratumModule(WebConstants.MODULE)

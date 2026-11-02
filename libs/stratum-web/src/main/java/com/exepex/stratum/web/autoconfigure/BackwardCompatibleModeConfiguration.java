@@ -1,5 +1,6 @@
 package com.exepex.stratum.web.autoconfigure;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.web.BackwardCompatibleModeReport;
 import com.exepex.stratum.web.BootErrorBodyCounter;
@@ -20,6 +21,7 @@ import org.springframework.core.env.Environment;
  * The startup report and the counter of backward-compatible mode, shared by the error
  * configurations of both web starters.
  */
+@StratumInternal
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnStratumModule(WebConstants.MODULE)
 @ConditionalOnWebApplication

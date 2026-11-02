@@ -2,6 +2,7 @@ package com.exepex.stratum.test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.jayway.jsonpath.JsonPath;
 import java.io.IOException;
 import java.net.http.HttpResponse;
@@ -12,6 +13,7 @@ import lombok.experimental.UtilityClass;
  * Checks what a web starter answers while {@code stratum.web.backward-compatible} is on, the same
  * on both web stacks, against a running service that has no handler for a path.
  */
+@StratumInternal
 @UtilityClass
 public class BackwardCompatibleErrorChecks {
 

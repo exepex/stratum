@@ -1,5 +1,6 @@
 package com.exepex.stratum.core.condition;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import java.lang.reflect.AnnotatedElement;
 import java.util.Arrays;
 import java.util.Map;
@@ -23,6 +24,7 @@ import org.springframework.util.ClassUtils;
  * nothing happen knows why. It reads Spring Boot's condition report, so no module list is kept by
  * hand, and logs nothing when no module is off.
  */
+@StratumInternal
 @Slf4j
 public class ModulesLeftOffNotice implements ApplicationListener<ApplicationStartedEvent> {
 

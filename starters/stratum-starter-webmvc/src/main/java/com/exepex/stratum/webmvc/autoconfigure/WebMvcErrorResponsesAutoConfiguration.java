@@ -1,5 +1,6 @@
 package com.exepex.stratum.webmvc.autoconfigure;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.properties.StratumCustomizers;
@@ -39,6 +40,7 @@ import tools.jackson.databind.json.JsonMapper;
  * before Spring Boot's {@code ErrorMvcAutoConfiguration}, because its error attributes and error
  * page replace Boot's.
  */
+@StratumInternal
 @AutoConfiguration(before = ErrorMvcAutoConfiguration.class)
 @AutoConfigureOrder(StratumModuleConstants.AUTO_CONFIGURATION_ORDER)
 @ConditionalOnStratumModule(WebConstants.MODULE)
