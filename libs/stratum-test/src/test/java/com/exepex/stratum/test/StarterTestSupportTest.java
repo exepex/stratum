@@ -8,7 +8,9 @@ import static org.mockito.Mockito.when;
 import com.exepex.stratum.core.properties.StratumPropertiesCustomizer;
 import com.exepex.stratum.test.fixture.BoundLeakingGreeter;
 import com.exepex.stratum.test.fixture.InternalGreeting;
+import com.exepex.stratum.test.fixture.InternalGreetingFailure;
 import com.exepex.stratum.test.fixture.LeakingGreeter;
+import com.exepex.stratum.test.fixture.ThrowingGreeter;
 import com.exepex.stratum.test.fixture.UnswitchedGreeter;
 import com.exepex.stratum.test.fixture.autoconfigure.GreetingAutoConfiguration;
 import com.exepex.stratum.test.fixture.autoconfigure.GreetingFormatter;
@@ -123,6 +125,19 @@ class StarterTestSupportTest {
       assertThat(result.getFailureReport().getDetails())
           .anyMatch(detail -> detail.contains("its type parameters"))
           .anyMatch(detail -> detail.contains("notify"));
+    }
+
+    @Test
+    @DisplayName("fail for an API type that names an internal type only in a throws clause")
+    void failForInternalTypeInThrowsClause() {
+      var result =
+          PublicApiRule.apiExposesOnlyApi()
+              .evaluate(
+                  new ClassFileImporter()
+                      .importClasses(ThrowingGreeter.class, InternalGreetingFailure.class));
+
+      assertThat(result.getFailureReport().getDetails())
+          .anyMatch(detail -> detail.contains(InternalGreetingFailure.class.getName()));
     }
 
     @Test

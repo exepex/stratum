@@ -41,8 +41,9 @@ public class PublicApiRule {
       Set.of(JavaModifier.SYNTHETIC, JavaModifier.BRIDGE);
 
   /**
-   * Returns the rule: the superclass, the interfaces and the public and protected constructors,
-   * methods and fields of each API type use no internal type. A module with no API type passes.
+   * Returns the rule: the superclass, the interfaces, the type parameters and the public and
+   * protected constructors, methods and fields of each API type, with their bounds and {@code
+   * throws} clauses, use no internal type. A module with no API type passes.
    *
    * @return the rule
    */
@@ -88,14 +89,15 @@ public class PublicApiRule {
     return Stream.of(supertypes, typeParameters, members).flatMap(Function.identity());
   }
 
-  /** Every type a constructor, method or field names in its signature, bounds included. */
+  /** Every type a constructor, method or field names in its signature: bounds and throws too. */
   private static Stream<Exposure> memberExposures(JavaMember member) {
     var signatureTypes =
         member instanceof JavaCodeUnit codeUnit
             ? Stream.of(
                     Stream.of(codeUnit.getReturnType()),
                     codeUnit.getParameterTypes().stream(),
-                    codeUnit.getTypeParameters().stream())
+                    codeUnit.getTypeParameters().stream(),
+                    codeUnit.getExceptionTypes().stream())
                 .<JavaType>flatMap(Function.identity())
             : Stream.<JavaType>of(((JavaField) member).getType());
     return signatureTypes.flatMap(type -> namedTypes(type, member.getDescription()));
