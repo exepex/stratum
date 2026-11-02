@@ -125,10 +125,11 @@ When every changed file is Markdown, text or AsciiDoc, as for a change to the ag
 skips step 4: a text-only change needs no build (AGENTS.md, Build).
 
 1. **Gate.** The Claims are complete, with the design note on Fix and Feature; for a design-note review, the note is
-   complete. For a pull request, CI is green at the head commit, and every Codex and Sonar finding is answered in
-   its thread; the judge reads Sonar through the pull request's GitHub checks. When the gate fails, the verdict is
-   FAIL with that one finding, and the judge checks nothing else. A missing design note on Fix or Feature is a blocking
-   finding that fails the gate.
+   complete. For a pull request, CI is green at the head commit, and every Codex and Sonar finding is answered and
+   its thread resolved; where the answer says the finding does not apply (ST-AG-04), the judge accepts or rejects it
+   with its own evidence. The judge reads Sonar through the pull request's GitHub checks. When the gate fails, the
+   verdict is FAIL with that one finding, and the judge checks nothing else. A missing design note on Fix or Feature
+   is a blocking finding that fails the gate.
 2. **Requirements and owner decisions.**
    - **Build the gap list first.** Read the owner's request and write your own list of every requirement in it,
      before reading the implementer's list. Then compare. A requirement that is neither met nor declared out of
@@ -165,8 +166,8 @@ skips step 4: a text-only change needs no build (AGENTS.md, Build).
    where it enters to where it is used, as security's "How to check a change" describes.
 
 Then give the verdict: **PASS**, or **FAIL** with numbered findings, each **blocking**, **should fix** or **minor**
-(as defined in [review](review.md)), with evidence and the fix expected. A change passes only when no blocking or
-should-fix finding remains, apart from a finding the judge has deferred to a GitHub issue.
+(as defined in [review](review.md)), with evidence and the fix expected. A change passes only when no finding of any
+severity remains, apart from one the owner has accepted or the judge has deferred to a GitHub issue.
 
 Judge honestly in both directions. Do not invent findings to look thorough, and do not pass work to be agreeable.
 
@@ -195,7 +196,8 @@ line and each finding at most three.
 2. **Gap list:** each requirement from the request, MET, PARTLY or NOT MET, with the judge's evidence in a few words.
 3. **Findings** (FAIL only): numbered, with severity, evidence and the fix expected.
 4. **Planted faults:** how many were planted, how many were caught, and which survived.
-5. **Notes** that are not findings, if any.
+5. **Notes**, if any: only cases that are theoretical ([the finding bar](#the-finding-bar)); a real defect of any
+   size is a numbered finding.
 
 Quote the implementer only where a claim is wrong. No praise and no summary of the change.
 
@@ -214,5 +216,5 @@ Quote the implementer only where a claim is wrong. No praise and no summary of t
 ## Merging
 
 The owner merges a pull request only when the judge's PASS is for its current head commit. Any later commit needs
-the judge to confirm that the PASS still holds. The coordinator says "Ready to merge at <sha>" once, as AGENTS.md
+the judge to confirm that the PASS still holds. The coordinator says "Ready to merge at <sha>" as AGENTS.md
 describes under "Git and pull requests".
