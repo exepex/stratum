@@ -56,7 +56,13 @@ of defence.
 
 ## How to check a change
 
-Follow each untrusted value (request parameter, header, body, downstream response, message) from where it enters
-to where it is used (SQL, log, file, process, URL, response). Report a finding only for a path that can actually be
-reached, and describe that path in the finding. Static analysis and dependency scans miss most of these rules, so
-the security role, the reviewer and the judge check them by reading the change.
+Check ST-SEC-01 to ST-SEC-06 on every change, and each other rule above that the change touches.
+
+When the change is on the Feature trigger list of ST-AG-15 in [AGENTS.md](../../AGENTS.md) (untrusted input,
+masking, logged data or a contract with consumers), also follow each untrusted value (request parameter, header,
+body, downstream response, message) from where it enters to where it is used (SQL, log, file, process, URL,
+response).
+
+Report a finding only for a path that can actually be reached, and describe that path in the finding. Static
+analysis and dependency scans miss most of these rules, so the security role, the reviewer and the judge check them
+by reading the change.

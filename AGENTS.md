@@ -96,7 +96,8 @@ Each rule has an ID so that reviews and judge verdicts can cite it.
 ## How work flows
 
 Every item of work follows these rules. The coordinator runs them. When there is no coordinator, the implementer
-does the coordinator's duties and the owner only reads the notices.
+does the coordinator's duties except one: the owner starts the judge. The implementer never starts or chooses its
+own judge.
 
 - **ST-AG-15 Put each item on a track first.** Before work on an item starts, the coordinator puts it on one of three
   tracks. The track sets the design note and the judge reviews ([judge](docs/agents/judge.md)).
@@ -226,7 +227,8 @@ topic file wins.
 - Commit messages are in the imperative and say what changed and why ("Add trace propagation to the HTTP client
   starter").
 - The judge's PASS at the pull request's current head commit is required before merge. The coordinator starts each
-  judge as [judge](docs/agents/judge.md) describes; the implementer never judges its own work.
+  judge as [judge](docs/agents/judge.md) describes, or the owner when there is no coordinator; the implementer never
+  judges its own work.
 - Nothing is pushed to a pull request while a judge reviews it.
 - The coordinator says "Ready to merge at <sha>" once, when the judge's PASS, green CI and an answer in every Codex
   and Sonar thread all hold at that commit.

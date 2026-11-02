@@ -45,8 +45,10 @@ gets ("The judge pool") and which steps each review checks ("What the judge does
    For the code review on Feature, the coordinator adds the links to the approved note and to the first verdict,
    and it adds any judge check written under ST-AG-19. It adds nothing else.
 
-When there is no coordinator, the implementer starts the judge with this prompt, filled in the same way and otherwise
-unchanged. The implementer still never judges its own work.
+When there is no coordinator, the implementer asks the owner for the judge, and the owner starts it with this
+prompt, filled in the same way, with "the owner" in place of "the coordinator". The implementer may do the other
+coordinator duties, such as the track and the brief, but it never starts or chooses its own judge. The implementer
+never judges its own work.
 
 ## The implementer brief
 

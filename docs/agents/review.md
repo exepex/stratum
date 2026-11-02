@@ -12,7 +12,7 @@ Every finding, from a reviewer, the security role or the judge, uses one of thre
 | Severity | Meaning | Effect |
 |---|---|---|
 | Blocking | Wrong behaviour, a security flaw, a broken rule in AGENTS.md, or a requirement not met | The change does not merge until it is fixed |
-| Should fix | A real defect or rule break with limited impact, such as a missing test for an edge case | Fixed before merge, unless the owner accepts it |
+| Should fix | A real defect or rule break with limited impact, such as a missing test for an edge case | Fixed before merge, unless the owner accepts it. Only the judge may move a real one to a GitHub issue, when its fix is large compared with its harm; the owner is told in one line and may object. The implementer cannot defer it ([judge](judge.md#deferring-a-finding)) |
 | Minor | Clarity or style that no tool checks | Fixed if cheap; never holds a merge |
 
 ## What to review
@@ -35,8 +35,9 @@ Every finding, from a reviewer, the security role or the judge, uses one of thre
 5. Check structure: each changed class does one job, no logic is copied from elsewhere, existing helpers and
    `testsupport` methods are used, and a design pattern is used where it would remove branching or copying
    (ST-ENG-06, ST-ENG-07, ST-ENG-16 to ST-ENG-18, ST-TEST-13 to ST-TEST-17). Name the second job or the copied lines.
-6. Keep a finding only when you can name the input or state that triggers it and the wrong result it causes, or, for
-   structure, the lines that do a second job or are copied. Drop anything you cannot show.
+6. Keep a finding only when it meets the finding bar in [judge](judge.md#the-finding-bar). A behaviour finding comes
+   with a failing test or a reproduced wrong result. A structure, naming or documentation finding quotes the exact
+   lines. A case that is only theoretical is a Note, not a finding, and is never built.
 
 ## Reporting
 
