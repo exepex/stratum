@@ -296,11 +296,10 @@ class SecretRedactionTest {
     }
 
     @Test
-    @DisplayName("a social security number keeps only its last four digits")
-    void ssnIsMasked() {
-      assertThat(redactUnnamedText("ssn on file " + SSN))
-          .doesNotContain("123-45")
-          .contains("****6789");
+    @DisplayName("a social security number is masked after its key, and kept with no key")
+    void ssnIsMaskedOnlyByKey() {
+      assertThat(redactUnnamedText("ssn=" + SSN)).isEqualTo("ssn=****6789");
+      assertThat(redactUnnamedText("on file " + SSN)).isEqualTo("on file " + SSN);
     }
   }
 

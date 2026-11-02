@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.IntPredicate;
+import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -54,6 +55,12 @@ public final class Redactor {
   /** Masks values by what the text looks like. */
   private final UnaryOperator<String> contentMaskingRules;
 
+  /** Masks text with the service's own patterns only. */
+  private final UnaryOperator<String> serviceRules;
+
+  /** Masks stack traces with Stratum's rules, leaving their frame lines as they are. */
+  private final StackTraceMasker stackTraceMasker;
+
   /** The longest a value may be, in characters. */
   private final int maxFieldLength;
 
@@ -68,11 +75,13 @@ public final class Redactor {
   public static Redactor from(LoggingProperties loggingProperties) {
     var redaction = loggingProperties.redaction();
     var fieldNames = new SensitiveFieldNames(redaction.extraKeys());
-    var contentMaskingRules =
-        ContentMaskingRules.allRulesInOrder(fieldNames, compile(redaction.extraPatterns()));
+    var serviceRules = ContentMaskingRules.serviceRules(compile(redaction.extraPatterns()));
+    var builtInRules = ContentMaskingRules.builtInRules(fieldNames);
     return Redactor.builder()
         .fieldNames(fieldNames)
-        .contentMaskingRules(contentMaskingRules)
+        .contentMaskingRules(text -> serviceRules.apply(builtInRules.apply(text)))
+        .serviceRules(serviceRules)
+        .stackTraceMasker(new StackTraceMasker(builtInRules))
         .maxFieldLength((int) loggingProperties.maxFieldLength().toBytes())
         .build();
   }
@@ -86,14 +95,74 @@ public final class Redactor {
    * @return the value to write
    */
   public @Nullable Object redact(@Nullable String fieldName, @Nullable Object logValue) {
+    return failingClosed(
+        () ->
+            switch (logValue) {
+              case null -> null;
+              case String text -> redactText(fieldName, truncateToMaxFieldLength(text));
+              case WritableJson json -> redactJson(fieldName, json);
+              case Map<?, ?> _, Iterable<?> _, Object[] _ -> maskByName(fieldName, logValue);
+              default -> redactOther(fieldName, logValue);
+            });
+  }
+
+  /**
+   * Returns a stack trace as it may be written: masked in full when its field name is sensitive,
+   * such as a service's extra key, else cut to the maximum length and masked, except its frame
+   * lines, which hold only class, method and file names. A value that is not text is masked as any
+   * other value.
+   *
+   * @param fieldName the stack trace's field name; {@code null} when it has none
+   * @param stackTrace the stack trace
+   * @return the stack trace to write
+   */
+  public @Nullable Object redactStackTrace(
+      @Nullable String fieldName, @Nullable Object stackTrace) {
+    return stackTrace instanceof String text
+        ? failingClosed(() -> redactStackTraceText(fieldName, text))
+        : redact(fieldName, stackTrace);
+  }
+
+  /**
+   * Masks stack trace text by its field name, or else every line but its frames with Stratum's
+   * rules, and then the whole trace with the service's own patterns.
+   */
+  private String redactStackTraceText(@Nullable String fieldName, String text) {
+    var truncated = truncateToMaxFieldLength(text);
+    return fieldNames
+        .mask(fieldName, () -> truncated)
+        .orElseGet(() -> serviceRules.apply(stackTraceMasker.mask(truncated)));
+  }
+
+  /**
+   * Returns a field that Stratum knows holds no personal data, such as {@code userAgent}, as it may
+   * be written: cut to the maximum length, and masked only by the service's own extra keys and
+   * extra patterns, which always win over Stratum's defaults. A value that is not text is masked
+   * only by an extra key.
+   *
+   * @param fieldName the field's name
+   * @param logValue the value
+   * @return the value to write
+   */
+  public @Nullable Object redactKnownSafe(@Nullable String fieldName, @Nullable Object logValue) {
+    return failingClosed(
+        () ->
+            switch (logValue) {
+              case null -> null;
+              case String text -> redactKnownSafeText(fieldName, truncateToMaxFieldLength(text));
+              default -> fieldNames.isExtraKey(fieldName) ? MaskedText.MASK : logValue;
+            });
+  }
+
+  /** Masks safe text by the service's extra keys, or else by its extra patterns. */
+  private String redactKnownSafeText(@Nullable String fieldName, String text) {
+    return fieldNames.isExtraKey(fieldName) ? MaskedText.MASK : serviceRules.apply(text);
+  }
+
+  /** Returns the masked value, or {@link #REDACTION_FAILED} if masking it failed. */
+  private @Nullable Object failingClosed(Supplier<@Nullable Object> maskedValue) {
     try {
-      return switch (logValue) {
-        case null -> null;
-        case String text -> redactText(fieldName, truncateToMaxFieldLength(text));
-        case WritableJson json -> redactJson(fieldName, json);
-        case Map<?, ?> _, Iterable<?> _, Object[] _ -> maskByName(fieldName, logValue);
-        default -> redactOther(fieldName, logValue);
-      };
+      return maskedValue.get();
     } catch (IllegalArgumentException
         | IllegalStateException
         | IndexOutOfBoundsException

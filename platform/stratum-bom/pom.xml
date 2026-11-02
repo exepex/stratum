@@ -125,11 +125,6 @@
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.googlecode.libphonenumber</groupId>
-        <artifactId>libphonenumber</artifactId>
-        <version>${libphonenumber.version}</version>
-      </dependency>
-      <dependency>
         <groupId>com.maxmind.db</groupId>
         <artifactId>maxmind-db</artifactId>
         <version>${maxmind-db.version}</version>

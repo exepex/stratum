@@ -1,8 +1,6 @@
 package com.exepex.stratum.logging.redaction;
 
 import com.exepex.stratum.logging.redaction.MaskedText.Replacement;
-import com.google.i18n.phonenumbers.PhoneNumberUtil;
-import com.google.i18n.phonenumbers.PhoneNumberUtil.Leniency;
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -11,14 +9,13 @@ import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 import lombok.experimental.UtilityClass;
 import org.apache.commons.validator.routines.EmailValidator;
 
 /**
- * The rules that mask secrets and personal data by what the text looks like. A pattern only finds
- * candidates; Apache Commons Validator and Google's libphonenumber decide whether a candidate is a
- * real card number, email address, IBAN or phone number, so that ordinary numbers stay readable.
+ * The rules that mask secrets and personal data by what the text looks like. Only values that can
+ * be confirmed are masked: a secret after its label or in its own shape, and a card number, IBAN or
+ * email address that passes its check, so that ordinary numbers stay readable.
  */
 @UtilityClass
 class ContentMaskingRules {
@@ -64,28 +61,20 @@ class ContentMaskingRules {
           "(?i)(?<![a-z0-9+.-])([a-z][a-z0-9+.-]*+://)[^\\s/:@]*+:[^\\s/@]++"
               + "(?:@[^\\s/?#\"'<>,;&=]*@|@)");
 
-  /** A US social security number. */
-  private static final Pattern SSN = Pattern.compile("\\b\\d{3}-\\d{2}-\\d{4}\\b");
-
   /** A possible email address. */
   private static final Pattern EMAIL =
       Pattern.compile("(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]++@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}");
 
-  /** Google's phone number library, which knows every country's numbering plan. */
-  private static final PhoneNumberUtil PHONE_NUMBER_PARSER = PhoneNumberUtil.getInstance();
-
   /**
-   * Returns all the rules as one: secrets first, then personal data, then the service's own.
+   * Returns Stratum's own rules as one: secrets first, then personal data. The service's patterns
+   * are a separate rule ({@link #serviceRules}), so that they also reach what these rules skip.
    *
    * @param fieldNames the names whose values a key-value pair masks
-   * @param extraPatterns the service's own patterns, masked in full
-   * @return a function that applies every rule in turn
+   * @return a function that applies every built-in rule in turn
    */
-  static UnaryOperator<String> allRulesInOrder(
-      SensitiveFieldNames fieldNames, List<Pattern> extraPatterns) {
+  static UnaryOperator<String> builtInRules(SensitiveFieldNames fieldNames) {
     var keyValuePairMasker = new KeyValuePairMasker(fieldNames);
-    var builtInRules =
-        Stream.of(
+    return Stream.of(
             guardedRule(
                 text -> text.contains("eyJ"), maskingMatches(JWT, match -> MaskedText.MASK)),
             guardedRule(
@@ -99,17 +88,27 @@ class ContentMaskingRules {
                 text -> text.contains("://"),
                 maskingMatches(URL_CREDENTIALS, ContentMaskingRules::maskUrlCredentials)),
             guardedRule(ContentMaskingRules::mayHoldKeyValuePair, keyValuePairMasker::mask),
-            ContentMaskingRules::maskPersonalDataTwice);
-    var extraRules =
-        extraPatterns.stream().map(pattern -> maskingMatches(pattern, match -> MaskedText.MASK));
-    return Stream.concat(builtInRules, extraRules)
+            ContentMaskingRules::maskPersonalDataTwice)
+        .reduce(UnaryOperator.identity(), ContentMaskingRules::earlierThenLater);
+  }
+
+  /**
+   * Returns the service's own patterns as one rule, each match masked in full.
+   *
+   * @param extraPatterns the service's patterns from {@code
+   *     stratum.logging.redaction.extra-patterns}
+   * @return a function that applies every pattern in turn
+   */
+  static UnaryOperator<String> serviceRules(List<Pattern> extraPatterns) {
+    return extraPatterns.stream()
+        .map(pattern -> maskingMatches(pattern, match -> MaskedText.MASK))
         .reduce(UnaryOperator.identity(), ContentMaskingRules::earlierThenLater);
   }
 
   /**
    * Masks personal data twice, because text next to a value can hide it from the first search, such
-   * as a card number right before an email address or a phone number, and masking that text shows
-   * it to the second. Text that the first search left unchanged is not searched again.
+   * as a card number right before an email address, and masking that text shows it to the second.
+   * Text that the first search left unchanged is not searched again.
    */
   private static String maskPersonalDataTwice(String logText) {
     var maskedOnce = maskPersonalData(logText);
@@ -117,21 +116,19 @@ class ContentMaskingRules {
   }
 
   /**
-   * Masks card numbers, social security numbers, email addresses, IBANs and phone numbers. All are
-   * looked for in the same text, and parts that overlap are masked as one. Masking one in turn
-   * could break the shape of another that it overlaps, such as a card number inside an email
-   * address, and leave the rest of that one visible.
+   * Masks card numbers, email addresses and IBANs. All are looked for in the same text, and parts
+   * that overlap are masked as one. Masking one in turn could break the shape of another that it
+   * overlaps, such as a card number inside an email address, and leave the rest of that one
+   * visible.
    */
   private static String maskPersonalData(String logText) {
     var found =
         Stream.of(
                 guardedFinder(ContentMaskingRules::hasDigit, CardNumberMasker::cardsIn),
-                guardedFinder(text -> text.contains("-"), keepingLastFourOf(SSN, ssn -> true)),
                 guardedFinder(
                     text -> text.contains("@"),
                     keepingLastFourOf(EMAIL, EmailValidator.getInstance()::isValid)),
-                guardedFinder(ContentMaskingRules::hasDigit, IbanMasker::ibansIn),
-                guardedFinder(text -> text.contains("+"), ContentMaskingRules::phoneNumbersIn))
+                guardedFinder(ContentMaskingRules::hasDigit, IbanMasker::ibansIn))
             .flatMap(finder -> finder.apply(logText).stream())
             .toList();
     return MaskedText.replace(logText, MaskedText.joiningOverlaps(found));
@@ -185,20 +182,6 @@ class ContentMaskingRules {
   /** Masks the user name and password of a URL, keeping its scheme. */
   private static String maskUrlCredentials(MatchResult match) {
     return match.group(1) + MaskedText.MASK + "@";
-  }
-
-  /**
-   * Returns every phone number with a country code, such as {@code +44 20 7946 0958}, each keeping
-   * its last four digits.
-   */
-  private static List<Replacement> phoneNumbersIn(String text) {
-    var phoneNumbers = PHONE_NUMBER_PARSER.findNumbers(text, null, Leniency.VALID, Long.MAX_VALUE);
-    return StreamSupport.stream(phoneNumbers.spliterator(), false)
-        .map(
-            phoneNumber ->
-                MaskedText.keepingLastFourAt(
-                    phoneNumber.start(), phoneNumber.end(), phoneNumber.rawString()))
-        .toList();
   }
 
   /** Returns whether the text holds {@code =}, {@code :} or {@code %3}, which every pair needs. */
