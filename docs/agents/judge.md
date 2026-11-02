@@ -42,8 +42,9 @@ gets ("The judge pool") and which steps each review checks ("What the judge does
    > and change nothing else. If you cannot post a comment, give the verdict to the coordinator, who posts it
    > unchanged.
 
-   For the code review on Feature, the coordinator adds the links to the approved note and to the first verdict,
-   and it adds any judge check written under ST-AG-19. It adds nothing else.
+   For every review, the coordinator adds the owner's request, the owner's decisions from the implementer's brief
+   and any judge check written under ST-AG-19. For the code review on Feature, it also adds the links to the
+   approved note and to the first verdict. It adds nothing else.
 
 When there is no coordinator, the implementer asks the owner for the judge, and the owner starts it with this
 prompt, filled in the same way, with "the owner" in place of "the coordinator". The implementer may do the other
@@ -58,7 +59,8 @@ or replaces them.
 > You are the implementer for <item> in exepex/stratum, on the <Docs | Fix | Feature> track. The owner's request:
 > "<quote or link>". Read `AGENTS.md` and every file in `docs/agents/` in full, and follow them. The rules this item
 > touches most: <rule IDs>. The owner's decisions not yet written into a rule (ST-AG-13): <each decision with its
-> date, or none>. Answer design-note questions <1, 2 and 4 | 1 to 4 | none> before any code (ST-AG-16), review your
+> date, or none>. Checks added after earlier misses (ST-AG-19): <each, or none>. Answer design-note questions
+> <1, 2 and 4 | 1 to 4 | none> before any code (ST-AG-16), review your
 > own change (ST-AG-17), write the Claims and ask the coordinator for the judge. No branch, commit or push before the
 > owner's go (ST-AG-11).
 
