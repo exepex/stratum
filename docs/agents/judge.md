@@ -119,6 +119,9 @@ implementer can fix them all in one round. The track sets the steps:
 | Feature, design note | 1, 2, 3 and 5, applied to the note |
 | Feature, code | 1 to 5 |
 
+When every changed file is Markdown, text or AsciiDoc, as for a change to the agent rules or an ADR, the judge
+skips step 4: a text-only change needs no build (AGENTS.md, Build).
+
 1. **Gate.** The Claims are complete, with the design note on Fix and Feature; for a design-note review, the note is
    complete. For a pull request, CI is green at the head commit, and every Codex and Sonar finding is answered in
    its thread; the judge reads Sonar through the pull request's GitHub checks. When the gate fails, the verdict is
