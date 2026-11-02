@@ -8,12 +8,14 @@ import ch.qos.logback.classic.spi.LoggingEvent;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.LoggingErrorCode;
+import com.exepex.stratum.logging.startup.LoggingEnvironmentPostProcessor;
 import com.exepex.stratum.logging.testsupport.LoggingTestData;
 import com.exepex.stratum.test.ExistingOrderException;
 import com.exepex.stratum.test.OrderErrorCode;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.SpringApplication;
 import org.springframework.boot.json.JsonWriter;
 import org.springframework.boot.json.JsonWriter.Members;
 import org.springframework.mock.env.MockEnvironment;
@@ -34,6 +36,12 @@ class ErrorCodeJsonMembersCustomizerTest {
 
   /** The code of {@link #CODED_FAILURE}. */
   private static final String CODE = "SX-LOGGING-1001";
+
+  /** How a line ends with the code in ECS's field. */
+  private static final String ECS_CODE_ENDING = ",\"error.code\":\"" + CODE + "\"}";
+
+  /** How a line ends with the code in GELF's field. */
+  private static final String GELF_CODE_ENDING = ",\"_error_code\":\"" + CODE + "\"}";
 
   /** The environment with the module on, after it has set the default ECS format. */
   private final MockEnvironment moduleOn =
@@ -58,7 +66,7 @@ class ErrorCodeJsonMembersCustomizerTest {
   @DisplayName("a logged StratumException's code is written as error.code")
   void writesCodeOfLoggedException() {
     assertThat(writeLogLine(moduleOn, CODED_FAILURE))
-        .isEqualTo("{\"message\":\"order failed\",\"error.code\":\"" + CODE + "\"}");
+        .isEqualTo("{\"message\":\"order failed\"" + ECS_CODE_ENDING);
   }
 
   @Test
@@ -103,8 +111,7 @@ class ErrorCodeJsonMembersCustomizerTest {
   void usesGelfFieldName() {
     moduleOn.setProperty(LoggingConstants.CONSOLE_FORMAT, "GELF");
 
-    assertThat(writeLogLine(moduleOn, CODED_FAILURE))
-        .endsWith(",\"_error_code\":\"" + CODE + "\"}");
+    assertThat(writeLogLine(moduleOn, CODED_FAILURE)).endsWith(GELF_CODE_ENDING);
   }
 
   @Test
@@ -116,6 +123,31 @@ class ErrorCodeJsonMembersCustomizerTest {
             .withProperty(LoggingConstants.FILE_FORMAT, "ecs");
 
     assertThat(writeLogLine(textConsoleJsonFile, CODED_FAILURE)).contains(CODE);
+  }
+
+  @Test
+  @DisplayName("with format=text and a GELF file, as startup sets them, the field is _error_code")
+  void skipsTextFormatClassName() {
+    var textConsoleGelfFile =
+        LoggingTestData.environmentWithModuleOn()
+            .withProperty(LoggingConstants.APPLICATION_NAME, "orders")
+            .withProperty(LoggingConstants.FORMAT, "text")
+            .withProperty(LoggingConstants.FILE_FORMAT, "gelf");
+    new LoggingEnvironmentPostProcessor()
+        .postProcessEnvironment(textConsoleGelfFile, new SpringApplication());
+
+    assertThat(writeLogLine(textConsoleGelfFile, CODED_FAILURE)).endsWith(GELF_CODE_ENDING);
+  }
+
+  @Test
+  @DisplayName("a service's own JSON formatter class on both outputs still gets error.code")
+  void keepsFieldForServiceFormatterClass() {
+    var ownFormatter =
+        LoggingTestData.environmentWithModuleOn()
+            .withProperty(LoggingConstants.CONSOLE_FORMAT, "com.acme.orders.logging.OrdersFormat")
+            .withProperty(LoggingConstants.FILE_FORMAT, "com.acme.orders.logging.OrdersFormat");
+
+    assertThat(writeLogLine(ownFormatter, CODED_FAILURE)).endsWith(ECS_CODE_ENDING);
   }
 
   @Test

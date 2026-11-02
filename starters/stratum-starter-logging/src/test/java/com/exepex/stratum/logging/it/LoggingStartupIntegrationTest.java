@@ -35,6 +35,12 @@ class LoggingStartupIntegrationTest {
   private static final List<String> CONFIGURATION_NAMES =
       List.of("logging-yaml", "logging-properties");
 
+  /** Gives the test application its service name. */
+  private static final String SERVICE_NAME = "--spring.application.name=orders";
+
+  /** Switches the logging module on. */
+  private static final String MODULE_ON = "--stratum.logging.enabled=true";
+
   /** Starts the test application with the given command-line arguments. */
   private ConfigurableApplicationContext start(String... args) {
     return new SpringApplicationBuilder(OrdersApplication.class)
@@ -49,7 +55,7 @@ class LoggingStartupIntegrationTest {
     // JVM has set it, so an earlier test would make this one see JSON.
     System.clearProperty(
         LoggingSystemProperty.CONSOLE_STRUCTURED_FORMAT.getEnvironmentVariableName());
-    try (var _ = start("--spring.application.name=orders")) {
+    try (var _ = start(SERVICE_NAME)) {
       log.info("plain line password=fake-unmasked");
     }
 
@@ -60,7 +66,7 @@ class LoggingStartupIntegrationTest {
   @DisplayName("with the module on and no service name, startup stops with SX-LOGGING-1001")
   void missingNameStopsStartup() {
     assertThatExceptionOfType(StratumException.class)
-        .isThrownBy(() -> start("--stratum.logging.enabled=true"))
+        .isThrownBy(() -> start(MODULE_ON))
         .withMessageStartingWith("SX-LOGGING-1001: ");
   }
 
@@ -82,17 +88,49 @@ class LoggingStartupIntegrationTest {
   @DisplayName("a log file gets the same masked JSON lines as the console")
   void logFileIsMaskedJson(@TempDir Path folder) throws IOException {
     var file = folder.resolve("orders.log");
-    try (var _ =
-        start(
-            "--spring.application.name=orders",
-            "--stratum.logging.enabled=true",
-            "--logging.file.name=" + file)) {
+    try (var _ = start(SERVICE_NAME, MODULE_ON, "--logging.file.name=" + file)) {
       log.info("file line password=fake-unmasked");
     }
 
     assertThat(Files.readString(file))
         .contains("\"message\":\"file line password=****\"")
         .doesNotContain("fake-unmasked");
+  }
+
+  @Test
+  @DisplayName("the text format writes one masked line of text per event, in every profile")
+  void textFormatIsMasked(CapturedOutput output) {
+    try (var _ =
+        start(
+            SERVICE_NAME,
+            MODULE_ON,
+            "--stratum.logging.format=text",
+            "--spring.profiles.active=local")) {
+      log.atInfo().addKeyValue("api_key", "fake-key").log("text line password=fake-unmasked");
+    }
+
+    assertThat(output)
+        .contains(" INFO [main] ")
+        .contains(" : text line password=**** api_key=****")
+        .doesNotContain("fake-unmasked")
+        .doesNotContain("fake-key")
+        .doesNotContain("\"message\"");
+  }
+
+  @Test
+  @DisplayName(
+      "a service's own Logback configuration keeps its own pattern: Stratum changes it not")
+  void ownLogbackConfigurationIsKept(CapturedOutput output) {
+    try (var _ =
+        start(
+            SERVICE_NAME,
+            MODULE_ON,
+            "--stratum.logging.format=text",
+            "--logging.config=classpath:logback-own-pattern.xml")) {
+      log.info("own line");
+    }
+
+    assertThat(output).contains("OWN-PATTERN INFO own line");
   }
 
   @Test
@@ -118,11 +156,7 @@ class LoggingStartupIntegrationTest {
 
   /** Starts with the text format in the files, logs one line and returns the console format. */
   private @Nullable String logLockerLineInTextFormat() {
-    try (var context =
-        start(
-            "--spring.application.name=orders",
-            "--stratum.logging.enabled=true",
-            "--stratum.logging.format=text")) {
+    try (var context = start(SERVICE_NAME, MODULE_ON, "--stratum.logging.format=text")) {
       log.atInfo().addKeyValue("locker_code", "L-1234").log("locker opened");
       return context.getEnvironment().getProperty("logging.structured.format.console");
     }

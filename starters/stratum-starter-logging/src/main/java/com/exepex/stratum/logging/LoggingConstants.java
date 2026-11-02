@@ -2,7 +2,6 @@ package com.exepex.stratum.logging;
 
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
-import java.util.Set;
 import lombok.experimental.UtilityClass;
 
 /** The property keys, log fields and metric names the logging module uses (ST-ENG-45). */
@@ -72,7 +71,4 @@ public class LoggingConstants {
 
   /** The key under which executors and Reactor carry the MDC fields the service put itself. */
   public static final String SERVICE_MDC_FIELDS = "stratum.service.mdc.fields";
-
-  /** The profiles in which plain-text logs are expected. */
-  public static final Set<String> LOCAL_PROFILES = Set.of("local", "test");
 }

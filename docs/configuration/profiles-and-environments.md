@@ -50,7 +50,7 @@ management:
       probability: 1.0       # trace every request while developing
 stratum:
   logging:
-    format: text             # easy to read in a terminal
+    format: text             # easy to read in a terminal, still masked
   http-client:
     clients:
       inventory:
