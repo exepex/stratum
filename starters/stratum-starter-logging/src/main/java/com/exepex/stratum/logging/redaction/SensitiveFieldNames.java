@@ -112,8 +112,8 @@ final class SensitiveFieldNames {
           "consent",
           "rotated");
 
-  /** Last words of headers whose value is a list, such as {@code Cookie: a=1; b=2}. */
-  private static final Set<String> LIST_HEADER_WORDS = Set.of("cookie", "authorization");
+  /** Endings of headers whose value is a list, such as {@code Cookie: a=1; b=2}. */
+  private static final List<String> LIST_HEADER_ENDINGS = List.of("cookie", "authorization");
 
   /** The most words a sensitive word is written in, as {@code date_of_birth} is. */
   private static final int LONGEST_RUN = 3;
@@ -188,8 +188,9 @@ final class SensitiveFieldNames {
    * @return whether its value is a list masked as a whole
    */
   boolean isHeaderList(String name) {
-    var words = FieldNameWords.wordsOf(name);
-    return !words.isEmpty() && LIST_HEADER_WORDS.contains(words.getLast());
+    // Header names are case-insensitive, so sEt-cOoKiE is matched on its letters, not its words.
+    var key = normalize(name);
+    return LIST_HEADER_ENDINGS.stream().anyMatch(key::endsWith);
   }
 
   /** Returns how values under the name are masked; a service's own name is masked in full. */
@@ -204,8 +205,9 @@ final class SensitiveFieldNames {
     if (words.isEmpty() || ABOUT_WORDS.contains(words.getLast())) {
       return Masking.NONE;
     }
-    var runs = runsOf(words);
     var joined = String.join("", words);
+    // The whole name written together also counts, so a name in odd case such as pWd still matches.
+    var runs = Stream.concat(runsOf(words).stream(), Stream.of(joined)).toList();
     if (runs.stream().anyMatch(MASKED_IN_FULL::contains)
         || SECRET_NAME_PARTS.stream().anyMatch(joined::contains)) {
       return Masking.IN_FULL;

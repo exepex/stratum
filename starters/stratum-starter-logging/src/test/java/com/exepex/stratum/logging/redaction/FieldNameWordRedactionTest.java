@@ -115,6 +115,29 @@ class FieldNameWordRedactionTest {
   }
 
   @Nested
+  @DisplayName("a name in unusual case or written as one word")
+  class UnusualCase {
+
+    @Test
+    @DisplayName("a list header in any case keeps every value masked to the end of the line")
+    void listHeaderInAnyCaseIsMaskedToLineEnd() {
+      assertThat(redactUnnamedText("cOoKiE: a=alpha; b=bravo")).isEqualTo("cOoKiE: ****");
+      assertThat(redactUnnamedText("sEt-cOoKiE: a=alpha; b=bravo")).isEqualTo("sEt-cOoKiE: ****");
+      assertThat(redactUnnamedText("setcookie: a=alpha; b=bravo")).isEqualTo("setcookie: ****");
+      assertThat(redactUnnamedText("proxyauthorization: Basic a; b"))
+          .isEqualTo("proxyauthorization: ****");
+    }
+
+    @Test
+    @DisplayName("a sensitive name in mixed case is still masked")
+    void nameInMixedCaseIsMasked() {
+      assertThat(DEFAULT_REDACTOR.redact("dAtEoFbIrTh", VALUE)).isEqualTo(MaskedText.MASK);
+      assertThat(DEFAULT_REDACTOR.redact("cVv", VALUE)).isEqualTo(MaskedText.MASK);
+      assertThat(redactUnnamedText("dAtEoFbIrTh=1990-01-01")).isEqualTo("dAtEoFbIrTh=****");
+    }
+  }
+
+  @Nested
   @DisplayName("a name whose last word describes the value")
   class AboutWord {
 
