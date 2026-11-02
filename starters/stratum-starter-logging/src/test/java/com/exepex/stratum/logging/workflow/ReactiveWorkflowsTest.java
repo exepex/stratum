@@ -56,8 +56,8 @@ class ReactiveWorkflowsTest {
 
   /** Carries the workflow fields to other threads, as the logging module does while it is on. */
   @BeforeEach
-  void registerWorkflowFieldsAccessor() {
-    ContextRegistry.getInstance().registerThreadLocalAccessor(new WorkflowFieldsAccessor());
+  void registerMdcFieldsAccessors() {
+    MdcFieldsRegistrations.register();
   }
 
   /** Clears the logging context and the registry, so no test sees what another left. */
