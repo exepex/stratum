@@ -139,24 +139,34 @@ as `addKeyValue("customer", customer)`, is masked through the value's `toString(
 is masked element by element. Ready-made JSON, such as a `WritableJson`, is masked through its text;
 if anything in it is masked, it is written as a JSON string. It cannot be switched off.
 
+> [!IMPORTANT]
+> Redaction is a safety net, not a licence to log personal data or secrets. A name, address, phone
+> number or social security number with no telltale key cannot be found: in text, Stratum masks only
+> what it can confirm, such as a card number that passes the Luhn check. Keep secrets out of
+> `toString()`: mark them with Lombok's `@ToString.Exclude`, or leave them out of a record's
+> `toString()`.
+
 | What | Found by | Written as |
 | --- | --- | --- |
-| Credentials: any name that contains `password`, `passwd`, `passphrase`, `passcode`, `secret`, `token`, `apikey`, `credential`, `privatekey`, `sessionid`, `cookie` or `authorization`, such as `dbPassword`, `aws_secret_access_key`, `X-CSRF-Token` or `JSESSIONID`; and the whole names `pwd`, `pass`, `auth`, `pin`, `otp`, `cvv` and `cvc` | Field or key name | `****` |
-| Payment cards and national IDs: `card_number`, `pan`, `ssn`, `national_id`, `tax_id`, `passport` | Field or key name | `****1234` (last four kept) |
+| Credentials: any name that contains `password`, `passwd`, `passphrase`, `passcode`, `secret`, `token`, `apikey`, `credential`, `privatekey`, `sessionid`, `cookie` or `authorization`, such as `dbPassword`, `aws_secret_access_key`, `X-CSRF-Token` or `JSESSIONID`; and any name with the word `pwd`, `pass`, `auth`, `pin`, `otp`, `cvv`, `cvc`, `jwt`, `access key`, `encryption key` or `signing key`, such as `dbPwd`, `card_cvv` or `accessKey` | Field or key name | `****` |
+| Payment cards, accounts and national IDs: `card_number`, `pan`, `account_number`, `ssn`, `national_id`, `tax_id`, `passport` | Field or key name | `****1234` (last four kept) |
 | Card numbers in text | 13 to 19 digits that pass the Luhn check, in groups split by a space or `-`; or split by two spaces, `.`, `/` or `_` used between every group of a card layout (4-4-4-4, 4-4-4-4-3, or American Express's 4-6-5) | `****1111` |
-| US social security numbers in text | `123-45-6789` | `****6789` |
 | JSON Web Tokens | `eyJ…` with two or three parts | `****` |
 | `Basic`, `Bearer`, `Digest` and `Negotiate` credentials; Digest's `name="value"` list runs to the end of the line | The scheme name | `Bearer ****` |
 | A password in a URL, with or without a user | `https://user:pass@host`, `redis://:pass@host`; a password with a raw `@` is masked up to the last `@` before the host, never past a space, `/`, `?`, `#`, a quote, `<` or `>`. When another `@` follows a `,`, `;`, `&` or `=`, it is unclear where the password ends, so the rest of the line is masked | `https://****@host`, `redis://****@host` |
 | Names, dates of birth and addresses: `first_name`, `last_name`, `full_name`, `username`, `date_of_birth`, `address` and similar | Field or key name | `****` |
 | Email, phone and IBAN fields | Field or key name | `****` plus last four |
 | Email addresses in text | A valid address | `****.com` |
-| International phone numbers in text | A valid number starting with `+` | `****0958` |
 | IBANs in text | A valid IBAN (checksum checked) | `****5432` |
 | Your own keys and patterns | [`extra-keys` and `extra-patterns`](#properties) | `****` |
 
-Names are compared without case, `_` or `-`, and only their last part counts, so `password`,
-`spring.datasource.password` and `PASSWORD` all match. A name is matched in a field, in an MDC
+A name is split into words at capitals, digits, `_`, `-` and `.`, and matches when one word, or a
+few words written together, is a listed word: `password`, `spring.datasource.password`,
+`PASSWORD`, `userPin` and `X-Api-Key` all match, while `shipping` and `passenger` do not. A name
+whose last word only describes the value (`count`, `type`, `length`, `size`, `expiry`, `expires`,
+`enabled`, `required`, `consent` or `rotated`), such as `tokenCount`, is not masked. A name with no
+listed word is not found, whatever it holds: add your own to `extra-keys`, which match the whole
+name, compared without case, `_` or `-` on its last dot-separated part. A name is matched in a field, in an MDC
 entry, and in text such as `password=x`, `"token":"x"`, `'token': 'x'`, escaped JSON
 (`\"token\":\"x\"`), `?api_key=x&`, `password%3Dx` or Lombok's `User(email=x, …)`. An unquoted value in text runs until the next key, a comma, `;`, `&`, a closing
 bracket or the end of the line. The values of `Cookie`, `Set-Cookie` and `Authorization` run to the
@@ -166,19 +176,25 @@ in `4111 1111 1111 1111 43`, is still found. Digits split by dots or underscores
 layout, such as the timestamp `2026.10.29.07.39.22.124`, the file name
 `export_20261029_073922_124.csv` or the two sides of a decimal point, are not read as one card
 number; only a part that alone holds 13 to 19 digits and passes the Luhn check is masked. Card numbers,
-social security numbers, email addresses, IBANs and phone numbers are all looked for in the same
-text, and two that overlap, such as digits inside an email address, are masked as one.
+email addresses and IBANs are all looked for in the same text, and two that overlap, such as digits
+inside an email address, are masked as one.
+
+Fields that Spring Boot, Stratum or the web module fill and that never hold personal data, such as
+`@timestamp`, `log.level`, `service.name`, `error.type`, `traceId`, `httpRoute` or `userAgent`, are
+written as they are, unless you name them in `extra-keys` or `extra-patterns`: your own rules
+always win. Each field is matched by its whole path in the format Spring Boot writes, so your own
+field `service.contact` is still masked. Every other field, including your own MDC entries
+and key-value pairs, is masked by name and then searched. When the console and the log file use
+different formats, only fields known in both are written as they are. In a stack trace, only the
+lines that are wholly a frame (`at com.example.Orders.place(Orders.java:42)`) or an omission
+(`... 12 more`) are written as they are; the exception's message and the `Caused by:`,
+`Suppressed:` and `Wrapped by:` lines are searched.
 
 Every value is also cut to `stratum.logging.max-field-length` (16KB by default) and ends with
 `...[truncated]` when it was longer. The cut drops the word it falls in and any digits just before
 it, so a token or card number that crosses the limit is never left half visible. If masking a value fails, `[REDACTION_FAILED]` is written
 instead; the value is never written as it was. That includes an `extra-patterns` expression that
 overflows the stack on long text. A `toString()` that returns `null` is written as `null`.
-
-> [!IMPORTANT]
-> Redaction is a safety net, not a licence to log personal data or secrets. A name or address with
-> no telltale key cannot be found. Keep secrets out of `toString()`: mark them with Lombok's
-> `@ToString.Exclude`, or leave them out of a record's `toString()`.
 
 A log file, written when you set `logging.file.name`, gets the same format and the same redaction
 as the console.
@@ -401,5 +417,7 @@ which keeps Spring Boot's default plain-text logging, with no checks and no reda
 | `logging.pattern.*` or console colours have no effect | With the module on, every format, `text` included, is written by Spring Boot's structured logging, which uses no pattern. |
 | A value shows `\n` instead of a line break | Stratum shows line breaks inside a value as text, so that one event stays one line. |
 | A secret still appears in logs | Add its key to `extra-keys` or its shape to `extra-patterns`, then rotate the secret. Report the format so it can be added to the built-in list. |
+| A phone number or SSN in a message is not masked | Text is searched only for values Stratum can confirm. Log it under a field named `phone` or `ssn`, or add your own name to `extra-keys`. |
+| `com.google.i18n.phonenumbers` classes are not found after an upgrade | Stratum no longer brings libphonenumber. Declare `com.googlecode.libphonenumber:libphonenumber` in your own POM, with its version. |
 | A value shows `[REDACTION_FAILED]` | Masking that value failed, so it was hidden. Report the log call so the cause can be fixed. |
 | Duplicate log lines | Your service has its own `logback-spring.xml` adding a second appender. |

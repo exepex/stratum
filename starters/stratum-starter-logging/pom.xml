@@ -42,11 +42,6 @@
         </exclusion>
       </exclusions>
     </dependency>
-    <!-- Finds international phone numbers in free text, which no simple pattern can do reliably. -->
-    <dependency>
-      <groupId>com.googlecode.libphonenumber</groupId>
-      <artifactId>libphonenumber</artifactId>
-    </dependency>
     <!-- Carries the workflow fields into the threads that Spring's executors and Reactor move work
          to, through Spring Boot's spring.task.execution.propagate-context and Reactor's context. -->
     <dependency>
