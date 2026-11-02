@@ -2,7 +2,7 @@ package com.exepex.stratum.observability.it;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.exepex.stratum.core.error.LoggingContextConstants;
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import io.micrometer.tracing.Tracer;
 import java.util.Map;
 import java.util.Objects;

@@ -1,6 +1,6 @@
 package com.exepex.stratum.web;
 
-import com.exepex.stratum.core.error.LoggingContextConstants;
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import io.micrometer.tracing.Baggage;
 import io.micrometer.tracing.Span;
 import io.micrometer.tracing.TraceContext;

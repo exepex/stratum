@@ -3,7 +3,7 @@ package com.exepex.stratum.logging.mdc;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.qos.logback.classic.util.LogbackMDCAdapter;
-import com.exepex.stratum.core.error.LoggingContextConstants;
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.logging.LoggingConstants;
 import io.micrometer.context.ContextExecutorService;
 import java.util.Map;

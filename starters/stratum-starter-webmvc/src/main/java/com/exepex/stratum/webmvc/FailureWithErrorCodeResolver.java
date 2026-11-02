@@ -1,8 +1,8 @@
 package com.exepex.stratum.webmvc;
 
 import com.exepex.stratum.core.error.FailureWithErrorCode;
-import com.exepex.stratum.core.error.LoggingContextConstants;
 import com.exepex.stratum.core.error.StratumException;
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.web.ErrorResponseFactory;
 import com.exepex.stratum.web.RequestDeadline;
 import jakarta.servlet.http.HttpServletRequest;

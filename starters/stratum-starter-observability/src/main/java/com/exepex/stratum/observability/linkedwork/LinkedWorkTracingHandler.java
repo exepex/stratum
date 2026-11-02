@@ -1,6 +1,6 @@
 package com.exepex.stratum.observability.linkedwork;
 
-import com.exepex.stratum.core.error.LoggingContextConstants;
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import io.micrometer.observation.Observation;
 import io.micrometer.tracing.Link;
 import io.micrometer.tracing.Span;

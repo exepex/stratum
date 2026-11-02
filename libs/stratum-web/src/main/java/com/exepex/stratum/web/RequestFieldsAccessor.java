@@ -1,7 +1,7 @@
 package com.exepex.stratum.web;
 
 import com.exepex.stratum.core.api.StratumInternal;
-import com.exepex.stratum.core.error.LoggingContextConstants;
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import io.micrometer.context.ThreadLocalAccessor;
 import java.util.Objects;
 import java.util.function.Supplier;

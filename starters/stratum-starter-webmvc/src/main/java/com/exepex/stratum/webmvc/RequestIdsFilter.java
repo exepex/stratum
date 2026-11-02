@@ -1,7 +1,7 @@
 package com.exepex.stratum.webmvc;
 
 import com.exepex.stratum.core.api.StratumInternal;
-import com.exepex.stratum.core.error.LoggingContextConstants;
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

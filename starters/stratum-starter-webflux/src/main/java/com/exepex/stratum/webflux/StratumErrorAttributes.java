@@ -2,7 +2,7 @@ package com.exepex.stratum.webflux;
 
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.error.FailureWithErrorCode;
-import com.exepex.stratum.core.error.LoggingContextConstants;
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.web.ErrorResponseFactory;
 import java.util.Map;
 import java.util.Optional;

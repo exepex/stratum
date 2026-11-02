@@ -3,7 +3,7 @@ package com.exepex.stratum.logging.workflow;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.qos.logback.classic.util.LogbackMDCAdapter;
-import com.exepex.stratum.core.error.LoggingContextConstants;
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.logging.LoggingConstants;
 import java.util.HashMap;
 import java.util.Map;

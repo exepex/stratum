@@ -1,7 +1,7 @@
 package com.exepex.stratum.web;
 
-import com.exepex.stratum.core.error.LoggingContextConstants;
 import com.exepex.stratum.core.error.StratumException;
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.maxmind.db.CHMCache;
 import com.maxmind.db.Reader;
 import java.io.IOException;

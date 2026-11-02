@@ -1,4 +1,4 @@
-package com.exepex.stratum.core.error;
+package com.exepex.stratum.core.logging;
 
 import com.exepex.stratum.core.api.StratumInternal;
 import java.util.List;

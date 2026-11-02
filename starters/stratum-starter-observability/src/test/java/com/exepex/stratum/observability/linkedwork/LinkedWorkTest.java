@@ -3,7 +3,7 @@ package com.exepex.stratum.observability.linkedwork;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
-import com.exepex.stratum.core.error.LoggingContextConstants;
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.observability.ObservabilityConstants;
 import com.exepex.stratum.observability.testsupport.RecordedSpans;
 import io.micrometer.common.KeyValue;

@@ -1,6 +1,6 @@
 package com.exepex.stratum.web;
 
-import com.exepex.stratum.core.error.LoggingContextConstants;
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;

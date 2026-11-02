@@ -5,7 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.exepex.stratum.core.error.LoggingContextConstants;
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.test.StarterTestSupport;
 import com.exepex.stratum.web.testsupport.WebTestData;
 import java.io.IOException;

@@ -1,6 +1,6 @@
 package com.exepex.stratum.logging.workflow;
 
-import com.exepex.stratum.core.error.LoggingContextConstants;
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.logging.LoggingConstants;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.Observation.CheckedCallable;

@@ -2,7 +2,7 @@ package com.exepex.stratum.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.exepex.stratum.core.error.LoggingContextConstants;
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;

@@ -1,6 +1,6 @@
 package com.exepex.stratum.web;
 
-import com.exepex.stratum.core.error.LoggingContextConstants;
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Base64;

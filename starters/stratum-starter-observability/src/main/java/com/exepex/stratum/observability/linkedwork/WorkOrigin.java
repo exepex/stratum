@@ -1,6 +1,6 @@
 package com.exepex.stratum.observability.linkedwork;
 
-import com.exepex.stratum.core.error.LoggingContextConstants;
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import java.util.regex.Pattern;
 import lombok.Builder;
 

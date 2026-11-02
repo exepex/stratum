@@ -1,7 +1,7 @@
 package com.exepex.stratum.webflux;
 
 import com.exepex.stratum.core.api.StratumInternal;
-import com.exepex.stratum.core.error.LoggingContextConstants;
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.web.BootErrorBodyCounter;
 import com.exepex.stratum.web.ReferencePage;
 import java.util.Map;

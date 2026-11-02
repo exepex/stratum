@@ -5,9 +5,9 @@ import static com.exepex.stratum.web.testsupport.WebTestData.TRACE_ID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.error.ErrorDetail;
-import com.exepex.stratum.core.error.LoggingContextConstants;
 import com.exepex.stratum.core.error.Severity;
 import com.exepex.stratum.core.error.StratumException;
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.test.ExistingOrderException;
 import com.exepex.stratum.test.OrderErrorCode;
 import com.exepex.stratum.web.testsupport.WebTestData;

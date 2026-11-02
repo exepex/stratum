@@ -2,7 +2,7 @@ package com.exepex.stratum.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.exepex.stratum.core.error.LoggingContextConstants;
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.web.testsupport.WebTestData;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
