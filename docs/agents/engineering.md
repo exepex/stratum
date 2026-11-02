@@ -20,15 +20,17 @@ cite it.
   interface, helper, option or branch without a use that exists today. Prefer one type with a field to a hierarchy,
   inline code to a one-call helper that does part of the same job, and the JDK, Spring or Lombok to hand-written
   code. No clever tricks, and no handling for cases that cannot happen. When a rule or tool pushes toward more
-  structure, ask the owner first. Moving a second job or copied logic into its own class is not new structure: do it
-  without asking (ST-ENG-16). Tunable values are still properties (ST-ENG-33).
+  structure, ask the owner first, except to fix a finding inside approved work (ST-AG-12). A push from a rule or tool
+  that is not a finding still needs the owner's answer first. Moving a second job or copied logic into its own class
+  is not new structure: do it without asking (ST-ENG-16). Tunable values are still properties (ST-ENG-33).
 - **ST-ENG-06 No duplication.** Do not copy logic, within a module or across modules. Before writing cross-cutting
   behaviour (headers, HTTP clients, error responses, retries, logging, test containers), find the Stratum module that
   already provides it and use it. When the same lines appear in a second place, move them into one method or class
   that both call. When a rule would have every module repeat the same code, the rule names a shared method for the
   modules to call instead. Test code that several starters need goes into `StarterTestSupport` in `stratum-test`,
   which the starters use in test scope; for any other shared test code with no shared place yet, ask the owner where
-  it goes instead of copying it. A copy the owner has approved is not a finding.
+  it goes instead of copying it, except to fix a finding inside approved work (ST-AG-12). A copy the owner has
+  approved is not a finding.
 - **ST-ENG-07 Patterns where they remove complexity.** Before writing an `if` or `switch` chain, copying a sequence
   of steps or adding a constructor with many arguments, check whether one of these fits:
   - Strategy, for behaviour that varies by type or setting;
@@ -58,9 +60,12 @@ cite it.
 - **ST-ENG-11 Starters meet through Spring.** When one starter needs another's behaviour, it uses the public extension
   points of Spring and Micrometer, which the other starter configures. It never imports another starter's internal
   classes. Example: the HTTP client starter propagates traces through Micrometer's observation API, not through
-  classes of the observability starter.
+  classes of the observability starter. A starter never changes its behaviour based on another starter's settings.
+  Two starters may work together through Spring when both are on the classpath and both are switched on; each
+  starter's switch controls only that starter.
 - **ST-ENG-12 Defined once.** The log format, correlation and trace headers, metric names and tags, and the error
-  response format are each defined in one place and used by every module.
+  response format are each defined in one place and used by every module. Where an established standard exists,
+  such as Elastic Common Schema (ECS), OpenTelemetry or Spring Boot's own keys, use it before inventing our own.
 
 ## Names and Javadoc
 
@@ -159,6 +164,8 @@ Every starter follows these rules:
   they match. Its detail names where the fault is: the property key, class, bean or customizer. Spring Boot's failure
   report then shows the code and message as the description and the fix as the action, through
   `StratumStartupFailureAnalyzer`. Warnings and errors that a caller gets have no fix text.
+- **ST-ENG-28** Never break an existing service's contract with its consumers: its API, its error responses and the
+  behaviour its callers rely on.
 
 ## Configuration
 
@@ -201,7 +208,8 @@ Every starter follows these rules:
   `StratumDefaults`, so that any value the service sets, there or anywhere else, wins. Where Spring Boot has a key
   for a setting, Stratum uses that key and adds no `stratum.*` key that duplicates it: a module that changes the
   default sets it with `StratumDefaults`, and the module's README lists the Spring Boot key with Stratum's default.
-  A `stratum.*` key is added only for what Spring Boot has no key for.
+  A `stratum.*` key is added only for what Spring Boot has no key for. Keep the number of keys low: every new key
+  has a safe default, so most services set only `stratum.<module>.enabled`.
 
 ## Java 25 and Spring Boot 4
 
@@ -258,6 +266,7 @@ Every starter follows these rules:
   `stratum.web.backward-compatible` is `true`, as ST-ENG-25 says.
 - **ST-ENG-53 Work with virtual threads.** Do not block event-loop threads. Do not cache in `ThreadLocal`s that grow
   with each virtual thread. When work moves to another thread, pass the logging and tracing context explicitly.
+  Virtual threads are never on by default; a service opts in with `spring.threads.virtual.enabled`.
 - **ST-ENG-54 Keep request paths cheap.** No reflection, regex compilation, large allocations or quadratic loops per
   request. Build expensive objects once, at startup.
 - **ST-ENG-55 Make it observable.** Important operations record metrics and spans with low-cardinality tags. A
