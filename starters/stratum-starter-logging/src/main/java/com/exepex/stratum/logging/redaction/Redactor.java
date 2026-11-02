@@ -103,17 +103,28 @@ public final class Redactor {
   }
 
   /**
-   * Returns a stack trace as it may be written: cut to the maximum length and masked, except its
-   * frame lines, which hold only class, method and file names. A value that is not text is masked
-   * as any other value.
+   * Returns a stack trace as it may be written: masked in full when its field name is sensitive,
+   * such as a service's extra key, else cut to the maximum length and masked, except its frame
+   * lines, which hold only class, method and file names. A value that is not text is masked as any
+   * other value.
    *
+   * @param fieldName the stack trace's field name; {@code null} when it has none
    * @param stackTrace the stack trace
    * @return the stack trace to write
    */
-  public @Nullable Object redactStackTrace(@Nullable Object stackTrace) {
+  public @Nullable Object redactStackTrace(
+      @Nullable String fieldName, @Nullable Object stackTrace) {
     return stackTrace instanceof String text
-        ? failingClosed(() -> stackTraceMasker.mask(truncateToMaxFieldLength(text)))
-        : redact(null, stackTrace);
+        ? failingClosed(() -> redactStackTraceText(fieldName, text))
+        : redact(fieldName, stackTrace);
+  }
+
+  /** Masks stack trace text by its field name, or else every line but its frames. */
+  private String redactStackTraceText(@Nullable String fieldName, String text) {
+    var truncated = truncateToMaxFieldLength(text);
+    return fieldNames
+        .mask(fieldName, () -> truncated)
+        .orElseGet(() -> stackTraceMasker.mask(truncated));
   }
 
   /** Returns the masked value, or {@link #REDACTION_FAILED} if masking it failed. */

@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.testsupport.LoggingTestData;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -16,6 +17,9 @@ import org.springframework.mock.env.MockEnvironment;
 
 @DisplayName("RedactingJsonMembersCustomizer masks every value of a JSON log line")
 class RedactingJsonMembersCustomizerTest {
+
+  /** The stack trace field of ECS and Logstash. */
+  private static final String STACK_TRACE_FIELD = "stack_trace";
 
   /** The log line's message, which holds a card number. */
   private static final String MESSAGE = "paid with " + CARD;
@@ -86,7 +90,7 @@ class RedactingJsonMembersCustomizerTest {
     private void addEcsLogLine(Members<Object> members, RedactingJsonMembersCustomizer customizer) {
       members.add("userAgent", "bot (+mailto:" + EMAIL + ")");
       members.add("password").usingMembers(nested -> nested.add("new", PASSWORD));
-      members.add("error").usingMembers(error -> error.add("stack_trace", STACK_TRACE));
+      members.add("error").usingMembers(error -> error.add(STACK_TRACE_FIELD, STACK_TRACE));
       customizer.customize(members);
     }
 
@@ -108,6 +112,73 @@ class RedactingJsonMembersCustomizerTest {
       assertThat(writeEcsLogLine())
           .contains("java.lang.Exception: ****.com")
           .contains("\\tat com.example.Login.check(Password.java:12)");
+    }
+  }
+
+  @Nested
+  @DisplayName("a stack trace field the service names in extra-keys")
+  class StackTraceInExtraKeys {
+
+    /** The service's extra-keys property. */
+    private static final String EXTRA_KEYS = LoggingConstants.PREFIX + ".redaction.extra-keys";
+
+    /** A stack trace whose frame line is written as it is unless the whole field is masked. */
+    private static final String STACK_TRACE =
+        "java.lang.Exception: failed\n\tat com.example.Orders.place(Orders.java:42)";
+
+    /** Writes a line holding only the stack trace field, with that field listed in extra-keys. */
+    private String writeWithExtraKey(
+        String format, String extraKey, Consumer<Members<Object>> addStackTrace) {
+      var customizer =
+          new RedactingJsonMembersCustomizer(
+              LoggingTestData.environmentWithConsoleFormat(format)
+                  .withProperty(EXTRA_KEYS, extraKey));
+      JsonWriter<Object> writer =
+          JsonWriter.of(members -> addThenCustomize(members, addStackTrace, customizer));
+      return writer.writeToString(new Object());
+    }
+
+    /** Adds the stack trace field, then customizes the members. */
+    private void addThenCustomize(
+        Members<Object> members,
+        Consumer<Members<Object>> addStackTrace,
+        RedactingJsonMembersCustomizer customizer) {
+      addStackTrace.accept(members);
+      customizer.customize(members);
+    }
+
+    @Test
+    @DisplayName("is masked in full under ECS")
+    void ecsStackTraceIsMasked() {
+      assertThat(
+              writeWithExtraKey(
+                  "ecs",
+                  STACK_TRACE_FIELD,
+                  members ->
+                      members
+                          .add("error")
+                          .usingMembers(error -> error.add(STACK_TRACE_FIELD, STACK_TRACE))))
+          .contains("\"stack_trace\":\"****\"");
+    }
+
+    @Test
+    @DisplayName("is masked in full under Logstash")
+    void logstashStackTraceIsMasked() {
+      assertThat(
+              writeWithExtraKey(
+                  "logstash",
+                  STACK_TRACE_FIELD,
+                  members -> members.add(STACK_TRACE_FIELD, STACK_TRACE)))
+          .contains("\"stack_trace\":\"****\"");
+    }
+
+    @Test
+    @DisplayName("is masked in full under GELF, for the full message too")
+    void gelfFullMessageIsMasked() {
+      assertThat(
+              writeWithExtraKey(
+                  "gelf", "full_message", members -> members.add("full_message", STACK_TRACE)))
+          .contains("\"full_message\":\"****\"");
     }
   }
 }

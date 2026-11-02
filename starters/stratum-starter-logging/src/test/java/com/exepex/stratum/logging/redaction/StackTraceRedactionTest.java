@@ -18,7 +18,7 @@ class StackTraceRedactionTest {
 
   /** Returns the masked stack trace as text. */
   private String redactStackTrace(String stackTrace) {
-    return (String) DEFAULT_REDACTOR.redactStackTrace(stackTrace);
+    return (String) DEFAULT_REDACTOR.redactStackTrace(null, stackTrace);
   }
 
   @Nested
@@ -136,9 +136,9 @@ class StackTraceRedactionTest {
     @Test
     @DisplayName("is masked as any other value, and nothing stays nothing")
     void otherValueIsMaskedByContent() {
-      assertThat(DEFAULT_REDACTOR.redactStackTrace(new StringBuilder("card " + CARD)))
+      assertThat(DEFAULT_REDACTOR.redactStackTrace(null, new StringBuilder("card " + CARD)))
           .isEqualTo("card ****1111");
-      assertThat(DEFAULT_REDACTOR.redactStackTrace(null)).isNull();
+      assertThat(DEFAULT_REDACTOR.redactStackTrace(null, null)).isNull();
     }
   }
 }

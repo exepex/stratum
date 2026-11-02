@@ -68,7 +68,7 @@ public final class RedactingJsonMembersCustomizer
       return value;
     }
     return knownLogFields.isStackTrace(fullPath)
-        ? enabledRedactor.redactStackTrace(value)
+        ? enabledRedactor.redactStackTrace(fullPath, value)
         : enabledRedactor.redact(fullPath, value);
   }
 }

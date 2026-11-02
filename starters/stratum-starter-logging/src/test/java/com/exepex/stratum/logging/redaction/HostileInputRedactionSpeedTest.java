@@ -129,7 +129,7 @@ class HostileInputRedactionSpeedTest {
   void hostileStackTraceIsFast(String stackTrace) {
     var masked =
         assertTimeoutPreemptively(
-            DEFAULT_INPUT_TIME_LIMIT, () -> redactor.redactStackTrace(stackTrace));
+            DEFAULT_INPUT_TIME_LIMIT, () -> redactor.redactStackTrace(null, stackTrace));
 
     assertThat(masked).isNotEqualTo(Redactor.REDACTION_FAILED);
   }
@@ -140,7 +140,7 @@ class HostileInputRedactionSpeedTest {
   void largestHostileStackTraceIsLinear(String stackTrace) {
     var masked =
         assertTimeoutPreemptively(
-            LARGEST_INPUT_TIME_LIMIT, () -> largestRedactor.redactStackTrace(stackTrace));
+            LARGEST_INPUT_TIME_LIMIT, () -> largestRedactor.redactStackTrace(null, stackTrace));
 
     assertThat(masked).isNotEqualTo(Redactor.REDACTION_FAILED);
   }
