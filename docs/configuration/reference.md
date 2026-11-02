@@ -1,8 +1,10 @@
 # Configuration reference
 
-**Status: Planned.** Every `stratum.*` property, grouped by module. Each module page holds the full
-table (type, default, description) and examples in YAML and properties; this page is the map that
-gets you there.
+**Status: Built** for the web, logging and observability modules; the others are planned. This page
+is the map of Stratum's settings: the keys that every module shares, which belong to no module, and
+a link to each module's own table. Each module's table is the one list of its keys, `stratum.*` and
+the Spring Boot keys it gives a default, with Stratum's default and Spring Boot's side by side. This
+page never copies them.
 
 [← Documentation home](../README.md)
 
@@ -33,9 +35,11 @@ stratum.environment=prod
 
 ## Property prefixes by module
 
+Each module's full table, with every key it reads or gives a default:
+
 | Prefix | Module | Full table | Required settings |
 | --- | --- | --- | --- |
-| `stratum.web.*` | `stratum-starter-webmvc`, `stratum-starter-webflux` | [Web MVC → Properties](../../starters/stratum-starter-webmvc/README.md#properties), [WebFlux → Properties](../../starters/stratum-starter-webflux/README.md#properties), all of them, planned ones included, in [Web](../modules/web.md#properties) | none |
+| `stratum.web.*` | `stratum-starter-webmvc`, `stratum-starter-webflux` | [Web → Properties](../modules/web.md#properties), for both web starters | none |
 | `stratum.logging.*` | `stratum-starter-logging` | [Logging → Properties](../../starters/stratum-starter-logging/README.md#properties) | none |
 | `stratum.observability.*` | `stratum-starter-observability` | [Observability → Properties](../../starters/stratum-starter-observability/README.md#properties) | Collector addresses, once enabled |
 | `stratum.security.*` | `stratum-starter-security` | [Security → Properties](../modules/security.md#properties) | `resource-server.issuer-uri` |
@@ -70,32 +74,13 @@ such as `stratum.web.request-log.enabled`, apply only once the module is on.
 
 ## Spring Boot properties Stratum sets for you
 
-Stratum applies these as **defaults**. They have the lowest priority, so setting any of them yourself
-always wins. Where a default comes from a Stratum property, change that property: your IDE completes
-it and shows what it does. Details are on each module page.
-
-| Spring Boot property | Stratum default | Set by |
-| --- | --- | --- |
-| `logging.structured.format.console` | `ecs` | logging |
-| `logging.structured.format.file` | `ecs` | logging |
-| `logging.structured.ecs.service.environment` | `${stratum.environment}` | logging |
-| `logging.structured.json.stacktrace.max-length` | `16384` (from `stratum.logging.max-field-length`) | logging |
-| `logging.structured.json.stacktrace.root` | `first`, the root cause | logging |
-| `spring.task.execution.propagate-context` | `true` | logging, observability |
-| `spring.reactor.context-propagation` | `auto` | logging, observability, web (WebFlux) |
-| `management.otlp.metrics.export.enabled` | `false` while the module is off | observability |
-| `management.tracing.export.enabled` | `false` while the module is off | observability |
-| `management.endpoints.web.exposure.include` | `health,info` | observability |
-| `management.metrics.tags.application`, `.environment`, `.host` | `${spring.application.name}`, `${stratum.environment}`, `$HOSTNAME` | observability |
-| `management.opentelemetry.resource-attributes[deployment.environment.name]` | `${stratum.environment}` | observability |
-| `management.metrics.distribution.percentiles-histogram.all` | `true` | observability |
-| `management.otlp.metrics.export.histogram-flavor` | `base2-exponential-bucket-histogram` | observability |
-| `spring.kafka.template.observation-enabled`, `spring.kafka.listener.observation-enabled` | `true` | observability |
-| `spring.rabbitmq.template.observation-enabled`, `spring.rabbitmq.listener.simple.observation-enabled`, `.direct.observation-enabled`, `.stream.observation-enabled` | `true` | observability |
-| `spring.jpa.open-in-view` | `false` | data |
-| `spring.jpa.hibernate.ddl-auto` | `validate` | data |
-| `spring.kafka.producer.acks` | `all` | kafka |
-| `spring.kafka.consumer.group-id` | `${spring.application.name}` | kafka |
+Where Spring Boot has a key, Stratum has no key of its own: it gives Spring Boot's key a default,
+with the lowest priority, so any value you set wins. Each module's table lists the Spring Boot keys
+it sets, with both defaults:
+[Web](../modules/web.md#properties),
+[Logging](../../starters/stratum-starter-logging/README.md#properties) and
+[Observability](../../starters/stratum-starter-observability/README.md#properties). The planned
+modules' pages list theirs.
 
 ## A complete example
 

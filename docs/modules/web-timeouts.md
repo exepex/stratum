@@ -49,11 +49,7 @@ stratum:
 - `status` is any status from `400` to `599`. `503` tells callers the service is too busy now and
   that a retry later can work; some gateways expect `504`.
 
-| Property | Type | Default | Description |
-| --- | --- | --- | --- |
-| `stratum.web.timeout.default-limit` | duration | none, or `10s` when `stratum.web.backward-compatible` is `false` | How long any request may take until its response starts. `0` means no limit. |
-| `stratum.web.timeout.routes` | map of path pattern to duration | empty | The limit of the requests whose path matches a pattern, such as `/reports/**`. The most specific pattern wins. |
-| `stratum.web.timeout.status` | HTTP status, `400` to `599` | `503` | The status a request that ran out of time is answered with. |
+Each key, with its type and default, is listed in [Web → Properties](web.md#properties).
 
 ## Give one API its own limit
 

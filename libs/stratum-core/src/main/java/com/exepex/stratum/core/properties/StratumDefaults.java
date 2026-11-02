@@ -3,6 +3,7 @@ package com.exepex.stratum.core.properties;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.source.ConfigurationPropertyName;
@@ -42,18 +43,28 @@ public class StratumDefaults {
   }
 
   /**
-   * Spring Boot's settings that the logging and observability modules give their default: its
-   * executors carry the logging and tracing context, so that {@code @Async} methods keep the trace
-   * and workflow fields, and Reactor carries it into every operator, so that log lines in WebFlux
-   * handlers and in operators such as {@code map} keep them too. A service changes either by
-   * setting the Spring Boot key.
+   * Spring Boot's setting that makes Reactor carry the logging and tracing context into every
+   * operator, so that log lines in WebFlux handlers and in operators such as {@code map} keep the
+   * trace and workflow fields. The logging and observability modules give it this default, and so
+   * does the web module on WebFlux. A service changes it by setting the Spring Boot key.
    */
-  public static final Map<String, Object> CONTEXT_PROPAGATION =
+  public static final Map<String, Object> REACTOR_CONTEXT_PROPAGATION =
       Map.of(
-          StratumModuleConstants.PROPAGATE_TASK_CONTEXT,
-          true,
           StratumModuleConstants.REACTOR_CONTEXT_PROPAGATION,
           StratumModuleConstants.REACTOR_CONTEXT_IN_EVERY_OPERATOR);
+
+  /**
+   * Spring Boot's settings that the logging and observability modules give their default: its
+   * executors carry the logging and tracing context, so that {@code @Async} methods keep the trace
+   * and workflow fields, and Reactor carries it as {@link #REACTOR_CONTEXT_PROPAGATION} says. A
+   * service changes either by setting the Spring Boot key.
+   */
+  public static final Map<String, Object> CONTEXT_PROPAGATION =
+      Stream.of(
+              Map.<String, Object>of(StratumModuleConstants.PROPAGATE_TASK_CONTEXT, true),
+              REACTOR_CONTEXT_PROPAGATION)
+          .flatMap(defaults -> defaults.entrySet().stream())
+          .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue));
 
   /** Returns whether the service's default properties hold the key or any element of it. */
   private static boolean isSet(@Nullable ConfigurationPropertySource serviceDefaults, String key) {

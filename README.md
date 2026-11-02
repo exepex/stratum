@@ -124,7 +124,7 @@ beans, auto-configuration, properties and profiles from the beginning.
 | Logging | Each service picks a format | Structured JSON logs with trace and correlation IDs, secrets redacted |
 | Tracing | Trace headers lost between services | Traces follow every request across HTTP calls and Kafka messages |
 | Metrics and health | Hand-picked endpoints and tags | Standard metrics, tags, health and Kubernetes probes |
-| Errors | Different error bodies per service | One error format (RFC 9457 Problem Details) everywhere |
+| Errors | Different error bodies per service | One error format (RFC 9457 Problem Details), adopted consumer by consumer so a running service keeps its contract ([backward-compatible mode](docs/modules/web-compatible-mode.md)) |
 | Security | Copied `SecurityFilterChain` code | JWT validation and secure defaults from a few properties |
 | Calling other services | Clients without timeouts | HTTP clients with timeouts, retries, tracing and tokens |
 | Resilience | Retry loops written by hand | Named retry, circuit breaker and bulkhead policies |
@@ -221,8 +221,10 @@ class HelloController {
 ```
 
 With only these lines your service already has JSON logs with trace IDs, metrics, health probes at
-`/actuator/health/liveness` and `/actuator/health/readiness`, correlation IDs on every request and
-standard error responses.
+`/actuator/health/liveness` and `/actuator/health/readiness` and correlation IDs on every request.
+Errors that Spring answers keep Spring Boot's body, and no time or body size limit is added,
+until you set `stratum.web.backward-compatible=false`, which a new service does from the start; see
+[Backward-compatible mode](docs/modules/web-compatible-mode.md).
 
 ## Modules
 
@@ -264,7 +266,7 @@ present but off is named in one INFO line at startup, such as
 
 | Starter | In one sentence | Property prefix |
 | --- | --- | --- |
-| [`stratum-starter-webmvc`](starters/stratum-starter-webmvc/README.md), [`stratum-starter-webflux`](starters/stratum-starter-webflux/README.md) | Spring MVC or WebFlux with one error format, request logs, correlation IDs, timeouts and body size limits. | `stratum.web` |
+| [`stratum-starter-webmvc`](starters/stratum-starter-webmvc/README.md), [`stratum-starter-webflux`](starters/stratum-starter-webflux/README.md) | Spring MVC or WebFlux with one error format, request logs, correlation IDs, timeouts and body size limits; the error format and limits apply once `stratum.web.backward-compatible=false` ([backward-compatible mode](docs/modules/web-compatible-mode.md)). | `stratum.web` |
 | [`stratum-starter-logging`](starters/stratum-starter-logging/README.md) | Structured JSON logs with secrets and personal data redacted, and trace IDs with observability. | `stratum.logging` |
 | [`stratum-starter-observability`](starters/stratum-starter-observability/README.md) | Metrics, traces and health, sent over OTLP to an OpenTelemetry Collector. | `stratum.observability` |
 | [`stratum-starter-security`](docs/modules/security.md) | OAuth2 resource server: JWT validation, roles, public paths, CORS. | `stratum.security` |
@@ -324,7 +326,7 @@ Things worth knowing from day one:
 Read more:
 [Configuration basics](docs/configuration/basics.md) ·
 [Profiles and environments](docs/configuration/profiles-and-environments.md) ·
-[All `stratum.*` properties](docs/configuration/reference.md)
+[Every module's properties](docs/configuration/reference.md)
 
 ## Changing or switching off a default
 

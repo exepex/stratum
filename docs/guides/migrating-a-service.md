@@ -61,7 +61,10 @@ Add `stratum-starter-webmvc`, or `stratum-starter-webflux` for a reactive servic
 Check: your existing consumers still get the error bodies they got before. With
 `stratum.web.backward-compatible=true`, the default, errors that Spring answers keep Spring Boot's
 body, and a consumer gets Problem Details only when it sends `Accept: application/problem+json`.
-Your own `StratumException` errors, timeouts and bodies over the limit always get Problem Details.
+Your own `StratumException` errors, timeouts and bodies over the limit always get Problem Details,
+and so does an existing exception you mark with `FailureWithErrorCode`. Map its code to the status
+it has today and tell its consumers before you mark it; see
+[Marking an existing exception](../modules/web-compatible-mode.md#marking-an-existing-exception).
 Once every consumer reads Problem Details, which the counter
 `stratum.web.requests.without.standard.errors` shows by staying at 0, set
 `stratum.web.backward-compatible=false`; see

@@ -33,8 +33,8 @@ import org.springframework.util.ObjectUtils;
  * is validated, so Java can correct or supply a value that the files leave invalid or unset, and a
  * bad value from either place stops the application at startup.
  *
- * <p>A module's auto-configuration calls {@link #resolve} once, at startup, and builds its beans
- * from the result.
+ * <p>A module calls {@link #resolve} in each startup phase that needs its settings, so the
+ * customizers may run more than once and must return the same result every time.
  */
 @RequiredArgsConstructor
 public final class StratumPropertiesResolver {

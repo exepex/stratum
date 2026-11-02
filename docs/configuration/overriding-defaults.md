@@ -99,10 +99,10 @@ Rules that apply to every module:
 
 - Several customizers for the same settings run in `@Order` order. Each receives the result of the
   one before, so the last one wins.
-- A customizer needs a public constructor with no arguments, and may run more than once at
-  startup, so it only works out settings and has no side effects. The web module runs it once.
-  The logging and observability modules run it before the application starts and again when
-  their beans are made.
+- A customizer needs a public constructor with no arguments. A module may read its settings in
+  more than one phase of startup, so a customizer may run more than once. It must return the same
+  settings every time and have no side effects: no file, clock, random value or remote flag may
+  change what it returns.
 - A customizer must not return `null`. To leave the settings unchanged, return what it received.
   A `null` stops the application at startup with a message naming the customizer.
 - The settings are checked once, after your customizers have run. So a customizer can correct or
@@ -249,17 +249,18 @@ Some modules also let you switch off one part:
 ## Advanced: exclude one auto-configuration class
 
 If you must, you can exclude a single Stratum auto-configuration class, as with any Spring Boot
-auto-configuration:
+auto-configuration. For example, to leave out, on Spring MVC, the request fields in logs, the
+correlation ID, the request log line and the time limit:
 
 ```yaml
 spring:
   autoconfigure:
     exclude:
-      - com.exepex.stratum.web.autoconfigure.StratumCorrelationAutoConfiguration
+      - com.exepex.stratum.webmvc.autoconfigure.WebMvcRequestFieldsAutoConfiguration
 ```
 
 ```properties
-spring.autoconfigure.exclude=com.exepex.stratum.web.autoconfigure.StratumCorrelationAutoConfiguration
+spring.autoconfigure.exclude=com.exepex.stratum.webmvc.autoconfigure.WebMvcRequestFieldsAutoConfiguration
 ```
 
 Class names are internal and may change between minor versions. Prefer the `enabled` switches,
