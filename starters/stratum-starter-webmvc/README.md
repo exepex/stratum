@@ -202,6 +202,18 @@ actuator's paths and static files write none. The headers you name, and the clai
 caller's token when you turn it on, can be added to it; credentials never are. See
 [Web](../../docs/modules/web.md#request-log).
 
+### A clean log context after each request
+
+When each request ends, the module puts the server thread's logging context (SLF4J's MDC) back as
+it was before the request, also after async and error dispatches. A field your handler puts with
+`MDC.put` and forgets to remove, such as `customerId`, therefore never shows up in the next request
+on that thread, or in the tasks that request hands to other threads.
+
+When a request fails with an exception nothing handles, the fields stay until Tomcat has logged the
+failure, so that line still names the request. The error page's dispatch then cleans them, or a
+request listener when there is no error page. Jetty writes its line after the request ends, so on
+Jetty that line has no request fields; nothing leaks there either.
+
 Response times and error rates per API come from the observability starter's metrics. The SLA
 dashboard recipe, with PromQL examples, is in [Web](../../docs/modules/web.md#sla-dashboards).
 
@@ -368,6 +380,8 @@ Each bean below is Stratum's only until you declare your own:
 | A bean named `stratumRequestIdsFilter` | The filter that keeps each request's IDs for its error page, which runs after tracing has ended |
 | A bean named `stratumRequestFieldsFilter` or `stratumCorrelationIdFilter` | The filter that puts the request fields in the logging context, or the one that returns the correlation ID in the response header |
 | A bean named `stratumCorrelationIdBaggageFilter` | The filter that writes a caller's correlation ID into the request's baggage before tracing reads it |
+| A bean named `stratumMdcCleanupFilter` | The filter that cleans the logging context when each request ends |
+| A bean named `stratumMdcCleanupListener` | The listener that cleans it after a failed request, once the server has logged the failure |
 | A bean named `stratumRequestLogFilter` or `RequestLogWriter` | The filter that writes each request's log line, or what the line holds |
 | `RequestRouteInterceptor` | What puts the matched route in the logging context |
 | `RequestBodyLimits`, a bean named `stratumRequestBodyLimitFilter`, or `RequestBodyLimitInterceptor` | How each request's body size limit is chosen, the filter that counts the body, or what applies `@RequestBodyLimit` and checks `Content-Length` |

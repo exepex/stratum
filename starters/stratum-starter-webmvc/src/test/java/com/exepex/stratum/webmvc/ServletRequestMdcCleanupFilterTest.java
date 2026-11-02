@@ -1,4 +1,4 @@
-package com.exepex.stratum.logging.mdc;
+package com.exepex.stratum.webmvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

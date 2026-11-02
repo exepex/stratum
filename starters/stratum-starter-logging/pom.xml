@@ -80,13 +80,6 @@
       <artifactId>aspectjweaver</artifactId>
       <optional>true</optional>
     </dependency>
-    <!-- Cleans the MDC when each request of a servlet application ends. Optional: the servlet
-         container comes with the service's web starter. -->
-    <dependency>
-      <groupId>jakarta.servlet</groupId>
-      <artifactId>jakarta.servlet-api</artifactId>
-      <optional>true</optional>
-    </dependency>
     <!-- The checks and set-up that every starter's tests share. -->
     <dependency>
       <groupId>com.exepex.stratum</groupId>

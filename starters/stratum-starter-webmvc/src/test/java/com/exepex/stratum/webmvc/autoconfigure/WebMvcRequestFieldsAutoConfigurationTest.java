@@ -17,7 +17,10 @@ import com.exepex.stratum.webmvc.RequestLogFilter;
 import com.exepex.stratum.webmvc.RequestRouteInterceptor;
 import com.exepex.stratum.webmvc.ResponseTimeoutFilter;
 import com.exepex.stratum.webmvc.ResponseTimeoutInterceptor;
+import com.exepex.stratum.webmvc.ServletRequestMdcCleanupFilter;
+import com.exepex.stratum.webmvc.ServletRequestMdcCleanupListener;
 import io.micrometer.tracing.Tracer;
+import jakarta.servlet.DispatcherType;
 import java.io.IOException;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -26,10 +29,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.FilteredClassLoader;
+import org.springframework.boot.test.context.assertj.ApplicationContextAssertProvider;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.boot.web.servlet.ServletListenerRegistrationBean;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.Ordered;
 import org.springframework.mock.env.MockEnvironment;
 
 @DisplayName(
@@ -56,6 +63,12 @@ class WebMvcRequestFieldsAutoConfigurationTest {
 
   /** The name of the body limit filter's registration. */
   private static final String BODY_LIMIT_FILTER = "stratumRequestBodyLimitFilter";
+
+  /** The name of the registration of the filter that cleans the logging context. */
+  private static final String MDC_CLEANUP_FILTER = "stratumMdcCleanupFilter";
+
+  /** The name of the registration of the listener that cleans it after a failed request. */
+  private static final String MDC_CLEANUP_LISTENER = "stratumMdcCleanupListener";
 
   /** A trusted proxy range whose prefix is longer than its address. */
   private static final String TOO_LONG_RANGE = "10.0.0.0/33";
@@ -91,18 +104,18 @@ class WebMvcRequestFieldsAutoConfigurationTest {
                       .hasBean(CORRELATION_FILTER)
                       .hasBean(BAGGAGE_FILTER)
                       .hasSingleBean(RequestLogWriter.class)
-                      .hasBean(REQUEST_LOG_FILTER));
+                      .hasBean(REQUEST_LOG_FILTER)
+                      .hasBean(MDC_CLEANUP_FILTER)
+                      .hasBean(MDC_CLEANUP_LISTENER));
     }
 
     @Test
-    @DisplayName("with the module unset, nothing is created")
+    @DisplayName("with the module unset or off, nothing is created")
     void moduleOffCreatesNothing() {
-      contextRunner.run(
-          context ->
-              assertThat(context)
-                  .doesNotHaveBean(RequestFieldsReader.class)
-                  .doesNotHaveBean(FIELDS_FILTER)
-                  .doesNotHaveBean(CORRELATION_FILTER));
+      contextRunner.run(context -> assertNothingCreated(context));
+      contextRunner
+          .withPropertyValues(WebConstants.ENABLED + "=false")
+          .run(context -> assertNothingCreated(context));
     }
 
     @Test
@@ -111,7 +124,7 @@ class WebMvcRequestFieldsAutoConfigurationTest {
       new ApplicationContextRunner()
           .withConfiguration(AutoConfigurations.of(WebMvcRequestFieldsAutoConfiguration.class))
           .withPropertyValues(MODULE_ON)
-          .run(context -> assertThat(context).doesNotHaveBean(RequestFieldsReader.class));
+          .run(context -> assertNothingCreated(context));
     }
 
     @Test
@@ -237,6 +250,84 @@ class WebMvcRequestFieldsAutoConfigurationTest {
     }
   }
 
+  @Nested
+  @DisplayName("when each request ends")
+  class LoggingContextCleanup {
+
+    @Test
+    @DisplayName(
+        "the cleanup filter runs first in the chain, on request, async and error dispatches, and"
+            + " its listener is registered")
+    void registersCleanupFirstOnEveryDispatch() {
+      contextRunner
+          .withPropertyValues(MODULE_ON)
+          .run(
+              context -> {
+                var registration =
+                    context.getBean(MDC_CLEANUP_FILTER, FilterRegistrationBean.class);
+                assertThat(registration.getFilter())
+                    .isInstanceOf(ServletRequestMdcCleanupFilter.class);
+                assertThat(registration.getOrder()).isEqualTo(Ordered.HIGHEST_PRECEDENCE);
+                assertThat(registration.determineDispatcherTypes())
+                    .containsExactlyInAnyOrder(
+                        DispatcherType.REQUEST, DispatcherType.ASYNC, DispatcherType.ERROR);
+                assertThat(
+                        context
+                            .getBean(MDC_CLEANUP_LISTENER, ServletListenerRegistrationBean.class)
+                            .getListener())
+                    .isInstanceOf(ServletRequestMdcCleanupListener.class);
+              });
+    }
+
+    @Test
+    @DisplayName("the service's own cleanup filter and listener, by name, replace Stratum's")
+    void serviceCleanupBeansWin() {
+      var serviceFilter = new FilterRegistrationBean<>(new ServletRequestMdcCleanupFilter());
+      var serviceListener =
+          new ServletListenerRegistrationBean<>(new ServletRequestMdcCleanupListener());
+      contextRunner
+          .withPropertyValues(MODULE_ON)
+          .withBean(MDC_CLEANUP_FILTER, FilterRegistrationBean.class, () -> serviceFilter)
+          .withBean(
+              MDC_CLEANUP_LISTENER, ServletListenerRegistrationBean.class, () -> serviceListener)
+          .run(
+              context ->
+                  assertThat(
+                          List.of(
+                              context.getBean(MDC_CLEANUP_FILTER),
+                              context.getBean(MDC_CLEANUP_LISTENER)))
+                      .containsExactly(serviceFilter, serviceListener));
+    }
+
+    @Test
+    @DisplayName("a company framework's cleanup beans, with no order, win over Stratum's")
+    void companyCleanupBeansWin() {
+      contextRunner
+          .withPropertyValues(MODULE_ON)
+          .withConfiguration(AutoConfigurations.of(CompanyBeansAutoConfiguration.class))
+          .run(
+              context ->
+                  assertThat(
+                          List.of(
+                              context.getBean(MDC_CLEANUP_FILTER),
+                              context.getBean(MDC_CLEANUP_LISTENER)))
+                      .containsExactly(
+                          CompanyBeansAutoConfiguration.CLEANUP_FILTER,
+                          CompanyBeansAutoConfiguration.CLEANUP_LISTENER));
+    }
+  }
+
+  /** Checks that none of the module's beans exists. */
+  private <C extends ApplicationContext> void assertNothingCreated(
+      ApplicationContextAssertProvider<C> context) {
+    assertThat(context)
+        .doesNotHaveBean(RequestFieldsReader.class)
+        .doesNotHaveBean(FIELDS_FILTER)
+        .doesNotHaveBean(CORRELATION_FILTER)
+        .doesNotHaveBean(MDC_CLEANUP_FILTER)
+        .doesNotHaveBean(MDC_CLEANUP_LISTENER);
+  }
+
   /** Returns a reader with the default settings. */
   private static RequestFieldsReader defaultReader() {
     return RequestFieldsReader.from(WebProperties.resolve(new MockEnvironment()));
@@ -257,6 +348,35 @@ class WebMvcRequestFieldsAutoConfigurationTest {
     @Bean
     RequestFieldsReader companyRequestFieldsReader() {
       return READER;
+    }
+
+    /** The company's registration of the cleanup filter. */
+    static final FilterRegistrationBean<ServletRequestMdcCleanupFilter> CLEANUP_FILTER =
+        new FilterRegistrationBean<>(new ServletRequestMdcCleanupFilter());
+
+    /** The company's registration of the cleanup listener. */
+    static final ServletListenerRegistrationBean<ServletRequestMdcCleanupListener>
+        CLEANUP_LISTENER =
+            new ServletListenerRegistrationBean<>(new ServletRequestMdcCleanupListener());
+
+    /**
+     * Returns the company's registration of the cleanup filter.
+     *
+     * @return the registration
+     */
+    @Bean
+    FilterRegistrationBean<ServletRequestMdcCleanupFilter> stratumMdcCleanupFilter() {
+      return CLEANUP_FILTER;
+    }
+
+    /**
+     * Returns the company's registration of the cleanup listener.
+     *
+     * @return the registration
+     */
+    @Bean
+    ServletListenerRegistrationBean<ServletRequestMdcCleanupListener> stratumMdcCleanupListener() {
+      return CLEANUP_LISTENER;
     }
   }
 }

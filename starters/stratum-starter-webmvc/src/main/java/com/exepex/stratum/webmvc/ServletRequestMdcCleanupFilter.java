@@ -1,5 +1,6 @@
-package com.exepex.stratum.logging.mdc;
+package com.exepex.stratum.webmvc;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -9,13 +10,18 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
 import org.slf4j.MDC;
+import org.springframework.core.Ordered;
 
 /**
  * Puts the MDC back as it was when each servlet request ends. A field the service put and never
  * removed, such as {@code customerId}, would otherwise stay on the server thread and appear in the
  * next request that thread serves, and in the tasks that request hands to other threads.
  */
+@StratumInternal
 public class ServletRequestMdcCleanupFilter implements Filter {
+
+  /** Runs first among the filters and ends last, so it also removes what other filters put. */
+  public static final int ORDER = Ordered.HIGHEST_PRECEDENCE;
 
   /**
    * The request attribute that holds a {@link Runnable} putting the MDC back as it was before a
