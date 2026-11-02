@@ -48,14 +48,32 @@ public class LoggingConstants {
    */
   public static final String ROOT_CAUSE_FIRST = "first";
 
-  /** The log field, and metric tag, with the name of the workflow a line belongs to. */
+  /** The log field with the name of the workflow a line belongs to. */
   public static final String WORKFLOW = "workflow";
 
-  /** The log field, and metric tag, with the name of the outermost workflow. */
-  public static final String ROOT_WORKFLOW = "root_workflow";
+  /** The log field with the name of the outermost workflow. */
+  public static final String ROOT_WORKFLOW = "rootWorkflow";
 
-  /** The log field, and span attribute, with the ID the service gave its workflow. */
-  public static final String WORKFLOW_ID = "workflow_id";
+  /** The log field with the ID the service gave its workflow. */
+  public static final String WORKFLOW_ID = "workflowId";
+
+  // The metric tags and span attributes form one dotted group, while the log fields have no dot:
+  // Elasticsearch turns a dotted log field into a nested object, and OpenTelemetry forbids a name
+  // that is also a group, such as "workflow" next to "workflow.id" on one span.
+
+  /**
+   * The prefix of the workflow's observation keys (metric tags and span attributes), not log keys.
+   */
+  public static final String WORKFLOW_KEY_PREFIX = "workflow.";
+
+  /** The metric tag and span attribute with the workflow's name. */
+  public static final String WORKFLOW_NAME_KEY = WORKFLOW_KEY_PREFIX + "name";
+
+  /** The metric tag and span attribute with the name of the outermost workflow. */
+  public static final String ROOT_WORKFLOW_KEY = WORKFLOW_KEY_PREFIX + "root";
+
+  /** The span attribute with the ID the service gave its workflow. */
+  public static final String WORKFLOW_ID_KEY = WORKFLOW_KEY_PREFIX + "id";
 
   /** The log field with the code of a logged {@code StratumException}. */
   public static final String ERROR_CODE = "error.code";
