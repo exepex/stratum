@@ -3,12 +3,16 @@ package com.exepex.stratum.logging.startup;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
+import ch.qos.logback.classic.spi.ILoggingEvent;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.logging.LoggingConstants;
+import com.exepex.stratum.logging.format.Log4j2MaskedTextFormatter;
+import com.exepex.stratum.logging.format.LogbackMaskedTextFormatter;
 import com.exepex.stratum.logging.testsupport.LoggingTestData;
 import java.util.List;
 import java.util.Map;
+import org.apache.logging.log4j.core.LogEvent;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -18,10 +22,11 @@ import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.context.properties.bind.BindException;
 import org.springframework.boot.env.DefaultPropertiesPropertySource;
-import org.springframework.boot.logging.DeferredLogs;
+import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.core.env.MapPropertySource;
+import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.mock.env.MockEnvironment;
 import reactor.core.publisher.Hooks;
 
@@ -35,13 +40,10 @@ class LoggingEnvironmentPostProcessorTest {
 
   private static final String OFF = "false";
 
-  private static final String NOT_REDACTED = "plain text, which is not redacted";
-
-  /** Holds the post-processor's log lines until the test writes them out. */
-  private final DeferredLogs logs = new DeferredLogs();
+  private static final String TEXT = "text";
 
   private final LoggingEnvironmentPostProcessor postProcessor =
-      new LoggingEnvironmentPostProcessor(logs);
+      new LoggingEnvironmentPostProcessor();
 
   /** Returns an environment with the module on and a service name. */
   private MockEnvironment environmentWithModuleOnAndServiceName() {
@@ -51,8 +53,13 @@ class LoggingEnvironmentPostProcessorTest {
 
   /** Runs the post-processor on the environment and returns it. */
   private MockEnvironment runPostProcessor(MockEnvironment environment) {
-    postProcessor.postProcessEnvironment(environment, new SpringApplication());
-    logs.switchOverAll();
+    return runPostProcessor(environment, new SpringApplication());
+  }
+
+  /** Runs the post-processor on the environment for the application and returns it. */
+  private MockEnvironment runPostProcessor(
+      MockEnvironment environment, SpringApplication application) {
+    postProcessor.postProcessEnvironment(environment, application);
     return environment;
   }
 
@@ -256,39 +263,77 @@ class LoggingEnvironmentPostProcessorTest {
   }
 
   @Nested
-  @DisplayName("with plain-text logs")
-  class PlainText {
+  @DisplayName("with the text format")
+  class TextFormat {
+
+    /** Returns an application whose class loader hides the given logging backends' events. */
+    private SpringApplication applicationWithout(Class<?>... hiddenEvents) {
+      return new SpringApplication(
+          new DefaultResourceLoader(new FilteredClassLoader(hiddenEvents)));
+    }
 
     @Test
-    @DisplayName("no JSON format is set, and a warning says the lines are not redacted")
-    void warnsOutsideLocalProfiles(CapturedOutput output) {
+    @DisplayName(
+        "Logback writes Stratum's masked text to the console and the file, with no warning")
+    void setsLogbackMaskedText(CapturedOutput output) {
+      var environment = environmentWithModuleOnAndServiceName().withProperty(FORMAT, TEXT);
+      environment.setActiveProfiles("prod");
+
+      runPostProcessor(environment);
+
+      assertThat(environment.getProperty(LoggingConstants.CONSOLE_FORMAT))
+          .isEqualTo(LogbackMaskedTextFormatter.class.getName());
+      assertThat(environment.getProperty(LoggingConstants.FILE_FORMAT))
+          .isEqualTo(LogbackMaskedTextFormatter.class.getName());
+      assertThat(output).doesNotContain(LoggingConstants.FORMAT);
+    }
+
+    @Test
+    @DisplayName("the local profile gets the same masked text: no profile turns masking off")
+    void localProfileIsMaskedToo() {
+      var environment = environmentWithModuleOnAndServiceName().withProperty(FORMAT, TEXT);
+      environment.setActiveProfiles("local");
+
+      runPostProcessor(environment);
+
+      assertThat(environment.getProperty(LoggingConstants.CONSOLE_FORMAT))
+          .isEqualTo(LogbackMaskedTextFormatter.class.getName());
+    }
+
+    @Test
+    @DisplayName("without Logback, Log4j2 writes Stratum's masked text")
+    void setsLog4j2MaskedText() {
       var environment =
-          runPostProcessor(environmentWithModuleOnAndServiceName().withProperty(FORMAT, "text"));
+          runPostProcessor(
+              environmentWithModuleOnAndServiceName().withProperty(FORMAT, TEXT),
+              applicationWithout(ILoggingEvent.class));
+
+      assertThat(environment.getProperty(LoggingConstants.CONSOLE_FORMAT))
+          .isEqualTo(Log4j2MaskedTextFormatter.class.getName());
+      assertThat(environment.getProperty(LoggingConstants.FILE_FORMAT))
+          .isEqualTo(Log4j2MaskedTextFormatter.class.getName());
+    }
+
+    @Test
+    @DisplayName("with neither Logback nor Log4j2, no format is set")
+    void setsNoFormatWithoutBackend() {
+      var environment =
+          runPostProcessor(
+              environmentWithModuleOnAndServiceName().withProperty(FORMAT, TEXT),
+              applicationWithout(ILoggingEvent.class, LogEvent.class));
 
       assertThat(environment.getProperty(LoggingConstants.CONSOLE_FORMAT)).isNull();
-      assertThat(output).contains(NOT_REDACTED);
     }
 
     @Test
-    @DisplayName("in the local or test profile only, there is no warning")
-    void noWarningInLocalProfiles(CapturedOutput output) {
-      var environment = environmentWithModuleOnAndServiceName().withProperty(FORMAT, "text");
-      environment.setActiveProfiles("local", "test");
+    @DisplayName("a JSON format is used as it is, with Logback or Log4j2")
+    void jsonFormatIgnoresBackend() {
+      var environment =
+          runPostProcessor(
+              environmentWithModuleOnAndServiceName().withProperty(FORMAT, GELF),
+              applicationWithout(ILoggingEvent.class));
 
-      runPostProcessor(environment);
-
-      assertThat(output).doesNotContain(NOT_REDACTED);
-    }
-
-    @Test
-    @DisplayName("a local profile next to another profile still warns")
-    void warnsWithMixedProfiles(CapturedOutput output) {
-      var environment = environmentWithModuleOnAndServiceName().withProperty(FORMAT, "text");
-      environment.setActiveProfiles("local", "prod");
-
-      runPostProcessor(environment);
-
-      assertThat(output).contains(NOT_REDACTED);
+      assertThat(environment.getProperty(LoggingConstants.CONSOLE_FORMAT)).isEqualTo(GELF);
     }
   }
 }

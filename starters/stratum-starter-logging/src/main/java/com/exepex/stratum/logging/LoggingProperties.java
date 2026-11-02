@@ -18,7 +18,7 @@ import org.springframework.util.unit.DataSize;
  * components are what IDEs show, so they are plain sentences.
  *
  * @param format How console and file lines are written: ecs, logstash, gelf or text. Defaults to
- *     ecs. Text is plain and not redacted.
+ *     ecs. Text is one masked line per event, for people to read.
  * @param maxFieldLength The longest a single value or stack trace may be; anything longer is cut.
  *     From 1KB to 1MB. Defaults to 16KB.
  * @param redaction What is masked on top of Stratum's built-in rules.
@@ -81,10 +81,10 @@ public record LoggingProperties(
     /** The Graylog Extended Log Format. */
     GELF("gelf"),
 
-    /** Plain text for people to read on a laptop. It is not redacted. */
+    /** One masked line of text per event, for people to read. */
     TEXT(null);
 
-    /** Spring Boot's name for the format; {@code null} for plain text. */
+    /** Spring Boot's name for the JSON format; {@code null} for text, which Stratum writes. */
     private final @Nullable String structuredFormat;
   }
 

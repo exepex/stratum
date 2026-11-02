@@ -61,6 +61,13 @@
       <artifactId>logback-classic</artifactId>
       <optional>true</optional>
     </dependency>
+    <!-- The masked text format for a service that uses Log4j2 instead. Optional, so a service that
+         uses Logback never gets it. -->
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-core</artifactId>
+      <optional>true</optional>
+    </dependency>
     <!-- Makes @Workflow work. Optional: the service adds AspectJ, and without it @Workflow is
          ignored. -->
     <dependency>
