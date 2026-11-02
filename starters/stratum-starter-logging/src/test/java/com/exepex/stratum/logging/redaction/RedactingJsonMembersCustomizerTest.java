@@ -25,6 +25,9 @@ class RedactingJsonMembersCustomizerTest {
   /** The stack trace field of ECS and Logstash. */
   private static final String STACK_TRACE_FIELD = "stack_trace";
 
+  /** Spring Boot's name for GELF. */
+  private static final String GELF = "gelf";
+
   /** Spring Boot's name for ECS. */
   private static final String ECS = "ecs";
 
@@ -192,7 +195,7 @@ class RedactingJsonMembersCustomizerTest {
     void gelfFullMessageIsMasked() {
       assertThat(
               writeWithServiceRule(
-                  "gelf",
+                  GELF,
                   EXTRA_KEYS,
                   "full_message",
                   members -> members.add("full_message", STACK_TRACE)))
@@ -229,7 +232,7 @@ class RedactingJsonMembersCustomizerTest {
           .contains("\"userAgent\":\"****\"");
       assertThat(
               writeWithServiceRule(
-                  "gelf",
+                  GELF,
                   EXTRA_KEYS,
                   USER_AGENT_FIELD,
                   members -> members.add("_userAgent", USER_AGENT)))
@@ -267,7 +270,7 @@ class RedactingJsonMembersCustomizerTest {
 
     /** GELF on the console, with the service name GELF needs as its host. */
     private final MockEnvironment gelf =
-        LoggingTestData.environmentWithConsoleFormat("gelf")
+        LoggingTestData.environmentWithConsoleFormat(GELF)
             .withProperty("spring.application.name", SERVICE);
 
     @Test
@@ -275,10 +278,10 @@ class RedactingJsonMembersCustomizerTest {
     void gelfTimestampStaysNumber() throws IOException {
       var numericTimestamp = Pattern.compile("\"timestamp\":\\d+\\.\\d+[,}]");
 
-      assertThat(SpringBootJsonLines.logbackLine("gelf", gelf, MESSAGE))
+      assertThat(SpringBootJsonLines.logbackLine(GELF, gelf, MESSAGE))
           .containsPattern(numericTimestamp)
           .doesNotContain(CARD);
-      assertThat(SpringBootJsonLines.log4j2Line("gelf", gelf, MESSAGE))
+      assertThat(SpringBootJsonLines.log4j2Line(GELF, gelf, MESSAGE))
           .containsPattern(numericTimestamp)
           .doesNotContain(CARD);
     }

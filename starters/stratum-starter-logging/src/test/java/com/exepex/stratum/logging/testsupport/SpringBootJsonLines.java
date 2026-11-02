@@ -97,13 +97,12 @@ public class SpringBootJsonLines {
    */
   public static String log4j2Line(String format, Environment environment, String message)
       throws java.io.IOException {
-    var context = new org.apache.logging.log4j.core.LoggerContext("orders");
-    context.putObject(LOG4J2_ENVIRONMENT_KEY, environment);
-    var xml = LOG4J2_CONFIGURATION.formatted(format).getBytes(StandardCharsets.UTF_8);
-    var configuration =
-        new XmlConfiguration(context, new ConfigurationSource(new ByteArrayInputStream(xml)));
-    context.start(configuration);
-    try {
+    try (var context = new org.apache.logging.log4j.core.LoggerContext("orders")) {
+      context.putObject(LOG4J2_ENVIRONMENT_KEY, environment);
+      var xml = LOG4J2_CONFIGURATION.formatted(format).getBytes(StandardCharsets.UTF_8);
+      var configuration =
+          new XmlConfiguration(context, new ConfigurationSource(new ByteArrayInputStream(xml)));
+      context.start(configuration);
       var event =
           Log4jLogEvent.newBuilder()
               .setLoggerName("orders")
@@ -111,8 +110,6 @@ public class SpringBootJsonLines {
               .setMessage(new SimpleMessage(message))
               .build();
       return configuration.getAppender("out").getLayout().toSerializable(event).toString();
-    } finally {
-      context.stop();
     }
   }
 }
