@@ -72,6 +72,6 @@ class Log4j2MaskedTextFormatterTest {
     assertThat(line)
         .contains("IllegalStateException: token=****")
         .doesNotContain(LoggingTestData.JWT);
-    assertThat(line.lines().skip(1)).allMatch(text -> Character.isWhitespace(text.charAt(0)));
+    MaskedTextFormats.assertStackTraceIndented(line);
   }
 }

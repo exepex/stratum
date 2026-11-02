@@ -8,13 +8,14 @@ import ch.qos.logback.classic.spi.LoggingEvent;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.LoggingErrorCode;
-import com.exepex.stratum.logging.format.LogbackMaskedTextFormatter;
+import com.exepex.stratum.logging.startup.LoggingEnvironmentPostProcessor;
 import com.exepex.stratum.logging.testsupport.LoggingTestData;
 import com.exepex.stratum.test.ExistingOrderException;
 import com.exepex.stratum.test.OrderErrorCode;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.SpringApplication;
 import org.springframework.boot.json.JsonWriter;
 import org.springframework.boot.json.JsonWriter.Members;
 import org.springframework.mock.env.MockEnvironment;
@@ -120,13 +121,15 @@ class ErrorCodeJsonMembersCustomizerTest {
   }
 
   @Test
-  @DisplayName("with the masked text console and a GELF file, the file's field is _error_code")
+  @DisplayName("with format=text and a GELF file, as startup sets them, the field is _error_code")
   void skipsTextFormatClassName() {
     var textConsoleGelfFile =
         LoggingTestData.environmentWithModuleOn()
-            .withProperty(
-                LoggingConstants.CONSOLE_FORMAT, LogbackMaskedTextFormatter.class.getName())
+            .withProperty(LoggingConstants.APPLICATION_NAME, "orders")
+            .withProperty(LoggingConstants.FORMAT, "text")
             .withProperty(LoggingConstants.FILE_FORMAT, "gelf");
+    new LoggingEnvironmentPostProcessor()
+        .postProcessEnvironment(textConsoleGelfFile, new SpringApplication());
 
     assertThat(writeLogLine(textConsoleGelfFile, CODED_FAILURE))
         .endsWith(",\"_error_code\":\"" + CODE + "\"}");

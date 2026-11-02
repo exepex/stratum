@@ -12,6 +12,7 @@ import com.exepex.stratum.logging.testsupport.LoggingTestData;
 import com.exepex.stratum.logging.testsupport.MaskedTextFormats;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.DisplayName;
@@ -116,6 +117,21 @@ class LogbackMaskedTextFormatterTest {
   class Masking {
 
     @Test
+    @DisplayName("masks the entries of a map or list logged as a key-value pair under a plain key")
+    void masksContainerContents() {
+      var event = event("order checked", null);
+      event.addKeyValuePair(new KeyValuePair("order", Map.of("card", LoggingTestData.CARD)));
+      event.addKeyValuePair(
+          new KeyValuePair("details", Map.of("password", LoggingTestData.PASSWORD)));
+      event.addKeyValuePair(
+          new KeyValuePair("notes", List.of("password=" + LoggingTestData.PASSWORD)));
+
+      assertThat(formatter.format(event))
+          .contains("details={password=****}", "notes=[password=****]")
+          .doesNotContain(LoggingTestData.CARD, LoggingTestData.PASSWORD);
+    }
+
+    @Test
     @DisplayName("masks a secret in the message")
     void masksMessage() {
       assertThat(formatter.format(event("login password=" + LoggingTestData.PASSWORD, null)))
@@ -207,7 +223,7 @@ class LogbackMaskedTextFormatterTest {
     void indentsExceptionMessage() {
       var line = formatter.format(event(PAYMENT_FAILED, new IllegalStateException(FORGED_LINE)));
 
-      assertThat(line.lines().skip(1)).allMatch(this::startsWithWhitespace);
+      MaskedTextFormats.assertStackTraceIndented(line);
     }
 
     @Test
@@ -219,12 +235,7 @@ class LogbackMaskedTextFormatterTest {
       var line = formatter.format(event(PAYMENT_FAILED, failure));
 
       assertThat(line).contains("IllegalArgumentException: bad input");
-      assertThat(line.lines().skip(1)).allMatch(this::startsWithWhitespace);
-    }
-
-    /** Returns whether a line starts with whitespace. */
-    private boolean startsWithWhitespace(String line) {
-      return !line.isEmpty() && Character.isWhitespace(line.charAt(0));
+      MaskedTextFormats.assertStackTraceIndented(line);
     }
   }
 

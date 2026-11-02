@@ -175,9 +175,13 @@ abstract class MaskedTextFormatter<E> implements StructuredLogFormatter<E> {
     return text.replace("\r", "\\r").replace("\n", "\\n");
   }
 
-  /** Masks a value under its field name: the one place this format calls the redactor. */
+  /**
+   * Masks a value under its field name: the one place this format calls the redactor. The value is
+   * masked as text, so the entries of a map or a list are masked too: the redactor leaves those to
+   * the JSON writer, which this format does not use.
+   */
   private String mask(String fieldName, @Nullable Object value) {
-    return Objects.toString(redactor.redact(fieldName, value));
+    return Objects.toString(redactor.redact(fieldName, Objects.toString(value)));
   }
 
   /**
