@@ -58,9 +58,12 @@ cite it.
 - **ST-ENG-11 Starters meet through Spring.** When one starter needs another's behaviour, it uses the public extension
   points of Spring and Micrometer, which the other starter configures. It never imports another starter's internal
   classes. Example: the HTTP client starter propagates traces through Micrometer's observation API, not through
-  classes of the observability starter.
+  classes of the observability starter. A starter never changes its behaviour based on another starter's settings.
+  Two starters may work together through Spring when both are on the classpath and both are switched on; each
+  starter's switch controls only that starter.
 - **ST-ENG-12 Defined once.** The log format, correlation and trace headers, metric names and tags, and the error
-  response format are each defined in one place and used by every module.
+  response format are each defined in one place and used by every module. Where an established standard exists,
+  such as Elastic Common Schema (ECS), OpenTelemetry or Spring Boot's own keys, use it before inventing our own.
 
 ## Names and Javadoc
 
@@ -148,6 +151,8 @@ Every starter follows these rules:
   refused or cut off ([ADR 0008](../adr/0008-error-format-and-backward-compatible-mode.md)). A new web feature
   follows that ADR's decision 7: in that mode it changes no existing response and refuses no request unless the
   service turns it on.
+  Never break an existing service's contract with its consumers: its API, its error responses and the behaviour its
+  callers rely on.
 - **ST-ENG-26** Dependencies are injected through constructors (in auto-configuration, through `@Bean` method
   parameters). Never field injection (`@Autowired` on a field) or setter injection. Constructor injection makes
   dependencies explicit, keeps fields `final` and makes Spring report circular dependencies at startup. In test
@@ -201,7 +206,8 @@ Every starter follows these rules:
   `StratumDefaults`, so that any value the service sets, there or anywhere else, wins. Where Spring Boot has a key
   for a setting, Stratum uses that key and adds no `stratum.*` key that duplicates it: a module that changes the
   default sets it with `StratumDefaults`, and the module's README lists the Spring Boot key with Stratum's default.
-  A `stratum.*` key is added only for what Spring Boot has no key for.
+  A `stratum.*` key is added only for what Spring Boot has no key for. Keep the number of keys low: every new key
+  has a safe default, so most services set only `stratum.<module>.enabled`.
 
 ## Java 25 and Spring Boot 4
 
@@ -258,6 +264,7 @@ Every starter follows these rules:
   `stratum.web.backward-compatible` is `true`, as ST-ENG-25 says.
 - **ST-ENG-53 Work with virtual threads.** Do not block event-loop threads. Do not cache in `ThreadLocal`s that grow
   with each virtual thread. When work moves to another thread, pass the logging and tracing context explicitly.
+  Virtual threads are never on by default; a service opts in with `spring.threads.virtual.enabled`.
 - **ST-ENG-54 Keep request paths cheap.** No reflection, regex compilation, large allocations or quadratic loops per
   request. Build expensive objects once, at startup.
 - **ST-ENG-55 Make it observable.** Important operations record metrics and spans with low-cardinality tags. A

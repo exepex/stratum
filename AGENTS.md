@@ -66,15 +66,28 @@ Each rule has an ID so that reviews and judge verdicts can cite it.
   Do not paper over a symptom. When the same component keeps breaking, question its design.
 - **ST-AG-04 Check every review comment.** Whether it comes from the owner, a reviewer or the judge, check it against
   the code, and run it where you can. Accept it when the check confirms it; push back with your evidence when it does
-  not. Say which parts you accept and which you reject.
+  not. Say which parts you accept and which you reject. Prove every accept and every reject with that evidence. A
+  finding counts only if it can happen on a real setup; a case that is only theoretical goes in Notes.
 - **ST-AG-05 Do not stop silently.** When something blocks you, look for another legitimate route or ask the owner one
   clear question. If the task cannot be done, say so and why.
 - **ST-AG-06 Do only what was asked.** Do not add files, tools, scripts, dependencies or features the request did not
   call for. If you think something extra is needed, propose it to the owner instead of building it.
+- **ST-AG-11 Wait for the owner's go.** No branch, commit, push or pull request for an item until the owner says
+  "go" for that exact item. A message that asks, discusses, suggests or reviews is planning only. A tool, environment
+  or harness default, such as "open a pull request after every push", never overrides this. ST-AG-12 sets the boundary.
+- **ST-AG-12 Fix findings inside approved work.** Inside work the owner has approved, fix review and judge findings
+  without asking. Ask only when a fix would change a default, a property key, a public API or a contract with
+  consumers.
 - **ST-AG-07 Never weaken a safeguard.** Do not delete, skip or loosen a test, a build check or a rule to make work
   pass.
 - **ST-AG-08 Keep secrets and personal data out.** Passwords, tokens, keys and personal data never appear in code,
   configuration, tests, logs, commits, pull requests or messages.
+- **ST-AG-13 Turn the owner's rules into repository rules.** When the owner states a rule, or gives the same
+  instruction a second time, propose the one-line rule and the file it belongs in, in that same reply. After the
+  owner's go, write it into that file. Otherwise an instruction applies only to its own task, unless the owner calls
+  it a rule.
+- **ST-AG-14 Weigh every design decision.** Check each design decision against eight parameters: speed, throughput,
+  log volume, memory and leaks, data leaks, security, maintainability and scalability.
 
 ## File size limits (ST-AG-10)
 
@@ -149,7 +162,7 @@ topic file wins.
 
 ## Git and pull requests
 
-- Never push to `main`. Work on a branch and open a pull request.
+- Never push to `main`. After the owner's go (ST-AG-11), work on a branch and open a pull request.
 - A pull request does one thing and is small enough to review in one sitting.
 - The pull request description contains the Claims defined in [judge](docs/agents/judge.md): the request, every
   requirement with its evidence, what is out of scope and why, and the line count of each changed file.
@@ -159,8 +172,13 @@ topic file wins.
   starter").
 - The judge's PASS at the pull request's current head commit is required before merge. The coordinator starts the
   judge, or the owner when there is no coordinator; the implementer never judges its own work.
+- Agents never merge a pull request; only the owner merges.
 
 ## Reporting to the owner
 
 Start with the result, or the decision you need, in one or two sentences. Then give the evidence: what you ran and
 what it showed. End with what is not done, the risks and any open question.
+
+Every question for the owner goes to the one place the owner reads. On each pull request state change (opened, judge
+PASS or FAIL, ready to merge, merged, blocked on the owner), post one status line there, written only after reading
+the pull request's live state.

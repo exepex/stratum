@@ -8,8 +8,7 @@ before merge. It is an independent agent that checks the work itself and accepts
 
 ## Which changes need a judge
 
-Every pull request needs a judge PASS before it merges. The only exception is a pull request that adds nothing but
-a judge verdict file.
+Every pull request needs a judge PASS before it merges.
 
 How the judge checks depends on the change:
 
@@ -29,7 +28,9 @@ How the judge checks depends on the change:
 
    > You are the independent judge for pull request #N in exepex/stratum. Follow `AGENTS.md` and
    > `docs/agents/judge.md` exactly. Verify every claim yourself; a claim you have not verified is NOT MET.
-   > Write only your verdict file.
+   > Post your verdict as one pull request comment and change nothing else.
+
+One judge per pull request, unless the owner asks for more.
 
 The implementer never starts its own judge and never judges its own work. An agent that took part in building the
 change, or read the conversation in which it was built, cannot be its judge.
@@ -82,11 +83,10 @@ A claim without evidence counts as not made.
 
 Judge honestly in both directions. Do not invent findings to look thorough, and do not pass work to be agreeable.
 
-## The verdict file
+## The verdict
 
-The judge writes `reviews/judge/PR-<number>-<short-name>.md` and commits it to the pull request branch. This is the
-judge's only change to the repository. If the judge can comment on the pull request, it also posts the verdict line
-with a link to the file. The file follows this template and is at most 60 lines long:
+The judge posts its verdict as one pull request comment, never as a file in the repository, and changes nothing
+else. The comment follows this template and is at most about 60 lines long:
 
 1. **Title:** pull request number, branch, head commit. Then one line: PASS or FAIL.
 2. **Gap list:** each requirement from the request, MET, PARTLY or NOT MET, with the judge's evidence in a few words.
@@ -100,12 +100,13 @@ Quote the implementer only where a claim is wrong. No praise and no summary of t
 
 1. After a FAIL, the implementer fixes each finding and shows the proof (commit, test, command output), or answers it
    with evidence that the requirement is already met. Disagreement without evidence is not an answer.
-2. The judge reviews once more, in a `## Round 2` section of the same file, at the new head commit. It accepts or
-   rejects each fix and each answer with its own evidence. An answer is accepted only when the judge reproduces it.
+2. The judge reviews once more at the new head commit, in a new comment or a `## Round 2` section added to the same
+   comment. It accepts or rejects each fix and each answer with its own evidence. An answer is accepted only when the
+   judge reproduces it.
 3. If findings remain after two rounds, the owner decides. Both sides' evidence goes to the owner; there is no third
    round.
 
 ## Merging
 
-A pull request merges only when the judge's PASS is for its current head commit. Any later commit other than the
-verdict file needs the judge to confirm that the PASS still holds.
+The owner merges a pull request only when the judge's PASS is for its current head commit. Any later commit needs
+the judge to confirm that the PASS still holds.
