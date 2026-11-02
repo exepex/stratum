@@ -4,6 +4,7 @@ import com.exepex.stratum.logging.redaction.Redactor;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -202,20 +203,32 @@ abstract class MaskedTextFormatter<E> implements StructuredLogFormatter<E> {
 
   /**
    * A logged value as the redactor sees it: text, never a map or a list, so that the redactor masks
-   * it by its text.
+   * it by its text. The redactor reads the text inside its fail-closed boundary; the text is kept,
+   * so the value's {@code toString()} runs only once.
    *
    * @param value the logged value
+   * @param text the value's text, once read
    */
-  private record LoggedText(@Nullable Object value) {
+  private record LoggedText(@Nullable Object value, AtomicReference<@Nullable String> text) {
 
     /**
-     * Returns the value's text, {@code null} written as {@code null}.
+     * Holds a value whose text is not read yet.
+     *
+     * @param value the logged value
+     */
+    LoggedText(@Nullable Object value) {
+      this(value, new AtomicReference<>());
+    }
+
+    /**
+     * Returns the value's text, {@code null} written as {@code null}, read once.
      *
      * @return the text
      */
     @Override
     public String toString() {
-      return Objects.toString(value);
+      return Objects.requireNonNull(
+          text.updateAndGet(read -> read != null ? read : Objects.toString(value)));
     }
   }
 }

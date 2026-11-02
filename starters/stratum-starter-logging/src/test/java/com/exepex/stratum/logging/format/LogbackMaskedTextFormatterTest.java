@@ -14,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -57,6 +58,9 @@ class LogbackMaskedTextFormatterTest {
           throw new IllegalStateException("not initialised");
         }
       };
+
+  /** How often a value's text may be read. */
+  private static final int ONE_READ = 1;
 
   /** The environment with the module on, as a service has it. */
   private final MockEnvironment moduleOn = LoggingTestData.environmentWithModuleOn();
@@ -124,6 +128,17 @@ class LogbackMaskedTextFormatterTest {
   @Nested
   @DisplayName("masking")
   class Masking {
+
+    @Test
+    @DisplayName("reads a value's toString() once, so a value that fails the second time is kept")
+    void readsValueOnce() {
+      var calls = new AtomicInteger();
+      var event = event("order checked", null);
+      event.addKeyValuePair(new KeyValuePair("order", new FailsAfterFirstRead(calls)));
+
+      assertThat(formatter.format(event)).contains(" : order checked order=order-42");
+      assertThat(calls).hasValue(ONE_READ);
+    }
 
     @Test
     @DisplayName("hides a value whose toString() fails, alone or in a list, and keeps the event")
@@ -256,6 +271,22 @@ class LogbackMaskedTextFormatterTest {
 
       assertThat(line).contains("IllegalArgumentException: bad input");
       MaskedTextFormats.assertStackTraceIndented(line);
+    }
+  }
+
+  /**
+   * A logged value whose {@code toString()} works once, then fails, as a detached entity's can.
+   *
+   * @param reads counts the reads
+   */
+  private record FailsAfterFirstRead(AtomicInteger reads) {
+
+    @Override
+    public String toString() {
+      if (reads.incrementAndGet() > ONE_READ) {
+        throw new IllegalStateException("detached");
+      }
+      return "order-42";
     }
   }
 

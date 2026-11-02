@@ -37,6 +37,12 @@ class ErrorCodeJsonMembersCustomizerTest {
   /** The code of {@link #CODED_FAILURE}. */
   private static final String CODE = "SX-LOGGING-1001";
 
+  /** How a line ends with the code in ECS's field. */
+  private static final String ECS_CODE_ENDING = ",\"error.code\":\"" + CODE + "\"}";
+
+  /** How a line ends with the code in GELF's field. */
+  private static final String GELF_CODE_ENDING = ",\"_error_code\":\"" + CODE + "\"}";
+
   /** The environment with the module on, after it has set the default ECS format. */
   private final MockEnvironment moduleOn =
       LoggingTestData.environmentWithModuleOn()
@@ -60,7 +66,7 @@ class ErrorCodeJsonMembersCustomizerTest {
   @DisplayName("a logged StratumException's code is written as error.code")
   void writesCodeOfLoggedException() {
     assertThat(writeLogLine(moduleOn, CODED_FAILURE))
-        .isEqualTo("{\"message\":\"order failed\",\"error.code\":\"" + CODE + "\"}");
+        .isEqualTo("{\"message\":\"order failed\"" + ECS_CODE_ENDING);
   }
 
   @Test
@@ -105,8 +111,7 @@ class ErrorCodeJsonMembersCustomizerTest {
   void usesGelfFieldName() {
     moduleOn.setProperty(LoggingConstants.CONSOLE_FORMAT, "GELF");
 
-    assertThat(writeLogLine(moduleOn, CODED_FAILURE))
-        .endsWith(",\"_error_code\":\"" + CODE + "\"}");
+    assertThat(writeLogLine(moduleOn, CODED_FAILURE)).endsWith(GELF_CODE_ENDING);
   }
 
   @Test
@@ -131,8 +136,7 @@ class ErrorCodeJsonMembersCustomizerTest {
     new LoggingEnvironmentPostProcessor()
         .postProcessEnvironment(textConsoleGelfFile, new SpringApplication());
 
-    assertThat(writeLogLine(textConsoleGelfFile, CODED_FAILURE))
-        .endsWith(",\"_error_code\":\"" + CODE + "\"}");
+    assertThat(writeLogLine(textConsoleGelfFile, CODED_FAILURE)).endsWith(GELF_CODE_ENDING);
   }
 
   @Test
@@ -143,8 +147,7 @@ class ErrorCodeJsonMembersCustomizerTest {
             .withProperty(LoggingConstants.CONSOLE_FORMAT, "com.acme.orders.logging.OrdersFormat")
             .withProperty(LoggingConstants.FILE_FORMAT, "com.acme.orders.logging.OrdersFormat");
 
-    assertThat(writeLogLine(ownFormatter, CODED_FAILURE))
-        .endsWith(",\"error.code\":\"" + CODE + "\"}");
+    assertThat(writeLogLine(ownFormatter, CODED_FAILURE)).endsWith(ECS_CODE_ENDING);
   }
 
   @Test
