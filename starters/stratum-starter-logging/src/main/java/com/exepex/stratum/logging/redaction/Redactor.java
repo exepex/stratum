@@ -237,8 +237,8 @@ public final class Redactor {
   /** Returns the JSON's text as it is, when masking leaves it unchanged, else the masked text. */
   private Object maskedJson(@Nullable String fieldName, WritableJson json) {
     var text = json.toJsonString();
-    var redacted = redact(fieldName, text);
-    return text.equals(redacted) ? asJson(text) : Objects.requireNonNull(redacted);
+    var redacted = redactText(fieldName, truncateToMaxFieldLength(text));
+    return redacted.equals(text) ? asJson(text) : redacted;
   }
 
   /**
