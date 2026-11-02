@@ -100,10 +100,7 @@ final class KnownLogFields {
     return first.stream().filter(second::contains).collect(Collectors.toUnmodifiableSet());
   }
 
-  /**
-   * Returns the safe paths of a format: Spring Boot's own fields, Stratum's error code and instance
-   * ID.
-   */
+  /** Returns the safe paths of a format: Spring Boot's own fields, Stratum's error code. */
   private static Set<String> safePathsOf(LogFormat format) {
     return switch (format) {
       case ECS ->
@@ -120,8 +117,7 @@ final class KnownLogFields {
               "service.node.name",
               "ecs.version",
               "error.type",
-              LoggingConstants.ERROR_CODE,
-              LoggingConstants.INSTANCE_ID);
+              LoggingConstants.ERROR_CODE);
       case LOGSTASH ->
           withWebFields(
               "",
@@ -131,8 +127,7 @@ final class KnownLogFields {
               "thread_name",
               "level",
               "level_value",
-              LoggingConstants.ERROR_CODE,
-              LoggingConstants.INSTANCE_ID);
+              LoggingConstants.ERROR_CODE);
       case GELF ->
           withWebFields(
               GELF_FIELD_PREFIX,
@@ -146,8 +141,7 @@ final class KnownLogFields {
               "_log_logger",
               "_service_version",
               "_error_type",
-              LoggingConstants.GELF_ERROR_CODE,
-              LoggingConstants.GELF_INSTANCE_ID);
+              LoggingConstants.GELF_ERROR_CODE);
       case TEXT -> Set.of();
     };
   }
