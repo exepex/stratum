@@ -3,9 +3,9 @@ package com.exepex.stratum.logging.redaction;
 import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.LoggingProperties.LogFormat;
+import com.exepex.stratum.logging.StructuredLogFormats;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
@@ -59,12 +59,7 @@ final class KnownLogFields {
    * @return the known fields
    */
   static KnownLogFields from(Environment environment) {
-    var formatNames =
-        Stream.of(LoggingConstants.CONSOLE_FORMAT, LoggingConstants.FILE_FORMAT)
-            .map(environment::getProperty)
-            .filter(Objects::nonNull)
-            .toList();
-    var formats = formatNames.stream().map(KnownLogFields::formatNamed).toList();
+    var formats = StructuredLogFormats.of(environment);
     if (formats.isEmpty() || formats.stream().anyMatch(Optional::isEmpty)) {
       return NONE;
     }
@@ -94,18 +89,6 @@ final class KnownLogFields {
     return stackTracePaths.contains(path);
   }
 
-  /** Returns Spring Boot's format with the name, ignoring case as Spring Boot does. */
-  private static Optional<LogFormat> formatNamed(String name) {
-    return Arrays.stream(LogFormat.values()).filter(format -> isNamed(format, name)).findFirst();
-  }
-
-  /** Returns whether the format has the name, ignoring case. */
-  private static boolean isNamed(LogFormat format, String name) {
-    var structuredFormat = format.getStructuredFormat();
-    return structuredFormat != null
-        && String.CASE_INSENSITIVE_ORDER.compare(structuredFormat, name) == 0;
-  }
-
   /** Returns the paths that every one of the formats lists. */
   private static Set<String> knownInAll(
       List<LogFormat> formats, Function<LogFormat, Set<String>> pathsOf) {
@@ -117,7 +100,10 @@ final class KnownLogFields {
     return first.stream().filter(second::contains).collect(Collectors.toUnmodifiableSet());
   }
 
-  /** Returns the safe paths of a format: Spring Boot's own fields, Stratum's error code. */
+  /**
+   * Returns the safe paths of a format: Spring Boot's own fields, Stratum's error code and instance
+   * ID.
+   */
   private static Set<String> safePathsOf(LogFormat format) {
     return switch (format) {
       case ECS ->
@@ -134,7 +120,8 @@ final class KnownLogFields {
               "service.node.name",
               "ecs.version",
               "error.type",
-              LoggingConstants.ERROR_CODE);
+              LoggingConstants.ERROR_CODE,
+              LoggingConstants.INSTANCE_ID);
       case LOGSTASH ->
           withWebFields(
               "",
@@ -144,7 +131,8 @@ final class KnownLogFields {
               "thread_name",
               "level",
               "level_value",
-              LoggingConstants.ERROR_CODE);
+              LoggingConstants.ERROR_CODE,
+              LoggingConstants.INSTANCE_ID);
       case GELF ->
           withWebFields(
               GELF_FIELD_PREFIX,
@@ -158,7 +146,8 @@ final class KnownLogFields {
               "_log_logger",
               "_service_version",
               "_error_type",
-              LoggingConstants.GELF_ERROR_CODE);
+              LoggingConstants.GELF_ERROR_CODE,
+              LoggingConstants.GELF_INSTANCE_ID);
       case TEXT -> Set.of();
     };
   }

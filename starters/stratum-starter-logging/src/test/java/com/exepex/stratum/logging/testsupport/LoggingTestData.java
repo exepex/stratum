@@ -95,6 +95,16 @@ public class LoggingTestData {
   }
 
   /**
+   * Returns an environment with the module switched on and a service name, which the module needs
+   * to start.
+   *
+   * @return the environment, which a test can add properties to
+   */
+  public static MockEnvironment environmentWithModuleOnAndServiceName() {
+    return environmentWithModuleOn().withProperty(LoggingConstants.APPLICATION_NAME, "orders");
+  }
+
+  /**
    * Masks text that has no field name, as in a log message, with the default settings.
    *
    * @param text the text to mask

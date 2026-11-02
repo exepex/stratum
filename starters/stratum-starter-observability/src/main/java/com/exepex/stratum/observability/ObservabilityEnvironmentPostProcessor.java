@@ -3,6 +3,7 @@ package com.exepex.stratum.observability;
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.condition.StratumModuleSwitch;
+import com.exepex.stratum.core.properties.ServiceInstanceId;
 import com.exepex.stratum.core.properties.StratumDefaults;
 import java.util.HashMap;
 import java.util.Map;
@@ -18,10 +19,11 @@ import org.springframework.util.StringUtils;
  * Gives Spring Boot's actuator, metrics and tracing Stratum's defaults before the application
  * starts. With {@code stratum.observability.enabled=true} it applies the module's settings, which
  * by default expose only {@code health} and {@code info}, store timings as histograms, trace Kafka
- * and RabbitMQ messages and carry traces into Spring Boot's executors, and it tags every metric;
- * otherwise it turns export off, so a bundle that brings this starter sends nothing. Every value
- * the service sets for those Spring Boot properties wins, Java default properties included. {@link
- * ObservabilityExportAddressCheck} checks the export addresses.
+ * and RabbitMQ messages and carry traces into Spring Boot's executors, and it tags every metric and
+ * names the service's instance in every span and metric; otherwise it turns export off, so a bundle
+ * that brings this starter sends nothing. Every value the service sets for those Spring Boot
+ * properties wins, Java default properties included. {@link ObservabilityExportAddressCheck} checks
+ * the export addresses.
  */
 @StratumInternal
 public class ObservabilityEnvironmentPostProcessor implements EnvironmentPostProcessor, Ordered {
@@ -76,6 +78,9 @@ public class ObservabilityEnvironmentPostProcessor implements EnvironmentPostPro
         ObservabilityConstants.METRIC_TAGS + ObservabilityConstants.ENVIRONMENT_TAG,
         serviceEnvironment);
     putIfSet(defaults, ObservabilityConstants.ENVIRONMENT_RESOURCE_ATTRIBUTE, serviceEnvironment);
+    defaults.put(
+        ObservabilityConstants.INSTANCE_ID_RESOURCE_ATTRIBUTE,
+        ServiceInstanceId.of(environment).value());
     putIfSet(
         defaults,
         ObservabilityConstants.METRIC_TAGS + ObservabilityConstants.HOST_TAG,

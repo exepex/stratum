@@ -8,3 +8,7 @@ stratum:
     tags:
       extra-forbidden: tenantId
       allowed: orderId
+management:
+  opentelemetry:
+    resource-attributes:
+      "[service.instance.id]": orders-file-1

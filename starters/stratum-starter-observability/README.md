@@ -102,7 +102,7 @@ starter therefore never sends anything, not even to Spring Boot's default addres
 | Other threads | `@Async` methods and Spring Boot's executors keep the caller's trace and correlation ID ([below](#threads-and-reactive-code)). `@Scheduled` jobs start clean, and `LinkedWork` links work that a request saves for a later job back to that request ([guide](../../docs/guides/linking-later-work.md)) |
 | Messages | Kafka, JMS (IBM MQ, ActiveMQ) and RabbitMQ: sending and handling a message are timed and traced, and the consumer joins the sender's trace and correlation ID ([below](#messages)) |
 | Traces | OpenTelemetry traces. W3C `traceparent` is read from incoming requests and sent on calls made with Spring's HTTP clients. Spring Boot keeps 10% of new traces, and always follows the caller's decision, so a trace is never half kept |
-| Trace resource | `service.name` from `spring.application.name` (set by Spring Boot), and `deployment.environment.name` from `stratum.environment` |
+| Trace and metric resource | `service.name` from `spring.application.name` (set by Spring Boot), `deployment.environment.name` from `stratum.environment`, and `service.instance.id`, the [instance ID](../../docs/configuration/reference.md#instance-id) of this running copy, which its log lines carry too |
 | URLs on spans | The full URL of each HTTP client call, query string included, is kept on its span; only the user info is removed. Metrics never carry the query ([below](#urls-on-spans-and-metrics)) |
 | Health | `/actuator/health`, with Spring Boot's Kubernetes `liveness` and `readiness` groups |
 | Safe exposure | Only `health` and `info` are reachable over HTTP |
@@ -299,6 +299,7 @@ value you set wins, from any file, the environment, the command line or Java def
 | `management.metrics.tags.environment` | string | value of `stratum.environment` | none | The `environment` tag on every metric. |
 | `management.metrics.tags.host` | string | value of the `HOSTNAME` environment variable | none | The `host` tag on every metric, the pod's name on Kubernetes. |
 | `management.opentelemetry.resource-attributes[deployment.environment.name]` | string | value of `stratum.environment` | none | The environment on every span. |
+| `management.opentelemetry.resource-attributes[service.instance.id]` | string | `service.instance.id` from `OTEL_RESOURCE_ATTRIBUTES`, else a random [instance ID](../../docs/configuration/reference.md#instance-id) | none, so no instance ID | The running copy on every span and metric. |
 | `management.metrics.distribution.percentiles-histogram.all` | boolean | `true` | none, so no histogram | Every timing is a [histogram](#timings). `false` keeps only count, sum and max. |
 | `management.otlp.metrics.export.histogram-flavor` | `explicit-bucket-histogram` or `base2-exponential-bucket-histogram` | `base2-exponential-bucket-histogram` | `explicit-bucket-histogram` | How histograms are sent. |
 | `spring.task.execution.propagate-context` | boolean | `true` | `false` | Whether `@Async` methods and Spring Boot's executors keep the trace ([threads](#threads-and-reactive-code)). |

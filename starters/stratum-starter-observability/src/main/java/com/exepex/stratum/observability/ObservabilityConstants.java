@@ -48,7 +48,14 @@ public class ObservabilityConstants {
 
   /** Spring Boot's OpenTelemetry resource attribute for the environment, sent with every span. */
   public static final String ENVIRONMENT_RESOURCE_ATTRIBUTE =
-      "management.opentelemetry.resource-attributes[deployment.environment.name]";
+      StratumModuleConstants.resourceAttribute("deployment.environment.name");
+
+  /**
+   * Spring Boot's OpenTelemetry resource attribute for the instance ID, sent with every span and
+   * metric.
+   */
+  public static final String INSTANCE_ID_RESOURCE_ATTRIBUTE =
+      StratumModuleConstants.resourceAttribute(StratumModuleConstants.SERVICE_INSTANCE_ID);
 
   /** Spring Boot's switch that stores every timer and distribution summary as a histogram. */
   public static final String HISTOGRAM_FOR_EVERY_TIMING =

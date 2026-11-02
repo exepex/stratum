@@ -56,6 +56,7 @@ class KnownLogFieldsTest {
             "ecs.version",
             "error.type",
             "error.code",
+            "instanceId",
             TRACE_ID,
             "httpRoute",
             "userAgent",
@@ -117,6 +118,7 @@ class KnownLogFieldsTest {
     void logstashFieldsAreSafe() {
       assertThat(fields.isSafe(LEVEL)).isTrue();
       assertThat(fields.isSafe("thread_name")).isTrue();
+      assertThat(fields.isSafe("instanceId")).isTrue();
       assertThat(fields.isSafe(TRACE_ID)).isTrue();
       assertThat(fields.isSafe(ECS_LEVEL)).isFalse();
       assertThat(fields.isSafe("message")).isFalse();
@@ -142,6 +144,8 @@ class KnownLogFieldsTest {
       assertThat(fields.isSafe("host")).isTrue();
       assertThat(fields.isSafe("_level_name")).isTrue();
       assertThat(fields.isSafe("_error_code")).isTrue();
+      assertThat(fields.isSafe("_instanceId")).isTrue();
+      assertThat(fields.isSafe("instanceId")).isFalse();
       assertThat(fields.isSafe("_traceId")).isTrue();
       assertThat(fields.isSafe(TRACE_ID)).isFalse();
       assertThat(fields.isSafe("short_message")).isFalse();

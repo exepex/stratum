@@ -1,5 +1,6 @@
 package com.exepex.stratum.logging.startup;
 
+import static com.exepex.stratum.logging.testsupport.LoggingTestData.environmentWithModuleOnAndServiceName;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
@@ -44,12 +45,6 @@ class LoggingEnvironmentPostProcessorTest {
 
   private final LoggingEnvironmentPostProcessor postProcessor =
       new LoggingEnvironmentPostProcessor();
-
-  /** Returns an environment with the module on and a service name. */
-  private MockEnvironment environmentWithModuleOnAndServiceName() {
-    return LoggingTestData.environmentWithModuleOn()
-        .withProperty(LoggingConstants.APPLICATION_NAME, "orders");
-  }
 
   /** Runs the post-processor on the environment and returns it. */
   private MockEnvironment runPostProcessor(MockEnvironment environment) {

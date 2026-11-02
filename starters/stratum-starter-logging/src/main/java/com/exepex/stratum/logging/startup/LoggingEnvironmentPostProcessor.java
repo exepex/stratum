@@ -4,10 +4,13 @@ import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.condition.StratumModuleSwitch;
 import com.exepex.stratum.core.error.StratumException;
+import com.exepex.stratum.core.properties.ServiceInstanceId;
 import com.exepex.stratum.core.properties.StratumDefaults;
 import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.LoggingErrorCode;
 import com.exepex.stratum.logging.LoggingProperties;
+import com.exepex.stratum.logging.LoggingProperties.LogFormat;
+import com.exepex.stratum.logging.StructuredLogFormats;
 import com.exepex.stratum.logging.format.Log4j2MaskedTextFormatter;
 import com.exepex.stratum.logging.format.LogbackMaskedTextFormatter;
 import com.exepex.stratum.logging.redaction.Redactor;
@@ -25,8 +28,8 @@ import org.springframework.util.StringUtils;
 /**
  * Sets up logging before the application starts, when {@code stratum.logging.enabled=true}: checks
  * that the service has a name and valid settings, and gives Spring Boot's structured logging and
- * its executors Stratum's defaults. Every value the service sets for those properties wins, Java
- * default properties included.
+ * its executors Stratum's defaults, the instance ID included. Every value the service sets for
+ * those properties wins, Java default properties included.
  */
 @StratumInternal
 public class LoggingEnvironmentPostProcessor implements EnvironmentPostProcessor, Ordered {
@@ -71,6 +74,8 @@ public class LoggingEnvironmentPostProcessor implements EnvironmentPostProcessor
     StratumDefaults.addBelowServiceValues(
         environment,
         stratumLoggingDefaults(loggingProperties, environment, application.getClassLoader()));
+    // After the format defaults, so that the fields follow the formats the outputs now write.
+    StratumDefaults.addBelowServiceValues(environment, instanceIdFields(environment));
   }
 
   /**
@@ -104,6 +109,41 @@ public class LoggingEnvironmentPostProcessor implements EnvironmentPostProcessor
     defaultProperties.put(LoggingConstants.STACK_TRACE_ROOT, LoggingConstants.ROOT_CAUSE_FIRST);
     defaultProperties.putAll(StratumDefaults.CONTEXT_PROPAGATION);
     return defaultProperties;
+  }
+
+  /**
+   * Returns Spring Boot's settings that write the instance ID: ECS's {@code service.node.name} when
+   * the console or the log file writes ECS, and the added field of the first that writes Logstash
+   * or GELF. An added field reaches every JSON output, so with ECS and Logstash both, the ECS line
+   * carries it too. The text format writes none.
+   */
+  private Map<String, Object> instanceIdFields(ConfigurableEnvironment environment) {
+    var instanceId = ServiceInstanceId.of(environment).value();
+    var formats = StructuredLogFormats.of(environment).stream().flatMap(Optional::stream).toList();
+    var fields = new HashMap<String, Object>();
+    if (formats.contains(LogFormat.ECS)) {
+      fields.put(LoggingConstants.ECS_NODE_NAME, instanceId);
+    }
+    formats.stream()
+        .map(this::addedInstanceIdField)
+        .flatMap(Optional::stream)
+        .findFirst()
+        .ifPresent(
+            field ->
+                fields.put(LoggingConstants.JSON_ADDED_FIELDS + "[" + field + "]", instanceId));
+    return fields;
+  }
+
+  /**
+   * Returns the name of the field a format adds for the instance ID; none for ECS, which has its
+   * own field, or for text.
+   */
+  private Optional<String> addedInstanceIdField(LogFormat format) {
+    return switch (format) {
+      case LOGSTASH -> Optional.of(LoggingConstants.INSTANCE_ID);
+      case GELF -> Optional.of(LoggingConstants.GELF_INSTANCE_ID);
+      case ECS, TEXT -> Optional.empty();
+    };
   }
 
   /**

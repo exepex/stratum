@@ -2,6 +2,7 @@ package com.exepex.stratum.logging.it;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.logging.LoggingPropertiesCustomizer;
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.builder.SpringApplicationBuilder;
@@ -34,6 +36,10 @@ class LoggingStartupIntegrationTest {
   /** The same logging settings, written once as YAML and once as properties. */
   private static final List<String> CONFIGURATION_NAMES =
       List.of("logging-yaml", "logging-properties");
+
+  /** Each format that adds the instance ID as a field of its own, with that field's name. */
+  private static final List<Arguments> ADDED_INSTANCE_ID_FIELDS =
+      List.of(arguments("logstash", "instanceId"), arguments("gelf", "_instanceId"));
 
   /** Gives the test application its service name. */
   private static final String SERVICE_NAME = "--spring.application.name=orders";
@@ -81,7 +87,33 @@ class LoggingStartupIntegrationTest {
     assertThat(output)
         .contains("\"message\":\"badge checked\"")
         .contains("\"environment\":\"staging\"")
+        .contains("\"node\":{\"name\":\"orders-file-1\"}")
         .contains("\"badge_no\":\"****\"");
+  }
+
+  @Test
+  @DisplayName(
+      "an ECS line names its instance in service.node.name, with no empty node and no instanceId")
+  void ecsLineNamesInstance(CapturedOutput output) {
+    try (var _ = start(SERVICE_NAME, MODULE_ON)) {
+      log.info("ecs instance line");
+    }
+
+    assertThat(output)
+        .containsPattern("\"node\":\\{\"name\":\"[a-z0-9]{10}\"}")
+        .doesNotContain("\"node\":{}")
+        .doesNotContain("\"instanceId\"");
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @FieldSource("ADDED_INSTANCE_ID_FIELDS")
+  @DisplayName("a Logstash or GELF line names its instance in its own added field")
+  void addedFieldNamesInstance(String format, String field, CapturedOutput output) {
+    try (var _ = start(SERVICE_NAME, MODULE_ON, "--stratum.logging.format=" + format)) {
+      log.info("added field instance line");
+    }
+
+    assertThat(output).containsPattern("\"" + field + "\":\"[a-z0-9]{10}\"");
   }
 
   @Test

@@ -3,6 +3,7 @@ package com.exepex.stratum.observability;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.condition.StratumModuleConstants;
+import com.exepex.stratum.core.properties.ServiceInstanceId;
 import com.exepex.stratum.observability.testsupport.ObservabilityTestData;
 import java.util.List;
 import java.util.Map;
@@ -11,7 +12,10 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.env.DefaultPropertiesPropertySource;
+import org.springframework.core.env.EnumerablePropertySource;
 import org.springframework.core.env.MapPropertySource;
+import org.springframework.core.env.StandardEnvironment;
+import org.springframework.core.env.SystemEnvironmentPropertySource;
 import org.springframework.mock.env.MockEnvironment;
 import reactor.core.publisher.Hooks;
 
@@ -225,6 +229,55 @@ class ObservabilityEnvironmentPostProcessorTest {
       assertThat(environment.getProperty(ObservabilityConstants.WEB_EXPOSURE))
           .isEqualTo(SERVICE_EXPOSURE);
       assertThat(environment.getProperty(KAFKA_LISTENER_SWITCH)).isEqualTo(ON);
+    }
+  }
+
+  @Nested
+  @DisplayName("the instance ID")
+  class InstanceId {
+
+    /** Spring Boot's key, spelled out so that a test fails if Stratum's constant changes. */
+    private static final String INSTANCE_ID_KEY =
+        "management.opentelemetry.resource-attributes[service.instance.id]";
+
+    @Test
+    @DisplayName("with the module on, every span and metric names the instance this JVM generated")
+    void namesGeneratedInstance() {
+      var environment = runPostProcessor(ObservabilityTestData.environmentWithModuleOn());
+
+      assertThat(environment.getProperty(INSTANCE_ID_KEY))
+          .isEqualTo(ServiceInstanceId.of(new MockEnvironment()).value());
+    }
+
+    @Test
+    @DisplayName("with the module unset, no instance ID is set")
+    void moduleOffSetsNoInstanceId() {
+      assertThat(runPostProcessor(new MockEnvironment()).getProperty(INSTANCE_ID_KEY)).isNull();
+    }
+
+    @Test
+    @DisplayName("the service's own instance ID, from OTEL_RESOURCE_ATTRIBUTES, wins")
+    void serviceInstanceIdWins() {
+      var environment = ObservabilityTestData.environmentWithModuleOn();
+      environment
+          .getPropertySources()
+          .addLast(
+              new SystemEnvironmentPropertySource(
+                  StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME,
+                  Map.of("OTEL_RESOURCE_ATTRIBUTES", "service.instance.id=" + POD_NAME)));
+
+      assertThat(runPostProcessor(environment).getProperty(INSTANCE_ID_KEY)).isEqualTo(POD_NAME);
+    }
+
+    @Test
+    @DisplayName("the observability module sets no log field: that is the logging module's")
+    void setsNoLogField() {
+      var environment = runPostProcessor(ObservabilityTestData.environmentWithModuleOn());
+      var defaults =
+          (EnumerablePropertySource<?>)
+              environment.getPropertySources().get(DefaultPropertiesPropertySource.NAME);
+
+      assertThat(defaults.getPropertyNames()).noneMatch(key -> key.startsWith("logging."));
     }
   }
 }
