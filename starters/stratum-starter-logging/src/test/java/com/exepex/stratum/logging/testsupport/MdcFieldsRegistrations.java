@@ -1,14 +1,16 @@
 package com.exepex.stratum.logging.testsupport;
 
 import com.exepex.stratum.logging.LoggingConstants;
+import com.exepex.stratum.logging.mdc.MdcFieldsPropagation;
 import io.micrometer.context.ContextRegistry;
 import io.micrometer.context.ThreadLocalAccessor;
 import java.util.List;
 import lombok.experimental.UtilityClass;
 
 /**
- * Reads and clears the logging module's two entries in Micrometer's context registry, which the
- * module keeps for the rest of the JVM once it ran, so each test starts from a known registry.
+ * Registers, reads and clears the logging module's two entries in Micrometer's context registry,
+ * which the module keeps for the rest of the JVM once it ran, so each test starts from a known
+ * registry.
  */
 @UtilityClass
 public class MdcFieldsRegistrations {
@@ -16,6 +18,11 @@ public class MdcFieldsRegistrations {
   /** The keys of the service MDC fields accessor and the workflow fields accessor. */
   private static final List<String> MDC_FIELDS_KEYS =
       List.of(LoggingConstants.SERVICE_MDC_FIELDS, LoggingConstants.WORKFLOW_FIELDS);
+
+  /** Registers both accessors, as the logging module does while it is on. */
+  public void register() {
+    new MdcFieldsPropagation().afterSingletonsInstantiated();
+  }
 
   /** Removes both accessors from the registry, as before the module first ran in this JVM. */
   public void remove() {
