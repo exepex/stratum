@@ -318,6 +318,9 @@ try (var ignored = MDC.putCloseable("tenantId", tenantId)) {
 }
 ```
 
+In a servlet service, add `stratum-starter-webmvc` and set `stratum.web.enabled=true` so each
+request ends with a clean log context, or remove your own fields with `MDC.putCloseable`.
+
 ## Configure in Java
 
 Logging starts before Spring creates any bean, so the Java configuration is a class rather than a
