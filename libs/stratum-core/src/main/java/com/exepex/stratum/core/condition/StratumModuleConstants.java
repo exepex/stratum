@@ -15,6 +15,41 @@ public class StratumModuleConstants {
   /** The environment the service runs in, such as {@code prod}, which several modules report. */
   public static final String SERVICE_ENVIRONMENT = PREFIX + ".environment";
 
+  /** Spring Boot's map of OpenTelemetry resource attributes, sent with every span and metric. */
+  public static final String RESOURCE_ATTRIBUTES = "management.opentelemetry.resource-attributes";
+
+  /** The OpenTelemetry resource attribute that names one running instance of the service. */
+  public static final String SERVICE_INSTANCE_ID = "service.instance.id";
+
+  /**
+   * The environment variable in which OpenTelemetry takes resource attributes, as {@code key=value}
+   * pairs separated by commas.
+   */
+  public static final String OTEL_RESOURCE_ATTRIBUTES = "OTEL_RESOURCE_ATTRIBUTES";
+
+  /**
+   * Returns Spring Boot's key for one OpenTelemetry resource attribute.
+   *
+   * @param attribute the attribute, such as {@code service.instance.id}
+   * @return the key, such as {@code
+   *     management.opentelemetry.resource-attributes[service.instance.id]}
+   */
+  public static String resourceAttribute(String attribute) {
+    return mapEntry(RESOURCE_ATTRIBUTES, attribute);
+  }
+
+  /**
+   * Returns the key of one entry of a Spring Boot map property, in the bracket form that keeps a
+   * map key with dots or capitals as it is.
+   *
+   * @param mapProperty the map property, such as {@code logging.structured.json.add}
+   * @param mapKey the entry's key, such as {@code instanceId}
+   * @return the key, such as {@code logging.structured.json.add[instanceId]}
+   */
+  public static String mapEntry(String mapProperty, String mapKey) {
+    return mapProperty + "[" + mapKey + "]";
+  }
+
   /**
    * Spring Boot's switch that makes its executors carry the logging and tracing context, which the
    * logging and observability modules turn on by default. A service turns it off by setting it to

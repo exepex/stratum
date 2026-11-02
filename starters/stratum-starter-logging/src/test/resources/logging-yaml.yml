@@ -9,3 +9,7 @@ stratum:
     redaction:
       extra-keys:
         - badge-no
+management:
+  opentelemetry:
+    resource-attributes:
+      "[service.instance.id]": orders-file-1

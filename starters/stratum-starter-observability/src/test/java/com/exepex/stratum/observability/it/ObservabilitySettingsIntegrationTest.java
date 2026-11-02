@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.exepex.stratum.observability.MetricTagGuard;
 import com.exepex.stratum.observability.testsupport.ObservabilityTestData;
 import io.micrometer.core.instrument.config.MeterFilterReply;
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.sdk.resources.Resource;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -17,7 +19,8 @@ import org.springframework.test.annotation.DirtiesContext;
 class ObservabilitySettingsIntegrationTest {
 
   /** Checks the settings that both files set the same way. */
-  private void assertSettingsApplied(MetricTagGuard guard, Environment environment) {
+  private void assertSettingsApplied(
+      MetricTagGuard guard, Environment environment, Resource resource) {
     assertThat(guard.accept(ObservabilityTestData.counterTaggedWith("tenantId")))
         .isEqualTo(MeterFilterReply.DENY);
     assertThat(guard.accept(ObservabilityTestData.counterTaggedWith("orderId")))
@@ -25,6 +28,8 @@ class ObservabilitySettingsIntegrationTest {
     assertThat(environment.getProperty("management.endpoints.web.exposure.include"))
         .isEqualTo("health,info");
     assertThat(environment.getProperty("management.metrics.tags.environment")).isEqualTo("staging");
+    assertThat(resource.getAttribute(AttributeKey.stringKey("service.instance.id")))
+        .isEqualTo("orders-file-1");
   }
 
   @Nested
@@ -47,10 +52,14 @@ class ObservabilitySettingsIntegrationTest {
     /** The application's settings. */
     @Autowired private Environment environment;
 
+    /** What every span and metric says about the service. */
+    @Autowired private Resource resource;
+
     @Test
-    @DisplayName("the forbidden and allowed tags, endpoints and environment tag are applied")
+    @DisplayName(
+        "the forbidden and allowed tags, endpoints, environment tag and instance ID are applied")
     void settingsApplied() {
-      assertSettingsApplied(guard, environment);
+      assertSettingsApplied(guard, environment, resource);
     }
   }
 
@@ -74,10 +83,14 @@ class ObservabilitySettingsIntegrationTest {
     /** The application's settings. */
     @Autowired private Environment environment;
 
+    /** What every span and metric says about the service. */
+    @Autowired private Resource resource;
+
     @Test
-    @DisplayName("the forbidden and allowed tags, endpoints and environment tag are applied")
+    @DisplayName(
+        "the forbidden and allowed tags, endpoints, environment tag and instance ID are applied")
     void settingsApplied() {
-      assertSettingsApplied(guard, environment);
+      assertSettingsApplied(guard, environment, resource);
     }
   }
 }

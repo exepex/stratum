@@ -102,7 +102,7 @@ The line above comes out as one JSON object in the
   "@timestamp": "2026-10-28T21:15:04.512Z",
   "log": { "level": "INFO", "logger": "com.acme.orders.OrderService" },
   "process": { "pid": 4120, "thread": { "name": "tomcat-handler-12" } },
-  "service": { "name": "order-service", "environment": "prod", "node": {} },
+  "service": { "name": "order-service", "environment": "prod", "node": { "name": "k3x9q2m7ab" } },
   "message": "Order placed",
   "orderId": "8f14e45f",
   "ecs": { "version": "8.11" }
@@ -114,6 +114,7 @@ The line above comes out as one JSON object in the
 | `service.name` | `spring.application.name` (required) |
 | `service.environment` | [`stratum.environment`](../../docs/configuration/reference.md#shared-properties), when set |
 | `service.version` | Your jar's manifest, when it has a version |
+| `service.node.name` | The [instance ID](../../docs/configuration/reference.md#instance-id) of this running copy; `instanceId` in Logstash, `_instanceId` in GELF |
 | `error.type`, `error.message`, `error.stack_trace` | The exception you pass to the log call. The root cause comes first, so a cut stack trace still shows why it failed. |
 | `error.code` | The code of a `StratumException`, or of an exception that implements [`FailureWithErrorCode`](../../docs/guides/error-codes.md#existing-exceptions-a-migration-path), such as `SX-CORE-1003` or your own `PAY-0001`, when it is the exception you log or one of its causes ([error codes](../../docs/guides/error-codes.md)). Search and count errors by this field. It is a separate key next to the `error` group, not inside it: Elasticsearch merges it into `error`, while Loki and Datadog see the literal `error.code`. In GELF it is `_error_code`; when the console and the file use different formats, the console format decides the name. |
 | `workflow`, `rootWorkflow`, `workflowId` | The [workflow](#workflows) the line was written in |
@@ -270,14 +271,18 @@ value you set wins, from any file, the environment, the command line or Java def
 | `logging.structured.format.console` | `ecs`, `logstash`, `gelf` or a class name | value of `stratum.logging.format`; for `text`, Stratum's masked text class for Logback or Log4j2 | unset, so plain text | The console's format. |
 | `logging.structured.format.file` | `ecs`, `logstash`, `gelf` or a class name | value of `stratum.logging.format`; for `text`, Stratum's masked text class for Logback or Log4j2 | unset, so plain text | The log file's format. |
 | `logging.structured.ecs.service.environment` | string | value of `stratum.environment` | unset | `service.environment` in each line. |
+| `logging.structured.ecs.service.node-name` | string | the [instance ID](../../docs/configuration/reference.md#instance-id), when the console or the file writes ECS | unset, so an empty `node` | `service.node.name` in each ECS line. |
+| `logging.structured.json.add[instanceId]`, `logging.structured.json.add[_instanceId]` | string | the instance ID, under `instanceId` when the console or the file writes Logstash, or `_instanceId` for GELF; the console's format decides when they differ | unset | The instance ID as a field of its own in Logstash or GELF lines. Spring Boot adds it to every JSON output, so an ECS console next to a Logstash file carries it too. Your own `json.add` fields stay. |
 | `logging.structured.json.stacktrace.max-length` | integer | value of `stratum.logging.max-field-length` (`16KB` by default) | unset, so no limit | The longest stack trace written, in every format, `text` included. |
 | `logging.structured.json.stacktrace.root` | `first` or `last` | `first`: the root cause first, so a cut stack trace still shows why it failed | unset, so as Java prints it | `last` starts with the exception your code caught, as Java prints it. It applies to `text` too. |
 | `spring.task.execution.propagate-context` | boolean | `true` | `false` | Whether `@Async` methods and Spring Boot's executors keep the workflow fields. |
 | `spring.reactor.context-propagation` | `limited` or `auto` | `auto` | `limited` | Whether every Reactor operator keeps them, not only `handle` and `tap`. |
 
 The shared [`stratum.environment`](../../docs/configuration/reference.md#shared-properties) sets
-`service.environment`. The shared boolean `stratum.context-propagation.executor-beans` (default
-`true`) decides whether the pool beans you declare keep the workflow fields.
+`service.environment`. You choose the instance ID with Spring Boot's
+[instance ID key](../../docs/configuration/reference.md#instance-id). The shared boolean
+`stratum.context-propagation.executor-beans` (default `true`) decides whether the pool beans you
+declare keep the workflow fields.
 
 ## Examples
 

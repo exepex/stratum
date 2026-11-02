@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.core.error.StratumException;
+import com.exepex.stratum.core.properties.ServiceInstanceId;
 import com.exepex.stratum.observability.testsupport.ObservabilityTestData;
 import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.registry.otlp.HistogramFlavor;
@@ -17,6 +18,7 @@ import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.mock.env.MockEnvironment;
 import org.springframework.web.client.RestClient;
 
 // Each test starts and stops the application itself, because it checks what happens at startup or
@@ -74,8 +76,11 @@ class ObservabilityStarterIntegrationTest {
   }
 
   @Test
-  @DisplayName("sends its last metrics, as exponential histograms, and spans when it stops")
+  @DisplayName(
+      "sends its last metrics, as exponential histograms, and spans, each naming the instance,"
+          + " when it stops")
   void sendsDataOnExit() {
+    var instanceId = ServiceInstanceId.of(new MockEnvironment()).value();
     try (var context =
         start(
             collector.withExportsSentHere(
@@ -83,6 +88,8 @@ class ObservabilityStarterIntegrationTest {
       callPartner(context);
       assertThat(context.getBean(OtlpConfig.class).histogramFlavor())
           .isEqualTo(HistogramFlavor.BASE2_EXPONENTIAL_BUCKET_HISTOGRAM);
+      assertThat(context.getBean(OtlpConfig.class).resourceAttributes())
+          .containsEntry("service.instance.id", instanceId);
     }
 
     assertThat(collector.bodiesOf(CollectorStub.TRACES_PATH))
@@ -91,7 +98,8 @@ class ObservabilityStarterIntegrationTest {
                 assertThat(spans)
                     .contains(collector.url(PARTNER_PATH + QUERY))
                     .doesNotContain(PASSWORD)
-                    .contains("deployment.environment.name"));
+                    .contains("deployment.environment.name")
+                    .contains(instanceId));
     assertThat(collector.bodiesOf(CollectorStub.METRICS_PATH))
         .anySatisfy(
             metrics ->
@@ -102,7 +110,8 @@ class ObservabilityStarterIntegrationTest {
                     .doesNotContain(PASSWORD)
                     .contains("application")
                     .contains("orders")
-                    .contains("prod"));
+                    .contains("prod")
+                    .contains(instanceId));
   }
 
   @Test

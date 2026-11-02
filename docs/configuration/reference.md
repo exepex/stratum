@@ -33,6 +33,58 @@ spring.application.name=order-service
 stratum.environment=prod
 ```
 
+## Instance ID
+
+When the logging or the observability module is on, each running copy of the service gets one
+instance ID, so you can tell its lines, spans and metrics from those of the other copies. It is
+the same in every log line and every span and metric of that copy:
+
+| Where | Field |
+| --- | --- |
+| ECS log lines | `service.node.name` |
+| Logstash log lines | `instanceId` |
+| GELF log lines | `_instanceId` |
+| Text log lines | none: text is for a person reading one copy's output |
+| Spans and metrics sent over OTLP | the OpenTelemetry resource attribute `service.instance.id` |
+
+By default Stratum makes a random ID of ten digits and lowercase letters, such as `k3x9q2m7ab`,
+once each time the service starts. Two copies on the same host get different IDs, which a host
+name cannot promise. Each restart gets a new ID. A log line written to both an ECS console and a
+Logstash or GELF file carries both fields, because Spring Boot adds `instanceId` to every JSON
+output.
+
+Stratum adds no key for it. To choose the ID yourself, set Spring Boot's
+`management.opentelemetry.resource-attributes[service.instance.id]`, or `service.instance.id` in
+OpenTelemetry's `OTEL_RESOURCE_ATTRIBUTES` environment variable. Spring Boot's key wins over the
+environment variable, as it does in Spring Boot, and both win over Stratum's random ID. Spring
+Boot's key is used as it is, even blank, such as an unset `${POD_ID:}`, because Spring Boot sends
+that value on spans and metrics; with an empty value, ECS lines leave `service.node.name` out. A
+blank value in `OTEL_RESOURCE_ATTRIBUTES` counts as not set, and a badly encoded one is skipped when
+only the logging module is on; with observability on, Spring Boot stops startup on it.
+
+```properties
+management.opentelemetry.resource-attributes[service.instance.id]=orders-blue-1
+```
+
+```yaml
+management:
+  opentelemetry:
+    resource-attributes:
+      "[service.instance.id]": orders-blue-1
+```
+
+In Java, set the same key as a default property of the application
+([Overriding defaults](overriding-defaults.md)):
+
+```java
+application.setDefaultProperties(
+    Map.of("management.opentelemetry.resource-attributes[service.instance.id]", "orders-blue-1"));
+```
+
+Where the copy runs, such as its region, zone, host or Kubernetes pod, comes from your platform,
+not from Stratum: add it with your OpenTelemetry Collector's resource detection, or as more
+`key=value` pairs in `OTEL_RESOURCE_ATTRIBUTES`, such as `k8s.pod.name`.
+
 ## Property prefixes by module
 
 Each module's full table, with every key it reads or gives a default:

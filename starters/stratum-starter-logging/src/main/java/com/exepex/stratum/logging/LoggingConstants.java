@@ -36,6 +36,12 @@ public class LoggingConstants {
   /** Spring Boot's ECS field {@code service.environment}. */
   public static final String ECS_ENVIRONMENT = "logging.structured.ecs.service.environment";
 
+  /** Spring Boot's ECS field {@code service.node.name}, which holds the instance ID. */
+  public static final String ECS_NODE_NAME = "logging.structured.ecs.service.node-name";
+
+  /** Spring Boot's map of fields added to every JSON log line, by field name. */
+  public static final String JSON_ADDED_FIELDS = "logging.structured.json.add";
+
   /** The longest stack trace Spring Boot writes, in characters. */
   public static final String STACK_TRACE_MAX_LENGTH =
       "logging.structured.json.stacktrace.max-length";
@@ -80,6 +86,14 @@ public class LoggingConstants {
 
   /** The same field in GELF, whose own fields start with {@code _}. */
   public static final String GELF_ERROR_CODE = "_error_code";
+
+  /**
+   * The log field with the instance ID, in Logstash; ECS writes it as {@code service.node.name}.
+   */
+  public static final String INSTANCE_ID = "instanceId";
+
+  /** The same field in GELF, whose own fields start with {@code _}. */
+  public static final String GELF_INSTANCE_ID = "_instanceId";
 
   /** The name of the timer and span of every workflow. */
   public static final String WORKFLOW_OBSERVATION = "stratum.workflow";
