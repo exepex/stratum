@@ -103,4 +103,15 @@ public class LoggingTestData {
   public static String redactUnnamedText(String text) {
     return (String) DEFAULT_REDACTOR.redact(null, text);
   }
+
+  /**
+   * Returns an environment with the module switched on and the console's JSON format set, as Spring
+   * Boot's {@code logging.structured.format.console}.
+   *
+   * @param format Spring Boot's name for the format, such as {@code ecs}
+   * @return the environment, which a test can add properties to
+   */
+  public static MockEnvironment environmentWithConsoleFormat(String format) {
+    return environmentWithModuleOn().withProperty(LoggingConstants.CONSOLE_FORMAT, format);
+  }
 }

@@ -210,6 +210,9 @@ Every starter follows these rules:
   default sets it with `StratumDefaults`, and the module's README lists the Spring Boot key with Stratum's default.
   A `stratum.*` key is added only for what Spring Boot has no key for. Keep the number of keys low: every new key
   has a safe default, so most services set only `stratum.<module>.enabled`.
+- **ST-ENG-35** A team's configuration always wins over Stratum's defaults, including its own lists such as the
+  logging starter's `extra-keys` and `extra-patterns`. Stratum guards against mistakes, not against a team's
+  deliberate choices.
 
 ## Java 25 and Spring Boot 4
 
