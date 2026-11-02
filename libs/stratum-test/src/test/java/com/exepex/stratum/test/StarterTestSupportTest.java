@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import com.exepex.stratum.core.properties.StratumPropertiesCustomizer;
 import com.exepex.stratum.test.fixture.BoundLeakingGreeter;
+import com.exepex.stratum.test.fixture.ExtensibleGreeter;
 import com.exepex.stratum.test.fixture.InheritingGreeter;
 import com.exepex.stratum.test.fixture.InternalGreeting;
 import com.exepex.stratum.test.fixture.InternalGreetingFailure;
@@ -152,6 +153,19 @@ class StarterTestSupportTest {
 
       assertThat(result.getFailureReport().getDetails())
           .anyMatch(detail -> detail.startsWith(InheritingGreeter.class.getName() + " exposes"));
+    }
+
+    @Test
+    @DisplayName("fail for a protected nested type of an API type that names an internal type")
+    void failForProtectedNestedType() {
+      var result =
+          PublicApiRule.apiExposesOnlyApi()
+              .evaluate(new ClassFileImporter().importPackagesOf(ExtensibleGreeter.class));
+
+      assertThat(result.getFailureReport().getDetails())
+          .anyMatch(
+              detail ->
+                  detail.startsWith(ExtensibleGreeter.class.getName() + "$Extension exposes"));
     }
 
     @Test

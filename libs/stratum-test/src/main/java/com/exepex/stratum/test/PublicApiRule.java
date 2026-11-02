@@ -54,10 +54,13 @@ public class PublicApiRule {
         .allowEmptyShould(true);
   }
 
-  /** Whether a service may use the type: it and every class around it are public and unlabelled. */
+  /**
+   * Whether a service may use the type: it and every class around it can be reached from a
+   * service's code, and none of them is labelled.
+   */
   private static boolean isApi(JavaClass type) {
     return type.getPackageName().startsWith(STRATUM_PACKAGE)
-        && withEnclosingClasses(type).allMatch(PublicApiRule::isPublic)
+        && withEnclosingClasses(type).allMatch(PublicApiRule::isReachable)
         && !isInternal(type);
   }
 
@@ -128,9 +131,15 @@ public class PublicApiRule {
     return type.isAnnotatedWith(StratumInternal.class);
   }
 
-  /** Whether the class itself is public. */
-  private static boolean isPublic(JavaClass type) {
-    return type.getModifiers().contains(JavaModifier.PUBLIC);
+  /**
+   * Whether a service's code can reach the class itself: a public top-level class, or a nested one
+   * that is public, or protected and so open to the service's subclasses.
+   */
+  private static boolean isReachable(JavaClass type) {
+    var modifiers = type.getModifiers();
+    return type.getEnclosingClass().isPresent()
+        ? modifiers.stream().anyMatch(VISIBLE::contains)
+        : modifiers.contains(JavaModifier.PUBLIC);
   }
 
   /** The type, then each class it is nested in, out to the top-level class. */
