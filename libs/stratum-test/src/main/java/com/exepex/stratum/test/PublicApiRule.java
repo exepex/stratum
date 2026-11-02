@@ -16,6 +16,7 @@ import com.tngtech.archunit.lang.SimpleConditionEvent;
 import com.tngtech.archunit.lang.syntax.ArchRuleDefinition;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 import org.jspecify.annotations.Nullable;
@@ -72,25 +73,31 @@ public class PublicApiRule {
     };
   }
 
-  /** Every type that the API type's supertypes and visible members name. */
+  /** Every type that the API type's supertypes, type parameters and visible members name. */
   private static Stream<Exposure> exposures(JavaClass apiType) {
     var supertypes =
         Stream.concat(apiType.getSuperclass().stream(), apiType.getInterfaces().stream())
             .flatMap(supertype -> namedTypes(supertype, "its supertypes"));
+    var typeParameters =
+        apiType.getTypeParameters().stream()
+            .flatMap(typeParameter -> namedTypes(typeParameter, "its type parameters"));
     var members =
         apiType.getMembers().stream()
             .filter(PublicApiRule::isVisible)
             .flatMap(PublicApiRule::memberExposures);
-    return Stream.concat(supertypes, members);
+    return Stream.of(supertypes, typeParameters, members).flatMap(Function.identity());
   }
 
-  /** Every type a constructor, method or field names in its signature. */
+  /** Every type a constructor, method or field names in its signature, bounds included. */
   private static Stream<Exposure> memberExposures(JavaMember member) {
     var signatureTypes =
         member instanceof JavaCodeUnit codeUnit
-            ? Stream.concat(
-                Stream.of(codeUnit.getReturnType()), codeUnit.getParameterTypes().stream())
-            : Stream.of(((JavaField) member).getType());
+            ? Stream.of(
+                    Stream.of(codeUnit.getReturnType()),
+                    codeUnit.getParameterTypes().stream(),
+                    codeUnit.getTypeParameters().stream())
+                .<JavaType>flatMap(Function.identity())
+            : Stream.<JavaType>of(((JavaField) member).getType());
     return signatureTypes.flatMap(type -> namedTypes(type, member.getDescription()));
   }
 

@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.exepex.stratum.core.properties.StratumPropertiesCustomizer;
+import com.exepex.stratum.test.fixture.BoundLeakingGreeter;
 import com.exepex.stratum.test.fixture.InternalGreeting;
 import com.exepex.stratum.test.fixture.LeakingGreeter;
 import com.exepex.stratum.test.fixture.UnswitchedGreeter;
@@ -108,6 +109,20 @@ class StarterTestSupportTest {
 
       assertThat(result.getFailureReport().getDetails())
           .anyMatch(detail -> detail.contains(InternalGreeting.class.getName()));
+    }
+
+    @Test
+    @DisplayName("fail for an API type that names an internal type only in a type-parameter bound")
+    void failForInternalTypeInBound() {
+      var result =
+          PublicApiRule.apiExposesOnlyApi()
+              .evaluate(
+                  new ClassFileImporter()
+                      .importClasses(BoundLeakingGreeter.class, InternalGreeting.class));
+
+      assertThat(result.getFailureReport().getDetails())
+          .anyMatch(detail -> detail.contains("its type parameters"))
+          .anyMatch(detail -> detail.contains("notify"));
     }
 
     @Test
