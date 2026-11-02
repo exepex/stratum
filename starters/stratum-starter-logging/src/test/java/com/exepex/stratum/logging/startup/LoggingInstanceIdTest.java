@@ -126,6 +126,15 @@ class LoggingInstanceIdTest {
     }
 
     @Test
+    @DisplayName(
+        "a blank instance ID from Spring Boot's key is written as it is, as spans carry it")
+    void blankTeamInstanceIdIsWritten() {
+      var environment = runLoggingPostProcessor(environmentWith(Map.of(INSTANCE_ID_KEY, " ")));
+
+      assertThat(environment.getProperty(ECS_NODE_NAME)).isEqualTo(" ");
+    }
+
+    @Test
     @DisplayName("the service's own service.node.name wins")
     void teamNodeNameWins() {
       var environment = runLoggingPostProcessor(environmentWith(Map.of(ECS_NODE_NAME, "node-7")));

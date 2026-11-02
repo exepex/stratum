@@ -47,7 +47,8 @@ public record ServiceInstanceId(String value) {
    * Returns the instance ID: Spring Boot's {@code
    * management.opentelemetry.resource-attributes[service.instance.id]}, else {@code
    * service.instance.id} in the {@code OTEL_RESOURCE_ATTRIBUTES} environment variable, else the ID
-   * generated for this JVM. A blank value counts as not set.
+   * generated for this JVM. A blank value in Spring Boot's key is used as it is, because Spring
+   * Boot sends it on spans and metrics too; a blank one in the variable counts as not set.
    *
    * @param environment the application's environment
    * @return the instance ID
@@ -59,7 +60,10 @@ public record ServiceInstanceId(String value) {
             .orElse(GENERATED_IN_THIS_JVM));
   }
 
-  /** Returns the value of Spring Boot's key, bound as Spring Boot binds its attribute map. */
+  /**
+   * Returns the value of Spring Boot's key, bound as Spring Boot binds its attribute map, blank or
+   * not.
+   */
   private static Optional<String> fromSpringBootKey(ConfigurableEnvironment environment) {
     var instanceId =
         Binder.get(environment)
@@ -68,7 +72,7 @@ public record ServiceInstanceId(String value) {
                 Bindable.mapOf(String.class, String.class))
             .map(attributes -> attributes.get(StratumModuleConstants.SERVICE_INSTANCE_ID))
             .orElse(null);
-    return Optional.ofNullable(instanceId).filter(StringUtils::hasText);
+    return Optional.ofNullable(instanceId);
   }
 
   /**

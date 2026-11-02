@@ -46,19 +46,24 @@ class ServiceInstanceIdTest {
 
       assertThat(second).isEqualTo(first);
     }
-
-    @Test
-    @DisplayName("a blank value in Spring Boot's key counts as not set")
-    void blankSpringBootKeyIsNotSet() {
-      var environment = new MockEnvironment().withProperty(SPRING_BOOT_KEY, " ");
-
-      assertThat(ServiceInstanceId.of(environment).value()).isEqualTo(generatedInThisJvm());
-    }
   }
 
   @Nested
   @DisplayName("with Spring Boot's key set")
   class FromSpringBootKey {
+
+    /** Blank values a service can set, such as an unset placeholder {@code ${POD_ID:}}. */
+    private static final List<String> BLANK_VALUES = List.of("", " ");
+
+    @ParameterizedTest(name = "\"{0}\"")
+    @FieldSource("BLANK_VALUES")
+    @DisplayName(
+        "a blank value is used as it is, because Spring Boot sends it on spans and metrics too")
+    void blankValueIsUsed(String blank) {
+      var environment = new MockEnvironment().withProperty(SPRING_BOOT_KEY, blank);
+
+      assertThat(ServiceInstanceId.of(environment).value()).isEqualTo(blank);
+    }
 
     @Test
     @DisplayName("the bracket form, as in application.yml, wins")

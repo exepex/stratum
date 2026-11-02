@@ -56,9 +56,11 @@ output.
 Stratum adds no key for it. To choose the ID yourself, set Spring Boot's
 `management.opentelemetry.resource-attributes[service.instance.id]`, or `service.instance.id` in
 OpenTelemetry's `OTEL_RESOURCE_ATTRIBUTES` environment variable. Spring Boot's key wins over the
-environment variable, as it does in Spring Boot, and both win over Stratum's random ID. A blank
-value counts as not set. A badly encoded value in `OTEL_RESOURCE_ATTRIBUTES` is skipped when only
-the logging module is on; with observability on, Spring Boot stops startup on it.
+environment variable, as it does in Spring Boot, and both win over Stratum's random ID. Spring
+Boot's key is used as it is, even blank, such as an unset `${POD_ID:}`, because Spring Boot sends
+that value on spans and metrics; with an empty value, ECS lines leave `service.node.name` out. A
+blank value in `OTEL_RESOURCE_ATTRIBUTES` counts as not set, and a badly encoded one is skipped when
+only the logging module is on; with observability on, Spring Boot stops startup on it.
 
 ```properties
 management.opentelemetry.resource-attributes[service.instance.id]=orders-blue-1

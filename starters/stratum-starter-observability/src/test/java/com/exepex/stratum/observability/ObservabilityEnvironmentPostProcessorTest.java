@@ -11,6 +11,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.SpringApplication;
+import org.springframework.boot.context.properties.bind.Bindable;
+import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.boot.env.DefaultPropertiesPropertySource;
 import org.springframework.core.env.EnumerablePropertySource;
 import org.springframework.core.env.MapPropertySource;
@@ -267,6 +269,25 @@ class ObservabilityEnvironmentPostProcessorTest {
                   Map.of("OTEL_RESOURCE_ATTRIBUTES", "service.instance.id=" + POD_NAME)));
 
       assertThat(runPostProcessor(environment).getProperty(INSTANCE_ID_KEY)).isEqualTo(POD_NAME);
+    }
+
+    @Test
+    @DisplayName(
+        "a blank instance ID the service sets is what spans carry, and the one its logs use too")
+    void blankServiceInstanceIdIsUsedEverywhere() {
+      var environment =
+          runPostProcessor(
+              ObservabilityTestData.environmentWithModuleOn().withProperty(INSTANCE_ID_KEY, " "));
+      var spanInstanceId =
+          Binder.get(environment)
+              .bind(
+                  "management.opentelemetry.resource-attributes",
+                  Bindable.mapOf(String.class, String.class))
+              .get()
+              .get("service.instance.id");
+
+      assertThat(spanInstanceId).isEqualTo(" ");
+      assertThat(ServiceInstanceId.of(environment).value()).isEqualTo(spanInstanceId);
     }
 
     @Test
