@@ -61,7 +61,9 @@ public class LoggingConstants {
   // Elasticsearch turns a dotted log field into a nested object, and OpenTelemetry forbids a name
   // that is also a group, such as "workflow" next to "workflow.id" on one span.
 
-  /** The prefix of the workflow's observation keys: its metric tags and span attributes. */
+  /**
+   * The prefix of the workflow's observation keys (metric tags and span attributes), not log keys.
+   */
   public static final String WORKFLOW_KEY_PREFIX = "workflow.";
 
   /** The metric tag and span attribute with the workflow's name. */
