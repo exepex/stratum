@@ -5,7 +5,9 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.logging.testsupport.LoggingTestData;
+import com.exepex.stratum.logging.testsupport.ValueTextTestData;
 import java.util.ArrayList;
+import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
@@ -15,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.beans.BeanUtils;
+import org.springframework.boot.json.WritableJson;
 import org.springframework.util.unit.DataSize;
 
 @DisplayName("Redactor checks its settings, limits each value and fails closed")
@@ -70,7 +73,9 @@ class RedactorTest {
         List.of(
             IllegalArgumentException.class,
             IllegalStateException.class,
-            IndexOutOfBoundsException.class);
+            IndexOutOfBoundsException.class,
+            NullPointerException.class,
+            ConcurrentModificationException.class);
 
     /** The separators that a cut must drop, with the digits before them. */
     private static final List<String> GROUP_SEPARATORS_A_CUT_DROPS = List.of(".", "_", "/");
@@ -189,6 +194,60 @@ class RedactorTest {
     @DisplayName("a null value stays null")
     void nullStaysNull() {
       assertThat(redactor.redact("password", null)).isNull();
+    }
+  }
+
+  @Nested
+  @DisplayName("when reading the value fails, or its text changes")
+  class WhenReadingFails {
+
+    /** A value whose toString() throws a NullPointerException, as a missing field can. */
+    private final Object broken = ValueTextTestData.throwing(new NullPointerException());
+
+    @Test
+    @DisplayName("a toString() that throws a NullPointerException is replaced on every path")
+    void nullPointerIsReplacedOnEveryPath() {
+      var redactor = LoggingTestData.DEFAULT_REDACTOR;
+
+      assertThat(redactor.redact(MESSAGE, broken)).isEqualTo(Redactor.REDACTION_FAILED);
+      assertThat(redactor.redactAsText(MESSAGE, broken)).isEqualTo(Redactor.REDACTION_FAILED);
+      assertThat(redactor.redactKnownSafe("userAgent", broken))
+          .isEqualTo(Redactor.REDACTION_FAILED);
+      assertThat(redactor.redactStackTrace("error.stack_trace", broken))
+          .isEqualTo(Redactor.REDACTION_FAILED);
+    }
+
+    @Test
+    @DisplayName("JSON that fails while it is written is replaced by a JSON string")
+    void failingJsonIsReplaced() {
+      WritableJson failing =
+          _ -> {
+            throw new NullPointerException();
+          };
+
+      assertThat(LoggingTestData.redactedAsJson(MESSAGE, failing))
+          .isEqualTo("\"" + Redactor.REDACTION_FAILED + "\"");
+    }
+
+    @Test
+    @DisplayName("a toString() that changes between calls is read once, so its later text is not")
+    void textIsReadOnce() {
+      var changing = ValueTextTestData.changing("plain", LoggingTestData.CARD);
+      var changingNumber = ValueTextTestData.changingNumber("5", LoggingTestData.CARD);
+
+      assertThat(LoggingTestData.redactedAsJson(MESSAGE, changing)).isEqualTo("\"plain\"");
+      assertThat(LoggingTestData.redactedAsJson(MESSAGE, changingNumber)).isEqualTo("5");
+    }
+
+    @Test
+    @DisplayName("a number is masked by its name and its text, else stays a JSON number")
+    void numbersAreMaskedFirst() {
+      assertThat(LoggingTestData.redactedAsJson("pin", LoggingTestData.PIN)).isEqualTo("\"****\"");
+      assertThat(LoggingTestData.redactedAsJson("cardNumber", Long.parseLong(LoggingTestData.CARD)))
+          .isEqualTo("\"****1111\"");
+      assertThat(LoggingTestData.redactedAsJson("orderId", LoggingTestData.ORDER_ID))
+          .isEqualTo("42");
+      assertThat(LoggingTestData.redactedAsJson("paid", true)).isEqualTo("true");
     }
   }
 }

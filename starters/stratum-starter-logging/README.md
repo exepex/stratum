@@ -135,8 +135,9 @@ shows each way to start one, the fields and timings it adds, and how async and r
 
 Redaction runs on every value of a JSON line: the message, the exception's message and stack
 trace, MDC entries and key-value pairs. A key-value pair whose value is a number or an object, such
-as `addKeyValue("customer", customer)`, is masked through the value's `toString()`; a list or map
-is masked element by element. Ready-made JSON, such as a `WritableJson`, is masked through its text;
+as `addKeyValue("customer", customer)`, is masked through the value's `toString()`, which is read
+once; a list, map or array is masked element by element and keeps only its first elements
+([lists, maps and arrays](#lists-maps-and-arrays)). Ready-made JSON, such as a `WritableJson`, is masked through its text;
 if anything in it is masked, it is written as a JSON string. It cannot be switched off.
 
 > [!IMPORTANT]
@@ -192,9 +193,34 @@ lines that are wholly a frame (`at com.example.Orders.place(Orders.java:42)`) or
 
 Every value is also cut to `stratum.logging.max-field-length` (16KB by default) and ends with
 `...[truncated]` when it was longer. The cut drops the word it falls in and any digits just before
-it, so a token or card number that crosses the limit is never left half visible. If masking a value fails, `[REDACTION_FAILED]` is written
-instead; the value is never written as it was. That includes an `extra-patterns` expression that
+it, so a token or card number that crosses the limit is never left half visible. If anything fails
+while masking a value, such as a `toString()` that throws or a list changed while it is read,
+`[REDACTION_FAILED]` is written for that value instead, and the rest of the line is still written;
+the value is never written as it was. That includes an `extra-patterns` expression that
 overflows the stack on long text. A `toString()` that returns `null` is written as `null`.
+
+### Lists, maps and arrays
+
+A list, set, map or array logged as a key-value pair keeps its first `stratum.logging.max-elements`
+elements (10 by default), and one marker counts the rest. Each list, map or array inside it is
+limited the same way. The elements after the limit are never read, so a huge list costs no more than
+a short one:
+
+```java
+log.atInfo().addKeyValue("orderIds", orderIds).log("Batch paid"); // 200 order IDs
+```
+
+```json
+"orderIds": ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10", "...[190 more]"]
+```
+
+A map ends with the entry `"...": "[190 more]"`, and the `text` format writes
+`orderIds=[A1, A2, …, A10, ...[190 more]]` and `{A1=PAID, …, ...=[190 more]}`. To log more of a list,
+turn it into one string, such as `String.join(",", orderIds)`: a string is only cut at
+`max-field-length`. The limit applies to key-value pairs; MDC values are always strings, and a
+list in the message, as in `log.info("ids {}", orderIds)`, is turned into text by SLF4J before
+Stratum sees it, so it is only cut at `max-field-length`. You may lower the limit, never raise it
+above 20.
 
 A log file, written when you set `logging.file.name`, gets the same format and the same redaction
 as the console.
@@ -238,6 +264,7 @@ value you set wins, from any file, the environment, the command line or Java def
 | `stratum.logging.enabled` | boolean | `false` | no such key | Switches the whole starter on. Until it is `true`, the starter sets up nothing. |
 | `stratum.logging.format` | `ecs`, `logstash`, `gelf`, `text` | `ecs` | no such key | The format of the console and of the log file. `text` is one masked line of text per event; the others are JSON. |
 | `stratum.logging.max-field-length` | data size, `1KB` to `1MB` | `16KB` | no such key | The longest value written, also used as the stack trace limit. It counts characters; for English text, 16KB is 16,384 characters. Outside the range, startup stops with `SX-CORE-1003`, which names the rule `stratum.logging.max-field-length-in-range`. |
+| `stratum.logging.max-elements` | integer, `1` to `20` | `10` | no such key | The most elements kept of each logged list, map or array, nested ones too; one marker such as `...[190 more]` counts the rest ([lists, maps and arrays](#lists-maps-and-arrays)). Outside the range, startup stops with `SX-CORE-1003`, which names the rule, such as `stratum.logging.max-elements breaks @Max(value=20)`. |
 | `stratum.logging.redaction.extra-keys` | list | *(empty)* | no such key | More field and key names whose values are masked in full, added to the built-in names. |
 | `stratum.logging.redaction.extra-patterns` | list of regex | *(empty)* | no such key | More patterns whose matches are masked in full. An invalid pattern stops startup with `SX-LOGGING-1002`; the message gives its position in the list, never the pattern. |
 | `logging.structured.format.console` | `ecs`, `logstash`, `gelf` or a class name | value of `stratum.logging.format`; for `text`, Stratum's masked text class for Logback or Log4j2 | unset, so plain text | The console's format. |
@@ -254,13 +281,15 @@ The shared [`stratum.environment`](../../docs/configuration/reference.md#shared-
 
 ## Examples
 
-Production, with the service's own sensitive names and an employee-ID pattern:
+Production, with the service's own sensitive names, an employee-ID pattern and five elements of
+each list:
 
 ```yaml
 stratum:
   environment: prod
   logging:
     enabled: true
+    max-elements: 5
     redaction:
       extra-keys:
         - badge-no
@@ -272,6 +301,7 @@ stratum:
 ```properties
 stratum.environment=prod
 stratum.logging.enabled=true
+stratum.logging.max-elements=5
 stratum.logging.redaction.extra-keys=badge-no,member-id
 stratum.logging.redaction.extra-patterns[0]=\\bEMP-\\d{6}\\b
 ```
@@ -337,6 +367,7 @@ public class OrdersLoggingSettings implements LoggingPropertiesCustomizer {
     return properties.toBuilder()
         .format(LogFormat.GELF)
         .maxFieldLength(DataSize.ofKilobytes(32))
+        .maxElements(5)
         .redaction(properties.redaction().toBuilder().extraKeys(List.of("iban-hash")).build())
         .build();
   }
@@ -422,5 +453,6 @@ which keeps Spring Boot's default plain-text logging, with no checks and no reda
 | A secret still appears in logs | Add its key to `extra-keys` or its shape to `extra-patterns`, then rotate the secret. Report the format so it can be added to the built-in list. |
 | A phone number or SSN in a message is not masked | Text is searched only for values Stratum can confirm. Log it under a field named `phone` or `ssn`, or add your own name to `extra-keys`. |
 | `com.google.i18n.phonenumbers` classes are not found after an upgrade | Stratum no longer brings libphonenumber. Declare `com.googlecode.libphonenumber:libphonenumber` in your own POM, with its version. |
-| A value shows `[REDACTION_FAILED]` | Masking that value failed, so it was hidden. Report the log call so the cause can be fixed. |
+| A value shows `[REDACTION_FAILED]` | Masking that value failed, so it was hidden, for example because its `toString()` threw or a list changed while it was read. Fix the `toString()`, or report the log call. |
+| A list ends with `...[190 more]` | Only the first `max-elements` elements are written. Log fewer, or join the list into one string ([lists, maps and arrays](#lists-maps-and-arrays)). |
 | Duplicate log lines | Your service has its own `logback-spring.xml` adding a second appender. |

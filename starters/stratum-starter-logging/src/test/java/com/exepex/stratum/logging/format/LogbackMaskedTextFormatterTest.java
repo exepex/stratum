@@ -8,8 +8,10 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.classic.spi.LoggingEvent;
 import ch.qos.logback.classic.spi.LoggingEventVO;
 import com.exepex.stratum.logging.LoggingConstants;
+import com.exepex.stratum.logging.testsupport.ElementsTestData;
 import com.exepex.stratum.logging.testsupport.LoggingTestData;
 import com.exepex.stratum.logging.testsupport.MaskedTextFormats;
+import com.exepex.stratum.logging.testsupport.ValueTextTestData;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
@@ -173,6 +175,22 @@ class LogbackMaskedTextFormatterTest {
 
       assertThat(formatter.format(event))
           .contains(" : order checked order=[REDACTION_FAILED] items=[REDACTION_FAILED]");
+    }
+
+    @Test
+    @DisplayName("hides a toString() that throws NullPointerException; limits a list to ten")
+    void hidesNullPointerAndLimitsList() {
+      var event = event(ORDER_CHECKED, null);
+      event.addKeyValuePair(
+          new KeyValuePair(ORDER_KEY, ValueTextTestData.throwing(new NullPointerException())));
+      event.addKeyValuePair(
+          new KeyValuePair(
+              "ids", ElementsTestData.numbers(LoggingTestData.DEFAULT_MAX_ELEMENTS + 2)));
+
+      assertThat(formatter.format(event))
+          .contains(
+              " : order checked order=[REDACTION_FAILED] ids=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9,"
+                  + " ...[2 more]]");
     }
 
     @Test

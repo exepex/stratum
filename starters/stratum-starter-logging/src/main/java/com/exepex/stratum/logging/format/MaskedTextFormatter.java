@@ -3,8 +3,6 @@ package com.exepex.stratum.logging.format;
 import com.exepex.stratum.logging.redaction.Redactor;
 import java.time.Instant;
 import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -46,9 +44,6 @@ abstract class MaskedTextFormatter<E> implements StructuredLogFormatter<E> {
 
   /** The field name of the stack trace. */
   private static final String STACK_TRACE_FIELD = "error.stack_trace";
-
-  /** Written for a value that is {@code null} or whose {@code toString()} returns {@code null}. */
-  private static final String NULL_TEXT = "null";
 
   /** Prints stack traces in Java's own layout, when no Spring Boot printer is set. */
   private static final StackTracePrinter JAVA_LAYOUT = StandardStackTracePrinter.rootLast();
@@ -181,12 +176,12 @@ abstract class MaskedTextFormatter<E> implements StructuredLogFormatter<E> {
 
   /**
    * Masks a value under its field name: the one place this format calls the redactor. The value is
-   * masked as text, so the entries of a map or a list are masked too: the redactor leaves those to
-   * the JSON writer, which this format does not use. The redactor turns the value into text itself,
-   * so a {@code toString()} that fails hides the value instead of losing the event.
+   * masked as text, so the entries of a map or a list are masked too. The redactor turns the value
+   * into text itself, so a {@code toString()} that fails hides the value instead of losing the
+   * event.
    */
   private String mask(String fieldName, @Nullable Object value) {
-    return Objects.toString(redactor.redact(fieldName, new LoggedText(value)));
+    return redactor.redactAsText(fieldName, value);
   }
 
   /**
@@ -202,43 +197,5 @@ abstract class MaskedTextFormatter<E> implements StructuredLogFormatter<E> {
     return !line.isEmpty() && Character.isWhitespace(line.charAt(0))
         ? line
         : STACK_TRACE_INDENT + line;
-  }
-
-  /**
-   * A logged value as the redactor sees it: text, never a map or a list, so that the redactor masks
-   * it by its text. The redactor reads the text inside its fail-closed boundary; the text is kept,
-   * so the value's {@code toString()} runs only once.
-   *
-   * @param value the logged value
-   * @param text the value's text, once read
-   */
-  private record LoggedText(@Nullable Object value, AtomicReference<@Nullable String> text) {
-
-    /**
-     * Holds a value whose text is not read yet.
-     *
-     * @param value the logged value
-     */
-    LoggedText(@Nullable Object value) {
-      this(value, new AtomicReference<>());
-    }
-
-    /**
-     * Returns the value's text, read once; {@code null} and a {@code toString()} that returns
-     * {@code null} are written as {@code null}.
-     *
-     * @return the text
-     */
-    @Override
-    public String toString() {
-      return Objects.requireNonNull(text.updateAndGet(this::readOnce));
-    }
-
-    /**
-     * Returns the text already read, or reads it: {@code null}, or a null text, as {@code null}.
-     */
-    private String readOnce(@Nullable String read) {
-      return read != null ? read : Objects.requireNonNullElse(String.valueOf(value), NULL_TEXT);
-    }
   }
 }

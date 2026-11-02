@@ -6,7 +6,6 @@ import com.exepex.stratum.logging.LoggingErrorCode;
 import com.exepex.stratum.logging.LoggingProperties;
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.IntPredicate;
@@ -24,8 +23,10 @@ import org.springframework.boot.json.WritableJson;
 
 /**
  * Masks secrets and personal data in one log value: first by its field name, then by what the text
- * looks like. A value longer than {@code stratum.logging.max-field-length} is cut first. If masking
- * fails, the value is replaced, never written as it was.
+ * looks like. A value longer than {@code stratum.logging.max-field-length} is cut first, and a
+ * list, map or array keeps its first {@code stratum.logging.max-elements} elements. Each value's
+ * text is read once. If anything fails while masking a value, it is replaced, never written as it
+ * was.
  *
  * <p>Names, addresses and other data with no telltale shape are found only by their field or key
  * name. This is a safety net, not a licence to log personal data.
@@ -61,6 +62,9 @@ public final class Redactor {
   /** Masks stack traces with Stratum's rules, leaving their frame lines as they are. */
   private final StackTraceMasker stackTraceMasker;
 
+  /** Keeps the first elements of lists, maps and arrays. */
+  private final ElementLimit elementLimit;
+
   /** The longest a value may be, in characters. */
   private final int maxFieldLength;
 
@@ -82,13 +86,15 @@ public final class Redactor {
         .contentMaskingRules(text -> serviceRules.apply(builtInRules.apply(text)))
         .serviceRules(serviceRules)
         .stackTraceMasker(new StackTraceMasker(builtInRules))
+        .elementLimit(new ElementLimit(loggingProperties.maxElements()))
         .maxFieldLength((int) loggingProperties.maxFieldLength().toBytes())
         .build();
   }
 
   /**
-   * Returns the value as it may be written. Text is cut to the maximum length and masked. Any other
-   * value, such as a number or an object, is masked by its name or its {@code toString()}.
+   * Returns the value as it may be written. Text is cut to the maximum length and masked. A list,
+   * map or array keeps its first elements, which are then masked one by one. Any other value, such
+   * as a number or an object, is masked by its name or its {@code toString()}.
    *
    * @param fieldName the value's field name; {@code null} when it has none
    * @param logValue the value
@@ -101,9 +107,24 @@ public final class Redactor {
               case null -> null;
               case String text -> redactText(fieldName, truncateToMaxFieldLength(text));
               case WritableJson json -> redactJson(fieldName, json);
-              case Map<?, ?> _, Iterable<?> _, Object[] _ -> maskByName(fieldName, logValue);
-              default -> redactOther(fieldName, logValue);
+              case Object container when elementLimit.holdsElements(container) ->
+                  maskByName(fieldName, container);
+              default -> writtenOnce(logValue, text -> redactText(fieldName, text));
             });
+  }
+
+  /**
+   * Returns a value as masked text, for a format that writes text: a list, map or array as its
+   * first elements, nested ones too, cut to the maximum length and masked like any other text.
+   *
+   * @param fieldName the value's field name
+   * @param logValue the value
+   * @return the text to write
+   */
+  public String redactAsText(@Nullable String fieldName, @Nullable Object logValue) {
+    return Objects.toString(
+        failingClosed(
+            () -> redactText(fieldName, truncateToMaxFieldLength(elementLimit.textOf(logValue)))));
   }
 
   /**
@@ -138,7 +159,7 @@ public final class Redactor {
    * Returns a field that Stratum knows holds no personal data, such as {@code userAgent}, as it may
    * be written: cut to the maximum length, and masked only by the service's own extra keys and
    * extra patterns, which always win over Stratum's defaults. A value that is not text is masked
-   * only by an extra key.
+   * only by an extra key; Spring Boot's own JSON, lists, maps and arrays are kept as they are.
    *
    * @param fieldName the field's name
    * @param logValue the value
@@ -149,40 +170,46 @@ public final class Redactor {
         () ->
             switch (logValue) {
               case null -> null;
-              case String text -> redactKnownSafeText(fieldName, truncateToMaxFieldLength(text));
-              default -> fieldNames.isExtraKey(fieldName) ? MaskedText.MASK : logValue;
+              case Object _ when fieldNames.isExtraKey(fieldName) -> MaskedText.MASK;
+              case String text -> serviceRules.apply(truncateToMaxFieldLength(text));
+              case WritableJson json -> json;
+              case Object container when elementLimit.holdsElements(container) -> container;
+              default -> writtenOnce(logValue, UnaryOperator.identity());
             });
   }
 
-  /** Masks safe text by the service's extra keys, or else by its extra patterns. */
-  private String redactKnownSafeText(@Nullable String fieldName, String text) {
-    return fieldNames.isExtraKey(fieldName) ? MaskedText.MASK : serviceRules.apply(text);
-  }
-
-  /** Returns the masked value, or {@link #REDACTION_FAILED} if masking it failed. */
+  /**
+   * Returns the masked value, or {@link #REDACTION_FAILED} if anything failed while masking it,
+   * such as a {@code toString()} that throws.
+   */
   private @Nullable Object failingClosed(Supplier<@Nullable Object> maskedValue) {
     try {
       return maskedValue.get();
-    } catch (IllegalArgumentException
-        | IllegalStateException
-        | IndexOutOfBoundsException
-        | StackOverflowError _) {
-      // Fail closed: a value that could not be masked must never be written as it was. A service's
-      // extra pattern can overflow the stack on long text, and must not stop the caller's thread.
+    } catch (RuntimeException | StackOverflowError _) {
+      // Fail closed: a value that could not be masked must never be written as it was, and must
+      // not lose the rest of the line. A service's extra pattern can overflow the stack on long
+      // text, and must not stop the caller's thread.
       return REDACTION_FAILED;
     }
   }
 
   /**
    * Masks a value such as a number or an object by its text, which may hold a card number or a
-   * {@code toString()} with secrets. The value is kept as it is when its text needs no masking.
+   * {@code toString()} with secrets. The text is read once, here, so a {@code toString()} that
+   * changes between calls cannot write other text. A number or boolean whose text needs no masking
+   * stays a JSON number or boolean, written from that same text.
    */
-  private Object redactOther(@Nullable String fieldName, Object logValue) {
-    // A toString() that returns null is written as the text null: Spring Boot cannot write it.
-    var ownText = Optional.ofNullable(logValue.toString());
-    var text = ownText.orElse("null");
-    var redacted = redactText(fieldName, truncateToMaxFieldLength(text));
-    return ownText.filter(redacted::equals).isPresent() ? logValue : redacted;
+  private Object writtenOnce(Object logValue, UnaryOperator<String> redaction) {
+    var text = elementLimit.textOf(logValue);
+    var redacted = redaction.apply(truncateToMaxFieldLength(text));
+    return (logValue instanceof Number || logValue instanceof Boolean) && redacted.equals(text)
+        ? asJson(text)
+        : redacted;
+  }
+
+  /** Returns text that is written into the JSON line as it is. */
+  private WritableJson asJson(String json) {
+    return out -> out.append(json);
   }
 
   /**
@@ -198,29 +225,32 @@ public final class Redactor {
   /** Writes the JSON to the output: as it is when nothing is masked, else as a masked string. */
   private void writeRedactedJson(@Nullable String fieldName, WritableJson json, Appendable out)
       throws IOException {
-    var buffer = new StringBuilder();
-    json.to(buffer);
-    var text = buffer.toString();
-    if (text.isEmpty()) {
-      return;
-    }
-    var redacted = redact(fieldName, text);
-    if (text.equals(redacted)) {
-      out.append(text);
+    // The JSON is read inside the fail-closed boundary, when Spring Boot writes the line.
+    var masked = failingClosed(() -> maskedJson(fieldName, json));
+    if (masked instanceof WritableJson unchanged) {
+      unchanged.to(out);
     } else {
-      JsonWriter.standard().write(redacted).to(out);
+      JsonWriter.standard().write(masked).to(out);
     }
   }
 
+  /** Returns the JSON's text as it is, when masking leaves it unchanged, else the masked text. */
+  private Object maskedJson(@Nullable String fieldName, WritableJson json) {
+    var text = json.toJsonString();
+    var redacted = redactText(fieldName, truncateToMaxFieldLength(text));
+    return redacted.equals(text) ? asJson(text) : redacted;
+  }
+
   /**
-   * Masks a map, a collection or an array by its field name only: Spring Boot passes the values
-   * inside it on one by one. A {@code toString()} that returns null is masked as the text null.
+   * Masks a list, map or array by its field name, or else keeps its first elements: Spring Boot
+   * passes the elements of the copy on one by one. A value masked by name is masked as the text of
+   * its first elements, cut to the maximum length.
    */
-  private Object maskByName(@Nullable String fieldName, Object logValue) {
+  private Object maskByName(@Nullable String fieldName, Object container) {
     return fieldNames
-        .mask(fieldName, () -> Objects.requireNonNullElse(logValue.toString(), "null"))
+        .mask(fieldName, () -> truncateToMaxFieldLength(elementLimit.textOf(container)))
         .map(Object.class::cast)
-        .orElse(logValue);
+        .orElseGet(() -> elementLimit.limited(container));
   }
 
   /** Masks text by its field name, or else by its content. */

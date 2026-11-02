@@ -6,6 +6,8 @@ import com.exepex.stratum.logging.LoggingProperties.LogFormat;
 import com.exepex.stratum.logging.redaction.Redactor;
 import java.util.List;
 import lombok.experimental.UtilityClass;
+import org.jspecify.annotations.Nullable;
+import org.springframework.boot.json.JsonWriter;
 import org.springframework.mock.env.MockEnvironment;
 import org.springframework.util.unit.DataSize;
 
@@ -46,6 +48,9 @@ public class LoggingTestData {
   /** The default {@code max-field-length}. */
   public static final DataSize DEFAULT_MAX_FIELD_LENGTH = DataSize.ofKilobytes(16);
 
+  /** The default {@code max-elements}. */
+  public static final int DEFAULT_MAX_ELEMENTS = 10;
+
   /** A made-up JSON Web Token. */
   public static final String JWT = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJmYWtlIn0.c2lnbmF0dXJlLWZha2U";
 
@@ -55,12 +60,13 @@ public class LoggingTestData {
   /**
    * Returns a builder for the module's settings, with every default.
    *
-   * @return ECS, a 16KB limit and no extra rules
+   * @return ECS, a 16KB limit, 10 elements and no extra rules
    */
   public static LoggingProperties.LoggingPropertiesBuilder defaults() {
     return LoggingProperties.builder()
         .format(LogFormat.ECS)
         .maxFieldLength(DEFAULT_MAX_FIELD_LENGTH)
+        .maxElements(DEFAULT_MAX_ELEMENTS)
         .redaction(
             LoggingProperties.Redaction.builder()
                 .extraKeys(List.of())
@@ -102,6 +108,18 @@ public class LoggingTestData {
    */
   public static String redactUnnamedText(String text) {
     return (String) DEFAULT_REDACTOR.redact(null, text);
+  }
+
+  /**
+   * Masks a value as a JSON log line field, with the default settings, and returns the JSON that
+   * Spring Boot writes for it, such as {@code 42} for a number or {@code "****"} for masked text.
+   *
+   * @param fieldName the value's field name
+   * @param value the value to mask
+   * @return the JSON written for the value
+   */
+  public static String redactedAsJson(String fieldName, @Nullable Object value) {
+    return JsonWriter.standard().write(DEFAULT_REDACTOR.redact(fieldName, value)).toJsonString();
   }
 
   /**
