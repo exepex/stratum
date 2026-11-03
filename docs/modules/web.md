@@ -224,7 +224,7 @@ baggage are then ignored, and the ID is always the trace ID. The ID never identi
 identity comes only from a verified token.
 
 The correlation ID needs tracing, which the
-[observability starter](../../starters/stratum-starter-observability/README.md#correlation-id)
+[observability starter](observability-traces.md#correlation-id)
 brings. Without that starter, requests get no correlation ID.
 
 ## Request log
