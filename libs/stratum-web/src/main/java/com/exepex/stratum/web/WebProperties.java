@@ -9,7 +9,6 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import lombok.Builder;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -22,12 +21,6 @@ import org.springframework.util.unit.DataSize;
  * {@link WebPropertiesCustomizer} classes, which win. Both web starters read the same settings. The
  * descriptions of the components are what IDEs show, so they are plain sentences.
  *
- * @param backwardCompatible Whether errors that Spring or Spring Boot answer, such as an unknown
- *     path or a failed validation, keep the body Spring Boot gives without Stratum, so the contract
- *     with the service's consumers does not change. A consumer that sends Accept:
- *     application/problem+json gets Stratum's standard body, and so does every error with an error
- *     code, such as a StratumException, and every timeout or body too large. Set it to false to
- *     give every error the standard body. Defaults to true.
  * @param error How errors are answered.
  * @param correlation Where each request's correlation ID comes from.
  * @param clientIp How the client's IP address is found behind proxies.
@@ -41,7 +34,6 @@ import org.springframework.util.unit.DataSize;
 @Builder(toBuilder = true)
 @ConfigurationProperties(prefix = WebConstants.PREFIX)
 public record WebProperties(
-    @DefaultValue("true") boolean backwardCompatible,
     @DefaultValue @Valid ErrorSettings error,
     @DefaultValue CorrelationSettings correlation,
     @DefaultValue @Valid ClientIpSettings clientIp,
@@ -51,14 +43,6 @@ public record WebProperties(
     @DefaultValue @Valid RequestLogSettings requestLog,
     @DefaultValue @Valid TimeoutSettings timeout,
     @DefaultValue BodyLimitSettings bodyLimit) {
-
-  /** How long a request may take when nothing sets a limit, unless backward-compatible is on. */
-  private static final Duration STANDARD_TIMEOUT = Duration.ofSeconds(10);
-
-  /**
-   * How large a request's body may be when nothing sets a limit, unless backward-compatible is on.
-   */
-  private static final DataSize STANDARD_BODY_LIMIT = DataSize.ofKilobytes(256);
 
   /**
    * Returns the settings the module uses: {@code stratum.web.*} with the defaults for anything
@@ -73,30 +57,6 @@ public record WebProperties(
   public static WebProperties resolve(Environment environment) {
     return StratumCustomizers.resolveSettings(
         environment, WebConstants.PREFIX, WebProperties.class, WebPropertiesCustomizer.class);
-  }
-
-  /**
-   * Returns how long a request whose path matches no route may take: the default limit the service
-   * set, or else no limit while backward-compatible is on, so an existing service's requests are
-   * not cut off, and 10s otherwise.
-   *
-   * @return the limit, where 0 means none
-   */
-  public Duration defaultTimeout() {
-    return Objects.requireNonNullElse(
-        timeout.defaultLimit(), backwardCompatible ? Duration.ZERO : STANDARD_TIMEOUT);
-  }
-
-  /**
-   * Returns how large the body of a request whose path matches no route may be: the default limit
-   * the service set, or else no limit while backward-compatible is on, so an existing service's
-   * requests are not refused, and 256KB otherwise.
-   *
-   * @return the limit, where 0 means none
-   */
-  public DataSize defaultBodyLimit() {
-    return Objects.requireNonNullElse(
-        bodyLimit.defaultLimit(), backwardCompatible ? DataSize.ofBytes(0) : STANDARD_BODY_LIMIT);
   }
 
   /**
@@ -256,8 +216,8 @@ public record WebProperties(
    * {@code @ResponseTimeout} wins over a route, and a route wins over the default.
    *
    * @param defaultLimit How long any request may take until its response starts, such as 10s or
-   *     500ms. 0 means no limit. Defaults to 10s, or to no limit while backward-compatible is true,
-   *     so an existing service's requests are not cut off.
+   *     500ms. 0 means no limit. Defaults to 10s, or to no limit while stratum.backward-compatible
+   *     is true, so an existing service's requests are not cut off.
    * @param routes The limit of the requests whose path matches a pattern, such as /reports/** to
    *     60s. When several patterns match, the most specific one wins. 0 means no limit on those
    *     paths. Defaults to none.
@@ -282,8 +242,8 @@ public record WebProperties(
    * method's {@code @RequestBodyLimit} wins over a route, and a route wins over the default.
    *
    * @param defaultLimit How large any request's body may be, such as 256KB or 20MB. 0 means no
-   *     limit. Defaults to 256KB, or to no limit while backward-compatible is true, so an existing
-   *     service's requests are not refused.
+   *     limit. Defaults to 256KB, or to no limit while stratum.backward-compatible is true, so an
+   *     existing service's requests are not refused.
    * @param routes The limit of the bodies of the requests whose path matches a pattern, such as
    *     /uploads/** to 20MB. When several patterns match, the most specific one wins. 0 means no
    *     limit on those paths. Defaults to none.

@@ -201,7 +201,8 @@ class WebMvcRequestFieldsAutoConfigurationTest {
     @Test
     @DisplayName("the service's own body limits and body limit filter replace Stratum's")
     void serviceBodyLimitBeansWin() {
-      var serviceLimits = new RequestBodyLimits(WebProperties.resolve(new MockEnvironment()));
+      var serviceLimits =
+          new RequestBodyLimits(WebProperties.resolve(new MockEnvironment()), false);
       var serviceFilter = new FilterRegistrationBean<>(new RequestBodyLimitFilter(serviceLimits));
       contextRunner
           .withPropertyValues(MODULE_ON)
@@ -220,7 +221,7 @@ class WebMvcRequestFieldsAutoConfigurationTest {
     @DisplayName("the service's own timeouts and timeout filter replace Stratum's")
     void serviceTimeoutBeansWin() {
       try (var serviceTimeouts =
-          new ResponseTimeouts(WebProperties.resolve(new MockEnvironment()))) {
+          new ResponseTimeouts(WebProperties.resolve(new MockEnvironment()), false)) {
         var serviceFilter =
             new FilterRegistrationBean<>(new ResponseTimeoutFilter(serviceTimeouts));
         contextRunner

@@ -19,6 +19,7 @@ import org.springframework.http.HttpStatus;
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = {
       "stratum.web.enabled=true",
+      "stratum.backward-compatible=true",
       "stratum.web.error.statuses.ORD-0001=409",
       "spring.web.error.include-message=always",
       "stratum.observability.enabled=true",
@@ -26,8 +27,7 @@ import org.springframework.http.HttpStatus;
       "management.tracing.export.enabled=false",
       "management.otlp.metrics.export.enabled=false"
     })
-@DisplayName(
-    "With stratum.web.backward-compatible left at true, existing consumers keep their body")
+@DisplayName("With stratum.backward-compatible=true, existing consumers keep their body")
 class BackwardCompatibleErrorsIntegrationTest {
 
   /** A path the service does not have. */

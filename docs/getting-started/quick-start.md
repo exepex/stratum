@@ -118,7 +118,6 @@ spring:
 stratum:
   web:
     enabled: true
-    backward-compatible: false
   logging:
     enabled: true
   observability:
@@ -136,7 +135,6 @@ The same in `src/main/resources/application.properties` (use one file, not both)
 ```properties
 spring.application.name=order-service
 stratum.web.enabled=true
-stratum.web.backward-compatible=false
 stratum.logging.enabled=true
 stratum.observability.enabled=true
 stratum.http-client.enabled=true
@@ -154,10 +152,10 @@ is `true`) and registered an HTTP client group named `inventory`. Everything you
 set (connect timeout, trace propagation, correlation header, logging) uses Stratum's defaults. See
 [HTTP client](../modules/http-client.md#properties).
 
-`stratum.web.backward-compatible=false` gives every error Stratum's standard body and every request
-the standard time and body size limits. A new service sets it from its first release, because it
-has no consumers that read an older error body. A running service that adds Stratum keeps the
-default, `true`, until its consumers have moved; see
+Every error gets Stratum's standard body and every request the standard time and body size limits,
+because `stratum.backward-compatible` is `false` by default. A new service leaves it unset, because
+it has no consumers that read an older error body. A running service that adds Stratum sets it to
+`true` until its consumers have moved; see
 [Backward-compatible mode](../modules/web-compatible-mode.md).
 
 ## Step 4: declare the downstream client
@@ -268,7 +266,7 @@ curl -i -X POST localhost:8080/orders \
   -d '{"sku":"A-1","quantity":2}'
 ```
 
-You get Stratum's standard error body, because step 3 set `stratum.web.backward-compatible=false`:
+You get Stratum's standard error body, because `stratum.backward-compatible` is `false` by default:
 
 ```json
 {

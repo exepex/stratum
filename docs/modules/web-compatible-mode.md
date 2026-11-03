@@ -3,20 +3,24 @@
 **Status: Built**, in `stratum-starter-webmvc` and `stratum-starter-webflux`, when
 `stratum.web.enabled=true`.
 
-[← Web](web.md) · [Documentation home](../README.md) · Property: `stratum.web.backward-compatible`
+[← Web](web.md) · [Documentation home](../README.md) · Property: `stratum.backward-compatible`
 
 ## What it does
 
-A service that adds Stratum keeps the API contract it has with its consumers.
-`stratum.web.backward-compatible` is `true` by default, so the error bodies its consumers read
-stay the same and no request is cut off or refused by a new limit. Each consumer moves to Stratum's
-standard error body when it is ready, and the service switches the property to `false` once all
-have moved. A new service sets `false` from the start.
+A running service that adds Stratum keeps the API contract it has with its consumers by setting
+`stratum.backward-compatible=true` in its first release on Stratum. The error bodies its consumers
+read then stay the same, and no request is cut off or refused by a new limit. Each consumer moves to
+Stratum's standard error body when it is ready, and the service switches the property back to
+`false`, its default, once all have moved. A new service leaves it unset.
+
+`stratum.backward-compatible` is one switch for every Stratum module. It keeps external contracts
+unchanged; everything internal, such as logs, spans and redaction, always follows Stratum's
+defaults. Today only the web module reads it.
 
 ## Error bodies
 
-`stratum.web.backward-compatible` is `true` by default, so adding the starter to a running service
-keeps the error body its consumers already read, apart from the two statuses below. An error that
+With `stratum.backward-compatible=true`, adding the starter to a running service keeps the error
+body its consumers already read, apart from the two statuses below. An error that
 Spring or Spring Boot answers, such as an unknown path, a failed validation or an unexpected
 exception, keeps Spring Boot's body, as before Stratum:
 
@@ -40,7 +44,7 @@ when:
   or a body too large;
 - the exception implements `FailureWithErrorCode`, so mark an existing exception only as the
   next section says;
-- the service sets `stratum.web.backward-compatible=false`, which a new service does from the start.
+- the service sets `stratum.backward-compatible=false`, or leaves it unset, as a new service does.
 
 Spring Boot's body holds what `spring.web.error.include-*` says, as before Stratum. A browser still
 gets Stratum's page, with the trace ID as the reference to quote to support.
@@ -72,7 +76,7 @@ so an exception it handles keeps the body it returns.
 While the mode is on, the service logs one INFO line at every start that says what the mode does:
 
 ```text
-INFO  BackwardCompatibleModeReport : stratum.web.backward-compatible is true: errors that Spring answers keep Spring Boot's body unless the consumer sends Accept: application/problem+json, and no time or body size limit applies unless set. When the service has Micrometer, the counter stratum.web.requests.without.standard.errors shows which routes still answer with Spring Boot's body; set the property to false once it stays at 0.
+INFO  BackwardCompatibleModeReport : stratum.backward-compatible is true: errors that Spring answers keep Spring Boot's body unless the consumer sends Accept: application/problem+json, and no time or body size limit applies unless set. When the service has Micrometer, the counter stratum.web.requests.without.standard.errors shows which routes still answer with Spring Boot's body; set the property to false once it stays at 0.
 ```
 
 When the service has Micrometer, as the observability starter and Spring Boot's actuator bring it,
@@ -92,7 +96,7 @@ A route's series appears only with its first such answer, so the query checks wh
 exists in the window; `increase()` would miss a route whose only answer started its series. A pod
 that answered once keeps its series until it restarts, so the query can only err towards "not yet".
 Once it returns nothing for as long as your slowest consumer takes to call each route, set
-`stratum.web.backward-compatible=false`.
+`stratum.backward-compatible=false`, or remove the line.
 
 ## Stack traces in the error body
 
@@ -102,7 +106,7 @@ libraries, classes and code paths the service has. When `spring.web.error.includ
 shows them, and Stratum logs one WARN line at every start while backward-compatible mode is on:
 
 ```text
-WARN  BackwardCompatibleModeReport : Security leak: errors keep Spring Boot's body because stratum.web.backward-compatible is true, and spring.web.error.include-stacktrace=always with spring.web.error.include-exception=false show stack traces or exception classes to API callers. Set them to never and false.
+WARN  BackwardCompatibleModeReport : Security leak: errors keep Spring Boot's body because stratum.backward-compatible is true, and spring.web.error.include-stacktrace=always with spring.web.error.include-exception=false show stack traces or exception classes to API callers. Set them to never and false.
 ```
 
 Set both back to Spring Boot's defaults, `never` and `false`, to stop the leak. Stratum's standard
@@ -117,7 +121,7 @@ Stratum logs no warning for these two; turn them on only if your consumers need 
 
 With nothing set, a backward-compatible service has no time limit and no body size limit, and the
 WebFlux starter adds no multipart upload limit, because a request that worked before Stratum must
-not start failing with `503` or `413`. With `stratum.web.backward-compatible=false`, every request
+not start failing with `503` or `413`. With `stratum.backward-compatible=false`, every request
 has 10 seconds until its response starts and a body of up to 256KB, and a WebFlux multipart upload
 may use 10MB of disk per part and have 50 parts.
 
@@ -136,20 +140,22 @@ Order order(@PathVariable String id) {
 
 ## Properties
 
-`stratum.web.backward-compatible` is listed with every other web property in
-[Web → Properties](web.md#properties). Set it in `application.properties`:
+`stratum.backward-compatible` is shared by every module, so it is listed in
+[Configuration reference](../configuration/reference.md), not with the web properties. It defaults
+to `false`. Turn the mode on in `application.properties`:
 
 ```properties
-stratum.web.backward-compatible=false
+stratum.backward-compatible=true
 ```
 
 or in `application.yml`:
 
 ```yaml
 stratum:
-  web:
-    backward-compatible: false
+  backward-compatible: true
 ```
 
-In Java, return a copy with `backwardCompatible(false)` from a `WebPropertiesCustomizer`, as
-[Configure in Java](web.md#configure-in-java) shows.
+In Java, set it as a default property of the application, as
+[Overriding defaults](../configuration/overriding-defaults.md#switches-shared-properties-and-spring-boot-properties-in-java)
+shows. A value in a file, an environment variable or a command-line argument wins over it. A
+`WebPropertiesCustomizer` cannot set it.

@@ -2,7 +2,7 @@ package com.exepex.stratum.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.exepex.stratum.web.testsupport.WebTestData;
+import com.exepex.stratum.core.condition.StratumModuleConstants;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -20,7 +20,7 @@ import org.springframework.mock.env.MockEnvironment;
 class BackwardCompatibleModeReportTest {
 
   /** The start of the INFO line. */
-  private static final String MODE_ON = WebConstants.BACKWARD_COMPATIBLE + " is true";
+  private static final String MODE_ON = StratumModuleConstants.BACKWARD_COMPATIBLE + " is true";
 
   /** The start of the warning. */
   private static final String WARNING = "Security leak";
@@ -83,9 +83,11 @@ class BackwardCompatibleModeReportTest {
   /** Returns the report for Spring Boot's settings, with backward-compatible on or off. */
   private BackwardCompatibleModeReport reportFor(
       Map<String, String> settings, boolean backwardCompatible) {
-    var environment = new MockEnvironment();
+    var environment =
+        new MockEnvironment()
+            .withProperty(
+                StratumModuleConstants.BACKWARD_COMPATIBLE, String.valueOf(backwardCompatible));
     settings.forEach(environment::setProperty);
-    return new BackwardCompatibleModeReport(
-        WebTestData.defaults().backwardCompatible(backwardCompatible).build(), environment);
+    return new BackwardCompatibleModeReport(environment);
   }
 }
