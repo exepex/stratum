@@ -161,7 +161,9 @@ skips step 4: a text-only change needs no build (AGENTS.md, Build).
      missing, a timeout, concurrent calls, a service replacing the bean), missing or hollow tests, documentation
      left out of date, dead code, files the request did not ask for.
    - When the change replaces a rule that matches names, keys or text, run every input the old rule's tests covered
-     against the new rule, including hostile casing such as `AUTHORIZATION` or `X-Api-KEY`.
+     against the new rule, including mixed and hostile casing such as `Password`, `AUTHORIZATION` or `X-Api-KEY`.
+     When the replaced rule is a masking rule, each of those inputs that the new rule no longer masks is a blocking
+     finding: the new rule must mask it again.
    - **Plant faults.** For each important requirement, break the code on purpose (invert a condition, remove a bean,
      change a default) and check that a test fails. Restore the code afterwards. Record how many faults you planted
      and how many the tests caught.
