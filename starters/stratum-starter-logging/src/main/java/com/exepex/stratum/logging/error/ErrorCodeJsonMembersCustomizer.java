@@ -31,9 +31,6 @@ import org.springframework.util.ClassUtils;
 public final class ErrorCodeJsonMembersCustomizer
     implements StructuredLoggingJsonMembersCustomizer<Object> {
 
-  /** Logback's log event, the only one this customizer reads. */
-  private static final String LOGBACK_EVENT = "ch.qos.logback.classic.spi.ILoggingEvent";
-
   /** The field the code goes in; {@code null} when the module is off or no output writes JSON. */
   private final @Nullable String errorCodeField;
 
@@ -45,7 +42,7 @@ public final class ErrorCodeJsonMembersCustomizer
   public ErrorCodeJsonMembersCustomizer(Environment environment) {
     this.errorCodeField =
         StratumModuleSwitch.isEnabled(environment, LoggingConstants.MODULE)
-                && ClassUtils.isPresent(LOGBACK_EVENT, null)
+                && ClassUtils.isPresent(LoggingConstants.LOGBACK_EVENT, null)
             ? structuredFormat(environment).map(this::errorCodeFieldFor).orElse(null)
             : null;
   }
@@ -67,7 +64,7 @@ public final class ErrorCodeJsonMembersCustomizer
    * Returns the JSON format Spring Boot writes, the console's first and then the file's, including
    * a service's own choice over Stratum's default. A customizer is not told which output it
    * customizes, so when only one of the two is GELF, the first JSON format decides the name.
-   * Stratum's text format writes no JSON and is skipped; a service's own formatter class is kept.
+   * Stratum's text format writes no JSON and is skipped; any other value is treated as JSON.
    */
   private Optional<String> structuredFormat(Environment environment) {
     return Stream.of(LoggingConstants.CONSOLE_FORMAT, LoggingConstants.FILE_FORMAT)

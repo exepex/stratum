@@ -31,6 +31,17 @@ public class StructuredLogFormats {
         .toList();
   }
 
+  /**
+   * Returns whether the name is one of Spring Boot's structured formats, ignoring case as Spring
+   * Boot does: {@code ecs}, {@code logstash} or {@code gelf}.
+   *
+   * @param name the value of a structured format key
+   * @return whether Spring Boot writes that format
+   */
+  public static boolean isSpringBootFormat(String name) {
+    return formatNamed(name).isPresent();
+  }
+
   /** Returns Spring Boot's format with the name, ignoring case. */
   private static Optional<LogFormat> formatNamed(String name) {
     return Arrays.stream(LogFormat.values()).filter(format -> isNamed(format, name)).findFirst();

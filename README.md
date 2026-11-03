@@ -319,7 +319,9 @@ Things worth knowing from day one:
 - **All Stratum settings start with `stratum.`** followed by the module name, for example
   `stratum.logging.format`. Your IDE completes them, because each module ships configuration metadata.
 - **A wrong value fails at startup**, with a message naming the property, not at the first request.
-- **What you set always wins** over Stratum's defaults. Stratum's defaults have the lowest priority.
+- **What you set always wins** over Stratum's defaults. Stratum's defaults have the lowest priority. The one
+  exception: the logging starter's format keys accept only
+  [Stratum's formats](starters/stratum-starter-logging/README.md#what-is-masked).
 - **Spring Boot's own properties still work.** For example `logging.level.*` and `server.port`.
 - **Secrets never go in these files.** Use environment variables or a secret store.
 
