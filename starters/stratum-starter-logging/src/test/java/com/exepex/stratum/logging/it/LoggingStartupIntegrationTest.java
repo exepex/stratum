@@ -178,19 +178,22 @@ class LoggingStartupIntegrationTest {
   }
 
   @Test
-  @DisplayName(
-      "a service's own Logback configuration keeps its own pattern: Stratum changes it not")
-  void ownLogbackConfigurationIsKept(CapturedOutput output) {
-    try (var _ =
-        start(
-            SERVICE_NAME,
-            MODULE_ON,
-            "--stratum.logging.format=text",
-            "--logging.config=classpath:logback-own-pattern.xml")) {
-      log.info("own line");
-    }
+  @DisplayName("a service's own Logback configuration stops startup with SX-LOGGING-1003")
+  void ownLogbackConfigurationStopsStartup() {
+    assertThatExceptionOfType(StratumException.class)
+        .isThrownBy(
+            () ->
+                start(
+                    SERVICE_NAME, MODULE_ON, "--logging.config=classpath:logback-own-pattern.xml"))
+        .withMessageStartingWith("SX-LOGGING-1003: ");
+  }
 
-    assertThat(output).contains("OWN-PATTERN INFO own line");
+  @Test
+  @DisplayName("an empty console format stops startup with SX-LOGGING-1003")
+  void emptyFormatStopsStartup() {
+    assertThatExceptionOfType(StratumException.class)
+        .isThrownBy(() -> start(SERVICE_NAME, MODULE_ON, "--logging.structured.format.console="))
+        .withMessageStartingWith("SX-LOGGING-1003: ");
   }
 
   @Test
