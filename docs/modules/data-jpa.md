@@ -105,9 +105,6 @@ Spring Boot properties this module gives a default (your values win):
 | `spring.jpa.properties.hibernate.query.fail_on_pagination_over_collection_fetch` | boolean | `true` (strict mode) | `false` | Whether paging a fetch join over a collection fails instead of paging in memory. |
 | `spring.transaction.default-timeout` | duration | `60s` (strict mode, without Spring Batch) | unset: no limit | The time limit of a transaction that sets none. |
 
-The Hibernate keys can also be written as a map entry, such as
-`spring.jpa.properties[hibernate.jdbc.batch_size]=20`.
-
 ### The pool
 
 Stratum leaves HikariCP's other defaults as they are:
@@ -200,8 +197,9 @@ spring:
       leak-detection-threshold: 70000
 ```
 
-- It must be at least `2000` and at most `spring.datasource.hikari.max-lifetime`, or HikariCP
-  turns it off silently.
+- It must be at least `2000` and at most `spring.datasource.hikari.max-lifetime`. Otherwise
+  HikariCP turns it off when the pool starts and logs one warning: "leakDetectionThreshold is less
+  than 2000ms or more than maxLifetime, disabling it".
 - It applies to the whole pool. A long report that holds a connection outside a transaction logs
   the warning too. Raise the threshold, or run the report as a batch job, below.
 - **A pool for batch jobs:** run the jobs in their own application, or with their own profile, and
