@@ -153,7 +153,7 @@ class PublicApiRuleTest {
     @DisplayName("fail for a public class with no label that is not on the API list")
     void failForUnlabelledClassNotOnList() {
       var result =
-          PublicApiRule.labelledOrListed(Set.of())
+          PublicApiRule.labelledOrListed(Set.of(InheritingGreeter.class))
               .evaluate(new ClassFileImporter().importClasses(LeakingGreeter.class));
 
       assertThat(result.getFailureReport().getDetails())

@@ -33,6 +33,9 @@ class StarterTestSupportTest {
   private static final Set<Class<?>> FIXTURE_API_TYPES =
       Set.of(GreetingAutoConfiguration.class, GreetingFormatter.class);
 
+  /** How the API list rule reports a class, after the class name. */
+  private static final String NOT_LISTED = "> is not on the module's API list";
+
   @Nested
   @DisplayName("withCustomizers")
   class WithCustomizers {
@@ -92,6 +95,33 @@ class StarterTestSupportTest {
 
       assertThat(result.getFailureReport().getDetails())
           .anyMatch(detail -> detail.contains(UnswitchedGreeter.class.getName()));
+    }
+
+    @Test
+    @DisplayName("fail for a public class with no label that is not on the starter's API list")
+    void failForUnlistedClass() {
+      var result =
+          StarterTestSupport.starterArchitecture(FIXTURE_STARTER_PACKAGE, Set.of())
+              .evaluate(new ClassFileImporter().importClasses(GreetingAutoConfiguration.class));
+
+      assertThat(result.getFailureReport().getDetails())
+          .anyMatch(
+              detail -> detail.contains(GreetingAutoConfiguration.class.getName() + NOT_LISTED));
+    }
+  }
+
+  @Nested
+  @DisplayName("the library architecture rules")
+  class LibraryArchitecture {
+
+    // The check imports a library's main classes only, so it runs on stratum-test's own.
+    @Test
+    @DisplayName("fail for a public class with no label that is not on the library's API list")
+    void failForUnlistedClass() {
+      assertThatExceptionOfType(AssertionError.class)
+          .isThrownBy(
+              () -> StarterTestSupport.checkLibraryArchitecture(PublicApiRule.class, Set.of()))
+          .withMessageContaining(PostgresContainerConfiguration.class.getName() + NOT_LISTED);
     }
   }
 
