@@ -15,6 +15,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.regex.Pattern;
+import java.util.stream.IntStream;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.DisplayName;
@@ -46,6 +48,15 @@ class LoggingStartupIntegrationTest {
 
   /** The element limit both configuration files set. */
   private static final int MAX_ELEMENTS_IN_FILES = 3;
+
+  /** The INFO lines per second both configuration files allow each logger. */
+  private static final int LIMIT_IN_FILES = 2;
+
+  /** How many lines the binding test writes, well over the files' limit. */
+  private static final int VOLUME_LINES = 10;
+
+  /** A line the limit check writes, as JSON. */
+  private static final Pattern VOLUME_LINE = Pattern.compile("\"message\":\"volume line \\d+\"");
 
   /** Gives the test application its service name. */
   private static final String SERVICE_NAME = "--spring.application.name=orders";
@@ -100,6 +111,7 @@ class LoggingStartupIntegrationTest {
           .addKeyValue("badge_no", "B-77")
           .addKeyValue("orderIds", ElementsTestData.numbers(MAX_ELEMENTS_IN_FILES + 2))
           .log("badge checked");
+      IntStream.range(0, VOLUME_LINES).forEach(line -> log.info("volume line {}", line));
     }
 
     assertThat(output)
@@ -108,6 +120,10 @@ class LoggingStartupIntegrationTest {
         .contains("\"node\":{\"name\":\"orders-file-1\"}")
         .contains("\"badge_no\":\"****\"")
         .contains("\"orderIds\":[0,1,2,\"...[2 more]\"]");
+    // "badge checked" is the logger's first INFO line, and the lines take well under a second, so
+    // they span at most two windows of two lines each.
+    assertThat(VOLUME_LINE.matcher(output.getOut()).results())
+        .hasSizeBetween(LIMIT_IN_FILES - 1, 2 * LIMIT_IN_FILES - 1);
   }
 
   @Test

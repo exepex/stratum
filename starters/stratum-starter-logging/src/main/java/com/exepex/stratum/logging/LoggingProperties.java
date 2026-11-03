@@ -1,9 +1,11 @@
 package com.exepex.stratum.logging;
 
 import com.exepex.stratum.core.properties.StratumCustomizers;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import java.time.Duration;
 import java.util.List;
 import lombok.Builder;
 import lombok.Getter;
@@ -26,6 +28,8 @@ import org.springframework.util.unit.DataSize;
  * @param maxElements The most elements kept of each logged list, map or array, nested ones too; the
  *     rest are left out and counted in one marker. From 1 to 20. Defaults to 10.
  * @param redaction What is masked on top of Stratum's built-in rules.
+ * @param volume How many lines each logger may write, so that a flood of lines cannot slow the
+ *     service down.
  */
 @Builder(toBuilder = true)
 @ConfigurationProperties(prefix = LoggingConstants.PREFIX)
@@ -33,7 +37,8 @@ public record LoggingProperties(
     @DefaultValue("ecs") LogFormat format,
     @DefaultValue("16KB") DataSize maxFieldLength,
     @DefaultValue("10") @Min(1) @Max(20) int maxElements,
-    @DefaultValue Redaction redaction) {
+    @DefaultValue Redaction redaction,
+    @DefaultValue @Valid Volume volume) {
 
   /** The shortest allowed {@code max-field-length}. */
   private static final DataSize MIN_FIELD_LENGTH = DataSize.ofKilobytes(1);
@@ -109,6 +114,65 @@ public record LoggingProperties(
     public Redaction {
       extraKeys = List.copyOf(extraKeys);
       extraPatterns = List.copyOf(extraPatterns);
+    }
+  }
+
+  /**
+   * How many lines each logger may write per second, at each level, and which share of DEBUG and
+   * INFO lines is kept. Lines over the limit are dropped before they are built, and one summary
+   * line per interval counts them.
+   *
+   * @param enabled Whether the limits apply. Defaults to true.
+   * @param maxPerSecond The most TRACE, DEBUG or INFO lines one logger writes per second, for each
+   *     level. From 1 to 1,000,000. Defaults to 1000.
+   * @param warnErrorMaxPerSecond The most WARN or ERROR lines one logger writes per second, for
+   *     each level. From 1 to 1,000,000. Defaults to 5000.
+   * @param debugKeepOneIn Keeps one in this many TRACE and DEBUG lines, chosen by trace ID so that
+   *     a request's lines are kept together. From 1 to 1,000,000. Defaults to 1, which keeps all.
+   * @param infoKeepOneIn Keeps one in this many INFO lines, chosen the same way. From 1 to
+   *     1,000,000. Defaults to 1, which keeps all.
+   * @param neverLimitLoggers The loggers whose lines are never limited or sampled, each with the
+   *     loggers below it, such as org.springframework.security. Defaults to Spring Security's.
+   * @param maxKeys The most loggers and levels counted on their own; any more share one count per
+   *     level. From 64 to 16384. Defaults to 1024.
+   * @param reportInterval How often the summary of dropped lines is written. From 1s to 1h.
+   *     Defaults to 10s.
+   */
+  @Builder(toBuilder = true)
+  public record Volume(
+      @DefaultValue("true") boolean enabled,
+      @DefaultValue("1000") @Min(1) @Max(MAX_RATE) int maxPerSecond,
+      @DefaultValue("5000") @Min(1) @Max(MAX_RATE) int warnErrorMaxPerSecond,
+      @DefaultValue("1") @Min(1) @Max(MAX_RATE) int debugKeepOneIn,
+      @DefaultValue("1") @Min(1) @Max(MAX_RATE) int infoKeepOneIn,
+      @DefaultValue("org.springframework.security") List<String> neverLimitLoggers,
+      @DefaultValue("1024") @Min(64) @Max(16384) int maxKeys,
+      @DefaultValue("10s") Duration reportInterval) {
+
+    /** The highest limit and sampling rate. */
+    private static final int MAX_RATE = 1_000_000;
+
+    /** The shortest allowed {@code report-interval}. */
+    private static final Duration MIN_REPORT_INTERVAL = Duration.ofSeconds(1);
+
+    /** The longest allowed {@code report-interval}. */
+    private static final Duration MAX_REPORT_INTERVAL = Duration.ofHours(1);
+
+    /** Keeps an unchangeable copy of the list. */
+    public Volume {
+      neverLimitLoggers = List.copyOf(neverLimitLoggers);
+    }
+
+    /**
+     * Returns whether {@code report-interval} is from 1s to 1h. Validation reports a value out of
+     * that range as {@code stratum.logging.volume.report-interval-in-range breaks @AssertTrue}.
+     *
+     * @return whether the interval is in range
+     */
+    @AssertTrue
+    public boolean isReportIntervalInRange() {
+      return reportInterval.compareTo(MIN_REPORT_INTERVAL) >= 0
+          && reportInterval.compareTo(MAX_REPORT_INTERVAL) <= 0;
     }
   }
 }

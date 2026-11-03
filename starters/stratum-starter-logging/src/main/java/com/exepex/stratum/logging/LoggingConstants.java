@@ -54,6 +54,9 @@ public class LoggingConstants {
   /** Logback's log event, present when the service logs with Logback. */
   public static final String LOGBACK_EVENT = "ch.qos.logback.classic.spi.ILoggingEvent";
 
+  /** Logback's logging context, which holds the volume filter. */
+  public static final String LOGBACK_CONTEXT = "ch.qos.logback.classic.LoggerContext";
+
   /** Log4j2's log event, present when the service logs with Log4j2. */
   public static final String LOG4J2_EVENT = "org.apache.logging.log4j.core.LogEvent";
 
@@ -133,4 +136,18 @@ public class LoggingConstants {
 
   /** The key under which executors and Reactor carry the MDC fields the service put itself. */
   public static final String SERVICE_MDC_FIELDS = "stratum.service.mdc.fields";
+
+  /** The prefix of the settings that limit how many lines each logger writes. */
+  public static final String VOLUME = PREFIX + ".volume";
+
+  /** The summary field with how many lines were dropped over the limits since the last summary. */
+  public static final String DROPPED_LINES = "droppedLines";
+
+  /** The summary field with how many loggers and levels dropped lines. */
+  public static final String DROPPED_KEYS = "droppedKeys";
+
+  /**
+   * The summary field with the loggers and levels that dropped the most lines, with their counts.
+   */
+  public static final String TOP_DROPPED = "topDropped";
 }

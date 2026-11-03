@@ -57,6 +57,7 @@ Each module page follows the same layout so you always know where to look:
 | WebFlux (error responses for reactive services) | [stratum-starter-webflux/README.md](../starters/stratum-starter-webflux/README.md) |
 | Logging | [stratum-starter-logging/README.md](../starters/stratum-starter-logging/README.md) |
 | Logging workflows (named business work in logs, metrics and traces) | [logging-workflows.md](modules/logging-workflows.md) |
+| Logging rate limits and sampling (each logger's lines per second, kept DEBUG and INFO lines) | [logging-volume.md](modules/logging-volume.md) |
 | Observability (metrics, tracing, health) | [stratum-starter-observability/README.md](../starters/stratum-starter-observability/README.md) |
 | Observability of Kafka, RabbitMQ and JMS messages | [observability-messages.md](modules/observability-messages.md) |
 | Security (resource server, JWT) | [security.md](modules/security.md) |

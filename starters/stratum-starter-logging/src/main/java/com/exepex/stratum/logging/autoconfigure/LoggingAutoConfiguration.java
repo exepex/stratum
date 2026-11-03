@@ -7,11 +7,15 @@ import com.exepex.stratum.core.executor.ContextCarryingExecutorsConfiguration;
 import com.exepex.stratum.core.properties.StratumCustomizers;
 import com.exepex.stratum.core.reactor.ReactorOperatorContextPropagation;
 import com.exepex.stratum.logging.LoggingConstants;
+import com.exepex.stratum.logging.LoggingProperties;
 import com.exepex.stratum.logging.mdc.MdcFieldsPropagation;
+import com.exepex.stratum.logging.volume.LogVolumeFilter;
+import com.exepex.stratum.logging.volume.LogVolumeFilterRegistration;
 import com.exepex.stratum.logging.workflow.ReactiveWorkflows;
 import com.exepex.stratum.logging.workflow.WorkflowAspect;
 import com.exepex.stratum.logging.workflow.Workflows;
 import io.micrometer.observation.ObservationRegistry;
+import java.time.Clock;
 import org.aspectj.weaver.Advice;
 import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -125,6 +129,47 @@ public final class LoggingAutoConfiguration {
     @ConditionalOnMissingBean
     public ReactiveWorkflows reactiveWorkflows(Workflows workflows) {
       return new ReactiveWorkflows(workflows);
+    }
+  }
+
+  /**
+   * Limits how many lines each logger writes when Logback is on the classpath. A nested class, so
+   * Logback's types are only loaded then.
+   */
+  @StratumInternal
+  @Configuration(proxyBeanMethods = false)
+  @ConditionalOnStratumModule(LoggingConstants.MODULE)
+  @ConditionalOnClass(name = LoggingConstants.LOGBACK_CONTEXT)
+  public static class LogVolumeConfiguration {
+
+    /**
+     * Drops the lines over each logger's limit and samples DEBUG and INFO lines.
+     *
+     * @param environment the service's environment, from which the settings are resolved
+     * @return the filter
+     */
+    @Bean
+    @Fallback
+    @ConditionalOnMissingBean
+    public LogVolumeFilter logVolumeFilter(Environment environment) {
+      return new LogVolumeFilter(
+          LoggingProperties.resolve(environment).volume(), Clock.systemUTC());
+    }
+
+    /**
+     * Adds the filter to Logback while the application runs, when the limits are on.
+     *
+     * @param logVolumeFilter the filter, Stratum's or the service's own
+     * @param environment the service's environment, from which the settings are resolved
+     * @return the registration
+     */
+    @Bean
+    @Fallback
+    @ConditionalOnMissingBean
+    public LogVolumeFilterRegistration logVolumeFilterRegistration(
+        LogVolumeFilter logVolumeFilter, Environment environment) {
+      return new LogVolumeFilterRegistration(
+          logVolumeFilter, LoggingProperties.resolve(environment).volume());
     }
   }
 }
