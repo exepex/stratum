@@ -220,6 +220,13 @@ class SqlExceptionCleanerTest {
      */
     private static final long GROWTH_LIMIT = 8;
 
+    /**
+     * The most cleaning a chain may cost, as a multiple of building the same raw chain in the same
+     * run. Measured at about 4 with the coverage agent on, so a 10-fold slower cleaner fails it and
+     * noise does not.
+     */
+    private static final long COST_LIMIT = 16;
+
     @Test
     @DisplayName("the stack trace, causes, suppressed and next exceptions are cleaned too")
     void cleansWholeChain() {
@@ -242,28 +249,38 @@ class SqlExceptionCleanerTest {
     }
 
     @Test
-    @DisplayName("a long chain of next exceptions, as a large batch has, is cleaned in linear time")
+    @DisplayName("a long chain of next exceptions is cleaned in linear time and cheaply")
     void cleansLongChainInLinearTime() {
       // A warm-up first, so that the two timed runs compare compiled code.
-      nanosToClean(LONG_CHAIN);
-      var shortChain = nanosToClean(LONG_CHAIN);
-      var longChain = nanosToClean(LONG_CHAIN * LENGTH_FACTOR);
+      timedClean(LONG_CHAIN);
+      var shortChain = timedClean(LONG_CHAIN);
+      var longChain = timedClean(LONG_CHAIN * LENGTH_FACTOR);
 
-      assertThat(longChain).isLessThan(shortChain * GROWTH_LIMIT);
+      assertThat(longChain.clean()).isLessThan(shortChain.clean() * GROWTH_LIMIT);
+      assertThat(longChain.clean()).isLessThan(longChain.build() * COST_LIMIT);
     }
 
-    /** Returns how long the cleaner takes for a chain of the given length, checking its copy. */
-    private long nanosToClean(int length) {
+    /** Times building a raw chain of the given length and cleaning it, checking the copy. */
+    private Timing timedClean(int length) {
+      var start = System.nanoTime();
       var failures =
           IntStream.range(0, length).mapToObj(index -> postgresFailure(UNIQUE_VIOLATION)).toList();
       IntStream.range(1, length)
           .forEach(index -> failures.get(index - 1).setNextException(failures.get(index)));
-      var start = System.nanoTime();
+      var built = System.nanoTime();
       var copy = cleaner.cleaned(failures.get(0));
-      var elapsed = System.nanoTime() - start;
+      var cleaned = System.nanoTime();
       assertThat(DataAssertions.chainOf(copy)).hasSize(length);
-      return elapsed;
+      return new Timing(built - start, cleaned - built);
     }
+
+    /**
+     * How long one chain took.
+     *
+     * @param build the nanoseconds to build the raw chain
+     * @param clean the nanoseconds to clean it
+     */
+    private record Timing(long build, long clean) {}
 
     @Test
     @DisplayName("a copy that reaches a second boundary comes back unchanged")

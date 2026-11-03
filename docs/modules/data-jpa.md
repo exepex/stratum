@@ -159,8 +159,8 @@ Stratum, that address reaches your logs, your traces and, through a careless err
 callers.
 
 Stratum wraps every `DataSource` bean, and every JDBC object it hands out, in a boundary. Every
-`SQLException` your code, Hibernate, `JdbcClient`, `JdbcTemplate`, MyBatis or jOOQ sees is a clean
-copy of the driver's error:
+`SQLException` that reaches your code, Hibernate, `JdbcClient`, `JdbcTemplate` or any other library
+through a `DataSource` bean is a clean copy of the driver's error:
 
 - the same standard `java.sql` class, SQLState, vendor code and stack trace, so Spring and
   Hibernate translate it exactly as before;
