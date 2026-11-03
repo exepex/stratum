@@ -9,7 +9,8 @@ import org.junit.jupiter.api.Test;
 class WebArchTest {
 
   /**
-   * The shared web library's public types that services may use; every other one carries the label.
+   * The shared web library's types, top-level or nested, that services may use; every other one
+   * carries the label.
    */
   private static final Set<Class<?>> API_TYPES =
       Set.of(
@@ -30,6 +31,25 @@ class WebArchTest {
           ResponseTimeouts.class,
           UserAgentParser.class,
           WebProperties.class,
+          WebProperties.WebPropertiesBuilder.class,
+          WebProperties.BodyLimitSettings.class,
+          WebProperties.BodyLimitSettings.BodyLimitSettingsBuilder.class,
+          WebProperties.ClientIpSettings.class,
+          WebProperties.ClientIpSettings.ClientIpSettingsBuilder.class,
+          WebProperties.ClientLocationSettings.class,
+          WebProperties.ClientLocationSettings.ClientLocationSettingsBuilder.class,
+          WebProperties.CorrelationSettings.class,
+          WebProperties.CorrelationSettings.CorrelationSettingsBuilder.class,
+          WebProperties.ErrorSettings.class,
+          WebProperties.ErrorSettings.ErrorSettingsBuilder.class,
+          WebProperties.RequestFieldsSettings.class,
+          WebProperties.RequestFieldsSettings.RequestFieldsSettingsBuilder.class,
+          WebProperties.RequestLogSettings.class,
+          WebProperties.RequestLogSettings.RequestLogSettingsBuilder.class,
+          WebProperties.TimeoutSettings.class,
+          WebProperties.TimeoutSettings.TimeoutSettingsBuilder.class,
+          WebProperties.UserAgentSettings.class,
+          WebProperties.UserAgentSettings.UserAgentSettingsBuilder.class,
           WebPropertiesCustomizer.class);
 
   @Test

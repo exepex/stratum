@@ -14,11 +14,18 @@ import org.junit.jupiter.api.Test;
 class LoggingArchTest {
 
   /**
-   * The logging starter's public types that services may use; every other one carries the label.
+   * The logging starter's types, top-level or nested, that services may use; every other one
+   * carries the label.
    */
   private static final Set<Class<?>> API_TYPES =
       Set.of(
           LoggingProperties.class,
+          LoggingProperties.LoggingPropertiesBuilder.class,
+          LoggingProperties.LogFormat.class,
+          LoggingProperties.Redaction.class,
+          LoggingProperties.Redaction.RedactionBuilder.class,
+          LoggingProperties.Volume.class,
+          LoggingProperties.Volume.VolumeBuilder.class,
           LoggingPropertiesCustomizer.class,
           ReactiveMdcFields.class,
           ReactiveWorkflows.class,

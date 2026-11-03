@@ -130,6 +130,7 @@ public final class WebFluxRequestFieldsAutoConfiguration {
    * Gives each request its correlation ID when Micrometer Tracing is on the classpath, as the
    * observability starter brings it. A nested class, so Tracing's types are only loaded then.
    */
+  @StratumInternal
   @Configuration(proxyBeanMethods = false)
   @ConditionalOnStratumModule(WebConstants.MODULE)
   @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.REACTIVE)

@@ -145,6 +145,7 @@ public final class WebMvcErrorResponsesAutoConfiguration {
    * no {@link ErrorAttributes} of its own, whose body the page could not show. This nested class is
    * read before the outer class's beans, so the condition sees only the service's own.
    */
+  @StratumInternal
   @Configuration(proxyBeanMethods = false)
   @ConditionalOnStratumModule(WebConstants.MODULE)
   @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)

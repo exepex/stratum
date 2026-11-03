@@ -87,6 +87,7 @@ public final class LoggingAutoConfiguration {
    * Makes {@code @Workflow} work when AspectJ is on the classpath, the same condition Spring Boot
    * uses to apply aspects. A nested class, so the aspect's AspectJ types are only loaded then.
    */
+  @StratumInternal
   @Configuration(proxyBeanMethods = false)
   @ConditionalOnStratumModule(LoggingConstants.MODULE)
   @ConditionalOnClass(Advice.class)
@@ -113,6 +114,7 @@ public final class LoggingAutoConfiguration {
    * Runs a {@code Mono} or {@code Flux} as a workflow when Reactor is on the classpath. A nested
    * class, so Reactor's types are only loaded then.
    */
+  @StratumInternal
   @Configuration(proxyBeanMethods = false)
   @ConditionalOnStratumModule(LoggingConstants.MODULE)
   @ConditionalOnClass(Mono.class)

@@ -267,7 +267,7 @@ public class LogVolumeCounters {
    * @param top the loggers and levels that dropped the most, as {@code logger LEVEL=count}
    */
   @StratumInternal
-  @Builder
+  @Builder(access = AccessLevel.PRIVATE)
   public record DroppedLines(long lines, int keys, List<String> top) {
 
     /**
