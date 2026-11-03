@@ -25,9 +25,9 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * The rules that keep Stratum's public API apart from its internal types (ST-ENG-56, ADR 0009):
- * each public class carries {@link StratumInternal} or is on its module's API list, and the API
- * never exposes a labelled type, so a service never needs an internal type to use or replace an API
- * type.
+ * each class a service can reach carries {@link StratumInternal} or is on its module's API list,
+ * and the API never exposes a labelled type, so a service never needs an internal type to use or
+ * replace an API type.
  */
 @StratumInternal
 @UtilityClass

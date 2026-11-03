@@ -127,8 +127,8 @@ public class StarterTestSupport {
   /**
    * Checks a library's classes: they stay off while the module is off, even when a service's
    * component scan reaches Stratum's packages (ST-ENG-20), its packages have no cycles (ST-ENG-57),
-   * each public class is labelled or on its API list, and its API exposes no internal type
-   * (ST-ENG-56). A starter gets these checks from {@link #checkStarterArchitecture}.
+   * each class a service can reach is labelled or on its API list, and its API exposes no internal
+   * type (ST-ENG-56). A starter gets these checks from {@link #checkStarterArchitecture}.
    *
    * @param classInLibraryPackage any class in the library's top package, such as its constants
    * @param apiTypes the library's types, top-level or nested, that services may use; every other
@@ -312,8 +312,8 @@ public class StarterTestSupport {
   /**
    * Returns Stratum's architecture rules for a starter: its autoconfigure package only creates and
    * wires beans (ST-ENG-23), it uses no class of another starter, only of {@code stratum-core} and
-   * the shared libraries it is built on, its packages have no cycles, each public class is labelled
-   * or on its API list, and its API exposes no internal type.
+   * the shared libraries it is built on, its packages have no cycles, each class a service can
+   * reach is labelled or on its API list, and its API exposes no internal type.
    *
    * @param starterPackage the starter's top package, such as {@code com.exepex.stratum.logging}
    * @param apiTypes the starter's types, top-level or nested, that services may use
