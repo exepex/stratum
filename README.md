@@ -282,7 +282,7 @@ present but off is named in one INFO line at startup, such as
 
 | Module | In one sentence |
 | --- | --- |
-| [`stratum-test`](docs/modules/test.md) | Planned: JUnit 5, AssertJ, Mockito, Testcontainers, HTTP stubs and JWT helpers. |
+| [`stratum-test`](docs/modules/test.md) | Partly built: a PostgreSQL container for integration tests. Planned: JUnit 5, AssertJ, Mockito, more containers, HTTP stubs and JWT helpers. |
 
 ## Configuration: YAML or properties
 
@@ -371,9 +371,10 @@ The decision behind it: [ADR 0001](docs/adr/0001-coexistence-with-company-framew
 
 ## Testing your service
 
-**Planned.** `stratum-test` is not built yet. Until it is, add Spring Boot's
-`spring-boot-starter-test` with `<scope>test</scope>`. Once built, `stratum-test` is planned to give
-you everything you need for unit, mock and integration tests in one test dependency:
+**Partly built.** Today `stratum-test` gives your integration tests a PostgreSQL database in Docker
+([Containers](docs/modules/test.md#containers)); add Spring Boot's `spring-boot-starter-test` with
+`<scope>test</scope>` next to it. Once complete, `stratum-test` is planned to give you everything you
+need for unit, mock and integration tests in one test dependency:
 
 - **Unit tests** (`*Test.java`) with JUnit 5, AssertJ and Mockito.
 - **Integration tests** (`*IntegrationTest.java`) that start a real PostgreSQL, Kafka or Redis in Docker with
@@ -443,7 +444,7 @@ cd stratum
 ```
 
 `./mvnw verify` checks formatting, runs Checkstyle, PMD, SpotBugs and the Maven Enforcer, runs unit
-and integration tests (Docker will be needed once integration tests use containers) and fails if
+and integration tests (Docker must be running: integration tests start containers) and fails if
 line coverage drops below 80%. The modules are grouped into `platform/` (BOM, parent POMs and build
 rules), `libs/` (shared libraries) and `starters/`; see
 [Architecture](docs/guides/architecture.md#repository-layout).
