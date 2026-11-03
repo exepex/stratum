@@ -21,15 +21,15 @@ other part of ADR 0001 stands.
 
 - **Modules are off until a service turns them on (ADR 0003).** A team that adds a starter gets
   nothing until it writes `stratum.<module>.enabled=true` for each module. Most of the documentation
-  repeats that line: `git grep -l 'enabled=true' | wc -l` gives 91 files at `87dc6da`. A missed
+  repeats that line: `git grep -l 'enabled=true' | wc -l` gives 91 files at `b9153f4`. A missed
   line is easy to overlook: the only sign is one startup line, from `ModulesLeftOffNotice`.
 - **The compatibility switch belongs to the web module only (ADR 0008).** The planned data and Kafka
   starters also have contracts with consumers, such as query timeouts and dead-letter headers. A
   switch per module would add keys that every service has to set, and ST-ENG-34 keeps the number
   of keys low.
 - **ADR 0008 chose `true` as the default** to protect the consumers of a service that is already
-  running. That reason no longer decides the default: no service runs on Stratum yet, and no module
-  is released (`README.md`). A running service keeps its contract with its consumers (ST-ENG-28) by
+  running. That reason no longer decides the default: no module is released yet (`README.md:27`),
+  so no service runs on Stratum. A running service keeps its contract with its consumers (ST-ENG-28) by
   setting `stratum.backward-compatible=true` in its first release on Stratum.
 
 ## Decision
@@ -46,10 +46,9 @@ code until then.
    still read from properties only.
 2. A missing required value stops startup with a message naming the key and
    `stratum.<module>.enabled=false`. A module never switches itself off quietly.
-3. No single starter depends on another starter at compile or run time. A bundle starter lists
-   single starters, as ADR 0003 decision 1 says. A single starter may use another starter in test
-   scope only, as `stratum-starter-webmvc` and `stratum-starter-webflux` use
-   `stratum-starter-observability` today.
+3. No single starter depends on another starter, except in test scope. A bundle starter lists
+   single starters, as ADR 0003 decision 1 says. In test scope, `stratum-starter-webmvc` and
+   `stratum-starter-webflux` use `stratum-starter-observability` today, and they keep it.
 4. Starters share code and settings through a library in `libs/`. Shared code moves there only when
    a second starter needs it. At run time, starters meet through Spring, and a starter never changes
    its behaviour based on another starter's settings (ST-ENG-11).
@@ -101,7 +100,7 @@ code until then.
 
 ### Follow-up items
 
-Each is its own item, with its own track and judge. Counts were taken at `87dc6da`.
+Each is its own item, with its own track and judge. Counts were taken at `b9153f4`.
 
 - **Item 2a, modules on when present:**
   - `StratumModuleSwitch.java:25` and `EarlyModuleSwitches.java:82` change `.orElse(false)` to
