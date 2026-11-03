@@ -100,10 +100,25 @@ Add the matching starters. Compare your current `spring.datasource.hikari.*`, `s
 `spring.kafka.*` settings with Stratum's defaults (listed on each module page) and delete those that
 match. Keep any value that is deliberately different, and write down why in a comment.
 
+`stratum-starter-data-jpa` sets these defaults even with `stratum.backward-compatible=true`,
+because no caller sees them:
+
+- a caller waits at most 3 seconds for a free connection
+  (`spring.datasource.hikari.connection-timeout=3000`), so a pool that was often exhausted now
+  fails fast instead of queuing;
+- Hibernate checks at startup that the entities match the schema and never changes it
+  (`spring.jpa.hibernate.ddl-auto=validate`), unless the service already chose a schema setting;
+- Hibernate sends inserts and updates in ordered batches of 50 rows and pads `IN` lists.
+
+Before deploying this step, run the service once with `validate` in development or CI against a
+copy of the production schema. A mismatch stops startup with `SX-DATA-1001`, naming the table and
+column; see [Data → Schema check](../modules/data-jpa.md#schema-check).
+
 > [!WARNING]
-> `stratum-starter-data-jpa` sets `spring.jpa.open-in-view=false`. Code that loads lazy relations
-> after the service method has returned will now fail with `LazyInitializationException`. Run your
-> integration tests before deploying this step.
+> With `stratum.backward-compatible=false`, `stratum-starter-data-jpa` also sets
+> `spring.jpa.open-in-view=false`. Code that loads lazy relations after the service method has
+> returned will then fail with `LazyInitializationException`. Run your integration tests before
+> turning the mode off.
 
 ## Step 8: tests
 

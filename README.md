@@ -128,7 +128,7 @@ beans, auto-configuration, properties and profiles from the beginning.
 | Security | Copied `SecurityFilterChain` code | JWT validation and secure defaults from a few properties |
 | Calling other services | Clients without timeouts | HTTP clients with timeouts, retries, tracing and tokens |
 | Resilience | Retry loops written by hand | Named retry, circuit breaker and bulkhead policies |
-| Data and cache | Pool and cache settings guessed | Tuned connection pool, migrations, auditing, caches with TTLs |
+| Data and cache | Pool and cache settings guessed | A connection pool that fails fast, schema checks, time-limited transactions, caches with TTLs |
 | Messaging | Custom error handling per consumer | Kafka with retries, dead-letter topics and trace propagation |
 | Testing | Containers and stubs rebuilt per repo | Shared Testcontainers, HTTP stubs and security test helpers |
 | Upgrades | Every service upgrades alone | One Stratum version bump upgrades the whole stack |
@@ -264,7 +264,7 @@ Every starter's module is on when the starter is on the classpath. A service tur
 | [`stratum-starter-oauth2-client`](docs/modules/oauth2-client.md) | Gets and refreshes tokens for calls to other services. | `stratum.oauth2-client` |
 | [`stratum-starter-http-client`](docs/modules/http-client.md) | Declarative HTTP clients with timeouts, tracing, tokens and retries. | `stratum.http-client` |
 | [`stratum-starter-resilience`](docs/modules/resilience.md) | Named retry, circuit breaker, bulkhead and time limit policies. | `stratum.resilience` |
-| [`stratum-starter-data-jpa`](docs/modules/data-jpa.md) | Connection pool, JPA defaults, Flyway migrations, auditing. | `stratum.data` |
+| [`stratum-starter-data-jpa`](docs/modules/data-jpa.md) | Spring Data JPA with safe defaults for the connection pool, Hibernate and transactions. | `stratum.data` |
 | [`stratum-starter-cache`](docs/modules/cache.md) | Caffeine or Redis caching with per-cache TTL and size. | `stratum.cache` |
 | [`stratum-starter-kafka`](docs/modules/kafka.md) | Kafka producers and consumers with retries and dead-letter topics. | `stratum.kafka` |
 | [`stratum-starter-cloud-*`](docs/modules/cloud.md) | Cloud services such as storage, queues and secrets, per provider. | `stratum.cloud` |
