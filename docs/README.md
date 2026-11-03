@@ -2,7 +2,10 @@
 
 Welcome. This is the home of the Stratum documentation. The [project README](../README.md) gives the
 overview; these pages give the detail: how to set Stratum up, how to configure each part of it, and
-how to use it day to day.
+how to use it day to day. The same pages are copied into the
+[Stratum wiki](https://github.com/exepex/stratum/wiki), which also holds the audit reports. Edit
+them in the repository's `docs/` folder, not in the wiki
+([how the copy works](contributing.md#the-wiki)).
 
 > [!NOTE]
 > Stratum is in the design stage. Each module page's status line says whether it describes built or

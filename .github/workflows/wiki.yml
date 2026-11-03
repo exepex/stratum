@@ -1,0 +1,101 @@
+# Copies the documentation into the GitHub wiki, so the wiki never goes stale. docs/ is the one
+# source: .github/wiki/WikiSync.java turns docs/README.md into the wiki's Home and sidebar, copies
+# every page the index links, rewrites their links, and never changes a page written in the wiki,
+# such as an audit report. docs/contributing.md#the-wiki describes it.
+name: Wiki
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'starters/*/README.md'
+      - '.github/wiki/**'
+      - '.github/workflows/wiki.yml'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'starters/*/README.md'
+      - '.github/wiki/**'
+      - '.github/workflows/wiki.yml'
+  # A wiki edit, such as a new audit report, updates the sidebar. The sync's own push uses
+  # GITHUB_TOKEN, which starts no workflow run, so it cannot loop.
+  gollum:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check the wiki sync
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Run the golden test
+        run: .github/wiki/test.sh
+
+      # The wiki is public, so this clone needs no token. Nothing here is committed or pushed.
+      - name: Sync into a throwaway clone of the wiki
+        run: |
+          git clone --quiet --depth 1 "https://github.com/${GITHUB_REPOSITORY}.wiki.git" "$RUNNER_TEMP/wiki"
+          java .github/wiki/WikiSync.java . "$RUNNER_TEMP/wiki"
+          {
+            echo '## Wiki pages this pull request would change'
+            echo '```'
+            git -C "$RUNNER_TEMP/wiki" status --short
+            echo '```'
+            echo '## Sidebar'
+            cat "$RUNNER_TEMP/wiki/_Sidebar.md"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  sync:
+    name: Sync the wiki
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    # One run at a time; a newer waiting run replaces an older one. Each run syncs the head of main.
+    concurrency:
+      group: wiki-sync
+      cancel-in-progress: false
+    steps:
+      # The head of main, not the commit that started the run, so a re-run never restores old pages.
+      - name: Check out main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+
+      # Keeps GITHUB_TOKEN, masked, for the push below.
+      - name: Check out the wiki
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ github.repository }}.wiki
+          path: wiki
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      # Checks everything before it writes, and commits only when a page changed.
+      - name: Sync the pages and the sidebar
+        run: java .github/wiki/WikiSync.java . wiki --commit
+
+      - name: Push the wiki
+        run: git -C wiki push origin HEAD
