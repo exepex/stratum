@@ -6,15 +6,21 @@ import com.exepex.stratum.data.DataConstants;
 import com.exepex.stratum.data.SchemaValidationDefault;
 import com.exepex.stratum.data.testsupport.DataTestData;
 import java.sql.SQLException;
+import java.util.HashMap;
+import java.util.List;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.hibernate.autoconfigure.HibernateProperties;
 import org.springframework.boot.hibernate.autoconfigure.HibernatePropertiesCustomizer;
 import org.springframework.boot.jpa.autoconfigure.JpaProperties;
+import org.springframework.boot.test.context.ConfigDataApplicationContextInitializer;
+import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -70,6 +76,42 @@ class DataJpaAutoConfigurationTest {
               HibernatePropertiesCustomizer.class,
               () -> hibernateSettings -> hibernateSettings.put("hibernate.hbm2ddl.auto", "none"))
           .run(context -> assertThat(context).doesNotHaveBean(SchemaValidationDefault.class));
+    }
+  }
+
+  @Nested
+  @DisplayName("with settings from application.properties or application.yml")
+  class PropertyBinding {
+
+    /** The two files, in each format, that set both schema keys to none. */
+    private static final List<String> CONFIG_NAMES = List.of("data-properties", "data-yaml");
+
+    @ParameterizedTest(name = "{0}")
+    @FieldSource("CONFIG_NAMES")
+    @DisplayName("the service's schema choice reaches the schema default, which adds nothing")
+    void bindsServiceSchemaChoice(String configName) {
+      contextRunner
+          .withInitializer(new ConfigDataApplicationContextInitializer())
+          .withPropertyValues("spring.config.name=" + configName)
+          .run(context -> assertSchemaChoiceKept(context));
+    }
+
+    @Test
+    @DisplayName("a module switch that is not a boolean stops startup")
+    void failsOnBadSwitch() {
+      contextRunner
+          .withPropertyValues(DataConstants.ENABLED + "=maybe")
+          .run(context -> assertThat(context).hasFailed());
+    }
+
+    /** Checks that both keys are bound as none and that the schema default then adds nothing. */
+    private void assertSchemaChoiceKept(AssertableApplicationContext context) {
+      assertThat(context.getBean(JpaProperties.class).getProperties())
+          .containsEntry("hibernate.hbm2ddl.auto", "none");
+      assertThat(context.getBean(HibernateProperties.class).getDdlAuto()).isEqualTo("none");
+      var hibernateSettings = new HashMap<String, Object>();
+      context.getBean(SchemaValidationDefault.class).customize(hibernateSettings);
+      assertThat(hibernateSettings).isEmpty();
     }
   }
 
