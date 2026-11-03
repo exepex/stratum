@@ -76,7 +76,7 @@ public class RequestFieldsConfiguration {
   /**
    * Carries the request fields to the threads a request's work moves to.
    *
-   * @return the registration, removed when the application stops
+   * @return the registration, kept for the rest of the JVM
    */
   @Bean
   @Fallback

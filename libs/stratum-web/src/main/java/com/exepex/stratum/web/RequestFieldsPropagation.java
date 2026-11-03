@@ -1,23 +1,23 @@
 package com.exepex.stratum.web;
 
 import io.micrometer.context.ContextRegistry;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 
 /**
- * Registers {@link RequestFieldsAccessor} with Micrometer's context propagation while the web
- * module is on, and removes it when the application stops, so that request fields travel with a
- * request's work to other threads.
+ * Registers {@link RequestFieldsAccessor} with Micrometer's context propagation once the web
+ * module's beans exist, so that request fields travel with a request's work to other threads only
+ * while the module is on.
  */
-public class RequestFieldsPropagation implements AutoCloseable {
+public class RequestFieldsPropagation implements SmartInitializingSingleton {
 
-  /** Starts carrying the request fields to other threads. */
-  public RequestFieldsPropagation() {
-    ContextRegistry.getInstance().registerThreadLocalAccessor(new RequestFieldsAccessor());
-  }
-
-  /** Stops carrying them, when the application stops. */
+  /**
+   * Starts carrying the request fields to other threads. They stay registered for the rest of the
+   * JVM, because the registry is shared by every application context in it.
+   */
   @Override
-  public void close() {
-    ContextRegistry.getInstance()
-        .removeThreadLocalAccessor(WebConstants.REQUEST_FIELDS_CONTEXT_KEY);
+  public void afterSingletonsInstantiated() {
+    // Spring Boot never makes a SmartInitializingSingleton lazy, so this also runs under
+    // spring.main.lazy-initialization=true (issue #118).
+    ContextRegistry.getInstance().registerThreadLocalAccessor(new RequestFieldsAccessor());
   }
 }
