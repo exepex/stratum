@@ -1,6 +1,7 @@
 package com.exepex.stratum.test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.STRING;
 
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
@@ -16,6 +17,7 @@ import com.exepex.stratum.core.properties.StratumPropertiesCustomizer;
 import com.exepex.stratum.test.fixture.BoundLeakingGreeter;
 import com.exepex.stratum.test.fixture.ExtensibleGreeter;
 import com.exepex.stratum.test.fixture.InheritingGreeter;
+import com.exepex.stratum.test.fixture.InternalGreeterWithNestedTypes;
 import com.exepex.stratum.test.fixture.InternalGreeting;
 import com.exepex.stratum.test.fixture.InternalGreetingFailure;
 import com.exepex.stratum.test.fixture.LeakingGreeter;
@@ -130,7 +132,7 @@ class PublicApiRuleTest {
   @DisplayName("labelledOrListed")
   class LabelledOrListed {
 
-    /** The public types of stratum-core that services may use; every other one is labelled. */
+    /** The types of stratum-core that services may use, nested ones too; the rest are labelled. */
     private static final Set<Class<?>> CORE_API_TYPES =
         Set.of(
             StratumInternal.class,
@@ -139,13 +141,14 @@ class PublicApiRuleTest {
             ErrorDetail.class,
             ErrorReport.class,
             ExternalError.class,
+            ExternalError.ExternalErrorBuilder.class,
             FailureWithErrorCode.class,
             Severity.class,
             StratumException.class,
             OneShotContextScheduledExecutorService.class,
             StratumPropertiesCustomizer.class);
 
-    /** The public types of stratum-test that services may use; every other one is labelled. */
+    /** The types of stratum-test that services may use, nested ones too; the rest are labelled. */
     private static final Set<Class<?>> TEST_API_TYPES =
         Set.of(PostgresContainerConfiguration.class);
 
@@ -170,6 +173,32 @@ class PublicApiRuleTest {
                   new ClassFileImporter()
                       .importClasses(
                           InheritingGreeter.class, packagePrivateBase, InternalGreeting.class));
+
+      assertThat(result.hasViolation()).isFalse();
+    }
+
+    @Test
+    @DisplayName("fail for a public nested type with no label of its own, inside a labelled class")
+    void failForUnlabelledNestedType() {
+      var result =
+          PublicApiRule.labelledOrListed(Set.of())
+              .evaluate(
+                  new ClassFileImporter()
+                      .importClasses(InternalGreeterWithNestedTypes.class.getDeclaredClasses()));
+
+      assertThat(result.getFailureReport().getDetails())
+          .singleElement(STRING)
+          .contains(InternalGreeterWithNestedTypes.Exposed.class.getName());
+    }
+
+    @Test
+    @DisplayName("pass for a listed nested type and labelled, package-private and private ones")
+    void passForListedLabelledAndHiddenNestedTypes() {
+      var result =
+          PublicApiRule.labelledOrListed(Set.of(InternalGreeterWithNestedTypes.Exposed.class))
+              .evaluate(
+                  new ClassFileImporter()
+                      .importClasses(InternalGreeterWithNestedTypes.class.getDeclaredClasses()));
 
       assertThat(result.hasViolation()).isFalse();
     }

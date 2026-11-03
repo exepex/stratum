@@ -138,6 +138,7 @@ public final class ObservabilityAutoConfiguration {
    * Runs a {@code Mono} or {@code Flux} as linked work when Reactor is on the classpath. A nested
    * class, so Reactor's types are only loaded then.
    */
+  @StratumInternal
   @Configuration(proxyBeanMethods = false)
   @ConditionalOnStratumModule(ObservabilityConstants.MODULE)
   @ConditionalOnClass(Mono.class)

@@ -111,8 +111,8 @@ public class StarterTestSupport {
    * (ST-TEST-21). A failure lists every class that breaks a rule.
    *
    * @param classInStarterPackage any class in the starter's top package, such as its constants
-   * @param apiTypes the starter's public top-level types that services may use; every other one
-   *     carries {@link StratumInternal}
+   * @param apiTypes the starter's types, top-level or nested, that services may use; every other
+   *     one carries {@link StratumInternal}
    * @param sharedLibraryPackages the packages of the Stratum libraries the starter is built on,
    *     besides {@code stratum-core}, such as {@code com.exepex.stratum.web} for a web starter
    */
@@ -131,8 +131,8 @@ public class StarterTestSupport {
    * (ST-ENG-56). A starter gets these checks from {@link #checkStarterArchitecture}.
    *
    * @param classInLibraryPackage any class in the library's top package, such as its constants
-   * @param apiTypes the library's public top-level types that services may use; every other one
-   *     carries {@link StratumInternal}
+   * @param apiTypes the library's types, top-level or nested, that services may use; every other
+   *     one carries {@link StratumInternal}
    */
   public static void checkLibraryArchitecture(
       Class<?> classInLibraryPackage, Set<Class<?>> apiTypes) {
@@ -316,7 +316,7 @@ public class StarterTestSupport {
    * or on its API list, and its API exposes no internal type.
    *
    * @param starterPackage the starter's top package, such as {@code com.exepex.stratum.logging}
-   * @param apiTypes the starter's public top-level types that services may use
+   * @param apiTypes the starter's types, top-level or nested, that services may use
    * @param sharedLibraryPackages the packages of the Stratum libraries the starter is built on
    * @return the rules, as one rule
    */

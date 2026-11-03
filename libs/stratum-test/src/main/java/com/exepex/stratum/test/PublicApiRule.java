@@ -59,22 +59,20 @@ public class PublicApiRule {
   }
 
   /**
-   * Returns the rule: each public top-level class either carries {@link StratumInternal} or is on
-   * the module's API list, so no type becomes API by a forgotten label (ST-ENG-56). Nested types
-   * are not checked: a public nested type that services must not use carries its own label.
+   * Returns the rule: each class a service can reach, top-level or nested, either carries {@link
+   * StratumInternal} itself or is on the module's API list, so no type becomes API by a forgotten
+   * label (ST-ENG-56). A label on the class around a nested type does not stand in for its own.
    *
-   * @param apiTypes the module's public top-level types that services may use
+   * @param apiTypes the module's types, top-level or nested, that services may use
    * @return the rule
    */
   public static ArchRule labelledOrListed(Set<Class<?>> apiTypes) {
     var apiNames = apiTypes.stream().map(Class::getName).collect(Collectors.toUnmodifiableSet());
     return ArchRuleDefinition.classes()
-        .that()
-        .arePublic()
-        .and()
-        .areTopLevelClasses()
-        .and()
-        .areNotAnnotatedWith(StratumInternal.class)
+        .that(
+            DescribedPredicate.describe(
+                "can be reached by a service and carry no label of their own",
+                PublicApiRule::isUnlabelledAndReachable))
         .should(
             ArchConditions.be(
                 DescribedPredicate.<JavaClass>describe(
@@ -91,8 +89,18 @@ public class PublicApiRule {
    */
   private static boolean isApi(JavaClass type) {
     return type.getPackageName().startsWith(STRATUM_PACKAGE)
-        && withEnclosingClasses(type).allMatch(PublicApiRule::isReachable)
+        && isReachableWithEnclosingClasses(type)
         && !isInternal(type);
+  }
+
+  /** Whether a service can reach the type and the type itself carries no label. */
+  private static boolean isUnlabelledAndReachable(JavaClass type) {
+    return isReachableWithEnclosingClasses(type) && !isLabelledInternal(type);
+  }
+
+  /** Whether a service can reach the type and every class it is nested in. */
+  private static boolean isReachableWithEnclosingClasses(JavaClass type) {
+    return withEnclosingClasses(type).allMatch(PublicApiRule::isReachable);
   }
 
   /** Reports each internal type that an API type exposes, with where it exposes it. */
