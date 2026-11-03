@@ -30,6 +30,10 @@ import org.springframework.context.annotation.Configuration;
     "DataJpaAutoConfiguration creates the schema default when Spring Boot sets up Hibernate")
 class DataJpaAutoConfigurationTest {
 
+  private static final String HBM2DDL_AUTO = "hibernate.hbm2ddl.auto";
+
+  private static final String NONE = "none";
+
   /** A context with what Spring Boot's Hibernate set-up provides: its settings and a database. */
   private final ApplicationContextRunner contextRunner =
       new ApplicationContextRunner()
@@ -75,7 +79,7 @@ class DataJpaAutoConfigurationTest {
           .withBean(
               DataConstants.SCHEMA_VALIDATION_DEFAULT,
               HibernatePropertiesCustomizer.class,
-              () -> hibernateSettings -> hibernateSettings.put("hibernate.hbm2ddl.auto", "none"))
+              () -> hibernateSettings -> hibernateSettings.put(HBM2DDL_AUTO, NONE))
           .run(context -> assertThat(context).doesNotHaveBean(SchemaValidationDefault.class));
     }
 
@@ -103,7 +107,7 @@ class DataJpaAutoConfigurationTest {
 
     /** The company's schema choice, under the name of Stratum's schema default. */
     static final HibernatePropertiesCustomizer SCHEMA_CHOICE =
-        hibernateSettings -> hibernateSettings.put("hibernate.hbm2ddl.auto", "none");
+        hibernateSettings -> hibernateSettings.put(HBM2DDL_AUTO, NONE);
 
     /**
      * Returns the company's schema choice.
@@ -144,8 +148,8 @@ class DataJpaAutoConfigurationTest {
     /** Checks that both keys are bound as none and that the schema default then adds nothing. */
     private void assertSchemaChoiceKept(AssertableApplicationContext context) {
       assertThat(context.getBean(JpaProperties.class).getProperties())
-          .containsEntry("hibernate.hbm2ddl.auto", "none");
-      assertThat(context.getBean(HibernateProperties.class).getDdlAuto()).isEqualTo("none");
+          .containsEntry(HBM2DDL_AUTO, NONE);
+      assertThat(context.getBean(HibernateProperties.class).getDdlAuto()).isEqualTo(NONE);
       var hibernateSettings = new HashMap<String, Object>();
       context.getBean(SchemaValidationDefault.class).customize(hibernateSettings);
       assertThat(hibernateSettings).isEmpty();
