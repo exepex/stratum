@@ -19,6 +19,7 @@ import com.exepex.stratum.webmvc.ResponseTimeoutFilter;
 import com.exepex.stratum.webmvc.ResponseTimeoutInterceptor;
 import com.exepex.stratum.webmvc.ServletRequestMdcCleanupFilter;
 import com.exepex.stratum.webmvc.ServletRequestMdcCleanupListener;
+import com.exepex.stratum.webmvc.testsupport.WebMvcRequestFieldsRunners;
 import io.micrometer.tracing.Tracer;
 import jakarta.servlet.DispatcherType;
 import java.io.IOException;
@@ -75,8 +76,7 @@ class WebMvcRequestFieldsAutoConfigurationTest {
 
   /** A servlet application with Stratum's request fields. */
   private final WebApplicationContextRunner contextRunner =
-      new WebApplicationContextRunner()
-          .withConfiguration(AutoConfigurations.of(WebMvcRequestFieldsAutoConfiguration.class));
+      WebMvcRequestFieldsRunners.requestFieldsRunner();
 
   @Nested
   @DisplayName("when the module is switched on or off")

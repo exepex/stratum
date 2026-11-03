@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.web.RequestFieldsPropagation;
 import com.exepex.stratum.web.WebConstants;
+import com.exepex.stratum.webmvc.testsupport.WebMvcRequestFieldsRunners;
 import io.micrometer.context.ContextRegistry;
 import io.micrometer.context.ThreadLocalAccessor;
 import java.util.List;
@@ -12,7 +13,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.LazyInitializationBeanFactoryPostProcessor;
-import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 
 @DisplayName(
@@ -28,8 +28,7 @@ class WebMvcRequestFieldsPropagationTest {
 
   /** A servlet application with Stratum's request fields. */
   private final WebApplicationContextRunner contextRunner =
-      new WebApplicationContextRunner()
-          .withConfiguration(AutoConfigurations.of(WebMvcRequestFieldsAutoConfiguration.class));
+      WebMvcRequestFieldsRunners.requestFieldsRunner();
 
   /** Starts each test from a registry the module has not touched in this JVM. */
   @BeforeEach
