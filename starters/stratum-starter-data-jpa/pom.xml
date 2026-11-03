@@ -14,5 +14,52 @@
   <artifactId>stratum-starter-data-jpa</artifactId>
 
   <name>Stratum starter: data JPA</name>
-  <description>Planned: Connection pool, JPA defaults, Flyway migrations and auditing.</description>
+  <description>Spring Data JPA with safe defaults for the connection pool, Hibernate and transactions.</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.exepex.stratum</groupId>
+      <artifactId>stratum-core</artifactId>
+    </dependency>
+    <!-- Spring Boot's own JPA starter: the HikariCP pool, Hibernate and Spring Data JPA that this
+         module gives its defaults. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jpa</artifactId>
+    </dependency>
+    <!-- The checks and set-up that every starter's tests share, and the PostgreSQL container that
+         stratum-test declares optional. -->
+    <dependency>
+      <groupId>com.exepex.stratum</groupId>
+      <artifactId>stratum-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-testcontainers</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Spring Batch on the classpath, to prove that the module then sets no transaction timeout.
+         Services bring their own. -->
+    <dependency>
+      <groupId>org.springframework.batch</groupId>
+      <artifactId>spring-batch-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
 </project>

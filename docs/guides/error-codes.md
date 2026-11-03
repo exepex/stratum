@@ -260,6 +260,15 @@ stops the application at startup; `SX-OBSERVABILITY-1002` is a warning. See the
 | `SX-OBSERVABILITY-1001` | With the module on, in any profile, metrics or traces are sent over OTLP but their address is not set, so they would be lost. The message names each missing property: `management.otlp.metrics.export.url`, `management.opentelemetry.tracing.export.otlp.endpoint` or both. | Set the named property to your OpenTelemetry Collector, such as `http://otel-collector:4318/v1/metrics`, or turn that export off with `management.otlp.metrics.export.enabled=false` or `management.tracing.export.enabled=false`, or turn the module off with `stratum.observability.enabled=false`. On a laptop without a Collector, use `http://localhost:4318/...`; the data is then dropped quietly. |
 | `SX-OBSERVABILITY-1002` | Warning, logged once per metric: a metric was dropped because one of its tags is named like an ID, such as `userId`, `trace_id`, `user.id` or a name in `stratum.observability.tags.extra-forbidden`. Each ID value would create a new time series. The message names the metric and the tag, never a value. | Remove the tag from the metric and put the ID in a log line or a span attribute instead. If the tag really holds a small, known set of values, list its name in `stratum.observability.tags.allowed`. |
 
+## stratum-starter-data-jpa
+
+This is an error that stops the application at startup, and only while the module is on, which it
+is unless `stratum.data.enabled=false`. See the [data module](../modules/data-jpa.md).
+
+| Code | Meaning | Fix |
+| --- | --- | --- |
+| `SX-DATA-1001` | Hibernate checked the entities against the database schema at startup, which Stratum turns on with `ddl-auto=validate`, and an entity does not match it, as with a column that no migration added. The message is Hibernate's, such as `Schema validation: missing column [customer_id] in table [orders]`: it names the table and the column, never a value. | Fix the entity mapping or add the missing migration, or, to stop Hibernate checking the schema, set `spring.jpa.hibernate.ddl-auto=none`. See [Schema check](../modules/data-jpa.md#schema-check). |
+
 ## stratum-starter-webmvc and stratum-starter-webflux
 
 These apply only while the module is on, which it is unless `stratum.web.enabled=false`. A caller gets all but `SX-WEB-1006` in the error
