@@ -56,7 +56,9 @@ of defence.
 - **ST-SEC-19 Masking by name.** Check that the logging starter finds personal data by field or key name,
   including keys inside text such as `email=x`. In text with no key, it masks only values it can confirm by shape
   or checksum: JWTs, authorization headers, URL passwords, card numbers (Luhn), IBANs (checksum), email addresses,
-  and the service's own `extra-patterns`. Any other field name is the team's job, through `extra-keys`.
+  and the service's own `extra-patterns`. Any other field name is the team's job, through `extra-keys`. Masking
+  checks values, not keys. A log key is a constant, human-readable name, so a finding about secrets or personal
+  data in a key is not a real case; putting data in a key is the team's responsibility.
 
 ## How to check a change
 
