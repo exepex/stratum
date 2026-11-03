@@ -249,11 +249,12 @@ Every starter follows these rules:
 - **ST-ENG-46** A lambda is a single expression or a method reference. When it needs more than one statement, extract
   a named method and reference it.
 - **ST-ENG-47** Logic and state belong in injected beans, not static methods. Static methods live only in Lombok
-  `@UtilityClass` classes of pure helpers and constants. A Spring bean, a record or any other class that is
-  instantiated uses instance methods, private helpers included. Two exceptions: a static factory that creates the
-  type itself, such as `ErrorReport.of`, `Redactor.from` or `LoggingProperties.resolve`, with the private helpers it
-  calls; and the static methods JUnit requires (`@BeforeAll` and `@AfterAll`). Test data for parameterized tests is
-  a constant, not a method (ST-TEST-15).
+  `@UtilityClass` classes of pure helpers and constants. A Spring bean, a record or any other class that is instantiated
+  uses instance methods, private helpers included. Three exceptions: a static factory that creates the type itself, such
+  as `ErrorReport.of`, `Redactor.from` or `LoggingProperties.resolve`, with the private helpers it calls; the static
+  methods JUnit requires (`@BeforeAll` and `@AfterAll`); and a `static @Bean` method that Spring requires for a
+  `BeanPostProcessor` or `BeanFactoryPostProcessor`, which only creates the bean and gives its reason in a comment. Test
+  data for parameterized tests is a constant, not a method (ST-TEST-15).
   `ErrorReport.of` reads the trace, span and correlation IDs from SLF4J's `MDC`, so that any code, injected or not,
   can report an error without passing the IDs by hand.
 - **ST-ENG-48** Every `AutoCloseable` that a method opens is closed with try-with-resources. Do not close resources
