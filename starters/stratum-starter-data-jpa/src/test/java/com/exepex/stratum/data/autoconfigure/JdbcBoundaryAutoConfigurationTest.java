@@ -17,6 +17,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.postgresql.util.PSQLException;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -24,6 +25,7 @@ import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 @DisplayName("JdbcBoundaryAutoConfiguration wraps every data source bean in the JDBC boundary")
 class JdbcBoundaryAutoConfigurationTest {
@@ -33,6 +35,9 @@ class JdbcBoundaryAutoConfigurationTest {
 
   /** The name of the service's own data source, which a team may skip. */
   private static final String LEGACY = "legacyDataSource";
+
+  /** The name of a service's bean that hands out Spring Boot's data source under a second name. */
+  private static final String ALIAS = "aliasDataSource";
 
   /** A context with the boundary and two data source beans, as a service with two pools has. */
   private final ApplicationContextRunner contextRunner =
@@ -79,6 +84,15 @@ class JdbcBoundaryAutoConfigurationTest {
     @DisplayName("with the module on, every data source bean is wrapped and reads constraint names")
     void wrapsEveryDataSource() {
       contextRunner.run(context -> assertEveryDataSourceWrapped(context));
+    }
+
+    @Test
+    @DisplayName(
+        "a data source bean that returns an already wrapped data source is not wrapped again")
+    void keepsWrappedDataSourceOfAlias() {
+      contextRunner
+          .withUserConfiguration(AliasConfiguration.class)
+          .run(context -> assertThat(context.getBean(ALIAS)).isSameAs(context.getBean(PRIMARY)));
     }
 
     /** Checks that both data source beans are wrapped and still give the constraint's name. */
@@ -145,6 +159,22 @@ class JdbcBoundaryAutoConfigurationTest {
       assertThatThrownBy(() -> new JdbcBoundaryPostProcessor(null))
           .isInstanceOf(NullPointerException.class)
           .hasMessage("wrapsBean must not be null");
+    }
+  }
+
+  /** A service's configuration that hands out Spring Boot's data source under a second name. */
+  @Configuration(proxyBeanMethods = false)
+  static class AliasConfiguration {
+
+    /**
+     * Returns Spring Boot's data source, which the boundary has already wrapped.
+     *
+     * @param dataSource Spring Boot's data source bean
+     * @return the same data source
+     */
+    @Bean(ALIAS)
+    DataSource aliasDataSource(@Qualifier(PRIMARY) DataSource dataSource) {
+      return dataSource;
     }
   }
 
