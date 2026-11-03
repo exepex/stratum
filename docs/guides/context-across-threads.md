@@ -146,9 +146,10 @@ Mono<Receipt> place(Order order) {
 Every operator inside `payments.charge(order)`, on any thread, then logs `orderId`, and also the
 fields the subscribing thread held, such as a `customerId` the handler put. `ReactiveMdcFields.flux`
 does the same for a `Flux`. Fields of an enclosing call are kept, and a field set again takes the
-new value. `traceId`, `spanId`, `correlationId` and the workflow fields are refused with an
-`IllegalArgumentException`, because tracing and workflows keep those in step with each span and
-workflow.
+new value. A field set to `null` is left off the chain's lines, even when an enclosing call or the
+subscribing thread set it. `traceId`, `spanId`, `correlationId` and the workflow fields are refused
+with an `IllegalArgumentException`, because tracing and workflows keep those in step with each span
+and workflow.
 
 Blocking code that calls `block()` on a `Mono` passes its own MDC fields into the chain, so no
 helper is needed there.

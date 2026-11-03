@@ -40,8 +40,8 @@ public class ReactiveWorkflows {
    * @throws IllegalArgumentException if the name is not 1 to 128 safe characters
    */
   public <T> Mono<T> mono(String name, @Nullable String workflowId, Mono<T> work) {
-    workflows.requireSafeName(name);
-    return Mono.deferContextual(outerContext -> runOnce(name, workflowId, work, outerContext));
+    // fromDirect, not from: the work emits at most one value, and from would cancel it after that.
+    return Mono.fromDirect(flux(name, workflowId, work.flux()));
   }
 
   /**
@@ -84,17 +84,7 @@ public class ReactiveWorkflows {
     };
   }
 
-  /** Runs one subscription of the {@code Mono} as the workflow. */
-  private <T> Mono<T> runOnce(
-      String name, @Nullable String workflowId, Mono<T> work, ContextView outerContext) {
-    var fields = fieldsInside(name, workflowId, outerContext);
-    var observation = start(fields, outerContext);
-    return work.contextWrite(context -> withWorkflow(context, fields, observation))
-        .doOnError(observation::error)
-        .doFinally(signal -> observation.stop());
-  }
-
-  /** Runs one subscription of the {@code Flux} as the workflow. */
+  /** Runs one subscription of the work as the workflow. */
   private <T> Flux<T> runOnce(
       String name, @Nullable String workflowId, Flux<T> work, ContextView outerContext) {
     var fields = fieldsInside(name, workflowId, outerContext);
