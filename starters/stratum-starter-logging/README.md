@@ -239,6 +239,8 @@ Outputs that Stratum does not write are not masked by it:
 | The OpenTelemetry Java agent or OpenTelemetry's log appender | No: they read each event before any format. Mask in the OpenTelemetry Collector instead |
 | A logging backend other than Logback or Log4j2 | Not allowed: startup stops |
 | A Log4j2 configuration file | Not checked: Stratum cannot see it; do not add one |
+| An appender, encoder or layout your code adds at run time | Not checked: Stratum cannot see it, and it is not masked; do not add one |
+| A `LoggingSystem` of your own, set with the `org.springframework.boot.logging.LoggingSystem` system property | Not checked: Stratum cannot see it, and it is not masked; do not set one |
 
 The `text` format writes one line per event for people to read: time, level, thread, logger and
 message, then each MDC entry and key-value pair as `key=value`. A stack trace follows on indented
