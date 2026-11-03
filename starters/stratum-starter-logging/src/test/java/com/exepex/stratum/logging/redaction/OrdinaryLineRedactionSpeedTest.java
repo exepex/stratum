@@ -7,6 +7,7 @@ import com.exepex.stratum.logging.testsupport.OrdinaryLogLines;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
 import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.stream.IntStream;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.DisplayName;
@@ -29,11 +30,17 @@ class OrdinaryLineRedactionSpeedTest {
   /** Nanoseconds in a microsecond, the unit the limits and the logged times are in. */
   private static final double NANOS_PER_MICROSECOND = 1_000.0;
 
-  /** CPU time masking an ordinary line may take: provisional, until measured in CI. */
-  private static final Duration ORDINARY_LINE_LIMIT = Duration.ofMillis(1);
+  /**
+   * CPU time masking an ordinary line may take: 20 times M = 102.755 µs, the largest best value of
+   * 3 CI runs with coverage on (54.285, 102.755 and 66.356 µs), on JDK 25, 2026-11-03.
+   */
+  private static final Duration ORDINARY_LINE_LIMIT = Duration.of(2_056, ChronoUnit.MICROS);
 
-  /** CPU time masking a line with a stack trace may take: provisional, until measured in CI. */
-  private static final Duration STACK_TRACE_LINE_LIMIT = Duration.ofMillis(1);
+  /**
+   * CPU time masking a line with a stack trace may take: 20 times M = 826.994 µs, the largest best
+   * value of 3 CI runs with coverage on (466.401, 826.994 and 591.42 µs), on JDK 25, 2026-11-03.
+   */
+  private static final Duration STACK_TRACE_LINE_LIMIT = Duration.of(16_540, ChronoUnit.MICROS);
 
   /**
    * Times the CPU this test's thread uses, so time spent waiting for a processor is not counted.
