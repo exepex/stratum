@@ -132,7 +132,7 @@ class JdbcBoundaryTest {
   }
 
   /** Answers every call on a mock with PostgreSQL's error, which names the call and the value. */
-  private static Object failWithPersonalValue(InvocationOnMock call) throws SQLException {
+  private Object failWithPersonalValue(InvocationOnMock call) throws SQLException {
     throw postgresFailure(INVALID_TEXT, call.getMethod().getName());
   }
 
@@ -161,7 +161,7 @@ class JdbcBoundaryTest {
     @DisplayName("every throwing method throws the clean copy of the driver's error")
     void cleansEveryThrowingMethod(String name, Class<?> type, Method method)
         throws IllegalAccessException {
-      var delegate = mock(type, JdbcBoundaryTest::failWithPersonalValue);
+      var delegate = mock(type, JdbcBoundaryTest.this::failWithPersonalValue);
 
       var thrown = thrownBy(wrapperOf(type, delegate), method, argumentsFor(method));
 

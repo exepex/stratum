@@ -192,9 +192,9 @@ public class SqlExceptionCleaner {
   }
 
   /**
-   * Appends the clean builtCopies of an error's next exceptions to its copy. A copy that already
-   * exists, because the failure is clean or was met before in this chain, is attached once, as the
-   * tail, with its own chain: attaching an element twice would make the chain loop.
+   * Appends the clean copies of an error's next exceptions to its copy. A copy that already exists,
+   * because the failure is clean or was met before in this chain, is attached once, as the tail,
+   * with its own chain: attaching an element twice would make the chain loop.
    */
   private void appendNextExceptions(
       SQLException copy, @Nullable SQLException first, Map<Throwable, Throwable> copied) {

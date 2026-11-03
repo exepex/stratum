@@ -208,6 +208,11 @@ properties above if you need it.
 - Code you place between two data source beans that adds a raw driver error to a clean one, with
   `addSuppressed` or `setNextException`, is not cleaned again. Spring's routing and lazy proxies
   and HikariCP add none.
+- Because a cause loses its class, Spring no longer sees a `SocketTimeoutException` when it marks
+  a connection read-only for a read-only transaction: it rethrows only a cause whose class name
+  contains `Timeout`, so it now carries on. This happens only with the PostgreSQL driver setting
+  `readOnlyMode=always`, not with its default.
+- The boundary is tested on PostgreSQL only.
 
 ## Bind parameters
 

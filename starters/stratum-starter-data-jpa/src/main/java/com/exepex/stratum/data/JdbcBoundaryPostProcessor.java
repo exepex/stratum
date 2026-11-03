@@ -15,10 +15,10 @@ import org.springframework.util.ClassUtils;
 
 /**
  * Wraps every {@code DataSource} bean in Stratum's JDBC boundary, so that no data value from a
- * database error reaches a log, a span or a response. Every adapter that goes through the data
- * source is covered: Hibernate, {@code JdbcClient}, {@code JdbcTemplate}, MyBatis, jOOQ and native
- * SQL. The errors keep their standard {@code java.sql} class, SQLState and vendor code; on
- * PostgreSQL, {@code getConstraintName()} keeps working.
+ * database error reaches a log, a span or a response. Every library that reaches the database
+ * through a data source bean is covered, such as Hibernate, {@code JdbcClient} and {@code
+ * JdbcTemplate}. The errors keep their standard {@code java.sql} class, SQLState and vendor code;
+ * on PostgreSQL, {@code getConstraintName()} keeps working.
  *
  * <p>To skip a data source, declare your own bean named {@code stratumJdbcBoundary} with a filter
  * of bean names. A skipped data source has <strong>no</strong> boundary: its errors may carry data

@@ -108,7 +108,17 @@ because no caller sees them:
   fails fast instead of queuing;
 - Hibernate checks at startup that the entities match the schema and never changes it
   (`spring.jpa.hibernate.ddl-auto=validate`), unless the service already chose a schema setting;
-- Hibernate sends inserts and updates in ordered batches of 50 rows and pads `IN` lists.
+- Hibernate sends inserts and updates in ordered batches of 50 rows and pads `IN` lists;
+- database errors carry no data values: Stratum wraps every `DataSource` bean, so code that
+  catches or casts a driver's class, such as PostgreSQL's `PSQLException`, no longer matches, and
+  you inject `DataSource` instead of `HikariDataSource` (call
+  `dataSource.unwrap(HikariDataSource.class)` for the pool itself);
+- Hibernate no longer logs JDBC errors and warnings itself
+  (`spring.jpa.properties.hibernate.jdbc.log.errors=false` and `...log.warnings=false`).
+
+Search your code for driver exception classes and for `HikariDataSource` before this step. The
+other effects are listed under [Data → Clean database errors](../modules/data-jpa.md#clean-database-errors),
+in its Limits.
 
 Before deploying this step, run the service once with `validate` in development or CI against a
 copy of the production schema. A mismatch stops startup with `SX-DATA-1001`, naming the table and

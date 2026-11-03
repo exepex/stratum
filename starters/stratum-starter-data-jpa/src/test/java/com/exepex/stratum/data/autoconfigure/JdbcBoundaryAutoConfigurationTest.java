@@ -38,11 +38,11 @@ class JdbcBoundaryAutoConfigurationTest {
   private final ApplicationContextRunner contextRunner =
       new ApplicationContextRunner()
           .withConfiguration(AutoConfigurations.of(JdbcBoundaryAutoConfiguration.class))
-          .withBean(PRIMARY, DataSource.class, JdbcBoundaryAutoConfigurationTest::failingDataSource)
-          .withBean(LEGACY, DataSource.class, JdbcBoundaryAutoConfigurationTest::failingDataSource);
+          .withBean(PRIMARY, DataSource.class, this::failingDataSource)
+          .withBean(LEGACY, DataSource.class, this::failingDataSource);
 
   /** Returns a data source whose every connection attempt fails with a unique violation. */
-  private static DataSource failingDataSource() {
+  private DataSource failingDataSource() {
     var dataSource = mock(DataSource.class);
     try {
       when(dataSource.getConnection()).thenThrow(postgresFailure("23505"));
@@ -53,14 +53,14 @@ class JdbcBoundaryAutoConfigurationTest {
   }
 
   /** Checks that the context started without Stratum's post-processor and wrapped nothing. */
-  private static void assertNoDataSourceWrapped(
+  private void assertNoDataSourceWrapped(
       AssertableApplicationContext context, Class<?> stratumPostProcessor) {
     assertThat(context).hasNotFailed().doesNotHaveBean(stratumPostProcessor);
     assertThat(context.getBean(PRIMARY)).isNotInstanceOf(JdbcWrapper.class);
   }
 
   /** Returns the constraint name Hibernate's PostgreSQL dialect reads from a bean's error. */
-  private static String constraintReadFrom(AssertableApplicationContext context, String beanName) {
+  private String constraintReadFrom(AssertableApplicationContext context, String beanName) {
     try {
       context.getBean(beanName, DataSource.class).getConnection();
       throw new AssertionError("the connection attempt did not fail");
@@ -134,7 +134,8 @@ class JdbcBoundaryAutoConfigurationTest {
           .withConfiguration(
               AutoConfigurations.of(
                   JdbcBoundaryAutoConfiguration.class, CompanyBoundaryAutoConfiguration.class))
-          .withBean(PRIMARY, DataSource.class, JdbcBoundaryAutoConfigurationTest::failingDataSource)
+          .withBean(
+              PRIMARY, DataSource.class, JdbcBoundaryAutoConfigurationTest.this::failingDataSource)
           .run(context -> assertNoDataSourceWrapped(context, JdbcBoundaryPostProcessor.class));
     }
 
@@ -157,6 +158,7 @@ class JdbcBoundaryAutoConfigurationTest {
      * @return the post-processor
      */
     @Bean(DataConstants.JDBC_BOUNDARY)
+    // Static, because Spring creates bean post-processors before the other beans.
     static BeanPostProcessor companyBoundary() {
       return new BeanPostProcessor() {};
     }
