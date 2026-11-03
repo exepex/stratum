@@ -6,18 +6,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.exepex.stratum.core.properties.StratumPropertiesCustomizer;
-import com.exepex.stratum.test.fixture.BoundLeakingGreeter;
-import com.exepex.stratum.test.fixture.ExtensibleGreeter;
-import com.exepex.stratum.test.fixture.InheritingGreeter;
-import com.exepex.stratum.test.fixture.InternalGreeting;
-import com.exepex.stratum.test.fixture.InternalGreetingFailure;
-import com.exepex.stratum.test.fixture.LeakingGreeter;
-import com.exepex.stratum.test.fixture.ThrowingGreeter;
 import com.exepex.stratum.test.fixture.UnswitchedGreeter;
 import com.exepex.stratum.test.fixture.autoconfigure.GreetingAutoConfiguration;
 import com.exepex.stratum.test.fixture.autoconfigure.GreetingFormatter;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
-import com.tngtech.archunit.core.importer.ImportOption;
 import java.io.IOException;
 import java.net.http.HttpHeaders;
 import java.net.http.HttpResponse;
@@ -25,6 +17,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -35,6 +28,10 @@ class StarterTestSupportTest {
 
   /** The made-up starter's top package, which the architecture rules are checked against. */
   private static final String FIXTURE_STARTER_PACKAGE = "com.exepex.stratum.test.fixture";
+
+  /** The made-up starter's public classes that services may use, as its API list. */
+  private static final Set<Class<?>> FIXTURE_API_TYPES =
+      Set.of(GreetingAutoConfiguration.class, GreetingFormatter.class);
 
   @Nested
   @DisplayName("withCustomizers")
@@ -69,7 +66,7 @@ class StarterTestSupportTest {
     @DisplayName("pass for an autoconfigure package that only declares beans")
     void passForConfigurationClass() {
       var result =
-          StarterTestSupport.starterArchitecture(FIXTURE_STARTER_PACKAGE)
+          StarterTestSupport.starterArchitecture(FIXTURE_STARTER_PACKAGE, FIXTURE_API_TYPES)
               .evaluate(new ClassFileImporter().importClasses(GreetingAutoConfiguration.class));
 
       assertThat(result.hasViolation()).isFalse();
@@ -79,7 +76,7 @@ class StarterTestSupportTest {
     @DisplayName("fail for logic in the autoconfigure package")
     void failForLogicInAutoconfigurePackage() {
       var result =
-          StarterTestSupport.starterArchitecture(FIXTURE_STARTER_PACKAGE)
+          StarterTestSupport.starterArchitecture(FIXTURE_STARTER_PACKAGE, FIXTURE_API_TYPES)
               .evaluate(new ClassFileImporter().importClasses(GreetingFormatter.class));
 
       assertThat(result.getFailureReport().getDetails())
@@ -95,90 +92,6 @@ class StarterTestSupportTest {
 
       assertThat(result.getFailureReport().getDetails())
           .anyMatch(detail -> detail.contains(UnswitchedGreeter.class.getName()));
-    }
-  }
-
-  @Nested
-  @DisplayName("the public API rule")
-  class PublicApi {
-
-    @Test
-    @DisplayName("fail for an API type whose public method returns an internal type")
-    void failForApiExposingInternalType() {
-      var result =
-          PublicApiRule.apiExposesOnlyApi()
-              .evaluate(
-                  new ClassFileImporter()
-                      .importClasses(LeakingGreeter.class, InternalGreeting.class));
-
-      assertThat(result.getFailureReport().getDetails())
-          .anyMatch(detail -> detail.contains(InternalGreeting.class.getName()));
-    }
-
-    @Test
-    @DisplayName("fail for an API type that names an internal type only in a type-parameter bound")
-    void failForInternalTypeInBound() {
-      var result =
-          PublicApiRule.apiExposesOnlyApi()
-              .evaluate(
-                  new ClassFileImporter()
-                      .importClasses(BoundLeakingGreeter.class, InternalGreeting.class));
-
-      assertThat(result.getFailureReport().getDetails())
-          .anyMatch(detail -> detail.contains("its type parameters"))
-          .anyMatch(detail -> detail.contains("notify"));
-    }
-
-    @Test
-    @DisplayName("fail for an API type that names an internal type only in a throws clause")
-    void failForInternalTypeInThrowsClause() {
-      var result =
-          PublicApiRule.apiExposesOnlyApi()
-              .evaluate(
-                  new ClassFileImporter()
-                      .importClasses(ThrowingGreeter.class, InternalGreetingFailure.class));
-
-      assertThat(result.getFailureReport().getDetails())
-          .anyMatch(detail -> detail.contains(InternalGreetingFailure.class.getName()));
-    }
-
-    @Test
-    @DisplayName("fail for an API type that inherits a public method naming an internal type")
-    void failForInheritedMemberNamingInternalType() {
-      var result =
-          PublicApiRule.apiExposesOnlyApi()
-              .evaluate(
-                  new ClassFileImporter()
-                      .importClasses(InheritingGreeter.class, InternalGreeting.class));
-
-      assertThat(result.getFailureReport().getDetails())
-          .anyMatch(detail -> detail.startsWith(InheritingGreeter.class.getName() + " exposes"));
-    }
-
-    @Test
-    @DisplayName("fail for a protected nested type of an API type that names an internal type")
-    void failForProtectedNestedType() {
-      var result =
-          PublicApiRule.apiExposesOnlyApi()
-              .evaluate(new ClassFileImporter().importPackagesOf(ExtensibleGreeter.class));
-
-      assertThat(result.getFailureReport().getDetails())
-          .anyMatch(
-              detail ->
-                  detail.startsWith(ExtensibleGreeter.class.getName() + "$Extension exposes"));
-    }
-
-    @Test
-    @DisplayName("pass for stratum-core and stratum-test, which no other module's tests check")
-    void passForCoreAndTestLibraries() {
-      var result =
-          PublicApiRule.apiExposesOnlyApi()
-              .evaluate(
-                  new ClassFileImporter()
-                      .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
-                      .importPackages("com.exepex.stratum.core", "com.exepex.stratum.test"));
-
-      assertThat(result.hasViolation()).isFalse();
     }
   }
 

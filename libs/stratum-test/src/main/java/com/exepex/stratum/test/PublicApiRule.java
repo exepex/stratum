@@ -13,10 +13,12 @@ import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.ConditionEvent;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
+import com.tngtech.archunit.lang.conditions.ArchConditions;
 import com.tngtech.archunit.lang.syntax.ArchRuleDefinition;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 import org.jspecify.annotations.Nullable;
@@ -51,6 +53,33 @@ public class PublicApiRule {
     return ArchRuleDefinition.classes()
         .that(DescribedPredicate.describe("are Stratum's API", PublicApiRule::isApi))
         .should(exposeOnlyApi())
+        .allowEmptyShould(true);
+  }
+
+  /**
+   * Returns the rule: each public top-level class either carries {@link StratumInternal} or is on
+   * the module's API list, so no type becomes API by a forgotten label (ST-ENG-56). Nested types
+   * are not checked: a public nested type that services must not use carries its own label.
+   *
+   * @param apiTypes the module's public top-level types that services may use
+   * @return the rule
+   */
+  public static ArchRule labelledOrListed(Set<Class<?>> apiTypes) {
+    var apiNames = apiTypes.stream().map(Class::getName).collect(Collectors.toUnmodifiableSet());
+    return ArchRuleDefinition.classes()
+        .that()
+        .arePublic()
+        .and()
+        .areTopLevelClasses()
+        .and()
+        .areNotAnnotatedWith(StratumInternal.class)
+        .should(
+            ArchConditions.be(
+                DescribedPredicate.<JavaClass>describe(
+                    "on the module's API list", type -> apiNames.contains(type.getName()))))
+        .because(
+            "each such class needs @StratumInternal if services must not use it, or an entry in"
+                + " the module's API list (ST-ENG-56)")
         .allowEmptyShould(true);
   }
 
