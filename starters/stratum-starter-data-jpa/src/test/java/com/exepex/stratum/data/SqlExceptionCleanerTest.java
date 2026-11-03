@@ -23,6 +23,7 @@ import java.sql.SQLTransientConnectionException;
 import java.sql.SQLWarning;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -139,6 +140,21 @@ class SqlExceptionCleanerTest {
     }
 
     @Test
+    @DisplayName("a batch error about the system drops its message, which holds the statement")
+    void dropsBatchMessageOfSystemError() {
+      var batchFailure =
+          new BatchUpdateException(
+              "Batch entry 0 INSERT INTO customers VALUES ('" + PERSONAL_VALUE + "') was aborted",
+              "40P01",
+              0,
+              new long[] {java.sql.Statement.EXECUTE_FAILED},
+              null);
+
+      assertThat((Throwable) cleaner.cleaned(batchFailure))
+          .hasMessage("SQLState 40P01, vendor code 0");
+    }
+
+    @Test
     @DisplayName("the pool's timeout keeps its message, though it has no SQLState")
     void keepsPoolTimeoutMessage() {
       var poolMessage =
@@ -192,6 +208,18 @@ class SqlExceptionCleanerTest {
   @DisplayName("the copy's chain")
   class Chain {
 
+    /** The next exceptions of a large failed batch. */
+    private static final int LONG_CHAIN = 5_000;
+
+    /** How many times longer the second chain is than the first. */
+    private static final int LENGTH_FACTOR = 4;
+
+    /**
+     * The most the cleaning time may grow when the chain grows by {@link #LENGTH_FACTOR}: about 4
+     * when it is linear, about 16 when it is quadratic.
+     */
+    private static final long GROWTH_LIMIT = 8;
+
     @Test
     @DisplayName("the stack trace, causes, suppressed and next exceptions are cleaned too")
     void cleansWholeChain() {
@@ -211,6 +239,30 @@ class SqlExceptionCleanerTest {
           .singleElement()
           .hasFieldOrPropertyWithValue("SQLState", INVALID_TEXT);
       assertThat(copy.getNextException().getSQLState()).isEqualTo(FOREIGN_KEY_VIOLATION);
+    }
+
+    @Test
+    @DisplayName("a long chain of next exceptions, as a large batch has, is cleaned in linear time")
+    void cleansLongChainInLinearTime() {
+      // A warm-up first, so that the two timed runs compare compiled code.
+      nanosToClean(LONG_CHAIN);
+      var shortChain = nanosToClean(LONG_CHAIN);
+      var longChain = nanosToClean(LONG_CHAIN * LENGTH_FACTOR);
+
+      assertThat(longChain).isLessThan(shortChain * GROWTH_LIMIT);
+    }
+
+    /** Returns how long the cleaner takes for a chain of the given length, checking its copy. */
+    private long nanosToClean(int length) {
+      var failures =
+          IntStream.range(0, length).mapToObj(index -> postgresFailure(UNIQUE_VIOLATION)).toList();
+      IntStream.range(1, length)
+          .forEach(index -> failures.get(index - 1).setNextException(failures.get(index)));
+      var start = System.nanoTime();
+      var copy = cleaner.cleaned(failures.get(0));
+      var elapsed = System.nanoTime() - start;
+      assertThat(DataAssertions.chainOf(copy)).hasSize(length);
+      return elapsed;
     }
 
     @Test

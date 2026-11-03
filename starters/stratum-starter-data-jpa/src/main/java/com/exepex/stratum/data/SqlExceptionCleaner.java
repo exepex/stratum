@@ -201,18 +201,22 @@ public class SqlExceptionCleaner {
     // A loop, not a stream: the walk stops at the first copy that already exists, and each step
     // reads the original's chain while the copy's chain grows.
     var appended = Collections.newSetFromMap(new IdentityHashMap<Throwable, Boolean>());
+    // Each copy is attached to the last one, which has no next exception yet, because
+    // setNextException walks the whole chain: attaching to the head would be quadratic.
+    var last = copy;
     var next = first;
     while (next != null && !builtCopies.contains(next) && !copied.containsKey(next)) {
       copied.put(next, null);
       var nextCopy = SQLException.class.cast(copyAlone(next, copied));
       copied.put(next, nextCopy);
-      copy.setNextException(nextCopy);
+      last.setNextException(nextCopy);
+      last = nextCopy;
       appended.add(nextCopy);
       next = next.getNextException();
     }
     Throwable tail = next == null || builtCopies.contains(next) ? next : copied.get(next);
     if (tail instanceof SQLException cleanTail && !appended.contains(cleanTail)) {
-      copy.setNextException(cleanTail);
+      last.setNextException(cleanTail);
     }
   }
 
@@ -244,7 +248,12 @@ public class SqlExceptionCleaner {
    */
   private String messageOf(SQLException failure, Class<?> standardClass) {
     var message = failure.getMessage();
-    if (message != null && isAboutTheSystem(failure.getSQLState(), standardClass)) {
+    // A batch error's message is never kept: PostgreSQL's driver writes the statement with its
+    // values into it and gives it the SQLState of the error beneath, which its next exception
+    // carries and which is cleaned on its own.
+    if (message != null
+        && !(failure instanceof BatchUpdateException)
+        && isAboutTheSystem(failure.getSQLState(), standardClass)) {
       return message.lines().findFirst().orElse("");
     }
     return constraintReaders.stream()
