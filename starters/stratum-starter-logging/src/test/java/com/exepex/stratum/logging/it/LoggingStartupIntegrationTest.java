@@ -1,5 +1,6 @@
 package com.exepex.stratum.logging.it;
 
+import static com.exepex.stratum.logging.testsupport.LoggingTestData.CARD_IN_GROUPS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
@@ -47,6 +48,12 @@ class LoggingStartupIntegrationTest {
 
   /** Gives the test application its service name. */
   private static final String SERVICE_NAME = "--spring.application.name=orders";
+
+  /**
+   * The length of the message before the card, so that its first digit sits at character 1,010 of
+   * the printed trace and a cut at 1KB falls inside it.
+   */
+  private static final int TEXT_BEFORE_THE_CARD = 971;
 
   /** Switches the logging module on. */
   private static final String MODULE_ON = "--stratum.logging.enabled=true";
@@ -155,6 +162,19 @@ class LoggingStartupIntegrationTest {
         .doesNotContain("fake-unmasked")
         .doesNotContain("fake-key")
         .doesNotContain("\"message\"");
+  }
+
+  @Test
+  @DisplayName("a card number where a long stack trace is cut is not written, not even in part")
+  void cardNumberAtTheStackTraceCutIsNotWritten(CapturedOutput output) {
+    var failure =
+        new IllegalStateException(
+            "x".repeat(TEXT_BEFORE_THE_CARD) + " card " + CARD_IN_GROUPS + " declined");
+    try (var _ = start(SERVICE_NAME, MODULE_ON, "--stratum.logging.max-field-length=1KB")) {
+      log.error("payment failed", failure);
+    }
+
+    assertThat(output).doesNotContain("4111").contains("...[truncated]");
   }
 
   @Test

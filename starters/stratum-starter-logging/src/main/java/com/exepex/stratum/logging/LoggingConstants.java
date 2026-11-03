@@ -46,6 +46,12 @@ public class LoggingConstants {
   public static final String STACK_TRACE_MAX_LENGTH =
       "logging.structured.json.stacktrace.max-length";
 
+  /**
+   * How many characters Spring Boot may print beyond max-field-length, so that Stratum's cut, which
+   * never leaves half a value, ends a long stack trace.
+   */
+  public static final int STACK_TRACE_PRINT_MARGIN = 1024;
+
   /** Whether Spring Boot writes the root cause of a stack trace first or last. */
   public static final String STACK_TRACE_ROOT = "logging.structured.json.stacktrace.root";
 

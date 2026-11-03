@@ -8,6 +8,7 @@ import ch.qos.logback.classic.spi.LoggingEvent;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.LoggingErrorCode;
+import com.exepex.stratum.logging.format.LogbackMaskedTextFormatter;
 import com.exepex.stratum.logging.testsupport.LoggingTestData;
 import com.exepex.stratum.test.ExistingOrderException;
 import com.exepex.stratum.test.OrderErrorCode;
@@ -124,19 +125,17 @@ class ErrorCodeJsonMembersCustomizerTest {
   }
 
   @Test
-  @DisplayName("with format=text and a GELF file, as startup sets them, the field is _error_code")
-  void skipsTextFormatClassName() {
+  @DisplayName("with Stratum's text class on the console and a GELF file, the field is _error_code")
+  void skipsLogbackTextClassAndUsesFileFormat() {
     var textConsoleGelfFile =
-        LoggingTestData.runLoggingPostProcessor(
-            LoggingTestData.environmentWithModuleOnAndServiceName()
-                .withProperty(LoggingConstants.FORMAT, "text")
-                .withProperty(LoggingConstants.FILE_FORMAT, "gelf"));
+        LoggingTestData.environmentWithConsoleFormat(LogbackMaskedTextFormatter.class.getName())
+            .withProperty(LoggingConstants.FILE_FORMAT, "gelf");
 
     assertThat(writeLogLine(textConsoleGelfFile, CODED_FAILURE)).endsWith(GELF_CODE_ENDING);
   }
 
   @Test
-  @DisplayName("a service's own JSON formatter class on both outputs still gets error.code")
+  @DisplayName("any value but Stratum's text class is treated as JSON and gets error.code")
   void keepsFieldForServiceFormatterClass() {
     var ownFormatter =
         LoggingTestData.environmentWithModuleOn()
