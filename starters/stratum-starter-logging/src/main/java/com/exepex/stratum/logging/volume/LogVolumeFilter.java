@@ -35,7 +35,7 @@ public final class LogVolumeFilter extends TurboFilter {
   /** Milliseconds in a second, the length of one counting window. */
   private static final long MILLIS_PER_SECOND = 1000;
 
-  /** The name of the logger the summary is written to. */
+  /** The name of the logger the summary is written to, which is never limited. */
   private static final String SUMMARY_LOGGER = LogVolumeFilter.class.getName();
 
   /** The sampling rates and how often the summary is written. */
@@ -53,11 +53,7 @@ public final class LogVolumeFilter extends TurboFilter {
    */
   private final SecureRandom untracedDraw = new SecureRandom();
 
-  /**
-   * The second at or after which the next summary is due; 0 until the first line. One summary per
-   * interval of at least a second stays within any WARN limit, so its own logger needs no
-   * exemption.
-   */
+  /** The second at or after which the next summary is due; 0 until the first line. */
   private final AtomicLong nextSummary = new AtomicLong();
 
   /**
@@ -69,7 +65,7 @@ public final class LogVolumeFilter extends TurboFilter {
   public LogVolumeFilter(Volume settings, Clock clock) {
     this.settings = settings;
     this.clock = clock;
-    counters = new LogVolumeCounters(settings);
+    counters = new LogVolumeCounters(settings, SUMMARY_LOGGER);
   }
 
   /**

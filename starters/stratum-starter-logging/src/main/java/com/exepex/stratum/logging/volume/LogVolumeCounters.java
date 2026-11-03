@@ -53,6 +53,9 @@ public class LogVolumeCounters {
   /** The settings that give each level its limit and each logger its exemption. */
   private final Volume settings;
 
+  /** The logger of the summary of drops, never limited. */
+  private final String summaryLogger;
+
   /** One shared count per level, for the keys that found no slot. */
   private final List<LineCount> sharedCounts;
 
@@ -63,9 +66,12 @@ public class LogVolumeCounters {
    * Creates an empty table.
    *
    * @param settings the limits, the never-limited loggers and the most keys
+   * @param summaryLogger the logger the summary of drops is written to, which is never limited, so
+   *     that no other line can use up its count and lose a summary
    */
-  public LogVolumeCounters(Volume settings) {
+  public LogVolumeCounters(Volume settings, String summaryLogger) {
     this.settings = settings;
+    this.summaryLogger = summaryLogger;
     maxKeys = settings.maxKeys();
     table = new AtomicReferenceArray<>(Integer.highestOneBit(maxKeys * SLOTS_PER_KEY - 1) << 1);
     sharedCounts =
@@ -155,16 +161,18 @@ public class LogVolumeCounters {
         : settings.maxPerSecond();
   }
 
-  /** Returns whether a logger is never limited: listed, or below a listed logger. */
+  /** Returns whether a logger is never limited: the summary's, listed, or below a listed logger. */
   private boolean isNeverLimited(String name) {
-    return settings.neverLimitLoggers().stream()
-        .anyMatch(listed -> name.equals(listed) || name.startsWith(listed + "."));
+    return name.equals(summaryLogger)
+        || settings.neverLimitLoggers().stream()
+            .anyMatch(listed -> name.equals(listed) || name.startsWith(listed + "."));
   }
 
   /**
    * The lines one logger and level wrote in the current second. One word holds the second and the
    * count, so that a line takes one atomic step; a window only ever moves forward.
    */
+  @StratumInternal
   @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
   public static final class LineCount {
 
@@ -252,6 +260,7 @@ public class LogVolumeCounters {
    * @param keys how many loggers and levels dropped lines
    * @param top the loggers and levels that dropped the most, as {@code logger LEVEL=count}
    */
+  @StratumInternal
   public record DroppedLines(long lines, int keys, List<String> top) {
 
     /**

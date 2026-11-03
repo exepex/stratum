@@ -56,7 +56,8 @@ draw, and with sampling off nothing is drawn.
 ## The summary of dropped lines
 
 Every 10 seconds (`stratum.logging.volume.report-interval`), if lines were dropped over the
-limits, one WARN line is written by the logger `com.exepex.stratum.logging.volume.LogVolumeFilter`:
+limits, one WARN line is written by the logger `com.exepex.stratum.logging.volume.LogVolumeFilter`,
+which is never limited itself:
 
 ```json
 {

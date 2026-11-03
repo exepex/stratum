@@ -256,6 +256,20 @@ class LogVolumeFilterTest {
     }
 
     @Test
+    @DisplayName(
+        "the summary's logger past max-keys is never limited, so no WARN can use up its count")
+    void summaryLoggerPastMaxKeysIsNotLimited() {
+      IntStream.range(0, MIN_KEYS * 2).forEach(logger -> fewKeys.writeInfo(ORDERS + logger, 1));
+      fewKeys.logger(ORDERS + "-late").warn("uses up the shared WARN count");
+      var summaryLogger = fewKeys.logger(LogVolumeFilter.class.getName());
+      IntStream.range(0, SMALL_LIMIT).forEach(line -> summaryLogger.warn("summary {}", line));
+
+      assertThat(fewKeys.lines())
+          .filteredOn(line -> LogVolumeFilter.class.getName().equals(line.getLoggerName()))
+          .hasSize(SMALL_LIMIT);
+    }
+
+    @Test
     @DisplayName("a never-limited logger past max-keys is still never limited")
     void neverLimitedLoggerPastMaxKeysIsNotLimited() {
       IntStream.range(0, MIN_KEYS * 2).forEach(logger -> fewKeys.writeInfo(ORDERS + logger, 1));
