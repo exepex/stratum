@@ -269,8 +269,10 @@ Every starter follows these rules:
   503, connection resets), with a limit on attempts and backoff with jitter. Retrying a non-idempotent write is a
   bug. Use a circuit breaker for a dependency that can fail.
 - **ST-ENG-52 Bound everything.** Pools, queues, caches, batch sizes, request bodies and page sizes all have limits.
-  Never build an unbounded collection from external input. One exception: request bodies have no default limit while
-  `stratum.backward-compatible` is `true`, as ST-ENG-25 says.
+  Never build an unbounded collection from external input. Bound the whole output too, such as one log line or one
+  response, not only each part of it. One exception: request bodies have no default limit while
+  `stratum.backward-compatible` is `true`, as ST-ENG-25 says. In that mode, a bound on one response keeps external
+  contracts unchanged (ST-ENG-25).
 - **ST-ENG-53 Work with virtual threads.** Do not block event-loop threads. Do not cache in `ThreadLocal`s that grow
   with each virtual thread. When work moves to another thread, pass the logging and tracing context explicitly.
   Virtual threads are never on by default; a service opts in with `spring.threads.virtual.enabled`.

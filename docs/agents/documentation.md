@@ -51,11 +51,12 @@ the documentation must work for both. Documentation is part of every change and 
 - **ST-DOC-07 Written for every reader.** Short sentences and plain words. Explain each term a developer new to Spring
   Boot may not know, the first time it appears on a page. Show complete steps, not fragments that assume knowledge.
 - **ST-DOC-08 Planned is labelled.** Anything not built yet is marked as planned. Never describe planned behaviour as
-  if it exists.
+  if it exists. A known gap parked in an issue is stated, with the issue link, where the module page describes that
+  feature.
 - **ST-DOC-09 Size.** No document over 500 lines. Split a long document by topic and link the parts from
   `docs/README.md` or a section index.
 - **ST-DOC-10 Breaking changes.** Every breaking change has a migration note in the release notes: what changed, who
-  is affected and the exact steps.
+  is affected and the exact steps. Until Stratum's first release, no change needs a migration note.
 
 ## How documentation is checked
 
@@ -63,4 +64,6 @@ The judge and the documentation role read each changed document against the code
 Every property name, default, bean name and example must match what the code does. Each of these is a finding: a
 link that leads nowhere, a user documentation page missing from `docs/README.md`, an agent rule file missing from
 `AGENTS.md`, a configuration example missing one of the two file formats, and a module page with `stratum.*`
-properties but no "Configure in Java" section.
+properties but no "Configure in Java" section. Each promise in a changed document that says always, never, every, only
+or cannot is checked against the code with a probe or a named test. Every other page that makes the same promise is
+found by search and changed with it.

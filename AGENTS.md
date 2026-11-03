@@ -58,7 +58,8 @@ Each rule has an ID so that reviews and judge verdicts can cite it.
 
 - **ST-AG-01 Report only what you verified.** For every statement about the code, know how you know it: a command you
   ran and its output, a test, or a `file:line` you read. Say plainly what you did not verify. Never present a guess as
-  a fact.
+  a fact. This holds for every option put to the owner and for every fact about Spring Boot or a library: give its
+  source, or mark it not verified.
 - **ST-AG-02 Done means proven.** Do not call a task done, finished or complete until each part of the request is met
   and backed by evidence you produced. If a part is not done, name it. Work in a pull request is not done until the
   judge has passed it.
@@ -70,8 +71,8 @@ Each rule has an ID so that reviews and judge verdicts can cite it.
   finding counts only if it can happen on a real setup: a path that a running service reaches with its normal
   configuration. A case that is only theoretical goes in Notes. Until a service runs on Stratum, a finding that rests
   on breaking services that already use Stratum, or on their upgrade cost, is not a real setup: answer it with that
-  evidence and resolve the thread. A finding that cites a written rule, such as ST-DOC-10's migration note, still
-  holds unless the owner decides otherwise for that item.
+  evidence and resolve the thread. A finding that cites a written rule, such as ST-DOC-05's two formats, still holds
+  unless the owner decides otherwise for that item.
 - **ST-AG-05 Do not stop silently.** When something blocks you, look for another legitimate route or ask the owner one
   clear question. If the task cannot be done, say so and why.
 - **ST-AG-06 Do only what was asked.** Do not add files, tools, scripts, dependencies or features the request did not
@@ -131,8 +132,8 @@ rather than handing it on. It never starts or chooses its own judge.
   - the faults it planted and the tests that caught them (ST-TEST-01), in the Claims' broken-code proof;
   - a search of the repository for every name, key and default the change adds, renames or changes, with the
     command and its number of hits;
-  - the rules broken most often: ST-ENG-47, ST-TEST-15, ST-TEST-17, and the use of shared helpers (ST-ENG-18,
-    ST-TEST-16);
+  - the rules broken most often: ST-ENG-42, ST-ENG-46, ST-ENG-47, ST-ENG-56 (nested types too), ST-DOC-05, ST-TEST-15,
+    ST-TEST-17, and the use of shared helpers (ST-ENG-18, ST-TEST-16);
   - after each review fix to code, the module's `mvn -pl <module> -am verify` again, and a test of the sibling
     cases of the fixed one;
   - after fixing a leak, a search of every module for the same pattern;
@@ -150,6 +151,9 @@ rather than handing it on. It never starts or chooses its own judge.
   of them together when the pull request closes. It adds a judge check, a brief line or a design-note question to
   the briefs it writes from then on; a new build check needs the owner's go. Writing any of them into a rule file
   follows ST-AG-13.
+- **ST-AG-20 Audit a module against what production needs.** Before a module's gaps are planned, one reviewer checks the
+  whole module against the checklist in [review](docs/agents/review.md#auditing-a-module). It marks each line met,
+  missing or parked, with evidence. The plan's scope is that list, not only earlier findings.
 
 ## File size limits (ST-AG-10)
 
