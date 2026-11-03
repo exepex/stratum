@@ -78,5 +78,12 @@
       <artifactId>postgresql</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Loads stratum-core's OneShotContextScheduledExecutorService, whose supertype comes from this
+         library, which stratum-core declares optional, so core's API list can name it. -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>context-propagation</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 </project>

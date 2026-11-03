@@ -55,10 +55,12 @@ conventions. Each rule has an ID so that reviews and judge verdicts can cite it.
 - **ST-TEST-21** ArchUnit tests (`*ArchTest`) check that the `autoconfigure` package only wires beans, that no starter
   uses another starter's internal classes, that packages have no cycles, that no API type exposes a `@StratumInternal`
   type (`PublicApiRule`, ST-ENG-56), and that every class a component scan picks up carries the module switch
-  (ST-ENG-20). `stratum-core` cannot depend on `stratum-test`, so `StarterTestSupportTest` checks the API rule on core's
-  classes. A starter checks these with `StarterTestSupport.checkStarterArchitecture`, and its codes with
-  `StarterTestSupport.checkErrorCodes`. A library other than `stratum-core` checks the switch rule, the cycles and the
-  API rule with `StarterTestSupport.checkLibraryArchitecture`.
+  (ST-ENG-20). They also check that every public top-level type carries the label or is on the module's API list
+  (ST-ENG-56). `stratum-core` cannot depend on `stratum-test`, so `PublicApiRuleTest` checks the API rules on core's
+  classes and on `stratum-test`'s own, each with its list. A starter checks these with
+  `StarterTestSupport.checkStarterArchitecture`, passing its API list, and its codes with
+  `ErrorCodeChecks.checkErrorCodes`. A library other than `stratum-core` and `stratum-test` checks the switch rule, the
+  cycles and the API rules with `StarterTestSupport.checkLibraryArchitecture`, passing its API list.
 
 ## Integration tests
 
