@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.FieldSource;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.hibernate.autoconfigure.HibernateProperties;
@@ -76,6 +77,42 @@ class DataJpaAutoConfigurationTest {
               HibernatePropertiesCustomizer.class,
               () -> hibernateSettings -> hibernateSettings.put("hibernate.hbm2ddl.auto", "none"))
           .run(context -> assertThat(context).doesNotHaveBean(SchemaValidationDefault.class));
+    }
+
+    @Test
+    @DisplayName("a company framework's auto-configuration with no order wins over Stratum's")
+    void backsOffForCompanyBean() {
+      new ApplicationContextRunner()
+          .withUserConfiguration(HibernateSetUp.class)
+          .withConfiguration(
+              AutoConfigurations.of(
+                  DataJpaAutoConfiguration.class, CompanySchemaAutoConfiguration.class))
+          .run(
+              context ->
+                  assertThat(context)
+                      .hasNotFailed()
+                      .doesNotHaveBean(SchemaValidationDefault.class)
+                      .getBean(DataConstants.SCHEMA_VALIDATION_DEFAULT)
+                      .isSameAs(CompanySchemaAutoConfiguration.SCHEMA_CHOICE));
+    }
+  }
+
+  /** A company framework's auto-configuration that declares no order. */
+  @AutoConfiguration
+  static class CompanySchemaAutoConfiguration {
+
+    /** The company's schema choice, under the name of Stratum's schema default. */
+    static final HibernatePropertiesCustomizer SCHEMA_CHOICE =
+        hibernateSettings -> hibernateSettings.put("hibernate.hbm2ddl.auto", "none");
+
+    /**
+     * Returns the company's schema choice.
+     *
+     * @return the customizer
+     */
+    @Bean(DataConstants.SCHEMA_VALIDATION_DEFAULT)
+    HibernatePropertiesCustomizer companySchemaChoice() {
+      return SCHEMA_CHOICE;
     }
   }
 
