@@ -324,14 +324,14 @@ class LoggingEnvironmentPostProcessorTest {
     }
 
     @Test
-    @DisplayName("with neither Logback nor Log4j2, no format is set")
-    void setsNoFormatWithoutBackend() {
-      var environment =
-          runLoggingPostProcessor(
-              environmentWithModuleOnAndServiceName().withProperty(FORMAT, TEXT),
-              applicationWithout(ILoggingEvent.class, LogEvent.class));
+    @DisplayName("with neither Logback nor Log4j2, startup stops with SX-LOGGING-1003")
+    void noBackendStopsStartup() {
+      var environment = environmentWithModuleOnAndServiceName().withProperty(FORMAT, TEXT);
+      var application = applicationWithout(ILoggingEvent.class, LogEvent.class);
 
-      assertThat(environment.getProperty(LoggingConstants.CONSOLE_FORMAT)).isNull();
+      assertThatExceptionOfType(StratumException.class)
+          .isThrownBy(() -> runLoggingPostProcessor(environment, application))
+          .withMessageStartingWith("SX-LOGGING-1003: ");
     }
 
     @Test

@@ -2,6 +2,7 @@ package com.exepex.stratum.logging;
 
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
+import java.util.List;
 import lombok.experimental.UtilityClass;
 
 /** The property keys, log fields and metric names the logging module uses (ST-ENG-45). */
@@ -32,6 +33,29 @@ public class LoggingConstants {
 
   /** Spring Boot's structured format for the log file, when {@code logging.file.name} is set. */
   public static final String FILE_FORMAT = "logging.structured.format.file";
+
+  /** Spring Boot's key for a logging configuration file of the service's own. */
+  public static final String LOGGING_CONFIG = "logging.config";
+
+  /**
+   * The Logback configuration files Spring Boot loads on its own when they are on the class path.
+   */
+  public static final List<String> LOGBACK_CONFIGURATION_FILES =
+      List.of(
+          "logback-test.groovy",
+          "logback-test.xml",
+          "logback.groovy",
+          "logback.xml",
+          "logback-test-spring.groovy",
+          "logback-test-spring.xml",
+          "logback-spring.groovy",
+          "logback-spring.xml");
+
+  /** Logback's log event, present when the service logs with Logback. */
+  public static final String LOGBACK_EVENT = "ch.qos.logback.classic.spi.ILoggingEvent";
+
+  /** Log4j2's log event, present when the service logs with Log4j2. */
+  public static final String LOG4J2_EVENT = "org.apache.logging.log4j.core.LogEvent";
 
   /** Spring Boot's ECS field {@code service.environment}. */
   public static final String ECS_ENVIRONMENT = "logging.structured.ecs.service.environment";

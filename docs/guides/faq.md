@@ -26,7 +26,8 @@ service. See [Configuration basics](../configuration/basics.md).
 
 **Can I still use Spring Boot properties such as `server.port` or `logging.level.*`?**
 Yes. Stratum's defaults for Spring Boot properties have the lowest priority, so your values always
-win.
+win. The one exception: the logging starter's format keys accept only
+[Stratum's formats](../../starters/stratum-starter-logging/README.md#what-is-masked).
 
 **How do I see every property and its default?**
 In the [Configuration reference](../configuration/reference.md), or through your IDE's completion in
