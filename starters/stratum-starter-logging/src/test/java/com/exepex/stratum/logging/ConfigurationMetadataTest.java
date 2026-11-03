@@ -25,7 +25,15 @@ class ConfigurationMetadataTest {
           LoggingConstants.PREFIX + ".max-field-length",
           LoggingConstants.PREFIX + ".max-elements",
           LoggingConstants.PREFIX + ".redaction.extra-keys",
-          LoggingConstants.EXTRA_PATTERNS);
+          LoggingConstants.EXTRA_PATTERNS,
+          LoggingConstants.VOLUME + ".enabled",
+          LoggingConstants.VOLUME + ".max-per-second",
+          LoggingConstants.VOLUME + ".warn-error-max-per-second",
+          LoggingConstants.VOLUME + ".debug-keep-one-in",
+          LoggingConstants.VOLUME + ".info-keep-one-in",
+          LoggingConstants.VOLUME + ".never-limit-loggers",
+          LoggingConstants.VOLUME + ".max-keys",
+          LoggingConstants.VOLUME + ".report-interval");
 
   @Test
   @DisplayName("every property has a description, and the formats are offered")

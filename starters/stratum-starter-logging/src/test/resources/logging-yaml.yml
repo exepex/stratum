@@ -5,6 +5,8 @@ stratum:
   environment: staging
   logging:
     max-elements: 3
+    volume:
+      max-per-second: 2
     redaction:
       extra-keys:
         - badge-no

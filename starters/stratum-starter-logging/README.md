@@ -128,6 +128,14 @@ failures of each workflow in every service. The fields follow the work to `@Asyn
 Boot's executors and Reactor's thread changes. [Workflows](../../docs/modules/logging-workflows.md)
 shows each way to start one, the fields and timings it adds, and how async and reactive work ends.
 
+## Rate limits and sampling
+
+Each logger writes at most 1000 TRACE, DEBUG or INFO lines and 5000 WARN or ERROR lines per second,
+at each level; the rest are dropped before they are built, and one summary line every 10 seconds
+counts them. Sampling of DEBUG and INFO lines is off until you set it. Spring Security's loggers
+are never limited. [Rate limits and sampling](../../docs/modules/logging-volume.md) shows how it
+decides, the summary line and how to tune it.
+
 ## Redaction
 
 Redaction runs on every value of a JSON line: the message, the exception's message and stack
@@ -269,6 +277,14 @@ exception: the two `logging.structured.format.*` keys accept only Stratum's form
 | `stratum.logging.max-elements` | integer, `1` to `20` | `10` | no such key | The most elements kept of each logged list, map or array, nested ones too; one marker such as `...[190 more]` counts the rest ([lists, maps and arrays](#lists-maps-and-arrays)). Outside the range, startup stops with `SX-CORE-1003`, which names the rule, such as `stratum.logging.max-elements breaks @Max(value=20)`. |
 | `stratum.logging.redaction.extra-keys` | list | *(empty)* | no such key | More field and key names whose values are masked in full, added to the built-in names. |
 | `stratum.logging.redaction.extra-patterns` | list of regex | *(empty)* | no such key | More patterns whose matches are masked in full. An invalid pattern stops startup with `SX-LOGGING-1002`; the message gives its position in the list, never the pattern. Each pattern runs on every value up to `max-field-length`, stack traces included. Write it so it cannot backtrack: match a fixed shape, as in the example below, and avoid patterns such as `.*token.*`, which make every log call slow. |
+| `stratum.logging.volume.enabled` | boolean | `true` | no such key | Whether each logger's lines are limited and sampled ([rate limits](../../docs/modules/logging-volume.md)). |
+| `stratum.logging.volume.max-per-second` | integer, `1` to `1000000` | `1000` | no such key | The most TRACE, DEBUG or INFO lines one logger writes per second, for each level. |
+| `stratum.logging.volume.warn-error-max-per-second` | integer, `1` to `1000000` | `5000` | no such key | The most WARN or ERROR lines one logger writes per second, for each level. |
+| `stratum.logging.volume.debug-keep-one-in` | integer, `1` to `1000000` | `1`, which keeps all | no such key | Keeps one in this many TRACE and DEBUG lines, by trace ID when there is one. |
+| `stratum.logging.volume.info-keep-one-in` | integer, `1` to `1000000` | `1`, which keeps all | no such key | Keeps one in this many INFO lines, the same way. |
+| `stratum.logging.volume.never-limit-loggers` | list | `org.springframework.security` | no such key | Loggers, each with the loggers below it, whose lines are never limited or sampled. Your list replaces the default. |
+| `stratum.logging.volume.max-keys` | integer, `64` to `16384` | `1024` | no such key | The most loggers and levels counted on their own; any more share one count per level. |
+| `stratum.logging.volume.report-interval` | duration, `1s` to `1h` | `10s` | no such key | How often the summary of dropped lines is written. Outside the range, startup stops with `SX-CORE-1003`, which names the rule `stratum.logging.volume.report-interval-in-range`. |
 | `logging.structured.format.console` | `ecs`, `logstash`, `gelf`, or Stratum's text class; any other value, or an empty one, stops startup with SX-LOGGING-1003 | value of `stratum.logging.format`; for `text`, Stratum's masked text class for Logback or Log4j2 | unset, so plain text | The console's format. |
 | `logging.structured.format.file` | `ecs`, `logstash`, `gelf`, or Stratum's text class; any other value, or an empty one, stops startup with SX-LOGGING-1003 | value of `stratum.logging.format`; for `text`, Stratum's masked text class for Logback or Log4j2 | unset, so plain text | The log file's format. |
 | `logging.structured.ecs.service.environment` | string | value of `stratum.environment` | unset | `service.environment` in each line. |
@@ -419,6 +435,7 @@ with no checks and no redaction.
 | Workflows across services | The workflow fields sent to the service's own downstream services, planned with the HTTP client starter |
 | Management endpoint | Secured, timed switches for DEBUG on one logger and timing lines for one workflow, each switching back by itself |
 | Sensitive data during incidents | Masked values carry a keyed fingerprint, so the same value can be matched without being shown. Unmasking stays off unless the service allows it in configuration; it is turned on through a secured endpoint, with a reason, for 15 minutes by default and never more than 1 day, for the listed fields only. Every use is recorded, and unmasked lines go only to a separate destination, never to the normal log |
+| Rate limits for Log4j2 | The same limits and sampling for services on Log4j2, from the same keys ([issue #153](https://github.com/exepex/stratum/issues/153)) |
 | Body logging on demand | Request and response bodies in the logs when you need them, planned for the web and HTTP client starters rather than this one |
 
 ## Troubleshooting
@@ -436,4 +453,5 @@ with no checks and no redaction.
 | A phone number or SSN in a message is not masked | Text is searched only for values Stratum can confirm. Log it under a field named `phone` or `ssn`, or add your own name to `extra-keys`. |
 | `com.google.i18n.phonenumbers` classes are not found after an upgrade | Stratum no longer brings libphonenumber. Declare `com.googlecode.libphonenumber:libphonenumber` in your own POM, with its version. |
 | A value shows `[REDACTION_FAILED]` | Masking that value failed, so it was hidden, for example because its `toString()` threw or a list changed while it was read. Fix the `toString()`, or report the log call. |
+| Lines are missing, and a WARN line says `Dropped log lines over the rate limit` | A logger wrote more lines per second than its limit. Fix the code that floods, or raise `stratum.logging.volume.max-per-second` ([rate limits](../../docs/modules/logging-volume.md)). |
 | A list ends with `...[190 more]` | Only the first `max-elements` elements are written. Log fewer, or join the list into one string ([lists, maps and arrays](#lists-maps-and-arrays)). |
