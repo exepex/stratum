@@ -264,7 +264,7 @@ Every starter's module is on when the starter is on the classpath. A service tur
 | [`stratum-starter-oauth2-client`](docs/modules/oauth2-client.md) | Gets and refreshes tokens for calls to other services. | `stratum.oauth2-client` |
 | [`stratum-starter-http-client`](docs/modules/http-client.md) | Declarative HTTP clients with timeouts, tracing, tokens and retries. | `stratum.http-client` |
 | [`stratum-starter-resilience`](docs/modules/resilience.md) | Named retry, circuit breaker, bulkhead and time limit policies. | `stratum.resilience` |
-| [`stratum-starter-data-jpa`](docs/modules/data-jpa.md) | Spring Data JPA with safe defaults for the connection pool, Hibernate and transactions. | `stratum.data` |
+| [`stratum-starter-data-jpa`](docs/modules/data-jpa.md) | Spring Data JPA with safe defaults for the connection pool, Hibernate and transactions, and database errors that carry no data values. | `stratum.data` |
 | [`stratum-starter-cache`](docs/modules/cache.md) | Caffeine or Redis caching with per-cache TTL and size. | `stratum.cache` |
 | [`stratum-starter-kafka`](docs/modules/kafka.md) | Kafka producers and consumers with retries and dead-letter topics. | `stratum.kafka` |
 | [`stratum-starter-cloud-*`](docs/modules/cloud.md) | Cloud services such as storage, queues and secrets, per provider. | `stratum.cloud` |

@@ -27,6 +27,19 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-data-jpa</artifactId>
     </dependency>
+    <!-- Generates the JDBC boundary's wrappers once at startup, so no JDBC call reflects.
+         Hibernate brings it only in runtime scope. -->
+    <dependency>
+      <groupId>net.bytebuddy</groupId>
+      <artifactId>byte-buddy</artifactId>
+    </dependency>
+    <!-- The PostgreSQL driver, optional: the boundary reads the violated constraint's name from its
+         errors when a service brings it. -->
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <optional>true</optional>
+    </dependency>
     <!-- The checks and set-up that every starter's tests share, and the PostgreSQL container that
          stratum-test declares optional. -->
     <dependency>
@@ -49,9 +62,11 @@
       <artifactId>testcontainers-postgresql</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Spring Boot's health contributors, to prove that the db health check still reaches the
+         wrapped pool. Services bring them with the actuator. -->
     <dependency>
-      <groupId>org.postgresql</groupId>
-      <artifactId>postgresql</artifactId>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-health</artifactId>
       <scope>test</scope>
     </dependency>
     <!-- Spring Batch on the classpath, to prove that the module then sets no transaction timeout.

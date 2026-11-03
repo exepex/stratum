@@ -1,0 +1,270 @@
+package com.exepex.stratum.data;
+
+import static net.bytebuddy.matcher.ElementMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
+
+import com.exepex.stratum.core.api.StratumInternal;
+import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Method;
+import java.sql.Array;
+import java.sql.Blob;
+import java.sql.CallableStatement;
+import java.sql.Clob;
+import java.sql.Connection;
+import java.sql.ConnectionBuilder;
+import java.sql.DatabaseMetaData;
+import java.sql.NClob;
+import java.sql.ParameterMetaData;
+import java.sql.PreparedStatement;
+import java.sql.Ref;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLWarning;
+import java.sql.SQLXML;
+import java.sql.Savepoint;
+import java.sql.ShardingKeyBuilder;
+import java.sql.Statement;
+import java.sql.Struct;
+import java.sql.Wrapper;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import javax.sql.DataSource;
+import net.bytebuddy.ByteBuddy;
+import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.dynamic.DynamicType;
+import net.bytebuddy.dynamic.scaffold.subclass.ConstructorStrategy;
+import net.bytebuddy.implementation.Implementation;
+import net.bytebuddy.implementation.MethodCall;
+import net.bytebuddy.implementation.bytecode.assign.Assigner;
+import net.bytebuddy.utility.RandomString;
+
+/**
+ * Generates, once at startup, the wrapper class of each JDBC type the boundary wraps, and a factory
+ * that creates its wrappers with a plain constructor call, so no call reflects (ST-ENG-54).
+ */
+@StratumInternal
+public final class JdbcWrapperClasses {
+
+  /**
+   * Every JDBC type a wrapped method can return that has a method able to throw, the most specific
+   * first, so that an object implementing several gets the narrowest wrapper. {@code RowId} has no
+   * such method and {@code ShardingKey} none at all, so they stay unwrapped.
+   */
+  static final List<Class<?>> WRAPPED_TYPES =
+      List.of(
+          CallableStatement.class,
+          PreparedStatement.class,
+          Statement.class,
+          Connection.class,
+          ConnectionBuilder.class,
+          ShardingKeyBuilder.class,
+          ResultSet.class,
+          DatabaseMetaData.class,
+          ResultSetMetaData.class,
+          ParameterMetaData.class,
+          NClob.class,
+          Clob.class,
+          Blob.class,
+          SQLXML.class,
+          Array.class,
+          Savepoint.class,
+          Ref.class,
+          Struct.class);
+
+  /** The name ending of every generated class, so that a stack trace shows where it came from. */
+  private static final String SUFFIX = "$StratumBoundary$";
+
+  /** The lookup that defines the generated classes next to {@link JdbcWrapper}. */
+  private final MethodHandles.Lookup lookup = MethodHandles.lookup();
+
+  /** Generates the classes. */
+  private final ByteBuddy byteBuddy = new ByteBuddy();
+
+  /** The factory of the wrappers of each JDBC type other than a data source. */
+  private final Map<Class<?>, BiFunction<Object, JdbcWrapper, JdbcWrapper>> factories;
+
+  /** The generated wrapper class of a data source. */
+  private final Class<? extends JdbcWrapper> dataSourceWrapper;
+
+  /** Generates every wrapper class and its factory. */
+  public JdbcWrapperClasses() {
+    factories =
+        WRAPPED_TYPES.stream()
+            .collect(Collectors.toUnmodifiableMap(Function.identity(), this::factoryOf));
+    dataSourceWrapper = wrapperOf(DataSource.class);
+  }
+
+  /**
+   * Returns the factory of each wrapped JDBC type's wrappers, which takes the driver's object and
+   * the wrapper whose call returned it.
+   *
+   * @return the factories, by JDBC type
+   */
+  Map<Class<?>, BiFunction<Object, JdbcWrapper, JdbcWrapper>> wrapperFactories() {
+    return factories;
+  }
+
+  /**
+   * Wraps a data source; called once for each data source bean at startup.
+   *
+   * @param dataSource the pool or data source
+   * @param boundary cleans the errors and wraps the results
+   * @return the wrapper
+   */
+  DataSource wrap(DataSource dataSource, JdbcBoundary boundary) {
+    try {
+      return (DataSource)
+          dataSourceWrapper
+              .getConstructor(Object.class, JdbcBoundary.class, JdbcWrapper.class)
+              .newInstance(dataSource, boundary, null);
+    } catch (ReflectiveOperationException failure) {
+      throw new IllegalStateException(
+          "The generated data source wrapper cannot be created", failure);
+    }
+  }
+
+  /** Generates the wrapper class of a JDBC type and the factory of its wrappers. */
+  private BiFunction<Object, JdbcWrapper, JdbcWrapper> factoryOf(Class<?> type) {
+    var wrapperClass = wrapperOf(type);
+    var factoryType =
+        TypeDescription.Generic.Builder.parameterizedType(
+                BiFunction.class, Object.class, JdbcWrapper.class, JdbcWrapper.class)
+            .build();
+    try {
+      var construct =
+          MethodCall.construct(
+                  wrapperClass.getConstructor(Object.class, JdbcBoundary.class, JdbcWrapper.class))
+              .withArgument(0)
+              .withMethodCall(
+                  dynamic(
+                      MethodCall.invoke(JdbcWrapper.class.getDeclaredMethod("getBoundary"))
+                          .onArgument(1)))
+              .withArgument(1);
+      var factoryClass =
+          load(
+              byteBuddy
+                  .subclass(factoryType)
+                  .name(wrapperClass.getName() + "Factory")
+                  .method(named("apply"))
+                  .intercept(dynamic(construct)));
+      return (BiFunction<Object, JdbcWrapper, JdbcWrapper>)
+          factoryClass.getConstructor().newInstance();
+    } catch (ReflectiveOperationException failure) {
+      throw new IllegalStateException(
+          "The generated factory of " + type + " cannot be created", failure);
+    }
+  }
+
+  /** Generates the wrapper class of a JDBC type: every method of the type goes to the delegate. */
+  private Class<? extends JdbcWrapper> wrapperOf(Class<?> type) {
+    DynamicType.Builder<JdbcWrapper> builder =
+        byteBuddy
+            .subclass(JdbcWrapper.class, ConstructorStrategy.Default.IMITATE_SUPER_CLASS_OPENING)
+            .name(
+                JdbcWrapper.class.getName()
+                    + "$"
+                    + type.getSimpleName()
+                    + SUFFIX
+                    + RandomString.make())
+            .implement(type);
+    var advice =
+        Advice.withCustomMapping()
+            .with(new Advice.AssignReturned.Factory())
+            .to(CleanErrorsAdvice.class);
+    for (var method : delegatedMethods(type)) {
+      builder =
+          builder
+              .method(named(method.getName()).and(takesArguments(method.getParameterTypes())))
+              .intercept(advice.wrap(callOf(method)));
+    }
+    return load(builder).asSubclass(JdbcWrapper.class);
+  }
+
+  /** Returns the type's methods, once per signature, without those of {@link Wrapper}. */
+  private List<Method> delegatedMethods(Class<?> type) {
+    return Arrays.stream(type.getMethods())
+        .filter(method -> method.getDeclaringClass() != Wrapper.class)
+        .collect(Collectors.toMap(this::signatureOf, Function.identity(), (first, second) -> first))
+        .values()
+        .stream()
+        .toList();
+  }
+
+  /** Returns a method's name and parameter types, which identify it within a type. */
+  private String signatureOf(Method method) {
+    return method.getName() + Arrays.toString(method.getParameterTypes());
+  }
+
+  /**
+   * Returns the call of a method on the delegate, with its JDBC arguments unwrapped and its result
+   * wrapped or cleaned as its return type needs.
+   */
+  private Implementation callOf(Method method) {
+    var delegateCall = MethodCall.invoke(method).onField("delegate");
+    var parameterTypes = method.getParameterTypes();
+    for (var index : IntStream.range(0, parameterTypes.length).toArray()) {
+      delegateCall =
+          isUnwrapped(parameterTypes[index])
+              ? delegateCall.withMethodCall(
+                  dynamic(
+                      MethodCall.invoke(declared("unwrappedArgument", Object.class))
+                          .withArgument(index)))
+              : delegateCall.withArgument(index);
+    }
+    delegateCall = dynamic(delegateCall);
+    var returnType = method.getReturnType();
+    if (WRAPPED_TYPES.contains(returnType)) {
+      return resultOf("wrapped", delegateCall, Object.class, Class.class).with(returnType);
+    }
+    if (returnType == SQLWarning.class) {
+      return resultOf("cleanedWarnings", delegateCall, SQLWarning.class);
+    }
+    if (returnType == Object.class) {
+      return resultOf("wrappedObject", delegateCall, Object.class);
+    }
+    return delegateCall;
+  }
+
+  /** Returns whether an argument of this type is unwrapped before it reaches the driver. */
+  private boolean isUnwrapped(Class<?> parameterType) {
+    return parameterType == Object.class || WRAPPED_TYPES.contains(parameterType);
+  }
+
+  /** Returns the call of a {@link JdbcWrapper} method on the delegate call's result. */
+  private MethodCall resultOf(String name, MethodCall delegateCall, Class<?>... parameterTypes) {
+    return dynamic(MethodCall.invoke(declared(name, parameterTypes)).withMethodCall(delegateCall));
+  }
+
+  /**
+   * Lets a call cast its target, arguments and result to the types the JDBC method declares, which
+   * the generated code knows only at run time. ByteBuddy returns a {@code MethodCall} here, typed
+   * as its interface.
+   */
+  private MethodCall dynamic(MethodCall call) {
+    return (MethodCall) call.withAssigner(Assigner.DEFAULT, Assigner.Typing.DYNAMIC);
+  }
+
+  /** Returns a method {@link JdbcWrapper} declares for the generated code. */
+  private Method declared(String name, Class<?>... parameterTypes) {
+    try {
+      return JdbcWrapper.class.getDeclaredMethod(name, parameterTypes);
+    } catch (NoSuchMethodException failure) {
+      throw new IllegalStateException("JdbcWrapper lacks " + name, failure);
+    }
+  }
+
+  /** Defines a generated class next to {@link JdbcWrapper}. */
+  private Class<?> load(DynamicType.Builder<?> builder) {
+    try (var unloaded = builder.make()) {
+      return lookup.defineClass(unloaded.getBytes());
+    } catch (IllegalAccessException failure) {
+      throw new IllegalStateException("The generated class cannot be defined", failure);
+    }
+  }
+}

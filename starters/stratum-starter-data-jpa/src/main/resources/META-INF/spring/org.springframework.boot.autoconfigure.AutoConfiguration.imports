@@ -1,1 +1,2 @@
 com.exepex.stratum.data.autoconfigure.DataJpaAutoConfiguration
+com.exepex.stratum.data.autoconfigure.JdbcBoundaryAutoConfiguration

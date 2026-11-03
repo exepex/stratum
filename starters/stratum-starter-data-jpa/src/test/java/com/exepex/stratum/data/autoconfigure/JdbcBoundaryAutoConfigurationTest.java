@@ -1,0 +1,164 @@
+package com.exepex.stratum.data.autoconfigure;
+
+import static com.exepex.stratum.data.testsupport.SqlFailureTestData.CONSTRAINT;
+import static com.exepex.stratum.data.testsupport.SqlFailureTestData.postgresFailure;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import com.exepex.stratum.data.DataConstants;
+import com.exepex.stratum.data.JdbcBoundaryPostProcessor;
+import com.exepex.stratum.data.JdbcWrapper;
+import java.sql.SQLException;
+import javax.sql.DataSource;
+import org.hibernate.dialect.PostgreSQLDialect;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.postgresql.util.PSQLException;
+import org.springframework.beans.factory.config.BeanPostProcessor;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.test.context.FilteredClassLoader;
+import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.context.annotation.Bean;
+
+@DisplayName("JdbcBoundaryAutoConfiguration wraps every data source bean in the JDBC boundary")
+class JdbcBoundaryAutoConfigurationTest {
+
+  /** The name of Spring Boot's data source bean. */
+  private static final String PRIMARY = "dataSource";
+
+  /** The name of the service's own data source, which a team may skip. */
+  private static final String LEGACY = "legacyDataSource";
+
+  /** A context with the boundary and two data source beans, as a service with two pools has. */
+  private final ApplicationContextRunner contextRunner =
+      new ApplicationContextRunner()
+          .withConfiguration(AutoConfigurations.of(JdbcBoundaryAutoConfiguration.class))
+          .withBean(PRIMARY, DataSource.class, JdbcBoundaryAutoConfigurationTest::failingDataSource)
+          .withBean(LEGACY, DataSource.class, JdbcBoundaryAutoConfigurationTest::failingDataSource);
+
+  /** Returns a data source whose every connection attempt fails with a unique violation. */
+  private static DataSource failingDataSource() {
+    var dataSource = mock(DataSource.class);
+    try {
+      when(dataSource.getConnection()).thenThrow(postgresFailure("23505"));
+    } catch (SQLException impossible) {
+      throw new IllegalStateException(impossible);
+    }
+    return dataSource;
+  }
+
+  /** Checks that the context started without Stratum's post-processor and wrapped nothing. */
+  private static void assertNoDataSourceWrapped(
+      AssertableApplicationContext context, Class<?> stratumPostProcessor) {
+    assertThat(context).hasNotFailed().doesNotHaveBean(stratumPostProcessor);
+    assertThat(context.getBean(PRIMARY)).isNotInstanceOf(JdbcWrapper.class);
+  }
+
+  /** Returns the constraint name Hibernate's PostgreSQL dialect reads from a bean's error. */
+  private static String constraintReadFrom(AssertableApplicationContext context, String beanName) {
+    try {
+      context.getBean(beanName, DataSource.class).getConnection();
+      throw new AssertionError("the connection attempt did not fail");
+    } catch (SQLException failure) {
+      return new PostgreSQLDialect()
+          .getViolatedConstraintNameExtractor()
+          .extractConstraintName(failure);
+    }
+  }
+
+  @Nested
+  @DisplayName("with the module switched on or off")
+  class ModuleSwitch {
+
+    @Test
+    @DisplayName("with the module on, every data source bean is wrapped and reads constraint names")
+    void wrapsEveryDataSource() {
+      contextRunner.run(context -> assertEveryDataSourceWrapped(context));
+    }
+
+    /** Checks that both data source beans are wrapped and still give the constraint's name. */
+    private void assertEveryDataSourceWrapped(AssertableApplicationContext context) {
+      assertThat(context).hasSingleBean(JdbcBoundaryPostProcessor.class);
+      assertThat(context.getBean(PRIMARY)).isInstanceOf(JdbcWrapper.class);
+      assertThat(context.getBean(LEGACY)).isInstanceOf(JdbcWrapper.class);
+      assertThat(constraintReadFrom(context, PRIMARY)).isEqualTo(CONSTRAINT);
+    }
+
+    @Test
+    @DisplayName("with the module off, no data source is wrapped")
+    void wrapsNothingWithModuleOff() {
+      contextRunner
+          .withPropertyValues(DataConstants.ENABLED + "=false")
+          .run(context -> assertNoDataSourceWrapped(context, JdbcBoundaryPostProcessor.class));
+    }
+
+    @Test
+    @DisplayName("without the PostgreSQL driver, the context starts and no constraint name is read")
+    void startsWithoutPostgresDriver() {
+      contextRunner
+          .withClassLoader(new FilteredClassLoader(PSQLException.class))
+          .run(context -> assertThat(constraintReadFrom(context, PRIMARY)).isNull());
+    }
+  }
+
+  @Nested
+  @DisplayName("when the service or a company framework decides otherwise")
+  class BackOff {
+
+    @Test
+    @DisplayName("a service's bean of the same name, with a filter, skips exactly the named bean")
+    void skipsNamedDataSource() {
+      contextRunner
+          .withBean(
+              DataConstants.JDBC_BOUNDARY,
+              BeanPostProcessor.class,
+              () -> new JdbcBoundaryPostProcessor(beanName -> !LEGACY.equals(beanName)))
+          .run(context -> assertOnlyLegacySkipped(context));
+    }
+
+    /** Checks that the filter skipped the legacy data source and wrapped the other one. */
+    private void assertOnlyLegacySkipped(AssertableApplicationContext context) {
+      assertThat(context.getBean(PRIMARY)).isInstanceOf(JdbcWrapper.class);
+      assertThat(context.getBean(LEGACY)).isNotInstanceOf(JdbcWrapper.class);
+    }
+
+    @Test
+    @DisplayName("a company framework's auto-configuration with no order wins over Stratum's")
+    void backsOffForCompanyBean() {
+      new ApplicationContextRunner()
+          .withConfiguration(
+              AutoConfigurations.of(
+                  JdbcBoundaryAutoConfiguration.class, CompanyBoundaryAutoConfiguration.class))
+          .withBean(PRIMARY, DataSource.class, JdbcBoundaryAutoConfigurationTest::failingDataSource)
+          .run(context -> assertNoDataSourceWrapped(context, JdbcBoundaryPostProcessor.class));
+    }
+
+    @Test
+    @DisplayName("a service's post-processor with a filter of null is refused")
+    void rejectsNullFilter() {
+      assertThatThrownBy(() -> new JdbcBoundaryPostProcessor(null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessage("wrapsBean must not be null");
+    }
+  }
+
+  /** A company framework's auto-configuration that declares no order and its own post-processor. */
+  @AutoConfiguration
+  static class CompanyBoundaryAutoConfiguration {
+
+    /**
+     * Returns the company's post-processor, which leaves every bean as it is.
+     *
+     * @return the post-processor
+     */
+    @Bean(DataConstants.JDBC_BOUNDARY)
+    static BeanPostProcessor companyBoundary() {
+      return new BeanPostProcessor() {};
+    }
+  }
+}
