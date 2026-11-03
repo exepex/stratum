@@ -240,8 +240,9 @@ and then:
 
 Where Spring Boot has a key for a setting, Stratum keeps that key and only changes its default, so
 the IDE shows Spring Boot's description and default for it. Each module's README lists those keys
-with Stratum's default, and the value you set always wins. Stratum adds no key of its own for
-anything Spring Boot already has a key for.
+with Stratum's default, and the value you set always wins, except that the logging starter's format keys
+accept only [Stratum's formats](../../starters/stratum-starter-logging/README.md#what-is-masked). Stratum adds
+no key of its own for anything Spring Boot already has a key for.
 
 Each jar carries its own file, so with several starters on the classpath, a bundle included, the
 IDE shows the keys of all of them. NetBeans needs a Spring Boot plugin that reads the same
@@ -264,7 +265,8 @@ stratum:
 ```
 
 Some Stratum properties are shortcuts that set Spring Boot properties for you. For example,
-`stratum.logging.format` sets Spring Boot's `logging.structured.format.console`. If you set the
-Spring Boot property directly, your value wins. Each module page lists which Spring Boot properties it sets by default.
+`stratum.logging.format` sets Spring Boot's `logging.structured.format.console`. If you set the Spring Boot
+property directly, your value wins as long as it is one of Stratum's formats; any other value stops startup
+(SX-LOGGING-1003). Each module page lists which Spring Boot properties it sets by default.
 
 Next: [Profiles and environments](profiles-and-environments.md).

@@ -212,7 +212,8 @@ Every starter follows these rules:
   has a safe default, so most services set only `stratum.<module>.enabled`.
 - **ST-ENG-35** A team's configuration always wins over Stratum's defaults, including its own lists such as the
   logging starter's `extra-keys` and `extra-patterns`. Stratum guards against mistakes, not against a team's
-  deliberate choices.
+  deliberate choices. One exception: a service logs only through Stratum's log formats; any other format stops
+  startup.
 
 ## Java 25 and Spring Boot 4
 

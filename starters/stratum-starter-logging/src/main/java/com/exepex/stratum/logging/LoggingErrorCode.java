@@ -30,7 +30,17 @@ public enum LoggingErrorCode implements ErrorCode {
       "SX-LOGGING-1002",
       Severity.ERROR,
       "A pattern in " + LoggingConstants.EXTRA_PATTERNS + " is not a valid regular expression",
-      "Correct the pattern. In .properties files, write each backslash twice.");
+      "Correct the pattern. In .properties files, write each backslash twice."),
+
+  /**
+   * A log output does not use one of Stratum's formats, so Stratum could not mask what it writes.
+   */
+  LOG_FORMAT_NOT_STRATUM(
+      "SX-LOGGING-1003",
+      Severity.ERROR,
+      "A log output does not use one of Stratum's formats, so its lines would not be masked",
+      "Remove your own log format, Logback configuration file or logging.config, or add Logback or"
+          + " Log4j2, and choose the format with stratum.logging.format.");
 
   /** The code, such as {@code SX-LOGGING-1001}. */
   private final String code;

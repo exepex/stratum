@@ -127,8 +127,9 @@ such as `stratum.web.request-log.enabled`, apply only once the module is on.
 ## Spring Boot properties Stratum sets for you
 
 Where Spring Boot has a key, Stratum has no key of its own: it gives Spring Boot's key a default,
-with the lowest priority, so any value you set wins. Each module's table lists the Spring Boot keys
-it sets, with both defaults:
+with the lowest priority, so any value you set wins; the logging starter's format keys accept only
+[Stratum's formats](../../starters/stratum-starter-logging/README.md#what-is-masked). Each module's table lists
+the Spring Boot keys it sets, with both defaults:
 [Web](../modules/web.md#properties),
 [Logging](../../starters/stratum-starter-logging/README.md#properties) and
 [Observability](../../starters/stratum-starter-observability/README.md#properties). The planned

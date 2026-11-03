@@ -56,8 +56,6 @@ class LoggingInstanceIdTest {
 
   private static final String GELF = "gelf";
 
-  private static final String OWN_FORMATTER = "com.example.OwnFormatter";
-
   /** Returns an environment with the module on, a service name and the given properties. */
   private MockEnvironment environmentWith(Map<String, String> properties) {
     var environment = environmentWithModuleOnAndServiceName();
@@ -94,11 +92,7 @@ class LoggingInstanceIdTest {
             argumentSet(
                 "Logstash console and GELF file: the console decides the name",
                 Map.of(STRATUM_FORMAT, LOGSTASH, FILE_FORMAT, GELF),
-                Set.of(LOGSTASH_FIELD)),
-            argumentSet(
-                "a service's own formatter class on both outputs",
-                Map.of(CONSOLE_FORMAT, OWN_FORMATTER, FILE_FORMAT, OWN_FORMATTER),
-                Set.of()));
+                Set.of(LOGSTASH_FIELD)));
 
     @ParameterizedTest
     @FieldSource("FORMATS")

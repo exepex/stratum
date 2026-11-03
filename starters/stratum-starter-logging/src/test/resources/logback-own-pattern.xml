@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- A service's own Logback configuration with a pattern of its own, which Stratum leaves as it is. -->
+<!-- A service's own Logback configuration with a pattern of its own, which Stratum refuses. -->
 <configuration>
   <appender name="OWN" class="ch.qos.logback.core.ConsoleAppender">
     <encoder>
