@@ -154,6 +154,9 @@ class SecretRedactionTest {
   @DisplayName("in text")
   class InText {
 
+    /** Whitespace other than a space, each of which may follow an authorization scheme. */
+    private static final List<String> SCHEME_SEPARATORS = List.of("\t", "\n", "\r", "\f", "\u000B");
+
     /** Secret values whose opening bracket is never closed before the text ends. */
     private static final List<String> SECRET_BRACKETS_AT_END_OF_TEXT =
         List.of("password=[", "{\"secret\":{", "password={\"a\":\"\\");
@@ -185,6 +188,13 @@ class SecretRedactionTest {
     void authorizationSchemeIsMasked(String scheme) {
       assertThat(redactUnnamedText("sent " + scheme + " dXNlcjpwYXNz to x"))
           .isEqualTo("sent " + scheme + " **** to x");
+    }
+
+    @ParameterizedTest
+    @FieldSource("SCHEME_SEPARATORS")
+    @DisplayName("credentials after a tab or line break are masked even with no space in the text")
+    void credentialsAfterOtherWhitespaceAreMasked(String separator) {
+      assertThat(redactUnnamedText("Bearer" + separator + "dXNlcjpwYXNz")).isEqualTo("Bearer ****");
     }
 
     @Test

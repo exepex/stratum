@@ -11,6 +11,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 import org.apache.commons.validator.routines.EmailValidator;
+import org.springframework.util.StringUtils;
 
 /**
  * The rules that mask secrets and personal data by what the text looks like. Only values that can
@@ -78,7 +79,7 @@ class ContentMaskingRules {
             guardedRule(
                 text -> text.contains("eyJ"), maskingMatches(JWT, match -> MaskedText.MASK)),
             guardedRule(
-                text -> text.contains(" "),
+                StringUtils::containsWhitespace,
                 maskingMatches(AUTH_SCHEME, ContentMaskingRules::maskAuthScheme)),
             guardedRule(
                 text -> text.contains("://"),
