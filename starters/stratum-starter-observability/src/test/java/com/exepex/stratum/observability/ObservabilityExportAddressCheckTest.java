@@ -84,8 +84,10 @@ class ObservabilityExportAddressCheckTest {
   @Test
   @DisplayName("startup stops with SX-OBSERVABILITY-1001, naming both missing properties")
   void bothMissingStopStartup() {
+    var environment = new MockEnvironment();
+
     assertThatExceptionOfType(StratumException.class)
-        .isThrownBy(() -> runCheck(new MockEnvironment()))
+        .isThrownBy(() -> runCheck(environment))
         .withMessage(
             "SX-OBSERVABILITY-1001: An OTLP export address is not set, so metrics or traces"
                 + " would be lost: set management.opentelemetry.tracing.export.otlp.endpoint"
