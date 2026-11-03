@@ -100,6 +100,23 @@ A workflow lasts as long as its work. Logging adds no timeout, so work that neve
 as a remote call that hangs or a `CompletionStage` that never completes, keeps its workflow open
 and is never timed. Put a timeout on every remote call the work makes.
 
+Until such work ends, Spring Boot's long-task timer `stratum.workflow.active` counts it as running
+and keeps one small record of it in memory. To stop long-task timers for every observation in the
+service, workflows included, set Spring Boot's `management.metrics.observations.ignored-meters` to
+`long-task-timer`. `management.observations.enable.stratum.workflow=false` (above) turns the
+workflow's timer and span off instead.
+
+```properties
+management.metrics.observations.ignored-meters=long-task-timer
+```
+
+```yaml
+management:
+  metrics:
+    observations:
+      ignored-meters: long-task-timer
+```
+
 ## Async and reactive work
 
 A workflow ends when its work has finished, even when that is after the call returns:
