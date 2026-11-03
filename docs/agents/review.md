@@ -47,3 +47,29 @@ One line per finding, most severe first:
 
 No praise and no restating the change. End with a one-line verdict: "no open findings" or the number of open
 findings of each severity.
+
+## Auditing a module
+
+Before a module's gaps are planned, one reviewer audits the whole module, not only the lines a change adds or alters,
+against this checklist (ST-AG-20). For each line, give `file:line`, a command and its output, a probe, or the parked
+issue. Mark each line met, missing or parked. Do not build the scope from earlier findings.
+
+- **A. Capabilities.** List what a service at high volume needs from the module. Compare each with Spring Boot 4.1 and
+  the libraries it builds on, and record what the module adds, reuses or lacks, with the reason.
+- **B. Whole bounds** (ST-ENG-52): every collection, size and count, for each part and for the whole output; one probe
+  of the worst case for each.
+- **C. Hostile input** (design-note question 3 in [judge](judge.md#the-design-note)): every value from outside that the
+  module reads. Measure its worst-case cost and size, and check that the guard test fails on a 10× slowdown.
+- **D. Volume and back pressure:** what happens when a downstream system is down or slow? Check the queue limit, what is
+  dropped, whether the drops are counted, and whether any request thread blocks (ST-ENG-53, ST-ENG-54).
+- **E. Parity:** MVC and WebFlux (ADR 0006), virtual threads, `@Async`, executors, Reactor, and each backend the page
+  names. A missing feature is stated on the module page with its issue (ST-DOC-08).
+- **F. Secrets and personal data** (ST-SEC-02, ST-SEC-03), checked by a probe.
+- **G. Promises:** every "always", "never", "every", "only" and "cannot" on the module page and in `docs/`, checked by a
+  probe or a named test, and searched across pages ([documentation](documentation.md#how-documentation-is-checked)).
+- **H. Switches and replacement:** the module off (ADR 0010), each bean backing off, the Spring Boot keys used instead
+  of new keys (ST-ENG-34).
+- **I. Parked issues:** each open issue of the module, with its measured risk.
+- **J. Checkable rules:** run the most-broken list of ST-AG-17 on the module's public nested types, records with three
+  or more fields, and lambdas.
+- **K. Facts:** each Spring Boot or library fact the audit states, with its jar or document (ST-AG-01).
