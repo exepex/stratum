@@ -1,6 +1,6 @@
 package com.exepex.stratum.logging.startup;
 
-import static com.exepex.stratum.logging.testsupport.LoggingTestData.environmentWithModuleOnAndServiceName;
+import static com.exepex.stratum.logging.testsupport.LoggingTestData.environmentWithServiceName;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
@@ -40,7 +40,7 @@ class LogFormatCheckTest {
 
   /** Returns an environment whose console and log file both write the format. */
   private MockEnvironment environmentWithFormat(String format) {
-    return environmentWithModuleOnAndServiceName()
+    return environmentWithServiceName()
         .withProperty(LoggingConstants.CONSOLE_FORMAT, format)
         .withProperty(LoggingConstants.FILE_FORMAT, format);
   }
@@ -106,8 +106,7 @@ class LogFormatCheckTest {
     @DisplayName("an unset log file format stops startup")
     void rejectsUnsetFileFormat() {
       var environment =
-          environmentWithModuleOnAndServiceName()
-              .withProperty(LoggingConstants.CONSOLE_FORMAT, LOGBACK_TEXT);
+          environmentWithServiceName().withProperty(LoggingConstants.CONSOLE_FORMAT, LOGBACK_TEXT);
 
       assertStopsWith(() -> check(environment), LoggingConstants.FILE_FORMAT + " is not");
     }

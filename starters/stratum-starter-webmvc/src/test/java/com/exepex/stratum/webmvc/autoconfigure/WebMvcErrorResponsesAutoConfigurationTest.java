@@ -36,9 +36,6 @@ import org.springframework.web.servlet.View;
 @DisplayName("WebMvcErrorResponsesAutoConfiguration creates the MVC error handling beans")
 class WebMvcErrorResponsesAutoConfigurationTest {
 
-  /** The setting that turns the module on. */
-  private static final String MODULE_ON = WebConstants.ENABLED + "=true";
-
   /** The name of the HTML error page bean, which Spring Boot's whitelabel page also uses. */
   private static final String ERROR_VIEW = "error";
 
@@ -59,28 +56,25 @@ class WebMvcErrorResponsesAutoConfigurationTest {
     @Test
     @DisplayName("with the module on, Stratum's error beans replace Spring Boot's")
     void createsBeans() {
-      contextRunner
-          .withPropertyValues(MODULE_ON)
-          .run(
-              context -> {
-                assertThat(context)
-                    .hasSingleBean(WebProperties.class)
-                    .hasSingleBean(ErrorResponseFactory.class)
-                    .hasSingleBean(BackwardCompatibleModeReport.class)
-                    .hasSingleBean(BootErrorBodyCounter.class)
-                    .hasSingleBean(FailureWithErrorCodeResolver.class)
-                    .hasSingleBean(ErrorBodyAdvice.class);
-                assertThat(context.getBean(ErrorAttributes.class))
-                    .isInstanceOf(StratumErrorAttributes.class);
-                assertThat(context.getBean(ERROR_VIEW, View.class))
-                    .isInstanceOf(ReferenceErrorPage.class);
-              });
+      contextRunner.run(
+          context -> {
+            assertThat(context)
+                .hasSingleBean(WebProperties.class)
+                .hasSingleBean(ErrorResponseFactory.class)
+                .hasSingleBean(BackwardCompatibleModeReport.class)
+                .hasSingleBean(BootErrorBodyCounter.class)
+                .hasSingleBean(FailureWithErrorCodeResolver.class)
+                .hasSingleBean(ErrorBodyAdvice.class);
+            assertThat(context.getBean(ErrorAttributes.class))
+                .isInstanceOf(StratumErrorAttributes.class);
+            assertThat(context.getBean(ERROR_VIEW, View.class))
+                .isInstanceOf(ReferenceErrorPage.class);
+          });
     }
 
     @Test
-    @DisplayName("with the module unset or off, Spring Boot's error handling is left as it is")
+    @DisplayName("with the module off, Spring Boot's error handling is left as it is")
     void moduleOffCreatesNothing() {
-      contextRunner.run(context -> assertBootErrorHandlingOnly(context));
       contextRunner
           .withPropertyValues(WebConstants.ENABLED + "=false")
           .run(context -> assertBootErrorHandlingOnly(context));
@@ -101,7 +95,6 @@ class WebMvcErrorResponsesAutoConfigurationTest {
     void nonServletApplicationGetsNothing() {
       new ApplicationContextRunner()
           .withConfiguration(AutoConfigurations.of(WebMvcErrorResponsesAutoConfiguration.class))
-          .withPropertyValues(MODULE_ON)
           .run(context -> assertThat(context).doesNotHaveBean(ErrorResponseFactory.class));
     }
 
@@ -110,7 +103,6 @@ class WebMvcErrorResponsesAutoConfigurationTest {
     void withoutMicrometerHasNoCounter() {
       contextRunner
           .withClassLoader(new FilteredClassLoader(MeterRegistry.class))
-          .withPropertyValues(MODULE_ON)
           .run(
               context ->
                   assertThat(context)
@@ -123,7 +115,7 @@ class WebMvcErrorResponsesAutoConfigurationTest {
     @DisplayName("with spring.web.error.whitelabel.enabled=false, there is no HTML error page")
     void whitelabelOffGivesNoPage() {
       contextRunner
-          .withPropertyValues(MODULE_ON, "spring.web.error.whitelabel.enabled=false")
+          .withPropertyValues("spring.web.error.whitelabel.enabled=false")
           .run(context -> assertThat(context).doesNotHaveBean(ERROR_VIEW));
     }
   }
@@ -138,7 +130,6 @@ class WebMvcErrorResponsesAutoConfigurationTest {
       var serviceFactory = factoryWithNoStatuses();
       var serviceErrorAttributes = new DefaultErrorAttributes();
       contextRunner
-          .withPropertyValues(MODULE_ON)
           .withBean(ErrorResponseFactory.class, () -> serviceFactory)
           .withBean(ErrorAttributes.class, () -> serviceErrorAttributes)
           .run(
@@ -152,7 +143,6 @@ class WebMvcErrorResponsesAutoConfigurationTest {
     @DisplayName("a company framework's auto-configuration with no order wins over Stratum's")
     void companyBeansWin() {
       new WebApplicationContextRunner()
-          .withPropertyValues(MODULE_ON)
           .withConfiguration(
               AutoConfigurations.of(
                   WebMvcErrorResponsesAutoConfiguration.class,
@@ -174,7 +164,6 @@ class WebMvcErrorResponsesAutoConfigurationTest {
   @DisplayName("a web customizer declared as a bean stops startup with SX-CORE-1004")
   void customizerBeanStopsStartup() {
     contextRunner
-        .withPropertyValues(MODULE_ON)
         .withBean("webCustomizer", WebPropertiesCustomizer.class, () -> settings -> settings)
         .run(
             context ->

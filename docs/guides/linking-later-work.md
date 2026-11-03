@@ -28,8 +28,8 @@ the start of a job.
 
 ## Saving work for later
 
-`LinkedWork` is a bean of the observability starter, created when the module is on
-(`stratum.observability.enabled=true`). While handling the request, store where the work came from
+`LinkedWork` is a bean of the observability starter, created when the module is on,
+unless `stratum.observability.enabled=false`. While handling the request, store where the work came from
 next to the work itself:
 
 ```java

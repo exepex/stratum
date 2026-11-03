@@ -24,8 +24,8 @@ import org.springframework.util.ClassUtils;
  * {@link FailureWithErrorCode}, such as {@code SX-CORE-1003} or a service's {@code PAY-0001}, in
  * its own field, so errors can be searched and counted by code: {@code error.code}, or {@code
  * _error_code} in GELF. The exception is the logged one or the first of its causes that has a code.
- * Spring Boot's logging loads it from {@code META-INF/spring.factories}. It does nothing unless
- * {@code stratum.logging.enabled=true}, and needs Logback, Spring Boot's default.
+ * Spring Boot's logging loads it from {@code META-INF/spring.factories}. It does nothing when
+ * {@code stratum.logging.enabled=false}, and needs Logback, Spring Boot's default.
  */
 @StratumInternal
 public final class ErrorCodeJsonMembersCustomizer

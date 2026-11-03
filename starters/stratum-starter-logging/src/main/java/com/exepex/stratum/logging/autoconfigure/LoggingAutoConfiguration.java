@@ -28,7 +28,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.core.env.Environment;
 import reactor.core.publisher.Mono;
 
-/** Creates the logging module's beans, when {@code stratum.logging.enabled=true}. */
+/** Creates the logging module's beans, unless {@code stratum.logging.enabled=false}. */
 @StratumInternal
 @AutoConfiguration(
     after = TaskExecutionAutoConfiguration.class,

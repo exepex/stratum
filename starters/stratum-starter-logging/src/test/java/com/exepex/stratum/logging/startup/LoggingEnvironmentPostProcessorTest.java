@@ -1,6 +1,6 @@
 package com.exepex.stratum.logging.startup;
 
-import static com.exepex.stratum.logging.testsupport.LoggingTestData.environmentWithModuleOnAndServiceName;
+import static com.exepex.stratum.logging.testsupport.LoggingTestData.environmentWithServiceName;
 import static com.exepex.stratum.logging.testsupport.LoggingTestData.runLoggingPostProcessor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -11,7 +11,6 @@ import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.format.Log4j2MaskedTextFormatter;
 import com.exepex.stratum.logging.format.LogbackMaskedTextFormatter;
-import com.exepex.stratum.logging.testsupport.LoggingTestData;
 import java.util.List;
 import java.util.Map;
 import org.apache.logging.log4j.core.LogEvent;
@@ -47,18 +46,17 @@ class LoggingEnvironmentPostProcessorTest {
   private static final String TEXT = "text";
 
   @Nested
-  @DisplayName("with the module unset or off")
+  @DisplayName("with the module off")
   class WithModuleOff {
 
     @Test
     @DisplayName("it adds nothing and does not ask for a service name")
     void addsNothing() {
-      var unset = runLoggingPostProcessor(new MockEnvironment());
       var off =
           runLoggingPostProcessor(
               new MockEnvironment().withProperty(LoggingConstants.ENABLED, OFF));
 
-      assertThat(unset.getProperty(LoggingConstants.CONSOLE_FORMAT)).isNull();
+      assertThat(off.getProperty(LoggingConstants.CONSOLE_FORMAT)).isNull();
       assertThat(off.getPropertySources().contains(DefaultPropertiesPropertySource.NAME)).isFalse();
     }
 
@@ -87,7 +85,7 @@ class LoggingEnvironmentPostProcessorTest {
         "ECS JSON is the default for console and file; stack traces are root first, and Spring"
             + " Boot prints up to 17KB of them")
     void setsDefaults() {
-      var environment = runLoggingPostProcessor(environmentWithModuleOnAndServiceName());
+      var environment = runLoggingPostProcessor(environmentWithServiceName());
 
       assertThat(environment.getProperty(LoggingConstants.CONSOLE_FORMAT)).isEqualTo("ecs");
       assertThat(environment.getProperty(LoggingConstants.FILE_FORMAT)).isEqualTo("ecs");
@@ -102,7 +100,7 @@ class LoggingEnvironmentPostProcessorTest {
     void stackTraceLimitFollowsMaxFieldLength() {
       var environment =
           runLoggingPostProcessor(
-              environmentWithModuleOnAndServiceName().withProperty(MAX_FIELD_LENGTH, "1KB"));
+              environmentWithServiceName().withProperty(MAX_FIELD_LENGTH, "1KB"));
 
       assertThat(environment.getProperty(LoggingConstants.STACK_TRACE_MAX_LENGTH))
           .isEqualTo("2048");
@@ -113,7 +111,7 @@ class LoggingEnvironmentPostProcessorTest {
     void serviceStackTraceLimitWins() {
       var environment =
           runLoggingPostProcessor(
-              environmentWithModuleOnAndServiceName()
+              environmentWithServiceName()
                   .withProperty(LoggingConstants.STACK_TRACE_MAX_LENGTH, "5000"));
 
       assertThat(environment.getProperty(LoggingConstants.STACK_TRACE_MAX_LENGTH))
@@ -125,7 +123,7 @@ class LoggingEnvironmentPostProcessorTest {
     void setsServiceEnvironment() {
       var environment =
           runLoggingPostProcessor(
-              environmentWithModuleOnAndServiceName().withProperty("stratum.environment", "prod"));
+              environmentWithServiceName().withProperty("stratum.environment", "prod"));
 
       assertThat(environment.getProperty(LoggingConstants.ECS_ENVIRONMENT)).isEqualTo("prod");
     }
@@ -135,10 +133,10 @@ class LoggingEnvironmentPostProcessorTest {
         "Spring's executors and every Reactor operator carry the context, unless the service sets"
             + " Spring Boot's keys")
     void propagatesContext() {
-      var defaultEnvironment = runLoggingPostProcessor(environmentWithModuleOnAndServiceName());
+      var defaultEnvironment = runLoggingPostProcessor(environmentWithServiceName());
       var serviceSettings =
           runLoggingPostProcessor(
-              environmentWithModuleOnAndServiceName()
+              environmentWithServiceName()
                   .withProperty(StratumModuleConstants.PROPAGATE_TASK_CONTEXT, OFF)
                   .withProperty(StratumModuleConstants.REACTOR_CONTEXT_PROPAGATION, "limited"));
 
@@ -159,7 +157,7 @@ class LoggingEnvironmentPostProcessorTest {
     void leavesReactorContextPropagationForLaterDecision() {
       Hooks.disableAutomaticContextPropagation();
 
-      runLoggingPostProcessor(environmentWithModuleOnAndServiceName());
+      runLoggingPostProcessor(environmentWithServiceName());
 
       assertThat(Hooks.isAutomaticContextPropagationEnabled()).isFalse();
     }
@@ -169,8 +167,7 @@ class LoggingEnvironmentPostProcessorTest {
     void outermostExceptionFirst() {
       var environment =
           runLoggingPostProcessor(
-              environmentWithModuleOnAndServiceName()
-                  .withProperty(LoggingConstants.STACK_TRACE_ROOT, "last"));
+              environmentWithServiceName().withProperty(LoggingConstants.STACK_TRACE_ROOT, "last"));
 
       assertThat(environment.getProperty(LoggingConstants.STACK_TRACE_ROOT)).isEqualTo("last");
     }
@@ -179,8 +176,7 @@ class LoggingEnvironmentPostProcessorTest {
     @DisplayName("another JSON format is passed to Spring Boot")
     void setsChosenFormat() {
       var environment =
-          runLoggingPostProcessor(
-              environmentWithModuleOnAndServiceName().withProperty(FORMAT, "logstash"));
+          runLoggingPostProcessor(environmentWithServiceName().withProperty(FORMAT, "logstash"));
 
       assertThat(environment.getProperty(LoggingConstants.CONSOLE_FORMAT)).isEqualTo("logstash");
       assertThat(environment.getProperty(LoggingConstants.FILE_FORMAT)).isEqualTo("logstash");
@@ -191,8 +187,7 @@ class LoggingEnvironmentPostProcessorTest {
     void serviceValuesWin() {
       var environment =
           runLoggingPostProcessor(
-              environmentWithModuleOnAndServiceName()
-                  .withProperty(LoggingConstants.CONSOLE_FORMAT, GELF));
+              environmentWithServiceName().withProperty(LoggingConstants.CONSOLE_FORMAT, GELF));
 
       assertThat(environment.getProperty(LoggingConstants.CONSOLE_FORMAT)).isEqualTo(GELF);
     }
@@ -200,7 +195,7 @@ class LoggingEnvironmentPostProcessorTest {
     @Test
     @DisplayName("a Spring Boot logging property the service sets in Java wins over Stratum's")
     void serviceJavaDefaultWins() {
-      var environment = environmentWithModuleOnAndServiceName();
+      var environment = environmentWithServiceName();
       environment
           .getPropertySources()
           .addLast(
@@ -219,10 +214,8 @@ class LoggingEnvironmentPostProcessorTest {
     @Test
     @DisplayName("a missing or blank service name stops startup with SX-LOGGING-1001")
     void missingNameStopsStartup() {
-      var missing = LoggingTestData.environmentWithModuleOn();
-      var blank =
-          environmentWithModuleOnAndServiceName()
-              .withProperty(LoggingConstants.APPLICATION_NAME, " ");
+      var missing = new MockEnvironment();
+      var blank = environmentWithServiceName().withProperty(LoggingConstants.APPLICATION_NAME, " ");
 
       assertThatExceptionOfType(StratumException.class)
           .isThrownBy(() -> runLoggingPostProcessor(missing))
@@ -235,7 +228,7 @@ class LoggingEnvironmentPostProcessorTest {
     @DisplayName("an invalid redaction pattern stops startup with SX-LOGGING-1002")
     void invalidPatternStopsStartup() {
       var environment =
-          environmentWithModuleOnAndServiceName()
+          environmentWithServiceName()
               .withProperty("stratum.logging.redaction.extra-patterns[0]", "(unclosed");
 
       assertThatExceptionOfType(StratumException.class)
@@ -247,8 +240,7 @@ class LoggingEnvironmentPostProcessorTest {
     @FieldSource("MAX_FIELD_LENGTHS_OUT_OF_RANGE")
     @DisplayName("a max-field-length below 1KB or above 1MB stops startup with SX-CORE-1003")
     void maxFieldLengthOutOfRangeStopsStartup(String maxFieldLength) {
-      var environment =
-          environmentWithModuleOnAndServiceName().withProperty(MAX_FIELD_LENGTH, maxFieldLength);
+      var environment = environmentWithServiceName().withProperty(MAX_FIELD_LENGTH, maxFieldLength);
 
       assertThatExceptionOfType(StratumException.class)
           .isThrownBy(() -> runLoggingPostProcessor(environment))
@@ -263,8 +255,7 @@ class LoggingEnvironmentPostProcessorTest {
     void maxFieldLengthAtTheLimitsIsAllowed(String maxFieldLength) {
       var environment =
           runLoggingPostProcessor(
-              environmentWithModuleOnAndServiceName()
-                  .withProperty(MAX_FIELD_LENGTH, maxFieldLength));
+              environmentWithServiceName().withProperty(MAX_FIELD_LENGTH, maxFieldLength));
 
       assertThat(environment.getPropertySources().contains(DefaultPropertiesPropertySource.NAME))
           .isTrue();
@@ -285,7 +276,7 @@ class LoggingEnvironmentPostProcessorTest {
     @DisplayName(
         "Logback writes Stratum's masked text to the console and the file, with no warning")
     void setsLogbackMaskedText(CapturedOutput output) {
-      var environment = environmentWithModuleOnAndServiceName().withProperty(FORMAT, TEXT);
+      var environment = environmentWithServiceName().withProperty(FORMAT, TEXT);
       environment.setActiveProfiles("prod");
 
       runLoggingPostProcessor(environment);
@@ -300,7 +291,7 @@ class LoggingEnvironmentPostProcessorTest {
     @Test
     @DisplayName("the local profile gets the same masked text: no profile turns masking off")
     void localProfileIsMaskedToo() {
-      var environment = environmentWithModuleOnAndServiceName().withProperty(FORMAT, TEXT);
+      var environment = environmentWithServiceName().withProperty(FORMAT, TEXT);
       environment.setActiveProfiles("local");
 
       runLoggingPostProcessor(environment);
@@ -314,7 +305,7 @@ class LoggingEnvironmentPostProcessorTest {
     void setsLog4j2MaskedText() {
       var environment =
           runLoggingPostProcessor(
-              environmentWithModuleOnAndServiceName().withProperty(FORMAT, TEXT),
+              environmentWithServiceName().withProperty(FORMAT, TEXT),
               applicationWithout(ILoggingEvent.class));
 
       assertThat(environment.getProperty(LoggingConstants.CONSOLE_FORMAT))
@@ -326,7 +317,7 @@ class LoggingEnvironmentPostProcessorTest {
     @Test
     @DisplayName("with neither Logback nor Log4j2, startup stops with SX-LOGGING-1003")
     void noBackendStopsStartup() {
-      var environment = environmentWithModuleOnAndServiceName().withProperty(FORMAT, TEXT);
+      var environment = environmentWithServiceName().withProperty(FORMAT, TEXT);
       var application = applicationWithout(ILoggingEvent.class, LogEvent.class);
 
       assertThatExceptionOfType(StratumException.class)
@@ -339,7 +330,7 @@ class LoggingEnvironmentPostProcessorTest {
     void jsonFormatIgnoresBackend() {
       var environment =
           runLoggingPostProcessor(
-              environmentWithModuleOnAndServiceName().withProperty(FORMAT, GELF),
+              environmentWithServiceName().withProperty(FORMAT, GELF),
               applicationWithout(ILoggingEvent.class));
 
       assertThat(environment.getProperty(LoggingConstants.CONSOLE_FORMAT)).isEqualTo(GELF);

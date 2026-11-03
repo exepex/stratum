@@ -14,10 +14,10 @@ import org.springframework.boot.test.web.server.LocalServerPort;
     classes = LeftoverFieldsApplication.class,
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = {
-      "stratum.web.enabled=true",
       // One server thread, so the next request runs where the last one left its field.
       "server.tomcat.threads.max=1",
-      "server.tomcat.threads.min-spare=1"
+      "server.tomcat.threads.min-spare=1",
+      "stratum.observability.enabled=false"
     })
 @DisplayName("A field a Spring MVC handler leaves behind never reaches the next request")
 class MdcCleanupIntegrationTest {

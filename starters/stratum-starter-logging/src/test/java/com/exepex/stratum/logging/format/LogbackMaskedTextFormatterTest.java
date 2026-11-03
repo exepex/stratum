@@ -80,7 +80,7 @@ class LogbackMaskedTextFormatterTest {
   private static final int ONE_READ = 1;
 
   /** The environment with the module on, as a service has it. */
-  private final MockEnvironment moduleOn = LoggingTestData.environmentWithModuleOn();
+  private final MockEnvironment moduleOn = new MockEnvironment();
 
   /** The format, created by Spring Boot from its class name. */
   private final StructuredLogFormatter<ILoggingEvent> formatter =

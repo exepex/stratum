@@ -9,15 +9,17 @@ common problems. Module-specific problems are listed at the end of each module p
 
 ### 1. The startup line
 
-When a Stratum starter is on the classpath but its module is switched off, the service logs one
-INFO line after startup that names each such module and the property that turns it on:
+Every module whose starter is on the classpath is on. When a service turns one off with
+`stratum.<module>.enabled=false`, it logs one INFO line after startup that names each such module
+and the switch that turned it off:
 
 ```text
-Stratum modules present but off: cache (stratum.cache.enabled=true), web (stratum.web.enabled=true)
+Stratum modules present but off: cache (stratum.cache.enabled=false), web (stratum.web.enabled=false)
 ```
 
-There is no line when every module present is on. A module you leave off on purpose, such as one a
-bundle brings, appears on every start; that is expected.
+There is no line when every module present is on. A module you turn off on purpose appears on every
+start; that is expected. A module you did not mean to turn off was usually switched off by an
+environment variable, such as `STRATUM_WEB_ENABLED=false`, set by your platform.
 
 ### 2. The conditions report
 

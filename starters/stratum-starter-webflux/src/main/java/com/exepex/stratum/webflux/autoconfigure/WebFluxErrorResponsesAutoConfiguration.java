@@ -33,7 +33,7 @@ import org.springframework.http.codec.ServerCodecConfigurer;
 import org.springframework.web.reactive.result.view.ViewResolver;
 
 /**
- * Creates Stratum's error responses for Spring WebFlux, when {@code stratum.web.enabled=true}.
+ * Creates Stratum's error responses for Spring WebFlux, unless {@code stratum.web.enabled=false}.
  * Ordered before Spring Boot's {@code ErrorWebFluxAutoConfiguration}, because its error attributes
  * and error handler replace Boot's.
  */

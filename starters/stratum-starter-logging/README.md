@@ -44,13 +44,12 @@ Every bundle starter (`stratum-starter-microservice`, `-reactive-microservice`, 
 and `-cli`) includes it, so add it on its own only when your service uses no bundle. The version comes from
 Stratum's parent or BOM ([installation](../../docs/getting-started/installation.md)).
 
-The starter does nothing until you switch it on. It also needs the service's name, which it writes
+The starter is on as soon as it is on the classpath. It needs the service's name, which it writes
 on every line. In `application.properties`:
 
 ```properties
 spring.application.name=order-service
 stratum.environment=prod
-stratum.logging.enabled=true
 ```
 
 or in `application.yml`:
@@ -61,12 +60,11 @@ spring:
     name: order-service
 stratum:
   environment: prod
-  logging:
-    enabled: true
 ```
 
-If the module is on and `spring.application.name` is missing or blank, the service stops at startup
-with [`SX-LOGGING-1001`](../../docs/guides/error-codes.md#stratum-starter-logging).
+If `spring.application.name` is missing or blank, the service stops at startup with
+[`SX-LOGGING-1001`](../../docs/guides/error-codes.md#stratum-starter-logging). Set the name, or turn
+the module off with `stratum.logging.enabled=false`.
 
 Logback, Spring Boot's default, is the logging backend that Stratum tests.
 
@@ -265,7 +263,7 @@ exception: the two `logging.structured.format.*` keys accept only Stratum's form
 
 | Property | Type | Stratum's default | Spring Boot's default | Description |
 | --- | --- | --- | --- | --- |
-| `stratum.logging.enabled` | boolean | `false` | no such key | Switches the whole starter on. Until it is `true`, the starter sets up nothing. |
+| `stratum.logging.enabled` | boolean | `true` | no such key | Whether the starter is on. With `false`, the starter sets up nothing. |
 | `stratum.logging.format` | `ecs`, `logstash`, `gelf`, `text` | `ecs` | no such key | The format of the console and of the log file. `text` is one masked line of text per event; the others are JSON. |
 | `stratum.logging.max-field-length` | data size, `1KB` to `1MB` | `16KB` | no such key | The longest value written, also used as the stack trace limit. It counts characters; for English text, 16KB is 16,384 characters. Outside the range, startup stops with `SX-CORE-1003`, which names the rule `stratum.logging.max-field-length-in-range`. |
 | `stratum.logging.max-elements` | integer, `1` to `20` | `10` | no such key | The most elements kept of each logged list, map or array, nested ones too; one marker such as `...[190 more]` counts the rest ([lists, maps and arrays](#lists-maps-and-arrays)). Outside the range, startup stops with `SX-CORE-1003`, which names the rule, such as `stratum.logging.max-elements breaks @Max(value=20)`. |
@@ -296,7 +294,6 @@ each list:
 stratum:
   environment: prod
   logging:
-    enabled: true
     max-elements: 5
     redaction:
       extra-keys:
@@ -308,7 +305,6 @@ stratum:
 
 ```properties
 stratum.environment=prod
-stratum.logging.enabled=true
 stratum.logging.max-elements=5
 stratum.logging.redaction.extra-keys=badge-no,member-id
 stratum.logging.redaction.extra-patterns[0]=\\bEMP-\\d{6}\\b
@@ -356,7 +352,7 @@ try (var ignored = MDC.putCloseable("tenantId", tenantId)) {
 }
 ```
 
-In a servlet service, add `stratum-starter-webmvc` and set `stratum.web.enabled=true` so each
+In a servlet service, add `stratum-starter-webmvc`, with the web module on, so each
 request ends with a clean log context, or remove your own fields with `MDC.putCloseable`.
 
 ## Configure in Java
@@ -412,8 +408,9 @@ shows. A Stratum endpoint that switches DEBUG on for a limited time is [planned]
 
 ## Switch it on or off
 
-`stratum.logging.enabled=true` switches the starter on. Leaving it unset is the same as `false`,
-which keeps Spring Boot's default plain-text logging, with no checks and no redaction.
+The starter is on when it is on the classpath; leaving `stratum.logging.enabled` unset, or empty, is
+the same as `true`. `stratum.logging.enabled=false` keeps Spring Boot's default plain-text logging,
+with no checks and no redaction.
 
 ## Planned
 
@@ -428,10 +425,10 @@ which keeps Spring Boot's default plain-text logging, with no checks and no reda
 
 | Symptom | Likely cause and fix |
 | --- | --- |
-| Startup stops with `SX-LOGGING-1001` | Set `spring.application.name`. |
+| Startup stops with `SX-LOGGING-1001` | Set `spring.application.name`, or turn the module off with `stratum.logging.enabled=false`. |
 | Startup stops with `SX-CORE-1004` | A logging customizer is a `@Bean`; list its class in `META-INF/spring.factories` instead. |
 | Startup stops with `SX-LOGGING-1002` | An `extra-patterns` entry is not a valid regular expression; the message gives its position, never the pattern. |
-| Startup stops with `SX-LOGGING-1003` | Remove the file or key the message names, and choose the format with `stratum.logging.format`. |
+| Startup stops with `SX-LOGGING-1003` | Remove the file or key the message names, and choose the format with `stratum.logging.format`. To keep your own format, turn the module off with `stratum.logging.enabled=false`. |
 | Logs are plain, unmasked text | `stratum.logging.enabled` is not `true`. |
 | `logging.pattern.*` or console colours have no effect | With the module on, every format, `text` included, is written by Spring Boot's structured logging, which uses no pattern. |
 | A value shows `\n` instead of a line break | Stratum shows line breaks inside a value as text, so that one event stays one line. |

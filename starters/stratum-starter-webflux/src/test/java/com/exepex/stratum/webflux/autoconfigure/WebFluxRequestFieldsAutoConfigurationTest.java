@@ -37,9 +37,6 @@ import org.springframework.mock.env.MockEnvironment;
     "WebFluxRequestFieldsAutoConfiguration creates the request fields and correlation beans")
 class WebFluxRequestFieldsAutoConfigurationTest {
 
-  /** The setting that turns the module on. */
-  private static final String MODULE_ON = WebConstants.ENABLED + "=true";
-
   /** A trusted proxy range whose prefix is longer than its address. */
   private static final String TOO_LONG_RANGE = "10.0.0.0/33";
 
@@ -55,36 +52,36 @@ class WebFluxRequestFieldsAutoConfigurationTest {
     @Test
     @DisplayName("with the module on, every request fields and correlation bean is created")
     void createsBeans() {
-      contextRunner
-          .withPropertyValues(MODULE_ON)
-          .run(
-              context ->
-                  assertThat(context)
-                      .hasSingleBean(RequestFieldsReader.class)
-                      .hasSingleBean(CorrelationIdChooser.class)
-                      .hasSingleBean(RequestFieldsPropagation.class)
-                      .hasSingleBean(RequestFieldsWebFilter.class)
-                      .hasSingleBean(HandlerStartAdapter.class)
-                      .hasSingleBean(RequestRouteListener.class)
-                      .hasSingleBean(ResponseTimeoutWebFilter.class)
-                      .hasSingleBean(ResponseTimeouts.class)
-                      .hasSingleBean(RequestBodyLimitWebFilter.class)
-                      .hasSingleBean(RequestBodyLimits.class)
-                      .hasSingleBean(CorrelationIdWebFilter.class)
-                      .hasSingleBean(CorrelationIdBaggageDecorator.class)
-                      .hasSingleBean(RequestLogWriter.class)
-                      .hasSingleBean(RequestLogWebFilter.class));
-    }
-
-    @Test
-    @DisplayName("with the module unset, nothing is created")
-    void moduleOffCreatesNothing() {
       contextRunner.run(
           context ->
               assertThat(context)
-                  .doesNotHaveBean(RequestFieldsReader.class)
-                  .doesNotHaveBean(RequestFieldsWebFilter.class)
-                  .doesNotHaveBean(CorrelationIdWebFilter.class));
+                  .hasSingleBean(RequestFieldsReader.class)
+                  .hasSingleBean(CorrelationIdChooser.class)
+                  .hasSingleBean(RequestFieldsPropagation.class)
+                  .hasSingleBean(RequestFieldsWebFilter.class)
+                  .hasSingleBean(HandlerStartAdapter.class)
+                  .hasSingleBean(RequestRouteListener.class)
+                  .hasSingleBean(ResponseTimeoutWebFilter.class)
+                  .hasSingleBean(ResponseTimeouts.class)
+                  .hasSingleBean(RequestBodyLimitWebFilter.class)
+                  .hasSingleBean(RequestBodyLimits.class)
+                  .hasSingleBean(CorrelationIdWebFilter.class)
+                  .hasSingleBean(CorrelationIdBaggageDecorator.class)
+                  .hasSingleBean(RequestLogWriter.class)
+                  .hasSingleBean(RequestLogWebFilter.class));
+    }
+
+    @Test
+    @DisplayName("with the module off, nothing is created")
+    void moduleOffCreatesNothing() {
+      contextRunner
+          .withPropertyValues(WebConstants.ENABLED + "=false")
+          .run(
+              context ->
+                  assertThat(context)
+                      .doesNotHaveBean(RequestFieldsReader.class)
+                      .doesNotHaveBean(RequestFieldsWebFilter.class)
+                      .doesNotHaveBean(CorrelationIdWebFilter.class));
     }
 
     @Test
@@ -92,7 +89,6 @@ class WebFluxRequestFieldsAutoConfigurationTest {
     void nonReactiveApplicationGetsNothing() {
       new ApplicationContextRunner()
           .withConfiguration(AutoConfigurations.of(WebFluxRequestFieldsAutoConfiguration.class))
-          .withPropertyValues(MODULE_ON)
           .run(context -> assertThat(context).doesNotHaveBean(RequestFieldsReader.class));
     }
 
@@ -101,7 +97,6 @@ class WebFluxRequestFieldsAutoConfigurationTest {
         "without Micrometer Tracing, the fields are logged but no correlation ID is chosen")
     void withoutTracingNoCorrelationFilter() {
       contextRunner
-          .withPropertyValues(MODULE_ON)
           .withClassLoader(new FilteredClassLoader(Tracer.class))
           .run(
               context ->
@@ -116,8 +111,7 @@ class WebFluxRequestFieldsAutoConfigurationTest {
     @DisplayName("a trusted proxy range that does not fit its address stops startup")
     void badTrustedProxyStopsStartup() {
       contextRunner
-          .withPropertyValues(
-              MODULE_ON, WebConstants.CLIENT_IP_TRUSTED_PROXIES + "=" + TOO_LONG_RANGE)
+          .withPropertyValues(WebConstants.CLIENT_IP_TRUSTED_PROXIES + "=" + TOO_LONG_RANGE)
           .run(
               context ->
                   assertThat(context)
@@ -138,7 +132,6 @@ class WebFluxRequestFieldsAutoConfigurationTest {
     void serviceBeanWins() throws IOException {
       try (var serviceReader = defaultReader()) {
         contextRunner
-            .withPropertyValues(MODULE_ON)
             .withBean(RequestFieldsReader.class, () -> serviceReader)
             .run(
                 context ->
@@ -154,7 +147,6 @@ class WebFluxRequestFieldsAutoConfigurationTest {
             new RequestLogWriter(WebProperties.resolve(new MockEnvironment()), reader);
         var serviceFilter = new RequestLogWebFilter(serviceWriter);
         contextRunner
-            .withPropertyValues(MODULE_ON)
             .withBean(RequestLogWriter.class, () -> serviceWriter)
             .withBean(RequestLogWebFilter.class, () -> serviceFilter)
             .run(
@@ -173,7 +165,6 @@ class WebFluxRequestFieldsAutoConfigurationTest {
       var serviceLimits = new RequestBodyLimits(WebProperties.resolve(new MockEnvironment()));
       var serviceFilter = new RequestBodyLimitWebFilter(serviceLimits);
       contextRunner
-          .withPropertyValues(MODULE_ON)
           .withBean(RequestBodyLimits.class, () -> serviceLimits)
           .withBean(RequestBodyLimitWebFilter.class, () -> serviceFilter)
           .run(
@@ -192,7 +183,6 @@ class WebFluxRequestFieldsAutoConfigurationTest {
           new ResponseTimeouts(WebProperties.resolve(new MockEnvironment()))) {
         var serviceFilter = new ResponseTimeoutWebFilter(serviceTimeouts);
         contextRunner
-            .withPropertyValues(MODULE_ON)
             .withBean(ResponseTimeouts.class, () -> serviceTimeouts)
             .withBean(ResponseTimeoutWebFilter.class, () -> serviceFilter)
             .run(
@@ -209,7 +199,6 @@ class WebFluxRequestFieldsAutoConfigurationTest {
     @DisplayName("a company framework's auto-configuration with no order wins over Stratum's")
     void companyBeanWins() {
       contextRunner
-          .withPropertyValues(MODULE_ON)
           .withConfiguration(AutoConfigurations.of(CompanyBeansAutoConfiguration.class))
           .run(
               context ->

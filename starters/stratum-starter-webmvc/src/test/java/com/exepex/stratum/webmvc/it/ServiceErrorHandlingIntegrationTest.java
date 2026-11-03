@@ -36,7 +36,7 @@ import org.springframework.web.context.request.WebRequest;
 @SpringBootTest(
     classes = ServiceErrorHandlingIntegrationTest.ServiceWithOwnHandling.class,
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-    properties = {"stratum.web.enabled=true", "stratum.web.error.statuses.ORD-0001=409"})
+    properties = {"stratum.web.error.statuses.ORD-0001=409", "stratum.observability.enabled=false"})
 @DisplayName("A service's own error handling wins over Stratum's")
 class ServiceErrorHandlingIntegrationTest {
 

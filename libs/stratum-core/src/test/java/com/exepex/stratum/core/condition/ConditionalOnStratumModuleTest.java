@@ -44,28 +44,23 @@ class ConditionalOnStratumModuleTest {
   }
 
   @Test
-  @DisplayName("the condition report says whether the property is true")
-  void reportSaysWhetherPropertyIsTrue() {
+  @DisplayName("the condition report says whether the property is false")
+  void reportSaysWhetherPropertyIsFalse() {
     contextRunner
-        .withPropertyValues("stratum.greeting.enabled=true")
+        .withPropertyValues("stratum.greeting.enabled=false")
         .run(
             context ->
-                assertThat(reportMessage(context)).endsWith("stratum.greeting.enabled is true"));
+                assertThat(reportMessage(context)).endsWith("stratum.greeting.enabled is false"));
     contextRunner.run(
         context ->
             assertThat(reportMessage(context))
-                .endsWith("stratum.greeting.enabled is not true, so it is off"));
+                .endsWith("stratum.greeting.enabled is not false, so it is on"));
   }
 
   @Test
-  @DisplayName("with the property unset, the module is off and the application still starts")
-  void moduleIsOffWhenPropertyIsUnset() {
-    contextRunner.run(
-        context ->
-            assertThat(context)
-                .hasNotFailed()
-                .doesNotHaveBean(GREETING)
-                .doesNotHaveBean(GREETING_FORMAT));
+  @DisplayName("with the property unset, the module is on, including every bean inside it")
+  void moduleIsOnWhenPropertyIsUnset() {
+    contextRunner.run(context -> assertThat(context).hasBean(GREETING).hasBean(GREETING_FORMAT));
   }
 
   @Nested

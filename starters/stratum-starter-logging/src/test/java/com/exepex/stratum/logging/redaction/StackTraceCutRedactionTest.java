@@ -1,7 +1,7 @@
 package com.exepex.stratum.logging.redaction;
 
 import static com.exepex.stratum.logging.testsupport.LoggingTestData.CARD_IN_GROUPS;
-import static com.exepex.stratum.logging.testsupport.LoggingTestData.environmentWithModuleOnAndServiceName;
+import static com.exepex.stratum.logging.testsupport.LoggingTestData.environmentWithServiceName;
 import static com.exepex.stratum.logging.testsupport.LoggingTestData.runLoggingPostProcessor;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -41,7 +41,7 @@ class StackTraceCutRedactionTest {
       Integer.parseInt(
           Objects.requireNonNull(
               runLoggingPostProcessor(
-                      environmentWithModuleOnAndServiceName()
+                      environmentWithServiceName()
                           .withProperty(
                               LoggingConstants.PREFIX + ".max-field-length",
                               MAX_FIELD_LENGTH.toString()))

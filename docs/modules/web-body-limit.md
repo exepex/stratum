@@ -1,7 +1,7 @@
 # Web: request body size limit
 
-**Status: Built**, in `stratum-starter-webmvc` and `stratum-starter-webflux`, when
-`stratum.web.enabled=true`.
+**Status: Built**, in `stratum-starter-webmvc` and `stratum-starter-webflux`, unless
+`stratum.web.enabled=false`.
 
 [← Web](web.md) · [Documentation home](../README.md) · Property prefix: `stratum.web.body-limit`
 
@@ -130,8 +130,8 @@ upload API that accepts more than they allow raises both.
 
 A WebFlux part larger than `max-in-memory-size` is written to disk. Spring Boot sets no limit on that
 disk use or on the number of parts, and a multipart upload sent in chunks is not limited by Stratum's
-own limit (see [What is counted](#what-is-counted)), so one request could fill the disk. With
-`stratum.web.enabled=true` and `stratum.web.backward-compatible=false`, the WebFlux starter
+own limit (see [What is counted](#what-is-counted)), so one request could fill the disk. With the
+web module on and `stratum.web.backward-compatible=false`, the WebFlux starter
 therefore gives each part `10MB` of disk and an upload `50` parts. In backward-compatible mode it
 sets neither, so an upload that worked before Stratum keeps working. Your own value for either key wins, from a file, an environment variable or
 Java. A part over its disk limit is answered with `413` and `SX-WEB-1008`, as a body over Stratum's

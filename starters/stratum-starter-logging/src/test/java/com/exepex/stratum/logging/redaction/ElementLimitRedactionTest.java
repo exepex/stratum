@@ -17,6 +17,7 @@ import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.env.MockEnvironment;
 
 @DisplayName("Each logged list, map and array keeps its first max-elements elements")
 class ElementLimitRedactionTest {
@@ -38,8 +39,7 @@ class ElementLimitRedactionTest {
 
   /** Returns the JSON line Stratum writes for the value under {@link #FIELD}, with the defaults. */
   private String jsonLine(@Nullable Object value) {
-    return SpringBootJsonLines.redactedLine(
-        LoggingTestData.environmentWithModuleOn(), FIELD, value);
+    return SpringBootJsonLines.redactedLine(new MockEnvironment(), FIELD, value);
   }
 
   /** Returns the JSON line written for a field holding the value as its only content. */
@@ -196,13 +196,9 @@ class ElementLimitRedactionTest {
       var emails = ElementsTestData.unreadableAfter(LIMIT, MILLION);
 
       assertThat(jsonLine(emails)).contains("...[999990 more]");
-      assertThat(
-              SpringBootJsonLines.redactedLine(
-                  LoggingTestData.environmentWithModuleOn(), "email", emails))
+      assertThat(SpringBootJsonLines.redactedLine(new MockEnvironment(), "email", emails))
           .isEqualTo("{\"email\":\"****re]]\"}");
-      assertThat(
-              SpringBootJsonLines.redactedLine(
-                  LoggingTestData.environmentWithModuleOn(), "email", List.of(EMAIL)))
+      assertThat(SpringBootJsonLines.redactedLine(new MockEnvironment(), "email", List.of(EMAIL)))
           .isEqualTo("{\"email\":\"****com]\"}");
     }
   }

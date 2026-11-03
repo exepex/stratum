@@ -14,9 +14,9 @@ import org.springframework.context.annotation.Conditional;
  * other Spring Boot property source.
  *
  * <p>Every Stratum starter puts this on each of its auto-configurations, so that one property turns
- * the whole module on or off. When the property is not set, the module is off: a service switches
- * on each module it uses with {@code stratum.<module>.enabled=true}, even when a bundle starter put
- * the module on the classpath. A value that is not a boolean, such as {@code maybe}, stops the
+ * the whole module on or off. When the property is not set, the module is on: a service turns off a
+ * module it does not want with {@code stratum.<module>.enabled=false}, even when a bundle starter
+ * put the module on the classpath. A value that is not a boolean, such as {@code maybe}, stops the
  * application at startup.
  */
 @Documented

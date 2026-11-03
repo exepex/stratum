@@ -93,7 +93,7 @@ Each module's full table, with every key it reads or gives a default:
 | --- | --- | --- | --- |
 | `stratum.web.*` | `stratum-starter-webmvc`, `stratum-starter-webflux` | [Web → Properties](../modules/web.md#properties), for both web starters | none |
 | `stratum.logging.*` | `stratum-starter-logging` | [Logging → Properties](../../starters/stratum-starter-logging/README.md#properties) | none |
-| `stratum.observability.*` | `stratum-starter-observability` | [Observability → Properties](../../starters/stratum-starter-observability/README.md#properties) | Collector addresses, once enabled |
+| `stratum.observability.*` | `stratum-starter-observability` | [Observability → Properties](../../starters/stratum-starter-observability/README.md#properties) | Collector addresses |
 | `stratum.security.*` | `stratum-starter-security` | [Security → Properties](../modules/security.md#properties) | `resource-server.issuer-uri` |
 | `stratum.oauth2-client.*` | `stratum-starter-oauth2-client` | [OAuth2 client → Properties](../modules/oauth2-client.md#properties) | a `spring.security.oauth2.client.registration.<name>` |
 | `stratum.http-client.*` | `stratum-starter-http-client` | [HTTP client → Properties](../modules/http-client.md#properties) | `clients.<name>.base-url` |
@@ -106,11 +106,12 @@ Each module's full table, with every key it reads or gives a default:
 
 ## On/off switches
 
-Every module is off until you switch it on with one property. All default to `false`, so adding a
-starter, or a [bundle](../modules/bundles.md), sets nothing up by itself. A module's own switches,
-such as `stratum.web.request-log.enabled`, apply only once the module is on.
+Every module is on when its starter is on the classpath, and one property turns it off. All
+default to `true`, so adding a starter, or a [bundle](../modules/bundles.md), sets the module up
+without another line. An empty value counts as unset, so the module stays on. A module's own
+switches, such as `stratum.web.request-log.enabled`, apply only while the module is on.
 
-| Property | Switches on |
+| Property | With `false`, turns off |
 | --- | --- |
 | `stratum.web.enabled` | Error format, request fields in logs, correlation ID, request log, response timeouts, body size limit |
 | `stratum.logging.enabled` | Structured format and redaction |
@@ -149,7 +150,7 @@ spring:
     password: ${ORDERS_DB_PASSWORD}
 
 # Where the observability starter sends metrics and traces: your OpenTelemetry Collector.
-# Required in every profile once stratum.observability.enabled is true.
+# Required in every profile while the observability module is on, its default.
 management:
   otlp:
     metrics:
@@ -164,14 +165,11 @@ management:
 stratum:
   environment: prod
   security:
-    enabled: true
     resource-server:
       issuer-uri: https://idp.acme.com/realms/acme
       audiences: [order-service]
   observability:
-    enabled: true
   http-client:
-    enabled: true
     clients:
       inventory:
         base-url: http://inventory-service
@@ -181,7 +179,6 @@ stratum:
         read-timeout: 10s
         resilience-policy: payments
   resilience:
-    enabled: true
     policies:
       payments:
         retry:
@@ -194,15 +191,11 @@ spring.datasource.url=jdbc:postgresql://orders-db:5432/orders
 spring.datasource.username=orders
 spring.datasource.password=${ORDERS_DB_PASSWORD}
 # Where the observability starter sends metrics and traces: your OpenTelemetry Collector.
-# Required in every profile once stratum.observability.enabled is true.
+# Required in every profile while the observability module is on, its default.
 management.otlp.metrics.export.url=http://otel-collector:4318/v1/metrics
 management.opentelemetry.tracing.export.otlp.endpoint=http://otel-collector:4318/v1/traces
 
 stratum.environment=prod
-stratum.security.enabled=true
-stratum.observability.enabled=true
-stratum.http-client.enabled=true
-stratum.resilience.enabled=true
 stratum.security.resource-server.issuer-uri=https://idp.acme.com/realms/acme
 stratum.security.resource-server.audiences=order-service
 stratum.http-client.clients.inventory.base-url=http://inventory-service

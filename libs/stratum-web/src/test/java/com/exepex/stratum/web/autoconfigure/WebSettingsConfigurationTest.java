@@ -11,10 +11,8 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 @DisplayName("WebSettingsConfiguration works out the web settings only in a web application")
 class WebSettingsConfigurationTest {
 
-  /** Switches the web module on, with a status the settings reject. */
-  private static final String[] MODULE_ON_WITH_BAD_STATUS = {
-    "stratum.web.enabled=true", "stratum.web.error.statuses.ORD-0001=99"
-  };
+  /** A status the settings reject. */
+  private static final String BAD_STATUS = "stratum.web.error.statuses.ORD-0001=99";
 
   @Test
   @DisplayName(
@@ -22,7 +20,7 @@ class WebSettingsConfigurationTest {
   void nonWebApplicationReadsNoWebSettings() {
     new ApplicationContextRunner()
         .withUserConfiguration(WebSettingsConfiguration.class)
-        .withPropertyValues(MODULE_ON_WITH_BAD_STATUS)
+        .withPropertyValues(BAD_STATUS)
         .run(context -> assertThat(context).hasNotFailed().doesNotHaveBean(WebProperties.class));
   }
 }

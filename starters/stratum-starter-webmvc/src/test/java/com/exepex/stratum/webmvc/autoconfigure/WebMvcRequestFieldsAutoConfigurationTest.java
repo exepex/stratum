@@ -44,9 +44,6 @@ import org.springframework.mock.env.MockEnvironment;
     "WebMvcRequestFieldsAutoConfiguration creates the request fields and correlation beans")
 class WebMvcRequestFieldsAutoConfigurationTest {
 
-  /** The setting that turns the module on. */
-  private static final String MODULE_ON = WebConstants.ENABLED + "=true";
-
   /** The name of the request fields filter's registration. */
   private static final String FIELDS_FILTER = "stratumRequestFieldsFilter";
 
@@ -85,34 +82,31 @@ class WebMvcRequestFieldsAutoConfigurationTest {
     @Test
     @DisplayName("with the module on, every request fields and correlation bean is created")
     void createsBeans() {
-      contextRunner
-          .withPropertyValues(MODULE_ON)
-          .run(
-              context ->
-                  assertThat(context)
-                      .hasSingleBean(RequestFieldsReader.class)
-                      .hasSingleBean(CorrelationIdChooser.class)
-                      .hasSingleBean(RequestFieldsPropagation.class)
-                      .hasSingleBean(RequestRouteInterceptor.class)
-                      .hasSingleBean(ResponseTimeouts.class)
-                      .hasSingleBean(ResponseTimeoutInterceptor.class)
-                      .hasBean(TIMEOUT_FILTER)
-                      .hasSingleBean(RequestBodyLimits.class)
-                      .hasSingleBean(RequestBodyLimitInterceptor.class)
-                      .hasBean(BODY_LIMIT_FILTER)
-                      .hasBean(FIELDS_FILTER)
-                      .hasBean(CORRELATION_FILTER)
-                      .hasBean(BAGGAGE_FILTER)
-                      .hasSingleBean(RequestLogWriter.class)
-                      .hasBean(REQUEST_LOG_FILTER)
-                      .hasBean(MDC_CLEANUP_FILTER)
-                      .hasBean(MDC_CLEANUP_LISTENER));
+      contextRunner.run(
+          context ->
+              assertThat(context)
+                  .hasSingleBean(RequestFieldsReader.class)
+                  .hasSingleBean(CorrelationIdChooser.class)
+                  .hasSingleBean(RequestFieldsPropagation.class)
+                  .hasSingleBean(RequestRouteInterceptor.class)
+                  .hasSingleBean(ResponseTimeouts.class)
+                  .hasSingleBean(ResponseTimeoutInterceptor.class)
+                  .hasBean(TIMEOUT_FILTER)
+                  .hasSingleBean(RequestBodyLimits.class)
+                  .hasSingleBean(RequestBodyLimitInterceptor.class)
+                  .hasBean(BODY_LIMIT_FILTER)
+                  .hasBean(FIELDS_FILTER)
+                  .hasBean(CORRELATION_FILTER)
+                  .hasBean(BAGGAGE_FILTER)
+                  .hasSingleBean(RequestLogWriter.class)
+                  .hasBean(REQUEST_LOG_FILTER)
+                  .hasBean(MDC_CLEANUP_FILTER)
+                  .hasBean(MDC_CLEANUP_LISTENER));
     }
 
     @Test
-    @DisplayName("with the module unset or off, nothing is created")
+    @DisplayName("with the module off, nothing is created")
     void moduleOffCreatesNothing() {
-      contextRunner.run(context -> assertNothingCreated(context));
       contextRunner
           .withPropertyValues(WebConstants.ENABLED + "=false")
           .run(context -> assertNothingCreated(context));
@@ -123,7 +117,6 @@ class WebMvcRequestFieldsAutoConfigurationTest {
     void nonServletApplicationGetsNothing() {
       new ApplicationContextRunner()
           .withConfiguration(AutoConfigurations.of(WebMvcRequestFieldsAutoConfiguration.class))
-          .withPropertyValues(MODULE_ON)
           .run(context -> assertNothingCreated(context));
     }
 
@@ -132,7 +125,6 @@ class WebMvcRequestFieldsAutoConfigurationTest {
         "without Micrometer Tracing, the fields are logged but no correlation ID is chosen")
     void withoutTracingNoCorrelationFilter() {
       contextRunner
-          .withPropertyValues(MODULE_ON)
           .withClassLoader(new FilteredClassLoader(Tracer.class))
           .run(
               context ->
@@ -147,8 +139,7 @@ class WebMvcRequestFieldsAutoConfigurationTest {
     @DisplayName("a trusted proxy range that does not fit its address stops startup")
     void badTrustedProxyStopsStartup() {
       contextRunner
-          .withPropertyValues(
-              MODULE_ON, WebConstants.CLIENT_IP_TRUSTED_PROXIES + "=" + TOO_LONG_RANGE)
+          .withPropertyValues(WebConstants.CLIENT_IP_TRUSTED_PROXIES + "=" + TOO_LONG_RANGE)
           .run(
               context ->
                   assertThat(context)
@@ -169,7 +160,6 @@ class WebMvcRequestFieldsAutoConfigurationTest {
     void serviceBeanWins() throws IOException {
       try (var serviceReader = defaultReader()) {
         contextRunner
-            .withPropertyValues(MODULE_ON)
             .withBean(RequestFieldsReader.class, () -> serviceReader)
             .run(
                 context ->
@@ -185,7 +175,6 @@ class WebMvcRequestFieldsAutoConfigurationTest {
             new RequestLogWriter(WebProperties.resolve(new MockEnvironment()), reader);
         var serviceFilter = new FilterRegistrationBean<>(new RequestLogFilter(serviceWriter));
         contextRunner
-            .withPropertyValues(MODULE_ON)
             .withBean(RequestLogWriter.class, () -> serviceWriter)
             .withBean(REQUEST_LOG_FILTER, FilterRegistrationBean.class, () -> serviceFilter)
             .run(
@@ -204,7 +193,6 @@ class WebMvcRequestFieldsAutoConfigurationTest {
       var serviceLimits = new RequestBodyLimits(WebProperties.resolve(new MockEnvironment()));
       var serviceFilter = new FilterRegistrationBean<>(new RequestBodyLimitFilter(serviceLimits));
       contextRunner
-          .withPropertyValues(MODULE_ON)
           .withBean(RequestBodyLimits.class, () -> serviceLimits)
           .withBean(BODY_LIMIT_FILTER, FilterRegistrationBean.class, () -> serviceFilter)
           .run(
@@ -224,7 +212,6 @@ class WebMvcRequestFieldsAutoConfigurationTest {
         var serviceFilter =
             new FilterRegistrationBean<>(new ResponseTimeoutFilter(serviceTimeouts));
         contextRunner
-            .withPropertyValues(MODULE_ON)
             .withBean(ResponseTimeouts.class, () -> serviceTimeouts)
             .withBean(TIMEOUT_FILTER, FilterRegistrationBean.class, () -> serviceFilter)
             .run(
@@ -241,7 +228,6 @@ class WebMvcRequestFieldsAutoConfigurationTest {
     @DisplayName("a company framework's auto-configuration with no order wins over Stratum's")
     void companyBeanWins() {
       contextRunner
-          .withPropertyValues(MODULE_ON)
           .withConfiguration(AutoConfigurations.of(CompanyBeansAutoConfiguration.class))
           .run(
               context ->
@@ -259,24 +245,20 @@ class WebMvcRequestFieldsAutoConfigurationTest {
         "the cleanup filter runs first in the chain, on request, async and error dispatches, and"
             + " its listener is registered")
     void registersCleanupFirstOnEveryDispatch() {
-      contextRunner
-          .withPropertyValues(MODULE_ON)
-          .run(
-              context -> {
-                var registration =
-                    context.getBean(MDC_CLEANUP_FILTER, FilterRegistrationBean.class);
-                assertThat(registration.getFilter())
-                    .isInstanceOf(ServletRequestMdcCleanupFilter.class);
-                assertThat(registration.getOrder()).isEqualTo(Ordered.HIGHEST_PRECEDENCE);
-                assertThat(registration.determineDispatcherTypes())
-                    .containsExactlyInAnyOrder(
-                        DispatcherType.REQUEST, DispatcherType.ASYNC, DispatcherType.ERROR);
-                assertThat(
-                        context
-                            .getBean(MDC_CLEANUP_LISTENER, ServletListenerRegistrationBean.class)
-                            .getListener())
-                    .isInstanceOf(ServletRequestMdcCleanupListener.class);
-              });
+      contextRunner.run(
+          context -> {
+            var registration = context.getBean(MDC_CLEANUP_FILTER, FilterRegistrationBean.class);
+            assertThat(registration.getFilter()).isInstanceOf(ServletRequestMdcCleanupFilter.class);
+            assertThat(registration.getOrder()).isEqualTo(Ordered.HIGHEST_PRECEDENCE);
+            assertThat(registration.determineDispatcherTypes())
+                .containsExactlyInAnyOrder(
+                    DispatcherType.REQUEST, DispatcherType.ASYNC, DispatcherType.ERROR);
+            assertThat(
+                    context
+                        .getBean(MDC_CLEANUP_LISTENER, ServletListenerRegistrationBean.class)
+                        .getListener())
+                .isInstanceOf(ServletRequestMdcCleanupListener.class);
+          });
     }
 
     @Test
@@ -286,7 +268,6 @@ class WebMvcRequestFieldsAutoConfigurationTest {
       var serviceListener =
           new ServletListenerRegistrationBean<>(new ServletRequestMdcCleanupListener());
       contextRunner
-          .withPropertyValues(MODULE_ON)
           .withBean(MDC_CLEANUP_FILTER, FilterRegistrationBean.class, () -> serviceFilter)
           .withBean(
               MDC_CLEANUP_LISTENER, ServletListenerRegistrationBean.class, () -> serviceListener)
@@ -303,7 +284,6 @@ class WebMvcRequestFieldsAutoConfigurationTest {
     @DisplayName("a company framework's cleanup beans, with no order, win over Stratum's")
     void companyCleanupBeansWin() {
       contextRunner
-          .withPropertyValues(MODULE_ON)
           .withConfiguration(AutoConfigurations.of(CompanyBeansAutoConfiguration.class))
           .run(
               context ->

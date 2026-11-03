@@ -26,7 +26,7 @@ import reactor.core.scheduler.Schedulers;
 
 @SpringBootTest(
     classes = {OrdersApplication.class, WorkflowIntegrationTest.CheckoutService.class},
-    properties = {"spring.application.name=orders", "stratum.logging.enabled=true"})
+    properties = {"spring.application.name=orders"})
 // Closing the context resets logging, so later tests in this JVM start from Spring Boot's own.
 @DirtiesContext
 @Slf4j

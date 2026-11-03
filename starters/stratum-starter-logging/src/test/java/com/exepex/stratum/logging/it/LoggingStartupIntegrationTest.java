@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import com.exepex.stratum.core.error.StratumException;
+import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.LoggingPropertiesCustomizer;
 import com.exepex.stratum.logging.testsupport.ElementsTestData;
 import com.exepex.stratum.logging.testsupport.LockerCodeLoggingSettings;
@@ -55,9 +56,6 @@ class LoggingStartupIntegrationTest {
    */
   private static final int TEXT_BEFORE_THE_CARD = 971;
 
-  /** Switches the logging module on. */
-  private static final String MODULE_ON = "--stratum.logging.enabled=true";
-
   /** Starts the test application with the given command-line arguments. */
   private ConfigurableApplicationContext start(String... args) {
     return new SpringApplicationBuilder(OrdersApplication.class)
@@ -66,13 +64,13 @@ class LoggingStartupIntegrationTest {
   }
 
   @Test
-  @DisplayName("with the module unset, logs stay Spring Boot's plain text")
+  @DisplayName("with the module off, logs stay Spring Boot's plain text")
   void moduleOffKeepsPlainText(CapturedOutput output) {
     // Spring Boot keeps the console format as a JVM system property once any application in this
     // JVM has set it, so an earlier test would make this one see JSON.
     System.clearProperty(
         LoggingSystemProperty.CONSOLE_STRUCTURED_FORMAT.getEnvironmentVariableName());
-    try (var _ = start(SERVICE_NAME)) {
+    try (var _ = start(SERVICE_NAME, "--" + LoggingConstants.ENABLED + "=false")) {
       log.info("plain line password=fake-unmasked");
     }
 
@@ -80,10 +78,10 @@ class LoggingStartupIntegrationTest {
   }
 
   @Test
-  @DisplayName("with the module on and no service name, startup stops with SX-LOGGING-1001")
+  @DisplayName("with no service name, startup stops with SX-LOGGING-1001")
   void missingNameStopsStartup() {
     assertThatExceptionOfType(StratumException.class)
-        .isThrownBy(() -> start(MODULE_ON))
+        .isThrownBy(() -> start())
         .withMessageStartingWith("SX-LOGGING-1001: ");
   }
 
@@ -110,7 +108,7 @@ class LoggingStartupIntegrationTest {
   @DisplayName(
       "an ECS line names its instance in service.node.name, with no empty node and no instanceId")
   void ecsLineNamesInstance(CapturedOutput output) {
-    try (var _ = start(SERVICE_NAME, MODULE_ON)) {
+    try (var _ = start(SERVICE_NAME)) {
       log.info("ecs instance line");
     }
 
@@ -124,7 +122,7 @@ class LoggingStartupIntegrationTest {
   @FieldSource("ADDED_INSTANCE_ID_FIELDS")
   @DisplayName("a Logstash or GELF line names its instance in its own added field")
   void addedFieldNamesInstance(String format, String field, CapturedOutput output) {
-    try (var _ = start(SERVICE_NAME, MODULE_ON, "--stratum.logging.format=" + format)) {
+    try (var _ = start(SERVICE_NAME, "--stratum.logging.format=" + format)) {
       log.info("added field instance line");
     }
 
@@ -135,7 +133,7 @@ class LoggingStartupIntegrationTest {
   @DisplayName("a log file gets the same masked JSON lines as the console")
   void logFileIsMaskedJson(@TempDir Path folder) throws IOException {
     var file = folder.resolve("orders.log");
-    try (var _ = start(SERVICE_NAME, MODULE_ON, "--logging.file.name=" + file)) {
+    try (var _ = start(SERVICE_NAME, "--logging.file.name=" + file)) {
       log.info("file line password=fake-unmasked");
     }
 
@@ -148,11 +146,7 @@ class LoggingStartupIntegrationTest {
   @DisplayName("the text format writes one masked line of text per event, in every profile")
   void textFormatIsMasked(CapturedOutput output) {
     try (var _ =
-        start(
-            SERVICE_NAME,
-            MODULE_ON,
-            "--stratum.logging.format=text",
-            "--spring.profiles.active=local")) {
+        start(SERVICE_NAME, "--stratum.logging.format=text", "--spring.profiles.active=local")) {
       log.atInfo().addKeyValue("api_key", "fake-key").log("text line password=fake-unmasked");
     }
 
@@ -170,7 +164,7 @@ class LoggingStartupIntegrationTest {
     var failure =
         new IllegalStateException(
             "x".repeat(TEXT_BEFORE_THE_CARD) + " card " + CARD_IN_GROUPS + " declined");
-    try (var _ = start(SERVICE_NAME, MODULE_ON, "--stratum.logging.max-field-length=1KB")) {
+    try (var _ = start(SERVICE_NAME, "--stratum.logging.max-field-length=1KB")) {
       log.error("payment failed", failure);
     }
 
@@ -181,10 +175,7 @@ class LoggingStartupIntegrationTest {
   @DisplayName("a service's own Logback configuration stops startup with SX-LOGGING-1003")
   void ownLogbackConfigurationStopsStartup() {
     assertThatExceptionOfType(StratumException.class)
-        .isThrownBy(
-            () ->
-                start(
-                    SERVICE_NAME, MODULE_ON, "--logging.config=classpath:logback-own-pattern.xml"))
+        .isThrownBy(() -> start(SERVICE_NAME, "--logging.config=classpath:logback-own-pattern.xml"))
         .withMessageStartingWith("SX-LOGGING-1003: ");
   }
 
@@ -192,7 +183,7 @@ class LoggingStartupIntegrationTest {
   @DisplayName("an empty console format stops startup with SX-LOGGING-1003")
   void emptyFormatStopsStartup() {
     assertThatExceptionOfType(StratumException.class)
-        .isThrownBy(() -> start(SERVICE_NAME, MODULE_ON, "--logging.structured.format.console="))
+        .isThrownBy(() -> start(SERVICE_NAME, "--logging.structured.format.console="))
         .withMessageStartingWith("SX-LOGGING-1003: ");
   }
 
@@ -219,7 +210,7 @@ class LoggingStartupIntegrationTest {
 
   /** Starts with the text format in the files, logs one line and returns the console format. */
   private @Nullable String logLockerLineInTextFormat() {
-    try (var context = start(SERVICE_NAME, MODULE_ON, "--stratum.logging.format=text")) {
+    try (var context = start(SERVICE_NAME, "--stratum.logging.format=text")) {
       log.atInfo().addKeyValue("locker_code", "L-1234").log("locker opened");
       return context.getEnvironment().getProperty("logging.structured.format.console");
     }

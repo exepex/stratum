@@ -26,10 +26,11 @@ by hand, and slow queries nobody notices. This starter sets these the safe way i
 </dependency>
 ```
 
-The starter does nothing until you switch it on, in `application.properties`:
+The starter is on as soon as it is on the classpath; no line is needed. To turn it off, set in
+`application.properties`:
 
 ```properties
-stratum.data.enabled=true
+stratum.data.enabled=false
 ```
 
 or in `application.yml`:
@@ -37,7 +38,7 @@ or in `application.yml`:
 ```yaml
 stratum:
   data:
-    enabled: true
+    enabled: false
 ```
 
 **Required:** the standard Spring Boot connection settings:
@@ -101,7 +102,7 @@ security starter is present, and from `stratum.data.auditing.system-user` otherw
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.data.enabled` | boolean | `false` | Switches the whole starter on. Until it is `true`, the starter sets up nothing. |
+| `stratum.data.enabled` | boolean | `true` | Whether the starter is on. With `false`, the starter sets up nothing. |
 | `stratum.data.pool.max-size` | int | `10` | Maximum connections. More is rarely faster; see the tip below. |
 | `stratum.data.pool.min-idle` | int | `2` | Connections kept open when idle. |
 | `stratum.data.pool.connection-timeout` | duration | `3s` | Wait for a free connection before failing. |
@@ -161,8 +162,8 @@ customizer or builder, with the same names and defaults. This section will show 
 
 ## Switch it on or off
 
-`stratum.data.enabled=true` switches the starter on.
-Leaving it unset is the same as `false`.
+The starter is on when it is on the classpath. Leaving `stratum.data.enabled` unset, or empty,
+is the same as `true`.
 
 `stratum.data.enabled=false` leaves Spring Boot's own JPA defaults (including `open-in-view=true`).
 

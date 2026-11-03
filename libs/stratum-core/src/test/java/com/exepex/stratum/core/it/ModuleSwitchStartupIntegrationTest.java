@@ -28,7 +28,7 @@ class ModuleSwitchStartupIntegrationTest {
   /** The test module's switch. */
   private static final String CLIENT_SWITCH = "stratum.http-client.enabled";
 
-  /** A file that switches the test module on, loaded through {@code @PropertySource}. */
+  /** A file that switches the test module off, loaded through {@code @PropertySource}. */
   private static final String LATE_SWITCH_FILE = "late-switch/http-client.properties";
 
   /** Returns an application without a web server, from the given configuration. */
@@ -47,6 +47,17 @@ class ModuleSwitchStartupIntegrationTest {
     void earlySwitchTurnsModuleOn() {
       var application = application(HttpClientModule.class);
       application.setDefaultProperties(Map.of(CLIENT_SWITCH, true));
+
+      try (var context = application.run()) {
+        assertThat(context.containsBean(CLIENT)).isTrue();
+      }
+    }
+
+    @Test
+    @DisplayName("as an empty value, counts as unset and leaves the module on")
+    void emptySwitchLeavesModuleOn() {
+      var application = application(HttpClientModule.class);
+      application.setDefaultProperties(Map.of(CLIENT_SWITCH, ""));
 
       try (var context = application.run()) {
         assertThat(context.containsBean(CLIENT)).isTrue();
@@ -117,33 +128,33 @@ class ModuleSwitchStartupIntegrationTest {
   }
 
   @Test
-  @DisplayName("only in a @PropertySource file stops startup instead of a half-on module")
+  @DisplayName("set off only in a @PropertySource file stops startup instead of a half-off module")
   void lateSwitchStopsStartup() {
     assertThatExceptionOfType(Exception.class)
         .isThrownBy(() -> application(LateSwitchedHttpClient.class).run())
         .havingRootCause()
         .isInstanceOf(StratumException.class)
-        .withMessageStartingWith("SX-CORE-1006: ")
+        .withMessageStartingWith("SX-CORE-1007: ")
         .withMessageContaining(CLIENT_SWITCH + " in class path resource [" + LATE_SWITCH_FILE);
   }
 
   @Test
-  @DisplayName("turned off later stops startup instead of a module with defaults but no beans")
-  void switchTurnedOffLaterStopsStartup() {
+  @DisplayName("turned on later stops startup instead of a module with beans but no defaults")
+  void switchTurnedOnLaterStopsStartup() {
     var application = application(HttpClientModule.class);
-    application.setDefaultProperties(Map.of(CLIENT_SWITCH, true));
+    application.setDefaultProperties(Map.of(CLIENT_SWITCH, false));
     application.addInitializers(
         context ->
             context
                 .getEnvironment()
                 .getPropertySources()
-                .addFirst(new MapPropertySource("remote-config", Map.of(CLIENT_SWITCH, false))));
+                .addFirst(new MapPropertySource("remote-config", Map.of(CLIENT_SWITCH, true))));
 
     assertThatExceptionOfType(Exception.class)
         .isThrownBy(application::run)
         .havingRootCause()
         .isInstanceOf(StratumException.class)
-        .withMessageStartingWith("SX-CORE-1007: ")
+        .withMessageStartingWith("SX-CORE-1006: ")
         .withMessageContaining(CLIENT_SWITCH + " in remote-config");
   }
 
@@ -167,7 +178,7 @@ class ModuleSwitchStartupIntegrationTest {
     }
   }
 
-  /** A service that switches the test module on only in a {@code @PropertySource} file. */
+  /** A service that switches the test module off only in a {@code @PropertySource} file. */
   @Configuration(proxyBeanMethods = false)
   @PropertySource("classpath:" + LATE_SWITCH_FILE)
   @Import(HttpClientModule.class)

@@ -13,6 +13,7 @@ import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.logging.structured.StructuredLogFormatter;
+import org.springframework.mock.env.MockEnvironment;
 
 @DisplayName("Log4j2MaskedTextFormatter writes each Log4j2 event as one masked line of text")
 class Log4j2MaskedTextFormatterTest {
@@ -23,9 +24,7 @@ class Log4j2MaskedTextFormatterTest {
   /** The format, created by Spring Boot from its class name. */
   private final StructuredLogFormatter<LogEvent> formatter =
       MaskedTextFormats.createdBySpringBoot(
-          LogEvent.class,
-          Log4j2MaskedTextFormatter.class.getName(),
-          LoggingTestData.environmentWithModuleOn());
+          LogEvent.class, Log4j2MaskedTextFormatter.class.getName(), new MockEnvironment());
 
   /** Returns an INFO event from the {@code orders} logger on thread {@code main}. */
   private Log4jLogEvent.Builder event(String message, @Nullable Throwable exception) {

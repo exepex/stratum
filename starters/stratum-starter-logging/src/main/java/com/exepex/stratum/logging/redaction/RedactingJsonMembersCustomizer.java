@@ -16,8 +16,8 @@ import org.springframework.core.env.Environment;
  * entries, key-value pairs, and the error message and stack trace. Fields that Stratum or Spring
  * Boot fill with no personal data are written as they are, and the frame lines of a stack trace are
  * not searched ({@link KnownLogFields}). Spring Boot's logging loads it from {@code
- * META-INF/spring.factories} before the application starts. It does nothing unless {@code
- * stratum.logging.enabled=true}.
+ * META-INF/spring.factories} before the application starts. It does nothing when {@code
+ * stratum.logging.enabled=false}.
  */
 @StratumInternal
 public final class RedactingJsonMembersCustomizer

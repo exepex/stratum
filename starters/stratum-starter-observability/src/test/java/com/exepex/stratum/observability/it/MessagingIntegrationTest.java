@@ -24,7 +24,6 @@ import org.springframework.test.context.DynamicPropertySource;
     classes = OrderEventsApplication.class,
     properties = {
       "spring.main.web-application-type=none",
-      "stratum.observability.enabled=true",
       "management.tracing.sampling.probability=1.0",
       // Stratum's startup check needs an address before @DynamicPropertySource runs; the
       // collector stub's address then replaces this one.

@@ -19,12 +19,10 @@ import org.springframework.http.HttpStatus;
     classes = SlowApplication.class,
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = {
-      "stratum.web.enabled=true",
       "stratum.web.backward-compatible=false",
       WebConstants.TIMEOUT_DEFAULT_LIMIT + "=30s",
       WebConstants.TIMEOUT_ROUTES + "[/slow/**]=1s",
       WebConstants.TIMEOUT_STATUS + "=504",
-      "stratum.observability.enabled=true",
       "management.tracing.sampling.probability=1.0",
       "management.tracing.export.enabled=false",
       "management.otlp.metrics.export.enabled=false"

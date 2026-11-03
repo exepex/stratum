@@ -1,4 +1,4 @@
-/** Creates the observability module's beans, when {@code stratum.observability.enabled=true}. */
+/** Creates the observability module's beans, unless {@code stratum.observability.enabled=false}. */
 @NullMarked
 package com.exepex.stratum.observability.autoconfigure;
 

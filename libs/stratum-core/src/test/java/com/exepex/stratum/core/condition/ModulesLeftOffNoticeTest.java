@@ -58,9 +58,7 @@ class ModulesLeftOffNoticeTest {
   @Test
   @DisplayName("with every module on, nothing is logged")
   void allModulesOn(CapturedOutput output) {
-    contextRunner
-        .withPropertyValues("stratum.orders.enabled=true", "stratum.audit.enabled=true")
-        .run(this::announceStarted);
+    contextRunner.run(this::announceStarted);
 
     assertThat(output).doesNotContain(NOTICE);
   }
@@ -68,21 +66,24 @@ class ModulesLeftOffNoticeTest {
   @Test
   @DisplayName("with some modules off, one line names each off module once, with its switch")
   void someModulesOff(CapturedOutput output) {
-    contextRunner.run(this::announceStarted);
+    contextRunner
+        .withPropertyValues("stratum.orders.enabled=false", "stratum.audit.enabled=false")
+        .run(this::announceStarted);
 
     assertThat(output.getOut().lines().filter(line -> line.contains(NOTICE))).hasSize(1);
     assertThat(output)
         .contains(
-            NOTICE + ": audit (stratum.audit.enabled=true), orders (stratum.orders.enabled=true)");
+            NOTICE
+                + ": audit (stratum.audit.enabled=false), orders (stratum.orders.enabled=false)");
   }
 
   @Test
-  @DisplayName("a module switched on is left out of the line")
+  @DisplayName("a module left on is left out of the line")
   void moduleOnIsLeftOut(CapturedOutput output) {
-    contextRunner.withPropertyValues("stratum.orders.enabled=true").run(this::announceStarted);
+    contextRunner.withPropertyValues("stratum.audit.enabled=false").run(this::announceStarted);
 
     assertThat(output)
-        .contains(NOTICE + ": audit (stratum.audit.enabled=true)")
+        .contains(NOTICE + ": audit (stratum.audit.enabled=false)")
         .doesNotContain("orders (");
   }
 
