@@ -289,14 +289,14 @@ These rules apply to every published module: the libraries, the starters and `st
 - **ST-ENG-56 Label every internal type.** A public type is API when a service uses it: it implements or extends it,
   calls it, puts it on its own code, or declares a bean of its type, as the module page's "Customize" section lists.
   Every other public type carries `@StratumInternal` (`com.exepex.stratum.core.api`). A public type without the label is
-  API, so decide which one each new type is before you write it. The ArchUnit tests fail for a public top-level type
-  that is neither labelled nor on its module's API list: a constant in the module's architecture test, or, for
-  `stratum-core` and `stratum-test`, in `stratum-test`'s `PublicApiRuleTest`. The check covers top-level types only; a
-  public nested type that services must not use still carries its own label. An API type's public and protected members,
-  superclass and interfaces use only API, JDK and library types; when a Customize section names a type, each Stratum
-  type needed to build a replacement is API too; the ArchUnit tests check this (ST-TEST-21). Making an API type
-  internal, or changing its public members, is a breaking change (ST-DOC-10). Stratum's modules may use the internal
-  types of `stratum-core` and of the library they are built on, never another starter's types (ST-ENG-11).
+  API, so decide which one each new type is before you write it. The ArchUnit tests fail for a type a service can reach,
+  top-level or nested, that has no label of its own and is not on its module's API list: a constant in the module's
+  architecture test, or, for `stratum-core` and `stratum-test`, in `stratum-test`'s `PublicApiRuleTest`. An API type's
+  public and protected members, superclass and interfaces use only API, JDK and library types; when a Customize section
+  names a type, each Stratum type needed to build a replacement is API too; the ArchUnit tests check this (ST-TEST-21).
+  Making an API type internal, or changing its public members, is a breaking change (ST-DOC-10). Stratum's modules may
+  use the internal types of `stratum-core` and of the library they are built on, never another starter's types
+  (ST-ENG-11).
 - **ST-ENG-57 No package cycles.** Two packages never depend on each other, directly or through other packages.
   Before a class imports from another package, check that the other package does not already depend, directly or
   through others, on this one. When it does, move the type both need into a package that both may depend on, or

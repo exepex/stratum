@@ -14,21 +14,25 @@ import org.junit.jupiter.api.Test;
 class ObservabilityArchTest {
 
   /**
-   * The observability starter's public types that services may use; every other one carries the
-   * label.
+   * The observability starter's types, top-level or nested, that services may use; every other one
+   * carries the label.
    */
   private static final Set<Class<?>> API_TYPES =
       Set.of(
           CorrelationIdRecorder.class,
           MetricTagGuard.class,
           ObservabilityProperties.class,
+          ObservabilityProperties.ObservabilityPropertiesBuilder.class,
+          ObservabilityProperties.Tags.class,
+          ObservabilityProperties.Tags.TagsBuilder.class,
           ObservabilityPropertiesCustomizer.class,
           TelemetryUrlFilter.class,
           LinkedWork.class,
           LinkedWorkContext.class,
           LinkedWorkTracingHandler.class,
           ReactiveLinkedWork.class,
-          WorkOrigin.class);
+          WorkOrigin.class,
+          WorkOrigin.WorkOriginBuilder.class);
 
   @Test
   @DisplayName(
