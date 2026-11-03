@@ -189,7 +189,7 @@ class LogVolumeFilterTest {
     private void runAfter(CountDownLatch start, Runnable work) {
       try {
         start.await();
-      } catch (InterruptedException interrupted) {
+      } catch (InterruptedException _) {
         Thread.currentThread().interrupt();
         return;
       }
