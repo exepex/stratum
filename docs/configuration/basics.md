@@ -198,7 +198,8 @@ are simplified from Spring Boot's full order:
 6. Profile-specific files inside the jar (`src/main/resources/application-prod.yml`)
 7. `application.properties` / `application.yml` inside the jar
 8. Default properties set in Java with `SpringApplication.setDefaultProperties`
-9. **Stratum's built-in defaults** (always last, so anything you set wins)
+9. **Stratum's built-in defaults** (always last, so anything you set wins; the logging starter's format keys accept
+   only [Stratum's formats](../../starters/stratum-starter-logging/README.md#what-is-masked))
 
 For profiles and per-environment setups, see
 [Profiles and environments](profiles-and-environments.md).

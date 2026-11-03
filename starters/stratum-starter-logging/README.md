@@ -82,7 +82,7 @@ replace it:
 - At startup, before any bean exists, it sets a few of Spring Boot's `logging.structured.*`
   properties and `spring.task.execution.propagate-context`, listed [below](#properties). A value
   you set in a configuration file, an environment variable, a system property or a command-line
-  argument wins over Stratum's.
+  argument wins over Stratum's. The one exception: the two format keys accept only Stratum's formats.
 - It adds redaction to Spring Boot's `ecs`, `logstash` and `gelf` formats, and writes the `text`
   format itself through Spring Boot's structured logging, so every line in every format is masked,
   on the console and in a log file, with Logback or Log4j2 ([What is masked](#what-is-masked)).

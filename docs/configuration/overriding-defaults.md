@@ -140,8 +140,9 @@ public static void main(String[] args) {
 Default properties come last, so the same key in a file, an environment variable or a command-line
 argument wins over them. Each module page lists the Spring Boot properties Stratum sets by default.
 Stratum gives those only to keys you leave unset, so a value you set anywhere, default properties
-included, wins over Stratum's. Stratum has no setting of its own for these keys, so default
-properties are the Java route for them.
+included, wins over Stratum's. The one exception: the logging starter's format keys accept only
+[Stratum's formats](../../starters/stratum-starter-logging/README.md#what-is-masked). Stratum has no setting of its
+own for these keys, so default properties are the Java route for them.
 
 ## Level 2: adjust a bean with a customizer
 
