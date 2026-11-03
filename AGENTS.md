@@ -140,8 +140,8 @@ rather than handing it on. It never starts or chooses its own judge.
   - for a change to a rule or an ADR, a search of AGENTS.md, docs/agents/ and docs/adr/ for the rule's ID and its
     old wording, with every file that states or depends on that rule updated, or named with the reason it stays;
   - for a matching rule that replaces another, the replay of the old rule's inputs that judge step 4 describes;
-  - a rebase on `main`, and a read of CI and Sonar at the head commit once both have finished, with the Claims
-    updated to their results before asking for the judge.
+  - a rebase on `main`, and a read of CI, Sonar and Codex at the head commit once all three have finished, with the
+    Claims updated to their results before asking for the judge.
 - **ST-AG-18 Every implementer gets the same brief.** The coordinator starts each implementer with the brief
   template in [judge](docs/agents/judge.md#the-implementer-brief). The brief cites rule IDs and the owner's decisions
   not yet written into a rule (ST-AG-13). It never restates or replaces a rule.
@@ -223,6 +223,8 @@ topic file wins.
   (`*Test.java`, Surefire), integration tests (`*IntegrationTest.java`, Failsafe) and the JaCoCo coverage gate,
   which `.mvn/maven.config` turns on for Stratum's own build.
   Each one fails the build, and so does a library or starter that has code but runs no tests.
+- For a change that needs a build, commit and push only when `./mvnw` itself exits 0; never decide a push from the
+  output of a piped command.
 - While working on one module, `mvn -pl <module> -am verify` is enough. Run the full `mvn verify` before asking for
   the judge.
 - A change that touches only Markdown, text or AsciiDoc files needs no build.
@@ -247,11 +249,11 @@ topic file wins.
   judges its own work.
 - Nothing is pushed to a pull request while a judge reviews it.
 - The coordinator says "Ready to merge at <sha>" once per head commit, when at that commit the judge's PASS and green
-  CI hold, and every finding from the owner, a reviewer, the security role, the judge, Codex and Sonar is fixed,
-  accepted by the owner, answered with evidence that it does not apply (ST-AG-04) which the judge accepted, or
-  deferred by the judge to an issue named in the line, with each thread answered and resolved. A later commit
-  withdraws it until these hold again at the new head. No agent, in any role, calls a pull request ready to merge
-  before then.
+  CI hold, and every finding from the owner, a reviewer, the security role, the judge, Codex, Sonar or any other review
+  bot, minor ones included, is fixed, accepted by the owner, answered with evidence that it does not apply (ST-AG-04)
+  which the judge accepted, or deferred by the judge to an issue named in the line, with each thread answered and
+  resolved. A later commit withdraws it until these hold again at the new head. No agent, in any role, calls a pull
+  request ready to merge before then.
 - Agents never merge a pull request; only the owner merges.
 
 ## Reporting to the owner

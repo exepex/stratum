@@ -73,12 +73,13 @@ The pull request description contains a **Claims** section, written by the imple
    **out of scope**, with the reason and the owner's agreement if the owner decided it. Evidence is a `file:line`
    for the code, the test that proves it, and the command that was run with its result, for example
    `mvn -pl starters/stratum-starter-webmvc -am verify` → `BUILD SUCCESS, Tests run: 42, Failures: 0`.
-3. **Design note.** On Fix and Feature, the answers to the design note below. On Feature, also the link to the
-   judge's PASS of the note.
+3. **Design note.** On Fix and Feature, the answers to the design note below. When the pull request opens, its design
+   notes, the decisions taken on them (by the owner or a reviewer) and the note verdicts are posted on it, and the
+   Claims link them.
 4. **Broken-code proof.** For each requirement with code, the fault the implementer planted and the test that
    caught it.
 5. **Self-review.** The evidence of ST-AG-17: each search command with its number of hits, the most-broken rules
-   checked, the rebase and the CI and Sonar results at the head, and each class or file added to fix a finding
+   checked, the rebase and the CI, Sonar and Codex results at the head, and each class or file added to fix a finding
    (ST-AG-12), with that finding.
 6. **Not done or not verified.** Anything left open, stated plainly.
 7. **Files read.** Confirmation that the implementer read `AGENTS.md` and all six topic files before starting.
@@ -127,11 +128,11 @@ When every changed file is Markdown, text or AsciiDoc, as for a change to the ag
 skips step 4: a text-only change needs no build (AGENTS.md, Build).
 
 1. **Gate.** The Claims are complete, with the design note on Fix and Feature; for a design-note review, the note is
-   complete. For a pull request, it is open ready for review, not as a draft; CI is green at the head commit; and
-   every Codex and Sonar finding is answered and its thread resolved. Where the answer says the finding does not
-   apply (ST-AG-04), the judge accepts or rejects it with its own evidence. The judge reads Sonar through the pull
-   request's GitHub checks. When the gate fails, the verdict is FAIL with that one finding, and the judge checks
-   nothing else. A missing design note on Fix or Feature is a blocking finding that fails the gate.
+   complete. For a pull request, it is open ready for review, not as a draft; CI is green at the head commit; and every
+   finding from Codex, Sonar and any other review bot is answered and its thread resolved. Where the answer says the
+   finding does not apply (ST-AG-04), the judge accepts or rejects it with its own evidence. The judge reads Sonar
+   through the pull request's GitHub checks. When the gate fails, the verdict is FAIL with that one finding, and the
+   judge checks nothing else. A missing design note on Fix or Feature is a blocking finding that fails the gate.
 2. **Requirements and owner decisions.**
    - **Build the gap list first.** Read the owner's request and write your own list of every requirement in it,
      before reading the implementer's list. Then compare. A requirement that is neither met nor declared out of
