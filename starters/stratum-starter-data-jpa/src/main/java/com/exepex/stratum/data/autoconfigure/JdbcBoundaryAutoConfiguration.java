@@ -26,7 +26,8 @@ public final class JdbcBoundaryAutoConfiguration {
 
   /**
    * Wraps every data source bean. A service replaces it with a bean of the same name, for example
-   * to skip one of its data sources.
+   * to skip one of its data sources. Static, because Spring creates bean post-processors before the
+   * other beans.
    *
    * @return the post-processor, which wraps every data source bean
    */
