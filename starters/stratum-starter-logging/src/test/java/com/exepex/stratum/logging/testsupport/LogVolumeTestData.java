@@ -20,6 +20,9 @@ public class LogVolumeTestData {
   /** The logger Spring Security's loggers sit below, itself never limited by default. */
   public static final String SECURITY_ROOT = "org.springframework.security";
 
+  /** A second logger, whose line makes a summary due without being dropped itself. */
+  public static final String OTHER = "com.acme.Other";
+
   /** A logger of Spring Security, which is never limited by default. */
   public static final String SECURITY = "org.springframework.security.web.FilterChainProxy";
 

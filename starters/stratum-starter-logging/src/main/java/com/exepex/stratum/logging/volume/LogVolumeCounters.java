@@ -227,6 +227,7 @@ public class LogVolumeCounters {
      */
     private long takeDropped(long second) {
       var current = window.get();
+      // A loop, not a stream: it retries only when a line moved the window during the scan.
       while (current >>> Integer.SIZE < second
           && (current & COUNT_BITS) > limit
           && !window.compareAndSet(current, second << Integer.SIZE)) {

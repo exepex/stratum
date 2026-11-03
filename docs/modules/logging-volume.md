@@ -150,3 +150,6 @@ A Java value wins over the same key in a file.
   that started last. When several applications run in one JVM, as in tests, closing the later one
   leaves the earlier one unlimited.
 - A Logback filter of your own that accepts a line before Stratum's sees it bypasses the count.
+- A Logback reconfiguration at run time, such as a Logback file with `scan="true"`, would reset
+  Logback and remove the filter. It needs a Logback file of your own, which stops startup with
+  `SX-LOGGING-1003` while the module is on.

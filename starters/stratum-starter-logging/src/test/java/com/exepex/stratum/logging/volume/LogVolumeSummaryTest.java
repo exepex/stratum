@@ -69,7 +69,7 @@ class LogVolumeSummaryTest {
   void countsTheLastBusySecond() {
     lines.writeInfo(ORDERS, BUSY_SECOND_LINES);
     lines.atSecond(INTERVAL);
-    lines.writeInfo("com.acme.Other", 1);
+    lines.writeInfo(LogVolumeTestData.OTHER, 1);
 
     assertThat(onlySummaryFields())
         .containsEntry(LoggingConstants.DROPPED_LINES, (long) BUSY_SECOND_LINES - 1)
@@ -78,12 +78,26 @@ class LogVolumeSummaryTest {
   }
 
   @Test
+  @DisplayName("drops are counted once, even when the same logger writes again after a summary")
+  void dropsAreCountedOnce() {
+    lines.writeInfo(ORDERS, BUSY_SECOND_LINES);
+    lines.atSecond(INTERVAL);
+    lines.writeInfo(LogVolumeTestData.OTHER, 1);
+    lines.writeInfo(ORDERS, 1);
+    lines.atSecond(2 * INTERVAL);
+    lines.writeInfo(LogVolumeTestData.OTHER, 1);
+
+    assertThat(onlySummaryFields())
+        .containsEntry(LoggingConstants.DROPPED_LINES, (long) BUSY_SECOND_LINES - 1);
+  }
+
+  @Test
   @DisplayName("the summary names the five loggers and levels that dropped the most")
   void namesTheTopFive() {
     IntStream.rangeClosed(1, DROPPING_LOGGERS)
         .forEach(logger -> lines.writeInfo(ORDERS + logger, logger + 1));
     lines.atSecond(INTERVAL);
-    lines.writeInfo("com.acme.Other", 1);
+    lines.writeInfo(LogVolumeTestData.OTHER, 1);
 
     assertThat(onlySummaryFields())
         .containsEntry(LoggingConstants.DROPPED_LINES, TOP_FIVE_DROPS)
@@ -122,7 +136,7 @@ class LogVolumeSummaryTest {
     lines.writeInfo(ORDERS, 2);
     lines.atSecond(INTERVAL);
     MDC.put(LoggingContextConstants.TRACE_ID, LogVolumeTestData.KEPT_TRACE_ID);
-    lines.writeInfo("com.acme.Other", 1);
+    lines.writeInfo(LogVolumeTestData.OTHER, 1);
 
     assertThat(summaries().getFirst().getMDCPropertyMap()).isEmpty();
     assertThat(MDC.get(LoggingContextConstants.TRACE_ID))

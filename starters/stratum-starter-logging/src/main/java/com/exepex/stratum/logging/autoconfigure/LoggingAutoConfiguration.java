@@ -136,6 +136,7 @@ public final class LoggingAutoConfiguration {
    * Limits how many lines each logger writes when Logback is on the classpath. A nested class, so
    * Logback's types are only loaded then.
    */
+  @StratumInternal
   @Configuration(proxyBeanMethods = false)
   @ConditionalOnStratumModule(LoggingConstants.MODULE)
   @ConditionalOnClass(name = LoggingConstants.LOGBACK_CONTEXT)
