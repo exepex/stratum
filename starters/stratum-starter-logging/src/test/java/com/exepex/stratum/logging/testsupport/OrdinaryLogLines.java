@@ -30,12 +30,12 @@ public class OrdinaryLogLines {
       "Order orderId=42 placed with 3 items at 2026-11-03T10:15:30.123Z,"
           + " summary at https://orders.example.com/api/orders/42/summary";
 
-  /** The service's own MDC fields, in the order they are written. */
+  /** The service's own MDC fields, none of them safe fields, in the order they are written. */
   public static final List<Map.Entry<String, Object>> MDC_FIELDS =
       List.of(
           Map.entry("customerId", "cust-7f3a91"),
           Map.entry("tenantId", "tenant-eu-west"),
-          Map.entry(LoggingContextConstants.TRACE_ID, "4bf92f3577b34da6a3ce929d0e0e4736"));
+          Map.entry("orderChannel", "web-checkout"));
 
   /** The ECS fields that hold no personal data, with typical values, in the order written. */
   public static final List<Map.Entry<String, Object>> SAFE_ECS_FIELDS =
