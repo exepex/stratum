@@ -38,6 +38,8 @@ class LoggingEnvironmentPostProcessorTest {
 
   private static final String FORMAT = LoggingConstants.PREFIX + ".format";
 
+  private static final String MAX_FIELD_LENGTH = LoggingConstants.PREFIX + ".max-field-length";
+
   private static final String GELF = "gelf";
 
   private static final String OFF = "false";
@@ -82,16 +84,40 @@ class LoggingEnvironmentPostProcessorTest {
 
     @Test
     @DisplayName(
-        "ECS JSON is the default for console and file; stack traces are root first, cut at 16KB")
+        "ECS JSON is the default for console and file; stack traces are root first, and Spring"
+            + " Boot prints up to 17KB of them")
     void setsDefaults() {
       var environment = runLoggingPostProcessor(environmentWithModuleOnAndServiceName());
 
       assertThat(environment.getProperty(LoggingConstants.CONSOLE_FORMAT)).isEqualTo("ecs");
       assertThat(environment.getProperty(LoggingConstants.FILE_FORMAT)).isEqualTo("ecs");
       assertThat(environment.getProperty(LoggingConstants.STACK_TRACE_MAX_LENGTH))
-          .isEqualTo("16384");
+          .isEqualTo("17408");
       assertThat(environment.getProperty(LoggingConstants.STACK_TRACE_ROOT)).isEqualTo("first");
       assertThat(environment.getProperty(LoggingConstants.ECS_ENVIRONMENT)).isNull();
+    }
+
+    @Test
+    @DisplayName("Spring Boot's stack trace limit is max-field-length plus 1KB")
+    void stackTraceLimitFollowsMaxFieldLength() {
+      var environment =
+          runLoggingPostProcessor(
+              environmentWithModuleOnAndServiceName().withProperty(MAX_FIELD_LENGTH, "1KB"));
+
+      assertThat(environment.getProperty(LoggingConstants.STACK_TRACE_MAX_LENGTH))
+          .isEqualTo("2048");
+    }
+
+    @Test
+    @DisplayName("a stack trace limit the service sets itself wins")
+    void serviceStackTraceLimitWins() {
+      var environment =
+          runLoggingPostProcessor(
+              environmentWithModuleOnAndServiceName()
+                  .withProperty(LoggingConstants.STACK_TRACE_MAX_LENGTH, "5000"));
+
+      assertThat(environment.getProperty(LoggingConstants.STACK_TRACE_MAX_LENGTH))
+          .isEqualTo("5000");
     }
 
     @Test
@@ -222,8 +248,7 @@ class LoggingEnvironmentPostProcessorTest {
     @DisplayName("a max-field-length below 1KB or above 1MB stops startup with SX-CORE-1003")
     void maxFieldLengthOutOfRangeStopsStartup(String maxFieldLength) {
       var environment =
-          environmentWithModuleOnAndServiceName()
-              .withProperty(LoggingConstants.PREFIX + ".max-field-length", maxFieldLength);
+          environmentWithModuleOnAndServiceName().withProperty(MAX_FIELD_LENGTH, maxFieldLength);
 
       assertThatExceptionOfType(StratumException.class)
           .isThrownBy(() -> runLoggingPostProcessor(environment))
@@ -239,7 +264,7 @@ class LoggingEnvironmentPostProcessorTest {
       var environment =
           runLoggingPostProcessor(
               environmentWithModuleOnAndServiceName()
-                  .withProperty(LoggingConstants.PREFIX + ".max-field-length", maxFieldLength));
+                  .withProperty(MAX_FIELD_LENGTH, maxFieldLength));
 
       assertThat(environment.getPropertySources().contains(DefaultPropertiesPropertySource.NAME))
           .isTrue();

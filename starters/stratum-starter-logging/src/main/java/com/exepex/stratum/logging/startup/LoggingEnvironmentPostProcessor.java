@@ -105,7 +105,8 @@ public class LoggingEnvironmentPostProcessor implements EnvironmentPostProcessor
       defaultProperties.put(LoggingConstants.ECS_ENVIRONMENT, serviceEnvironment);
     }
     defaultProperties.put(
-        LoggingConstants.STACK_TRACE_MAX_LENGTH, loggingProperties.maxFieldLength().toBytes());
+        LoggingConstants.STACK_TRACE_MAX_LENGTH,
+        loggingProperties.maxFieldLength().toBytes() + LoggingConstants.STACK_TRACE_PRINT_MARGIN);
     defaultProperties.put(LoggingConstants.STACK_TRACE_ROOT, LoggingConstants.ROOT_CAUSE_FIRST);
     defaultProperties.putAll(StratumDefaults.CONTEXT_PROPAGATION);
     return defaultProperties;
