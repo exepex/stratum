@@ -38,7 +38,6 @@ spring:
 
 stratum:
   logging:
-    enabled: true
     format: ecs
   http-client:
     defaults:
@@ -50,7 +49,6 @@ stratum:
 # application.properties
 spring.application.name=order-service
 
-stratum.logging.enabled=true
 stratum.logging.format=ecs
 stratum.http-client.defaults.connect-timeout=1s
 stratum.http-client.defaults.read-timeout=5s
@@ -90,13 +88,16 @@ Names are written in **kebab-case** (lower case, words joined by `-`). Spring Bo
 binding** also accepts `readTimeout` or `read_timeout`, but kebab-case is the standard; use it so
 everyone can search for one spelling.
 
-Every module has an on/off switch, `stratum.<module>.enabled`, and is off until you set it to `true`.
+Every module has an on/off switch, `stratum.<module>.enabled`. A module is on when its starter is on
+the classpath, and you turn it off with `false`. An empty value counts as unset, so the module stays
+on; a value that is not a boolean, such as `maybe`, stops startup.
 Set the switch in `application.properties` or `application.yml`, an environment variable, the
 command line or Java default properties. A `@PropertySource` file loads too late for it: a module
-switched on only there stops startup with `SX-CORE-1006`, instead of running without its startup
-defaults and checks. A switch turned off later, such as by remote configuration that an
-`ApplicationContextInitializer` adds, stops startup with `SX-CORE-1007`, instead of keeping the
-module's defaults without its beans. A module is either fully on or fully off.
+switched off only there stops startup with `SX-CORE-1007`, instead of keeping the module's defaults
+without its beans. A switch that is `false` early and turned on later, such as by remote
+configuration that an `ApplicationContextInitializer` adds, stops startup with `SX-CORE-1006`,
+instead of running the module without its startup defaults and checks. A module is either fully on
+or fully off.
 
 ## Writing values: types and formats
 

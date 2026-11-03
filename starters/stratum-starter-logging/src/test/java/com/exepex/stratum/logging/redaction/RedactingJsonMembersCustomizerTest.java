@@ -90,7 +90,7 @@ class RedactingJsonMembersCustomizerTest {
     @Test
     @DisplayName("with the module on, the message and secret field are masked and the rest is kept")
     void masksWhenModuleIsOn() {
-      var json = writeLogLine(LoggingTestData.environmentWithModuleOn());
+      var json = writeLogLine(new MockEnvironment());
 
       assertThat(json)
           .doesNotContain(CARD)
@@ -101,11 +101,11 @@ class RedactingJsonMembersCustomizerTest {
     }
 
     @Test
-    @DisplayName("with the module unset or off, the line is written unchanged")
+    @DisplayName("with the module off, the line is written unchanged")
     void leavesLineAloneWhenModuleIsOff() {
-      assertThat(writeLogLine(new MockEnvironment())).contains(CARD).contains(PASSWORD);
       assertThat(
               writeLogLine(new MockEnvironment().withProperty(LoggingConstants.ENABLED, "false")))
+          .contains(CARD)
           .contains(PASSWORD);
     }
   }

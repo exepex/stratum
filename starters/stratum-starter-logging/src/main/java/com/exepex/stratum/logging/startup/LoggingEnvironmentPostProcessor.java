@@ -27,9 +27,9 @@ import org.springframework.util.ClassUtils;
 import org.springframework.util.StringUtils;
 
 /**
- * Sets up logging before the application starts, when {@code stratum.logging.enabled=true}: checks
- * that the service has a name and valid settings, and gives Spring Boot's structured logging and
- * its executors Stratum's defaults, the instance ID included. Every value the service sets for
+ * Sets up logging before the application starts, unless {@code stratum.logging.enabled=false}:
+ * checks that the service has a name and valid settings, and gives Spring Boot's structured logging
+ * and its executors Stratum's defaults, the instance ID included. Every value the service sets for
  * those properties wins, Java default properties included. Stops startup when a log output does not
  * use one of Stratum's formats.
  */

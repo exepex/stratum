@@ -1,7 +1,7 @@
 # Web: response timeouts
 
-**Status: Built**, in `stratum-starter-webmvc` and `stratum-starter-webflux`, when
-`stratum.web.enabled=true`.
+**Status: Built**, in `stratum-starter-webmvc` and `stratum-starter-webflux`, unless
+`stratum.web.enabled=false`.
 
 [← Web](web.md) · [Documentation home](../README.md) · Property prefix: `stratum.web.timeout`
 

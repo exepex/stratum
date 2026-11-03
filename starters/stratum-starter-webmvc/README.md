@@ -43,10 +43,11 @@ service uses `stratum-starter-webflux` instead; never add both. The `stratum-sta
 and `stratum-starter-web-ui` bundles already include it. The version comes from Stratum's parent or
 BOM ([installation](../../docs/getting-started/installation.md)).
 
-The starter does nothing of its own until you switch it on, in `application.properties`:
+The starter is on as soon as it is on the classpath; no line is needed. To turn it off, set in
+`application.properties`:
 
 ```properties
-stratum.web.enabled=true
+stratum.web.enabled=false
 ```
 
 or in `application.yml`:
@@ -54,7 +55,7 @@ or in `application.yml`:
 ```yaml
 stratum:
   web:
-    enabled: true
+    enabled: false
 ```
 
 The trace and correlation IDs in error bodies and logs come from the
@@ -393,8 +394,9 @@ auto-configuration declares no order, are still registered first and win.
 
 ## Switch it on or off
 
-`stratum.web.enabled=true` switches the module on. Leaving it unset is the same as `false`: the
-service runs on plain Spring MVC, with Spring Boot's own error handling.
+The module is on when the starter is on the classpath; leaving `stratum.web.enabled` unset, or
+empty, is the same as `true`. With `stratum.web.enabled=false`, the service runs on plain
+Spring MVC, with Spring Boot's own error handling.
 
 Shutdown is graceful, as in Spring Boot (`server.shutdown=graceful`): requests already running get up
 to 30 seconds to finish. Stratum does not change it; set `spring.lifecycle.timeout-per-shutdown-phase`
@@ -406,7 +408,7 @@ to change the wait.
 | --- | --- |
 | Your code is answered with `500`, and the log says it has no status | Add the code to `stratum.web.error.statuses`. |
 | A request runs far past its time limit before it is answered with `503` | A call in it ignores interrupts, such as a query waiting on its socket. Set a timeout on that call, such as the database's query timeout. |
-| The body has no `traceId` | Tracing is off. Add the observability starter and set `stratum.observability.enabled=true`. |
+| The body has no `traceId` | Tracing is off. Add the observability starter, and leave `stratum.observability.enabled` unset or `true`. |
 | A failure gets Spring Boot's default body | The module is off, or the service declares its own `ErrorAttributes` bean. |
 | Your handler is not used for an exception | Another advice handles it first. Advice runs in `@Order` order; Stratum's runs last. |
 | A bad `@RequestParam` gets `500` instead of `400` | The controller class has `@Validated`, which makes Spring check parameters its old way, as in plain Spring Boot. Remove `@Validated` from the class; Spring MVC checks constraints on parameters without it. |

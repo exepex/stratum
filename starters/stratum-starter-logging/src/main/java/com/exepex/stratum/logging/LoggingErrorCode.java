@@ -23,7 +23,9 @@ public enum LoggingErrorCode implements ErrorCode {
           + " is not set; the logging module writes it on every line as service.name",
       "Set "
           + LoggingConstants.APPLICATION_NAME
-          + " in application.properties or application.yml."),
+          + " in application.properties or application.yml, or turn the module off with "
+          + LoggingConstants.ENABLED
+          + "=false."),
 
   /** A pattern in {@code stratum.logging.redaction.extra-patterns} cannot be compiled. */
   INVALID_REDACTION_PATTERN(
@@ -40,7 +42,10 @@ public enum LoggingErrorCode implements ErrorCode {
       Severity.ERROR,
       "A log output does not use one of Stratum's formats, so its lines would not be masked",
       "Remove your own log format, Logback configuration file or logging.config, or add Logback or"
-          + " Log4j2, and choose the format with stratum.logging.format.");
+          + " Log4j2, and choose the format with stratum.logging.format. To keep your own"
+          + " format, turn the module off with "
+          + LoggingConstants.ENABLED
+          + "=false.");
 
   /** The code, such as {@code SX-LOGGING-1001}. */
   private final String code;

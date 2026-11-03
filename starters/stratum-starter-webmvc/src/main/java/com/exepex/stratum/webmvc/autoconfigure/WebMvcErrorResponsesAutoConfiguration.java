@@ -38,9 +38,9 @@ import org.springframework.web.servlet.View;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Creates Stratum's error responses for Spring MVC, when {@code stratum.web.enabled=true}. Ordered
- * before Spring Boot's {@code ErrorMvcAutoConfiguration}, because its error attributes and error
- * page replace Boot's.
+ * Creates Stratum's error responses for Spring MVC, unless {@code stratum.web.enabled=false}.
+ * Ordered before Spring Boot's {@code ErrorMvcAutoConfiguration}, because its error attributes and
+ * error page replace Boot's.
  */
 @StratumInternal
 @AutoConfiguration(before = ErrorMvcAutoConfiguration.class)

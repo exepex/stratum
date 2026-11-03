@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.web.RequestBodyLimits;
 import com.exepex.stratum.web.ResponseTimeouts;
-import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.webmvc.testsupport.WebMvcRequestFieldsRunners;
 import java.time.Duration;
 import java.util.List;
@@ -18,9 +17,6 @@ import org.springframework.util.unit.DataSize;
 @DisplayName(
     "WebMvcRequestFieldsAutoConfiguration gives a request with no limit set the limits of the mode")
 class WebMvcRequestLimitsTest {
-
-  /** The setting that turns the module on. */
-  private static final String MODULE_ON = WebConstants.ENABLED + "=true";
 
   /**
    * The settings, and the time and body size limits of a request whose path no limit is set for:
@@ -42,7 +38,6 @@ class WebMvcRequestLimitsTest {
   @DisplayName("are 10s and 256KB, or none with stratum.backward-compatible=true")
   void limitsFollowTheMode(List<String> settings, List<Object> limits) {
     contextRunner
-        .withPropertyValues(MODULE_ON)
         .withPropertyValues(settings.toArray(String[]::new))
         .run(
             context ->

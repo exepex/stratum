@@ -43,13 +43,12 @@ The `stratum-starter-microservice`, `-reactive-microservice`, `-web-ui` and `-ba
 include it; `-cli` does not, so a command-line tool adds it on its own when it needs it. The version
 comes from Stratum's parent or BOM ([installation](../../docs/getting-started/installation.md)).
 
-The starter does nothing until you switch it on, and once it is on it needs your Collector's
-addresses, in every profile. In `application.properties`:
+The starter is on as soon as it is on the classpath, and it needs your Collector's addresses, in
+every profile. In `application.properties`:
 
 ```properties
 spring.application.name=order-service
 stratum.environment=prod
-stratum.observability.enabled=true
 management.otlp.metrics.export.url=http://otel-collector:4318/v1/metrics
 management.opentelemetry.tracing.export.otlp.endpoint=http://otel-collector:4318/v1/traces
 ```
@@ -62,8 +61,6 @@ spring:
     name: order-service
 stratum:
   environment: prod
-  observability:
-    enabled: true
 management:
   otlp:
     metrics:
@@ -86,9 +83,9 @@ variable, a system property or a command-line argument wins over Stratum's. Ever
 [Spring Boot documentation](https://docs.spring.io/spring-boot/reference/actuator/index.html)
 describes.
 
-With the module off, the starter turns off sending metrics and traces. A bundle that brings the
-starter therefore never sends anything, not even to Spring Boot's default address,
-`localhost:4318`, until you switch the module on.
+With the module off (`stratum.observability.enabled=false`), the starter turns off sending metrics
+and traces, so it never sends anything, not even to Spring Boot's default address,
+`localhost:4318`.
 
 ## What you get
 
@@ -254,6 +251,9 @@ With the module on, in every profile, startup stops with
 - metrics are sent over OTLP and `management.otlp.metrics.export.url` is not set; or
 - traces are sent over OTLP and `management.opentelemetry.tracing.export.otlp.endpoint` is not set.
 
+Set the address the message names, turn that export off, or turn the module off with
+`stratum.observability.enabled=false`.
+
 Whether an export is on follows Spring Boot: `management.otlp.metrics.export.enabled` decides for
 metrics, or `management.defaults.metrics.export.enabled` when it is not set;
 `management.tracing.export.otlp.enabled` decides for traces, or `management.tracing.export.enabled`
@@ -289,7 +289,7 @@ value you set wins, from any file, the environment, the command line or Java def
 
 | Property | Type | Stratum's default | Spring Boot's default | Description |
 | --- | --- | --- | --- | --- |
-| `stratum.observability.enabled` | boolean | `false` | no such key | Switches the whole starter on. Until it is `true`, the starter sets up nothing and turns export off. |
+| `stratum.observability.enabled` | boolean | `true` | no such key | Whether the starter is on. With `false`, the starter sets up nothing and turns export off. |
 | `stratum.observability.tags.extra-forbidden` | list of strings | empty | no such key | More tag names the [tag guard](#tag-guard) refuses, added to the built-in ones. Case, `_`, `-` and `.` are ignored. A blank name stops startup with `SX-CORE-1003`. |
 | `stratum.observability.tags.allowed` | list of strings | empty | no such key | Tag names the [tag guard](#tag-guard) keeps even though they are refused by default, such as `customerId`. Compared like `extra-forbidden`. A blank name stops startup with `SX-CORE-1003`. |
 | `management.otlp.metrics.export.enabled` | boolean | `false` while the module is off | `true` | Whether metrics are sent. |
@@ -442,8 +442,9 @@ The switch and the Spring Boot properties above are set in Java through
 
 ## Switch it on or off
 
-`stratum.observability.enabled=true` switches the starter on. Leaving it unset is the same as
-`false`: metrics and traces are not sent, and Spring Boot's own actuator defaults apply.
+The starter is on when it is on the classpath; leaving `stratum.observability.enabled` unset, or
+empty, is the same as `true`. With `stratum.observability.enabled=false`, metrics and traces are not
+sent, and Spring Boot's own actuator defaults apply.
 
 ## Planned
 
@@ -458,7 +459,7 @@ The switch and the Spring Boot properties above are set in Java through
 
 | Symptom | Likely cause and fix |
 | --- | --- |
-| Startup stops with `SX-OBSERVABILITY-1001` | Set the property the message names to your Collector's address, or turn that export off. |
+| Startup stops with `SX-OBSERVABILITY-1001` | Set the property the message names to your Collector's address, turn that export off, or turn the module off with `stratum.observability.enabled=false`. |
 | No metrics or traces arrive | `stratum.observability.enabled` is not `true`, or the Collector is not reachable at the configured address. Look for export errors in the log. |
 | Traces break between two services | The caller does not use Spring's `RestClient`, `WebClient` or `RestTemplate` from Spring Boot's builder, so no `traceparent` header is sent. |
 | A message's trace ends at the sender | The consumer service does not have this module on, or sets its listener's `observation-enabled` switch to `false` ([messages](#messages)). |

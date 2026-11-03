@@ -30,7 +30,6 @@ import org.springframework.test.context.DynamicPropertySource;
     classes = {OrdersApplication.class, VirtualThreadsIntegrationTest.ServicePools.class},
     properties = {
       "spring.main.web-application-type=none",
-      "stratum.observability.enabled=true",
       "spring.threads.virtual.enabled=true",
       "management.tracing.sampling.probability=1.0",
       // Stratum's startup check needs an address before @DynamicPropertySource runs; the

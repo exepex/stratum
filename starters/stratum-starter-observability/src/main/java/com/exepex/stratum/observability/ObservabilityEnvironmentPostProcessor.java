@@ -17,13 +17,13 @@ import org.springframework.util.StringUtils;
 
 /**
  * Gives Spring Boot's actuator, metrics and tracing Stratum's defaults before the application
- * starts. With {@code stratum.observability.enabled=true} it applies the module's settings, which
- * by default expose only {@code health} and {@code info}, store timings as histograms, trace Kafka
- * and RabbitMQ messages and carry traces into Spring Boot's executors, and it tags every metric and
- * names the service's instance in every span and metric; otherwise it turns export off, so a bundle
- * that brings this starter sends nothing. Every value the service sets for those Spring Boot
- * properties wins, Java default properties included. {@link ObservabilityExportAddressCheck} checks
- * the export addresses.
+ * starts. With the module on, its default, it applies the module's settings, which by default
+ * expose only {@code health} and {@code info}, store timings as histograms, trace Kafka and
+ * RabbitMQ messages and carry traces into Spring Boot's executors, and it tags every metric and
+ * names the service's instance in every span and metric; with the module off, it turns export off,
+ * so the starter sends nothing. Every value the service sets for those Spring Boot properties wins,
+ * Java default properties included. {@link ObservabilityExportAddressCheck} checks the export
+ * addresses.
  */
 @StratumInternal
 public class ObservabilityEnvironmentPostProcessor implements EnvironmentPostProcessor, Ordered {

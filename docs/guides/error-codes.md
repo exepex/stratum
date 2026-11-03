@@ -82,12 +82,12 @@ A report keeps an ID only if it is 1 to 128 characters long and holds nothing bu
 `-`, `_`, `.` and `:`. Any other ID is left out, so that a value sent by a caller cannot forge a log
 line or break a response.
 
-With `stratum.observability.enabled=true`, the correlation ID is the `correlationId` entry of the
+With the observability module on, the correlation ID is the `correlationId` entry of the
 tracing baggage when one is set, and otherwise the trace ID, which every service in the same trace
 shares ([observability module](../../starters/stratum-starter-observability/README.md#correlation-id)).
 Baggage is sent on every outgoing call made with Spring's HTTP clients, `WebClient` in reactive
 code included, to every host, so never put a secret or personal data in the correlation ID. With
-`stratum.web.enabled=true`, the web module also takes the ID from the caller's `X-Correlation-Id`
+the web module on, the web module also takes the ID from the caller's `X-Correlation-Id`
 header and returns it in the response
 ([web module](../modules/web.md#correlation-id)). **Planned:** the logging module will limit the
 baggage to the service's own hosts.
@@ -228,41 +228,41 @@ Each of these but `SX-CORE-1005` is an error that stops the application at start
 | `SX-CORE-1003` | A module's settings break their rules, after the files and the Java configuration are combined. The message names each property key and rule, never the value. | Correct the named properties. See [Validation](../configuration/basics.md#validation-wrong-values-fail-fast). |
 | `SX-CORE-1004` | A module's `StratumPropertiesCustomizer` is declared as a bean. Stratum reads customizers only from `META-INF/spring.factories`, so the bean would be ignored. This holds for a bean with or without its settings type. The message names each bean and the customizer interface it implements, such as `webCustomizer (WebPropertiesCustomizer)`. | Implement the module's customizer interface, such as `LoggingPropertiesCustomizer`, in a class with a public no-argument constructor, list it in `META-INF/spring.factories` and remove the bean. See [Set the same values in Java](../configuration/overriding-defaults.md#set-the-same-values-in-java). |
 | `SX-CORE-1005` | Warning: the running Spring Boot version is outside the line this Stratum release supports, such as `4.1.x`. The service may fail later in ways that are hard to trace, such as `NoSuchMethodError`. The message names the version found and the supported line. Any patch release of the line, such as `4.1.9`, is quiet. | Set the Spring Boot version in your parent POM, such as your company parent, to the supported line, or use the Stratum release that supports your version. See the [compatibility table](upgrading.md#compatibility) and [ADR 0007](../adr/0007-spring-boot-version-warning.md). |
-| `SX-CORE-1006` | A module is on, but its switch was not `true` yet when the modules' startup steps ran, as with a switch set only in a `@PropertySource` file. The module's beans would run without its startup defaults and checks, such as structured, redacted logs. The message names the switch and the property source. | Set the switch in `application.properties` or `application.yml`, an environment variable or the command line. A `@PropertySource` file loads too late for it. See [Properties](../configuration/basics.md). |
-| `SX-CORE-1007` | A module is off, but its switch was `true` when the modules' startup steps ran, as with `true` in `application.yml` and `false` in remote configuration added later by an `ApplicationContextInitializer`. The module's startup defaults, such as its log format, would apply without its beans. The message names the switch and the property source that turns it off. | Set the switch in one place that Spring Boot reads early: `application.properties` or `application.yml`, an environment variable or the command line. A source added after the configuration files is read too late for it. See [Properties](../configuration/basics.md). |
+| `SX-CORE-1006` | A module is on, but its switch was `false` when the modules' startup steps ran, as with `false` in `application.yml` and `true` in remote configuration added later by an `ApplicationContextInitializer`. The module's beans would run without its startup defaults and checks, such as structured, redacted logs. The message names the switch and the property source that turns it on. | Set the switch in one place that Spring Boot reads early: `application.properties` or `application.yml`, an environment variable or the command line. A source added after the configuration files is read too late for it. See [Properties](../configuration/basics.md). |
+| `SX-CORE-1007` | A module is off, but its switch was not `false` when the modules' startup steps ran, as with `false` set only in a `@PropertySource` file. The module's startup defaults, such as its log format, would apply without its beans. The message names the switch and the property source that turns it off. | Set the switch in `application.properties` or `application.yml`, an environment variable or the command line. A `@PropertySource` file loads too late for it. See [Properties](../configuration/basics.md). |
 
 Each is a `StratumException`. For `SX-CORE-1003`, `getReport().getExternal().details()` also lists
 each broken rule, with the property key as `field` and the rule, such as `@NotBlank`, as `message`.
 
 ## stratum-starter-logging
 
-Each of these is an error that stops the application at startup, and only when
-`stratum.logging.enabled=true`. The logging module reports no warnings with a code. See the
+Each of these is an error that stops the application at startup, and only while the module is on,
+which it is unless `stratum.logging.enabled=false`. The logging module reports no warnings with a code. See the
 [logging module](../../starters/stratum-starter-logging/README.md).
 
 | Code | Meaning | Fix |
 | --- | --- | --- |
-| `SX-LOGGING-1001` | `spring.application.name` is not set. The module writes it on every line as `service.name`, so lines from different services can be told apart. | Set `spring.application.name` in `application.properties` or `application.yml`. |
+| `SX-LOGGING-1001` | `spring.application.name` is not set. The module writes it on every line as `service.name`, so lines from different services can be told apart. | Set `spring.application.name` in `application.properties` or `application.yml`, or turn the module off with `stratum.logging.enabled=false`. |
 | `SX-LOGGING-1002` | A pattern in `stratum.logging.redaction.extra-patterns` is not a valid regular expression. The message gives the pattern's position in the list, never the pattern or any part of it. | Correct the pattern. In `.properties` files, write each backslash twice. |
-| `SX-LOGGING-1003` | A log output does not use one of Stratum's formats: an own format or formatter class, an empty format, a Logback file, `logging.config`, or no Logback or Log4j2. The message names the key or file, never its value. | Remove your own log format, Logback configuration file or `logging.config`, or add Logback or Log4j2, and choose the format with `stratum.logging.format`. |
+| `SX-LOGGING-1003` | A log output does not use one of Stratum's formats: an own format or formatter class, an empty format, a Logback file, `logging.config`, or no Logback or Log4j2. The message names the key or file, never its value. | Remove your own log format, Logback configuration file or `logging.config`, or add Logback or Log4j2, and choose the format with `stratum.logging.format`. To keep your own format, turn the module off with `stratum.logging.enabled=false`. |
 
 A `stratum.logging.max-field-length` outside 1KB to 1MB stops startup with `SX-CORE-1003`, like any
 other invalid setting. The message names the rule `stratum.logging.max-field-length-in-range`.
 
 ## stratum-starter-observability
 
-These apply only when `stratum.observability.enabled=true`. `SX-OBSERVABILITY-1001` is an error that
+These apply only while the module is on, which it is unless `stratum.observability.enabled=false`. `SX-OBSERVABILITY-1001` is an error that
 stops the application at startup; `SX-OBSERVABILITY-1002` is a warning. See the
 [observability module](../../starters/stratum-starter-observability/README.md).
 
 | Code | Meaning | Fix |
 | --- | --- | --- |
-| `SX-OBSERVABILITY-1001` | With the module on, in any profile, metrics or traces are sent over OTLP but their address is not set, so they would be lost. The message names each missing property: `management.otlp.metrics.export.url`, `management.opentelemetry.tracing.export.otlp.endpoint` or both. | Set the named property to your OpenTelemetry Collector, such as `http://otel-collector:4318/v1/metrics`, or turn that export off with `management.otlp.metrics.export.enabled=false` or `management.tracing.export.enabled=false`. On a laptop without a Collector, use `http://localhost:4318/...`; the data is then dropped quietly. |
+| `SX-OBSERVABILITY-1001` | With the module on, in any profile, metrics or traces are sent over OTLP but their address is not set, so they would be lost. The message names each missing property: `management.otlp.metrics.export.url`, `management.opentelemetry.tracing.export.otlp.endpoint` or both. | Set the named property to your OpenTelemetry Collector, such as `http://otel-collector:4318/v1/metrics`, or turn that export off with `management.otlp.metrics.export.enabled=false` or `management.tracing.export.enabled=false`, or turn the module off with `stratum.observability.enabled=false`. On a laptop without a Collector, use `http://localhost:4318/...`; the data is then dropped quietly. |
 | `SX-OBSERVABILITY-1002` | Warning, logged once per metric: a metric was dropped because one of its tags is named like an ID, such as `userId`, `trace_id`, `user.id` or a name in `stratum.observability.tags.extra-forbidden`. Each ID value would create a new time series. The message names the metric and the tag, never a value. | Remove the tag from the metric and put the ID in a log line or a span attribute instead. If the tag really holds a small, known set of values, list its name in `stratum.observability.tags.allowed`. |
 
 ## stratum-starter-webmvc and stratum-starter-webflux
 
-These apply only when `stratum.web.enabled=true`. A caller gets all but `SX-WEB-1006` in the error
+These apply only while the module is on, which it is unless `stratum.web.enabled=false`. A caller gets all but `SX-WEB-1006` in the error
 body of a request that failed outside your own error handling, such as an unknown path, a request
 that broke validation or one that ran out of time. `SX-WEB-1006` stops the application at startup. Both web starters send the same
 codes. See the

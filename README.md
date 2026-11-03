@@ -154,8 +154,8 @@ Your service already has a parent, such as your company's? Import the Stratum BO
 [Installation](docs/getting-started/installation.md).
 
 **2. Add the starters you need.** No `<version>` tags: Stratum manages them. This example uses
-three single starters. For a whole application, add a [bundle](#bundles) instead, and switch on
-each module it brings.
+three single starters. For a whole application, add a [bundle](#bundles) instead. Each module is on
+as soon as its starter is on the classpath.
 
 ```xml
 <dependencies>
@@ -179,33 +179,24 @@ each module it brings.
 </dependencies>
 ```
 
-**3. Name your service and switch on the modules you use** in `application.yml` (or
-`application.properties`). Every module is off until you switch it on:
+**3. Name your service** in `application.yml` (or `application.properties`). Every module whose
+starter you added is already on; you write no line to switch it on:
 
 ```yaml
 spring:
   application:
     name: order-service
-stratum:
-  web:
-    enabled: true
-  logging:
-    enabled: true
-  observability:
-    enabled: true
 ```
 
 ```properties
 spring.application.name=order-service
-stratum.web.enabled=true
-stratum.logging.enabled=true
-stratum.observability.enabled=true
 ```
 
-Once it is on, the observability module also needs your OpenTelemetry Collector's addresses, in
-every profile, or it stops at startup. To try it without a Collector, point both at `localhost`
-(`http://localhost:4318/v1/metrics` and `http://localhost:4318/v1/traces`), and the data is dropped
-quietly ([Observability](starters/stratum-starter-observability/README.md#running-without-a-collector)).
+The logging module needs this name, or it stops at startup. The observability module also needs your
+OpenTelemetry Collector's addresses, in every profile, or it stops at startup. To try it without a
+Collector, point both at `localhost` (`http://localhost:4318/v1/metrics` and
+`http://localhost:4318/v1/traces`), and the data is dropped quietly
+([Observability](starters/stratum-starter-observability/README.md#running-without-a-collector)).
 
 **4. Write a controller** and run `mvn spring-boot:run`:
 
@@ -246,9 +237,9 @@ troubleshoot it.
 One dependency per kind of application; each lists only the single starters that kind needs. See
 [Bundle starters](docs/modules/bundles.md).
 
-A bundle with `security` puts Spring Security on the classpath. Until you switch on
-`stratum.security.enabled` and set its issuer, Spring Boot's default applies and every endpoint
-asks for a login. See [Security](docs/modules/security.md).
+The security starter is planned and brings no dependency yet. Once it is built, a bundle with
+`security` will put Spring Security on the classpath with the security module on. See
+[Security](docs/modules/security.md).
 
 | Bundle | Single starters it adds |
 | --- | --- |
@@ -260,9 +251,9 @@ asks for a login. See [Security](docs/modules/security.md).
 
 ### Starters
 
-Every starter is off until its `stratum.<module>.enabled` property is `true`. A starter that is
-present but off is named in one INFO line at startup, such as
-`Stratum modules present but off: web (stratum.web.enabled=true)`.
+Every starter's module is on when the starter is on the classpath. A service turns one off with
+`stratum.<module>.enabled=false`. A module turned off is named in one INFO line at startup, such as
+`Stratum modules present but off: web (stratum.web.enabled=false)`.
 
 | Starter | In one sentence | Property prefix |
 | --- | --- | --- |
@@ -339,7 +330,7 @@ You stay in control at three levels, from lightest to strongest:
 | Change a value | Set a property | `stratum.http-client.defaults.read-timeout=10s` |
 | Adjust a bean Stratum created | Declare a customizer bean | A `RestClientCustomizer` that adds a header |
 | Replace a bean entirely | Declare your own bean of the same type | Your own `SecurityFilterChain` |
-| Switch a whole module on or off | Set `enabled`; every module is off until set to `true` | `stratum.cache.enabled=true` |
+| Switch a whole module off | Set `enabled` to `false`; every module is on by default | `stratum.cache.enabled=false` |
 
 Details and examples: [Overriding defaults](docs/configuration/overriding-defaults.md).
 
@@ -364,9 +355,10 @@ In setups B and C three rules keep the two frameworks from conflicting:
   and Stratum's auto-configurations usually run after the company's. The exceptions, and what to do
   about them, are in
   [Rule 2 of the guide](docs/guides/company-framework.md#rule-2-the-companys-bean-wins).
-- **Overlapping setups stay off.** Every Stratum module is off until the service switches it on.
+- **Overlapping setups are turned off.** Every Stratum module is on when its starter is present.
   Where both frameworks set up a whole concern, such as a security filter chain or the log format,
-  the service keeps the company's and leaves Stratum's off, or excludes that starter.
+  the service keeps the company's and turns Stratum's off with `stratum.<module>.enabled=false`,
+  or excludes that starter.
 
 Step-by-step setup and configuration: [Using Stratum with a company framework](docs/guides/company-framework.md).
 The decision behind it: [ADR 0001](docs/adr/0001-coexistence-with-company-frameworks.md).

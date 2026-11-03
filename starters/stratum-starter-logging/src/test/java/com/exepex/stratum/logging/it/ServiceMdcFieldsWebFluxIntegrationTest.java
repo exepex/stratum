@@ -38,7 +38,7 @@ import reactor.core.scheduler.Schedulers;
       ServiceMdcFieldsWebFluxIntegrationTest.ReactiveOrdersController.class
     },
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-    properties = {"spring.application.name=orders", "stratum.logging.enabled=true"})
+    properties = {"spring.application.name=orders"})
 // Closing the context resets logging, so later tests in this JVM start from Spring Boot's own.
 @DirtiesContext
 @DisplayName(

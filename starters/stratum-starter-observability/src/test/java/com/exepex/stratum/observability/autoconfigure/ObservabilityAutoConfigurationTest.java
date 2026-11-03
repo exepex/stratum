@@ -42,8 +42,6 @@ import reactor.core.publisher.Hooks;
 @DisplayName("ObservabilityAutoConfiguration creates the URL filter, tag guard and ID recorder")
 class ObservabilityAutoConfigurationTest {
 
-  private static final String MODULE_ON = ObservabilityConstants.ENABLED + "=true";
-
   private static final String REACTOR_CONTEXT_PROPAGATION = "spring.reactor.context-propagation";
 
   private static final String EXTRA_FORBIDDEN =
@@ -80,20 +78,17 @@ class ObservabilityAutoConfigurationTest {
     @Test
     @DisplayName("with the module on, every bean is created")
     void createsBeans() {
-      contextRunner
-          .withPropertyValues(MODULE_ON)
-          .run(
-              context ->
-                  assertThat(context)
-                      .hasSingleBean(TelemetryUrlFilter.class)
-                      .hasSingleBean(MetricTagGuard.class)
-                      .hasSingleBean(CorrelationIdRecorder.class));
+      contextRunner.run(
+          context ->
+              assertThat(context)
+                  .hasSingleBean(TelemetryUrlFilter.class)
+                  .hasSingleBean(MetricTagGuard.class)
+                  .hasSingleBean(CorrelationIdRecorder.class));
     }
 
     @Test
-    @DisplayName("with the module unset or off, nothing is created")
+    @DisplayName("with the module off, nothing is created")
     void moduleOffCreatesNothing() {
-      contextRunner.run(context -> assertThat(context).doesNotHaveBean(MetricTagGuard.class));
       contextRunner
           .withPropertyValues(ObservabilityConstants.ENABLED + "=false")
           .run(
@@ -117,7 +112,6 @@ class ObservabilityAutoConfigurationTest {
       // The recorder is a span processor, which is closeable; the context closes it too.
       try (var serviceRecorder = new CorrelationIdRecorder()) {
         contextRunner
-            .withPropertyValues(MODULE_ON)
             .withBean(TelemetryUrlFilter.class, () -> serviceFilter)
             .withBean(MetricTagGuard.class, () -> serviceGuard)
             .withBean(CorrelationIdRecorder.class, () -> serviceRecorder)
@@ -135,7 +129,6 @@ class ObservabilityAutoConfigurationTest {
     @DisplayName("a company framework's auto-configuration with no order wins over Stratum's")
     void companyBeansWin() {
       new ApplicationContextRunner()
-          .withPropertyValues(MODULE_ON)
           .withConfiguration(
               AutoConfigurations.of(
                   ValidationAutoConfiguration.class,
@@ -162,7 +155,6 @@ class ObservabilityAutoConfigurationTest {
         "without Spring's web classes, which make HTTP client spans, no URL filter is made")
     void withoutSpringWebCreatesNoFilter() {
       contextRunner
-          .withPropertyValues(MODULE_ON)
           .withClassLoader(new FilteredClassLoader(UriComponentsBuilder.class))
           .run(context -> assertThat(context).doesNotHaveBean(TelemetryUrlFilter.class));
     }
@@ -176,8 +168,7 @@ class ObservabilityAutoConfigurationTest {
     @DisplayName("the guard refuses and keeps the tag names set in properties")
     void guardUsesPropertyNames() {
       contextRunner
-          .withPropertyValues(
-              MODULE_ON, EXTRA_FORBIDDEN + "=" + TENANT_TAG, ALLOWED + "=" + ORDER_TAG)
+          .withPropertyValues(EXTRA_FORBIDDEN + "=" + TENANT_TAG, ALLOWED + "=" + ORDER_TAG)
           .run(
               context -> {
                 assertThat(guardReplyForTag(context, TENANT_TAG)).isEqualTo(MeterFilterReply.DENY);
@@ -203,7 +194,6 @@ class ObservabilityAutoConfigurationTest {
     @DisplayName("a customizer declared as a bean stops startup with SX-CORE-1004")
     void customizerBeanStopsStartup() {
       contextRunner
-          .withPropertyValues(MODULE_ON)
           .withBean(
               "regionTagCustomizer",
               RegionTagObservabilitySettings.class,
@@ -225,7 +215,7 @@ class ObservabilityAutoConfigurationTest {
     @DisplayName("a blank tag name stops startup with SX-CORE-1003, naming the property")
     void blankTagNameStopsStartup() {
       contextRunner
-          .withPropertyValues(MODULE_ON, EXTRA_FORBIDDEN + "[0]=")
+          .withPropertyValues(EXTRA_FORBIDDEN + "[0]=")
           .run(
               context ->
                   assertThat(context)
@@ -242,7 +232,7 @@ class ObservabilityAutoConfigurationTest {
     private List<MeterFilterReply> regionAndTenantReplies() {
       var replies = new ArrayList<MeterFilterReply>();
       contextRunner
-          .withPropertyValues(MODULE_ON, EXTRA_FORBIDDEN + "=" + TENANT_TAG)
+          .withPropertyValues(EXTRA_FORBIDDEN + "=" + TENANT_TAG)
           .run(
               context ->
                   replies.addAll(
@@ -266,7 +256,7 @@ class ObservabilityAutoConfigurationTest {
                   TaskExecutionAutoConfiguration.class,
                   TaskSchedulingAutoConfiguration.class,
                   ObservabilityAutoConfiguration.class))
-          .withPropertyValues(MODULE_ON, "spring.task.execution.propagate-context=true")
+          .withPropertyValues("spring.task.execution.propagate-context=true")
           .withUserConfiguration(ServiceExecutorServiceBean.class, SchedulingEnabled.class)
           .run(
               context ->
@@ -280,14 +270,13 @@ class ObservabilityAutoConfigurationTest {
             + " stratum.context-propagation.executor-beans is false")
     void wrapsServiceExecutorServiceBeans() {
       contextRunner
-          .withPropertyValues(MODULE_ON)
           .withUserConfiguration(ServiceExecutorServiceBean.class)
           .run(
               context ->
                   assertThat(context.getBean(ExecutorService.class))
                       .isInstanceOf(ContextExecutorService.class));
       contextRunner
-          .withPropertyValues(MODULE_ON, "stratum.context-propagation.executor-beans=false")
+          .withPropertyValues("stratum.context-propagation.executor-beans=false")
           .withUserConfiguration(ServiceExecutorServiceBean.class)
           .run(
               context ->
@@ -302,10 +291,10 @@ class ObservabilityAutoConfigurationTest {
     void reactorContextPropagationFollowsFinalSetting() {
       Hooks.disableAutomaticContextPropagation();
       contextRunner
-          .withPropertyValues(MODULE_ON, REACTOR_CONTEXT_PROPAGATION + "=limited")
+          .withPropertyValues(REACTOR_CONTEXT_PROPAGATION + "=limited")
           .run(_ -> assertThat(Hooks.isAutomaticContextPropagationEnabled()).isFalse());
       contextRunner
-          .withPropertyValues(MODULE_ON, REACTOR_CONTEXT_PROPAGATION + "=auto")
+          .withPropertyValues(REACTOR_CONTEXT_PROPAGATION + "=auto")
           .run(_ -> assertThat(Hooks.isAutomaticContextPropagationEnabled()).isTrue());
       Hooks.disableAutomaticContextPropagation();
     }

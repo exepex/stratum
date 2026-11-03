@@ -34,7 +34,7 @@ import org.springframework.web.reactive.HandlerAdapter;
 
 /**
  * Gives every log line of a reactive request its fields, every request its correlation ID, one
- * closing log line and a time limit, when {@code stratum.web.enabled=true}.
+ * closing log line and a time limit, unless {@code stratum.web.enabled=false}.
  */
 @StratumInternal
 @AutoConfiguration

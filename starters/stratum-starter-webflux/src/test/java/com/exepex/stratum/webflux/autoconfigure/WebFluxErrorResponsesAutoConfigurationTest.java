@@ -34,9 +34,6 @@ import org.springframework.context.annotation.Bean;
 @DisplayName("WebFluxErrorResponsesAutoConfiguration creates the WebFlux error handling beans")
 class WebFluxErrorResponsesAutoConfigurationTest {
 
-  /** The setting that turns the module on. */
-  private static final String MODULE_ON = WebConstants.ENABLED + "=true";
-
   /** A reactive application with Stratum's and Spring Boot's error handling. */
   private final ReactiveWebApplicationContextRunner contextRunner =
       new ReactiveWebApplicationContextRunner()
@@ -53,28 +50,25 @@ class WebFluxErrorResponsesAutoConfigurationTest {
     @Test
     @DisplayName("with the module on, Stratum's error beans replace Spring Boot's")
     void createsBeans() {
-      contextRunner
-          .withPropertyValues(MODULE_ON)
-          .run(
-              context -> {
-                assertThat(context)
-                    .hasSingleBean(WebProperties.class)
-                    .hasSingleBean(ErrorResponseFactory.class)
-                    .hasSingleBean(BackwardCompatibleModeReport.class)
-                    .hasSingleBean(BootErrorBodyCounter.class)
-                    .hasSingleBean(ProblemDetailIdsInterceptor.class)
-                    .hasSingleBean(ErrorWebExceptionHandler.class);
-                assertThat(context.getBean(ErrorAttributes.class))
-                    .isInstanceOf(StratumErrorAttributes.class);
-                assertThat(context.getBean(ErrorWebExceptionHandler.class))
-                    .isInstanceOf(StratumErrorWebExceptionHandler.class);
-              });
+      contextRunner.run(
+          context -> {
+            assertThat(context)
+                .hasSingleBean(WebProperties.class)
+                .hasSingleBean(ErrorResponseFactory.class)
+                .hasSingleBean(BackwardCompatibleModeReport.class)
+                .hasSingleBean(BootErrorBodyCounter.class)
+                .hasSingleBean(ProblemDetailIdsInterceptor.class)
+                .hasSingleBean(ErrorWebExceptionHandler.class);
+            assertThat(context.getBean(ErrorAttributes.class))
+                .isInstanceOf(StratumErrorAttributes.class);
+            assertThat(context.getBean(ErrorWebExceptionHandler.class))
+                .isInstanceOf(StratumErrorWebExceptionHandler.class);
+          });
     }
 
     @Test
-    @DisplayName("with the module unset or off, Spring Boot's error handling is left as it is")
+    @DisplayName("with the module off, Spring Boot's error handling is left as it is")
     void moduleOffCreatesNothing() {
-      contextRunner.run(context -> assertBootErrorHandlingOnly(context));
       contextRunner
           .withPropertyValues(WebConstants.ENABLED + "=false")
           .run(context -> assertBootErrorHandlingOnly(context));
@@ -96,7 +90,6 @@ class WebFluxErrorResponsesAutoConfigurationTest {
     void nonReactiveApplicationGetsNothing() {
       new ApplicationContextRunner()
           .withConfiguration(AutoConfigurations.of(WebFluxErrorResponsesAutoConfiguration.class))
-          .withPropertyValues(MODULE_ON)
           .run(context -> assertThat(context).doesNotHaveBean(ErrorResponseFactory.class));
     }
 
@@ -105,7 +98,6 @@ class WebFluxErrorResponsesAutoConfigurationTest {
     void withoutMicrometerHasNoCounter() {
       contextRunner
           .withClassLoader(new FilteredClassLoader(MeterRegistry.class))
-          .withPropertyValues(MODULE_ON)
           .run(
               context ->
                   assertThat(context)
@@ -126,7 +118,6 @@ class WebFluxErrorResponsesAutoConfigurationTest {
       var serviceErrorAttributes = new DefaultErrorAttributes();
       ErrorWebExceptionHandler serviceHandler = (exchange, failure) -> null;
       contextRunner
-          .withPropertyValues(MODULE_ON)
           .withBean(ErrorResponseFactory.class, () -> serviceFactory)
           .withBean(ErrorAttributes.class, () -> serviceErrorAttributes)
           .withBean(ErrorWebExceptionHandler.class, () -> serviceHandler)
@@ -147,7 +138,6 @@ class WebFluxErrorResponsesAutoConfigurationTest {
     @DisplayName("a company framework's auto-configuration with no order wins over Stratum's")
     void companyBeansWin() {
       new ReactiveWebApplicationContextRunner()
-          .withPropertyValues(MODULE_ON)
           .withConfiguration(
               AutoConfigurations.of(
                   WebFluxErrorResponsesAutoConfiguration.class,
@@ -168,7 +158,6 @@ class WebFluxErrorResponsesAutoConfigurationTest {
   @DisplayName("a web customizer declared as a bean stops startup with SX-CORE-1004")
   void customizerBeanStopsStartup() {
     contextRunner
-        .withPropertyValues(MODULE_ON)
         .withBean("webCustomizer", WebPropertiesCustomizer.class, () -> settings -> settings)
         .run(
             context ->

@@ -6,7 +6,8 @@ web stack, Spring MVC or WebFlux, so a bundle starts a web server; their error r
 built, and their other features, such as the request log, are planned. The other starters are
 planned and add nothing yet.
 
-[← Documentation home](../README.md) · Decision record: [ADR 0003](../adr/0003-bundle-starters-and-module-switches.md)
+[← Documentation home](../README.md) · Decision records: [ADR 0003](../adr/0003-bundle-starters-and-module-switches.md),
+[ADR 0010](../adr/0010-modules-on-when-present-and-one-compatibility-switch.md)
 
 ## What a bundle is
 
@@ -42,33 +43,32 @@ No `<version>` tag: the parent or the BOM sets it.
 </dependency>
 ```
 
-A bundle only puts the starters on your classpath. Every module stays **off until you switch it
-on**, so switch on the ones your service uses:
+A bundle puts the starters on your classpath, and every module it brings is **on**, with no line
+of configuration. Turn off a module your service does not use with `stratum.<module>.enabled=false`,
+for example the observability module:
 
 ```properties
-stratum.web.enabled=true
-stratum.logging.enabled=true
-stratum.observability.enabled=true
+stratum.observability.enabled=false
 ```
 
 ```yaml
 stratum:
-  web:
-    enabled: true
-  logging:
-    enabled: true
   observability:
-    enabled: true
+    enabled: false
 ```
 
-Modules you leave unset stay off and set nothing up. Some modules need one more setting once they
-are on, such as the observability module's Collector addresses
-([installation](../getting-started/installation.md)).
+Some modules need one more setting to start, such as the logging module's
+`spring.application.name` and the observability module's Collector addresses
+([installation](../getting-started/installation.md)). Without it, startup stops with an error that
+names the missing key and `stratum.<module>.enabled=false`
+([error codes](../guides/error-codes.md)); a module never switches itself off quietly.
+
+Adding a starter to a bundle turns its module on in every service that uses the bundle, so it goes
+in the release notes as a breaking change.
 
 > [!WARNING]
 > Once the security starter is built (it is planned), the microservice, reactive microservice and web-ui bundles will bring
-> Spring Security with it. While `stratum.security.enabled` is unset, Spring Boot's default will
-> apply and every endpoint will ask for a login. Switch security on and set its issuer, as
+> Spring Security with it, and the security module will be on. Set its issuer, as
 > [Security](security.md) shows, or exclude the starter as in
 > [Leave a starter out](#leave-a-starter-out).
 
@@ -105,10 +105,11 @@ its company's security and drops Stratum's:
 </dependency>
 ```
 
-To keep a starter on the classpath without Stratum setting anything up, leave its switch unset.
+To keep a starter on the classpath without Stratum setting anything up, set its switch to `false`,
+such as `stratum.security.enabled=false`.
 Spring Boot's own setup for the libraries the starter brings still applies, such as Spring
 Security's default login; to avoid that, exclude the starter as above. See
-[Turn a module on or off](../configuration/overriding-defaults.md#level-4-turn-a-module-on-or-off).
+[Turn a module off](../configuration/overriding-defaults.md#level-4-turn-a-module-off).
 
 ## Pick single starters instead
 

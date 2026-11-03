@@ -39,10 +39,11 @@ lets a few test calls through.*
 </dependency>
 ```
 
-The starter does nothing until you switch it on, in `application.properties`:
+The starter is on as soon as it is on the classpath; no line is needed. To turn it off, set in
+`application.properties`:
 
 ```properties
-stratum.resilience.enabled=true
+stratum.resilience.enabled=false
 ```
 
 or in `application.yml`:
@@ -50,7 +51,7 @@ or in `application.yml`:
 ```yaml
 stratum:
   resilience:
-    enabled: true
+    enabled: false
 ```
 
 ## Use it
@@ -130,7 +131,7 @@ every other policy starts from `default` and overrides what it sets.
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.resilience.enabled` | boolean | `false` | Switches the whole starter on. Until it is `true`, the starter sets up nothing. |
+| `stratum.resilience.enabled` | boolean | `true` | Whether the starter is on. With `false`, the starter sets up nothing. |
 
 ## Examples
 
@@ -185,8 +186,8 @@ customizer or builder, with the same names and defaults. This section will show 
 
 ## Switch it on or off
 
-`stratum.resilience.enabled=true` switches the starter on.
-Leaving it unset is the same as `false`.
+The starter is on when it is on the classpath. Leaving `stratum.resilience.enabled` unset, or empty,
+is the same as `true`.
 
 `stratum.resilience.enabled=false` removes all policies; HTTP clients then make single attempts with
 only their timeouts. To switch off one client only, set its `resilience-policy: none`.

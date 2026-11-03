@@ -6,10 +6,10 @@ you, so you know what is happening behind the scenes.
 
 Time: about 20 minutes. [← Documentation home](../README.md)
 
-> **Add the starter, then switch it on.** A Stratum starter does nothing until you set
-> `stratum.<module>.enabled=true` for its module, as step 3 does. If you forget, the service logs
-> one line at startup naming each module that is present but off, such as
-> `Stratum modules present but off: web (stratum.web.enabled=true)`.
+> **Add the starter, and its module is on.** A Stratum starter sets up its module as soon as it is
+> on the classpath; you write no line to switch it on. To keep one off, set
+> `stratum.<module>.enabled=false`. The service then logs one line at startup naming each module
+> turned off, such as `Stratum modules present but off: web (stratum.web.enabled=false)`.
 
 ## What you will build
 
@@ -116,14 +116,7 @@ spring:
     name: order-service
 
 stratum:
-  web:
-    enabled: true
-  logging:
-    enabled: true
-  observability:
-    enabled: true
   http-client:
-    enabled: true
     clients:
       inventory:
         base-url: http://localhost:8081
@@ -134,21 +127,17 @@ The same in `src/main/resources/application.properties` (use one file, not both)
 
 ```properties
 spring.application.name=order-service
-stratum.web.enabled=true
-stratum.logging.enabled=true
-stratum.observability.enabled=true
-stratum.http-client.enabled=true
 stratum.http-client.clients.inventory.base-url=http://localhost:8081
 stratum.http-client.clients.inventory.read-timeout=2s
 ```
 
-Once it is on, the observability module also needs your OpenTelemetry Collector's addresses, in
+The observability module also needs your OpenTelemetry Collector's addresses, in
 every profile, or it stops at startup. To try it without a Collector, point both at `localhost`
 (`http://localhost:4318/v1/metrics` and `http://localhost:4318/v1/traces`), and the data is dropped
 quietly ([Observability](../../starters/stratum-starter-observability/README.md#running-without-a-collector)).
 
-**What Stratum did:** it switched on the four modules (each is off until its `enabled` property
-is `true`) and registered an HTTP client group named `inventory`. Everything you did not
+**What Stratum did:** it switched on the four modules (each is on because its starter is on the
+classpath) and registered an HTTP client group named `inventory`. Everything you did not
 set (connect timeout, trace propagation, correlation header, logging) uses Stratum's defaults. See
 [HTTP client](../modules/http-client.md#properties).
 

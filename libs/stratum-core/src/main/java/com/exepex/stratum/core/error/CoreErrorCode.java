@@ -68,31 +68,33 @@ public enum CoreErrorCode implements ErrorCode {
       ""),
 
   /**
-   * A module is on, but its switch was not {@code true} yet when the modules' startup steps ran, as
-   * with a switch set only in a {@code @PropertySource} file, so the module would run half on. The
-   * detail names the switch and the property source its value comes from.
+   * A module is on, but its switch was {@code false} when the modules' startup steps ran, as with
+   * {@code false} in {@code application.yml} and {@code true} in a source added later, so the
+   * module would run without its startup defaults and checks. The detail names the switch and the
+   * property source that turns it on.
    */
   MODULE_SWITCHED_ON_TOO_LATE(
       "SX-CORE-1006",
       Severity.ERROR,
       "A module is switched on where Spring Boot reads it too late for the module's startup steps,"
           + " so it would run half on",
-      "Set the switch in application.properties or application.yml, an environment variable or the"
-          + " command line. A @PropertySource file loads too late for it."),
+      "Set the switch in one place that Spring Boot reads early: application.properties or"
+          + " application.yml, an environment variable or the command line. A source added after"
+          + " the configuration files is read too late for it."),
 
   /**
-   * A module is off, but its switch was {@code true} when the modules' startup steps ran, so its
-   * startup defaults would apply without its beans, and it would run half off. The detail names the
-   * switch and the property source that turns it off.
+   * A module is off, but its switch was not {@code false} when the modules' startup steps ran, as
+   * with {@code false} only in a {@code @PropertySource} file, so its startup defaults would apply
+   * without its beans, and it would run half off. The detail names the switch and the property
+   * source that turns it off.
    */
   MODULE_SWITCHED_OFF_TOO_LATE(
       "SX-CORE-1007",
       Severity.ERROR,
       "A module is switched off where Spring Boot reads it too late for the module's startup steps,"
           + " so it would run half off",
-      "Set the switch in one place that Spring Boot reads early: application.properties or"
-          + " application.yml, an environment variable or the command line. A source added after"
-          + " the configuration files is read too late for it.");
+      "Set the switch in application.properties or application.yml, an environment variable or the"
+          + " command line. A @PropertySource file loads too late for it.");
 
   /** The code, such as {@code SX-CORE-1001}. */
   private final String code;

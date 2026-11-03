@@ -22,8 +22,6 @@ import reactor.core.publisher.Mono;
 @DisplayName("ObservabilityAutoConfiguration creates the linked-work helpers, and each backs off")
 class LinkedWorkAutoConfigurationTest {
 
-  private static final String MODULE_ON = ObservabilityConstants.ENABLED + "=true";
-
   private final ApplicationContextRunner contextRunner =
       new ApplicationContextRunner()
           .withConfiguration(
@@ -33,20 +31,17 @@ class LinkedWorkAutoConfigurationTest {
   @Test
   @DisplayName("with the module on, the handler and both helpers are created")
   void createsLinkedWorkBeans() {
-    contextRunner
-        .withPropertyValues(MODULE_ON)
-        .run(
-            context ->
-                assertThat(context)
-                    .hasSingleBean(LinkedWorkTracingHandler.class)
-                    .hasSingleBean(LinkedWork.class)
-                    .hasSingleBean(ReactiveLinkedWork.class));
+    contextRunner.run(
+        context ->
+            assertThat(context)
+                .hasSingleBean(LinkedWorkTracingHandler.class)
+                .hasSingleBean(LinkedWork.class)
+                .hasSingleBean(ReactiveLinkedWork.class));
   }
 
   @Test
-  @DisplayName("with the module unset or off, none of them is created")
+  @DisplayName("with the module off, none of them is created")
   void moduleOffCreatesNoLinkedWorkBeans() {
-    contextRunner.run(context -> assertThat(context).doesNotHaveBean(LinkedWork.class));
     contextRunner
         .withPropertyValues(ObservabilityConstants.ENABLED + "=false")
         .run(
@@ -61,7 +56,6 @@ class LinkedWorkAutoConfigurationTest {
   @DisplayName("without Reactor, the blocking helper is still created but the reactive one is not")
   void withoutReactorCreatesNoReactiveHelper() {
     contextRunner
-        .withPropertyValues(MODULE_ON)
         .withClassLoader(new FilteredClassLoader(Mono.class))
         .run(
             context ->
@@ -74,7 +68,6 @@ class LinkedWorkAutoConfigurationTest {
   @DisplayName("the service's own handler and helpers replace Stratum's")
   void serviceLinkedWorkBeansWin() {
     contextRunner
-        .withPropertyValues(MODULE_ON)
         .withUserConfiguration(ServiceLinkedWorkBeans.class)
         .run(
             context -> {
@@ -94,7 +87,6 @@ class LinkedWorkAutoConfigurationTest {
   @DisplayName("a company framework's auto-configuration with no order wins over Stratum's")
   void companyLinkedWorkBeansWin() {
     new ApplicationContextRunner()
-        .withPropertyValues(MODULE_ON)
         .withConfiguration(
             AutoConfigurations.of(
                 ValidationAutoConfiguration.class,

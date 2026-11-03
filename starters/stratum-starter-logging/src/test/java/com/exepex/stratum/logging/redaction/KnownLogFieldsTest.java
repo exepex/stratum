@@ -4,13 +4,13 @@ import static com.exepex.stratum.logging.testsupport.LoggingTestData.environment
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.logging.LoggingConstants;
-import com.exepex.stratum.logging.testsupport.LoggingTestData;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.FieldSource;
+import org.springframework.mock.env.MockEnvironment;
 
 @DisplayName("KnownLogFields knows which fields of each format are safe or stack traces")
 class KnownLogFieldsTest {
@@ -198,7 +198,7 @@ class KnownLogFieldsTest {
     @DisplayName("a service's own formatter class, or no format, makes every field searched")
     void unknownFormatKnowsNothing() {
       var ownFormatter = fieldsFor(ECS, "com.example.MyFormatter");
-      var noFormat = KnownLogFields.from(LoggingTestData.environmentWithModuleOn());
+      var noFormat = KnownLogFields.from(new MockEnvironment());
 
       assertThat(ownFormatter.isSafe(TIMESTAMP)).isFalse();
       assertThat(ownFormatter.isStackTrace(ECS_STACK_TRACE)).isFalse();

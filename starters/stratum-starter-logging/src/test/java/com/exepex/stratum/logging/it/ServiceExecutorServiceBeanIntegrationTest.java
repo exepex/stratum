@@ -25,7 +25,7 @@ import org.springframework.test.annotation.DirtiesContext;
       ServiceExecutorServiceBeanIntegrationTest.ServicePools.class,
       ServiceExecutorServiceBeanIntegrationTest.ReceiptSender.class
     },
-    properties = {"spring.application.name=orders", "stratum.logging.enabled=true"})
+    properties = {"spring.application.name=orders"})
 // Closing the context resets logging, so later tests in this JVM start from Spring Boot's own.
 @DirtiesContext
 @DisplayName(

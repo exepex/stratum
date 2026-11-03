@@ -138,9 +138,9 @@ A typical REST service that calls one other service:
 </dependencies>
 ```
 
-Every starter is off until you switch it on. Set `stratum.<module>.enabled=true` for each module
-your service uses, in step 3. A module that is present but off is named in one INFO line at
-startup, with the property that turns it on.
+Every starter's module is on as soon as the starter is on the classpath; you write no line to
+switch it on. To keep one off, set `stratum.<module>.enabled=false`. A module turned off is named
+in one INFO line at startup, with the property that turned it off.
 
 Rules that keep you out of trouble:
 
@@ -153,44 +153,29 @@ Rules that keep you out of trouble:
 
 ## Step 3: set the minimum configuration
 
-Every service must have a name. Stratum uses it in logs, metrics, traces and cache keys. Then switch
-on each module you added, because every module is off until its `enabled` property is `true`. For
-the REST service above:
+Every service must have a name. Stratum uses it in logs, metrics, traces and cache keys. Each module
+you added is already on, so the name is the only line the REST service above needs:
 
 ```yaml
 # src/main/resources/application.yml
 spring:
   application:
     name: order-service
-stratum:
-  web:
-    enabled: true
-  logging:
-    enabled: true
-  observability:
-    enabled: true
-  security:
-    enabled: true
-  http-client:
-    enabled: true
 ```
 
 ```properties
 # src/main/resources/application.properties
 spring.application.name=order-service
-stratum.web.enabled=true
-stratum.logging.enabled=true
-stratum.observability.enabled=true
-stratum.security.enabled=true
-stratum.http-client.enabled=true
 ```
 
-Some starters, once switched on, need one more setting before they can work. Stratum stops at startup with a clear
-message if it is missing:
+Some starters need one more setting before they can work. Stratum stops at startup with a clear
+message if it is missing, and the message also names `stratum.<module>.enabled=false`, which turns
+that module off instead:
 
 | Starter | Required setting |
 | --- | --- |
-| `stratum-starter-observability` | `management.otlp.metrics.export.url` and `management.opentelemetry.tracing.export.otlp.endpoint`, in every profile once enabled |
+| `stratum-starter-logging` | `spring.application.name` |
+| `stratum-starter-observability` | `management.otlp.metrics.export.url` and `management.opentelemetry.tracing.export.otlp.endpoint`, in every profile |
 | `stratum-starter-security` | `stratum.security.resource-server.issuer-uri` |
 | `stratum-starter-http-client` | `stratum.http-client.clients.<name>.base-url` for each client |
 | `stratum-starter-data-jpa` | `spring.datasource.url`, `username`, `password` |

@@ -36,7 +36,6 @@ import reactor.core.scheduler.Schedulers;
     classes = {OrdersApplication.class, RecordedSpans.class},
     properties = {
       "spring.main.web-application-type=none",
-      "stratum.observability.enabled=true",
       "management.tracing.sampling.probability=1.0",
       "management.tracing.export.enabled=false",
       "management.otlp.metrics.export.enabled=false"

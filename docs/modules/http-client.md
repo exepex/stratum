@@ -24,10 +24,11 @@ groups, backed by `RestClient`.
 </dependency>
 ```
 
-The starter does nothing until you switch it on, in `application.properties`:
+The starter is on as soon as it is on the classpath; no line is needed. To turn it off, set in
+`application.properties`:
 
 ```properties
-stratum.http-client.enabled=true
+stratum.http-client.enabled=false
 ```
 
 or in `application.yml`:
@@ -35,7 +36,7 @@ or in `application.yml`:
 ```yaml
 stratum:
   http-client:
-    enabled: true
+    enabled: false
 ```
 
 ## Use it in three steps
@@ -116,7 +117,7 @@ Let the rest propagate: the web starter turns them into the right Problem Detail
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.http-client.enabled` | boolean | `false` | Switches the whole starter on. Until it is `true`, the starter sets up nothing. |
+| `stratum.http-client.enabled` | boolean | `true` | Whether the starter is on. With `false`, the starter sets up nothing. |
 | `stratum.http-client.defaults.connect-timeout` | duration | `2s` | Time allowed to open a connection. |
 | `stratum.http-client.defaults.read-timeout` | duration | `5s` | Time allowed to wait for the response. |
 | `stratum.http-client.defaults.max-connections` | int | `50` | Connection pool size per client. |
@@ -200,8 +201,8 @@ customizer or builder, with the same names and defaults. This section will show 
 
 ## Switch it on or off
 
-`stratum.http-client.enabled=true` switches the starter on.
-Leaving it unset is the same as `false`.
+The starter is on when it is on the classpath. Leaving `stratum.http-client.enabled` unset, or
+empty, is the same as `true`.
 
 When it is off: Spring Boot's own HTTP client support stays, without Stratum's
 timeouts, headers or error mapping.

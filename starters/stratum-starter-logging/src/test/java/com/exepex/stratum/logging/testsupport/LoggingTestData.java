@@ -97,22 +97,12 @@ public class LoggingTestData {
   }
 
   /**
-   * Returns an environment with the module switched on and nothing else set.
+   * Returns an environment with a service name, which the module needs to start.
    *
    * @return the environment, which a test can add properties to
    */
-  public static MockEnvironment environmentWithModuleOn() {
-    return new MockEnvironment().withProperty(LoggingConstants.ENABLED, "true");
-  }
-
-  /**
-   * Returns an environment with the module switched on and a service name, which the module needs
-   * to start.
-   *
-   * @return the environment, which a test can add properties to
-   */
-  public static MockEnvironment environmentWithModuleOnAndServiceName() {
-    return environmentWithModuleOn().withProperty(LoggingConstants.APPLICATION_NAME, "orders");
+  public static MockEnvironment environmentWithServiceName() {
+    return new MockEnvironment().withProperty(LoggingConstants.APPLICATION_NAME, "orders");
   }
 
   /**
@@ -169,6 +159,6 @@ public class LoggingTestData {
    * @return the environment, which a test can add properties to
    */
   public static MockEnvironment environmentWithConsoleFormat(String format) {
-    return environmentWithModuleOn().withProperty(LoggingConstants.CONSOLE_FORMAT, format);
+    return new MockEnvironment().withProperty(LoggingConstants.CONSOLE_FORMAT, format);
   }
 }

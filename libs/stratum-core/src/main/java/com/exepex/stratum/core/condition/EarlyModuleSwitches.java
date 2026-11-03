@@ -19,17 +19,17 @@ import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
 
 /**
- * Records, before the application starts, which modules are switched on at the point where the
+ * Records, before the application starts, which modules are switched off at the point where the
  * modules' own startup steps run. {@link OnStratumModuleCondition} uses the record to stop startup
- * when a module is on only later, as with a switch in a {@code @PropertySource} file: that module's
- * beans would run, but its startup defaults and checks would have been skipped.
+ * when a module is switched off only later, as with a switch in a {@code @PropertySource} file:
+ * that module's startup defaults would apply without its beans.
  */
 @StratumInternal
 public class EarlyModuleSwitches implements EnvironmentPostProcessor, Ordered {
 
   /**
    * The name of the property source that holds the record, and of its one property: the modules
-   * switched on, each in Spring Boot's uniform form, such as {@code httpclient}, so that {@code
+   * switched off, each in Spring Boot's uniform form, such as {@code httpclient}, so that {@code
    * stratum.http-client.enabled} and {@code STRATUM_HTTPCLIENT_ENABLED} name the same module. It is
    * not a {@code stratum.*} key, so no module's settings read it.
    */
@@ -50,7 +50,7 @@ public class EarlyModuleSwitches implements EnvironmentPostProcessor, Ordered {
   }
 
   /**
-   * Adds the record of the modules switched on now.
+   * Adds the record of the modules switched off now.
    *
    * @param environment the application's environment
    * @param application the application being started
@@ -59,27 +59,28 @@ public class EarlyModuleSwitches implements EnvironmentPostProcessor, Ordered {
   public void postProcessEnvironment(
       ConfigurableEnvironment environment, SpringApplication application) {
     var binder = Binder.get(environment);
-    var modulesOn =
+    var modulesOff =
         StreamSupport.stream(ConfigurationPropertySources.get(environment).spliterator(), false)
             .filter(IterableConfigurationPropertySource.class::isInstance)
             .flatMap(source -> ((IterableConfigurationPropertySource) source).stream())
             .filter(this::isModuleSwitch)
-            .filter(name -> isOn(binder, name))
+            .filter(name -> isOff(binder, name))
             .map(name -> name.getElement(1, Form.UNIFORM))
             .collect(Collectors.toUnmodifiableSet());
     environment
         .getPropertySources()
-        .addLast(new MapPropertySource(RECORD, Map.of(RECORD, modulesOn)));
+        .addLast(new MapPropertySource(RECORD, Map.of(RECORD, modulesOff)));
   }
 
   /**
-   * Returns whether a module switch is {@code true}. A value that is not a boolean counts as off
-   * here: it may belong to a module the service does not have, which nothing else reads, and a
-   * module the service has stops startup when its own condition reads the value.
+   * Returns whether a module switch is {@code false}. An empty value counts as unset, so on. A
+   * value that is not a boolean counts as on here: it may belong to a module the service does not
+   * have, which nothing else reads, and a module the service has stops startup when its own
+   * condition reads the value.
    */
-  private boolean isOn(Binder binder, ConfigurationPropertyName name) {
+  private boolean isOff(Binder binder, ConfigurationPropertyName name) {
     try {
-      return Boolean.TRUE.equals(binder.bind(name, Bindable.of(Boolean.class)).orElse(false));
+      return Boolean.FALSE.equals(binder.bind(name, Bindable.of(Boolean.class)).orElse(true));
     } catch (BindException notBoolean) {
       return false;
     }

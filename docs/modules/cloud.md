@@ -30,10 +30,11 @@ Add the one for your provider:
 </dependency>
 ```
 
-The starter does nothing until you switch it on, in `application.properties`:
+The starter is on as soon as it is on the classpath; no line is needed. To turn it off, set in
+`application.properties`:
 
 ```properties
-stratum.cloud.enabled=true
+stratum.cloud.enabled=false
 ```
 
 or in `application.yml`:
@@ -41,7 +42,7 @@ or in `application.yml`:
 ```yaml
 stratum:
   cloud:
-    enabled: true
+    enabled: false
 ```
 
 ## Provider-neutral interfaces
@@ -79,7 +80,7 @@ role, or environment variables on a developer machine.
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.cloud.enabled` | boolean | `false` | Switches the whole starter on. Until it is `true`, the starter sets up nothing. |
+| `stratum.cloud.enabled` | boolean | `true` | Whether the starter is on. With `false`, the starter sets up nothing. |
 | `stratum.cloud.region` | string | *(from the platform)* | Region to use. |
 | `stratum.cloud.storage.buckets.<alias>` | string | *(none)* | Maps an alias used in code (`invoices`) to a real bucket or container name. |
 | `stratum.cloud.secrets.enabled` | boolean | `false` | Loads secrets from the provider's secret store as properties. |

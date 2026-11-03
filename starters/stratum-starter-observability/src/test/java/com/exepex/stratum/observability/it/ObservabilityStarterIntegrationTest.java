@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.core.properties.ServiceInstanceId;
+import com.exepex.stratum.observability.ObservabilityConstants;
 import com.exepex.stratum.observability.testsupport.ObservabilityTestData;
 import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.registry.otlp.HistogramFlavor;
@@ -35,9 +36,6 @@ class ObservabilityStarterIntegrationTest {
 
   /** A password in the partner's URL, which must not reach spans or metrics. */
   private static final String PASSWORD = "LEAK-password-7c2";
-
-  /** The argument that turns the module on. */
-  private static final String MODULE_ON = "--stratum.observability.enabled=true";
 
   /** Micrometer's warning when it cannot push metrics. */
   private static final String PUSH_FAILED = "Failed to publish metrics";
@@ -84,7 +82,7 @@ class ObservabilityStarterIntegrationTest {
     try (var context =
         start(
             collector.withExportsSentHere(
-                "--spring.application.name=orders", "--stratum.environment=prod", MODULE_ON))) {
+                "--spring.application.name=orders", "--stratum.environment=prod"))) {
       callPartner(context);
       assertThat(context.getBean(OtlpConfig.class).histogramFlavor())
           .isEqualTo(HistogramFlavor.BASE2_EXPONENTIAL_BUCKET_HISTOGRAM);
@@ -115,9 +113,13 @@ class ObservabilityStarterIntegrationTest {
   }
 
   @Test
-  @DisplayName("with the module unset, sends nothing even though the starter is present")
+  @DisplayName("with the module off, sends nothing even though the starter is present")
   void moduleOffSendsNothing() {
-    try (var context = start(collector.withExportsSentHere("--spring.application.name=orders"))) {
+    try (var context =
+        start(
+            collector.withExportsSentHere(
+                "--spring.application.name=orders",
+                "--" + ObservabilityConstants.ENABLED + "=false"))) {
       callPartner(context);
     }
 
@@ -126,18 +128,23 @@ class ObservabilityStarterIntegrationTest {
   }
 
   @Test
-  @DisplayName("with the module on and no export address, startup stops with SX-OBSERVABILITY-1001")
+  @DisplayName(
+      "with no export address, startup stops with SX-OBSERVABILITY-1001, whose fix names the switch"
+          + " that turns the module off")
   void missingAddressStopsStartup() {
     assertThatExceptionOfType(StratumException.class)
-        .isThrownBy(() -> start(MODULE_ON))
-        .withMessageStartingWith("SX-OBSERVABILITY-1001: ");
+        .isThrownBy(() -> start())
+        .withMessageStartingWith("SX-OBSERVABILITY-1001: ")
+        .satisfies(
+            failure ->
+                assertThat(failure.getErrorCode().getFix())
+                    .contains(ObservabilityConstants.ENABLED + "=false"));
   }
 
   @Test
   @DisplayName("with OpenTelemetry off, starts with only a metrics address and still sends metrics")
   void openTelemetryOffNeedsOnlyMetricsAddress() {
     start(
-            MODULE_ON,
             "--management.opentelemetry.enabled=false",
             "--management.otlp.metrics.export.url=" + collector.url(CollectorStub.METRICS_PATH))
         .close();
@@ -146,10 +153,9 @@ class ObservabilityStarterIntegrationTest {
     assertThat(collector.bodiesOf(CollectorStub.TRACES_PATH)).isEmpty();
   }
 
-  /** Starts and stops the application with the module on and only metrics sent, to an address. */
+  /** Starts and stops the application with only metrics sent, to an address. */
   private void runWithMetricsAddress(String metricsAddress) {
     start(
-            MODULE_ON,
             "--management.otlp.metrics.export.url=" + metricsAddress,
             "--management.tracing.export.enabled=false")
         .close();

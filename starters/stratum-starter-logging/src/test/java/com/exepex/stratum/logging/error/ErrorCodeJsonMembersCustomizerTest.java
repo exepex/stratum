@@ -44,8 +44,7 @@ class ErrorCodeJsonMembersCustomizerTest {
 
   /** The environment with the module on, after it has set the default ECS format. */
   private final MockEnvironment moduleOn =
-      LoggingTestData.environmentWithModuleOn()
-          .withProperty(LoggingConstants.CONSOLE_FORMAT, "ecs");
+      new MockEnvironment().withProperty(LoggingConstants.CONSOLE_FORMAT, "ecs");
 
   /** Writes a log line with the exception through a writer the customizer has customized. */
   private String writeLogLine(MockEnvironment environment, @Nullable Throwable exception) {
@@ -117,7 +116,7 @@ class ErrorCodeJsonMembersCustomizerTest {
   @DisplayName("with a plain-text console and a JSON file, the file's lines get the field")
   void writesCodeForStructuredFile() {
     var textConsoleJsonFile =
-        LoggingTestData.environmentWithModuleOn()
+        new MockEnvironment()
             .withProperty(LoggingConstants.FORMAT, "text")
             .withProperty(LoggingConstants.FILE_FORMAT, "ecs");
 
@@ -138,7 +137,7 @@ class ErrorCodeJsonMembersCustomizerTest {
   @DisplayName("any value but Stratum's text class is treated as JSON and gets error.code")
   void keepsFieldForServiceFormatterClass() {
     var ownFormatter =
-        LoggingTestData.environmentWithModuleOn()
+        new MockEnvironment()
             .withProperty(LoggingConstants.CONSOLE_FORMAT, "com.acme.orders.logging.OrdersFormat")
             .withProperty(LoggingConstants.FILE_FORMAT, "com.acme.orders.logging.OrdersFormat");
 
@@ -146,9 +145,8 @@ class ErrorCodeJsonMembersCustomizerTest {
   }
 
   @Test
-  @DisplayName("with the module unset or off, nothing is added")
+  @DisplayName("with the module off, nothing is added")
   void addsNothingWhenModuleIsOff() {
-    assertThat(writeLogLine(new MockEnvironment(), CODED_FAILURE)).isEqualTo(LINE_WITHOUT_CODE);
     assertThat(
             writeLogLine(
                 new MockEnvironment().withProperty(LoggingConstants.ENABLED, "false"),

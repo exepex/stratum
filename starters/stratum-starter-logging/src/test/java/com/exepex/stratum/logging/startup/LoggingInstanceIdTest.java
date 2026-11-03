@@ -1,11 +1,12 @@
 package com.exepex.stratum.logging.startup;
 
-import static com.exepex.stratum.logging.testsupport.LoggingTestData.environmentWithModuleOnAndServiceName;
+import static com.exepex.stratum.logging.testsupport.LoggingTestData.environmentWithServiceName;
 import static com.exepex.stratum.logging.testsupport.LoggingTestData.runLoggingPostProcessor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
 import com.exepex.stratum.core.properties.ServiceInstanceId;
+import com.exepex.stratum.logging.LoggingConstants;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -58,7 +59,7 @@ class LoggingInstanceIdTest {
 
   /** Returns an environment with the module on, a service name and the given properties. */
   private MockEnvironment environmentWith(Map<String, String> properties) {
-    var environment = environmentWithModuleOnAndServiceName();
+    var environment = environmentWithServiceName();
     properties.forEach(environment::withProperty);
     return environment;
   }
@@ -160,7 +161,9 @@ class LoggingInstanceIdTest {
     @Test
     @DisplayName("with the logging module off, no log field is set")
     void moduleOffSetsNothing() {
-      var environment = runLoggingPostProcessor(new MockEnvironment().withProperty("x", "y"));
+      var environment =
+          runLoggingPostProcessor(
+              new MockEnvironment().withProperty(LoggingConstants.ENABLED, "false"));
 
       assertThat(instanceIdKeysIn(environment)).isEmpty();
     }

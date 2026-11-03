@@ -25,10 +25,11 @@ properties, the same way in every service.
 </dependency>
 ```
 
-The starter does nothing until you switch it on, in `application.properties`:
+The starter is on as soon as it is on the classpath; no line is needed. To turn it off, set in
+`application.properties`:
 
 ```properties
-stratum.security.enabled=true
+stratum.security.enabled=false
 ```
 
 or in `application.yml`:
@@ -36,7 +37,7 @@ or in `application.yml`:
 ```yaml
 stratum:
   security:
-    enabled: true
+    enabled: false
 ```
 
 **Required setting:** `stratum.security.resource-server.issuer-uri`. The service does not start
@@ -101,7 +102,7 @@ List<OrderView> mine(@AuthenticationPrincipal Jwt jwt) {
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.security.enabled` | boolean | `false` | Switches the whole starter on. Until it is `true`, the starter sets up nothing. |
+| `stratum.security.enabled` | boolean | `true` | Whether the starter is on. With `false`, the starter sets up nothing. |
 | `stratum.security.resource-server.issuer-uri` | URI | **required** | Issuer of the tokens, e.g. `https://idp.acme.com/realms/acme`. Keys are discovered from it. |
 | `stratum.security.resource-server.jwk-set-uri` | URI | *(discovered)* | Set only if the issuer does not publish discovery metadata. |
 | `stratum.security.resource-server.audiences` | list | *(empty: not checked)* | Accepted `aud` values. Set it, so tokens meant for other services are rejected. |
@@ -183,14 +184,14 @@ customizer or builder, with the same names and defaults. This section will show 
 - **A chain from your company's framework:** Stratum's chain is set up before Spring Boot's default
   one, so it can also come before a company auto-configuration that declares no order. The company's
   auto-configuration must then declare that it runs before Stratum's security auto-configuration
-  (`beforeName`), or the service leaves `stratum.security.enabled` unset. A chain defined in your own
+  (`beforeName`), or the service sets `stratum.security.enabled=false`. A chain defined in your own
   service code is not affected. See
   [Rule 2 of the company framework guide](../guides/company-framework.md#rule-2-the-companys-bean-wins).
 
 ## Switch it on or off
 
-`stratum.security.enabled=true` switches the starter on.
-Leaving it unset is the same as `false`.
+The starter is on when it is on the classpath. Leaving `stratum.security.enabled` unset, or empty,
+is the same as `true`.
 
 `stratum.security.enabled=false` removes Stratum's chain. Because Spring Security stays on the
 classpath, Spring Boot's own default (HTTP Basic with a generated password) applies instead. To run

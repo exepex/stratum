@@ -31,8 +31,6 @@ import reactor.core.publisher.Mono;
 @DisplayName("LoggingAutoConfiguration creates the workflow beans")
 class LoggingAutoConfigurationTest {
 
-  private static final String MODULE_ON = LoggingConstants.ENABLED + "=true";
-
   private static final String REACTOR_CONTEXT_PROPAGATION = "spring.reactor.context-propagation";
 
   private final ApplicationContextRunner contextRunner =
@@ -46,20 +44,17 @@ class LoggingAutoConfigurationTest {
     @Test
     @DisplayName("with the module on, the workflows, reactive workflows and aspect are created")
     void createsBeans() {
-      contextRunner
-          .withPropertyValues(MODULE_ON)
-          .run(
-              context ->
-                  assertThat(context)
-                      .hasSingleBean(Workflows.class)
-                      .hasSingleBean(ReactiveWorkflows.class)
-                      .hasSingleBean(WorkflowAspect.class));
+      contextRunner.run(
+          context ->
+              assertThat(context)
+                  .hasSingleBean(Workflows.class)
+                  .hasSingleBean(ReactiveWorkflows.class)
+                  .hasSingleBean(WorkflowAspect.class));
     }
 
     @Test
-    @DisplayName("with the module unset or off, nothing is created")
+    @DisplayName("with the module off, nothing is created")
     void moduleOffCreatesNothing() {
-      contextRunner.run(context -> assertThat(context).doesNotHaveBean(Workflows.class));
       contextRunner
           .withPropertyValues(LoggingConstants.ENABLED + "=false")
           .run(
@@ -76,7 +71,6 @@ class LoggingAutoConfigurationTest {
       observationRegistry.observationConfig().observationHandler(context -> true);
 
       contextRunner
-          .withPropertyValues(MODULE_ON)
           .withBean(ObservationRegistry.class, () -> observationRegistry)
           .run(
               context ->
@@ -108,7 +102,6 @@ class LoggingAutoConfigurationTest {
       var serviceReactiveWorkflows = new ReactiveWorkflows(serviceWorkflows);
       var serviceAspect = new WorkflowAspect(serviceWorkflows, serviceReactiveWorkflows);
       contextRunner
-          .withPropertyValues(MODULE_ON)
           .withBean(Workflows.class, () -> serviceWorkflows)
           .withBean(ReactiveWorkflows.class, () -> serviceReactiveWorkflows)
           .withBean(WorkflowAspect.class, () -> serviceAspect)
@@ -125,7 +118,6 @@ class LoggingAutoConfigurationTest {
     @DisplayName("a company framework's auto-configuration with no order wins over Stratum's")
     void companyBeansWin() {
       new ApplicationContextRunner()
-          .withPropertyValues(MODULE_ON)
           .withConfiguration(
               AutoConfigurations.of(
                   LoggingAutoConfiguration.class, CompanyBeansAutoConfiguration.class))
@@ -149,7 +141,6 @@ class LoggingAutoConfigurationTest {
     @DisplayName("without AspectJ, there is no aspect but the workflows still work")
     void withoutAspectjCreatesNoAspect() {
       contextRunner
-          .withPropertyValues(MODULE_ON)
           .withClassLoader(new FilteredClassLoader(Advice.class))
           .run(
               context ->
@@ -162,7 +153,6 @@ class LoggingAutoConfigurationTest {
     @DisplayName("without Reactor, there are no reactive workflows but the aspect still works")
     void withoutReactorCreatesNoReactiveWorkflows() {
       contextRunner
-          .withPropertyValues(MODULE_ON)
           .withClassLoader(new FilteredClassLoader(Mono.class))
           .run(
               context ->
@@ -180,7 +170,6 @@ class LoggingAutoConfigurationTest {
     @DisplayName("a logging customizer declared as a bean stops startup with SX-CORE-1004")
     void customizerBeanStopsStartup() {
       contextRunner
-          .withPropertyValues(MODULE_ON)
           .withUserConfiguration(CustomizerAsBeanConfiguration.class)
           .run(
               context ->
@@ -199,7 +188,6 @@ class LoggingAutoConfigurationTest {
     @DisplayName("a customizer bean without its settings type also stops startup with SX-CORE-1004")
     void untypedCustomizerBeanStopsStartup() {
       contextRunner
-          .withPropertyValues(MODULE_ON)
           .withBean("untypedCustomizer", StratumPropertiesCustomizer.class, this::keepSettings)
           .run(
               context ->
@@ -226,14 +214,13 @@ class LoggingAutoConfigurationTest {
             + " stratum.context-propagation.executor-beans is false")
     void wrapsServiceExecutorServiceBeans() {
       contextRunner
-          .withPropertyValues(MODULE_ON)
           .withUserConfiguration(ServiceExecutorServiceBean.class)
           .run(
               context ->
                   assertThat(context.getBean(ExecutorService.class))
                       .isInstanceOf(ContextExecutorService.class));
       contextRunner
-          .withPropertyValues(MODULE_ON, "stratum.context-propagation.executor-beans=false")
+          .withPropertyValues("stratum.context-propagation.executor-beans=false")
           .withUserConfiguration(ServiceExecutorServiceBean.class)
           .run(
               context ->
@@ -248,10 +235,10 @@ class LoggingAutoConfigurationTest {
     void reactorContextPropagationFollowsFinalSetting() {
       Hooks.disableAutomaticContextPropagation();
       contextRunner
-          .withPropertyValues(MODULE_ON, REACTOR_CONTEXT_PROPAGATION + "=limited")
+          .withPropertyValues(REACTOR_CONTEXT_PROPAGATION + "=limited")
           .run(_ -> assertThat(Hooks.isAutomaticContextPropagationEnabled()).isFalse());
       contextRunner
-          .withPropertyValues(MODULE_ON, REACTOR_CONTEXT_PROPAGATION + "=auto")
+          .withPropertyValues(REACTOR_CONTEXT_PROPAGATION + "=auto")
           .run(_ -> assertThat(Hooks.isAutomaticContextPropagationEnabled()).isTrue());
       Hooks.disableAutomaticContextPropagation();
     }
