@@ -10,8 +10,8 @@ import java.util.function.DoubleSupplier;
 import lombok.experimental.UtilityClass;
 
 /**
- * Checks what a web starter answers while {@code stratum.web.backward-compatible} is on, the same
- * on both web stacks, against a running service that has no handler for a path.
+ * Checks what a web starter answers while {@code stratum.backward-compatible} is on, the same on
+ * both web stacks, against a running service that has no handler for a path.
  */
 @StratumInternal
 @UtilityClass

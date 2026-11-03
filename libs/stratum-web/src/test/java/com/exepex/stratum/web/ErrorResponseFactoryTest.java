@@ -72,7 +72,8 @@ class ErrorResponseFactoryTest {
           WebTestData.withErrorStatuses(
               Map.of(
                   OrderErrorCode.DUPLICATE_ORDER.getCode(), HttpStatus.CONFLICT.value(),
-                  OrderErrorCode.STORE_DOWN.getCode(), HttpStatus.SERVICE_UNAVAILABLE.value())));
+                  OrderErrorCode.STORE_DOWN.getCode(), HttpStatus.SERVICE_UNAVAILABLE.value())),
+          true);
 
   @Nested
   @DisplayName("chooses Stratum's body or Spring Boot's")
@@ -93,10 +94,9 @@ class ErrorResponseFactoryTest {
     }
 
     @Test
-    @DisplayName("always Stratum's with backward-compatible switched off")
+    @DisplayName("always Stratum's with stratum.backward-compatible switched off")
     void standardBodyWhenSwitchedOff() {
-      var standardFactory =
-          new ErrorResponseFactory(WebTestData.defaults().backwardCompatible(false).build());
+      var standardFactory = new ErrorResponseFactory(WebTestData.defaults().build(), false);
 
       assertThat(standardFactory.answersWithStandardBody(new IllegalStateException(), List.of()))
           .isTrue();

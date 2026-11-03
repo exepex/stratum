@@ -187,7 +187,8 @@ class WebFluxErrorResponsesAutoConfigurationTest {
     return new ErrorResponseFactory(
         WebProperties.builder()
             .error(WebProperties.ErrorSettings.builder().statuses(Map.of()).build())
-            .build());
+            .build(),
+        false);
   }
 
   /** A company framework's auto-configuration that declares no order. */

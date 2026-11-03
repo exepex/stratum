@@ -26,7 +26,7 @@ import org.springframework.http.ProblemDetail;
 /**
  * Makes Stratum's standard error body: RFC 9457 Problem Details with the code, severity, field
  * details and request IDs, and never a stack trace, exception message or class name. It also
- * decides which failed requests get it while {@code stratum.web.backward-compatible} keeps Spring
+ * decides which failed requests get it while {@code stratum.backward-compatible} keeps Spring
  * Boot's body for the rest.
  */
 @Slf4j
@@ -67,17 +67,19 @@ public class ErrorResponseFactory {
    * Makes the factory.
    *
    * @param settings the web settings, whose error statuses it uses
+   * @param backwardCompatible whether {@code stratum.backward-compatible} is on, which keeps Spring
+   *     Boot's body for the errors Spring answers unless the caller asks for Stratum's
    */
-  public ErrorResponseFactory(WebProperties settings) {
+  public ErrorResponseFactory(WebProperties settings, boolean backwardCompatible) {
     this.statusesByCode = settings.error().statuses();
-    this.backwardCompatible = settings.backwardCompatible();
+    this.backwardCompatible = backwardCompatible;
   }
 
   /**
    * Returns whether a request that failed outside the service's own error handling gets Stratum's
-   * standard body. It always does with {@code stratum.web.backward-compatible=false}. Otherwise it
-   * does when the failure is Stratum's own, an error code, or a timeout or a body too large even
-   * when wrapped, which has no older body, or when the caller asks for it with {@code Accept:
+   * standard body. It always does with {@code stratum.backward-compatible=false}. Otherwise it does
+   * when the failure is Stratum's own, an error code, or a timeout or a body too large even when
+   * wrapped, which has no older body, or when the caller asks for it with {@code Accept:
    * application/problem+json}. Every other failure keeps the body Spring Boot gives.
    *
    * @param failure what the request failed with, if known

@@ -7,9 +7,8 @@
 
 ## What it does
 
-With `stratum.web.backward-compatible=false`, every request body has a size limit, 256KB unless you
-set another. While `stratum.web.backward-compatible` is `true`, the default, there is no limit
-unless you set one; see
+By default, every request body has a size limit, 256KB unless you set another. While
+`stratum.backward-compatible` is `true`, there is no limit unless you set one; see
 [Backward-compatible mode](web-compatible-mode.md#time-and-body-size-limits). Once a limit applies,
 a request whose body is larger is answered with `413 Content Too Large` and the code `SX-WEB-1008`,
 the service logs one WARN line with the limit, and a caller can no longer fill the service's memory
@@ -131,7 +130,7 @@ upload API that accepts more than they allow raises both.
 A WebFlux part larger than `max-in-memory-size` is written to disk. Spring Boot sets no limit on that
 disk use or on the number of parts, and a multipart upload sent in chunks is not limited by Stratum's
 own limit (see [What is counted](#what-is-counted)), so one request could fill the disk. With
-`stratum.web.enabled=true` and `stratum.web.backward-compatible=false`, the WebFlux starter
+`stratum.web.enabled=true` and `stratum.backward-compatible` unset or `false`, the WebFlux starter
 therefore gives each part `10MB` of disk and an upload `50` parts. In backward-compatible mode it
 sets neither, so an upload that worked before Stratum keeps working. Your own value for either key wins, from a file, an environment variable or
 Java. A part over its disk limit is answered with `413` and `SX-WEB-1008`, as a body over Stratum's

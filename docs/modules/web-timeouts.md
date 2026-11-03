@@ -7,9 +7,8 @@
 
 ## What it does
 
-With `stratum.web.backward-compatible=false`, every request has a time limit, 10 seconds unless you
-set another. While `stratum.web.backward-compatible` is `true`, the default, there is no limit
-unless you set one; see
+By default, every request has a time limit, 10 seconds unless you set another. While
+`stratum.backward-compatible` is `true`, there is no limit unless you set one; see
 [Backward-compatible mode](web-compatible-mode.md#time-and-body-size-limits). Once a limit applies,
 a request whose response has not started when its time is up is answered with `503` and the code
 `SX-WEB-1007`, and the service logs one WARN line with the limit. The caller gets an answer it can
