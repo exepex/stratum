@@ -16,6 +16,9 @@ import org.springframework.web.method.HandlerMethod;
 @Slf4j
 public class ResponseTimeouts implements AutoCloseable {
 
+  /** How long a request may take when nothing sets a limit, outside backward-compatible mode. */
+  private static final Duration STANDARD_TIMEOUT = Duration.ofSeconds(10);
+
   /** The limit of a request whose path matches no route. */
   private final Duration defaultLimit;
 
@@ -32,12 +35,17 @@ public class ResponseTimeouts implements AutoCloseable {
    * Makes the timeouts and starts their timer thread.
    *
    * @param settings the web settings, whose timeout settings it uses
+   * @param backwardCompatible whether {@code stratum.backward-compatible} is on, which leaves a
+   *     request with no limit set unlimited, so an existing service's requests are not cut off;
+   *     otherwise such a request may take 10s
    * @throws org.springframework.web.util.pattern.PatternParseException if a route is not a valid
    *     path pattern
    */
-  public ResponseTimeouts(WebProperties settings) {
+  public ResponseTimeouts(WebProperties settings, boolean backwardCompatible) {
     var timeout = settings.timeout();
-    this.defaultLimit = settings.defaultTimeout();
+    this.defaultLimit =
+        Optional.ofNullable(timeout.defaultLimit())
+            .orElse(backwardCompatible ? Duration.ZERO : STANDARD_TIMEOUT);
     this.routeLimits = new RouteValues<>(timeout.routes());
     this.status = HttpStatusCode.valueOf(timeout.status());
     this.timer =

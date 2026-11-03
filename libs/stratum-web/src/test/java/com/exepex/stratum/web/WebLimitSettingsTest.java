@@ -20,14 +20,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.mock.env.MockEnvironment;
 import org.springframework.util.unit.DataSize;
 
-@DisplayName("The time and body size limits in WebProperties, with defaults that follow the mode")
+@DisplayName("The time and body size limits in WebProperties")
 class WebLimitSettingsTest {
-
-  /** The limit of a request when nothing is set and backward-compatible is off. */
-  private static final Duration STANDARD_TIMEOUT = Duration.ofSeconds(10);
-
-  /** The body limit when nothing is set and backward-compatible is off. */
-  private static final DataSize STANDARD_BODY_LIMIT = DataSize.parse("256KB");
 
   @Nested
   @DisplayName("the timeout settings")
@@ -41,17 +35,15 @@ class WebLimitSettingsTest {
         Map.of("/reports/**", Duration.ofSeconds(60));
 
     @Test
-    @DisplayName("with nothing set, no limit while backward-compatible, else 10 seconds; 503")
+    @DisplayName("with nothing set, no default limit of the service's own and 503")
     void defaults() {
       var settings = WebProperties.resolve(new MockEnvironment());
-      var standard = settings.toBuilder().backwardCompatible(false).build();
       var teamSet =
           WebProperties.resolve(
               new MockEnvironment().withProperty(WebConstants.TIMEOUT_DEFAULT_LIMIT, "5s"));
 
-      assertThat(settings.defaultTimeout()).isZero();
-      assertThat(standard.defaultTimeout()).isEqualTo(STANDARD_TIMEOUT);
-      assertThat(teamSet.defaultTimeout()).isEqualTo(FILE_LIMIT);
+      assertThat(settings.timeout().defaultLimit()).isNull();
+      assertThat(teamSet.timeout().defaultLimit()).isEqualTo(FILE_LIMIT);
       assertThat(settings.timeout().status()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE.value());
     }
 
@@ -120,17 +112,15 @@ class WebLimitSettingsTest {
         Map.of("/uploads/**", DataSize.ofMegabytes(20));
 
     @Test
-    @DisplayName("with nothing set, no limit while backward-compatible, else 256KB")
+    @DisplayName("with nothing set, no default limit of the service's own")
     void defaults() {
       var settings = WebProperties.resolve(new MockEnvironment());
-      var standard = settings.toBuilder().backwardCompatible(false).build();
       var teamSet =
           WebProperties.resolve(
               new MockEnvironment().withProperty(WebConstants.BODY_LIMIT_DEFAULT_LIMIT, "64KB"));
 
-      assertThat(settings.defaultBodyLimit()).isEqualTo(DataSize.ofBytes(0));
-      assertThat(standard.defaultBodyLimit()).isEqualTo(STANDARD_BODY_LIMIT);
-      assertThat(teamSet.defaultBodyLimit()).isEqualTo(FILE_LIMIT);
+      assertThat(settings.bodyLimit().defaultLimit()).isNull();
+      assertThat(teamSet.bodyLimit().defaultLimit()).isEqualTo(FILE_LIMIT);
     }
 
     @Test

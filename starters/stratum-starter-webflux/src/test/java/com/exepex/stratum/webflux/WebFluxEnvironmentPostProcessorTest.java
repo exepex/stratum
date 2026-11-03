@@ -22,16 +22,19 @@ class WebFluxEnvironmentPostProcessorTest {
 
   private static final String WEB_ON = "stratum.web.enabled";
 
-  private static final String BACKWARD_COMPATIBLE = "stratum.web.backward-compatible";
+  private static final String BACKWARD_COMPATIBLE = "stratum.backward-compatible";
 
   private final WebFluxEnvironmentPostProcessor postProcessor =
       new WebFluxEnvironmentPostProcessor();
 
-  /** Returns an environment with the web module on and backward-compatible mode off. */
+  /** Returns an environment with the web module on and backward-compatible mode left unset. */
   private MockEnvironment standardMode() {
-    return new MockEnvironment()
-        .withProperty(WEB_ON, "true")
-        .withProperty(BACKWARD_COMPATIBLE, "false");
+    return new MockEnvironment().withProperty(WEB_ON, "true");
+  }
+
+  /** Returns an environment with the web module on and backward-compatible mode on. */
+  private MockEnvironment backwardCompatibleMode() {
+    return standardMode().withProperty(BACKWARD_COMPATIBLE, "true");
   }
 
   /** Runs the post-processor on the environment and returns it. */
@@ -48,7 +51,7 @@ class WebFluxEnvironmentPostProcessorTest {
     @DisplayName("has Reactor carry the context into every operator, in both modes")
     void reactorContextInEveryOperator() {
       var standard = runPostProcessor(standardMode());
-      var backwardCompatible = runPostProcessor(new MockEnvironment().withProperty(WEB_ON, "true"));
+      var backwardCompatible = runPostProcessor(backwardCompatibleMode());
 
       assertThat(standard.getProperty(REACTOR_CONTEXT_PROPAGATION)).isEqualTo("auto");
       assertThat(backwardCompatible.getProperty(REACTOR_CONTEXT_PROPAGATION)).isEqualTo("auto");
@@ -91,7 +94,7 @@ class WebFluxEnvironmentPostProcessorTest {
     @Test
     @DisplayName("sets no limits in backward-compatible mode, so uploads that worked keep working")
     void nothingInBackwardCompatibleMode() {
-      var environment = runPostProcessor(new MockEnvironment().withProperty(WEB_ON, "true"));
+      var environment = runPostProcessor(backwardCompatibleMode());
 
       assertThat(environment.getProperty(DISK_PER_PART)).isNull();
       assertThat(environment.getProperty(PARTS)).isNull();

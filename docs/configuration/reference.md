@@ -19,6 +19,7 @@ These are not tied to one module.
 | `spring.application.name` | string | **required** | All modules | The service's name: in logs, metrics, traces, cache keys and the Kafka consumer group. Spring Boot property. |
 | `stratum.environment` | string | *(none)* | logging, observability | Environment name such as `dev`, `staging` or `prod`; written to logs as `service.environment` and to metrics as the `environment` tag. |
 | `stratum.context-propagation.executor-beans` | boolean | `true` | logging, observability | Whether the pool beans the service declares as `Executor`, `ExecutorService` or `ScheduledExecutorService` are wrapped so their tasks keep the trace, correlation ID, workflow and service MDC fields of the code that submitted them. |
+| `stratum.backward-compatible` | boolean | `false` | web | Whether a running service keeps its external contracts as they were before Stratum: errors that Spring answers keep Spring Boot's body, and no default time or body size limit applies. Internal settings, such as logs, spans and redaction, follow Stratum in both modes. See [Backward-compatible mode](../modules/web-compatible-mode.md). |
 
 ```yaml
 spring:

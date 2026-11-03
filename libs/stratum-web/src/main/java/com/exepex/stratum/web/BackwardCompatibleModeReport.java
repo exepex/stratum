@@ -1,6 +1,8 @@
 package com.exepex.stratum.web;
 
 import com.exepex.stratum.core.api.StratumInternal;
+import com.exepex.stratum.core.condition.StratumModuleConstants;
+import com.exepex.stratum.core.properties.BackwardCompatibleMode;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,16 +27,13 @@ public class BackwardCompatibleModeReport implements SmartInitializingSingleton 
   /** Spring Boot's setting that puts the exception class in its error body. */
   static final String INCLUDE_EXCEPTION = "spring.web.error.include-exception";
 
-  /** The web module's settings. */
-  private final WebProperties webProperties;
-
-  /** Where Spring Boot's settings are read from. */
+  /** Where the mode and Spring Boot's settings are read from. */
   private final Environment environment;
 
   /** Logs the INFO line, and the warning when either setting shows anything, in the mode only. */
   @Override
   public void afterSingletonsInstantiated() {
-    if (!webProperties.backwardCompatible()) {
+    if (!BackwardCompatibleMode.isOn(environment)) {
       return;
     }
     if (log.isInfoEnabled()) {
@@ -43,7 +42,7 @@ public class BackwardCompatibleModeReport implements SmartInitializingSingleton 
               + " Accept: application/problem+json, and no time or body size limit applies unless"
               + " set. When the service has Micrometer, the counter {} shows which routes still"
               + " answer with Spring Boot's body; set the property to false once it stays at 0.",
-          WebConstants.BACKWARD_COMPATIBLE,
+          StratumModuleConstants.BACKWARD_COMPATIBLE,
           WebConstants.BOOT_ERROR_BODY_COUNTER);
     }
     var binder = Binder.get(environment);
@@ -55,7 +54,7 @@ public class BackwardCompatibleModeReport implements SmartInitializingSingleton 
           "Security leak: errors keep Spring Boot's body because {} is true, and {}={} with {}={}"
               + " show stack traces or exception classes to API callers. Set them to never and"
               + " false.",
-          WebConstants.BACKWARD_COMPATIBLE,
+          StratumModuleConstants.BACKWARD_COMPATIBLE,
           INCLUDE_STACKTRACE,
           stackTrace.name().toLowerCase(Locale.ROOT).replace('_', '-'),
           INCLUDE_EXCEPTION,

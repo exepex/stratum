@@ -15,6 +15,13 @@ public class StratumModuleConstants {
   /** The environment the service runs in, such as {@code prod}, which several modules report. */
   public static final String SERVICE_ENVIRONMENT = PREFIX + ".environment";
 
+  /**
+   * Whether every module keeps the service's external contracts as they were before Stratum: error
+   * bodies, statuses, limits and message formats. Internal settings, such as logs, always follow
+   * Stratum. Defaults to {@code false}.
+   */
+  public static final String BACKWARD_COMPATIBLE = PREFIX + ".backward-compatible";
+
   /** Spring Boot's map of OpenTelemetry resource attributes, sent with every span and metric. */
   public static final String RESOURCE_ATTRIBUTES = "management.opentelemetry.resource-attributes";
 
