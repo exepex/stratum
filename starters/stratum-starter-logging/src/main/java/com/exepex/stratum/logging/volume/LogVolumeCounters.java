@@ -13,6 +13,7 @@ import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
@@ -133,7 +134,11 @@ public class LogVolumeCounters {
             .limit(TOP_DROPPED)
             .map(keyDrops -> keyDrops.count().describe() + "=" + keyDrops.lines())
             .toList();
-    return new DroppedLines(dropped.stream().mapToLong(KeyDrops::lines).sum(), dropped.size(), top);
+    return DroppedLines.builder()
+        .lines(dropped.stream().mapToLong(KeyDrops::lines).sum())
+        .keys(dropped.size())
+        .top(top)
+        .build();
   }
 
   /**
@@ -262,6 +267,7 @@ public class LogVolumeCounters {
    * @param top the loggers and levels that dropped the most, as {@code logger LEVEL=count}
    */
   @StratumInternal
+  @Builder
   public record DroppedLines(long lines, int keys, List<String> top) {
 
     /**

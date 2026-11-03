@@ -68,10 +68,10 @@ class LogVolumeConfigurationTest {
       contextRunner
           .withPropertyValues(LoggingConstants.ENABLED + "=false")
           .run(
-              context -> {
-                assertThat(context).doesNotHaveBean(LogVolumeFilter.class);
-                assertThat(LogVolumeTestData.volumeFiltersInLogback()).isEmpty();
-              });
+              context ->
+                  assertThat(context)
+                      .doesNotHaveBean(LogVolumeFilter.class)
+                      .doesNotHaveBean(LogVolumeFilterRegistration.class));
     }
 
     @Test

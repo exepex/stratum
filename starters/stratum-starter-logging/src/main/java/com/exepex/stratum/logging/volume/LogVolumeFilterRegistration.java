@@ -31,17 +31,18 @@ public class LogVolumeFilterRegistration implements SmartLifecycle {
   @Override
   public void start() {
     if (settings.enabled()) {
-      logbackContext()
-          .ifPresent(
-              context -> {
-                var filters = context.getTurboFilterList();
-                filters.removeIf(LogVolumeFilter.class::isInstance);
-                filter.setContext(context);
-                filter.start();
-                filters.add(filter);
-              });
+      logbackContext().ifPresent(this::replaceEarlierFilter);
     }
     running.set(true);
+  }
+
+  /** Removes any earlier volume filter from Logback and adds this application's. */
+  private void replaceEarlierFilter(LoggerContext context) {
+    var filters = context.getTurboFilterList();
+    filters.removeIf(LogVolumeFilter.class::isInstance);
+    filter.setContext(context);
+    filter.start();
+    filters.add(filter);
   }
 
   /** Removes this application's filter, and no other. */
