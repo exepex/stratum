@@ -7,9 +7,9 @@ with a reference to quote to support. Every log line of a request carries its me
 client IP and correlation ID, and each request writes one log line when it is answered. A request
 can be given a time limit, answered with `503`, and a body size limit, answered with `413`.
 
-By default, `stratum.web.backward-compatible` is `true`, so a running service keeps its contract
-with its consumers: errors that Spring answers keep Spring Boot's body, and there is no default
-time or body size limit. A new service sets it to `false` from the start. See
+A running service sets `stratum.backward-compatible=true` to keep its contract with its consumers:
+errors that Spring answers then keep Spring Boot's body, and there is no default time or body size
+limit. A new service leaves it unset, at `false`, and gets the standard from the start. See
 [Backward-compatible mode](../../docs/modules/web-compatible-mode.md).
 
 This page covers this starter only. The design both web starters share, and the Spring MVC starter,
@@ -67,8 +67,8 @@ IDs, and everything else works the same.
 
 ### The error body
 
-With `stratum.web.backward-compatible`, `true` by default, an error that Spring answers keeps
-Spring Boot's body unless the consumer sends `Accept: application/problem+json`, so existing
+With `stratum.backward-compatible=true`, an error that Spring answers keeps Spring Boot's body
+unless the consumer sends `Accept: application/problem+json`, so existing
 consumers see no change. Errors with a code, timeouts and bodies too large always get the body
 below. See [Backward-compatible mode](../../docs/modules/web-compatible-mode.md).
 
@@ -190,9 +190,8 @@ dashboard recipe, with PromQL examples, is in [Web](../../docs/modules/web.md#sl
 
 ## Timeouts
 
-While `stratum.web.backward-compatible` is `true`, the default, a request has no time limit unless
-you set one. With `false`, each request has 10 seconds until its response starts, unless you set
-another limit. A request that runs out of time is answered with `503` and `SX-WEB-1007`, and the
+By default, each request has 10 seconds until its response starts, unless you set another limit.
+While `stratum.backward-compatible` is `true`, a request has no time limit unless you set one. A request that runs out of time is answered with `503` and `SX-WEB-1007`, and the
 service logs a WARN line. A response that has started, such as a stream, is never cut off. Change
 the limits in `application.properties`:
 
@@ -231,8 +230,8 @@ status, are in [Response timeouts](../../docs/modules/web-timeouts.md).
 
 ## Body size limit
 
-While `stratum.web.backward-compatible` is `true`, the default, a request body has no size limit
-unless you set one. With `false`, each request body may have 256KB, unless you set another limit. A
+By default, each request body may have 256KB, unless you set another limit. While
+`stratum.backward-compatible` is `true`, a request body has no size limit unless you set one. A
 larger body is answered with `413` and `SX-WEB-1008`, and the service logs a WARN line. A body sent
 without `Content-Length` is counted as it arrives and stopped at the limit, before it is held in
 memory. Raise the limit for uploads by path, in `application.properties`:
@@ -265,7 +264,7 @@ Mono<DocumentId> upload(@RequestBody Flux<DataBuffer> body) {
 Spring's own limit of 256KB for a body decoded in memory, `spring.http.codecs.max-in-memory-size`,
 applies as well, so read a large upload as a `Flux<DataBuffer>`. Forms and multipart uploads are
 checked by their `Content-Length` only. Spring Boot sets no limit on a multipart upload's disk use or
-parts, so with the module on and `backward-compatible` set to `false` this starter gives each part
+parts, so with the module on and `stratum.backward-compatible` not `true` this starter gives each part
 `10MB` of disk and an upload `50` parts; set
 `spring.webflux.multipart.max-disk-usage-per-part` or `max-parts` to change them. The details, with
 `0` for no limit, are in

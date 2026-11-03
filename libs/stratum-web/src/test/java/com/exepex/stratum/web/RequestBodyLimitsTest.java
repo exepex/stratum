@@ -35,7 +35,10 @@ class RequestBodyLimitsTest {
   /** The limit of the import API that accepts larger bodies. */
   private static final DataSize LARGE_IMPORT_LIMIT = DataSize.ofKilobytes(512);
 
-  /** The limits: a 256KB default, image uploads 20MB, other uploads none. */
+  /** The body limit when nothing sets one, outside backward-compatible mode. */
+  private static final DataSize STANDARD_LIMIT = DataSize.ofKilobytes(256);
+
+  /** The limits in backward-compatible mode: a 256KB default, image uploads 20MB, others none. */
   private final RequestBodyLimits limits =
       new RequestBodyLimits(
           WebTestData.defaults()
@@ -43,16 +46,24 @@ class RequestBodyLimitsTest {
                   new WebProperties.BodyLimitSettings(
                       DEFAULT_LIMIT,
                       Map.of("/uploads/**", DataSize.ofBytes(0), "/uploads/images/*", IMAGE_LIMIT)))
-              .build());
+              .build(),
+          true);
 
   @Nested
   @DisplayName("the limit of a request")
   class Limits {
 
     @Test
-    @DisplayName("is the default when no route matches")
+    @DisplayName(
+        "is the default when no route matches: the service's in both modes, else none in"
+            + " backward-compatible mode and 256KB outside it")
     void defaultLimit() {
+      var compatible = new RequestBodyLimits(WebTestData.defaults().build(), true);
+      var standard = new RequestBodyLimits(WebTestData.defaults().build(), false);
+
       assertThat(limits.start(ORDER).limit()).isEqualTo(DEFAULT_LIMIT);
+      assertThat(compatible.start(ORDER).limit()).isEqualTo(DataSize.ofBytes(0));
+      assertThat(standard.start(ORDER).limit()).isEqualTo(STANDARD_LIMIT);
     }
 
     @Test

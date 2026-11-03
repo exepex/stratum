@@ -16,6 +16,12 @@
       "type": "java.lang.Boolean",
       "description": "Whether the pool beans the service declares as Executor, ExecutorService or ScheduledExecutorService are wrapped, so that their tasks keep the trace, correlation ID, workflow fields and the service's own MDC fields of the code that submitted them. A bean declared as a class, such as ThreadPoolExecutor, is not wrapped. Used by the logging and observability modules when they are on.",
       "defaultValue": true
+    },
+    {
+      "name": "stratum.backward-compatible",
+      "type": "java.lang.Boolean",
+      "description": "Whether every module keeps the service's external contracts as they were before Stratum, so its consumers see no change: error bodies, statuses, time and size limits, and message formats. Internal settings, such as logs, spans and redaction, always follow Stratum. Set it to true in a running service's first release on Stratum.",
+      "defaultValue": false
     }
   ]
 }

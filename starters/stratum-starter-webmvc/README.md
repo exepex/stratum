@@ -7,9 +7,9 @@ with a reference to quote to support. Every log line of a request carries its me
 client IP and correlation ID, and each request writes one log line when it is answered. A request
 can be given a time limit, answered with `503`, and a body size limit, answered with `413`.
 
-By default, `stratum.web.backward-compatible` is `true`, so a running service keeps its contract
-with its consumers: errors that Spring answers keep Spring Boot's body, and there is no default
-time or body size limit. A new service sets it to `false` from the start. See
+A running service sets `stratum.backward-compatible=true` to keep its contract with its consumers:
+errors that Spring answers then keep Spring Boot's body, and there is no default time or body size
+limit. A new service leaves it unset, at `false`, and gets the standard from the start. See
 [Backward-compatible mode](../../docs/modules/web-compatible-mode.md).
 
 This page covers this starter only. The design both web starters share is in
@@ -66,8 +66,8 @@ and everything else works the same.
 
 ### The error body
 
-With `stratum.web.backward-compatible`, `true` by default, an error that Spring answers keeps
-Spring Boot's body unless the consumer sends `Accept: application/problem+json`, so existing
+With `stratum.backward-compatible=true`, an error that Spring answers keeps Spring Boot's body
+unless the consumer sends `Accept: application/problem+json`, so existing
 consumers see no change. Errors with a code, timeouts and bodies too large always get the body
 below. See [Backward-compatible mode](../../docs/modules/web-compatible-mode.md).
 
@@ -220,9 +220,8 @@ Jetty that line has no request fields; nothing leaks there either.
 
 ## Timeouts
 
-While `stratum.web.backward-compatible` is `true`, the default, a request has no time limit unless
-you set one. With `false`, each request has 10 seconds until its response starts, unless you set
-another limit. A request that runs out of time is answered with `503` and `SX-WEB-1007`, and the
+By default, each request has 10 seconds until its response starts, unless you set another limit.
+While `stratum.backward-compatible` is `true`, a request has no time limit unless you set one. A request that runs out of time is answered with `503` and `SX-WEB-1007`, and the
 service logs a WARN line. A response that has started, such as a stream, is never cut off. Change
 the limits in `application.properties`:
 
@@ -263,8 +262,8 @@ The details, with `0` for no limit and the status, are in [Response timeouts](..
 
 ## Body size limit
 
-While `stratum.web.backward-compatible` is `true`, the default, a request body has no size limit
-unless you set one. With `false`, each request body may have 256KB, unless you set another limit. A
+By default, each request body may have 256KB, unless you set another limit. While
+`stratum.backward-compatible` is `true`, a request body has no size limit unless you set one. A
 larger body is answered with `413` and `SX-WEB-1008`, and the service logs a WARN line. A body sent
 without `Content-Length` is counted as it arrives and stopped at the limit, before it is held in
 memory. Raise the limit for uploads by path, in `application.properties`:

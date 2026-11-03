@@ -10,6 +10,9 @@ import org.springframework.web.method.HandlerMethod;
  */
 public class RequestBodyLimits {
 
+  /** How large a body may be when nothing sets a limit, outside backward-compatible mode. */
+  private static final DataSize STANDARD_BODY_LIMIT = DataSize.ofKilobytes(256);
+
   /** The limit of a request whose path matches no route. */
   private final DataSize defaultLimit;
 
@@ -20,12 +23,18 @@ public class RequestBodyLimits {
    * Makes the limits.
    *
    * @param settings the web settings, whose body limit settings it uses
+   * @param backwardCompatible whether {@code stratum.backward-compatible} is on, which leaves a
+   *     body with no limit set unlimited, so an existing service's requests are not refused;
+   *     otherwise such a body may be 256KB
    * @throws org.springframework.web.util.pattern.PatternParseException if a route is not a valid
    *     path pattern
    */
-  public RequestBodyLimits(WebProperties settings) {
-    this.defaultLimit = settings.defaultBodyLimit();
-    this.routeLimits = new RouteValues<>(settings.bodyLimit().routes());
+  public RequestBodyLimits(WebProperties settings, boolean backwardCompatible) {
+    var bodyLimit = settings.bodyLimit();
+    this.defaultLimit =
+        Optional.ofNullable(bodyLimit.defaultLimit())
+            .orElse(backwardCompatible ? DataSize.ofBytes(0) : STANDARD_BODY_LIMIT);
+    this.routeLimits = new RouteValues<>(bodyLimit.routes());
   }
 
   /**

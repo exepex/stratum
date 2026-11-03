@@ -2,6 +2,7 @@ package com.exepex.stratum.web.autoconfigure;
 
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
+import com.exepex.stratum.core.properties.BackwardCompatibleMode;
 import com.exepex.stratum.web.CorrelationIdChooser;
 import com.exepex.stratum.web.RequestBodyLimits;
 import com.exepex.stratum.web.RequestFieldsPropagation;
@@ -17,6 +18,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Fallback;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.env.Environment;
 
 /**
  * Creates what both web starters use to give every log line of a request its fields, the request
@@ -90,25 +92,27 @@ public class RequestFieldsConfiguration {
    * the application.
    *
    * @param webProperties the web module's settings
+   * @param environment where {@code stratum.backward-compatible} is read from
    * @return the timeouts
    */
   @Bean
   @Fallback
   @ConditionalOnMissingBean
-  public ResponseTimeouts responseTimeouts(WebProperties webProperties) {
-    return new ResponseTimeouts(webProperties);
+  public ResponseTimeouts responseTimeouts(WebProperties webProperties, Environment environment) {
+    return new ResponseTimeouts(webProperties, BackwardCompatibleMode.isOn(environment));
   }
 
   /**
    * Decides how large each request's body may be.
    *
    * @param webProperties the web module's settings
+   * @param environment where {@code stratum.backward-compatible} is read from
    * @return the limits
    */
   @Bean
   @Fallback
   @ConditionalOnMissingBean
-  public RequestBodyLimits requestBodyLimits(WebProperties webProperties) {
-    return new RequestBodyLimits(webProperties);
+  public RequestBodyLimits requestBodyLimits(WebProperties webProperties, Environment environment) {
+    return new RequestBodyLimits(webProperties, BackwardCompatibleMode.isOn(environment));
   }
 }

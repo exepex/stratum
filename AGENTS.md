@@ -202,6 +202,8 @@ topic file wins.
   property has Javadoc. Dependencies are injected through constructors only.
 - Generate boilerplate with Lombok and MapStruct. Use the JDK, Spring or an established library from Maven Central
   before writing your own utility.
+- **Compatibility mode.** Backward-compatible mode keeps external contracts unchanged; everything internal always
+  follows Stratum's defaults (ST-ENG-25, ADR 0010).
 - Built for high volume: timeouts on every remote call; bounded pools, queues and caches; no blocking on hot paths;
   retries only for idempotent operations on transient failures.
 - Use Java 25 and Spring Boot 4 as they are now. Check the Spring Boot 4 migration notes before reusing an example

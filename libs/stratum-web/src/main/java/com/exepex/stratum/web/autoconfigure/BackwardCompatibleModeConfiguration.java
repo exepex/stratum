@@ -5,7 +5,6 @@ import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.web.BackwardCompatibleModeReport;
 import com.exepex.stratum.web.BootErrorBodyCounter;
 import com.exepex.stratum.web.WebConstants;
-import com.exepex.stratum.web.WebProperties;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -33,14 +32,12 @@ public class BackwardCompatibleModeConfiguration {
    * which the mode keeps, shows stack traces or exception classes. It cannot be replaced or turned
    * off, so a leak is always reported; a team marks a false positive in its monitoring.
    *
-   * @param webProperties the web module's settings
-   * @param environment where Spring Boot's error settings are read from
+   * @param environment where the mode and Spring Boot's error settings are read from
    * @return the report
    */
   @Bean
-  public BackwardCompatibleModeReport backwardCompatibleModeReport(
-      WebProperties webProperties, Environment environment) {
-    return new BackwardCompatibleModeReport(webProperties, environment);
+  public BackwardCompatibleModeReport backwardCompatibleModeReport(Environment environment) {
+    return new BackwardCompatibleModeReport(environment);
   }
 
   /**

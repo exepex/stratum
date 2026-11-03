@@ -3,6 +3,7 @@ package com.exepex.stratum.webmvc.autoconfigure;
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
+import com.exepex.stratum.core.properties.BackwardCompatibleMode;
 import com.exepex.stratum.core.properties.StratumCustomizers;
 import com.exepex.stratum.web.BootErrorBodyCounter;
 import com.exepex.stratum.web.ErrorResponseFactory;
@@ -32,6 +33,7 @@ import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Fallback;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.env.Environment;
 import org.springframework.web.servlet.View;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -62,13 +64,15 @@ public final class WebMvcErrorResponsesAutoConfiguration {
    * Makes every error body.
    *
    * @param webProperties the web module's settings
+   * @param environment where {@code stratum.backward-compatible} is read from
    * @return the factory
    */
   @Bean
   @Fallback
   @ConditionalOnMissingBean
-  public ErrorResponseFactory errorResponseFactory(WebProperties webProperties) {
-    return new ErrorResponseFactory(webProperties);
+  public ErrorResponseFactory errorResponseFactory(
+      WebProperties webProperties, Environment environment) {
+    return new ErrorResponseFactory(webProperties, BackwardCompatibleMode.isOn(environment));
   }
 
   /**

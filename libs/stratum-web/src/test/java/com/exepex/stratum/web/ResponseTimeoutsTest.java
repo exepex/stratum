@@ -45,7 +45,13 @@ class ResponseTimeoutsTest {
   /** How long a test waits to see that an action did not run. */
   private static final Duration QUIET_PERIOD = Duration.ofMillis(300);
 
-  /** The timeouts: a 10 second default, daily reports with a short limit, other reports none. */
+  /** The limit of a request when nothing sets one, outside backward-compatible mode. */
+  private static final Duration STANDARD_LIMIT = Duration.ofSeconds(10);
+
+  /**
+   * The timeouts in backward-compatible mode: a 10 second default, daily reports with a short
+   * limit, other reports none.
+   */
   private final ResponseTimeouts timeouts =
       new ResponseTimeouts(
           WebTestData.defaults()
@@ -54,7 +60,8 @@ class ResponseTimeoutsTest {
                       DEFAULT_LIMIT,
                       Map.of("/reports/**", Duration.ZERO, DAILY_REPORTS, SHORT),
                       HttpStatus.GATEWAY_TIMEOUT.value()))
-              .build());
+              .build(),
+          true);
 
   /** Whether the action of the request under test ran. */
   private final AtomicBoolean expired = new AtomicBoolean();
@@ -70,10 +77,18 @@ class ResponseTimeoutsTest {
   class Limits {
 
     @Test
-    @DisplayName("is the default when no route matches")
+    @DisplayName(
+        "is the default when no route matches: the service's in both modes, else none in"
+            + " backward-compatible mode and 10 seconds outside it")
     void defaultLimit() {
       var deadline = timeouts.start(ORDER, () -> expired.set(true));
       assertThat(deadline.limit()).isEqualTo(DEFAULT_LIMIT);
+      try (var compatible = new ResponseTimeouts(WebTestData.defaults().build(), true);
+          var standard = new ResponseTimeouts(WebTestData.defaults().build(), false)) {
+        assertThat(compatible.start(ORDER, () -> expired.set(true)).limit()).isZero();
+        assertThat(standard.start(ORDER, () -> expired.set(true)).limit())
+            .isEqualTo(STANDARD_LIMIT);
+      }
     }
 
     @Test

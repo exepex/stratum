@@ -151,11 +151,11 @@ Every starter follows these rules:
 - **ST-ENG-25** The defaults are safe for production: timeouts set, sensitive values redacted, endpoints secured,
   resources bounded. A service needs no configuration to be safe. A missing required value stops startup with a
   message naming the key and `stratum.<module>.enabled=false`; a module never switches itself off quietly (ADR 0010).
-  One exception: while `stratum.web.backward-compatible` is `true`, its default, the web module sets no default
-  response time limit, request body size limit or WebFlux multipart limit, so a running service's requests are not
-  refused or cut off ([ADR 0008](../adr/0008-error-format-and-backward-compatible-mode.md)). A new web feature
-  follows that ADR's decision 7: in that mode it changes no existing response and refuses no request unless the
-  service turns it on.
+  One exception: while `stratum.backward-compatible` is `true` (its default is `false`), the web module sets no
+  default response time limit, request body size limit or WebFlux multipart limit, so a running service's requests
+  are not refused or cut off ([ADR 0008](../adr/0008-error-format-and-backward-compatible-mode.md),
+  [ADR 0010](../adr/0010-modules-on-when-present-and-one-compatibility-switch.md)). Backward-compatible mode keeps
+  external contracts unchanged; everything internal always follows Stratum's defaults.
 - **ST-ENG-26** Dependencies are injected through constructors (in auto-configuration, through `@Bean` method
   parameters). Never field injection (`@Autowired` on a field) or setter injection. Constructor injection makes
   dependencies explicit, keeps fields `final` and makes Spring report circular dependencies at startup. In test
@@ -270,7 +270,7 @@ Every starter follows these rules:
   bug. Use a circuit breaker for a dependency that can fail.
 - **ST-ENG-52 Bound everything.** Pools, queues, caches, batch sizes, request bodies and page sizes all have limits.
   Never build an unbounded collection from external input. One exception: request bodies have no default limit while
-  `stratum.web.backward-compatible` is `true`, as ST-ENG-25 says.
+  `stratum.backward-compatible` is `true`, as ST-ENG-25 says.
 - **ST-ENG-53 Work with virtual threads.** Do not block event-loop threads. Do not cache in `ThreadLocal`s that grow
   with each virtual thread. When work moves to another thread, pass the logging and tracing context explicitly.
   Virtual threads are never on by default; a service opts in with `spring.threads.virtual.enabled`.

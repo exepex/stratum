@@ -24,7 +24,7 @@ import org.springframework.http.MediaType;
     classes = OrdersApplication.class,
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = {
-      "stratum.web.backward-compatible=false",
+      "stratum.backward-compatible=false",
       "stratum.web.error.statuses.ORD-0001=409",
       "spring.web.error.whitelabel.enabled=false",
       "management.tracing.sampling.probability=1.0",

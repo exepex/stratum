@@ -66,15 +66,15 @@ Every feature works the same on both stacks.
 
 | Feature | Behaviour |
 | --- | --- |
-| Error responses (built) | Stratum's errors are [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457) JSON with a code, the trace ID and the correlation ID. Never a stack trace, exception message or class name. Errors that Spring answers keep Spring Boot's body until `stratum.web.backward-compatible=false`; see [Backward-compatible mode](web-compatible-mode.md) |
+| Error responses (built) | Stratum's errors are [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457) JSON with a code, the trace ID and the correlation ID. Never a stack trace, exception message or class name. Errors that Spring answers keep Spring Boot's body only while `stratum.backward-compatible=true`; see [Backward-compatible mode](web-compatible-mode.md) |
 | HTML error page (built) | A browser gets an HTML page with a reference number (the trace ID) that the user can quote to support |
 | Request fields in logs (built) | Every log line written during a request carries its method, route, path, query, client IP and user agent, as separate fields. Device, OS, browser and the client's country and city when you turn them on |
 | Request log (built) | One line when each request is answered, with its status and duration. Health checks and static files are left out |
 | Headers in logs (built) | The request and response headers a team names are logged as fields. `Authorization`, `Cookie`, `Set-Cookie` and `X-Api-Key` never are |
 | Token claims in logs (built) | When a team turns it on, the claims it lists from the caller's JWT, such as `sub` and `scope`, are logged. Other claims, the token's header and its signature never are |
 | Correlation ID (built) | Taken from the caller's `X-Correlation-Id` header when it has a safe format, otherwise the trace ID; returned in the response header. Needs the observability starter |
-| Timeouts (built) | A request whose response has not started within its limit, 10 seconds by default once `stratum.web.backward-compatible=false`, is answered with `503`. One API can have its own limit. See [Response timeouts](web-timeouts.md) |
-| Body size limit (built) | A request body larger than its limit, 256KB by default once `stratum.web.backward-compatible=false`, is refused with `413`. One path or API can have its own limit. See [Request body size limit](web-body-limit.md) |
+| Timeouts (built) | A request whose response has not started within its limit, 10 seconds by default, or none while `stratum.backward-compatible=true`, is answered with `503`. One API can have its own limit. See [Response timeouts](web-timeouts.md) |
+| Body size limit (built) | A request body larger than its limit, 256KB by default, or none while `stratum.backward-compatible=true`, is refused with `413`. One path or API can have its own limit. See [Request body size limit](web-body-limit.md) |
 
 Response times and error counts per API come from the
 [observability starter](../../starters/stratum-starter-observability/README.md), which records
@@ -100,8 +100,9 @@ field. The codes are listed in [Error and warning codes](../guides/error-codes.m
 
 ### Existing consumers keep their error body
 
-By default, adding the starter to a running service never changes what its consumers see: errors
-that Spring answers keep Spring Boot's body, and there is no default time or body size limit. See
+With `stratum.backward-compatible=true`, adding the starter to a running service never changes
+what its consumers see: errors that Spring answers keep Spring Boot's body, and there is no default
+time or body size limit. A new service leaves it unset, at `false`. See
 [Backward-compatible mode](web-compatible-mode.md).
 
 ### Your own error handling
@@ -397,12 +398,13 @@ route with `httpStatus` 500 or above, or with a large `durationMs`; each line ca
 Every key the web starters read or give a default, on both stacks. This is the one list; the starter
 READMEs and the other web pages link here. Each `stratum.web.*` key works from `.properties`, `.yml`
 and Java, and your IDE completes it. For a Spring Boot key, Stratum only sets a default, and a value
-you set wins.
+you set wins. The web starters also read `stratum.backward-compatible`, which every module shares, so
+it is listed in [Configuration reference](../configuration/reference.md) and explained in
+[Backward-compatible mode](web-compatible-mode.md).
 
 | Property | Type | Stratum's default | Spring Boot's default | Description |
 | --- | --- | --- | --- | --- |
 | `stratum.web.enabled` | boolean | `true` | no such key | Whether the module is on. With `false`, the starter sets up nothing of its own. |
-| `stratum.web.backward-compatible` | boolean | `true` | no such key | Whether errors that Spring answers keep Spring Boot's body, unless the consumer sends `Accept: application/problem+json`. Errors with a code, timeouts and bodies too large always get Stratum's body. See [Backward-compatible mode](web-compatible-mode.md). |
 | `stratum.web.error.statuses` | map of code to status | empty | no such key | The HTTP status of each of your error codes, such as `ORD-0001: 409`. |
 | `stratum.web.correlation.accept-from-caller` | boolean | `true` | no such key | Whether a caller's `X-Correlation-Id`, or the `correlationId` in its baggage, is used. Set it to `false` on a service that faces the internet, to always use the trace ID. |
 | `stratum.web.client-ip.trusted-proxies` | list of address ranges | `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `127.0.0.0/8`, `::1/128`, `fc00::/7` | no such key | The load balancers and proxies whose `X-Forwarded-For` header is trusted. An empty list trusts none. |
@@ -411,10 +413,10 @@ you set wins.
 | `stratum.web.user-agent.request-client-hints` | boolean | `false` | no such key | Whether responses ask browsers for their device model and full OS version. Only used when `parse` is `true`. |
 | `stratum.web.client-location.database` | file path | none | no such key | Your MaxMind City or Country `.mmdb` file. Unset, no country or city is logged. |
 | `stratum.web.request-fields.max-value-length` | integer, 16 to 8192 | `512` | no such key | The most characters a request field keeps. |
-| `stratum.web.timeout.default-limit` | duration | none, or `10s` when `backward-compatible` is `false` | no such key | How long any request may take until its response starts. `0` means no limit. |
+| `stratum.web.timeout.default-limit` | duration | `10s`, or none while `stratum.backward-compatible` is `true` | no such key | How long any request may take until its response starts. `0` means no limit. |
 | `stratum.web.timeout.routes` | map of path pattern to duration | empty | no such key | The limit of the requests whose path matches a pattern, such as `/reports/**`. The most specific pattern wins. |
 | `stratum.web.timeout.status` | HTTP status, `400` to `599` | `503` | no such key | The status a request that ran out of time is answered with. |
-| `stratum.web.body-limit.default-limit` | data size | none, or `256KB` when `backward-compatible` is `false` | no such key | How large any request's body may be. `0` means no limit. |
+| `stratum.web.body-limit.default-limit` | data size | `256KB`, or none while `stratum.backward-compatible` is `true` | no such key | How large any request's body may be. `0` means no limit. |
 | `stratum.web.body-limit.routes` | map of path pattern to data size | empty | no such key | The limit of the bodies of the requests whose path matches a pattern, such as `/uploads/**`. The most specific pattern wins. |
 | `stratum.web.request-log.enabled` | boolean | `true` | no such key | Whether each request writes one log line when it is answered. |
 | `stratum.web.request-log.skip-paths` | list of path patterns | `/actuator/**` | no such key | Paths whose requests write no log line. Replaces the default; static files are always skipped. |
@@ -424,8 +426,8 @@ you set wins.
 | `stratum.web.request-log.token-payload` | boolean | `false` | no such key | Whether the line carries the listed claims of the caller's bearer JWT. |
 | `stratum.web.request-log.token-claims` | list of claim names | `sub`, `azp`, `client_id`, `scope` | no such key | The claims written when `token-payload` is `true`. Replaces the default. |
 | `spring.reactor.context-propagation` | `limited` or `auto` | `auto`, on WebFlux only, in both modes | `limited` | With `auto`, Reactor carries the request's trace ID into every operator, so error bodies, error pages and log lines have it, as on Spring MVC. |
-| `spring.webflux.multipart.max-disk-usage-per-part` | data size | none, or `10MB` when `backward-compatible` is `false`; WebFlux only | `-1B`, no limit | The disk each part of a multipart upload may use. |
-| `spring.webflux.multipart.max-parts` | integer | none, or `50` when `backward-compatible` is `false`; WebFlux only | `-1`, no limit | The most parts a multipart upload may have. |
+| `spring.webflux.multipart.max-disk-usage-per-part` | data size | `10MB`, or none while `stratum.backward-compatible` is `true`; WebFlux only | `-1B`, no limit | The disk each part of a multipart upload may use. |
+| `spring.webflux.multipart.max-parts` | integer | `50`, or none while `stratum.backward-compatible` is `true`; WebFlux only | `-1`, no limit | The most parts a multipart upload may have. |
 
 For a service behind a CDN, with the device fields on, in `application.properties`:
 

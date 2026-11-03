@@ -21,10 +21,14 @@ import com.exepex.stratum.webflux.RequestRouteListener;
 import com.exepex.stratum.webflux.ResponseTimeoutWebFilter;
 import io.micrometer.tracing.Tracer;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.FilteredClassLoader;
@@ -32,6 +36,7 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.context.runner.ReactiveWebApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.mock.env.MockEnvironment;
+import org.springframework.util.unit.DataSize;
 
 @DisplayName(
     "WebFluxRequestFieldsAutoConfiguration creates the request fields and correlation beans")
@@ -124,6 +129,37 @@ class WebFluxRequestFieldsAutoConfigurationTest {
   }
 
   @Nested
+  @DisplayName("the limits a request gets when no limit is set for it")
+  class RequestLimits {
+
+    /**
+     * The settings, and the time and body size limits of a request whose path no limit is set for:
+     * the standard limits with stratum.backward-compatible unset, none with it true.
+     */
+    private static final List<Arguments> MODES_AND_LIMITS =
+        List.of(
+            Arguments.of(List.of(), List.of(Duration.ofSeconds(10), DataSize.ofKilobytes(256))),
+            Arguments.of(
+                List.of("stratum.backward-compatible=true"),
+                List.of(Duration.ZERO, DataSize.ofBytes(0))));
+
+    @ParameterizedTest(name = "{0} gives {1}")
+    @FieldSource("MODES_AND_LIMITS")
+    @DisplayName("are 10s and 256KB, or none with stratum.backward-compatible=true")
+    void limitsFollowTheMode(List<String> settings, List<Object> limits) {
+      contextRunner
+          .withPropertyValues(settings.toArray(String[]::new))
+          .run(
+              context ->
+                  assertThat(
+                          List.of(
+                              context.getBean(ResponseTimeouts.class).start("/", () -> {}).limit(),
+                              context.getBean(RequestBodyLimits.class).start("/").limit()))
+                      .isEqualTo(limits));
+    }
+  }
+
+  @Nested
   @DisplayName("when the service or a company framework has its own beans")
   class BackingOff {
 
@@ -162,7 +198,8 @@ class WebFluxRequestFieldsAutoConfigurationTest {
     @Test
     @DisplayName("the service's own body limits and body limit filter replace Stratum's")
     void serviceBodyLimitBeansWin() {
-      var serviceLimits = new RequestBodyLimits(WebProperties.resolve(new MockEnvironment()));
+      var serviceLimits =
+          new RequestBodyLimits(WebProperties.resolve(new MockEnvironment()), false);
       var serviceFilter = new RequestBodyLimitWebFilter(serviceLimits);
       contextRunner
           .withBean(RequestBodyLimits.class, () -> serviceLimits)
@@ -180,7 +217,7 @@ class WebFluxRequestFieldsAutoConfigurationTest {
     @DisplayName("the service's own timeouts and timeout filter replace Stratum's")
     void serviceTimeoutBeansWin() {
       try (var serviceTimeouts =
-          new ResponseTimeouts(WebProperties.resolve(new MockEnvironment()))) {
+          new ResponseTimeouts(WebProperties.resolve(new MockEnvironment()), false)) {
         var serviceFilter = new ResponseTimeoutWebFilter(serviceTimeouts);
         contextRunner
             .withBean(ResponseTimeouts.class, () -> serviceTimeouts)
