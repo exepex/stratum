@@ -14,7 +14,7 @@
   <artifactId>stratum-test</artifactId>
 
   <name>Stratum test</name>
-  <description>Test support: the checks every Stratum starter's tests share today, and, planned, test support for services: JUnit 5, AssertJ, Mockito, Testcontainers, HTTP stubs and JWT helpers.</description>
+  <description>Test support: the checks every Stratum starter's tests share, a PostgreSQL container for services' integration tests, and, planned, JUnit 5, AssertJ, Mockito, more containers, HTTP stubs and JWT helpers.</description>
 
   <!-- Teams add this module in test scope only, so its libraries never reach a running service. -->
   <dependencies>
@@ -43,9 +43,39 @@
       <groupId>com.jayway.jsonpath</groupId>
       <artifactId>json-path</artifactId>
     </dependency>
+    <!-- PostgresContainerConfiguration. Optional, so a module or service that uses stratum-test gets
+         none of them unless it tests against PostgreSQL: it then adds spring-boot-testcontainers and
+         testcontainers-postgresql itself; spring-boot-starter-test already brings spring-boot-test. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-test</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-testcontainers</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-postgresql</artifactId>
+      <optional>true</optional>
+    </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- The data source and the PostgreSQL driver that PostgresContainerConfigurationIntegrationTest
+         connects with, as a service's data starter brings them. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-jdbc</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

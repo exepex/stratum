@@ -1,11 +1,12 @@
 # Testing: `stratum-test`
 
-**Status: Planned.** One test dependency with everything a Stratum service needs for unit, mock and
-integration tests: JUnit 5, AssertJ, Mockito, Testcontainers, HTTP stubs and security helpers.
-Today the module holds only what Stratum's own starters' tests share: `StarterTestSupport`, their
-shared checks, and `OrderErrorCode`, the sample error codes of an orders service that the web tests
-use. A service has no use for it yet, and each of these types is marked `@StratumInternal`
-([Public API](../guides/upgrading.md#public-api)).
+**Status: Partly built.** Planned: one test dependency with everything a Stratum service needs for
+unit, mock and integration tests: JUnit 5, AssertJ, Mockito, Testcontainers, HTTP stubs and security
+helpers. Built today: `PostgresContainerConfiguration`, which starts PostgreSQL for a service's
+integration tests ([Containers](#containers)). The module also holds what Stratum's own starters'
+tests share: `StarterTestSupport`, their shared checks, and `OrderErrorCode`, the sample error codes
+of an orders service that the web tests use. A service has no use for those, and each of them is
+marked `@StratumInternal` ([Public API](../guides/upgrading.md#public-api)).
 
 [← Documentation home](../README.md) · Property prefix: `stratum.test`
 
@@ -19,9 +20,29 @@ use. A service has no use for it yet, and each of these types is marked `@Stratu
 </dependency>
 ```
 
-It brings `spring-boot-starter-test` (JUnit 5, AssertJ, Mockito, Spring test support), Testcontainers
-with the modules Stratum supports, an HTTP stub server and Spring Security's test support. Versions
-and container images are pinned in the BOM.
+To test against PostgreSQL, also add Spring Boot's Testcontainers support and Testcontainers'
+PostgreSQL module, in test scope. Spring Boot manages both versions, so you write none. Your service
+already has `spring-boot-starter-test`, the JDBC support and the PostgreSQL driver.
+
+```xml
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-testcontainers</artifactId>
+  <scope>test</scope>
+</dependency>
+<dependency>
+  <groupId>org.testcontainers</groupId>
+  <artifactId>testcontainers-postgresql</artifactId>
+  <scope>test</scope>
+</dependency>
+```
+
+`stratum-test` declares these two as optional, so a module or service that does not test against
+PostgreSQL does not get them.
+
+**Planned:** `stratum-test` will bring `spring-boot-starter-test` (JUnit 5, AssertJ, Mockito, Spring
+test support), Testcontainers with the modules Stratum supports, an HTTP stub server and Spring
+Security's test support.
 
 ## Three kinds of tests
 
@@ -53,6 +74,8 @@ class PriceCalculatorTest {
 
 ### Mock test (web slice)
 
+**Planned:** `@ImportStratumWebTest` and `stratumJwt` are not built yet.
+
 Starts only the web layer; other beans are mocked.
 
 ```java
@@ -75,8 +98,9 @@ class OrderControllerTest {
 
 ### Integration test
 
-`@StratumIntegrationTest` starts the whole application with the `test` profile, and starts the
-containers your service needs.
+**Planned:** `@StratumIntegrationTest` will start the whole application with the `test` profile, and
+start the containers your service needs. Until then, use `@SpringBootTest` with
+`PostgresContainerConfiguration`, as [Containers](#containers) shows.
 
 ```java
 @StratumIntegrationTest
@@ -99,25 +123,52 @@ class OrderFlowIntegrationTest {
 
 ## Containers
 
-Containers are started **once per test run** and shared by all test classes, which keeps integration
-tests fast. Connection properties (`spring.datasource.url`, `spring.kafka.bootstrap-servers`, ...)
-are set automatically through Spring Boot's `@ServiceConnection` support.
+A container is a database or broker that Testcontainers runs in Docker for your tests, so they use
+the real thing. Docker must be running.
 
-| Container class | Image (pinned in the BOM) | Connects |
-| --- | --- | --- |
-| `Postgres` | PostgreSQL | `spring.datasource.*` |
-| `MySql` | MySQL | `spring.datasource.*` |
-| `Kafka` | Apache Kafka | `spring.kafka.*` |
-| `Redis` | Redis | `spring.data.redis.*` |
-| `Keycloak` | Keycloak | `stratum.security.resource-server.issuer-uri` |
-| `LocalStack` | LocalStack (AWS emulator) | `stratum.cloud.*` (AWS) |
+Import `PostgresContainerConfiguration` into a `@SpringBootTest`. Spring Boot starts PostgreSQL and
+points your `DataSource` at it through its `@ServiceConnection` support, so you set no
+`spring.datasource.*` property:
 
-Because data stays between test classes, each test should create its own data and not depend on
-what other tests left behind.
+```java
+@SpringBootTest
+@Import(PostgresContainerConfiguration.class)
+class OrderRepositoryIntegrationTest {
+
+  @Autowired OrderRepository repository;
+
+  @Test
+  void storesTheOrder() {
+    repository.save(new Order("A-1", 2));
+
+    assertThat(repository.count()).isEqualTo(1);
+  }
+}
+```
+
+The container lives as long as the test's Spring application context. Spring keeps that context,
+and so the container, for every test class with the same configuration, so those classes share one
+database and start it once. A test class with a different configuration, such as other properties
+or `@MockitoBean`s, gets its own context and its own container.
+
+| Container | Image | Connects | Status |
+| --- | --- | --- | --- |
+| `PostgresContainerConfiguration` | `postgres:18.6-alpine` | `spring.datasource.*` | Built |
+| MySQL | MySQL | `spring.datasource.*` | Planned |
+| Kafka | Apache Kafka | `spring.kafka.*` | Planned |
+| Redis | Redis | `spring.data.redis.*` | Planned |
+| Keycloak | Keycloak | `stratum.security.resource-server.issuer-uri` | Planned |
+| LocalStack | LocalStack (AWS emulator) | `stratum.cloud.*` (AWS) | Planned |
+
+Each image is pinned once, in its container class, and never set to `latest`, so every service tests
+against the same version. Stratum's maintainers update it by hand.
+
+Because data stays between test classes that share a container, each test should create its own data
+and not depend on what other tests left behind.
 
 ## Stubbing services you call
 
-`@StubHttpClient("<name>")` starts a local HTTP stub and points the HTTP client group `<name>` at it.
+**Planned.** `@StubHttpClient("<name>")` will start a local HTTP stub and point the HTTP client group `<name>` at it.
 
 ```java
 @StratumIntegrationTest
@@ -136,7 +187,8 @@ class ReservationIntegrationTest {
 
 ## Testing secured endpoints
 
-`stratumJwt(...)` creates a valid test token with the given scopes; no identity provider is needed.
+**Planned.** `stratumJwt(...)` will create a valid test token with the given scopes; no identity
+provider will be needed.
 
 | Call | Result |
 | --- | --- |
@@ -148,12 +200,13 @@ For the rare test that must check real token validation, use the `Keycloak` cont
 
 ## Properties
 
-These go in `src/test/resources/application-test.yml` (or `.properties`).
+**Planned.** None of these keys exists yet. They will go in `src/test/resources/application-test.yml`
+(or `.properties`).
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
 | `stratum.test.containers.reuse` | boolean | `false` | Keeps containers running between local test runs (needs Testcontainers reuse enabled on the machine). Never on CI. |
-| `stratum.test.containers.images.<container>` | string | *(from the BOM)* | Overrides one image, e.g. to test a newer PostgreSQL. |
+| `stratum.test.containers.images.<container>` | string | *(the container class's image)* | Overrides one image, e.g. to test a newer PostgreSQL. |
 | `stratum.test.jwt.default-issuer` | URI | `https://test-issuer.stratum.local` | Issuer used for test tokens. |
 
 ```yaml
