@@ -26,6 +26,9 @@ public class LoggingTestData {
   /** A test card number that passes the Luhn check. */
   public static final String CARD = "4111111111111111";
 
+  /** The test card {@link #CARD} written in groups, as a person types it. */
+  public static final String CARD_IN_GROUPS = "4111 1111 1111 1111";
+
   /** A made-up email address. */
   public static final String EMAIL = "jane.doe@example.com";
 
