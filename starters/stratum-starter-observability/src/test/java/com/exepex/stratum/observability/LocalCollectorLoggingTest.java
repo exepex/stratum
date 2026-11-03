@@ -2,7 +2,6 @@ package com.exepex.stratum.observability;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.exepex.stratum.observability.testsupport.ObservabilityTestData;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -63,13 +62,13 @@ class LocalCollectorLoggingTest {
   private final LocalCollectorLogging localCollectorLogging = new LocalCollectorLogging();
 
   /**
-   * Returns an environment with the module on and the given metrics address.
+   * Returns an environment with the given metrics address.
    *
    * @param metricsAddress the metrics address
    * @return the environment
    */
-  private MockEnvironment environmentWithModuleOn(String metricsAddress) {
-    return ObservabilityTestData.environmentWithModuleOn()
+  private MockEnvironment environmentWithMetricsAddress(String metricsAddress) {
+    return new MockEnvironment()
         .withProperty(ObservabilityConstants.METRICS_EXPORT_URL, metricsAddress);
   }
 
@@ -96,7 +95,7 @@ class LocalCollectorLoggingTest {
   @FieldSource("LOCAL_ADDRESSES")
   @DisplayName("a metrics address on this machine turns Micrometer's push warning off")
   void localAddressTurnsWarningOff(String metricsAddress) {
-    var environment = environmentWithModuleOn(metricsAddress);
+    var environment = environmentWithMetricsAddress(metricsAddress);
 
     run(environment);
 
@@ -108,7 +107,7 @@ class LocalCollectorLoggingTest {
   @FieldSource("OTHER_ADDRESSES")
   @DisplayName("any other metrics address keeps the warning")
   void otherAddressKeepsWarning(String metricsAddress) {
-    var environment = environmentWithModuleOn(metricsAddress);
+    var environment = environmentWithMetricsAddress(metricsAddress);
 
     run(environment);
 
@@ -118,7 +117,7 @@ class LocalCollectorLoggingTest {
   @Test
   @DisplayName("with no metrics address, the warning is kept")
   void missingAddressKeepsWarning() {
-    var environment = ObservabilityTestData.environmentWithModuleOn();
+    var environment = new MockEnvironment();
 
     run(environment);
 
@@ -129,7 +128,7 @@ class LocalCollectorLoggingTest {
   @DisplayName("a span address on this machine turns OpenTelemetry's send error off")
   void localSpanAddressTurnsErrorOff() {
     var environment =
-        ObservabilityTestData.environmentWithModuleOn()
+        new MockEnvironment()
             .withProperty(ObservabilityConstants.TRACING_EXPORT_ENDPOINT, LOCAL_SPAN_ADDRESS);
 
     run(environment);
@@ -143,7 +142,7 @@ class LocalCollectorLoggingTest {
   @DisplayName("each address is checked on its own")
   void eachAddressIsCheckedOnItsOwn() {
     var environment =
-        environmentWithModuleOn(LOCAL_ADDRESSES.getFirst())
+        environmentWithMetricsAddress(LOCAL_ADDRESSES.getFirst())
             .withProperty(ObservabilityConstants.TRACING_EXPORT_ENDPOINT, OTHER_SPAN_ADDRESS);
 
     run(environment);
@@ -155,11 +154,11 @@ class LocalCollectorLoggingTest {
   }
 
   @Test
-  @DisplayName("with the module unset, nothing changes")
+  @DisplayName("with the module off, nothing changes")
   void moduleOffChangesNothing() {
     var environment =
-        new MockEnvironment()
-            .withProperty(ObservabilityConstants.METRICS_EXPORT_URL, LOCAL_ADDRESSES.getFirst());
+        environmentWithMetricsAddress(LOCAL_ADDRESSES.getFirst())
+            .withProperty(ObservabilityConstants.ENABLED, "false");
 
     run(environment);
 
@@ -170,7 +169,7 @@ class LocalCollectorLoggingTest {
   @DisplayName("a log level the service sets wins")
   void serviceLogLevelWins() {
     var environment =
-        environmentWithModuleOn(LOCAL_ADDRESSES.getFirst())
+        environmentWithMetricsAddress(LOCAL_ADDRESSES.getFirst())
             .withProperty(LocalCollectorLogging.METRICS_EXPORT_LOG_LEVEL, SERVICE_LEVEL);
 
     run(environment);
@@ -182,7 +181,7 @@ class LocalCollectorLoggingTest {
   @Test
   @DisplayName("a log level the service sets in Java default properties wins")
   void serviceJavaLogLevelWins() {
-    var environment = environmentWithModuleOn(LOCAL_ADDRESSES.getFirst());
+    var environment = environmentWithMetricsAddress(LOCAL_ADDRESSES.getFirst());
     environment
         .getPropertySources()
         .addLast(

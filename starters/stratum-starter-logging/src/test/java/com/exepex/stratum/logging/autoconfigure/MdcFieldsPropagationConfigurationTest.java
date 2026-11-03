@@ -36,21 +36,15 @@ class MdcFieldsPropagationConfigurationTest {
   }
 
   @Test
-  @DisplayName("with the module unset, neither accessor is registered")
-  void moduleUnsetRegistersNeither() {
-    contextRunner.run(
-        context -> {
-          assertThat(context).doesNotHaveBean(MdcFieldsPropagation.class);
-          assertThat(MdcFieldsRegistrations.registeredKeys()).isEmpty();
-        });
-  }
-
-  @Test
   @DisplayName("with the module off, neither accessor is registered")
   void moduleOffRegistersNeither() {
     contextRunner
         .withPropertyValues(LoggingConstants.ENABLED + "=false")
-        .run(_ -> assertThat(MdcFieldsRegistrations.registeredKeys()).isEmpty());
+        .run(
+            context -> {
+              assertThat(context).doesNotHaveBean(MdcFieldsPropagation.class);
+              assertThat(MdcFieldsRegistrations.registeredKeys()).isEmpty();
+            });
   }
 
   @Test
@@ -64,16 +58,14 @@ class MdcFieldsPropagationConfigurationTest {
   @Test
   @DisplayName("with the module on, both accessors are registered")
   void moduleOnRegistersBoth() {
-    contextRunner
-        .withPropertyValues(LoggingConstants.ENABLED + "=true")
-        .run(_ -> assertThat(MdcFieldsRegistrations.registeredKeys()).isEqualTo(BOTH_ACCESSORS));
+    contextRunner.run(
+        _ -> assertThat(MdcFieldsRegistrations.registeredKeys()).isEqualTo(BOTH_ACCESSORS));
   }
 
   @Test
   @DisplayName("with lazy initialization on, both accessors are still registered at startup")
   void lazyInitializationRegistersBoth() {
     contextRunner
-        .withPropertyValues(LoggingConstants.ENABLED + "=true")
         .withInitializer(
             context ->
                 context.addBeanFactoryPostProcessor(
@@ -84,7 +76,7 @@ class MdcFieldsPropagationConfigurationTest {
   @Test
   @DisplayName("after one application closes, both accessors stay for the others in the JVM")
   void closingAnApplicationKeepsBoth() {
-    contextRunner.withPropertyValues(LoggingConstants.ENABLED + "=true").run(_ -> {});
+    contextRunner.run(_ -> {});
 
     assertThat(MdcFieldsRegistrations.registeredKeys()).isEqualTo(BOTH_ACCESSORS);
   }

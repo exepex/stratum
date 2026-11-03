@@ -1,4 +1,4 @@
-/** Creates the logging module's beans, when {@code stratum.logging.enabled=true}. */
+/** Creates the logging module's beans, unless {@code stratum.logging.enabled=false}. */
 @NullMarked
 package com.exepex.stratum.logging.autoconfigure;
 

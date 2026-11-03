@@ -20,9 +20,9 @@ import org.springframework.util.ClassUtils;
 
 /**
  * Logs one INFO line after startup that lists every Stratum module whose starter is present but
- * switched off, with the property that turns each one on, so a team that added a starter and sees
- * nothing happen knows why. It reads Spring Boot's condition report, so no module list is kept by
- * hand, and logs nothing when no module is off.
+ * switched off with {@code stratum.<module>.enabled=false}, so a team sees which modules a
+ * property, such as an environment variable of its platform, turned off. It reads Spring Boot's
+ * condition report, so no module list is kept by hand, and logs nothing when no module is off.
  */
 @StratumInternal
 @Slf4j
@@ -47,7 +47,7 @@ public class ModulesLeftOffNotice implements ApplicationListener<ApplicationStar
           modulesLeftOff.stream()
               .map(
                   module ->
-                      module + " (" + StratumModuleConstants.enabledProperty(module) + "=true)")
+                      module + " (" + StratumModuleConstants.enabledProperty(module) + "=false)")
               .collect(Collectors.joining(", "));
       // Module names are kebab-case words; this also satisfies SpotBugs.
       log.info(("Stratum modules present but off: " + switches).replaceAll("[\r\n]", " "));

@@ -24,7 +24,6 @@ import org.springframework.test.annotation.DirtiesContext;
     classes = {OrdersApplication.class, ScheduledJobIsolationIntegrationTest.CleanupJob.class},
     properties = {
       "spring.main.web-application-type=none",
-      "stratum.observability.enabled=true",
       "management.tracing.sampling.probability=1.0",
       "management.tracing.export.enabled=false",
       "management.otlp.metrics.export.enabled=false"

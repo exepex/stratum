@@ -28,11 +28,7 @@ import org.springframework.test.annotation.DirtiesContext;
       VirtualThreadsIntegrationTest.ServicePools.class,
       VirtualThreadsIntegrationTest.ReceiptSender.class
     },
-    properties = {
-      "spring.application.name=orders",
-      "stratum.logging.enabled=true",
-      "spring.threads.virtual.enabled=true"
-    })
+    properties = {"spring.application.name=orders", "spring.threads.virtual.enabled=true"})
 // Closing the context resets logging, so later tests in this JVM start from Spring Boot's own.
 @DirtiesContext
 @DisplayName("A service that turns on virtual threads keeps its MDC fields on every virtual thread")

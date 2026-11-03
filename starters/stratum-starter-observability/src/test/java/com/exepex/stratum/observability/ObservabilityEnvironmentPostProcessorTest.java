@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.properties.ServiceInstanceId;
-import com.exepex.stratum.observability.testsupport.ObservabilityTestData;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -73,23 +72,21 @@ class ObservabilityEnvironmentPostProcessorTest {
   }
 
   @Nested
-  @DisplayName("with the module unset or off")
+  @DisplayName("with the module off")
   class WithModuleOff {
 
     @Test
     @DisplayName("it turns off sending metrics and spans")
     void turnsExportOff() {
-      var unset = runPostProcessor(new MockEnvironment());
       var off =
           runPostProcessor(new MockEnvironment().withProperty(ObservabilityConstants.ENABLED, OFF));
 
-      assertThat(unset.getProperty(ObservabilityConstants.METRICS_EXPORT_ENABLED)).isEqualTo(OFF);
+      assertThat(off.getProperty(ObservabilityConstants.METRICS_EXPORT_ENABLED)).isEqualTo(OFF);
       assertThat(off.getProperty(ObservabilityConstants.TRACING_EXPORT_ENABLED)).isEqualTo(OFF);
-      assertThat(unset.getProperty(ObservabilityConstants.WEB_EXPOSURE)).isNull();
-      assertThat(unset.getProperty(PROPAGATE_TASK_CONTEXT)).isNull();
+      assertThat(off.getProperty(ObservabilityConstants.WEB_EXPOSURE)).isNull();
+      assertThat(off.getProperty(PROPAGATE_TASK_CONTEXT)).isNull();
       assertThat(
-              ObservabilityConstants.MESSAGING_OBSERVATION_SWITCHES.stream()
-                  .map(unset::getProperty))
+              ObservabilityConstants.MESSAGING_OBSERVATION_SWITCHES.stream().map(off::getProperty))
           .containsOnlyNulls();
     }
 
@@ -113,7 +110,7 @@ class ObservabilityEnvironmentPostProcessorTest {
     @Test
     @DisplayName("only health and info are exposed, and export stays Spring Boot's default")
     void exposesSafeEndpoints() {
-      var environment = runPostProcessor(ObservabilityTestData.environmentWithModuleOn());
+      var environment = runPostProcessor(new MockEnvironment());
 
       assertThat(environment.getProperty(ObservabilityConstants.WEB_EXPOSURE))
           .isEqualTo("health,info");
@@ -125,7 +122,7 @@ class ObservabilityEnvironmentPostProcessorTest {
         "Spring Boot's executors and every Reactor operator carry the trace, so @Async work and"
             + " reactive code join the caller's trace")
     void executorsAndReactorCarryTrace() {
-      var environment = runPostProcessor(ObservabilityTestData.environmentWithModuleOn());
+      var environment = runPostProcessor(new MockEnvironment());
 
       assertThat(environment.getProperty(PROPAGATE_TASK_CONTEXT)).isEqualTo(ON);
       assertThat(environment.getProperty(REACTOR_CONTEXT_PROPAGATION)).isEqualTo("auto");
@@ -138,7 +135,7 @@ class ObservabilityEnvironmentPostProcessorTest {
     void leavesReactorContextPropagationForLaterDecision() {
       Hooks.disableAutomaticContextPropagation();
 
-      runPostProcessor(ObservabilityTestData.environmentWithModuleOn());
+      runPostProcessor(new MockEnvironment());
 
       assertThat(Hooks.isAutomaticContextPropagationEnabled()).isFalse();
     }
@@ -148,7 +145,7 @@ class ObservabilityEnvironmentPostProcessorTest {
     void tagsEveryMetric() {
       var environment =
           runPostProcessor(
-              ObservabilityTestData.environmentWithModuleOn()
+              new MockEnvironment()
                   .withProperty(ObservabilityConstants.APPLICATION_NAME, SERVICE_NAME)
                   .withProperty(StratumModuleConstants.SERVICE_ENVIRONMENT, PROD)
                   .withProperty(ObservabilityConstants.HOSTNAME, POD_NAME));
@@ -163,7 +160,7 @@ class ObservabilityEnvironmentPostProcessorTest {
     @Test
     @DisplayName("every timing is stored as a base-2 exponential histogram")
     void storesTimingsAsExponentialHistograms() {
-      var environment = runPostProcessor(ObservabilityTestData.environmentWithModuleOn());
+      var environment = runPostProcessor(new MockEnvironment());
 
       assertThat(environment.getProperty(ObservabilityConstants.HISTOGRAM_FOR_EVERY_TIMING))
           .isEqualTo(ON);
@@ -175,9 +172,7 @@ class ObservabilityEnvironmentPostProcessorTest {
     @DisplayName("Kafka and RabbitMQ messages are traced and timed, unless the service says no")
     void observesMessaging() {
       var environment =
-          runPostProcessor(
-              ObservabilityTestData.environmentWithModuleOn()
-                  .withProperty(KAFKA_LISTENER_SWITCH, OFF));
+          runPostProcessor(new MockEnvironment().withProperty(KAFKA_LISTENER_SWITCH, OFF));
 
       assertThat(OTHER_MESSAGING_SWITCHES.stream().map(environment::getProperty)).containsOnly(ON);
       assertThat(environment.getProperty(KAFKA_LISTENER_SWITCH)).isEqualTo(OFF);
@@ -188,7 +183,7 @@ class ObservabilityEnvironmentPostProcessorTest {
     void serviceBootKeysWin() {
       var environment =
           runPostProcessor(
-              ObservabilityTestData.environmentWithModuleOn()
+              new MockEnvironment()
                   .withProperty(ObservabilityConstants.WEB_EXPOSURE, SERVICE_EXPOSURE)
                   .withProperty(ObservabilityConstants.HISTOGRAM_FOR_EVERY_TIMING, OFF)
                   .withProperty(PROPAGATE_TASK_CONTEXT, OFF));
@@ -205,8 +200,7 @@ class ObservabilityEnvironmentPostProcessorTest {
     void leavesOutUnsetTags() {
       var environment =
           runPostProcessor(
-              ObservabilityTestData.environmentWithModuleOn()
-                  .withProperty(StratumModuleConstants.SERVICE_ENVIRONMENT, " "));
+              new MockEnvironment().withProperty(StratumModuleConstants.SERVICE_ENVIRONMENT, " "));
 
       assertThat(environment.getProperty(APPLICATION_TAG)).isNull();
       assertThat(environment.getProperty(ENVIRONMENT_TAG)).isNull();
@@ -216,7 +210,7 @@ class ObservabilityEnvironmentPostProcessorTest {
     @Test
     @DisplayName("an exposure the service sets in Java wins over Stratum's")
     void serviceJavaExposureWins() {
-      var environment = ObservabilityTestData.environmentWithModuleOn();
+      var environment = new MockEnvironment();
       environment
           .getPropertySources()
           .addLast(
@@ -245,22 +239,24 @@ class ObservabilityEnvironmentPostProcessorTest {
     @Test
     @DisplayName("with the module on, every span and metric names the instance this JVM generated")
     void namesGeneratedInstance() {
-      var environment = runPostProcessor(ObservabilityTestData.environmentWithModuleOn());
+      var environment = runPostProcessor(new MockEnvironment());
 
       assertThat(environment.getProperty(INSTANCE_ID_KEY))
           .isEqualTo(ServiceInstanceId.of(new MockEnvironment()).value());
     }
 
     @Test
-    @DisplayName("with the module unset, no instance ID is set")
+    @DisplayName("with the module off, no instance ID is set")
     void moduleOffSetsNoInstanceId() {
-      assertThat(runPostProcessor(new MockEnvironment()).getProperty(INSTANCE_ID_KEY)).isNull();
+      var off = new MockEnvironment().withProperty(ObservabilityConstants.ENABLED, OFF);
+
+      assertThat(runPostProcessor(off).getProperty(INSTANCE_ID_KEY)).isNull();
     }
 
     @Test
     @DisplayName("the service's own instance ID, from OTEL_RESOURCE_ATTRIBUTES, wins")
     void serviceInstanceIdWins() {
-      var environment = ObservabilityTestData.environmentWithModuleOn();
+      var environment = new MockEnvironment();
       environment
           .getPropertySources()
           .addLast(
@@ -275,9 +271,7 @@ class ObservabilityEnvironmentPostProcessorTest {
     @DisplayName(
         "a blank instance ID the service sets is what spans carry, and the one its logs use too")
     void blankServiceInstanceIdIsUsedEverywhere() {
-      var environment =
-          runPostProcessor(
-              ObservabilityTestData.environmentWithModuleOn().withProperty(INSTANCE_ID_KEY, " "));
+      var environment = runPostProcessor(new MockEnvironment().withProperty(INSTANCE_ID_KEY, " "));
       var spanInstanceId =
           Binder.get(environment)
               .bind(
@@ -293,7 +287,7 @@ class ObservabilityEnvironmentPostProcessorTest {
     @Test
     @DisplayName("the observability module sets no log field: that is the logging module's")
     void setsNoLogField() {
-      var environment = runPostProcessor(ObservabilityTestData.environmentWithModuleOn());
+      var environment = runPostProcessor(new MockEnvironment());
       var defaults =
           (EnumerablePropertySource<?>)
               environment.getPropertySources().get(DefaultPropertiesPropertySource.NAME);

@@ -22,11 +22,7 @@ import org.springframework.test.annotation.DirtiesContext;
 
 @SpringBootTest(
     classes = OrdersApplication.class,
-    properties = {
-      "spring.application.name=orders",
-      "stratum.environment=prod",
-      "stratum.logging.enabled=true"
-    })
+    properties = {"spring.application.name=orders", "stratum.environment=prod"})
 // Closing the context resets logging, so later tests in this JVM start from Spring Boot's own.
 @DirtiesContext
 @Slf4j

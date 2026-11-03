@@ -34,7 +34,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
 import reactor.core.publisher.Mono;
 
-/** Creates the observability module's beans, when {@code stratum.observability.enabled=true}. */
+/** Creates the observability module's beans, unless {@code stratum.observability.enabled=false}. */
 @StratumInternal
 @AutoConfiguration(
     after = TaskExecutionAutoConfiguration.class,

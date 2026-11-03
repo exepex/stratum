@@ -12,7 +12,7 @@ service starts.
 | --- | --- |
 | **Convention over configuration** | Every module works with zero configuration and production-safe defaults. |
 | **Opt-in** | One starter per concern; a service carries only what it uses. |
-| **Never locked in** | Every bean is `@ConditionalOnMissingBean`; every default is a property; every module has an `enabled` switch and stays off until a service sets it. |
+| **Never locked in** | Every bean is `@ConditionalOnMissingBean`; every default is a property; every module is on when its starter is present and has an `enabled` switch that turns it off. |
 | **Plain Spring** | Stratum uses Spring Boot's auto-configuration and Spring's extension points. No custom programming model. |
 | **Secure by default** | Secrets redacted, timeouts on every remote call, minimal Actuator exposure, validation of tokens. |
 | **Fail fast** | Missing or invalid configuration stops startup with a clear message. |

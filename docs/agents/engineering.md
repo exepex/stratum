@@ -56,7 +56,9 @@ cite it.
 - **ST-ENG-10 One concern per starter.** Logging, observability, security, HTTP clients, resilience, data access,
   caching and messaging each have their own `stratum-starter-*`. A service only gets what it adds. Bundle starters,
   such as `stratum-starter-microservice`, contain no code and only list the single starters one kind of application
-  needs; no starter depends on a starter its concern does not need (ADR 0003).
+  needs (ADR 0003). No single starter depends on another starter, except in test scope. Starters share code and
+  settings through a library in `libs/`, and shared code moves there only when a second starter needs it
+  (ADR 0010).
 - **ST-ENG-11 Starters meet through Spring.** When one starter needs another's behaviour, it uses the public extension
   points of Spring and Micrometer, which the other starter configures. It never imports another starter's internal
   classes. Example: the HTTP client starter propagates traces through Micrometer's observation API, not through
@@ -124,10 +126,10 @@ Every starter follows these rules:
   `stratum-core` has none. The ArchUnit tests check this (ST-TEST-21).
 - **ST-ENG-21** Every bean has conditions: `@ConditionalOnMissingBean` so a service or another framework can supply
   its own, `@ConditionalOnClass` when it needs an optional library, and every auto-configuration of a module carries
-  `@ConditionalOnStratumModule("<module>")` from `stratum-core`, so the whole module stays off until the service sets
-  `stratum.<module>.enabled=true` (ADR 0003). The missing-bean condition checks the type that services inject, such
-  as Resilience4j's `CircuitBreakerRegistry`, not a Stratum class. Every bean is also marked `@Fallback`, so that
-  when another framework's bean of the same type exists, Spring injects that one
+  `@ConditionalOnStratumModule("<module>")` from `stratum-core`, so the whole module is on when its starter is present
+  and a service turns it off with `stratum.<module>.enabled=false` (ADR 0010). The missing-bean condition checks the
+  type that services inject, such as Resilience4j's `CircuitBreakerRegistry`, not a Stratum class. Every bean is also
+  marked `@Fallback`, so that when another framework's bean of the same type exists, Spring injects that one
   ([ADR 0001](../adr/0001-coexistence-with-company-frameworks.md)). For a type that Spring Boot already
   auto-configures, such as `RestClient.Builder`, Stratum does not define its own bean: it adjusts Boot's bean through
   a customizer (ST-ENG-24). One exception: when Spring Boot backs off from its `applicationTaskExecutor` because the
@@ -147,7 +149,8 @@ Every starter follows these rules:
   `<Module>PropertiesCustomizer`, is the one kind that is never a bean: it is listed in `META-INF/spring.factories`
   (ST-ENG-34).
 - **ST-ENG-25** The defaults are safe for production: timeouts set, sensitive values redacted, endpoints secured,
-  resources bounded. A service needs no configuration to be safe.
+  resources bounded. A service needs no configuration to be safe. A missing required value stops startup with a
+  message naming the key and `stratum.<module>.enabled=false`; a module never switches itself off quietly (ADR 0010).
   One exception: while `stratum.backward-compatible` is `true` (its default is `false`), the web module sets no
   default response time limit, request body size limit or WebFlux multipart limit, so a running service's requests
   are not refused or cut off ([ADR 0008](../adr/0008-error-format-and-backward-compatible-mode.md),
@@ -209,7 +212,7 @@ Every starter follows these rules:
   for a setting, Stratum uses that key and adds no `stratum.*` key that duplicates it: a module that changes the
   default sets it with `StratumDefaults`, and the module's README lists the Spring Boot key with Stratum's default.
   A `stratum.*` key is added only for what Spring Boot has no key for. Keep the number of keys low: every new key
-  has a safe default, so most services set only `stratum.<module>.enabled`.
+  has a safe default, so most services set no `stratum.*` key.
 - **ST-ENG-35** A team's configuration always wins over Stratum's defaults, including its own lists such as the
   logging starter's `extra-keys` and `extra-patterns`. Stratum guards against mistakes, not against a team's
   deliberate choices. One exception: a service logs only through Stratum's log formats; any other format stops

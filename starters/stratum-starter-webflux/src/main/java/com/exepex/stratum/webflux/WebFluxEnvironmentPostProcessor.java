@@ -13,7 +13,7 @@ import org.springframework.core.Ordered;
 import org.springframework.core.env.ConfigurableEnvironment;
 
 /**
- * Sets the Spring Boot defaults the WebFlux starter needs once {@code stratum.web.enabled=true}.
+ * Sets the Spring Boot defaults the WebFlux starter needs unless {@code stratum.web.enabled=false}.
  * Reactor carries the logging and tracing context into every operator ({@code
  * spring.reactor.context-propagation=auto}), so that error bodies, error pages and log lines have
  * the request's trace ID even when the logging and observability modules, which set the same

@@ -35,9 +35,7 @@ import org.springframework.http.MediaType;
     classes = OrdersApplication.class,
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = {
-      "stratum.web.enabled=true",
       "stratum.web.error.statuses.ORD-0001=409",
-      "stratum.observability.enabled=true",
       "management.tracing.sampling.probability=1.0",
       "management.tracing.export.enabled=false",
       "management.otlp.metrics.export.enabled=false"

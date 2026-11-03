@@ -24,11 +24,9 @@ import org.springframework.http.MediaType;
     classes = UploadApplication.class,
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = {
-      "stratum.web.enabled=true",
       "stratum.backward-compatible=false",
       WebConstants.BODY_LIMIT_DEFAULT_LIMIT + "=1KB",
       WebConstants.BODY_LIMIT_ROUTES + "[/uploads/**]=4KB",
-      "stratum.observability.enabled=true",
       "management.tracing.sampling.probability=1.0",
       "management.tracing.export.enabled=false",
       "management.otlp.metrics.export.enabled=false",

@@ -19,9 +19,9 @@ import org.springframework.http.HttpStatus;
     classes = RequestFieldsApplication.class,
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = {
-      "stratum.web.enabled=true",
       WebConstants.REQUEST_LOG_REQUEST_HEADERS + "[X-Tenant-Id]=tenantId",
-      WebConstants.REQUEST_LOG_TOKEN_PAYLOAD + "=true"
+      WebConstants.REQUEST_LOG_TOKEN_PAYLOAD + "=true",
+      "stratum.observability.enabled=false"
     })
 @DisplayName("Each Spring MVC request writes one log line once it has been answered")
 class RequestLogIntegrationTest {

@@ -40,7 +40,7 @@ import org.springframework.context.annotation.Import;
 /**
  * Gives every log line of a Spring MVC request its fields, every request its correlation ID, one
  * closing log line and a time limit, and leaves the server thread's logging context clean when the
- * request ends, when {@code stratum.web.enabled=true}.
+ * request ends, unless {@code stratum.web.enabled=false}.
  */
 @StratumInternal
 @AutoConfiguration

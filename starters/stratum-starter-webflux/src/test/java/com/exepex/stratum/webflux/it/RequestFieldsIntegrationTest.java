@@ -48,8 +48,6 @@ class RequestFieldsIntegrationTest {
       classes = RequestFieldsApplication.class,
       webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
       properties = {
-        "stratum.web.enabled=true",
-        "stratum.observability.enabled=true",
         "management.tracing.sampling.probability=1.0",
         "management.opentelemetry.tracing.export.otlp.endpoint=http://localhost:1/v1/traces",
         "management.otlp.metrics.export.enabled=false"
@@ -187,8 +185,6 @@ class RequestFieldsIntegrationTest {
       classes = RequestFieldsApplication.class,
       webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
       properties = {
-        "stratum.web.enabled=true",
-        "stratum.observability.enabled=true",
         "management.tracing.sampling.probability=1.0",
         "management.opentelemetry.tracing.export.otlp.endpoint=http://localhost:1/v1/traces",
         "management.otlp.metrics.export.enabled=false",
@@ -223,7 +219,10 @@ class RequestFieldsIntegrationTest {
   @SpringBootTest(
       classes = RequestFieldsApplication.class,
       webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-      properties = {"stratum.web.enabled=true", "server.forward-headers-strategy=native"})
+      properties = {
+        "server.forward-headers-strategy=native",
+        "stratum.observability.enabled=false"
+      })
   @DisplayName("with Netty's forwarded-header support on, as Spring Boot sets it on Kubernetes")
   class NettyForwardedHeaders {
 

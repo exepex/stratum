@@ -1,4 +1,4 @@
-/** Sets up logging before the application starts, when {@code stratum.logging.enabled=true}. */
+/** Sets up logging before the application starts, unless {@code stratum.logging.enabled=false}. */
 @NullMarked
 package com.exepex.stratum.logging.startup;
 

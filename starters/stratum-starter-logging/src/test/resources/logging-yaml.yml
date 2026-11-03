@@ -4,7 +4,6 @@ spring:
 stratum:
   environment: staging
   logging:
-    enabled: true
     max-elements: 3
     redaction:
       extra-keys:

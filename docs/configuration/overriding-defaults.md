@@ -12,7 +12,7 @@ from the lightest touch to the strongest.
 | 1 | Change a value | Set a property, or the same value in Java | One line, or a small class |
 | 2 | Adjust a bean Stratum built | Declare a customizer bean | A few lines |
 | 3 | Replace a bean entirely | Declare your own bean of the same type | You own that bean from now on |
-| 4 | Turn a module on or off | `stratum.<module>.enabled=true` or `false` | One line |
+| 4 | Turn a module off | `stratum.<module>.enabled=false` | One line |
 
 Always use the **lowest level that solves your problem**. Each level up means more code that your
 team maintains instead of Stratum.
@@ -129,8 +129,7 @@ public static void main(String[] args) {
   var application = new SpringApplication(OrdersApplication.class);
   application.setDefaultProperties(
       Map.of(
-          "stratum.logging.enabled", true,
-          "stratum.observability.enabled", true,
+          "stratum.cache.enabled", false,
           "stratum.environment", "prod",
           "management.endpoints.web.exposure.include", "health,info,prometheus"));
   application.run(args);
@@ -211,34 +210,35 @@ class SecurityConfig {
 Each module page lists the beans it creates under **What you get**, with their types, so you know
 exactly what you would be replacing.
 
-## Level 4: turn a module on or off
+## Level 4: turn a module off
 
-Every starter has a switch, and every module is **off until you switch it on**. Adding a starter, or
-a [bundle](../modules/bundles.md), puts its libraries on the classpath; the switch decides whether
-Stratum sets anything up. Switch on the modules your service uses:
+Every starter has a switch, and every module is **on when its starter is on the classpath**. Adding
+a starter, or a [bundle](../modules/bundles.md), sets the module up without another line. Turn off
+a module your service does not want Stratum to set up:
 
 ```yaml
 stratum:
   cache:
-    enabled: true
+    enabled: false
 ```
 
 ```properties
-stratum.cache.enabled=true
+stratum.cache.enabled=false
 ```
 
-Leaving the property unset, or setting it to `false`, removes all of Stratum's beans and defaults for
-the module. Spring Boot's own setup for the libraries the starter brings still applies, such as
-Spring Security's default login; to avoid that, leave the starter out. Switching a module off is
-useful for a test profile, or while you migrate one concern at a time. If you never want the
-module, remove the starter from your `pom.xml`, or exclude it from the bundle, instead.
+Setting the property to `false` removes all of Stratum's beans and defaults for the module. Leaving
+it unset, or empty, keeps the module on. With the module off, Spring Boot's own setup for the
+libraries the starter brings still applies, such as Spring Security's default login; to avoid that,
+leave the starter out. Switching a module off is useful for a test profile, or while you migrate one
+concern at a time. If you never want the module, remove the starter from your `pom.xml`, or exclude
+it from the bundle, instead.
 
 The switch is read from properties only, not from a `StratumPropertiesCustomizer`: Spring decides
 which beans to create before any customizer runs. To set it in Java, use the application's
 [default properties](#switches-shared-properties-and-spring-boot-properties-in-java).
 
-A module's own switches, such as `stratum.web.correlation.enabled`, apply only once the module is
-on. Their defaults, often `true`, mean that a module you switch on comes with all its parts.
+A module's own switches, such as `stratum.web.correlation.enabled`, apply only while the module is
+on. Their defaults, often `true`, mean that a module comes with all its parts.
 
 Some modules also let you switch off one part:
 

@@ -43,10 +43,11 @@ that is not reactive uses `stratum-starter-webmvc` instead; never add both. The
 `stratum-starter-reactive-microservice` bundle already includes it. The version comes from
 Stratum's parent or BOM ([installation](../../docs/getting-started/installation.md)).
 
-The starter does nothing of its own until you switch it on, in `application.properties`:
+The starter is on as soon as it is on the classpath; no line is needed. To turn it off, set in
+`application.properties`:
 
 ```properties
-stratum.web.enabled=true
+stratum.web.enabled=false
 ```
 
 or in `application.yml`:
@@ -54,7 +55,7 @@ or in `application.yml`:
 ```yaml
 stratum:
   web:
-    enabled: true
+    enabled: false
 ```
 
 The trace and correlation IDs in error bodies and logs come from the
@@ -340,8 +341,9 @@ auto-configuration declares no order, are still registered first and win.
 
 ## Switch it on or off
 
-`stratum.web.enabled=true` switches the module on. Leaving it unset is the same as `false`: the
-service runs on plain Spring WebFlux, with Spring Boot's own error handling.
+The module is on when the starter is on the classpath; leaving `stratum.web.enabled` unset, or
+empty, is the same as `true`. With `stratum.web.enabled=false`, the service runs on plain
+Spring WebFlux, with Spring Boot's own error handling.
 
 Shutdown is graceful, as in Spring Boot (`server.shutdown=graceful`): requests already running get up
 to 30 seconds to finish. Stratum does not change it; set `spring.lifecycle.timeout-per-shutdown-phase`
@@ -352,7 +354,7 @@ to change the wait.
 | What you see | Why, and the fix |
 | --- | --- |
 | Your code is answered with `500`, and the log says it has no status | Add the code to `stratum.web.error.statuses`. |
-| The body has no `traceId` | Tracing is off: add the observability starter and set `stratum.observability.enabled=true`. Or the service sets `spring.reactor.context-propagation=limited`, so the error handler runs without the request's trace ID: remove it to get Stratum's default, `auto`. |
+| The body has no `traceId` | Tracing is off: add the observability starter, and leave `stratum.observability.enabled` unset or `true`. Or the service sets `spring.reactor.context-propagation=limited`, so the error handler runs without the request's trace ID: remove it to get Stratum's default, `auto`. |
 | A failure gets Spring Boot's default body | The module is off, or the service declares its own `ErrorAttributes` or `ErrorWebExceptionHandler` bean. |
 | Your handler is not used for an exception | Another advice handles it first. Advice runs in `@Order` order. |
 | Spring's own failures, such as an invalid body, get a body without `code`, and with the request path as `instance` | The service sets `spring.webflux.problemdetails.enabled=true`, so Spring's own handler answers them before Stratum's. Remove the property, which is off by default, to get Stratum's body. |

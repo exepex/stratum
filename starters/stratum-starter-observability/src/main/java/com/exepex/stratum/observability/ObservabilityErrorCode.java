@@ -26,7 +26,9 @@ public enum ObservabilityErrorCode implements ErrorCode {
       "Set the named property to your OpenTelemetry Collector, such as"
           + " http://otel-collector:4318/v1/metrics, or turn that export off with"
           + " management.otlp.metrics.export.enabled=false or"
-          + " management.tracing.export.enabled=false."),
+          + " management.tracing.export.enabled=false, or turn the module off with "
+          + ObservabilityConstants.ENABLED
+          + "=false."),
 
   /**
    * A metric was dropped because one of its tags is named like an ID, whose values would make a new

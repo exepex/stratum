@@ -36,7 +36,7 @@ class OnStratumModuleCondition extends SpringBootCondition {
   private static final Pattern KEBAB_CASE_CHARACTERS = Pattern.compile("[a-z0-9-]+");
 
   /**
-   * Reads {@code stratum.<module>.enabled}; a module whose property is not set is off (ADR 0003).
+   * Reads {@code stratum.<module>.enabled}; a module whose property is not set is on (ADR 0010).
    *
    * @param context the context whose environment holds the property
    * @param metadata the annotated class or method
@@ -55,7 +55,8 @@ class OnStratumModuleCondition extends SpringBootCondition {
     var enabled = StratumModuleSwitch.isEnabled(context.getEnvironment(), module);
     requireSameSwitchAsAtStartup(context.getEnvironment(), property, enabled);
     return new ConditionOutcome(
-        enabled, message.because(property + (enabled ? " is true" : " is not true, so it is off")));
+        enabled,
+        message.because(property + (enabled ? " is not false, so it is on" : " is false")));
   }
 
   /**
@@ -75,8 +76,8 @@ class OnStratumModuleCondition extends SpringBootCondition {
     var name = ConfigurationPropertyName.of(property);
     var source = sourceOf(configurable, name);
     if (record != null
-        && record.getProperty(EarlyModuleSwitches.RECORD) instanceof Set<?> modulesOnEarly
-        && modulesOnEarly.contains(name.getElement(1, Form.UNIFORM)) != enabled
+        && record.getProperty(EarlyModuleSwitches.RECORD) instanceof Set<?> modulesOffEarly
+        && modulesOffEarly.contains(name.getElement(1, Form.UNIFORM)) == enabled
         && source.map(IterableConfigurationPropertySource.class::isInstance).orElse(true)) {
       throw new StratumException(
           enabled

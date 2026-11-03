@@ -15,7 +15,7 @@ public class WebConstants {
   /** The prefix of the module's own settings. */
   public static final String PREFIX = StratumModuleConstants.PREFIX + "." + MODULE;
 
-  /** The switch that turns the module on. */
+  /** The switch that turns the module off when set to {@code false}; unset, the module is on. */
   public static final String ENABLED = StratumModuleConstants.enabledProperty(MODULE);
 
   /** The setting that maps a service's error codes to HTTP statuses. */

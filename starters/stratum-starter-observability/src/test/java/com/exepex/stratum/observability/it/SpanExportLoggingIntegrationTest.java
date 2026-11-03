@@ -24,7 +24,6 @@ import org.springframework.test.context.TestPropertySource;
     classes = OrdersApplication.class,
     properties = {
       "spring.main.web-application-type=none",
-      "stratum.observability.enabled=true",
       "management.otlp.metrics.export.enabled=false",
       "management.tracing.sampling.probability=1.0"
     })

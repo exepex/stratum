@@ -11,17 +11,17 @@ import org.springframework.core.env.Environment;
 public class StratumModuleSwitch {
 
   /**
-   * Returns whether a module is switched on. A module whose property is not set is off (ADR 0003).
+   * Returns whether a module is switched on. A module whose property is not set is on (ADR 0010).
    *
    * @param environment the application's environment
    * @param module the module's kebab-case name, such as {@code http-client}
-   * @return whether {@code stratum.<module>.enabled} is {@code true}
+   * @return whether {@code stratum.<module>.enabled} is not {@code false}
    */
   public static boolean isEnabled(Environment environment, String module) {
     // Spring's Boolean return is nullable for SpotBugs, so the comparison avoids unboxing it.
     return Boolean.TRUE.equals(
         Binder.get(environment)
             .bind(StratumModuleConstants.enabledProperty(module), Boolean.class)
-            .orElse(false));
+            .orElse(true));
   }
 }

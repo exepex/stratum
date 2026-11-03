@@ -33,10 +33,11 @@ flowchart LR
 </dependency>
 ```
 
-The starter does nothing until you switch it on, in `application.properties`:
+The starter is on as soon as it is on the classpath; no line is needed. To turn it off, set in
+`application.properties`:
 
 ```properties
-stratum.kafka.enabled=true
+stratum.kafka.enabled=false
 ```
 
 or in `application.yml`:
@@ -44,7 +45,7 @@ or in `application.yml`:
 ```yaml
 stratum:
   kafka:
-    enabled: true
+    enabled: false
 ```
 
 **Required:** `spring.kafka.bootstrap-servers`.
@@ -100,7 +101,7 @@ same partition and are processed in order.
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.kafka.enabled` | boolean | `false` | Switches the whole starter on. Until it is `true`, the starter sets up nothing. |
+| `stratum.kafka.enabled` | boolean | `true` | Whether the starter is on. With `false`, the starter sets up nothing. |
 | `stratum.kafka.consumer.retry.max-attempts` | int | `3` | Attempts before a message goes to the DLT. |
 | `stratum.kafka.consumer.retry.initial-backoff` | duration | `1s` | Wait before the first retry. |
 | `stratum.kafka.consumer.retry.multiplier` | number | `2.0` | Growth factor of the wait. |
@@ -162,8 +163,8 @@ customizer or builder, with the same names and defaults. This section will show 
 
 ## Switch it on or off
 
-`stratum.kafka.enabled=true` switches the starter on.
-Leaving it unset is the same as `false`.
+The starter is on when it is on the classpath. Leaving `stratum.kafka.enabled` unset, or empty,
+is the same as `true`.
 
 `stratum.kafka.enabled=false` leaves Spring Boot's own Kafka defaults: no DLT, and a failing
 message is retried 10 times and then skipped.

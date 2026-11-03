@@ -18,11 +18,9 @@ import org.springframework.http.HttpStatus;
     classes = OrdersApplication.class,
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = {
-      "stratum.web.enabled=true",
       "stratum.backward-compatible=true",
       "stratum.web.error.statuses.ORD-0001=409",
       "spring.web.error.include-message=always",
-      "stratum.observability.enabled=true",
       "management.tracing.sampling.probability=1.0",
       "management.tracing.export.enabled=false",
       "management.otlp.metrics.export.enabled=false"

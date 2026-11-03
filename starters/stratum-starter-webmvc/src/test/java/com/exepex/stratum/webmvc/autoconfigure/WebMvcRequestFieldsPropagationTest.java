@@ -20,9 +20,6 @@ import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
         + " module is on")
 class WebMvcRequestFieldsPropagationTest {
 
-  /** The setting that turns the module on. */
-  private static final String MODULE_ON = WebConstants.ENABLED + "=true";
-
   /** The key of the request fields accessor, alone, as the registry holds it once registered. */
   private static final List<Object> ACCESSOR_KEY = List.of(WebConstants.REQUEST_FIELDS_CONTEXT_KEY);
 
@@ -39,28 +36,27 @@ class WebMvcRequestFieldsPropagationTest {
   }
 
   @Test
-  @DisplayName("with the module unset, the accessor is not registered")
-  void moduleUnsetRegistersNothing() {
-    contextRunner.run(
-        context -> {
-          assertThat(context).doesNotHaveBean(RequestFieldsPropagation.class);
-          assertThat(registeredRequestFieldKeys()).isEmpty();
-        });
+  @DisplayName("with the module off, the accessor is not registered")
+  void moduleOffRegistersNothing() {
+    contextRunner
+        .withPropertyValues(WebConstants.ENABLED + "=false")
+        .run(
+            context -> {
+              assertThat(context).doesNotHaveBean(RequestFieldsPropagation.class);
+              assertThat(registeredRequestFieldKeys()).isEmpty();
+            });
   }
 
   @Test
   @DisplayName("with the module on, the accessor is registered")
   void moduleOnRegistersAccessor() {
-    contextRunner
-        .withPropertyValues(MODULE_ON)
-        .run(_ -> assertThat(registeredRequestFieldKeys()).isEqualTo(ACCESSOR_KEY));
+    contextRunner.run(_ -> assertThat(registeredRequestFieldKeys()).isEqualTo(ACCESSOR_KEY));
   }
 
   @Test
   @DisplayName("with lazy initialization on, the accessor is still registered at startup")
   void lazyInitializationRegistersAccessor() {
     contextRunner
-        .withPropertyValues(MODULE_ON)
         .withInitializer(
             context ->
                 context.addBeanFactoryPostProcessor(
@@ -71,7 +67,7 @@ class WebMvcRequestFieldsPropagationTest {
   @Test
   @DisplayName("after one application closes, the accessor stays for the others in the JVM")
   void closingAnApplicationKeepsAccessor() {
-    contextRunner.withPropertyValues(MODULE_ON).run(_ -> {});
+    contextRunner.run(_ -> {});
 
     assertThat(registeredRequestFieldKeys()).isEqualTo(ACCESSOR_KEY);
   }
@@ -81,7 +77,6 @@ class WebMvcRequestFieldsPropagationTest {
   void ownBeanBacksOff() {
     var servicePropagation = new RequestFieldsPropagation();
     contextRunner
-        .withPropertyValues(MODULE_ON)
         .withBean(RequestFieldsPropagation.class, () -> servicePropagation)
         .run(
             context ->

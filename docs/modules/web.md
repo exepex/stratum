@@ -42,11 +42,11 @@ The [bundles](bundles.md) choose for you: `stratum-starter-microservice` and
 `stratum-starter-web-ui` bring `stratum-starter-webmvc`, and
 `stratum-starter-reactive-microservice` brings `stratum-starter-webflux`.
 
-Both starters are the module `web`. They do nothing until you switch them on, in
-`application.properties`:
+Both starters are the module `web`. It is on as soon as either starter is on the classpath; no line
+is needed. To turn it off, set in `application.properties`:
 
 ```properties
-stratum.web.enabled=true
+stratum.web.enabled=false
 ```
 
 or in `application.yml`:
@@ -54,7 +54,7 @@ or in `application.yml`:
 ```yaml
 stratum:
   web:
-    enabled: true
+    enabled: false
 ```
 
 Both read the same `stratum.web.*` settings, so a service that moves from one stack to the other
@@ -404,7 +404,7 @@ it is listed in [Configuration reference](../configuration/reference.md) and exp
 
 | Property | Type | Stratum's default | Spring Boot's default | Description |
 | --- | --- | --- | --- | --- |
-| `stratum.web.enabled` | boolean | `false` | no such key | Switches the module on. Until it is `true`, the starter sets up nothing of its own. |
+| `stratum.web.enabled` | boolean | `true` | no such key | Whether the module is on. With `false`, the starter sets up nothing of its own. |
 | `stratum.web.error.statuses` | map of code to status | empty | no such key | The HTTP status of each of your error codes, such as `ORD-0001: 409`. |
 | `stratum.web.correlation.accept-from-caller` | boolean | `true` | no such key | Whether a caller's `X-Correlation-Id`, or the `correlationId` in its baggage, is used. Set it to `false` on a service that faces the internet, to always use the trace ID. |
 | `stratum.web.client-ip.trusted-proxies` | list of address ranges | `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `127.0.0.0/8`, `::1/128`, `fc00::/7` | no such key | The load balancers and proxies whose `X-Forwarded-For` header is trusted. An empty list trusts none. |
@@ -489,5 +489,6 @@ see [Response timeouts](web-timeouts.md) and [Request body size limit](web-body-
 
 ## Switch it on or off
 
-`stratum.web.enabled=true` switches the module on. Leaving it unset is the same as `false`. With
-the module off, the starter still brings its web stack, so the service runs as plain Spring Boot.
+The module is on when its starter is on the classpath. Leaving `stratum.web.enabled` unset, or
+empty, is the same as `true`. `stratum.web.enabled=false` turns it off. With the module off, the
+starter still brings its web stack, so the service runs as plain Spring Boot.

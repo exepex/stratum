@@ -2,6 +2,7 @@ package com.exepex.stratum.webflux;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.exepex.stratum.web.WebConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -108,7 +109,8 @@ class WebFluxEnvironmentPostProcessorTest {
     @Test
     @DisplayName("sets nothing when the web module is off")
     void nothingWhenModuleOff() {
-      var environment = runPostProcessor(new MockEnvironment());
+      var environment =
+          runPostProcessor(new MockEnvironment().withProperty(WebConstants.ENABLED, "false"));
 
       assertThat(environment.getProperty(DISK_PER_PART)).isNull();
       assertThat(environment.getProperty(PARTS)).isNull();

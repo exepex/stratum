@@ -100,46 +100,48 @@ it, for example
 Using `beforeName` avoids a compile-time dependency on Stratum. Stratum's auto-configuration class
 names may change between minor versions, and the release notes list every rename.
 
-## Rule 3: when whole setups overlap, leave Stratum's part off
+## Rule 3: when whole setups overlap, turn Stratum's part off
 
 Some concerns are not one bean but a whole setup, such as a security filter chain, a log format or a
 request filter. Running two of them gives wrong results: two filter chains, logs in two formats or
 two correlation IDs per request. Choose one framework for each such concern.
 
-Every Stratum module is **off until the service switches it on** with
-`stratum.<module>.enabled=true` ([ADR 0003](../adr/0003-bundle-starters-and-module-switches.md)).
-So Stratum's version of a concern stays off unless your team enables it, even when a
-[bundle](../modules/bundles.md) put its starter on the classpath. Where the company framework covers a
-concern, leave Stratum's switch unset, or exclude that starter from the bundle:
+Every Stratum module is **on when its starter is on the classpath**, including a starter that a
+[bundle](../modules/bundles.md) brings
+([ADR 0010](../adr/0010-modules-on-when-present-and-one-compatibility-switch.md)). Where the company
+framework covers a concern, turn Stratum's module off with `stratum.<module>.enabled=false`, as
+[ADR 0001](../adr/0001-coexistence-with-company-frameworks.md) decision 2 says, or exclude that
+starter from the bundle:
 
-| Overlap | Symptom when both run | Keep Stratum's off |
+| Overlap | Symptom when both run | Turn Stratum's off |
 | --- | --- | --- |
-| Security filter chain | Requests pass one chain and fail the other | Leave `stratum.security.enabled` unset |
-| Log format and redaction | Log lines in two formats, or the company's format without Stratum's redaction | Leave `stratum.logging.enabled` unset |
+| Security filter chain | Requests pass one chain and fail the other | `stratum.security.enabled=false` |
+| Log format and redaction | Log lines in two formats, or the company's format without Stratum's redaction | `stratum.logging.enabled=false` |
 | Correlation ID filter | Two IDs per request, under two header names | `stratum.web.correlation.enabled=false` when `stratum.web` is on |
-| Metrics and tracing setup | Duplicate metric tags, or traces that do not connect | Leave `stratum.observability.enabled` unset |
-| HTTP client defaults | Two sets of timeouts or interceptors on the same client | Leave `stratum.http-client.enabled` unset |
+| Metrics and tracing setup | Duplicate metric tags, or traces that do not connect | `stratum.observability.enabled=false` |
+| HTTP client defaults | Two sets of timeouts or interceptors on the same client | `stratum.http-client.enabled=false` |
 
-For example, a service that keeps the company's security and logging, and switches on Stratum's web,
-observability and HTTP client modules:
+For example, a service that keeps the company's security and logging, and uses Stratum's web,
+observability and HTTP client modules, turns off only the two the company covers:
 
 ```yaml
 # src/main/resources/application.yml
 stratum:
-  web:
-    enabled: true
-  observability:
-    enabled: true
-  http-client:
-    enabled: true
+  security:
+    enabled: false
+  logging:
+    enabled: false
 ```
 
 ```properties
 # src/main/resources/application.properties
-stratum.web.enabled=true
-stratum.observability.enabled=true
-stratum.http-client.enabled=true
+stratum.security.enabled=false
+stratum.logging.enabled=false
 ```
+
+A company framework that ships its own Logback file or `logging.config` needs this line: with the
+logging module on, such a file stops startup with `SX-LOGGING-1003`, whose fix names
+`stratum.logging.enabled=false` ([error codes](error-codes.md)).
 
 Each module page lists the beans the module creates under **What you get**, so you can compare them
 with the company framework's beans. More ways to switch parts off are in
@@ -249,7 +251,7 @@ Stratum works in a service of any package, such as `com.acme.orders`, with any p
 finds Stratum's starters through the list of auto-configurations inside each Stratum jar, not by
 scanning the service's package. A service whose own component scan reaches Stratum's packages, for
 example one whose main class sits in `com.exepex`, gets nothing extra: every Stratum class that a
-scan picks up stays off until its module is switched on.
+scan picks up follows its module's switch, so it stays off when the module is turned off.
 
 ## Common problems
 
