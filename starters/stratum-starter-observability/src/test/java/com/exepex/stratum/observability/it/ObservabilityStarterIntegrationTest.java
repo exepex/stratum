@@ -128,11 +128,17 @@ class ObservabilityStarterIntegrationTest {
   }
 
   @Test
-  @DisplayName("with no export address, startup stops with SX-OBSERVABILITY-1001")
+  @DisplayName(
+      "with no export address, startup stops with SX-OBSERVABILITY-1001, whose fix names the switch"
+          + " that turns the module off")
   void missingAddressStopsStartup() {
     assertThatExceptionOfType(StratumException.class)
         .isThrownBy(() -> start())
-        .withMessageStartingWith("SX-OBSERVABILITY-1001: ");
+        .withMessageStartingWith("SX-OBSERVABILITY-1001: ")
+        .satisfies(
+            failure ->
+                assertThat(failure.getErrorCode().getFix())
+                    .contains(ObservabilityConstants.ENABLED + "=false"));
   }
 
   @Test

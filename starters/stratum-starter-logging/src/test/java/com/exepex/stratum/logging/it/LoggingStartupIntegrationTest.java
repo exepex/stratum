@@ -78,11 +78,17 @@ class LoggingStartupIntegrationTest {
   }
 
   @Test
-  @DisplayName("with no service name, startup stops with SX-LOGGING-1001")
+  @DisplayName(
+      "with no service name, startup stops with SX-LOGGING-1001, whose fix names the switch that"
+          + " turns the module off")
   void missingNameStopsStartup() {
     assertThatExceptionOfType(StratumException.class)
         .isThrownBy(() -> start())
-        .withMessageStartingWith("SX-LOGGING-1001: ");
+        .withMessageStartingWith("SX-LOGGING-1001: ")
+        .satisfies(
+            failure ->
+                assertThat(failure.getErrorCode().getFix())
+                    .contains(LoggingConstants.ENABLED + "=false"));
   }
 
   @ParameterizedTest(name = "{0}")
@@ -172,11 +178,17 @@ class LoggingStartupIntegrationTest {
   }
 
   @Test
-  @DisplayName("a service's own Logback configuration stops startup with SX-LOGGING-1003")
+  @DisplayName(
+      "a service's own Logback configuration stops startup with SX-LOGGING-1003, whose fix names"
+          + " the switch that turns the module off")
   void ownLogbackConfigurationStopsStartup() {
     assertThatExceptionOfType(StratumException.class)
         .isThrownBy(() -> start(SERVICE_NAME, "--logging.config=classpath:logback-own-pattern.xml"))
-        .withMessageStartingWith("SX-LOGGING-1003: ");
+        .withMessageStartingWith("SX-LOGGING-1003: ")
+        .satisfies(
+            failure ->
+                assertThat(failure.getErrorCode().getFix())
+                    .contains(LoggingConstants.ENABLED + "=false"));
   }
 
   @Test

@@ -169,7 +169,6 @@ stratum:
     resource-server:
       issuer-uri: https://idp.acme.com/realms/acme
       audiences: [order-service]
-  observability:
   http-client:
     clients:
       inventory:

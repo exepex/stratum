@@ -237,8 +237,8 @@ troubleshoot it.
 One dependency per kind of application; each lists only the single starters that kind needs. See
 [Bundle starters](docs/modules/bundles.md).
 
-A bundle with `security` puts Spring Security on the classpath. The security module is planned;
-until it is built, Spring Boot's default applies and every endpoint asks for a login. See
+The security starter is planned and brings no dependency yet. Once it is built, a bundle with
+`security` will put Spring Security on the classpath with the security module on. See
 [Security](docs/modules/security.md).
 
 | Bundle | Single starters it adds |
