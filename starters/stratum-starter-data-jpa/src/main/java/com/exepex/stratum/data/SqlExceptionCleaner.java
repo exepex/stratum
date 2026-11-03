@@ -50,7 +50,7 @@ public class SqlExceptionCleaner {
   /**
    * How each standard {@code java.sql} class with no fields of its own is copied, from its parts.
    */
-  private static final Map<Class<?>, Function<Parts, SQLException>> COPIES =
+  private static final Map<Class<?>, Function<Parts, SQLException>> COPY_BY_CLASS =
       Map.ofEntries(
           Map.entry(
               SQLException.class,
@@ -128,7 +128,7 @@ public class SqlExceptionCleaner {
    * back unchanged. {@code WeakHashMap} matches by {@code equals}, which {@code Throwable} leaves
    * as identity.
    */
-  private final Set<Throwable> copies =
+  private final Set<Throwable> builtCopies =
       Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
 
   /**
@@ -155,7 +155,7 @@ public class SqlExceptionCleaner {
    * chain already met to its copy, or to {@code null} while that copy is being built.
    */
   private @Nullable Throwable cleaned(Throwable failure, Map<Throwable, Throwable> copied) {
-    if (copies.contains(failure)) {
+    if (builtCopies.contains(failure)) {
       return failure;
     }
     if (copied.containsKey(failure)) {
@@ -187,14 +187,14 @@ public class SqlExceptionCleaner {
         .map(suppressed -> cleaned(suppressed, copied))
         .filter(Objects::nonNull)
         .forEach(copy::addSuppressed);
-    copies.add(copy);
+    builtCopies.add(copy);
     return copy;
   }
 
   /**
-   * Appends the clean copies of an error's next exceptions to its copy. A copy that already exists,
-   * because the failure is clean or was met before in this chain, is attached once, as the tail,
-   * with its own chain: attaching an element twice would make the chain loop.
+   * Appends the clean builtCopies of an error's next exceptions to its copy. A copy that already
+   * exists, because the failure is clean or was met before in this chain, is attached once, as the
+   * tail, with its own chain: attaching an element twice would make the chain loop.
    */
   private void appendNextExceptions(
       SQLException copy, @Nullable SQLException first, Map<Throwable, Throwable> copied) {
@@ -202,7 +202,7 @@ public class SqlExceptionCleaner {
     // reads the original's chain while the copy's chain grows.
     var appended = Collections.newSetFromMap(new IdentityHashMap<Throwable, Boolean>());
     var next = first;
-    while (next != null && !copies.contains(next) && !copied.containsKey(next)) {
+    while (next != null && !builtCopies.contains(next) && !copied.containsKey(next)) {
       copied.put(next, null);
       var nextCopy = SQLException.class.cast(copyAlone(next, copied));
       copied.put(next, nextCopy);
@@ -210,7 +210,7 @@ public class SqlExceptionCleaner {
       appended.add(nextCopy);
       next = next.getNextException();
     }
-    Throwable tail = next == null || copies.contains(next) ? next : copied.get(next);
+    Throwable tail = next == null || builtCopies.contains(next) ? next : copied.get(next);
     if (tail instanceof SQLException cleanTail && !appended.contains(cleanTail)) {
       copy.setNextException(cleanTail);
     }
@@ -220,7 +220,7 @@ public class SqlExceptionCleaner {
   private SQLException copyOf(SQLException failure, @Nullable Throwable cause) {
     var standardClass =
         Stream.<Class<?>>iterate(failure.getClass(), Objects::nonNull, Class::getSuperclass)
-            .filter(COPIES::containsKey)
+            .filter(COPY_BY_CLASS::containsKey)
             .findFirst()
             .orElse(SQLException.class);
     var parts =
@@ -234,7 +234,7 @@ public class SqlExceptionCleaner {
       case DataTruncation truncation -> parts.dataTruncation(truncation);
       case BatchUpdateException batchFailure -> parts.batchUpdateException(batchFailure);
       case SQLClientInfoException clientInfoFailure -> parts.clientInfoException(clientInfoFailure);
-      default -> COPIES.get(standardClass).apply(parts);
+      default -> COPY_BY_CLASS.get(standardClass).apply(parts);
     };
   }
 

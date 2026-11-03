@@ -5,6 +5,8 @@ import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.data.DataConstants;
 import com.exepex.stratum.data.JdbcBoundaryPostProcessor;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureOrder;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -19,6 +21,7 @@ import org.springframework.context.annotation.Fallback;
 @AutoConfiguration
 @AutoConfigureOrder(StratumModuleConstants.AUTO_CONFIGURATION_ORDER)
 @ConditionalOnStratumModule(DataConstants.MODULE)
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class JdbcBoundaryAutoConfiguration {
 
   /**

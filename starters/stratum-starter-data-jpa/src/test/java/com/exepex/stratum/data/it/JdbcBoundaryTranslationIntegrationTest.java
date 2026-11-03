@@ -156,7 +156,7 @@ class JdbcBoundaryTranslationIntegrationTest {
 
     @Test
     @DisplayName("a wrong password (28P01) gives Hibernate's AuthException")
-    void keepsAuthExceptionForWrongPassword() throws SQLException {
+    void keepsAuthExceptionForWrongPassword() {
       assertThat(hibernateTranslationOf(connectionFailureOf(wrappedWrongPasswordDataSource())))
           .isInstanceOf(AuthException.class);
     }
