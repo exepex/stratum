@@ -31,16 +31,16 @@ class OrdinaryLineRedactionSpeedTest {
   private static final double NANOS_PER_MICROSECOND = 1_000.0;
 
   /**
-   * CPU time masking an ordinary line may take: 20 times M = 102.755 µs, the largest best value of
-   * 3 CI runs with coverage on (54.285, 102.755 and 66.356 µs), on JDK 25, 2026-11-03.
+   * CPU time masking an ordinary line may take: 10 times M = 103.114 µs, the largest best value of
+   * 3 CI runs with coverage on (69.835, 103.114 and 86.068 µs), on JDK 25, 2026-11-03.
    */
-  private static final Duration ORDINARY_LINE_LIMIT = Duration.of(2_056, ChronoUnit.MICROS);
+  private static final Duration ORDINARY_LINE_LIMIT = Duration.of(1_032, ChronoUnit.MICROS);
 
   /**
-   * CPU time masking a line with a stack trace may take: 20 times M = 826.994 µs, the largest best
-   * value of 3 CI runs with coverage on (466.401, 826.994 and 591.42 µs), on JDK 25, 2026-11-03.
+   * CPU time masking a line with a stack trace may take: 10 times M = 838.968 µs, the largest best
+   * value of 3 CI runs with coverage on (838.968, 823.866 and 777.772 µs), on JDK 25, 2026-11-03.
    */
-  private static final Duration STACK_TRACE_LINE_LIMIT = Duration.of(16_540, ChronoUnit.MICROS);
+  private static final Duration STACK_TRACE_LINE_LIMIT = Duration.of(8_390, ChronoUnit.MICROS);
 
   /**
    * Times the CPU this test's thread uses, so time spent waiting for a processor is not counted.
