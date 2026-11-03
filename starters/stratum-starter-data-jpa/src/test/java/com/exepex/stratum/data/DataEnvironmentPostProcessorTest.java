@@ -33,6 +33,11 @@ class DataEnvironmentPostProcessorTest {
 
   private static final String ORDER_UPDATES = "spring.jpa.properties.hibernate.order_updates";
 
+  private static final String LOG_JDBC_ERRORS = "spring.jpa.properties.hibernate.jdbc.log.errors";
+
+  private static final String LOG_JDBC_WARNINGS =
+      "spring.jpa.properties.hibernate.jdbc.log.warnings";
+
   private static final String OPEN_IN_VIEW = "spring.jpa.open-in-view";
 
   private static final String FAIL_ON_PAGINATION =
@@ -53,7 +58,9 @@ class DataEnvironmentPostProcessorTest {
           IN_CLAUSE_PADDING, ON,
           BATCH_SIZE, "50",
           ORDER_INSERTS, ON,
-          ORDER_UPDATES, ON);
+          ORDER_UPDATES, ON,
+          LOG_JDBC_ERRORS, OFF,
+          LOG_JDBC_WARNINGS, OFF);
 
   /** The defaults that apply only with {@code stratum.backward-compatible=false}. */
   private static final Map<String, String> EXTERNAL_DEFAULTS =

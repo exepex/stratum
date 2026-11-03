@@ -6,6 +6,7 @@ import com.exepex.stratum.core.properties.BackwardCompatibleMode;
 import com.exepex.stratum.core.properties.StratumDefaults;
 import java.util.Map;
 import org.hibernate.cfg.BatchSettings;
+import org.hibernate.cfg.JdbcSettings;
 import org.hibernate.cfg.QuerySettings;
 import org.springframework.boot.EnvironmentPostProcessor;
 import org.springframework.boot.SpringApplication;
@@ -16,11 +17,12 @@ import org.springframework.util.ClassUtils;
 
 /**
  * Gives Spring Boot's pool, JPA and transaction settings Stratum's defaults unless {@code
- * stratum.data.enabled=false}. In both modes, a caller waits at most 3 seconds for a connection and
- * Hibernate sends inserts and updates in ordered batches of 50 and pads {@code IN} lists. With
- * {@code stratum.backward-compatible=false}, its default, open-in-view is off, paging a fetch join
- * over a collection fails, and every transaction has 60 seconds, except when Spring Batch is
- * present, whose jobs run longer. Every value the service sets for these Spring Boot keys wins.
+ * stratum.data.enabled=false}. In both modes, a caller waits at most 3 seconds for a connection,
+ * Hibernate sends inserts and updates in ordered batches of 50 and pads {@code IN} lists, and
+ * Hibernate logs no JDBC errors or warnings of its own. With {@code
+ * stratum.backward-compatible=false}, its default, open-in-view is off, paging a fetch join over a
+ * collection fails, and every transaction has 60 seconds, except when Spring Batch is present,
+ * whose jobs run longer. Every value the service sets for these Spring Boot keys wins.
  */
 @StratumInternal
 public class DataEnvironmentPostProcessor implements EnvironmentPostProcessor, Ordered {
@@ -37,7 +39,11 @@ public class DataEnvironmentPostProcessor implements EnvironmentPostProcessor, O
           DataConstants.JPA_PROPERTIES + BatchSettings.ORDER_INSERTS,
           true,
           DataConstants.JPA_PROPERTIES + BatchSettings.ORDER_UPDATES,
-          true);
+          true,
+          DataConstants.JPA_PROPERTIES + JdbcSettings.LOG_JDBC_ERRORS,
+          false,
+          DataConstants.JPA_PROPERTIES + JdbcSettings.LOG_JDBC_WARNINGS,
+          false);
 
   /** The defaults that can change what a consumer sees, so apply only outside compatible mode. */
   private static final Map<String, Object> EXTERNAL_DEFAULTS =

@@ -43,4 +43,7 @@ public class DataConstants {
 
   /** The name of the bean that gives Hibernate's schema setting Stratum's default. */
   public static final String SCHEMA_VALIDATION_DEFAULT = "stratumSchemaValidationDefault";
+
+  /** The name of the bean that wraps every data source in the JDBC boundary. */
+  public static final String JDBC_BOUNDARY = "stratumJdbcBoundary";
 }

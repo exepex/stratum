@@ -11,8 +11,9 @@ class DataArchTest {
   @Test
   @DisplayName(
       "its autoconfigure package only declares beans, it uses no other starter, has no cycles and"
-          + " every public type is internal")
+          + " every public type is internal or on its API list")
   void followsStarterArchitecture() {
-    StarterTestSupport.checkStarterArchitecture(DataConstants.class, Set.of());
+    StarterTestSupport.checkStarterArchitecture(
+        DataConstants.class, Set.of(JdbcBoundaryPostProcessor.class));
   }
 }

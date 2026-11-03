@@ -1,8 +1,9 @@
 # Data: `stratum-starter-data-jpa`
 
 **Status: Partly built.** Spring Data JPA, with safe defaults for Spring Boot's connection pool
-(HikariCP), Hibernate and transactions. Clean database exceptions, query timeouts, a default fetch
-size and Stratum's connection leak alarm are **planned**.
+(HikariCP), Hibernate and transactions, and database errors that carry no data values. Query
+timeouts, a default fetch size, Stratum's connection leak alarm and the clean errors of Flyway's and
+Liquibase's own connections are **planned**.
 
 [← Documentation home](../README.md) · Property prefix: `stratum.data`
 
@@ -70,6 +71,7 @@ spring:
 
 | Feature | Behaviour | Applies |
 | --- | --- | --- |
+| Clean database errors | No value from a database error, such as a duplicate email address, reaches a log, a span or a response; see [Clean database errors](#clean-database-errors) | Always |
 | Short pool wait | A caller waits at most 3 seconds for a free connection, then gets an error, instead of 30 seconds | Always |
 | Schema check | Hibernate checks at startup that your entities match the schema, and never changes the schema (`validate`) | Always |
 | Batched writes | Hibernate sends inserts and updates in ordered batches of 50 rows | Always |
@@ -89,7 +91,7 @@ change nothing a caller sees and apply in both modes
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.data.enabled` | boolean | `true` | Whether the module is on. With `false`, the starter sets none of the defaults below, and Spring Boot's own apply. |
+| `stratum.data.enabled` | boolean | `true` | Whether the module is on. With `false`, the starter sets none of the defaults below, and Spring Boot's own apply, and it wraps no data source in the [clean errors boundary](#clean-database-errors). |
 
 Spring Boot properties this module gives a default (your values win):
 
@@ -101,6 +103,8 @@ Spring Boot properties this module gives a default (your values win):
 | `spring.jpa.properties.hibernate.order_inserts` | boolean | `true` | `false` | Groups inserts by table, so they can be batched. |
 | `spring.jpa.properties.hibernate.order_updates` | boolean | `true` | `false` | Groups updates by table, so they can be batched. |
 | `spring.jpa.properties.hibernate.query.in_clause_parameter_padding` | boolean | `true` | `false` | Pads `IN` lists to the next power of two. |
+| `spring.jpa.properties.hibernate.jdbc.log.errors` | boolean | `false` | `true` | Whether Hibernate logs each JDBC error itself, before it throws it. |
+| `spring.jpa.properties.hibernate.jdbc.log.warnings` | boolean | `false` | depends on the dialect | Whether Hibernate logs each JDBC warning. |
 | `spring.jpa.open-in-view` | boolean | `false` (strict mode) | `true`, with a warning at startup | Whether a web request keeps its connection until the response is written. |
 | `spring.jpa.properties.hibernate.query.fail_on_pagination_over_collection_fetch` | boolean | `true` (strict mode) | `false` | Whether paging a fetch join over a collection fails instead of paging in memory. |
 | `spring.transaction.default-timeout` | duration | `60s` (strict mode, without Spring Batch) | unset: no limit | The time limit of a transaction that sets none. |
@@ -146,6 +150,89 @@ Action:
 
 Fix the entity mapping or add the missing migration, or, to stop Hibernate checking the schema, set spring.jpa.hibernate.ddl-auto=none. ...
 ```
+
+## Clean database errors
+
+A database error often repeats the data that caused it. PostgreSQL's message for a duplicate email
+address, for example, ends with `Detail: Key (email)=(ada@example.com) already exists.` Without
+Stratum, that address reaches your logs, your traces and, through a careless error handler, your
+callers.
+
+Stratum wraps every `DataSource` bean, and every JDBC object it hands out, in a boundary. Every
+`SQLException` that reaches your code, Hibernate, `JdbcClient`, `JdbcTemplate` or any other library
+through a `DataSource` bean is a clean copy of the driver's error:
+
+- the same standard `java.sql` class, SQLState, vendor code and stack trace, so Spring and
+  Hibernate translate it exactly as before;
+- no driver text, except the first line of an error about the system rather than the data:
+  SQLState classes `08` (connection), `28` (authorization), `40` (rollback, such as a deadlock),
+  `53` (resources), `57` (operator, such as a cancelled query) and `58` (system), and the pool's
+  own connection errors, such as `Connection is not available, request timed out after 3000ms`;
+- every other error gets a fixed text, such as `SQLState 22P02, vendor code 0`;
+- its causes, next exceptions and suppressed exceptions, and the warnings `getWarnings()` returns,
+  are cleaned the same way.
+
+On PostgreSQL, a violated constraint keeps its name, with no value:
+`duplicate key value violates unique constraint "customers_email_key"`. So Hibernate's
+`ConstraintViolationException.getConstraintName()` and Spring's `DuplicateKeyException` keep
+working. Hibernate's own logging of JDBC errors and warnings is off
+(`hibernate.jdbc.log.errors=false`, `hibernate.jdbc.log.warnings=false`); turn it on again in the
+properties above if you need it.
+
+**Limits:**
+
+- The copy is a standard `java.sql` class, so code that catches or casts a driver's class, such as
+  PostgreSQL's `PSQLException`, no longer matches.
+- A cause that is not an `SQLException`, such as a `SocketException`, becomes an `Exception`
+  whose message names the original class only.
+- Stratum sets no driver-specific error setting, such as PostgreSQL's `logServerErrorDetail`: only
+  standard JDBC. The boundary already drops the driver's message.
+- Code that calls `unwrap()` to reach the driver's own classes, such as PostgreSQL's `COPY`,
+  driver metrics or Flyway's internals, bypasses the boundary and handles that driver's errors
+  itself. The driver's own logging, off by default, is outside the boundary too.
+- R2DBC is not covered. A `DataSource` built outside Spring, not as a bean, is not wrapped. The
+  connections Flyway and Liquibase open for `spring.flyway.url` or `spring.flyway.user` are
+  **planned**.
+- On a database other than PostgreSQL, `getConstraintName()` is `null`. The error is still clean.
+- The wrappers are generated when the application starts, which a GraalVM native image does not
+  support.
+- You can no longer inject `HikariDataSource`: inject `DataSource` and call
+  `dataSource.unwrap(HikariDataSource.class)`. Spring Boot's pool metrics and `db` health check
+  still find the pool.
+- With `spring.datasource.connection-fetch=lazy` and `spring.jmx.enabled=true`, Spring Boot no
+  longer registers the pool as an MBean, because it checks the wrapper's class. HikariCP's own
+  `spring.datasource.hikari.register-mbeans=true` still works.
+- Hibernate and Spring messages can name an entity and its identifier, such as
+  `[PlacedOrder#42]`. That is your own identifier, not a driver value: do not use personal data,
+  such as an email address, as an entity's identifier.
+- Code you place between two data source beans that adds a raw driver error to a clean one, with
+  `addSuppressed` or `setNextException`, is not cleaned again. Spring's routing and lazy proxies
+  and HikariCP add none.
+- Because a cause loses its class, Spring no longer sees a `SocketTimeoutException` when it marks
+  a connection read-only for a read-only transaction: it rethrows only a cause whose class name
+  contains `Timeout`, so it now carries on. This happens only with the PostgreSQL driver setting
+  `readOnlyMode=always`, not with its default.
+- The boundary is tested on PostgreSQL only.
+
+## Bind parameters
+
+Pass every value as a bind parameter, never as SQL or JPQL you build by joining strings:
+
+| API | Placeholder |
+| --- | --- |
+| `JdbcTemplate` | `?` |
+| `JdbcClient` | `?` or `:name` |
+| JPQL, `@Query` | `:name` or `?1` |
+| Spring Data query methods | the method's parameters |
+
+```java
+jdbcClient.sql("SELECT id FROM customers WHERE email = :email")
+    .param("email", email)
+    .query(Long.class)
+    .optional();
+```
+
+Stratum has no runtime check for SQL built from input, because no cheap one exists.
 
 ## Transactions
 
@@ -246,12 +333,27 @@ after Stratum's and wins.
 - Your own `DataSource` bean replaces Spring Boot's pool, and with it the
   `spring.datasource.hikari.*` defaults.
 - A bean named `stratumSchemaValidationDefault` replaces Stratum's schema default.
+- A bean named `stratumJdbcBoundary` replaces the post-processor that wraps every data source bean
+  in the [clean errors boundary](#clean-database-errors). To leave one of your own data sources
+  out, by its bean name, declare it with Stratum's `com.exepex.stratum.data.JdbcBoundaryPostProcessor` and a filter:
+
+  ```java
+  @Bean
+  static BeanPostProcessor stratumJdbcBoundary() {
+    return new JdbcBoundaryPostProcessor(beanName -> !beanName.equals("legacyDataSource"));
+  }
+  ```
+
+  A data source you leave out has **no** boundary: its errors can carry data values into your
+  logs, traces and responses. The filter sees bean names only. The method is `static` because the
+  bean processes other beans.
 
 ## Switch it on or off
 
 The module is on when the starter is on the classpath. Leaving `stratum.data.enabled` unset, or
 empty, is the same as `true`. `stratum.data.enabled=false` leaves Spring Boot's own defaults,
-including `open-in-view=true`, and Stratum reports no `SX-DATA-1001`.
+including `open-in-view=true`, Stratum reports no `SX-DATA-1001`, and no data source is
+wrapped, so database errors keep the driver's text.
 
 ## Troubleshooting
 

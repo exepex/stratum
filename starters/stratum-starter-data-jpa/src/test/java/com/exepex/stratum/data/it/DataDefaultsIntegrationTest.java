@@ -6,7 +6,9 @@ import com.exepex.stratum.data.it.orders.OrdersApplication;
 import com.exepex.stratum.test.PostgresContainerConfiguration;
 import com.zaxxer.hikari.HikariDataSource;
 import jakarta.persistence.EntityManagerFactory;
+import java.sql.SQLException;
 import java.util.Map;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,7 +38,7 @@ class DataDefaultsIntegrationTest {
           "hibernate.order_inserts", ON,
           "hibernate.order_updates", ON);
 
-  @Autowired private HikariDataSource dataSource;
+  @Autowired private DataSource dataSource;
 
   @Autowired private EntityManagerFactory entityManagerFactory;
 
@@ -46,8 +48,9 @@ class DataDefaultsIntegrationTest {
 
   @Test
   @DisplayName("a caller waits at most 3 seconds for a connection")
-  void waitsThreeSecondsForConnection() {
-    assertThat(dataSource.getConnectionTimeout()).isEqualTo(CONNECTION_TIMEOUT_MILLIS);
+  void waitsThreeSecondsForConnection() throws SQLException {
+    assertThat(dataSource.unwrap(HikariDataSource.class).getConnectionTimeout())
+        .isEqualTo(CONNECTION_TIMEOUT_MILLIS);
   }
 
   @Test
