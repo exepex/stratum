@@ -97,6 +97,41 @@ API key; see [Optional profiles](modules/parent-and-bom.md#optional-profiles). C
 because its download from the US National Vulnerability Database (NVD) took from 24 minutes to over
 an hour.
 
+## The wiki
+
+The [GitHub wiki](https://github.com/exepex/stratum/wiki) shows these pages to teams that read
+Stratum's documentation there. It is a copy: `docs/` stays the one source, so edit a page in
+`docs/`, never in the wiki. The wiki's own pages, such as audit reports, are written in the wiki.
+
+[`.github/workflows/wiki.yml`](../.github/workflows/wiki.yml) copies the pages after every merge to
+`main` that changes `docs/`, a starter's `README.md` or the sync itself, and after every edit in the
+wiki, so a new audit report reaches the sidebar. It runs
+[`.github/wiki/WikiSync.java`](../.github/wiki/WikiSync.java), which:
+
+- copies [`docs/README.md`](README.md) as the wiki's **Home**, and every page it links except the
+  project README; the agent rules in `docs/agents/` stay in the repository;
+- names each page from its path, such as `Modules-web` for `docs/modules/web.md` and
+  `stratum-starter-logging` for that starter's `README.md`;
+- builds the sidebar from the tables in `docs/README.md`, in the groups Getting started,
+  Configuration, Guides, Modules and Decisions (ADRs), followed by Audit reports;
+- turns each link to a copied page into a wiki link, and each link to any other file into its
+  address on GitHub;
+- marks every page it writes. A page without the mark was written in the wiki: the sync never
+  changes or deletes it, and lists it under Audit reports. The one exception is the wiki's first,
+  hand-made Home, which `docs/README.md` replaces.
+
+The sync checks everything before it writes. It stops and leaves the wiki as it was when a link
+leads out of the repository or to a missing file, when a page shows a relative image, when two
+pages get the same name, when a page written in the wiki has a copied page's name, or when
+`docs/README.md` has a section with no sidebar group. So a new section in `docs/README.md` also
+needs its group in `WikiSync.java`, and a page written in the wiki needs a name no copied page has.
+A run that changes no page makes no commit.
+
+On a pull request that touches these files, the workflow runs the sync's golden test,
+[`.github/wiki/test.sh`](../.github/wiki/test.sh), then syncs into a throwaway copy of the wiki and
+lists the pages that would change on the run's summary page. It pushes nothing. To run the test
+yourself, run `.github/wiki/test.sh`; it needs a JDK and git.
+
 ## Rules for a new starter
 
 A new starter meets every rule in [engineering](agents/engineering.md), [testing](agents/testing.md),
