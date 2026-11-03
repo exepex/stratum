@@ -2,7 +2,7 @@
 
 This page belongs to the [observability starter](../../starters/stratum-starter-observability/README.md).
 
-### Correlation ID
+## Correlation ID
 
 The correlation ID ties together every step of one business workflow, such as one order. While an
 operation is traced, Stratum keeps it in the logging context (SLF4J's MDC) under `correlationId`,
@@ -40,7 +40,7 @@ correlation ID set in baggage reaches every service you call or send a message t
 The web starters also take it from the `X-Correlation-Id` header ([web](web.md#correlation-id)).
 **Planned:** the logging starter will limit the baggage to your own hosts.
 
-### URLs on spans and metrics
+## URLs on spans and metrics
 
 Spring records the full URL of every outgoing HTTP call on its span, and the URI template in the
 `uri` tag of the span and of the `http.client.requests` metrics. Stratum keeps the query string on
