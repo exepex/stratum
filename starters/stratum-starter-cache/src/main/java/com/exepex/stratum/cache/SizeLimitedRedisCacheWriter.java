@@ -112,7 +112,8 @@ public class SizeLimitedRedisCacheWriter implements RedisCacheWriter {
 
   /**
    * Stores the value when the key is absent. A value over the limit is not stored; what the cache
-   * holds under the key, if anything, is returned, as when the key is present.
+   * holds under the key, if anything, is returned, as when the key is present, and its time to live
+   * is left as it is.
    */
   @Override
   public byte @Nullable [] putIfAbsent(
@@ -120,7 +121,7 @@ public class SizeLimitedRedisCacheWriter implements RedisCacheWriter {
     var storedKey = limitedKey(name, key);
     return fits(name, value)
         ? delegate.putIfAbsent(name, storedKey, value, ttl)
-        : delegate.get(name, storedKey, ttl);
+        : delegate.get(name, storedKey);
   }
 
   @Override

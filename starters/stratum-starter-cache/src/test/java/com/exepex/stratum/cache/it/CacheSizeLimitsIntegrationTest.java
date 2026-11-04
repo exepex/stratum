@@ -1,5 +1,6 @@
 package com.exepex.stratum.cache.it;
 
+import static com.exepex.stratum.cache.testsupport.HashedKeys.bytes;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
@@ -10,7 +11,6 @@ import com.exepex.stratum.cache.testsupport.ReportCatalog;
 import com.exepex.stratum.test.RedisContainerConfiguration;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -173,10 +173,5 @@ class CacheSizeLimitsIntegrationTest {
             .tag(CacheConstants.TAG_REASON, reason)
             .counter();
     return counter == null ? 0 : counter.count();
-  }
-
-  /** Returns the text's bytes. */
-  private static byte[] bytes(String text) {
-    return text.getBytes(StandardCharsets.UTF_8);
   }
 }

@@ -1,8 +1,11 @@
 package com.exepex.stratum.cache;
 
+import static com.exepex.stratum.cache.testsupport.HashedKeys.bytes;
+import static com.exepex.stratum.cache.testsupport.HashedKeys.hashed;
+import static com.exepex.stratum.cache.testsupport.HashedKeys.key;
+import static com.exepex.stratum.cache.testsupport.HashedKeys.keyCall;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
@@ -11,7 +14,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.exepex.stratum.cache.testsupport.HashedKeys;
 import com.exepex.stratum.cache.testsupport.RecordingCacheCounters;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -81,14 +83,14 @@ class SizeLimitedRedisCacheWriterTest {
   /** Every call that takes a key, given the writer and the key, so each is checked to hash. */
   private static final List<Arguments> KEY_CALLS =
       List.of(
-          call("get", (target, key) -> target.get(CACHE, key)),
-          call("get with time to live", (target, key) -> target.get(CACHE, key, TTL)),
-          call("retrieve", (target, key) -> target.retrieve(CACHE, key, TTL)),
-          call("put", (target, key) -> target.put(CACHE, key, VALUE, TTL)),
-          call("store", (target, key) -> target.store(CACHE, key, VALUE, TTL)),
-          call("putIfAbsent", (target, key) -> target.putIfAbsent(CACHE, key, VALUE, TTL)),
-          call("evict", (target, key) -> target.evict(CACHE, key)),
-          call("evictIfPresent", (target, key) -> target.evictIfPresent(CACHE, key)));
+          keyCall("get", (target, key) -> target.get(CACHE, key)),
+          keyCall("get with time to live", (target, key) -> target.get(CACHE, key, TTL)),
+          keyCall("retrieve", (target, key) -> target.retrieve(CACHE, key, TTL)),
+          keyCall("put", (target, key) -> target.put(CACHE, key, VALUE, TTL)),
+          keyCall("store", (target, key) -> target.store(CACHE, key, VALUE, TTL)),
+          keyCall("putIfAbsent", (target, key) -> target.putIfAbsent(CACHE, key, VALUE, TTL)),
+          keyCall("evict", (target, key) -> target.evict(CACHE, key)),
+          keyCall("evictIfPresent", (target, key) -> target.evictIfPresent(CACHE, key)));
 
   /** The writer the decorator wraps, which talks to Redis in a real service. */
   private final RedisCacheWriter delegate = mock(RedisCacheWriter.class);
@@ -219,13 +221,14 @@ class SizeLimitedRedisCacheWriterTest {
         "a store or putIfAbsent one byte over writes nothing and is counted; putIfAbsent returns"
             + " what the cache holds")
     void skipsLargeStoreAndPutIfAbsent() {
-      when(delegate.get(CACHE, KEY_AT_LIMIT, TTL)).thenReturn(VALUE);
+      when(delegate.get(CACHE, KEY_AT_LIMIT)).thenReturn(VALUE);
 
       assertThat(writer.store(CACHE, KEY_AT_LIMIT, LARGE_VALUE, TTL)).isCompleted();
       assertThat(writer.putIfAbsent(CACHE, KEY_AT_LIMIT, LARGE_VALUE, TTL)).isSameAs(VALUE);
 
       verify(delegate, never()).store(any(), any(), any(), any());
       verify(delegate, never()).putIfAbsent(any(), any(), any(), any());
+      verify(delegate, never()).get(any(), any(), any(Duration.class));
       assertThat(counters.skips(CACHE, CacheConstants.REASON_VALUE_TOO_LARGE)).isEqualTo(2);
     }
 
@@ -335,25 +338,5 @@ class SizeLimitedRedisCacheWriterTest {
       verify(delegate).supportsAsyncRetrieve();
       verify(delegate).execute(callback);
     }
-  }
-
-  /** Returns a named call for the parameterized key test. */
-  private static Arguments call(String name, BiConsumer<RedisCacheWriter, byte[]> call) {
-    return arguments(name, call);
-  }
-
-  /** Returns a key of the given length in bytes that starts with the prefix. */
-  private static byte[] key(String prefix, int length) {
-    return bytes(prefix + "k".repeat(length - prefix.length()));
-  }
-
-  /** Returns the key as the writer stores it when it is over the limit. */
-  private static byte[] hashed(String prefix, byte[] key) {
-    return bytes(prefix + "sha256:" + HashedKeys.sha256Hex(key));
-  }
-
-  /** Returns the text's bytes. */
-  private static byte[] bytes(String text) {
-    return text.getBytes(StandardCharsets.UTF_8);
   }
 }
