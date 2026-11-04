@@ -53,8 +53,8 @@ type a module page's "Customize" section lets you replace.
 
 A type marked `@StratumInternal` is used only by Stratum's own modules. It can change or go away in
 any release, even a patch, so do not import it. Your IDE and the Javadoc show the label. Every type
-in `stratum-test` is internal today except `PostgresContainerConfiguration`
-([ADR 0009](../adr/0009-public-api-and-no-package-cycles.md)).
+in `stratum-test` is internal today except `PostgresContainerConfiguration` and
+`RedisContainerConfiguration` ([ADR 0009](../adr/0009-public-api-and-no-package-cycles.md)).
 
 ## How to upgrade a service
 

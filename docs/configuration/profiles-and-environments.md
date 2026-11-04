@@ -78,15 +78,13 @@ stratum.http-client.clients.inventory.base-url=http://localhost:8081
 Several profiles can be active at once (`--spring.profiles.active=local,debug`). For a key set in
 more than one of them, the profile listed **last** wins.
 
-### Profiles Stratum understands
+### Stratum and profile names
 
-Stratum does not require any profile. It reacts to one name only:
+Stratum does not require any profile, and no profile name changes what it does: a `local` profile
+gets the same log format, sampling and Actuator endpoints as `prod`. To change them while you
+develop, set the keys in that profile's file, as the `application-local` example above does.
 
-| Profile | What Stratum changes |
-| --- | --- |
-| `local` | Logs in readable `text` format, tracing samples 100 % of requests, every Actuator endpoint is exposed. Never use it in a shared environment. |
-
-Everything else is up to you. Common names are `local`, `test`, `dev`, `staging` and `prod`.
+Every profile name is up to you. Common names are `local`, `test`, `dev`, `staging` and `prod`.
 
 ## Setting values per environment without files
 
@@ -99,7 +97,7 @@ env:
     value: prod
   - name: STRATUM_HTTPCLIENT_CLIENTS_INVENTORY_BASEURL
     value: http://inventory-service.prod.svc.cluster.local
-  - name: STRATUM_OBSERVABILITY_TRACING_SAMPLINGPROBABILITY
+  - name: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
     value: "0.05"
 ```
 
