@@ -61,6 +61,13 @@
       <artifactId>testcontainers-postgresql</artifactId>
       <optional>true</optional>
     </dependency>
+    <!-- PostgresJdbcContainerConfiguration names Spring Boot's JdbcConnectionDetails. Optional for
+         the same reason: a module that tests against PostgreSQL already has it. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-jdbc</artifactId>
+      <optional>true</optional>
+    </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>

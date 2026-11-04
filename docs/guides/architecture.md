@@ -71,7 +71,7 @@ cloud provider is chosen, and `samples/`, small example services built and teste
 | Java, the tools and plugins Spring Boot does not manage, and the libraries `stratum-bom` manages | The root `pom.xml`, in `<properties>` | One `*.version` property each, sorted by name ([ADR 0005](../adr/0005-versions-in-the-root-pom.md)) |
 | Which of Stratum's modules and extra libraries a service can use | `platform/stratum-bom` | One `<dependencyManagement>` list, sorted by name, with its versions from the root `pom.xml` |
 | Maven itself | `.mvn/wrapper/maven-wrapper.properties` | `./mvnw` downloads that version and checks its SHA-256 |
-| The Docker image of each test container, such as PostgreSQL's | A private constant in its container class in `stratum-test`, such as `PostgresContainerConfiguration` | Pinned to an exact tag, never `latest` (ST-TEST-32); no bot updates it, so a maintainer changes it by hand |
+| The Docker image of each test container, such as PostgreSQL's | A constant in each container class in `stratum-test`; PostgreSQL's, in `PostgresContainerConfiguration`, is package-private because a second class reads it | Pinned to an exact tag, never `latest` (ST-TEST-32); no bot updates it, so a maintainer changes it by hand |
 
 No POM other than the root `pom.xml` writes a version number. Enforcer's `requirePluginVersions`,
 run from the root `pom.xml`, fails the build if a plugin has no version.
