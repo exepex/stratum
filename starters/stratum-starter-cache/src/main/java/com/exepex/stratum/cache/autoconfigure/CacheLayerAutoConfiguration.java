@@ -19,6 +19,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.cache.autoconfigure.CacheAutoConfiguration;
+import org.springframework.boot.cache.metrics.CacheMetricsRegistrar;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.interceptor.CacheInterceptor;
 import org.springframework.context.annotation.Bean;
@@ -55,7 +56,8 @@ public final class CacheLayerAutoConfiguration {
    * @param cacheInterceptor Spring's interceptor, when proxy caching is on
    * @param cacheManager the service's cache manager
    * @param environment the service's environment, from which the settings are resolved
-   * @param counters count the layer's failures and refused names
+   * @param counters count the layer's failures and refused names, and measure its caches
+   * @param beanFactory the service's beans, which name the cache manager for the metrics
    * @return the hook
    */
   @Bean
@@ -65,9 +67,14 @@ public final class CacheLayerAutoConfiguration {
       ObjectProvider<CacheInterceptor> cacheInterceptor,
       ObjectProvider<CacheManager> cacheManager,
       Environment environment,
-      CacheCounters counters) {
+      CacheCounters counters,
+      ListableBeanFactory beanFactory) {
     return new StratumCacheLayerHook(
-        cacheInterceptor, cacheManager, StratumCacheProperties.resolve(environment), counters);
+        cacheInterceptor,
+        cacheManager,
+        StratumCacheProperties.resolve(environment),
+        counters,
+        beanFactory);
   }
 
   /**
@@ -101,8 +108,9 @@ public final class CacheLayerAutoConfiguration {
   }
 
   /**
-   * Counts the layer's failures and refused names in Micrometer when it is on the class path. A
-   * nested class, so Micrometer's types are only loaded then.
+   * Counts the layer's failures and refused names in Micrometer, and has Spring Boot measure each
+   * cache made on its first use, when Micrometer is on the class path. A nested class, so
+   * Micrometer's types are only loaded then.
    */
   @StratumInternal
   @Configuration(proxyBeanMethods = false)
@@ -114,14 +122,16 @@ public final class CacheLayerAutoConfiguration {
      * Counts in the service's registry, when it has one.
      *
      * @param registry the service's metrics
+     * @param registrar Spring Boot's registrar of cache metrics, when Spring Boot measures caches
      * @return the Micrometer counters
      */
     @Bean
     @Fallback
     @ConditionalOnBean(MeterRegistry.class)
     @ConditionalOnMissingBean(CacheCounters.class)
-    public MicrometerCacheCounters micrometerCacheCounters(MeterRegistry registry) {
-      return new MicrometerCacheCounters(registry);
+    public MicrometerCacheCounters micrometerCacheCounters(
+        MeterRegistry registry, ObjectProvider<CacheMetricsRegistrar> registrar) {
+      return new MicrometerCacheCounters(registry, registrar);
     }
   }
 }

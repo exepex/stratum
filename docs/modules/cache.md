@@ -83,7 +83,8 @@ class ProductService {
 | Caching switched on | No `@EnableCaching` needed. A service or framework that has its own keeps it ([below](#your-own-enablecaching)) |
 | Entries expire | Every Redis entry lives 10 minutes by default, unless you set your own time to live or [cache configuration](#customize) |
 | Key prefix | Redis keys start with `<spring.application.name>:`, as in `order-service:products::sku-1` |
-| Hits and misses counted | Redis caches keep statistics, so `cache.gets` reports hits and misses ([Metrics](#metrics)) |
+| Hits and misses counted | Redis caches keep statistics, so `cache.gets` reports hits and misses, also for caches made on their first use ([Metrics](#metrics)) |
+| Null results not stored | A method that returns `null` is not cached, so it runs again on the next call; no `unless` needed ([Null results](#null-results)) |
 | Short Redis timeouts | A Redis command waits at most 1 second and a connect at most 2 seconds, instead of 60 and 10 |
 | Clearing with SCAN | `@CacheEvict(allEntries = true)` deletes keys found with SCAN, 1,000 at a time, never with KEYS |
 | Works when Redis is down | A failed cache read is a miss and a failed write is dropped, so the method runs and returns its real result ([below](#when-redis-is-down)) |
@@ -119,6 +120,7 @@ Spring Boot properties this module gives a default (your values win):
 | `spring.cache.redis.time-to-live` | duration | `10m` | unset: entries never expire | How long a Redis cache entry lives. |
 | `spring.cache.redis.key-prefix` | string | `${spring.application.name}:` | unset: keys start with the cache name | The text every Redis cache key starts with, before `<cache>::`. See [Key prefix](#key-prefix). |
 | `spring.cache.redis.enable-statistics` | boolean | `true` | `false` | Whether Redis caches count hits and misses for the metrics. |
+| `spring.cache.redis.cache-null-values` | boolean | `false` | `true` | Whether Redis caches store a method's `null` result. See [Null results](#null-results). |
 | `spring.data.redis.timeout` | duration | `1s` | unset: Lettuce's 60 seconds | How long any Redis command waits for its answer. |
 | `spring.data.redis.connect-timeout` | duration | `2s` | unset: Lettuce's 10 seconds | How long connecting to Redis may take. |
 
@@ -238,16 +240,52 @@ What skips parts of the layer:
 - A `CachingConfigurer` of yours that sets a `cacheResolver()` or a `cacheManager()`: Stratum then
   adds nothing, and Spring's behaviour applies.
 - `@Cacheable(cacheManager = ...)` or `cacheResolver = ...` on a method: its calls are still
-  fail-open, but they get no run-once loader and no cap.
+  fail-open, but they get no run-once loader, no cap, no [null skip](#null-results) and no
+  [metrics](#metrics) for a cache made on its first use.
 - Your code calling `CacheManager.getCache(...)` itself, and `@EnableCaching(mode =
   AdviceMode.ASPECTJ)`, which has no `cacheInterceptor`: neither gets the layer.
+
+## Null results
+
+A Redis cache does not store a method's `null` result: the method runs again on the next call for
+that key, and you write no `unless = "#result == null"`. A `null` result is not a failure: it is not
+counted in `stratum.cache.failures` and logs nothing.
+
+- **A null removes the old entry.** A `null` written to a cache, such as by a `@CachePut` method
+  that returns `null`, deletes the key's entry, so the next call runs the method. Each delete is one
+  Redis command, sent in the background with Lettuce, Spring Boot's default Redis client, and is
+  counted in `cache.removals`. That includes every
+  `@Cacheable` miss whose method returns `null`.
+- **Async and reactive methods with `sync = true`.** A `@Cacheable(sync = true)` method that
+  returns a `CompletableFuture` or a `Mono` that ends with no value is still counted in
+  `stratum.cache.failures` with `operation=get`, logs `SX-CACHE-1002` once per
+  `stratum.cache.warning-interval`, and runs twice. Making these quiet is **planned**. Without
+  `sync`, they behave as above.
+
+To store `null` results again, set Spring Boot's key in `application.properties`:
+
+```properties
+spring.cache.redis.cache-null-values=true
+```
+
+or in `application.yml`:
+
+```yaml
+spring:
+  cache:
+    redis:
+      cache-null-values: true
+```
 
 ## Metrics
 
 With Micrometer present, as with the actuator or the
 [observability starter](../../starters/stratum-starter-observability/README.md), Spring Boot
 reports `cache.gets` (with `result=hit` or `miss`), `cache.puts` and `cache.removals` for each
-cache. Spring Boot measures only the caches the cache manager knows at startup, so name them:
+cache, tagged with `cache` and `cache.manager`. Spring Boot measures the caches the cache manager
+knows at startup, and Stratum's layer has it measure each cache made later, on its first use, so
+you need not name your caches. A cache reached only through a path that skips the layer
+([When Redis is down](#when-redis-is-down)) is measured only if you name it:
 
 ```properties
 spring.cache.cache-names=products,exchange-rates
@@ -259,8 +297,8 @@ spring:
     cache-names: products,exchange-rates
 ```
 
-A cache made later, on its first use, is not measured; measuring those is **planned**. Redis reports
-no evictions.
+Stratum measures at most `stratum.cache.max-caches` caches this way; a name over the limit gets no
+cache and so no metrics. Redis reports no evictions.
 
 Stratum adds two counters of its own:
 
@@ -325,9 +363,10 @@ application.run(args);
   not by its type, as most beans do ([Overriding defaults, level 3](../configuration/overriding-defaults.md#level-3-replace-a-bean)),
   because a customizer of yours of the same type must not switch SCAN off.
 - Your own Spring Data `RedisCacheConfiguration` bean replaces Spring Boot's cache settings, and so
-  Stratum's time to live and key prefix; the SCAN writer still applies.
+  Stratum's time to live, key prefix and [null setting](#null-results): Spring Data's
+  `defaultCacheConfig()` stores nulls. The SCAN writer still applies.
 - Your own `CacheManager` bean replaces Spring Boot's, and with it Stratum's time to live, key
-  prefix, statistics and SCAN clears. Stratum's `@EnableCaching`, the Redis timeouts and the
+  prefix, statistics, null setting and SCAN clears. Stratum's `@EnableCaching`, the Redis timeouts and the
   [name check](#key-prefix) still apply.
 
 ### Your own `@EnableCaching`
@@ -358,6 +397,8 @@ then always run.
   behaviour only.
 - Redis memory is bounded by the server's `maxmemory` policy, which your team sets.
 - Redis reports no evictions to the metrics.
+- A `@Cacheable(sync = true)` method that returns a `CompletableFuture` or a `Mono` still counts a
+  `null` result as a failure and runs twice ([Null results](#null-results)).
 - At most `stratum.cache.max-caches` cache names, 100 by default, get a cache. Calls for a name
   beyond that run uncached, through one shared no-op cache, and no cache is created for the name.
   Each such call is counted in `stratum.cache.skips` under `cache=_over-limit`, and
@@ -366,8 +407,8 @@ then always run.
 
 ### Planned
 
-These are planned for later releases of this module: null results not cached; metrics
-for caches made on first use; a time to live, command timeout and size limits for each cache;
+These are planned for later releases of this module: a time to live, command timeout and size
+limits for each cache;
 values stored as JSON, read only for allowed types; a retry interval while Redis is unreachable;
 the cache name on Redis spans; Caffeine with a bounded size; and reactive return types.
 
@@ -385,7 +426,7 @@ jittered time to live per instance.
 | Startup stops with `SX-CACHE-1001` | Spring Data Redis is present and the service has no name. Set `spring.application.name` or your own `spring.cache.redis.key-prefix` ([Key prefix](#key-prefix)). |
 | Stale data after an update | Add `@CacheEvict` or `@CachePut` to the method that changes the data, or lower the time to live. |
 | Hit ratio near zero | The key includes a value that changes on every call (for example a timestamp). Set `key` explicitly. |
-| `cache.gets` is missing for a cache | The cache was made on its first use. List it in `spring.cache.cache-names` ([Metrics](#metrics)). |
+| `cache.gets` is missing for a cache | The cache is reached by a path that skips Stratum's layer, or its name is over `stratum.cache.max-caches`. List it in `spring.cache.cache-names` ([Metrics](#metrics)). |
 | Redis calls time out after 1 second | A command takes longer than Stratum's `spring.data.redis.timeout`. Raise it for the whole service. |
 | `SX-CACHE-1002` in the log | A cache call failed, usually because Redis is down; the method still ran. Check Redis ([When Redis is down](#when-redis-is-down)). |
 | `SX-CACHE-1003` in the log | The service uses more than `stratum.cache.max-caches` cache names. Name caches explicitly, so they stay few, or raise the limit ([Limits](#limits)). |

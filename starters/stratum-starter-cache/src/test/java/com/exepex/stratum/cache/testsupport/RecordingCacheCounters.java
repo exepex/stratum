@@ -1,13 +1,16 @@
 package com.exepex.stratum.cache.testsupport;
 
 import com.exepex.stratum.cache.CacheCounters;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
+import org.springframework.cache.Cache;
 
 /**
- * Counters that record every failure and skip with their tags, so a test sees what the layer
- * counted without a metrics registry.
+ * Counters that record every failure and skip with their tags, and every cache given to be
+ * measured, so a test sees what the layer counted without a metrics registry.
  */
 public class RecordingCacheCounters implements CacheCounters {
 
@@ -16,6 +19,9 @@ public class RecordingCacheCounters implements CacheCounters {
 
   /** The skips counted, by {@code cache:reason}. */
   private final Map<String, AtomicLong> skipsByTags = new ConcurrentHashMap<>();
+
+  /** The caches given to be measured, in order. */
+  private final List<Cache> measuredCaches = new CopyOnWriteArrayList<>();
 
   @Override
   public void failure(String cache, String operation) {
@@ -27,6 +33,20 @@ public class RecordingCacheCounters implements CacheCounters {
   @Override
   public void skip(String cache, String reason) {
     skipsByTags.computeIfAbsent(cache + ":" + reason, key -> new AtomicLong()).incrementAndGet();
+  }
+
+  @Override
+  public void bindCacheMetrics(Cache cache, String cacheManagerName) {
+    measuredCaches.add(cache);
+  }
+
+  /**
+   * Returns the caches given to be measured, in order.
+   *
+   * @return the caches
+   */
+  public List<Cache> measured() {
+    return List.copyOf(measuredCaches);
   }
 
   /**

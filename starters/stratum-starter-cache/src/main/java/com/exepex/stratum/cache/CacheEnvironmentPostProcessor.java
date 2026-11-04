@@ -17,9 +17,9 @@ import org.springframework.util.StringUtils;
 /**
  * Gives Spring Boot's Redis cache and client settings Stratum's defaults unless {@code
  * stratum.cache.enabled=false}: entries live 10 minutes, keys start with the service's name, hits
- * and misses are counted, a command waits at most 1 second and a connect at most 2 seconds. Every
- * value the service sets for these Spring Boot keys wins. In both modes, because no consumer of the
- * service sees them.
+ * and misses are counted, a null result is not stored, a command waits at most 1 second and a
+ * connect at most 2 seconds. Every value the service sets for these Spring Boot keys wins. In both
+ * modes, because no consumer of the service sees them.
  */
 @StratumInternal
 public class CacheEnvironmentPostProcessor implements EnvironmentPostProcessor, Ordered {
@@ -33,6 +33,8 @@ public class CacheEnvironmentPostProcessor implements EnvironmentPostProcessor, 
           CacheConstants.SERVICE_NAME_PREFIX,
           CacheConstants.ENABLE_STATISTICS,
           true,
+          CacheConstants.CACHE_NULL_VALUES,
+          false,
           CacheConstants.REDIS_TIMEOUT,
           "1s",
           CacheConstants.REDIS_CONNECT_TIMEOUT,

@@ -3,8 +3,11 @@ package com.exepex.stratum.cache.it;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+import com.exepex.stratum.cache.CacheConstants;
+import com.exepex.stratum.cache.StratumCacheErrorHandler;
 import com.exepex.stratum.cache.it.products.ProductsApplication;
 import com.exepex.stratum.cache.testsupport.ProductCatalog;
+import com.exepex.stratum.test.LogLineCapture;
 import com.exepex.stratum.test.RedisContainerConfiguration;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.io.IOException;
@@ -114,6 +117,82 @@ class CacheRedisIntegrationTest {
           .isNotNull();
       assertThat(meterRegistry.find("cache.removals").tag("cache", ProductCatalog.PRODUCTS).meter())
           .isNotNull();
+    }
+
+    @Test
+    @DisplayName(
+        "a cache made on its first use shows in cache.gets, with Spring Boot's manager tag")
+    void countsCacheMadeOnFirstUse() {
+      catalog.syncedPriceOf(SKU);
+
+      assertThat(
+              meterRegistry
+                  .find(CacheConstants.METRIC_CACHE_GETS)
+                  .tag(CacheConstants.TAG_CACHE, ProductCatalog.SYNCED_PRODUCTS)
+                  .tag(CacheConstants.TAG_CACHE_MANAGER, "cacheManager")
+                  .meter())
+          .isNotNull();
+    }
+  }
+
+  @Nested
+  @DisplayName("a null result is not stored")
+  class NullResults {
+
+    @Test
+    @DisplayName("without sync, the method runs on each call and nothing is stored or reported")
+    void nullWithoutSync() {
+      assertNullNotStored(ProductCatalog.UNPRICED_PRODUCTS, () -> catalog.unpricedPriceOf(SKU));
+    }
+
+    @Test
+    @DisplayName("with sync, the method runs once per call and nothing is stored or reported")
+    void nullWithSync() {
+      assertNullNotStored(
+          ProductCatalog.SYNCED_UNPRICED_PRODUCTS, () -> catalog.syncedUnpricedPriceOf(SKU));
+    }
+
+    @Test
+    @DisplayName("a @CachePut that returns null removes the cached price, so the method runs again")
+    void nullPutRemovesEntry() {
+      cachePrice(SKU);
+
+      catalog.withdrawPrice(SKU);
+
+      await()
+          .atMost(BACKGROUND_WAIT)
+          .until(() -> Boolean.FALSE.equals(redis.hasKey(priceKey(SKU))));
+      var lookupsBefore = catalog.lookups();
+      catalog.priceOf(SKU);
+      assertThat(catalog.lookups()).isEqualTo(lookupsBefore + 1);
+    }
+
+    /**
+     * Looks up a product without a price twice and checks that the method ran each time, that Redis
+     * holds no key, and that no failure was counted or warned.
+     */
+    private void assertNullNotStored(String cacheName, Runnable lookup) {
+      var capture = new LogLineCapture(StratumCacheErrorHandler.class.getName());
+      capture.start();
+      try {
+        final var lookupsBefore = catalog.unpricedLookups();
+        lookup.run();
+        // The cache and this template share one Redis connection, so this check runs after any
+        // write the lookup sent in the background.
+        assertThat(redis.hasKey(SERVICE + ":" + cacheName + "::" + SKU)).isFalse();
+        lookup.run();
+
+        assertThat(catalog.unpricedLookups()).isEqualTo(lookupsBefore + 2);
+        assertThat(capture.lines()).isEmpty();
+      } finally {
+        capture.stop();
+      }
+      assertThat(
+              meterRegistry
+                  .find(CacheConstants.METRIC_FAILURES)
+                  .tag(CacheConstants.TAG_CACHE, cacheName)
+                  .meter())
+          .isNull();
     }
   }
 

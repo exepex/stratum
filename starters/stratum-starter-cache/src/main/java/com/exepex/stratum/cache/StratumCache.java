@@ -15,7 +15,9 @@ import org.springframework.util.ReflectionUtils;
  * {@link #get(Object, Callable)} fails after the loader ran — the write of the loaded value failed
  * — the failure is reported once, as a {@code put}, and the loader's result is still returned, so
  * the loader never runs twice for one call. Every other failure is rethrown for Spring to report to
- * the error handler, which decides whether the caller sees it.
+ * the error handler, which decides whether the caller sees it. When the wrapped cache does not
+ * store nulls, a null result is not stored and not reported, and a null {@code put} removes the old
+ * entry, so the next call runs the method.
  */
 @StratumInternal
 @RequiredArgsConstructor
@@ -26,6 +28,9 @@ public class StratumCache implements Cache {
 
   /** Reports the failed write of a loaded value; the interceptor's handler, so once per error. */
   private final CacheErrorHandler errorHandler;
+
+  /** Whether the wrapped cache refuses null values, as Redis does by Stratum's default. */
+  private final boolean nullsRejected;
 
   @Override
   public String getName() {
@@ -51,7 +56,8 @@ public class StratumCache implements Cache {
    * Returns the cached value or loads it, running the loader at most once: when the call fails
    * after the loader ran, its recorded result is returned and the failed write is reported once. A
    * {@link ValueRetrievalException}, which carries the loader's own error, is always rethrown
-   * unchanged, and so is a failure before the loader ran, such as a failed read.
+   * unchanged, and so is a failure before the loader ran, such as a failed read. A null result that
+   * the wrapped cache refuses to store is returned without a report.
    *
    * @param key the key
    * @param valueLoader loads the value on a miss
@@ -66,13 +72,16 @@ public class StratumCache implements Cache {
     } catch (ValueRetrievalException failure) {
       throw failure;
     } catch (RuntimeException failure) {
-      if (loader.hasRun()) {
-        return afterFailedWrite(key, loader, failure);
+      if (!loader.hasRun()) {
+        // A failure before the load — a failed read — is Spring's to report, so it is rethrown
+        // unchanged, as CacheAspectSupport does for a loader's own error.
+        ReflectionUtils.rethrowRuntimeException(failure);
       }
-      // A failure before the load — a failed read — is Spring's to report, so it is rethrown
-      // unchanged, as CacheAspectSupport does for a loader's own error.
-      ReflectionUtils.rethrowRuntimeException(failure);
-      return null; // never reached: the failure is always rethrown
+      if (nullsRejected && loader.value() == null) {
+        // The cache refused to store the null before writing anything: no failure to report.
+        return null;
+      }
+      return afterFailedWrite(key, loader, failure);
     }
   }
 
@@ -86,8 +95,19 @@ public class StratumCache implements Cache {
     return delegate.retrieve(key, valueLoader);
   }
 
+  /**
+   * Stores the value, or, for a null the wrapped cache refuses, removes the old entry instead, so a
+   * null result is never reported as a failure and the next call runs the method.
+   *
+   * @param key the key
+   * @param value the value, or {@code null}
+   */
   @Override
-  public void put(Object key, Object value) {
+  public void put(Object key, @Nullable Object value) {
+    if (nullsRejected && value == null) {
+      delegate.evict(key);
+      return;
+    }
     delegate.put(key, value);
   }
 

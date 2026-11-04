@@ -1,7 +1,9 @@
 package com.exepex.stratum.cache.testsupport;
 
 import java.util.concurrent.atomic.AtomicInteger;
+import org.jspecify.annotations.Nullable;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 
 /**
@@ -21,6 +23,12 @@ public class ProductCatalog {
    */
   public static final String WRITE_TEST_PRODUCTS = "write-test-products";
 
+  /** The name of the cache of products that have no price, so their lookups return null. */
+  public static final String UNPRICED_PRODUCTS = "unpriced-products";
+
+  /** The name of the cache of products that have no price, looked up with {@code sync=true}. */
+  public static final String SYNCED_UNPRICED_PRODUCTS = "synced-unpriced-products";
+
   /** The name of the cache whose loads fail, for a method's own error. */
   public static final String MISSING_PRODUCTS = "missing-products";
 
@@ -29,6 +37,9 @@ public class ProductCatalog {
 
   /** How many times a synced price was really looked up. */
   private final AtomicInteger syncedLookupCount = new AtomicInteger();
+
+  /** How many times a product without a price was really looked up. */
+  private final AtomicInteger unpricedLookupCount = new AtomicInteger();
 
   /**
    * Looks up a product's price, or returns it from the cache.
@@ -78,6 +89,41 @@ public class ProductCatalog {
     throw new IllegalStateException("unknown sku " + sku);
   }
 
+  /**
+   * Looks up the price of a product that has none, or returns it from the cache.
+   *
+   * @param sku the product's stock-keeping unit
+   * @return {@code null}, as no price exists
+   */
+  @Cacheable(UNPRICED_PRODUCTS)
+  public @Nullable String unpricedPriceOf(String sku) {
+    unpricedLookupCount.incrementAndGet();
+    return null;
+  }
+
+  /**
+   * Looks up the price of a product that has none with {@code sync=true}.
+   *
+   * @param sku the product's stock-keeping unit
+   * @return {@code null}, as no price exists
+   */
+  @Cacheable(cacheNames = SYNCED_UNPRICED_PRODUCTS, sync = true)
+  public @Nullable String syncedUnpricedPriceOf(String sku) {
+    unpricedLookupCount.incrementAndGet();
+    return null;
+  }
+
+  /**
+   * Withdraws a product's price, so the cached price must go.
+   *
+   * @param sku the product's stock-keeping unit
+   * @return {@code null}, the price after the withdrawal
+   */
+  @CachePut(PRODUCTS)
+  public @Nullable String withdrawPrice(String sku) {
+    return null;
+  }
+
   /** Removes every price from the cache. */
   @CacheEvict(cacheNames = PRODUCTS, allEntries = true)
   public void forgetAllPrices() {
@@ -100,5 +146,14 @@ public class ProductCatalog {
    */
   public int syncedLookups() {
     return syncedLookupCount.get();
+  }
+
+  /**
+   * Returns how many times a product without a price was really looked up.
+   *
+   * @return the number of lookups
+   */
+  public int unpricedLookups() {
+    return unpricedLookupCount.get();
   }
 }

@@ -17,6 +17,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 import org.springframework.cache.interceptor.BasicOperation;
 import org.springframework.cache.interceptor.CacheOperationInvocationContext;
 import org.springframework.cache.support.NoOpCache;
@@ -42,6 +44,15 @@ class StratumCacheResolverTest {
   /** The flood of names the bound test resolves. */
   private static final int FLOOD = 10_000;
 
+  /** The bean name of the cache manager in these tests. */
+  private static final String MANAGER_NAME = "cacheManager";
+
+  /** The name of the one cache the admitted-cache tests resolve. */
+  private static final String FIRST_CACHE = "cache-0";
+
+  /** The key the null tests write. */
+  private static final String KEY = "sku-1";
+
   private final AdjustableClock clock = new AdjustableClock(START);
 
   private final WarningThrottle throttle = new WarningThrottle(INTERVAL, clock, MAX_CACHES);
@@ -50,13 +61,18 @@ class StratumCacheResolverTest {
 
   private final RecordingCacheManager manager = new RecordingCacheManager();
 
-  private final StratumCacheResolver resolver =
-      new StratumCacheResolver(
-          manager,
-          MAX_CACHES,
-          throttle,
-          counters,
-          new StratumCacheErrorHandler(null, throttle, counters));
+  private final StratumCacheResolver resolver = resolverFor(manager);
+
+  /** Returns a resolver over a cache manager, with the tests' cap, throttle and counters. */
+  private StratumCacheResolver resolverFor(CacheManager cacheManager) {
+    return new StratumCacheResolver(
+        cacheManager,
+        MANAGER_NAME,
+        MAX_CACHES,
+        throttle,
+        counters,
+        new StratumCacheErrorHandler(null, throttle, counters));
+  }
 
   /** Returns an invocation context whose operation asks for the given cache names. */
   private static CacheOperationInvocationContext<?> invocation(String... names) {
@@ -175,6 +191,64 @@ class StratumCacheResolverTest {
       assertThat(counters.skipSeries()).isOne();
       assertThat(counters.skips(CacheConstants.OVER_LIMIT, CacheConstants.REASON_CACHE_LIMIT))
           .isEqualTo(FLOOD - MAX_CACHES);
+    }
+  }
+
+  @Nested
+  @DisplayName("for each admitted cache")
+  class AdmittedCache {
+
+    /** Returns a Spring in-memory cache manager that stores nulls or refuses them. */
+    private ConcurrentMapCacheManager inMemory(boolean allowNullValues) {
+      var inMemory = new ConcurrentMapCacheManager();
+      inMemory.setAllowNullValues(allowNullValues);
+      return inMemory;
+    }
+
+    /** Resolves the one cache {@code cache-0} through a resolver over the given manager. */
+    private Cache resolvedThrough(CacheManager cacheManager) {
+      return resolverFor(cacheManager).resolveCaches(invocation(FIRST_CACHE)).iterator().next();
+    }
+
+    @Test
+    @DisplayName("the cache the manager made is measured once, never the layer's decorator")
+    void measuresTheManagersCache() {
+      resolver.resolveCaches(invocation(FIRST_CACHE));
+      resolver.resolveCaches(invocation(FIRST_CACHE));
+
+      assertThat(counters.measured()).containsExactly(manager.created(FIRST_CACHE));
+    }
+
+    @Test
+    @DisplayName("in a cache that stores nulls, a null put stores the null, as the team chose")
+    void storesNullWhereAllowed() {
+      var inMemory = inMemory(true);
+
+      resolvedThrough(inMemory).put(KEY, null);
+
+      var stored = inMemory.getCache(FIRST_CACHE).get(KEY);
+      assertThat(stored).isNotNull();
+      assertThat(stored.get()).isNull();
+    }
+
+    @Test
+    @DisplayName("in a cache that refuses nulls, a null put removes the old entry")
+    void evictsWhereRefused() {
+      var inMemory = inMemory(false);
+      var cache = resolvedThrough(inMemory);
+      inMemory.getCache(FIRST_CACHE).put(KEY, "old-price");
+
+      cache.put(KEY, null);
+
+      assertThat(inMemory.getCache(FIRST_CACHE).get(KEY)).isNull();
+    }
+
+    @Test
+    @DisplayName("in a cache that says nothing about nulls, a null put is passed on unchanged")
+    void forwardsWhereUnknown() {
+      resolvedThrough(manager).put(KEY, null);
+
+      assertThat(manager.created(FIRST_CACHE).calls()).contains("put").doesNotContain("evict");
     }
   }
 }

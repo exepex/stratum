@@ -2,6 +2,8 @@ package com.exepex.stratum.cache;
 
 import com.exepex.stratum.core.api.StratumInternal;
 import java.time.Clock;
+import java.util.Arrays;
+import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.interceptor.CacheErrorHandler;
@@ -26,13 +28,15 @@ public final class StratumCacheLayerHook {
    * @param cacheInterceptor Spring's interceptor, when proxy caching is on
    * @param cacheManager the service's cache manager
    * @param properties the module's settings
-   * @param counters count the layer's failures and refused names
+   * @param counters count the layer's failures and refused names, and measure its caches
+   * @param beanFactory the service's beans, which name the cache manager for the metrics
    */
   public StratumCacheLayerHook(
       ObjectProvider<CacheInterceptor> cacheInterceptor,
       ObjectProvider<CacheManager> cacheManager,
       StratumCacheProperties properties,
-      CacheCounters counters) {
+      CacheCounters counters,
+      ListableBeanFactory beanFactory) {
     var interceptor = cacheInterceptor.getIfAvailable();
     if (interceptor == null || interceptor.getCacheResolver() != null) {
       return;
@@ -52,7 +56,21 @@ public final class StratumCacheLayerHook {
         installed.getClass() == SimpleCacheErrorHandler.class ? null : installed;
     var handler = new StratumCacheErrorHandler(serviceHandler, throttle, counters);
     interceptor.setCacheResolver(
-        new StratumCacheResolver(manager, properties.maxCaches(), throttle, counters, handler));
+        new StratumCacheResolver(
+            manager,
+            beanName(beanFactory, manager),
+            properties.maxCaches(),
+            throttle,
+            counters,
+            handler));
     interceptor.setErrorHandler(handler);
+  }
+
+  /** Returns the bean name of the cache manager the layer uses, once, at startup. */
+  private String beanName(ListableBeanFactory beanFactory, CacheManager manager) {
+    return Arrays.stream(beanFactory.getBeanNamesForType(CacheManager.class))
+        .filter(name -> manager.equals(beanFactory.getBean(name)))
+        .findFirst()
+        .orElseThrow();
   }
 }

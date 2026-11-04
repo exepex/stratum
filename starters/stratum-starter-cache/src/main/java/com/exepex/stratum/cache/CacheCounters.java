@@ -1,10 +1,12 @@
 package com.exepex.stratum.cache;
 
 import com.exepex.stratum.core.api.StratumInternal;
+import org.springframework.cache.Cache;
 
 /**
- * Counts the cache layer's failures and refused cache names, so that the decorator, the handler and
- * the resolver never name a Micrometer type and stay loadable without {@code micrometer-core}.
+ * Records the cache layer's metrics: it counts failures and refused cache names, and has Spring
+ * Boot measure each cache made on its first use. The decorator, the handler and the resolver never
+ * name a Micrometer type, so they stay loadable without {@code micrometer-core}.
  */
 @StratumInternal
 public interface CacheCounters {
@@ -26,6 +28,15 @@ public interface CacheCounters {
   void skip(String cache, String reason);
 
   /**
+   * Has Spring Boot's cache metrics, such as {@code cache.gets}, measure a cache the layer has just
+   * admitted, unless Spring Boot measures it already.
+   *
+   * @param cache the cache the cache manager made, never the layer's decorator
+   * @param cacheManagerName the bean name of the cache manager that made it
+   */
+  void bindCacheMetrics(Cache cache, String cacheManagerName);
+
+  /**
    * Returns counters that count nothing, for a service without Micrometer.
    *
    * @return the no-op counters
@@ -34,7 +45,7 @@ public interface CacheCounters {
     return Noop.INSTANCE;
   }
 
-  /** The counters that count nothing. */
+  /** The counters that count and measure nothing. */
   @StratumInternal
   enum Noop implements CacheCounters {
 
@@ -49,6 +60,11 @@ public interface CacheCounters {
     @Override
     public void skip(String cache, String reason) {
       // Counts nothing.
+    }
+
+    @Override
+    public void bindCacheMetrics(Cache cache, String cacheManagerName) {
+      // Measures nothing.
     }
   }
 }
