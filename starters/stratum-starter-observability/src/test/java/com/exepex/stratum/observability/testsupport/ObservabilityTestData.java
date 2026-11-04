@@ -2,12 +2,16 @@ package com.exepex.stratum.observability.testsupport;
 
 import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.Tags;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanContext;
+import io.opentelemetry.api.trace.TraceFlags;
+import io.opentelemetry.api.trace.TraceState;
 import java.util.List;
 import lombok.experimental.UtilityClass;
 import org.springframework.boot.logging.LoggingSystem;
 import org.springframework.util.ClassUtils;
 
-/** Sample metrics and environments, and the clean-up, shared by the observability tests. */
+/** Sample metrics, spans and environments, and the clean-up, shared by the observability tests. */
 @UtilityClass
 public class ObservabilityTestData {
 
@@ -23,6 +27,15 @@ public class ObservabilityTestData {
           "io.micrometer.registry.otlp.OtlpMeterRegistry",
           "io.opentelemetry.exporter.internal.http.HttpExporter",
           "io.opentelemetry.exporter.internal.grpc.GrpcExporter");
+
+  /** The trace ID of {@link #SAMPLED_SPAN}, in W3C form. */
+  public static final String TRACE_ID = "4bf92f3577b34da6a3ce929d0e0e4736";
+
+  /** A sampled span made with OpenTelemetry's own API, as a context carries it. */
+  public static final Span SAMPLED_SPAN =
+      Span.wrap(
+          SpanContext.create(
+              TRACE_ID, "00f067aa0ba902b7", TraceFlags.getSampled(), TraceState.getDefault()));
 
   /** The value of the sample tag, made up, which the guard must never report. */
   public static final String TAG_VALUE = "user-7731";

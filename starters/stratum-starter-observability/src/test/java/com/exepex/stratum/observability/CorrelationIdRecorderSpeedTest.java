@@ -1,15 +1,13 @@
 package com.exepex.stratum.observability;
 
+import static com.exepex.stratum.observability.testsupport.ObservabilityTestData.SAMPLED_SPAN;
+import static com.exepex.stratum.observability.testsupport.ObservabilityTestData.TRACE_ID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.test.CpuCostMeter;
 import io.micrometer.tracing.otel.bridge.EventPublishingContextWrapper.ScopeAttachedEvent;
 import io.opentelemetry.api.baggage.Baggage;
-import io.opentelemetry.api.trace.Span;
-import io.opentelemetry.api.trace.SpanContext;
-import io.opentelemetry.api.trace.TraceFlags;
-import io.opentelemetry.api.trace.TraceState;
 import io.opentelemetry.context.Context;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
@@ -35,9 +33,6 @@ class CorrelationIdRecorderSpeedTest {
 
   /** Scope changes in each timed batch with the ID of unsafe characters: about 50ms of work. */
   private static final int UNSAFE_ID_CALLS_PER_BATCH = 1_000_000;
-
-  /** The trace ID of the span, which the logging context gets in place of a refused ID. */
-  private static final String TRACE_ID = "4bf92f3577b34da6a3ce929d0e0e4736";
 
   /** A run of characters that are not safe for logs: a space and a line feed. */
   private static final String UNSAFE_CHARACTERS = "a b\n";
@@ -75,12 +70,6 @@ class CorrelationIdRecorderSpeedTest {
                   UNSAFE_ID_CALLS_PER_BATCH,
                   UNSAFE_ID_LIMIT));
 
-  /** The span made current with each baggage. */
-  private static final Span SPAN =
-      Span.wrap(
-          SpanContext.create(
-              TRACE_ID, "00f067aa0ba902b7", TraceFlags.getSampled(), TraceState.getDefault()));
-
   private final CorrelationIdRecorder recorder = new CorrelationIdRecorder();
 
   /** Clears the logging context after each test. */
@@ -96,7 +85,7 @@ class CorrelationIdRecorderSpeedTest {
       String idName, String correlationId, int callsPerBatch, Duration limit) {
     var baggage =
         Baggage.builder().put(LoggingContextConstants.CORRELATION_ID, correlationId).build();
-    var scope = new ScopeAttachedEvent(Context.root().with(SPAN).with(baggage));
+    var scope = new ScopeAttachedEvent(Context.root().with(SAMPLED_SPAN).with(baggage));
 
     recorder.onEvent(scope);
     assertThat(MDC.get(LoggingContextConstants.CORRELATION_ID)).isEqualTo(TRACE_ID);
