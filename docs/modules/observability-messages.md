@@ -13,7 +13,7 @@ With the module on, sending and handling a message are observed like an HTTP cal
   to an exception's class name: on Kafka the listener's own exception, such as
   `IllegalStateException`; on RabbitMQ Spring's wrapper, `ListenerExecutionFailedException`. Every
   redelivery is counted, Kafka's error handler retries included. With Spring Boot's RabbitMQ
-  listener retry on (`spring.rabbitmq.listener.simple.retry.enabled=true`), the attempts inside one
+  listener retry on (the `spring.rabbitmq.listener.simple.retry.*` keys), the attempts inside one
   delivery are timed once. A message handled without error has `error=none`. JMS timers do not show
   failures: a `@JmsListener` that throws is still recorded with `error=none`, so count JMS failures
   from your logs.
