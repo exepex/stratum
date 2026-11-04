@@ -71,7 +71,7 @@ public class SizeLimitedRedisCacheWriter implements RedisCacheWriter {
     var loader = new SizeCheckedLoader(name, valueLoader);
     try {
       return delegate.get(name, limitedKey(name, key), loader, ttl, timeToIdleEnabled);
-    } catch (OversizedValue refused) {
+    } catch (OversizedValue _) {
       return Objects.requireNonNull(loader.oversized);
     }
   }
