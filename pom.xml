@@ -83,10 +83,8 @@
     <pmd.version>7.28.0</pmd.version>
     <spotbugs-maven-plugin.version>4.10.5.0</spotbugs-maven-plugin.version>
     <spotless-maven-plugin.version>3.10.4</spotless-maven-plugin.version>
-    <testcontainers.image.postgres.name>postgres</testcontainers.image.postgres.name>
-    <testcontainers.image.postgres.tag>18.6-alpine</testcontainers.image.postgres.tag>
-    <testcontainers.image.redis.name>redis</testcontainers.image.redis.name>
-    <testcontainers.image.redis.tag>8.10.3-alpine</testcontainers.image.redis.tag>
+    <testcontainers.image.postgres>postgres:18.6-alpine</testcontainers.image.postgres>
+    <testcontainers.image.redis>redis:8.10.3-alpine</testcontainers.image.redis>
     <yauaa.version>8.3.0</yauaa.version>
   </properties>
 
