@@ -18,6 +18,7 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CachingConfigurer;
 import org.springframework.cache.interceptor.CacheErrorHandler;
+import org.springframework.cache.interceptor.SimpleCacheErrorHandler;
 
 @DisplayName(
     "Over the real interceptor, each cache error reaches the error handler exactly once"
@@ -168,6 +169,21 @@ class CacheLayerErrorPathTest {
                 assertThat(catalog.syncedLookups()).isOne();
                 assertThat(serviceHandler.calls())
                     .containsExactly(PUT_ON + ProductCatalog.SYNCED_PRODUCTS);
+              });
+    }
+
+    @Test
+    @DisplayName(
+        "a service handler that extends Spring's SimpleCacheErrorHandler is kept, so its rethrow"
+            + " reaches the caller")
+    void subclassOfSpringsHandlerIsKept() {
+      runnerWith(new RecordingCacheManager(false, true))
+          .withBean(CachingConfigurer.class, () -> configurerWith(new SimpleCacheErrorHandler() {}))
+          .run(
+              context -> {
+                var catalog = context.getBean(ProductCatalog.class);
+
+                assertThatThrownBy(() -> catalog.priceOf(SKU)).isSameAs(StubCache.FAILURE);
               });
     }
 

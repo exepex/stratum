@@ -229,9 +229,9 @@ method's own exception reaches the caller unchanged, as without caching.
   [`SX-CACHE-1002`](../guides/error-codes.md#stratum-starter-cache) warning per cache is logged per
   `stratum.cache.warning-interval`. It names the cache and the operation, never a key or a value.
 - **Your own handler wins.** A `CachingConfigurer` of yours with its own `errorHandler()` sees every
-  cache error. If it rethrows, the call fails, as you chose. A handler that is Spring's own
-  `SimpleCacheErrorHandler` counts as no handler, so write your own one that rethrows to keep calls
-  failing.
+  cache error. If it rethrows, the call fails, as you chose. A handler that is exactly Spring's
+  `SimpleCacheErrorHandler` counts as no handler; a subclass of it counts as yours. To keep calls
+  failing, set your own handler that rethrows.
 
 What skips parts of the layer:
 

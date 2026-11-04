@@ -45,10 +45,11 @@ public final class StratumCacheLayerHook {
         new WarningThrottle(
             properties.warningInterval(), Clock.systemUTC(), properties.maxCaches());
     // Spring's default handler rethrows everything; swallowing instead is the fail-open. A
-    // service's own handler is wrapped and decides what reaches the caller.
+    // service's own handler, a subclass of Spring's included, is wrapped and decides what reaches
+    // the caller.
     var installed = interceptor.getErrorHandler();
     CacheErrorHandler serviceHandler =
-        installed instanceof SimpleCacheErrorHandler ? null : installed;
+        installed.getClass() == SimpleCacheErrorHandler.class ? null : installed;
     var handler = new StratumCacheErrorHandler(serviceHandler, throttle, counters);
     interceptor.setCacheResolver(
         new StratumCacheResolver(manager, properties.maxCaches(), throttle, counters, handler));
