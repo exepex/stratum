@@ -152,6 +152,7 @@ class BaggageAllowListIntegrationTest {
           .observe(this::callBothClientsWithBaggage);
 
       assertThat(List.of(REST_CLIENT_PATH, WEB_CLIENT_PATH))
+          .hasSize(2)
           .allSatisfy(
               path ->
                   assertThat(DOWNSTREAM.baggageHeaderReceivedOn(path))
