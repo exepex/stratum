@@ -27,25 +27,25 @@ class WorkOriginSpeedTest {
       "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01 order-42";
 
   /**
-   * CPU time refusing 1MB of junk may take: 5 times M, where M = 14.666 µs is the largest best
-   * value of 3 CI runs with coverage on (9.836 µs, 10.999 µs, 14.666 µs), CI run 41749701016 on JDK
-   * 25, 2026-11-04.
+   * CPU time refusing 1MB of junk may take: 5 times M, where M = 11.031 µs is the largest best
+   * value of 3 CI runs with coverage on (10.251 µs, 11.031 µs, 10.952 µs), CI run 41755894601 on
+   * JDK 25, 2026-11-04.
    */
-  private static final Duration JUNK_LIMIT = Duration.of(73_329, ChronoUnit.NANOS);
+  private static final Duration JUNK_LIMIT = Duration.of(55_153, ChronoUnit.NANOS);
 
   /**
-   * CPU time refusing a 1MB correlation ID may take: 5 times M, where M = 19.182 µs is the largest
-   * best value of 3 CI runs with coverage on (10.151 µs, 13.688 µs, 19.182 µs), CI run 41749701016
+   * CPU time refusing a 1MB correlation ID may take: 5 times M, where M = 14.147 µs is the largest
+   * best value of 3 CI runs with coverage on (14.034 µs, 13.777 µs, 14.147 µs), CI run 41755894601
    * on JDK 25, 2026-11-04.
    */
-  private static final Duration CORRELATION_ID_LIMIT = Duration.of(95_912, ChronoUnit.NANOS);
+  private static final Duration CORRELATION_ID_LIMIT = Duration.of(70_735, ChronoUnit.NANOS);
 
   /**
-   * CPU time refusing a 1MB trace ID may take: 5 times M, where M = 14.858 µs is the largest best
-   * value of 3 CI runs with coverage on (8.527 µs, 10.311 µs, 14.858 µs), CI run 41749701016 on JDK
+   * CPU time refusing a 1MB trace ID may take: 5 times M, where M = 10.562 µs is the largest best
+   * value of 3 CI runs with coverage on (10.562 µs, 9.770 µs, 10.538 µs), CI run 41755894601 on JDK
    * 25, 2026-11-04.
    */
-  private static final Duration TRACE_ID_LIMIT = Duration.of(74_291, ChronoUnit.NANOS);
+  private static final Duration TRACE_ID_LIMIT = Duration.of(52_811, ChronoUnit.NANOS);
 
   /**
    * Stored texts of 1MB, each with the CPU time refusing it may take, built only when the test

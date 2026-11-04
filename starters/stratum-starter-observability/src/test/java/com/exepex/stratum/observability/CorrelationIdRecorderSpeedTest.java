@@ -43,18 +43,18 @@ class CorrelationIdRecorderSpeedTest {
   private static final String UNSAFE_CHARACTERS = "a b\n";
 
   /**
-   * CPU time a scope change with a 1MB ID of safe characters may take: 5 times M, where M = 8.796
-   * µs is the largest best value of 3 CI runs with coverage on (2.093 µs, 8.796 µs, 3.437 µs), CI
-   * run 41749701016 on JDK 25, 2026-11-04.
+   * CPU time a scope change with a 1MB ID of safe characters may take: 5 times M, where M = 2.241
+   * µs is the largest best value of 3 CI runs with coverage on (2.241 µs, 1.980 µs, 2.164 µs), CI
+   * run 41755894601 on JDK 25, 2026-11-04.
    */
-  private static final Duration SAFE_ID_LIMIT = Duration.of(43_980, ChronoUnit.NANOS);
+  private static final Duration SAFE_ID_LIMIT = Duration.of(11_206, ChronoUnit.NANOS);
 
   /**
-   * CPU time a scope change with a 1MB ID of unsafe characters may take: 5 times M, where M = 0.623
-   * µs is the largest best value of 3 CI runs with coverage on (0.332 µs, 0.569 µs, 0.623 µs), CI
-   * run 41749701016 on JDK 25, 2026-11-04.
+   * CPU time a scope change with a 1MB ID of unsafe characters may take: 5 times M, where M = 0.113
+   * µs is the largest best value of 3 CI runs with coverage on (0.113 µs, 0.108 µs, 0.113 µs), CI
+   * run 41755894601 on JDK 25, 2026-11-04.
    */
-  private static final Duration UNSAFE_ID_LIMIT = Duration.of(3_115, ChronoUnit.NANOS);
+  private static final Duration UNSAFE_ID_LIMIT = Duration.of(567, ChronoUnit.NANOS);
 
   /**
    * Baggage correlation IDs of 1MB, each with the scope changes in a timed batch and the CPU time a
