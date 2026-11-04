@@ -179,6 +179,19 @@ working. Hibernate's own logging of JDBC errors and warnings is off
 (`hibernate.jdbc.log.errors=false`, `hibernate.jdbc.log.warnings=false`); turn it on again in the
 properties above if you need it.
 
+**What it costs.** Stratum's limit for the boundary is 1 µs per JDBC call. JMH measured it against
+the raw connection pool on an Intel Xeon at 2.10 GHz with 4 cores, JDK 25.0.5 and PostgreSQL 18.6
+in a container:
+
+- reading a value from a row already fetched: about 1 ns more per call;
+- creating and closing a statement, which builds one wrapper: about 7 ns more for the two calls;
+- a whole query, with its round trip to the database of about 100 µs: indicative only. The
+  difference between the raw pool and the boundary was smaller than the variation between
+  containers, so this benchmark could not measure it.
+
+To run the benchmark yourself, see
+[Benchmarking the JDBC boundary](../contributing.md#benchmarking-the-jdbc-boundary).
+
 **Limits:**
 
 - The copy is a standard `java.sql` class, so code that catches or casts a driver's class, such as

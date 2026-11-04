@@ -43,9 +43,10 @@ The BOM manages versions of:
   cloud SDKs, and so on),
 - the container images used in tests (as Maven properties).
 
-Today it lists Stratum's own modules and MapStruct (`mapstruct`, `mapstruct-processor` and
-`lombok-mapstruct-binding`). Each other extra library is added together with the first starter that
-uses it.
+Today it lists Stratum's own modules, MapStruct (`mapstruct`, `mapstruct-processor` and
+`lombok-mapstruct-binding`), `maxmind-db`, `yauaa`, `commons-validator`, ArchUnit (`archunit`) and
+JMH (`jmh-core` and `jmh-generator-annprocess`, for Stratum's own benchmarks). Each other extra
+library is added together with the first starter that uses it.
 
 It does **not** import Spring Boot's BOM (`spring-boot-dependencies`). If your parent does not
 manage Spring Boot's versions, import `spring-boot-dependencies` yourself, at the version in the
