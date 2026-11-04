@@ -115,13 +115,7 @@ class ObservabilityAutoConfigurationTest {
             .withBean(TelemetryUrlFilter.class, () -> serviceFilter)
             .withBean(MetricTagGuard.class, () -> serviceGuard)
             .withBean(CorrelationIdRecorder.class, () -> serviceRecorder)
-            .run(
-                context -> {
-                  assertThat(context.getBean(TelemetryUrlFilter.class)).isSameAs(serviceFilter);
-                  assertThat(context.getBean(MetricTagGuard.class)).isSameAs(serviceGuard);
-                  assertThat(context.getBean(CorrelationIdRecorder.class))
-                      .isSameAs(serviceRecorder);
-                });
+            .run(context -> assertUsesBeans(context, serviceFilter, serviceGuard, serviceRecorder));
       }
     }
 
@@ -135,14 +129,23 @@ class ObservabilityAutoConfigurationTest {
                   ObservabilityAutoConfiguration.class,
                   CompanyBeansAutoConfiguration.class))
           .run(
-              context -> {
-                assertThat(context.getBean(TelemetryUrlFilter.class))
-                    .isSameAs(CompanyBeansAutoConfiguration.FILTER);
-                assertThat(context.getBean(MetricTagGuard.class))
-                    .isSameAs(CompanyBeansAutoConfiguration.GUARD);
-                assertThat(context.getBean(CorrelationIdRecorder.class))
-                    .isSameAs(CompanyBeansAutoConfiguration.RECORDER);
-              });
+              context ->
+                  assertUsesBeans(
+                      context,
+                      CompanyBeansAutoConfiguration.FILTER,
+                      CompanyBeansAutoConfiguration.GUARD,
+                      CompanyBeansAutoConfiguration.RECORDER));
+    }
+
+    /** Checks that the context holds the given filter, guard and recorder instead of Stratum's. */
+    private void assertUsesBeans(
+        AssertableApplicationContext context,
+        TelemetryUrlFilter filter,
+        MetricTagGuard guard,
+        CorrelationIdRecorder recorder) {
+      assertThat(context.getBean(TelemetryUrlFilter.class)).isSameAs(filter);
+      assertThat(context.getBean(MetricTagGuard.class)).isSameAs(guard);
+      assertThat(context.getBean(CorrelationIdRecorder.class)).isSameAs(recorder);
     }
   }
 
@@ -169,12 +172,7 @@ class ObservabilityAutoConfigurationTest {
     void guardUsesPropertyNames() {
       contextRunner
           .withPropertyValues(EXTRA_FORBIDDEN + "=" + TENANT_TAG, ALLOWED + "=" + ORDER_TAG)
-          .run(
-              context -> {
-                assertThat(guardReplyForTag(context, TENANT_TAG)).isEqualTo(MeterFilterReply.DENY);
-                assertThat(guardReplyForTag(context, ORDER_TAG))
-                    .isEqualTo(MeterFilterReply.NEUTRAL);
-              });
+          .run(context -> assertGuardRefusesTenantAndKeepsOrder(context));
     }
 
     @Test
@@ -223,6 +221,12 @@ class ObservabilityAutoConfigurationTest {
                       .rootCause()
                       .hasMessageStartingWith("SX-CORE-1003")
                       .hasMessageContaining(EXTRA_FORBIDDEN));
+    }
+
+    /** Checks that the context's guard refuses {@code tenantId} and keeps {@code orderId}. */
+    private void assertGuardRefusesTenantAndKeepsOrder(AssertableApplicationContext context) {
+      assertThat(guardReplyForTag(context, TENANT_TAG)).isEqualTo(MeterFilterReply.DENY);
+      assertThat(guardReplyForTag(context, ORDER_TAG)).isEqualTo(MeterFilterReply.NEUTRAL);
     }
 
     /**
