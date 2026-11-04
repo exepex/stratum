@@ -1,0 +1,180 @@
+package com.exepex.stratum.cache;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.exepex.stratum.cache.testsupport.AdjustableClock;
+import com.exepex.stratum.cache.testsupport.RecordingCacheCounters;
+import com.exepex.stratum.cache.testsupport.RecordingCacheManager;
+import com.exepex.stratum.test.LogLineCapture;
+import java.lang.reflect.Method;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.springframework.cache.Cache;
+import org.springframework.cache.interceptor.BasicOperation;
+import org.springframework.cache.interceptor.CacheOperationInvocationContext;
+import org.springframework.cache.support.NoOpCache;
+
+@DisplayName("StratumCacheResolver wraps each admitted cache and refuses names over the cap")
+class StratumCacheResolverTest {
+
+  /** The cap in these tests, so the bound shows with a few names. */
+  private static final int MAX_CACHES = 100;
+
+  /** The interval warnings are throttled by. */
+  private static final Duration INTERVAL = Duration.ofMinutes(1);
+
+  /** When the tests start. */
+  private static final Instant START = Instant.parse("2026-11-04T08:00:00Z");
+
+  /** How many names over the cap the tests resolve. */
+  private static final int OVER_CAP = 50;
+
+  /** Every name of the cap-and-flood tests. */
+  private static final int ALL_NAMES = MAX_CACHES + OVER_CAP;
+
+  /** The flood of names the bound test resolves. */
+  private static final int FLOOD = 10_000;
+
+  private final AdjustableClock clock = new AdjustableClock(START);
+
+  private final WarningThrottle throttle = new WarningThrottle(INTERVAL, clock, MAX_CACHES);
+
+  private final RecordingCacheCounters counters = new RecordingCacheCounters();
+
+  private final RecordingCacheManager manager = new RecordingCacheManager();
+
+  private final StratumCacheResolver resolver =
+      new StratumCacheResolver(
+          manager,
+          MAX_CACHES,
+          throttle,
+          counters,
+          new StratumCacheErrorHandler(null, throttle, counters));
+
+  /** Returns an invocation context whose operation asks for the given cache names. */
+  private static CacheOperationInvocationContext<?> invocation(String... names) {
+    return new CacheOperationInvocationContext<>() {
+      @Override
+      public BasicOperation getOperation() {
+        return () -> Set.of(names);
+      }
+
+      @Override
+      public Object getTarget() {
+        return this;
+      }
+
+      @Override
+      public Method getMethod() {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public Object[] getArgs() {
+        return new Object[0];
+      }
+    };
+  }
+
+  /** Resolves one cache per name, {@code cache-0} to {@code cache-(count-1)}. */
+  private List<? extends Cache> resolveNames(int count) {
+    return IntStream.range(0, count)
+        .mapToObj(number -> "cache-" + number)
+        .flatMap(name -> resolver.resolveCaches(invocation(name)).stream())
+        .toList();
+  }
+
+  @Nested
+  @DisplayName("with more names than the cap")
+  class OverTheCap {
+
+    @Test
+    @DisplayName(
+        "the first 100 names are wrapped, the 50 beyond share one no-op cache and the"
+            + " manager holds exactly 100 caches")
+    void capsTheNames() {
+      var resolved = resolveNames(ALL_NAMES);
+
+      assertThat(resolved.subList(0, MAX_CACHES))
+          .allSatisfy(cache -> assertThat(cache).isInstanceOf(StratumCache.class));
+      var refused = resolved.subList(MAX_CACHES, resolved.size());
+      assertThat(refused).allSatisfy(cache -> assertThat(cache).isInstanceOf(NoOpCache.class));
+      assertThat(refused.stream().distinct()).hasSize(1);
+      assertThat(manager.createdCount()).isEqualTo(MAX_CACHES);
+      assertThat(counters.skips(CacheConstants.OVER_LIMIT, CacheConstants.REASON_CACHE_LIMIT))
+          .isEqualTo(OVER_CAP);
+    }
+
+    @Test
+    @DisplayName(
+        "a refused operation still runs: the collection is never empty, a read misses and"
+            + " a load runs the loader once")
+    void refusedNameRunsUncached() {
+      resolveNames(MAX_CACHES);
+
+      var refused = resolver.resolveCaches(invocation("cache-refused"));
+
+      assertThat(refused).hasSize(1);
+      var noOp = refused.iterator().next();
+      assertThat(noOp.get("key")).isNull();
+      var loads = new AtomicInteger();
+      var value =
+          noOp.get(
+              "key",
+              () -> {
+                loads.incrementAndGet();
+                return "value";
+              });
+      assertThat(value).isEqualTo("value");
+      assertThat(loads).hasValue(1);
+      assertThat(manager.created("cache-refused")).isNull();
+    }
+
+    @Test
+    @DisplayName("the refusals warn once per interval, naming the refused cache")
+    void warnsOncePerInterval() {
+      var capture = new LogLineCapture(StratumCacheResolver.class.getName());
+      capture.start();
+      try {
+        resolveNames(ALL_NAMES);
+
+        assertThat(capture.lines()).hasSize(1);
+        var line = capture.lines().getFirst().getFormattedMessage();
+        assertThat(line).contains("SX-CACHE-1003").contains("cache-" + MAX_CACHES);
+
+        clock.advance(INTERVAL);
+        resolver.resolveCaches(invocation("cache-" + (ALL_NAMES - 1)));
+        assertThat(capture.lines()).hasSize(2);
+      } finally {
+        capture.stop();
+      }
+    }
+  }
+
+  @Nested
+  @DisplayName("under a flood of names")
+  class Bounded {
+
+    @Test
+    @DisplayName(
+        "10,000 names keep the wrapped caches, the manager and every series within the"
+            + " cap plus one")
+    void tenThousandNamesStayBounded() {
+      var resolved = resolveNames(FLOOD);
+
+      assertThat(resolved.stream().filter(StratumCache.class::isInstance)).hasSize(MAX_CACHES);
+      assertThat(resolved.stream().filter(NoOpCache.class::isInstance).distinct()).hasSize(1);
+      assertThat(manager.createdCount()).isEqualTo(MAX_CACHES);
+      assertThat(counters.skipSeries()).isOne();
+      assertThat(counters.skips(CacheConstants.OVER_LIMIT, CacheConstants.REASON_CACHE_LIMIT))
+          .isEqualTo(FLOOD - MAX_CACHES);
+    }
+  }
+}

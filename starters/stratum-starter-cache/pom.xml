@@ -35,6 +35,13 @@
       <artifactId>spring-boot-data-redis</artifactId>
       <optional>true</optional>
     </dependency>
+    <!-- Micrometer's registry, for the counters of failed cache calls and refused cache names.
+         Optional: without it the counters are no-ops and the rest of the layer works unchanged. -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-core</artifactId>
+      <optional>true</optional>
+    </dependency>
     <!-- The checks and set-up that every starter's tests share, and the Redis container that
          stratum-test declares optional. -->
     <dependency>
