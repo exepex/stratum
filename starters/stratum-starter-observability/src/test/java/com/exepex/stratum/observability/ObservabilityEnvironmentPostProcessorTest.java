@@ -52,6 +52,9 @@ class ObservabilityEnvironmentPostProcessorTest {
 
   private static final String SERVICE_EXPOSURE = "health,loggers";
 
+  /** A sampler a service behind a trusted gateway may choose, to follow its caller's decision. */
+  private static final String SERVICE_SAMPLER = "parent-based-trace-id-ratio";
+
   private static final String ON = "true";
 
   private static final String OFF = "false";
@@ -84,6 +87,7 @@ class ObservabilityEnvironmentPostProcessorTest {
       assertThat(off.getProperty(ObservabilityConstants.METRICS_EXPORT_ENABLED)).isEqualTo(OFF);
       assertThat(off.getProperty(ObservabilityConstants.TRACING_EXPORT_ENABLED)).isEqualTo(OFF);
       assertThat(off.getProperty(ObservabilityConstants.WEB_EXPOSURE)).isNull();
+      assertThat(off.getProperty(ObservabilityConstants.TRACING_SAMPLER)).isNull();
       assertThat(off.getProperty(PROPAGATE_TASK_CONTEXT)).isNull();
       assertThat(
               ObservabilityConstants.MESSAGING_OBSERVATION_SWITCHES.stream().map(off::getProperty))
@@ -169,6 +173,21 @@ class ObservabilityEnvironmentPostProcessorTest {
     }
 
     @Test
+    @DisplayName(
+        "traces are kept by trace ID, not by the caller's flag, in both compatibility modes")
+    void keepsTracesByTraceId() {
+      var environment = runPostProcessor(new MockEnvironment());
+      var compatible =
+          runPostProcessor(
+              new MockEnvironment().withProperty(StratumModuleConstants.BACKWARD_COMPATIBLE, ON));
+
+      assertThat(environment.getProperty(ObservabilityConstants.TRACING_SAMPLER))
+          .isEqualTo(ObservabilityConstants.TRACE_ID_RATIO_SAMPLER);
+      assertThat(compatible.getProperty(ObservabilityConstants.TRACING_SAMPLER))
+          .isEqualTo(ObservabilityConstants.TRACE_ID_RATIO_SAMPLER);
+    }
+
+    @Test
     @DisplayName("Kafka and RabbitMQ messages are traced and timed, unless the service says no")
     void observesMessaging() {
       var environment =
@@ -186,12 +205,15 @@ class ObservabilityEnvironmentPostProcessorTest {
               new MockEnvironment()
                   .withProperty(ObservabilityConstants.WEB_EXPOSURE, SERVICE_EXPOSURE)
                   .withProperty(ObservabilityConstants.HISTOGRAM_FOR_EVERY_TIMING, OFF)
+                  .withProperty(ObservabilityConstants.TRACING_SAMPLER, SERVICE_SAMPLER)
                   .withProperty(PROPAGATE_TASK_CONTEXT, OFF));
 
       assertThat(environment.getProperty(ObservabilityConstants.WEB_EXPOSURE))
           .isEqualTo(SERVICE_EXPOSURE);
       assertThat(environment.getProperty(ObservabilityConstants.HISTOGRAM_FOR_EVERY_TIMING))
           .isEqualTo(OFF);
+      assertThat(environment.getProperty(ObservabilityConstants.TRACING_SAMPLER))
+          .isEqualTo(SERVICE_SAMPLER);
       assertThat(environment.getProperty(PROPAGATE_TASK_CONTEXT)).isEqualTo(OFF);
     }
 
@@ -208,15 +230,17 @@ class ObservabilityEnvironmentPostProcessorTest {
     }
 
     @Test
-    @DisplayName("an exposure the service sets in Java wins over Stratum's")
-    void serviceJavaExposureWins() {
+    @DisplayName("an exposure and a sampler the service sets in Java win over Stratum's")
+    void serviceJavaSettingsWin() {
       var environment = new MockEnvironment();
       environment
           .getPropertySources()
           .addLast(
               new MapPropertySource(
                   DefaultPropertiesPropertySource.NAME,
-                  Map.of(ObservabilityConstants.WEB_EXPOSURE, SERVICE_EXPOSURE)));
+                  Map.of(
+                      ObservabilityConstants.WEB_EXPOSURE, SERVICE_EXPOSURE,
+                      ObservabilityConstants.TRACING_SAMPLER, SERVICE_SAMPLER)));
 
       runPostProcessor(environment);
       // Spring Boot moves the default properties last once every post-processor has run.
@@ -224,6 +248,8 @@ class ObservabilityEnvironmentPostProcessorTest {
 
       assertThat(environment.getProperty(ObservabilityConstants.WEB_EXPOSURE))
           .isEqualTo(SERVICE_EXPOSURE);
+      assertThat(environment.getProperty(ObservabilityConstants.TRACING_SAMPLER))
+          .isEqualTo(SERVICE_SAMPLER);
       assertThat(environment.getProperty(KAFKA_LISTENER_SWITCH)).isEqualTo(ON);
     }
   }
