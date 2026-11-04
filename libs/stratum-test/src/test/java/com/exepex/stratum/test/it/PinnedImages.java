@@ -25,7 +25,7 @@ class PinnedImages {
    * Returns the full image, name and tag, the build pinned for the container.
    *
    * @param container the container's key in the images file, such as {@code postgres}
-   * @return the pinned image, such as {@code postgres:18.6-alpine}
+   * @return the pinned image, name and tag
    */
   static String image(String container) {
     return IMAGES.getProperty(container + ".image");
