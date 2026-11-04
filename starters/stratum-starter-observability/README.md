@@ -105,7 +105,7 @@ and installs the OpenTelemetry appender itself.
 | Health | `/actuator/health`, with Spring Boot's Kubernetes `liveness` and `readiness` groups |
 | Safe exposure | Only `health` and `info` are reachable over HTTP |
 | Startup check | With the module on, startup stops if an export address is missing, in every profile ([below](#startup-check)) |
-| No Collector on your laptop | With an address on `localhost`, metrics and spans that cannot be sent are dropped without a failed-send log; a full span queue still logs one warning ([below](#running-without-a-collector)) |
+| No Collector on your laptop | With an address on `localhost`, metrics and spans that cannot be sent are dropped without a failed-send log; a full span queue still logs a warning ([below](#running-without-a-collector)) |
 
 Pushing means a short-lived job, such as a batch run or a command-line tool, still sends its data:
 Spring Boot sends the last metrics and traces when the application stops.
@@ -225,8 +225,9 @@ export whose address is on this machine (`localhost`, `127.0.0.1` or `[::1]`), S
 the log of a failed send: Micrometer's warning for metrics and OpenTelemetry's error for spans, each
 of which would otherwise print a stack trace at every attempt. The data is dropped without those
 logs. One warning stays, at any address: when spans are made faster than they can be sent,
-OpenTelemetry keeps at most 2048 waiting and logs `BatchSpanProcessor dropped <n> span(s) since the
-last export because the queue is full (maxQueueSize=2048)`.
+OpenTelemetry keeps at most 2048 waiting by default (Spring Boot's
+`management.opentelemetry.tracing.export.max-queue-size`), and at each export after a drop it logs
+`BatchSpanProcessor dropped <n> span(s) since the last export because the queue is full`.
 
 To see the failed sends again, set the two log levels, in `application.properties`:
 
@@ -345,9 +346,9 @@ management:
 
 Send metrics to Prometheus by scraping instead of pushing. Add `io.micrometer:micrometer-registry-prometheus`
 (its version comes from Spring Boot), expose the endpoint, and turn OTLP metrics off. With Stratum's
-histograms on, each timer becomes 69 `_bucket` series per set of tags in the scrape: 68 bounds
-from 1 ms to 30 s, plus `+Inf`. The `percentiles-histogram.all` line below turns them off, leaving
-count, sum and max; to keep them for one metric, also set
+histograms on, a timer with the default bounds becomes 69 `_bucket` series per set of tags in the
+scrape: 68 bounds from 1 ms to 30 s, plus `+Inf`. The `percentiles-histogram.all` line below turns
+them off, leaving count, sum and max; to keep them for one metric, also set
 `management.metrics.distribution.percentiles-histogram.<metric-name>=true`.
 
 ```properties
@@ -414,8 +415,11 @@ The switch and the Spring Boot properties above are set in Java through
 - **Your own tag rule:** declare a `MetricTagGuard` bean; Stratum's then backs off.
 - **Your own correlation ID handling:** declare a `CorrelationIdRecorder` bean; Stratum's then
   backs off.
-- **Not replaceable:** the Spring Boot defaults, the export address check and the quiet local
-  logging run before any bean exists, so only `stratum.observability.enabled` turns them off.
+- **Not replaceable:** the Spring Boot defaults and the export address check run before any bean
+  exists, so no bean of yours replaces them. `stratum.observability.enabled` turns them all off;
+  turning an export off also satisfies the check for that export ([startup check](#startup-check)).
+  The quiet local logging gives way to your own `logging.level` for those loggers
+  ([running without a Collector](#running-without-a-collector)).
 - **Custom health check:** implement `HealthIndicator`; add it to the readiness group with
   `management.endpoint.health.group.readiness.include`.
 
