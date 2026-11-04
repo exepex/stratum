@@ -7,9 +7,10 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.flyway.autoconfigure.FlywayConfigurationCustomizer;
 
 /**
- * Gives the connection that Spring Boot builds for Flyway, when {@code spring.flyway.user} or
- * {@code spring.flyway.url} is set, the clean errors of the JDBC boundary. Flyway's use of a data
- * source bean needs nothing more: that bean already has its boundary.
+ * Gives the connection that Spring Boot builds for Flyway the clean errors of the JDBC boundary.
+ * Spring Boot builds it from Flyway's own {@code spring.flyway.url} or {@code user}, or from
+ * Flyway's connection details, such as those of {@code @ServiceConnection} or Docker Compose.
+ * Flyway's use of a data source bean needs nothing more: that bean already has its boundary.
  */
 @StratumInternal
 @RequiredArgsConstructor

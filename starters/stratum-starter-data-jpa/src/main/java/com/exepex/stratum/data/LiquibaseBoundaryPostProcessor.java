@@ -7,10 +7,11 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 
 /**
- * Gives the connection that Spring Boot builds for Liquibase, when {@code spring.liquibase.user} or
- * {@code spring.liquibase.url} is set, the clean errors of the JDBC boundary, before Liquibase runs
- * its changes. Liquibase's use of a data source bean needs nothing more: that bean already has its
- * boundary.
+ * Gives the connection that Spring Boot builds for Liquibase the clean errors of the JDBC boundary,
+ * before Liquibase runs its changes. Spring Boot builds it from Liquibase's own {@code
+ * spring.liquibase.url} or {@code user}, or from Liquibase's connection details, such as those of
+ * {@code @ServiceConnection} or Docker Compose. Liquibase's use of a data source bean needs nothing
+ * more: that bean already has its boundary.
  */
 @StratumInternal
 @RequiredArgsConstructor

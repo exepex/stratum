@@ -83,8 +83,8 @@ public final class JdbcBoundaryPostProcessor
   }
 
   /**
-   * Returns the boundary around the connection Spring Boot builds for Flyway or Liquibase when
-   * {@code spring.flyway.user} or {@code url}, or the Liquibase keys, are set, and any other data
+   * Returns the boundary around the connection Spring Boot builds for Flyway or Liquibase, from
+   * their own {@code url} or {@code user} or from their connection details, and any other data
    * source as it is, such as a data source bean, which already has its boundary.
    *
    * @param migrationDataSource the data source the migration tool will use
