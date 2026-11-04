@@ -85,7 +85,8 @@ describes.
 
 With the module off (`stratum.observability.enabled=false`), the starter turns off sending metrics
 and traces, so it never sends anything, not even to Spring Boot's default address,
-`localhost:4318`.
+`localhost:4318`. With the module off, logs go over OTLP only if your service sets a logs endpoint
+and installs the OpenTelemetry appender itself.
 
 ## What you get
 

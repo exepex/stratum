@@ -29,8 +29,10 @@ With the module on, sending and handling a message are observed like an HTTP cal
 | JMS, such as IBM MQ or ActiveMQ | `jms.message.publish` (send), `jms.message.process` (handle) | Spring Boot observes `JmsTemplate` and `@JmsListener` on its own |
 | RabbitMQ (`spring-rabbit`) | `spring.rabbit.template` (send), `spring.rabbit.listener` (handle) | Stratum sets `spring.rabbitmq.template.observation-enabled` and `spring.rabbitmq.listener.{simple,direct,stream}.observation-enabled` to `true`; Spring Boot leaves them off |
 
-Kafka and RabbitMQ timers carry the topic or queue name, such as `messaging.destination.name`.
-JMS timers do not: Micrometer keeps the JMS queue name on the span only. No timer carries a message
+Kafka and RabbitMQ timers carry where the message went or came from: Kafka sends carry the topic in
+`messaging.destination.name` and Kafka listeners in `messaging.source.name`; RabbitMQ sends carry
+the exchange and RabbitMQ listeners the queue, both in `messaging.destination.name`. JMS timers do
+not: Micrometer keeps the JMS queue name on the span only. No timer carries a message
 ID or a Kafka record key.
 
 Spring also tags the RabbitMQ send timer, `spring.rabbit.template`, with the message's routing key
