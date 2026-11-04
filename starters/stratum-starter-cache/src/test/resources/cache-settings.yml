@@ -1,0 +1,4 @@
+stratum:
+  cache:
+    max-caches: 7
+    warning-interval: 5m

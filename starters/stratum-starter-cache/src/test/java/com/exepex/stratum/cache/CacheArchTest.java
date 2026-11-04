@@ -8,11 +8,21 @@ import org.junit.jupiter.api.Test;
 @DisplayName("The cache starter follows Stratum's architecture rules")
 class CacheArchTest {
 
+  /**
+   * The cache starter's types, top-level or nested, that services may use: the settings record and
+   * its customizer, as every module's. Every other type carries the label.
+   */
+  private static final Set<Class<?>> API_TYPES =
+      Set.of(
+          StratumCacheProperties.class,
+          StratumCacheProperties.StratumCachePropertiesBuilder.class,
+          StratumCachePropertiesCustomizer.class);
+
   @Test
   @DisplayName(
       "its autoconfigure package only declares beans, it uses no other starter, has no cycles and"
-          + " every public type is internal")
+          + " every public type is internal or listed")
   void followsStarterArchitecture() {
-    StarterTestSupport.checkStarterArchitecture(CacheConstants.class, Set.of());
+    StarterTestSupport.checkStarterArchitecture(CacheConstants.class, API_TYPES);
   }
 }

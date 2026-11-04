@@ -18,6 +18,48 @@ public class CacheConstants {
   /** The part of the error codes that names this module, as in {@code SX-CACHE-1001}. */
   public static final String ERROR_CODE_MODULE = "CACHE";
 
+  /** The first part of the module's own settings, as in {@code stratum.cache.max-caches}. */
+  public static final String PREFIX = StratumModuleConstants.PREFIX + "." + MODULE;
+
+  /** The most caches the layer admits; names beyond it run uncached. */
+  public static final String MAX_CACHES = PREFIX + ".max-caches";
+
+  /** How often one cache's warning is repeated at most. */
+  public static final String WARNING_INTERVAL = PREFIX + ".warning-interval";
+
+  /** The counter of cache calls that failed and were handled fail-open. */
+  public static final String METRIC_FAILURES = "stratum.cache.failures";
+
+  /** The counter of cache names refused over the limit. */
+  public static final String METRIC_SKIPS = "stratum.cache.skips";
+
+  /** The tag with the cache's name. */
+  public static final String TAG_CACHE = "cache";
+
+  /** The tag with the operation that failed, such as {@code get}. */
+  public static final String TAG_OPERATION = "operation";
+
+  /** The tag with the reason a cache name was refused. */
+  public static final String TAG_REASON = "reason";
+
+  /** The one tag value and throttle slot that every refused or overflowing name shares. */
+  public static final String OVER_LIMIT = "_over-limit";
+
+  /** The only reason a name is refused: over the limit of {@code stratum.cache.max-caches}. */
+  public static final String REASON_CACHE_LIMIT = "cache-limit";
+
+  /** The operation tag of a failed read. */
+  public static final String OPERATION_GET = "get";
+
+  /** The operation tag of a failed write. */
+  public static final String OPERATION_PUT = "put";
+
+  /** The operation tag of a failed evict. */
+  public static final String OPERATION_EVICT = "evict";
+
+  /** The operation tag of a failed clear. */
+  public static final String OPERATION_CLEAR = "clear";
+
   /** The service's name, which Stratum's Redis key prefix starts with. */
   public static final String APPLICATION_NAME = "spring.application.name";
 
@@ -51,4 +93,8 @@ public class CacheConstants {
 
   /** The name of the bean that makes Redis caches clear with SCAN. */
   public static final String SCAN_ON_CLEAR = "stratumScanOnClear";
+
+  /** The name of the filter that keeps the cache layer's hook eager under lazy initialization. */
+  public static final String LAZY_INITIALIZATION_FILTER =
+      "stratumCacheLayerLazyInitializationExcludeFilter";
 }

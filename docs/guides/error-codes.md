@@ -271,12 +271,15 @@ is unless `stratum.data.enabled=false`. See the [data module](../modules/data-jp
 
 ## stratum-starter-cache
 
-This is an error that stops the application at startup, and only while the module is on, which it
-is unless `stratum.cache.enabled=false`. See the [cache module](../modules/cache.md).
+`SX-CACHE-1001` is an error that stops the application at startup; `SX-CACHE-1002` and
+`SX-CACHE-1003` are warnings, logged while the calls carry on. These apply only while the module
+is on, which it is unless `stratum.cache.enabled=false`. See the [cache module](../modules/cache.md).
 
 | Code | Meaning | Fix |
 | --- | --- | --- |
 | `SX-CACHE-1001` | Spring Data Redis is on the class path and the cache module would start every Redis cache key with the service's name, through Stratum's default `spring.cache.redis.key-prefix`, but `spring.application.name` is not set or is blank. Without a name, services sharing one Redis would read each other's entries. | Set `spring.application.name`, or set your own `spring.cache.redis.key-prefix`, or turn the module off with `stratum.cache.enabled=false`. A service that turns key prefixes off with `spring.cache.redis.use-key-prefix=false` needs no name. See [Cache → Key prefix](../modules/cache.md#key-prefix). |
+| `SX-CACHE-1002` | Warning, logged once per cache per `stratum.cache.warning-interval`: a cache operation failed, such as a read or write while Redis is down, and the call ran without the cache. The message names the cache and the operation, never a key or value, and the failure is counted in `stratum.cache.failures`. | Check Redis and the cache client; the method still runs, so the call did not fail. To fail the call on a cache error instead, declare a `CachingConfigurer` with an error handler that rethrows. See [Cache → When Redis is down](../modules/cache.md#when-redis-is-down). |
+| `SX-CACHE-1003` | Warning, logged once per interval: a cache name was refused because the service already uses `stratum.cache.max-caches` caches (100 by default). Calls for the refused name run uncached, and no cache is created for it; each refusal is counted in `stratum.cache.skips` under `cache=_over-limit`. | Name the service's caches explicitly, so they stay few, or raise `stratum.cache.max-caches`. See [Cache → Limits](../modules/cache.md#limits). |
 
 ## stratum-starter-webmvc and stratum-starter-webflux
 

@@ -17,15 +17,19 @@ class ConfigurationMetadataTest {
   private static final Path METADATA =
       Path.of("target/classes/META-INF/spring-configuration-metadata.json");
 
+  /** Every property of the module, the switch included. */
+  private static final List<String> PROPERTY_NAMES =
+      List.of(CacheConstants.ENABLED, CacheConstants.MAX_CACHES, CacheConstants.WARNING_INTERVAL);
+
   @Test
-  @DisplayName("the module switch is listed with a description")
+  @DisplayName("every property is listed with a description")
   void listsEveryProperty() throws IOException {
     var metadata = Files.readString(METADATA);
 
     assertThat(JsonPath.<List<String>>read(metadata, "$.properties[*].name"))
-        .containsExactly(CacheConstants.ENABLED);
+        .containsExactlyInAnyOrderElementsOf(PROPERTY_NAMES);
     assertThat(JsonPath.<List<String>>read(metadata, "$.properties[*].description"))
-        .hasSize(1)
+        .hasSameSizeAs(PROPERTY_NAMES)
         .doesNotContainNull();
   }
 }

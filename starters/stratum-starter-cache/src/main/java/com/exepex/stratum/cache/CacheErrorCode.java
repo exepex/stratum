@@ -8,7 +8,8 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * The codes of the cache module, each listed with its fix in {@code docs/guides/error-codes.md}.
- * Every error here stops the application at startup.
+ * Every error here stops the application at startup, apart from the warnings {@code SX-CACHE-1002}
+ * and {@code SX-CACHE-1003}, which are logged while the calls carry on.
  */
 @StratumInternal
 @Getter
@@ -27,7 +28,23 @@ public enum CacheErrorCode implements ErrorCode {
           + CacheConstants.KEY_PREFIX
           + ", or turn the module off with "
           + CacheConstants.ENABLED
-          + "=false.");
+          + "=false."),
+
+  /** A cache call failed, such as a read or write during a Redis outage; the call ran anyway. */
+  CACHE_OPERATION_FAILED(
+      "SX-CACHE-1002",
+      Severity.WARNING,
+      "A cache operation failed, and the call ran without the cache",
+      ""),
+
+  /** A cache name over the limit of {@code stratum.cache.max-caches} was refused. */
+  CACHE_LIMIT_REACHED(
+      "SX-CACHE-1003",
+      Severity.WARNING,
+      "A cache name was refused, over the limit of "
+          + CacheConstants.MAX_CACHES
+          + "; its calls run without a cache",
+      "");
 
   /** The code, such as {@code SX-CACHE-1001}. */
   private final String code;

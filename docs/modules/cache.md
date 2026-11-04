@@ -3,8 +3,9 @@
 **Status: Partly built.** Spring's caching switched on, so `@Cacheable` works with no
 `@EnableCaching`, and safe defaults for Spring Boot's Redis cache: every entry expires, keys start
 with the service's name, hits and misses are counted, Redis commands have short timeouts and
-clearing a cache never blocks Redis. Per-cache settings, tolerance of a Redis outage, size limits,
-JSON values and Caffeine are **planned** ([below](#planned)).
+clearing a cache never blocks Redis. Cached calls keep working when Redis is down, with the method
+run at most once, and the number of caches is capped. Per-cache settings, size limits, JSON values
+and Caffeine are **planned** ([below](#planned)).
 
 [← Documentation home](../README.md) · Property prefix: `stratum.cache`
 
@@ -85,6 +86,8 @@ class ProductService {
 | Hits and misses counted | Redis caches keep statistics, so `cache.gets` reports hits and misses ([Metrics](#metrics)) |
 | Short Redis timeouts | A Redis command waits at most 1 second and a connect at most 2 seconds, instead of 60 and 10 |
 | Clearing with SCAN | `@CacheEvict(allEntries = true)` deletes keys found with SCAN, 1,000 at a time, never with KEYS |
+| Works when Redis is down | A failed cache read is a miss and a failed write is dropped, so the method runs and returns its real result ([below](#when-redis-is-down)) |
+| A cap on caches | At most 100 cache names get a cache; a name beyond that runs uncached ([Limits](#limits)) |
 
 The beans the starter adds, with their types:
 
@@ -92,6 +95,8 @@ The beans the starter adds, with their types:
 | --- | --- | --- |
 | `cacheInterceptor`, `cacheOperationSource`, `org.springframework.cache.config.internalCacheAdvisor` | `CacheInterceptor`, `CacheOperationSource`, `BeanFactoryCacheOperationSourceAdvisor` (Spring's, through `@EnableCaching`) | No `@EnableCaching` is present yet |
 | `stratumScanOnClear` | `RedisCacheManagerBuilderCustomizer` | Spring Data Redis and a Redis connection are present |
+| `stratumCacheLayerHook` | `StratumCacheLayerHook` | Always; it installs the layer on Spring's `cacheInterceptor` unless your own caching set-up says otherwise ([below](#when-redis-is-down)) |
+| `cacheCounters` or `micrometerCacheCounters` | `CacheCounters` | Always; the Micrometer one when a `MeterRegistry` bean is present |
 
 Spring Boot's cache auto-configuration sets up a cache manager only once caching is switched on, so
 Stratum's `@EnableCaching` is ordered before it. That is the one reason this module is ordered
@@ -101,7 +106,11 @@ before a Spring Boot auto-configuration.
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.cache.enabled` | boolean | `true` | Whether the module is on. With `false`, Stratum does not switch caching on and sets none of the defaults below, and Spring Boot's own apply. |
+| `stratum.cache.enabled` | boolean | `true` | Whether the module is on. With `false`, Stratum does not switch caching on, adds no fail-open layer or cap, and sets none of the defaults below, and Spring Boot's own apply. |
+| `stratum.cache.max-caches` | integer, from 1 | `100` | The most cache names that get a cache. A name beyond it runs uncached ([Limits](#limits)). |
+| `stratum.cache.warning-interval` | duration, from `1s` to `1h` | `1m` | How often one cache's warning, `SX-CACHE-1002` or `SX-CACHE-1003`, is repeated at most. |
+
+A value out of range stops startup with `SX-CORE-1003`, which names the key.
 
 Spring Boot properties this module gives a default (your values win):
 
@@ -120,6 +129,8 @@ sees them. The two `spring.data.redis.*` timeouts apply to every Redis call of t
 Set your own values in `application.properties`:
 
 ```properties
+stratum.cache.max-caches=200
+stratum.cache.warning-interval=5m
 spring.cache.redis.time-to-live=1h
 spring.data.redis.timeout=2s
 ```
@@ -127,6 +138,10 @@ spring.data.redis.timeout=2s
 or in `application.yml`:
 
 ```yaml
+stratum:
+  cache:
+    max-caches: 200
+    warning-interval: 5m
 spring:
   cache:
     redis:
@@ -195,6 +210,38 @@ Lettuce: right after a cached method or a clear returns, Redis may not hold the 
 entry may still be read for a moment. With `@CacheEvict(allEntries = true, beforeInvocation = true)`,
 Spring clears the cache at once, before the method runs, also with SCAN.
 
+## When Redis is down
+
+A cached method keeps working while Redis is down or slow. A failed cache read counts as a miss, so
+the method runs; a failed write is dropped; and the call returns the method's real result. The
+method's own exception reaches the caller unchanged, as without caching.
+
+- **Cost.** Each call still waits for Redis first: about 1 second with `@Cacheable(sync = true)`
+  and about 2 seconds without it, at the 1 s default of `spring.data.redis.timeout`. Without
+  `sync`, the write after the method is sent in the background, but it still waits for the broken
+  connection. Under load the reconnects on the shared connection raise this, to about 6 seconds a
+  call at ten threads at once. A gate that skips Redis while it is unreachable is **planned**.
+- **The method runs once.** With `sync = true`, when the write after a load fails, the loaded value
+  is returned and the method is not run a second time.
+- **Evictions are dropped too.** A `@CacheEvict` that fails during an outage leaves the old entry in
+  Redis, so it can be read after Redis returns, until its time to live ends.
+- **Counted and warned.** Each failure is counted in `stratum.cache.failures`, and one
+  [`SX-CACHE-1002`](../guides/error-codes.md#stratum-starter-cache) warning per cache is logged per
+  `stratum.cache.warning-interval`. It names the cache and the operation, never a key or a value.
+- **Your own handler wins.** A `CachingConfigurer` of yours with its own `errorHandler()` sees every
+  cache error. If it rethrows, the call fails, as you chose. A handler that is exactly Spring's
+  `SimpleCacheErrorHandler` counts as no handler; a subclass of it counts as yours. To keep calls
+  failing, set your own handler that rethrows.
+
+What skips parts of the layer:
+
+- A `CachingConfigurer` of yours that sets a `cacheResolver()` or a `cacheManager()`: Stratum then
+  adds nothing, and Spring's behaviour applies.
+- `@Cacheable(cacheManager = ...)` or `cacheResolver = ...` on a method: its calls are still
+  fail-open, but they get no run-once loader and no cap.
+- Your code calling `CacheManager.getCache(...)` itself, and `@EnableCaching(mode =
+  AdviceMode.ASPECTJ)`, which has no `cacheInterceptor`: neither gets the layer.
+
 ## Metrics
 
 With Micrometer present, as with the actuator or the
@@ -215,6 +262,13 @@ spring:
 A cache made later, on its first use, is not measured; measuring those is **planned**. Redis reports
 no evictions.
 
+Stratum adds two counters of its own:
+
+| Metric | Tags | Counts |
+| --- | --- | --- |
+| `stratum.cache.failures` | `cache`, `operation` (`get`, `put`, `evict`, `clear`) | Cache calls that failed and were handled fail-open ([When Redis is down](#when-redis-is-down)) |
+| `stratum.cache.skips` | `cache` (`_over-limit`), `reason` (`cache-limit`) | Calls for a cache name over `stratum.cache.max-caches` ([Limits](#limits)) |
+
 ## An existing service
 
 Adding the starter to a service that already caches in Redis changes this:
@@ -225,14 +279,34 @@ Adding the starter to a service that already caches in Redis changes this:
   `FLUSHDB` on a Redis shared with other data; see
   [Migrating a service, step 7](../guides/migrating-a-service.md#step-7-data-cache-kafka).
 - `SX-CACHE-1001` stops startup when the service has no name ([Key prefix](#key-prefix)).
+- During a Redis outage a cached method now runs and returns its result, where the call used to
+  fail ([When Redis is down](#when-redis-is-down)).
 
 Each can be set back with the Spring Boot property in the [table above](#properties).
 
 ## Configure in Java
 
-This module has no `stratum.cache.*` setting besides its switch, so there is no customizer yet; a
-`StratumCachePropertiesCustomizer` is **planned** for the settings to come. Set any Spring Boot key
-above in Java as a default property, which wins over Stratum's default:
+Every `stratum.cache.*` setting can also be set in Java, through a
+`StratumCachePropertiesCustomizer` class, and Java wins over the files:
+
+```java
+public class OrdersCacheSettings implements StratumCachePropertiesCustomizer {
+
+  @Override
+  public StratumCacheProperties customize(StratumCacheProperties properties) {
+    return properties.toBuilder().maxCaches(200).warningInterval(Duration.ofMinutes(5)).build();
+  }
+}
+```
+
+The customizer is not a bean: list the class in the service's `META-INF/spring.factories`. A
+customizer declared as a bean stops startup with `SX-CORE-1004`.
+
+```properties
+com.exepex.stratum.cache.StratumCachePropertiesCustomizer=com.acme.orders.OrdersCacheSettings
+```
+
+Set any Spring Boot key above in Java as a default property, which wins over Stratum's default:
 
 ```java
 var application = new SpringApplication(OrdersApplication.class);
@@ -273,7 +347,8 @@ The starter is on when it is on the classpath. Leaving `stratum.cache.enabled` u
 the same as `true`.
 
 `stratum.cache.enabled=false` turns off Stratum's `@EnableCaching` and its cache and Redis
-defaults: time to live, key prefix, statistics, timeouts and clearing with SCAN. A service with its
+defaults: time to live, key prefix, statistics, timeouts, clearing with SCAN, the fail-open layer
+and the cap on caches. A service with its
 own `@EnableCaching` keeps caching, with Spring Boot's defaults; without one, `@Cacheable` methods
 then always run.
 
@@ -283,11 +358,15 @@ then always run.
   behaviour only.
 - Redis memory is bounded by the server's `maxmemory` policy, which your team sets.
 - Redis reports no evictions to the metrics.
+- At most `stratum.cache.max-caches` cache names, 100 by default, get a cache. Calls for a name
+  beyond that run uncached, through one shared no-op cache, and no cache is created for the name.
+  Each such call is counted in `stratum.cache.skips` under `cache=_over-limit`, and
+  [`SX-CACHE-1003`](../guides/error-codes.md#stratum-starter-cache) is logged at most once per
+  `stratum.cache.warning-interval`.
 
 ### Planned
 
-These are planned for later releases of this module: a cap on the number of caches; calls that
-still work when Redis is down, with the loader run at most once; null results not cached; metrics
+These are planned for later releases of this module: null results not cached; metrics
 for caches made on first use; a time to live, command timeout and size limits for each cache;
 values stored as JSON, read only for allowed types; a retry interval while Redis is unreachable;
 the cache name on Redis spans; Caffeine with a bounded size; and reactive return types.
@@ -308,3 +387,5 @@ jittered time to live per instance.
 | Hit ratio near zero | The key includes a value that changes on every call (for example a timestamp). Set `key` explicitly. |
 | `cache.gets` is missing for a cache | The cache was made on its first use. List it in `spring.cache.cache-names` ([Metrics](#metrics)). |
 | Redis calls time out after 1 second | A command takes longer than Stratum's `spring.data.redis.timeout`. Raise it for the whole service. |
+| `SX-CACHE-1002` in the log | A cache call failed, usually because Redis is down; the method still ran. Check Redis ([When Redis is down](#when-redis-is-down)). |
+| `SX-CACHE-1003` in the log | The service uses more than `stratum.cache.max-caches` cache names. Name caches explicitly, so they stay few, or raise the limit ([Limits](#limits)). |
