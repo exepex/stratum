@@ -1,2 +1,2 @@
-com.exepex.stratum.cache.autoconfigure.CachingAutoConfiguration
+com.exepex.stratum.cache.autoconfigure.StratumCacheAutoConfiguration
 com.exepex.stratum.cache.autoconfigure.RedisCacheWriterAutoConfiguration

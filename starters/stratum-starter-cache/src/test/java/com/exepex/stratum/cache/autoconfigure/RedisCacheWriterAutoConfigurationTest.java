@@ -39,7 +39,7 @@ class RedisCacheWriterAutoConfigurationTest {
               AutoConfigurations.of(
                   DataRedisAutoConfiguration.class,
                   CacheAutoConfiguration.class,
-                  CachingAutoConfiguration.class,
+                  StratumCacheAutoConfiguration.class,
                   RedisCacheWriterAutoConfiguration.class));
 
   @Nested

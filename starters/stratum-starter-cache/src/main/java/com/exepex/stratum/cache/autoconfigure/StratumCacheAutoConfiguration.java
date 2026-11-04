@@ -23,4 +23,4 @@ import org.springframework.cache.interceptor.CacheAspectSupport;
 @ConditionalOnStratumModule(CacheConstants.MODULE)
 @ConditionalOnMissingBean(CacheAspectSupport.class)
 @EnableCaching
-public final class CachingAutoConfiguration {}
+public final class StratumCacheAutoConfiguration {}

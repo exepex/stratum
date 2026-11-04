@@ -18,14 +18,16 @@ import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cache.interceptor.CacheAspectSupport;
 import org.springframework.context.annotation.Configuration;
 
-@DisplayName("CachingAutoConfiguration switches Spring's caching on, so Spring Boot sets it up")
-class CachingAutoConfigurationTest {
+@DisplayName(
+    "StratumCacheAutoConfiguration switches Spring's caching on, so Spring Boot sets it up")
+class StratumCacheAutoConfigurationTest {
 
   /** A context with Spring Boot's cache set-up, Stratum's and a cached service. */
   private final ApplicationContextRunner contextRunner =
       new ApplicationContextRunner()
           .withConfiguration(
-              AutoConfigurations.of(CacheAutoConfiguration.class, CachingAutoConfiguration.class))
+              AutoConfigurations.of(
+                  CacheAutoConfiguration.class, StratumCacheAutoConfiguration.class))
           .withBean(ProductCatalog.class);
 
   /** Asks twice for the same price and returns how many times it was really looked up. */
@@ -40,7 +42,7 @@ class CachingAutoConfigurationTest {
   private void assertCachingFromElsewhere(AssertableApplicationContext context) {
     assertThat(context).hasSingleBean(CacheAspectSupport.class);
     assertThat(lookupsForTwoCalls(context)).isOne();
-    CacheAssertions.assertLeftOut(context, CachingAutoConfiguration.class);
+    CacheAssertions.assertLeftOut(context, StratumCacheAutoConfiguration.class);
   }
 
   @Nested
@@ -99,7 +101,7 @@ class CachingAutoConfigurationTest {
           .withConfiguration(
               AutoConfigurations.of(
                   CacheAutoConfiguration.class,
-                  CachingAutoConfiguration.class,
+                  StratumCacheAutoConfiguration.class,
                   CompanyCachingAutoConfiguration.class))
           .withBean(ProductCatalog.class)
           .run(context -> assertCachingFromElsewhere(context));

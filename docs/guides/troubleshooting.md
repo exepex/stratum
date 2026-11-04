@@ -40,7 +40,7 @@ Positive matches:
       - @ConditionalOnStratumModule data stratum.data.enabled is not false, so it is on
 
 Negative matches:
-   CachingAutoConfiguration:
+   StratumCacheAutoConfiguration:
       Did not match:
          - @ConditionalOnStratumModule cache stratum.cache.enabled is false
 ```
