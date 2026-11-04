@@ -269,6 +269,15 @@ is unless `stratum.data.enabled=false`. See the [data module](../modules/data-jp
 | --- | --- | --- |
 | `SX-DATA-1001` | Hibernate checked the entities against the database schema at startup, which Stratum turns on with `ddl-auto=validate`, and an entity does not match it, as with a column that no migration added. The message is Hibernate's, such as `Schema validation: missing column [customer_id] in table [orders]`: it names the table and the column, never a value. | Fix the entity mapping or add the missing migration, or, to stop Hibernate checking the schema, set `spring.jpa.hibernate.ddl-auto=none`. See [Schema check](../modules/data-jpa.md#schema-check). |
 
+## stratum-starter-cache
+
+This is an error that stops the application at startup, and only while the module is on, which it
+is unless `stratum.cache.enabled=false`. See the [cache module](../modules/cache.md).
+
+| Code | Meaning | Fix |
+| --- | --- | --- |
+| `SX-CACHE-1001` | Spring Data Redis is on the class path and the cache module would start every Redis cache key with the service's name, through Stratum's default `spring.cache.redis.key-prefix`, but `spring.application.name` is not set or is blank. Without a name, services sharing one Redis would read each other's entries. | Set `spring.application.name`, or set your own `spring.cache.redis.key-prefix`, or turn the module off with `stratum.cache.enabled=false`. A service that turns key prefixes off with `spring.cache.redis.use-key-prefix=false` needs no name. See [Cache → Key prefix](../modules/cache.md#key-prefix). |
+
 ## stratum-starter-webmvc and stratum-starter-webflux
 
 These apply only while the module is on, which it is unless `stratum.web.enabled=false`. A caller gets all but `SX-WEB-1006` in the error

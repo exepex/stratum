@@ -14,5 +14,55 @@
   <artifactId>stratum-starter-cache</artifactId>
 
   <name>Stratum starter: cache</name>
-  <description>Planned: Caffeine or Redis caching with a time to live and size for each cache.</description>
+  <description>Spring's caching switched on, with safe Redis defaults on Spring Boot's own keys.</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.exepex.stratum</groupId>
+      <artifactId>stratum-core</artifactId>
+    </dependency>
+    <!-- Spring Boot's own cache starter: Spring's caching and Spring Boot's cache set-up, which this
+         module switches on and gives its defaults. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-cache</artifactId>
+    </dependency>
+    <!-- Spring Boot's Redis set-up, Spring Data Redis and Lettuce, for the customizer that clears
+         Redis caches with SCAN. Optional: a service chooses Redis by adding
+         spring-boot-starter-data-redis itself. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-data-redis</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <!-- The checks and set-up that every starter's tests share, and the Redis container that
+         stratum-test declares optional. -->
+    <dependency>
+      <groupId>com.exepex.stratum</groupId>
+      <artifactId>stratum-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-testcontainers</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Spring Boot's metrics, to prove that cache hits are counted. Services bring them with the
+         actuator. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-micrometer-metrics</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
 </project>

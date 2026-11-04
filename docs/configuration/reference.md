@@ -1,6 +1,7 @@
 # Configuration reference
 
-**Status: Built** for the web, logging and observability modules; the others are planned. This page
+**Status: Built** for the logging, observability, webmvc, webflux, data-jpa and cache modules; the others
+are planned. This page
 is the map of Stratum's settings: the keys that every module shares, which belong to no module, and
 a link to each module's own table. Each module's table is the one list of its keys, `stratum.*` and
 the Spring Boot keys it gives a default, with Stratum's default and Spring Boot's side by side. This
@@ -100,7 +101,7 @@ Each module's full table, with every key it reads or gives a default:
 | `stratum.http-client.*` | `stratum-starter-http-client` | [HTTP client → Properties](../modules/http-client.md#properties) | `clients.<name>.base-url` |
 | `stratum.resilience.*` | `stratum-starter-resilience` | [Resilience → Properties](../modules/resilience.md#properties) | none |
 | `stratum.data.*` | `stratum-starter-data-jpa` | [Data → Properties](../modules/data-jpa.md#properties) | `spring.datasource.url`, `username`, `password` |
-| `stratum.cache.*` | `stratum-starter-cache` | [Cache → Properties](../modules/cache.md#properties) | `spring.data.redis.*` when `type=redis` |
+| `stratum.cache.*` | `stratum-starter-cache` | [Cache → Properties](../modules/cache.md#properties) | `spring.application.name` with Spring Data Redis, unless you set `spring.cache.redis.key-prefix`; `spring.data.redis.*` to reach your Redis (with `spring-boot-starter-data-redis`) |
 | `stratum.kafka.*` | `stratum-starter-kafka` | [Kafka → Properties](../modules/kafka.md#properties) | `spring.kafka.bootstrap-servers` |
 | `stratum.cloud.*` | `stratum-starter-cloud-*` | [Cloud → Properties](../modules/cloud.md#properties-draft) | depends on provider |
 | `stratum.test.*` | `stratum-test` | [Testing → Properties](../modules/test.md#properties) | none |
@@ -122,7 +123,7 @@ switches, such as `stratum.web.request-log.enabled`, apply only while the module
 | `stratum.http-client.enabled` | Stratum's HTTP client setup |
 | `stratum.resilience.enabled` | All resilience policies |
 | `stratum.data.enabled` | Stratum's data defaults |
-| `stratum.cache.enabled` | Caching |
+| `stratum.cache.enabled` | Stratum's `@EnableCaching` and its cache and Redis defaults (TTL, prefix, statistics, timeouts, SCAN); a service's own `@EnableCaching` keeps caching on |
 | `stratum.kafka.enabled` | Stratum's Kafka defaults |
 | `stratum.cloud.enabled` | Cloud connectors |
 
@@ -133,8 +134,9 @@ with the lowest priority, so any value you set wins; the logging starter's forma
 [Stratum's formats](../../starters/stratum-starter-logging/README.md#what-is-masked). Each module's table lists
 the Spring Boot keys it sets, with both defaults:
 [Web](../modules/web.md#properties),
-[Logging](../../starters/stratum-starter-logging/README.md#properties) and
-[Observability](../../starters/stratum-starter-observability/README.md#properties). The planned
+[Logging](../../starters/stratum-starter-logging/README.md#properties),
+[Observability](../../starters/stratum-starter-observability/README.md#properties),
+[Data](../modules/data-jpa.md#properties) and [Cache](../modules/cache.md#properties). The planned
 modules' pages list theirs.
 
 ## A complete example
