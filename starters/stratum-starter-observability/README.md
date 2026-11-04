@@ -95,12 +95,12 @@ and traces, so it never sends anything, not even to Spring Boot's default addres
 | Tags on every metric | `application` from `spring.application.name`, `environment` from [`stratum.environment`](../../docs/configuration/reference.md#shared-properties), and `host` from the `HOSTNAME` environment variable, which in Kubernetes is the pod's name. Each is left out when its value is not set |
 | Timings as histograms | Every timer, such as HTTP server and client calls, `@Scheduled` jobs and Spring Batch steps, is sent as a base-2 exponential histogram ([below](#timings)) |
 | Tag guard | A metric with a tag named like an ID, such as `userId`, is dropped with one warning; the RabbitMQ routing key is removed from send timers ([below](#tag-guard)) |
-| Correlation ID | In the logging context of every traced operation, so log lines and error reports carry it ([below](#correlation-id)) |
+| Correlation ID | In the logging context of every traced operation, so log lines and error reports carry it ([traces](../../docs/modules/observability-traces.md#correlation-id)) |
 | Other threads | `@Async` methods and Spring Boot's executors keep the caller's trace and correlation ID ([below](#threads-and-reactive-code)). `@Scheduled` jobs start clean, and `LinkedWork` links work that a request saves for a later job back to that request ([guide](../../docs/guides/linking-later-work.md)) |
 | Messages | Kafka, JMS (IBM MQ, ActiveMQ) and RabbitMQ: sending and handling a message are timed and traced, and the consumer joins the sender's trace and correlation ID ([below](#messages)) |
 | Traces | OpenTelemetry traces. W3C `traceparent` is read from incoming requests and sent on calls made with Spring's HTTP clients. Spring Boot keeps 10% of new traces, and always follows the caller's decision, so a trace is never half kept |
 | Trace and metric resource | `service.name` from `spring.application.name` (set by Spring Boot), `deployment.environment.name` from `stratum.environment`, and `service.instance.id`, the [instance ID](../../docs/configuration/reference.md#instance-id) of this running copy, which its log lines carry too |
-| URLs on spans | The full URL of each HTTP client call, query string included, is kept on its span; only the user info is removed. Metrics never carry the query ([below](#urls-on-spans-and-metrics)) |
+| URLs on spans | The full URL of each HTTP client call, query string included, is kept on its span; only the user info is removed. Metrics never carry the query ([traces](../../docs/modules/observability-traces.md#urls-on-spans-and-metrics)) |
 | Health | `/actuator/health`, with Spring Boot's Kubernetes `liveness` and `readiness` groups |
 | Safe exposure | Only `health` and `info` are reachable over HTTP |
 | Startup check | With the module on, startup stops if an export address is missing, in every profile ([below](#startup-check)) |
@@ -152,44 +152,6 @@ metrics, not about privacy: whether an ID may appear in logs is up to the loggin
 redaction. To change the rule itself, declare your own `MetricTagGuard` bean, and Stratum's backs
 off.
 
-### Correlation ID
-
-The correlation ID ties together every step of one business workflow, such as one order. While an
-operation is traced, Stratum keeps it in the logging context (SLF4J's MDC) under `correlationId`,
-so every log line and every [error report](../../docs/guides/error-codes.md#the-trace-span-and-correlation-ids)
-carries it:
-
-- If the tracing **baggage** (values that travel with the trace) has a `correlationId` entry, that
-  is the ID. Stratum also records it on each new span, so a trace can be found by it.
-- Otherwise the ID is the **trace ID**. Every service in the same trace has the same trace ID, so
-  the correlation ID is the same across them too.
-
-A baggage value is used only if it is 1 to 128 letters, digits, `-`, `_`, `.` or `:`; anything
-else, such as a line break, is ignored and the trace ID is used, so a caller cannot forge a log
-line. Outside a traced operation Stratum sets no correlation ID. Stratum owns the `correlationId`
-key while tracing: a value your code puts in the MDC directly is replaced or removed when the
-current span changes, so use the baggage instead.
-
-To set a correlation ID in your own code, put it in the baggage with Micrometer's `Tracer`:
-
-```java
-try (var correlation = tracer.createBaggageInScope("correlationId", order.correlationId())) {
-  // log lines, error reports and new spans here carry the order's correlation ID
-}
-```
-
-Baggage travels with the trace: Spring's HTTP clients, `WebClient` in reactive code included, send it
-in the W3C `baggage` header on every outgoing call, to every host, third parties included, and
-Kafka, JMS and RabbitMQ senders put it in a `baggage` message header ([messages](#messages)). So the
-correlation ID set in baggage reaches every service you call or send a message to.
-
-> [!WARNING]
-> Never put a secret or personal data, such as a customer's name or email address, in the
-> correlation ID or any other baggage entry. Every host your service calls receives it.
-
-The web starters also take it from the `X-Correlation-Id` header ([web](../../docs/modules/web.md#correlation-id)).
-**Planned:** the logging starter will limit the baggage to your own hosts.
-
 ### Messages
 
 With the module on, sending and handling a Kafka, RabbitMQ or JMS message is traced and timed like
@@ -215,33 +177,6 @@ any operator carries the request's trace and correlation ID, never another reque
 sends `baggage` like `RestClient`. Setting `spring.reactor.context-propagation=limited` keeps
 Spring Boot's own mode, where only `handle` and `tap` lines carry them. The same setting carries the logging
 starter's [workflow fields](../../docs/modules/logging-workflows.md#async-and-reactive-work).
-
-### URLs on spans and metrics
-
-Spring records the full URL of every outgoing HTTP call on its span, and the URI template in the
-`uri` tag of the span and of the `http.client.requests` metrics. Stratum keeps the query string on
-the span, so you can see which values were sent, and changes two things:
-
-| Recorded by Spring | Kept on the span | Kept in the `uri` tag |
-| --- | --- | --- |
-| `https://partner.com/rates?currency=EUR&page=2` | `https://partner.com/rates?currency=EUR&page=2` | `/rates` |
-| `https://user:secret@partner.com:8443/rates` | `https://partner.com:8443/rates` | `/rates` |
-
-- **User info is removed** from the span's URL, because it is a password.
-- **The `uri` tag loses its query**, on spans and metrics, because each distinct value would create
-  a new time series and can overload the metrics backend.
-
-A URL that cannot be parsed is recorded as `[UNPARSABLE_URL]`. This cannot be switched off. It
-applies when Spring's web classes are on the classpath, which is the only way Spring makes HTTP
-client spans and metrics.
-
-> [!WARNING]
-> Never put a secret or personal data, such as a token, an IBAN or a card number, in a URL's path
-> or query string. Trace backends store the URL as it is, and so do proxies and access logs on the
-> way. Send such values in a header or the request body. When a call fails, Spring's error message
-> also names the URL with its user info, such as
-> `I/O error on GET request for "https://user:secret@partner.com/rates"`, and the span records that
-> message.
 
 ### Startup check
 
