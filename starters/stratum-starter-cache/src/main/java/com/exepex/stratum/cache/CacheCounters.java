@@ -3,8 +3,9 @@ package com.exepex.stratum.cache;
 import com.exepex.stratum.core.api.StratumInternal;
 
 /**
- * Counts the cache layer's failures and refused cache names, so that the decorator, the handler and
- * the resolver never name a Micrometer type and stay loadable without {@code micrometer-core}.
+ * Counts the cache layer's failures and skips (refused cache names, hashed keys and values too
+ * large to store), so that the decorator, the handler and the resolver never name a Micrometer type
+ * and stay loadable without {@code micrometer-core}.
  */
 @StratumInternal
 public interface CacheCounters {
@@ -18,10 +19,10 @@ public interface CacheCounters {
   void failure(String cache, String operation);
 
   /**
-   * Counts one refused cache name.
+   * Counts one skip: a refused cache name, a key stored under its hash or a value not stored.
    *
-   * @param cache the tag value the refusal is counted under, {@code _over-limit}
-   * @param reason why the name was refused, {@code cache-limit}
+   * @param cache the cache's name, or {@code _over-limit} for a refused name
+   * @param reason why, such as {@code cache-limit}, {@code key-hashed} or {@code value-too-large}
    */
   void skip(String cache, String reason);
 
