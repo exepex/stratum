@@ -11,6 +11,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import lombok.Builder;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.DisplayName;
@@ -82,6 +83,7 @@ class VirtualThreadsIntegrationTest {
    * @param correlationId the correlation ID in the MDC, or {@code null} if there was none
    * @param virtualThread whether the thread was virtual
    */
+  @Builder
   record SeenInTask(
       @Nullable String traceId, @Nullable String correlationId, boolean virtualThread) {
 
@@ -91,10 +93,11 @@ class VirtualThreadsIntegrationTest {
      * @return the IDs and whether the thread is virtual
      */
     static SeenInTask onCurrentThread() {
-      return new SeenInTask(
-          MDC.get(LoggingContextConstants.TRACE_ID),
-          MDC.get(LoggingContextConstants.CORRELATION_ID),
-          Thread.currentThread().isVirtual());
+      return SeenInTask.builder()
+          .traceId(MDC.get(LoggingContextConstants.TRACE_ID))
+          .correlationId(MDC.get(LoggingContextConstants.CORRELATION_ID))
+          .virtualThread(Thread.currentThread().isVirtual())
+          .build();
     }
   }
 
@@ -129,7 +132,11 @@ class VirtualThreadsIntegrationTest {
                   .orTimeout(TASK_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                   .join())
           .isEqualTo(
-              new SeenInTask(tracer.currentSpan().context().traceId(), ORDER_CORRELATION_ID, true));
+              SeenInTask.builder()
+                  .traceId(tracer.currentSpan().context().traceId())
+                  .correlationId(ORDER_CORRELATION_ID)
+                  .virtualThread(true)
+                  .build());
     }
   }
 
