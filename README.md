@@ -273,7 +273,7 @@ Every starter's module is on when the starter is on the classpath. A service tur
 
 | Module | In one sentence |
 | --- | --- |
-| [`stratum-test`](docs/modules/test.md) | Partly built: a PostgreSQL container for integration tests. Planned: JUnit 5, AssertJ, Mockito, more containers, HTTP stubs and JWT helpers. |
+| [`stratum-test`](docs/modules/test.md) | Partly built: PostgreSQL and Redis containers for integration tests. Planned: JUnit 5, AssertJ, Mockito, more containers, HTTP stubs and JWT helpers. |
 
 ## Configuration: YAML or properties
 
@@ -365,10 +365,10 @@ The decision behind it: [ADR 0001](docs/adr/0001-coexistence-with-company-framew
 
 ## Testing your service
 
-**Partly built.** Today `stratum-test` gives your integration tests a PostgreSQL database in Docker
-([Containers](docs/modules/test.md#containers)); add Spring Boot's `spring-boot-starter-test` with
-`<scope>test</scope>` next to it. Once complete, `stratum-test` is planned to give you everything you
-need for unit, mock and integration tests in one test dependency:
+**Partly built.** Today `stratum-test` gives your integration tests a PostgreSQL database and a
+Redis server in Docker ([Containers](docs/modules/test.md#containers)); add Spring Boot's
+`spring-boot-starter-test` with `<scope>test</scope>` next to it. Once complete, `stratum-test` is
+planned to give you everything you need for unit, mock and integration tests in one test dependency:
 
 - **Unit tests** (`*Test.java`) with JUnit 5, AssertJ and Mockito.
 - **Integration tests** (`*IntegrationTest.java`) that start a real PostgreSQL, Kafka or Redis in Docker with
