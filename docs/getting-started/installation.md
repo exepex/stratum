@@ -179,6 +179,7 @@ that module off instead:
 | `stratum-starter-security` | `stratum.security.resource-server.issuer-uri` |
 | `stratum-starter-http-client` | `stratum.http-client.clients.<name>.base-url` for each client |
 | `stratum-starter-data-jpa` | `spring.datasource.url`, `username`, `password` |
+| `stratum-starter-cache` | `spring.application.name`, with Spring Data Redis, unless you set `spring.cache.redis.key-prefix` |
 | `stratum-starter-kafka` | `spring.kafka.bootstrap-servers` |
 
 ## Step 4: check that it works

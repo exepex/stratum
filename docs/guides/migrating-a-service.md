@@ -96,8 +96,8 @@ Check: calls carry `traceparent` and `X-Correlation-Id`; timeouts are what you e
 
 ## Step 7: data, cache, Kafka
 
-Add the matching starters. Compare your current `spring.datasource.hikari.*`, `spring.jpa.*` and
-`spring.kafka.*` settings with Stratum's defaults (listed on each module page) and delete those that
+Add the matching starters. Compare your current `spring.datasource.hikari.*`, `spring.jpa.*`,
+`spring.cache.redis.*`, `spring.data.redis.*` and `spring.kafka.*` settings with Stratum's defaults (listed on each module page) and delete those that
 match. Keep any value that is deliberately different, and write down why in a comment.
 
 `stratum-starter-data-jpa` sets these defaults even with `stratum.backward-compatible=true`,
@@ -129,6 +129,26 @@ column; see [Data → Schema check](../modules/data-jpa.md#schema-check).
 > `spring.jpa.open-in-view=false`. Code that loads lazy relations after the service method has
 > returned will then fail with `LazyInitializationException`. Run your integration tests before
 > turning the mode off.
+
+`stratum-starter-cache` switches Spring's caching on. With `spring-boot-starter-data-redis`, it also
+gives Spring Boot's Redis keys these defaults, in both modes, because no caller sees them
+([Cache → An existing service](../modules/cache.md#an-existing-service)):
+
+- the 1 s command timeout and 2 s connect timeout (`spring.data.redis.timeout` and
+  `spring.data.redis.connect-timeout`) reach every Redis call of the service, `RedisTemplate`
+  included;
+- entries expire after 10 minutes by default (`spring.cache.redis.time-to-live`);
+- keys start with the service's name (`spring.cache.redis.key-prefix`), so the old keys are left
+  unread;
+- startup stops with `SX-CACHE-1001` when the service has no `spring.application.name`.
+
+Once the new version runs, delete the old keys, which start with the cache name under Spring Boot's
+default, with SCAN by pattern, never with `FLUSHDB` on a Redis shared with other data. For the cache
+`products`:
+
+```bash
+redis-cli --scan --pattern 'products::*' | xargs -r redis-cli unlink
+```
 
 ### A database that already has a schema
 

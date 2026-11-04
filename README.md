@@ -219,9 +219,13 @@ keep it; see [Backward-compatible mode](docs/modules/web-compatible-mode.md).
 
 ## Modules
 
-All modules are **Planned**, except two that are partly built: `stratum-starter-logging` (JSON logs
-with the service's name and environment, redaction, and named workflows) and `stratum-starter-observability`
-(metrics, traces and health sent over OTLP, with safe defaults). Each links to its full page: what it sets up,
+All modules are **Planned**, except six that are partly built: `stratum-starter-logging` (JSON logs
+with the service's name and environment, redaction, and named workflows), `stratum-starter-observability`
+(metrics, traces and health sent over OTLP, with safe defaults), `stratum-starter-webmvc` and
+`stratum-starter-webflux` (error responses, request fields in logs, the correlation ID, the request log,
+timeouts and the body size limit), `stratum-starter-data-jpa` (pool, Hibernate and transaction defaults,
+and database errors that carry no data values) and `stratum-starter-cache` (caching switched on, with safe
+Redis defaults). Each links to its full page: what it sets up,
 every property with its default, examples in YAML and properties, how to override it and how to
 troubleshoot it.
 
@@ -265,7 +269,7 @@ Every starter's module is on when the starter is on the classpath. A service tur
 | [`stratum-starter-http-client`](docs/modules/http-client.md) | Declarative HTTP clients with timeouts, tracing, tokens and retries. | `stratum.http-client` |
 | [`stratum-starter-resilience`](docs/modules/resilience.md) | Named retry, circuit breaker, bulkhead and time limit policies. | `stratum.resilience` |
 | [`stratum-starter-data-jpa`](docs/modules/data-jpa.md) | Spring Data JPA with safe defaults for the connection pool, Hibernate and transactions, and database errors that carry no data values. | `stratum.data` |
-| [`stratum-starter-cache`](docs/modules/cache.md) | Caffeine or Redis caching with per-cache TTL and size. | `stratum.cache` |
+| [`stratum-starter-cache`](docs/modules/cache.md) | Spring's caching switched on, with a time to live, a service key prefix, statistics, short timeouts and SCAN clears for Redis. | `stratum.cache` |
 | [`stratum-starter-kafka`](docs/modules/kafka.md) | Kafka producers and consumers with retries and dead-letter topics. | `stratum.kafka` |
 | [`stratum-starter-cloud-*`](docs/modules/cloud.md) | Cloud services such as storage, queues and secrets, per provider. | `stratum.cloud` |
 

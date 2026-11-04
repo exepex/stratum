@@ -32,17 +32,17 @@ mvn spring-boot:run -Dspring-boot.run.arguments=--debug
 java -jar order-service.jar --debug
 ```
 
-Look for `Stratum...AutoConfiguration` entries:
+Look for the entries of Stratum's auto-configurations, which carry `@ConditionalOnStratumModule`:
 
 ```text
 Positive matches:
-   StratumHttpClientAutoConfiguration matched:
-      - @ConditionalOnStratumModule http-client stratum.http-client.enabled is true
+   DataJpaAutoConfiguration matched:
+      - @ConditionalOnStratumModule data stratum.data.enabled is not false, so it is on
 
 Negative matches:
    StratumCacheAutoConfiguration:
       Did not match:
-         - @ConditionalOnStratumModule cache stratum.cache.enabled is not true, so it is off
+         - @ConditionalOnStratumModule cache stratum.cache.enabled is false
 ```
 
 ### 3. Actuator, in a safe environment
