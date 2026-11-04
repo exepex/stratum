@@ -10,6 +10,7 @@ import java.util.List;
 import liquibase.integration.spring.SpringLiquibase;
 import lombok.Builder;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.Parameter;
 import org.junit.jupiter.params.ParameterizedClass;
@@ -59,45 +60,57 @@ class MigrationBoundaryAutoConfigurationTest {
         .withConfiguration(AutoConfigurations.of(tool.autoConfiguration()));
   }
 
-  @Test
-  @DisplayName("with the module on, Stratum's bean is created under its name")
-  void createsBean() {
-    contextRunner()
-        .run(context -> assertThat(context).getBean(tool.beanName()).isInstanceOf(tool.beanType()));
+  @Nested
+  @DisplayName("with the module switched on or off")
+  class ModuleSwitch {
+
+    @Test
+    @DisplayName("with the module on, Stratum's bean is created under its name")
+    void createsBean() {
+      contextRunner()
+          .run(
+              context ->
+                  assertThat(context).getBean(tool.beanName()).isInstanceOf(tool.beanType()));
+    }
+
+    @Test
+    @DisplayName("with the module off, no bean is created")
+    void createsNothingWithModuleOff() {
+      contextRunner()
+          .withPropertyValues(DataConstants.ENABLED + "=false")
+          .run(context -> assertThat(context).hasNotFailed().doesNotHaveBean(tool.beanName()));
+    }
+
+    @Test
+    @DisplayName("without the migration tool on the class path, no bean is created")
+    void createsNothingWithoutTool() {
+      contextRunner()
+          .withClassLoader(new FilteredClassLoader(tool.toolClass()))
+          .run(context -> assertThat(context).hasNotFailed().doesNotHaveBean(tool.beanName()));
+    }
   }
 
-  @Test
-  @DisplayName("with the module off, no bean is created")
-  void createsNothingWithModuleOff() {
-    contextRunner()
-        .withPropertyValues(DataConstants.ENABLED + "=false")
-        .run(context -> assertThat(context).hasNotFailed().doesNotHaveBean(tool.beanName()));
-  }
+  @Nested
+  @DisplayName("when the service or a company framework decides otherwise")
+  class BackOff {
 
-  @Test
-  @DisplayName("without the migration tool on the class path, no bean is created")
-  void createsNothingWithoutTool() {
-    contextRunner()
-        .withClassLoader(new FilteredClassLoader(tool.toolClass()))
-        .run(context -> assertThat(context).hasNotFailed().doesNotHaveBean(tool.beanName()));
-  }
+    @Test
+    @DisplayName("a service's bean of the same name replaces Stratum's")
+    void backsOffForServiceBean() {
+      contextRunner()
+          .withBean(tool.beanName(), Object.class, Object::new)
+          .run(context -> assertThat(context).hasNotFailed().doesNotHaveBean(tool.beanType()));
+    }
 
-  @Test
-  @DisplayName("a service's bean of the same name replaces Stratum's")
-  void backsOffForServiceBean() {
-    contextRunner()
-        .withBean(tool.beanName(), Object.class, Object::new)
-        .run(context -> assertThat(context).hasNotFailed().doesNotHaveBean(tool.beanType()));
-  }
-
-  @Test
-  @DisplayName("a company framework's auto-configuration with no order wins over Stratum's")
-  void backsOffForCompanyBean() {
-    new ApplicationContextRunner()
-        .withConfiguration(
-            AutoConfigurations.of(
-                tool.autoConfiguration(), CompanyMigrationAutoConfiguration.class))
-        .run(context -> assertThat(context).hasNotFailed().doesNotHaveBean(tool.beanType()));
+    @Test
+    @DisplayName("a company framework's auto-configuration with no order wins over Stratum's")
+    void backsOffForCompanyBean() {
+      new ApplicationContextRunner()
+          .withConfiguration(
+              AutoConfigurations.of(
+                  tool.autoConfiguration(), CompanyMigrationAutoConfiguration.class))
+          .run(context -> assertThat(context).hasNotFailed().doesNotHaveBean(tool.beanType()));
+    }
   }
 
   /**
