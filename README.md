@@ -195,7 +195,7 @@ spring.application.name=order-service
 The logging module needs this name, or it stops at startup. The observability module also needs your
 OpenTelemetry Collector's addresses, in every profile, or it stops at startup. To try it without a
 Collector, point both at `localhost` (`http://localhost:4318/v1/metrics` and
-`http://localhost:4318/v1/traces`), and the data is dropped quietly
+`http://localhost:4318/v1/traces`), and the data is dropped without a failed-send log
 ([Observability](starters/stratum-starter-observability/README.md#running-without-a-collector)).
 
 **4. Write a controller** and run `mvn spring-boot:run`:

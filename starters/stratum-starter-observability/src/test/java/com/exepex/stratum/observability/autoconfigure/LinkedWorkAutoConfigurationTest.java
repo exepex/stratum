@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.FilteredClassLoader;
+import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.validation.autoconfigure.ValidationAutoConfiguration;
 import org.springframework.context.annotation.Bean;
@@ -69,18 +70,7 @@ class LinkedWorkAutoConfigurationTest {
   void serviceLinkedWorkBeansWin() {
     contextRunner
         .withUserConfiguration(ServiceLinkedWorkBeans.class)
-        .run(
-            context -> {
-              assertThat(context)
-                  .hasSingleBean(LinkedWorkTracingHandler.class)
-                  .hasSingleBean(LinkedWork.class)
-                  .hasSingleBean(ReactiveLinkedWork.class);
-              assertThat(context.getBean(LinkedWorkTracingHandler.class))
-                  .isSameAs(ServiceLinkedWorkBeans.HANDLER);
-              assertThat(context.getBean(LinkedWork.class)).isSameAs(ServiceLinkedWorkBeans.HELPER);
-              assertThat(context.getBean(ReactiveLinkedWork.class))
-                  .isSameAs(ServiceLinkedWorkBeans.REACTIVE_HELPER);
-            });
+        .run(context -> assertUsesServiceLinkedWorkBeans(context));
   }
 
   @Test
@@ -92,18 +82,23 @@ class LinkedWorkAutoConfigurationTest {
                 ValidationAutoConfiguration.class,
                 ObservabilityAutoConfiguration.class,
                 CompanyLinkedWorkAutoConfiguration.class))
-        .run(
-            context -> {
-              assertThat(context)
-                  .hasSingleBean(LinkedWorkTracingHandler.class)
-                  .hasSingleBean(LinkedWork.class)
-                  .hasSingleBean(ReactiveLinkedWork.class);
-              assertThat(context.getBean(LinkedWorkTracingHandler.class))
-                  .isSameAs(ServiceLinkedWorkBeans.HANDLER);
-              assertThat(context.getBean(LinkedWork.class)).isSameAs(ServiceLinkedWorkBeans.HELPER);
-              assertThat(context.getBean(ReactiveLinkedWork.class))
-                  .isSameAs(ServiceLinkedWorkBeans.REACTIVE_HELPER);
-            });
+        .run(context -> assertUsesServiceLinkedWorkBeans(context));
+  }
+
+  /**
+   * Checks that the context holds one handler and two helpers, those of {@code
+   * ServiceLinkedWorkBeans}.
+   */
+  private void assertUsesServiceLinkedWorkBeans(AssertableApplicationContext context) {
+    assertThat(context)
+        .hasSingleBean(LinkedWorkTracingHandler.class)
+        .hasSingleBean(LinkedWork.class)
+        .hasSingleBean(ReactiveLinkedWork.class);
+    assertThat(context.getBean(LinkedWorkTracingHandler.class))
+        .isSameAs(ServiceLinkedWorkBeans.HANDLER);
+    assertThat(context.getBean(LinkedWork.class)).isSameAs(ServiceLinkedWorkBeans.HELPER);
+    assertThat(context.getBean(ReactiveLinkedWork.class))
+        .isSameAs(ServiceLinkedWorkBeans.REACTIVE_HELPER);
   }
 
   /** The service's own linked-work beans. */
