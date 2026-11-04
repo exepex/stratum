@@ -170,7 +170,9 @@ class CacheEnvironmentPostProcessorTest {
     @Test
     @DisplayName("with Spring Data Redis present, startup stops with SX-CACHE-1001")
     void stopsWithoutName() {
-      assertThatThrownBy(() -> runPostProcessor(new MockEnvironment()))
+      var environment = new MockEnvironment();
+
+      assertThatThrownBy(() -> runPostProcessor(environment))
           .isInstanceOfSatisfying(
               StratumException.class,
               failure ->
@@ -181,9 +183,9 @@ class CacheEnvironmentPostProcessorTest {
     @Test
     @DisplayName("with a blank name, startup stops too")
     void stopsWithBlankName() {
-      assertThatThrownBy(
-              () -> runPostProcessor(new MockEnvironment().withProperty(APPLICATION_NAME, " ")))
-          .isInstanceOf(StratumException.class);
+      var environment = new MockEnvironment().withProperty(APPLICATION_NAME, " ");
+
+      assertThatThrownBy(() -> runPostProcessor(environment)).isInstanceOf(StratumException.class);
     }
 
     @ParameterizedTest(name = "{0}={1}")

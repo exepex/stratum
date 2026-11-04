@@ -15,6 +15,7 @@ import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -80,45 +81,60 @@ class CacheRedisIntegrationTest {
     return true;
   }
 
-  @Test
-  @DisplayName("a cached price lives 10 minutes, under a key that starts with the service's name")
-  void storesWithPrefixAndTimeToLive() {
-    cachePrice(SKU);
+  @Nested
+  @DisplayName("where and for how long a price is stored")
+  class Storage {
 
-    assertThat(redis.getExpire(PRICE_KEY, TimeUnit.MILLISECONDS))
-        .isBetween(TEN_MINUTES_MILLIS - TIME_TO_LIVE_MARGIN_MILLIS, TEN_MINUTES_MILLIS);
+    @Test
+    @DisplayName("a cached price lives 10 minutes, under a key that starts with the service's name")
+    void storesWithPrefixAndTimeToLive() {
+      cachePrice(SKU);
+
+      assertThat(redis.getExpire(PRICE_KEY, TimeUnit.MILLISECONDS))
+          .isBetween(TEN_MINUTES_MILLIS - TIME_TO_LIVE_MARGIN_MILLIS, TEN_MINUTES_MILLIS);
+    }
   }
 
-  @Test
-  @DisplayName("a cache hit is counted in cache.gets, beside cache.puts and cache.removals")
-  void countsHits() {
-    cachePrice(SKU);
-    catalog.priceOf(SKU);
+  @Nested
+  @DisplayName("hits and misses are counted")
+  class Statistics {
 
-    var hits =
-        meterRegistry
-            .get("cache.gets")
-            .tag("cache", ProductCatalog.PRODUCTS)
-            .tag("result", "hit")
-            .functionCounter()
-            .count();
-    assertThat(hits).isGreaterThanOrEqualTo(1);
-    assertThat(meterRegistry.find("cache.puts").tag("cache", ProductCatalog.PRODUCTS).meter())
-        .isNotNull();
-    assertThat(meterRegistry.find("cache.removals").tag("cache", ProductCatalog.PRODUCTS).meter())
-        .isNotNull();
+    @Test
+    @DisplayName("a cache hit is counted in cache.gets, beside cache.puts and cache.removals")
+    void countsHits() {
+      cachePrice(SKU);
+      catalog.priceOf(SKU);
+
+      var hits =
+          meterRegistry
+              .get("cache.gets")
+              .tag("cache", ProductCatalog.PRODUCTS)
+              .tag("result", "hit")
+              .functionCounter()
+              .count();
+      assertThat(hits).isGreaterThanOrEqualTo(1);
+      assertThat(meterRegistry.find("cache.puts").tag("cache", ProductCatalog.PRODUCTS).meter())
+          .isNotNull();
+      assertThat(meterRegistry.find("cache.removals").tag("cache", ProductCatalog.PRODUCTS).meter())
+          .isNotNull();
+    }
   }
 
-  @Test
-  @DisplayName("clearing every entry uses SCAN, never KEYS")
-  void clearsWithScan() throws IOException, InterruptedException {
-    cachePrice(SKU);
-    cachePrice(OTHER_SKU);
+  @Nested
+  @DisplayName("a cache is cleared without blocking Redis")
+  class Clearing {
 
-    catalog.forgetAllPrices();
+    @Test
+    @DisplayName("clearing every entry uses SCAN, never KEYS")
+    void clearsWithScan() throws IOException, InterruptedException {
+      cachePrice(SKU);
+      cachePrice(OTHER_SKU);
 
-    await().atMost(BACKGROUND_WAIT).until(this::pricesAreGone);
-    assertThat(slowLogWords()).contains("SCAN").doesNotContain("KEYS");
+      catalog.forgetAllPrices();
+
+      await().atMost(BACKGROUND_WAIT).until(CacheRedisIntegrationTest.this::pricesAreGone);
+      assertThat(slowLogWords()).contains("SCAN").doesNotContain("KEYS");
+    }
   }
 
   /** Returns the Redis key of a product's price: the service, the cache and the product. */
