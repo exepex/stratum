@@ -15,6 +15,15 @@ class CpuCostMeterTest {
   /** CPU time each call under test spends. */
   private static final Duration CALL_COST = Duration.ofMillis(2);
 
+  /** Calls in each batch of the per-call check, so the batch costs 4 times one call. */
+  private static final int CALLS_IN_ONE_BATCH = 4;
+
+  /**
+   * A limit above the cost of one call (2ms) and below that of a batch of them (8ms), so a call
+   * passes it only when the cost is counted per call.
+   */
+  private static final Duration BETWEEN_CALL_AND_BATCH = Duration.ofMillis(3);
+
   /** One call per batch, so the test takes a few tens of milliseconds. */
   private final CpuCostMeter meter = new CpuCostMeter(1);
 
@@ -37,6 +46,17 @@ class CpuCostMeterTest {
     assertThatExceptionOfType(AssertionError.class)
         .isThrownBy(() -> meter.assertCpuCostWithin("a slow call", justBelowCost, this::spendCpu))
         .withMessageContaining("a slow call");
+  }
+
+  @Test
+  @DisplayName("the limit applies to the cost of one call, not to the whole batch")
+  void limitsOneCallNotTheBatch() {
+    assertThatCode(
+            () ->
+                new CpuCostMeter(CALLS_IN_ONE_BATCH)
+                    .assertCpuCostWithin(
+                        "a batch of calls", BETWEEN_CALL_AND_BATCH, this::spendCpu))
+        .doesNotThrowAnyException();
   }
 
   /** Spends {@link #CALL_COST} of the thread's CPU time. */

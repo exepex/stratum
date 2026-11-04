@@ -1,5 +1,6 @@
 package com.exepex.stratum.observability;
 
+import static com.exepex.stratum.observability.testsupport.ObservabilityTestData.HOSTILE_INPUT_LENGTH;
 import static com.exepex.stratum.observability.testsupport.ObservabilityTestData.SAMPLED_SPAN;
 import static com.exepex.stratum.observability.testsupport.ObservabilityTestData.TRACE_ID;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -22,9 +23,6 @@ import org.slf4j.MDC;
 
 @DisplayName("Refusing a 1MB baggage correlation ID stays inside its CPU time limit")
 class CorrelationIdRecorderSpeedTest {
-
-  /** Characters in each hostile correlation ID: 1MB. */
-  private static final int LARGE_LENGTH = 1_000_000;
 
   // A scope change takes from under 1 to a few microseconds, so a batch of a few thousand measures
   // scheduler and JIT noise; batches of about 50ms of CPU time average it out.
@@ -61,12 +59,12 @@ class CorrelationIdRecorderSpeedTest {
           Stream.of(
               Arguments.of(
                   "a 1MB ID of safe characters",
-                  "a".repeat(LARGE_LENGTH),
+                  "a".repeat(HOSTILE_INPUT_LENGTH),
                   SAFE_ID_CALLS_PER_BATCH,
                   SAFE_ID_LIMIT),
               Arguments.of(
                   "a 1MB ID of unsafe characters",
-                  UNSAFE_CHARACTERS.repeat(LARGE_LENGTH / UNSAFE_CHARACTERS.length()),
+                  UNSAFE_CHARACTERS.repeat(HOSTILE_INPUT_LENGTH / UNSAFE_CHARACTERS.length()),
                   UNSAFE_ID_CALLS_PER_BATCH,
                   UNSAFE_ID_LIMIT));
 

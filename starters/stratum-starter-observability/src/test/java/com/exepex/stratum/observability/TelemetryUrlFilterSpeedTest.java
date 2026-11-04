@@ -1,5 +1,6 @@
 package com.exepex.stratum.observability;
 
+import static com.exepex.stratum.observability.testsupport.ObservabilityTestData.HOSTILE_INPUT_LENGTH;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.test.CpuCostMeter;
@@ -16,9 +17,6 @@ import org.junit.jupiter.params.provider.FieldSource;
 
 @DisplayName("Cleaning a 1MB URL stays inside its CPU time limit")
 class TelemetryUrlFilterSpeedTest {
-
-  /** Characters in each hostile part of a URL: 1MB. */
-  private static final int LARGE_LENGTH = 1_000_000;
 
   // A 1MB URL takes milliseconds, so a few calls make a batch of a few tens of milliseconds.
   /** Calls in each timed batch. */
@@ -54,17 +52,18 @@ class TelemetryUrlFilterSpeedTest {
           Stream.of(
               Arguments.of(
                   "a 1MB path",
-                  "https://user:secret@partner.com/rates/" + "a".repeat(LARGE_LENGTH),
-                  "/rates/" + "a".repeat(LARGE_LENGTH),
+                  "https://user:secret@partner.com/rates/" + "a".repeat(HOSTILE_INPUT_LENGTH),
+                  "/rates/" + "a".repeat(HOSTILE_INPUT_LENGTH),
                   PATH_LIMIT),
               Arguments.of(
                   "a 1MB query",
-                  "https://user:secret@partner.com/rates?currency=" + "a".repeat(LARGE_LENGTH),
-                  "/rates?currency=" + "a".repeat(LARGE_LENGTH),
+                  "https://user:secret@partner.com/rates?currency="
+                      + "a".repeat(HOSTILE_INPUT_LENGTH),
+                  "/rates?currency=" + "a".repeat(HOSTILE_INPUT_LENGTH),
                   QUERY_LIMIT),
               Arguments.of(
                   "a 1MB user info",
-                  "https://user:" + "a".repeat(LARGE_LENGTH) + "@partner.com/rates",
+                  "https://user:" + "a".repeat(HOSTILE_INPUT_LENGTH) + "@partner.com/rates",
                   "/rates",
                   USER_INFO_LIMIT));
 

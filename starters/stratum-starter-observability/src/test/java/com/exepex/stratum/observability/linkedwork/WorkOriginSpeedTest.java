@@ -1,5 +1,7 @@
 package com.exepex.stratum.observability.linkedwork;
 
+import static com.exepex.stratum.observability.testsupport.ObservabilityTestData.HOSTILE_INPUT_LENGTH;
+import static com.exepex.stratum.observability.testsupport.ObservabilityTestData.STORED_ORIGIN;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
@@ -16,15 +18,8 @@ import org.junit.jupiter.params.provider.FieldSource;
 @DisplayName("Refusing 1MB of hostile stored text stays inside its CPU time limit")
 class WorkOriginSpeedTest {
 
-  /** Characters in each hostile text: 1MB. */
-  private static final int LARGE_LENGTH = 1_000_000;
-
   /** Texts refused in each timed batch: a few milliseconds of work. */
   private static final int CALLS_PER_BATCH = 1_000;
-
-  /** A stored origin as a service gives it back. */
-  private static final String STORED_ORIGIN =
-      "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01 order-42";
 
   /**
    * CPU time refusing 1MB of junk may take: 5 times M, where M = 11.031 µs is the largest best
@@ -54,12 +49,13 @@ class WorkOriginSpeedTest {
   private static final Supplier<Stream<Arguments>> HOSTILE_TEXTS_AND_LIMITS =
       () ->
           Stream.of(
-              Arguments.of("1MB of junk", "a".repeat(LARGE_LENGTH), JUNK_LIMIT),
+              Arguments.of("1MB of junk", "a".repeat(HOSTILE_INPUT_LENGTH), JUNK_LIMIT),
               Arguments.of(
                   "a 1MB correlation ID",
-                  STORED_ORIGIN + "a".repeat(LARGE_LENGTH),
+                  STORED_ORIGIN + "a".repeat(HOSTILE_INPUT_LENGTH),
                   CORRELATION_ID_LIMIT),
-              Arguments.of("a 1MB trace ID", "00-" + "f".repeat(LARGE_LENGTH), TRACE_ID_LIMIT));
+              Arguments.of(
+                  "a 1MB trace ID", "00-" + "f".repeat(HOSTILE_INPUT_LENGTH), TRACE_ID_LIMIT));
 
   private final CpuCostMeter meter = new CpuCostMeter(CALLS_PER_BATCH);
 
