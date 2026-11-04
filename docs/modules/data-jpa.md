@@ -190,8 +190,8 @@ properties above if you need it.
 - Stratum sets no driver-specific error setting, such as PostgreSQL's `logServerErrorDetail`: only
   standard JDBC. The boundary already drops the driver's message.
 - Code that calls `unwrap()` to reach the driver's own classes, such as PostgreSQL's `COPY`,
-  driver metrics or Flyway's internals, such as Flyway's PostgreSQL support for a `COPY` statement
-  in a migration, bypasses the boundary and handles that driver's errors
+  driver metrics or Flyway's internals (its PostgreSQL support does so for a `COPY` statement in a
+  migration), bypasses the boundary and handles that driver's errors
   itself. The driver's own logging, off by default, is outside the boundary too.
 - R2DBC is not covered. A `DataSource` built outside Spring, not as a bean, is not wrapped, except
   the connection Spring Boot builds for Flyway or Liquibase ([Migrations](#migrations)).
