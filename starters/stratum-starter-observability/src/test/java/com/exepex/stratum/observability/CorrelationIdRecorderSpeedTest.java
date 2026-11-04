@@ -12,6 +12,7 @@ import io.opentelemetry.api.trace.TraceFlags;
 import io.opentelemetry.api.trace.TraceState;
 import io.opentelemetry.context.Context;
 import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
@@ -37,18 +38,31 @@ class CorrelationIdRecorderSpeedTest {
   private static final String UNSAFE_CHARACTERS = "a b\n";
 
   /**
+   * CPU time a scope change with a 1MB ID of safe characters may take: 5 times M, where M = 8.796
+   * µs is the largest best value of 3 CI runs with coverage on (2.093 µs, 8.796 µs, 3.437 µs), CI
+   * run 41749701016 on JDK 25, 2026-11-04.
+   */
+  private static final Duration SAFE_ID_LIMIT = Duration.of(43_980, ChronoUnit.NANOS);
+
+  /**
+   * CPU time a scope change with a 1MB ID of unsafe characters may take: 5 times M, where M = 0.623
+   * µs is the largest best value of 3 CI runs with coverage on (0.332 µs, 0.569 µs, 0.623 µs), CI
+   * run 41749701016 on JDK 25, 2026-11-04.
+   */
+  private static final Duration UNSAFE_ID_LIMIT = Duration.of(3_115, ChronoUnit.NANOS);
+
+  /**
    * Baggage correlation IDs of 1MB, each with the CPU time a scope change carrying it may take,
    * built only when the test runs: safe characters only, and characters that are not safe for logs.
    */
   private static final Supplier<Stream<Arguments>> HOSTILE_IDS_AND_LIMITS =
       () ->
           Stream.of(
-              Arguments.of(
-                  "a 1MB ID of safe characters", "a".repeat(LARGE_LENGTH), Duration.ofSeconds(1)),
+              Arguments.of("a 1MB ID of safe characters", "a".repeat(LARGE_LENGTH), SAFE_ID_LIMIT),
               Arguments.of(
                   "a 1MB ID of unsafe characters",
                   UNSAFE_CHARACTERS.repeat(LARGE_LENGTH / UNSAFE_CHARACTERS.length()),
-                  Duration.ofSeconds(1)));
+                  UNSAFE_ID_LIMIT));
 
   /** The span made current with each baggage. */
   private static final Span SPAN =

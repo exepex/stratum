@@ -6,6 +6,7 @@ import com.exepex.stratum.test.CpuCostMeter;
 import io.micrometer.common.KeyValue;
 import io.micrometer.observation.Observation;
 import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
@@ -24,6 +25,27 @@ class TelemetryUrlFilterSpeedTest {
   private static final int CALLS_PER_BATCH = 3;
 
   /**
+   * CPU time cleaning a URL with a 1MB path may take: 5 times M, where M = 16809.378 µs is the
+   * largest best value of 3 CI runs with coverage on (9670.897 µs, 13848.134 µs, 16809.378 µs), CI
+   * run 41749701016 on JDK 25, 2026-11-04.
+   */
+  private static final Duration PATH_LIMIT = Duration.of(84_046_890, ChronoUnit.NANOS);
+
+  /**
+   * CPU time cleaning a URL with a 1MB query may take: 5 times M, where M = 19351.927 µs is the
+   * largest best value of 3 CI runs with coverage on (10196.216 µs, 14624.650 µs, 19351.927 µs), CI
+   * run 41749701016 on JDK 25, 2026-11-04.
+   */
+  private static final Duration QUERY_LIMIT = Duration.of(96_759_635, ChronoUnit.NANOS);
+
+  /**
+   * CPU time cleaning a URL with a 1MB user info may take: 5 times M, where M = 11051.443 µs is the
+   * largest best value of 3 CI runs with coverage on (6858.519 µs, 10466.982 µs, 11051.443 µs), CI
+   * run 41749701016 on JDK 25, 2026-11-04.
+   */
+  private static final Duration USER_INFO_LIMIT = Duration.of(55_257_217, ChronoUnit.NANOS);
+
+  /**
    * URLs with a 1MB path, query or user info, each with its URI template and the CPU time cleaning
    * both may take, built only when the test runs.
    */
@@ -34,17 +56,17 @@ class TelemetryUrlFilterSpeedTest {
                   "a 1MB path",
                   "https://user:secret@partner.com/rates/" + "a".repeat(LARGE_LENGTH),
                   "/rates/" + "a".repeat(LARGE_LENGTH),
-                  Duration.ofSeconds(1)),
+                  PATH_LIMIT),
               Arguments.of(
                   "a 1MB query",
                   "https://user:secret@partner.com/rates?currency=" + "a".repeat(LARGE_LENGTH),
                   "/rates?currency=" + "a".repeat(LARGE_LENGTH),
-                  Duration.ofSeconds(1)),
+                  QUERY_LIMIT),
               Arguments.of(
                   "a 1MB user info",
                   "https://user:" + "a".repeat(LARGE_LENGTH) + "@partner.com/rates",
                   "/rates",
-                  Duration.ofSeconds(1)));
+                  USER_INFO_LIMIT));
 
   private final TelemetryUrlFilter filter = new TelemetryUrlFilter();
 
