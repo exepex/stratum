@@ -6,7 +6,7 @@ With the module on, sending and handling a message are observed like an HTTP cal
 
 - **Traces.** The sender adds the W3C `traceparent` and `baggage` headers to the message. The
   consumer reads them, so its span is part of the sender's trace, and its log lines carry the
-  sender's trace ID and [correlation ID](../../starters/stratum-starter-observability/README.md#correlation-id).
+  sender's trace ID and [correlation ID](observability-traces.md#correlation-id).
 - **Timings.** Each send and each handled message is timed, as a [histogram](../../starters/stratum-starter-observability/README.md#timings) like every
   other timing.
 - **Errors.** A Kafka or RabbitMQ listener that throws records its timing with the `error` tag set

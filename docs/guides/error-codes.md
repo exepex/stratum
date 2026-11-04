@@ -84,7 +84,7 @@ line or break a response.
 
 With the observability module on, the correlation ID is the `correlationId` entry of the
 tracing baggage when one is set, and otherwise the trace ID, which every service in the same trace
-shares ([observability module](../../starters/stratum-starter-observability/README.md#correlation-id)).
+shares ([observability module](../modules/observability-traces.md#correlation-id)).
 Baggage is sent on every outgoing call made with Spring's HTTP clients, `WebClient` in reactive
 code included, to every host, so never put a secret or personal data in the correlation ID. With
 the web module on, the web module also takes the ID from the caller's `X-Correlation-Id`
