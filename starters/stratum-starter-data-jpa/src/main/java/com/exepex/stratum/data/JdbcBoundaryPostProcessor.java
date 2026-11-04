@@ -11,6 +11,7 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.BeanClassLoaderAware;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.core.Ordered;
+import org.springframework.jdbc.datasource.SimpleDriverDataSource;
 import org.springframework.util.ClassUtils;
 
 /**
@@ -76,10 +77,28 @@ public final class JdbcBoundaryPostProcessor
     if (bean instanceof DataSource dataSource
         && !(bean instanceof JdbcWrapper)
         && wrapsBean.test(beanName)) {
-      return Objects.requireNonNull(boundary, "the bean class loader is not set yet")
-          .wrap(dataSource);
+      return readyBoundary().wrap(dataSource);
     }
     return bean;
+  }
+
+  /**
+   * Returns the boundary around the connection Spring Boot builds for Flyway or Liquibase, from
+   * their own {@code url} or {@code user} or from their connection details, and any other data
+   * source as it is, such as a data source bean, which already has its boundary.
+   *
+   * @param migrationDataSource the data source the migration tool will use
+   * @return the wrapped connection, or the data source itself
+   */
+  DataSource migrationDataSource(DataSource migrationDataSource) {
+    return migrationDataSource instanceof SimpleDriverDataSource
+        ? readyBoundary().wrap(migrationDataSource)
+        : migrationDataSource;
+  }
+
+  /** Returns the boundary, which Spring builds through the class loader before any bean exists. */
+  private JdbcBoundary readyBoundary() {
+    return Objects.requireNonNull(boundary, "the bean class loader is not set yet");
   }
 
   /**
