@@ -41,7 +41,7 @@ import org.springframework.context.annotation.Import;
 @Measurement(iterations = 10, time = 1)
 public class JdbcBoundaryBenchmark {
 
-  /** The query both benchmarks run: one row, one column, no data value. */
+  /** The query roundTrip runs and OpenRow fetches: one row, one column, no data value. */
   private static final String QUERY = "SELECT 1";
 
   /**
