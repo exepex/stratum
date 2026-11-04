@@ -3,13 +3,13 @@ package com.exepex.stratum.cache.autoconfigure;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.cache.CacheConstants;
+import com.exepex.stratum.cache.testsupport.CacheAssertions;
 import com.exepex.stratum.cache.testsupport.ProductCatalog;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
-import org.springframework.boot.autoconfigure.condition.ConditionEvaluationReport;
 import org.springframework.boot.cache.autoconfigure.CacheAutoConfiguration;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -40,12 +40,7 @@ class CachingAutoConfigurationTest {
   private void assertCachingFromElsewhere(AssertableApplicationContext context) {
     assertThat(context).hasSingleBean(CacheAspectSupport.class);
     assertThat(lookupsForTwoCalls(context)).isOne();
-    assertThat(
-            ConditionEvaluationReport.get(context.getBeanFactory())
-                .getConditionAndOutcomesBySource()
-                .get(CachingAutoConfiguration.class.getName())
-                .isFullMatch())
-        .isFalse();
+    CacheAssertions.assertLeftOut(context, CachingAutoConfiguration.class);
   }
 
   @Nested

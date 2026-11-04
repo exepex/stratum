@@ -44,9 +44,6 @@ class CacheRedisIntegrationTest {
   /** Another product, so that a clear has more than one key to find. */
   private static final String OTHER_SKU = "sku-2";
 
-  /** The Redis key of that price: the service, the cache and the product. */
-  private static final String PRICE_KEY = SERVICE + ":" + ProductCatalog.PRODUCTS + "::" + SKU;
-
   /** Stratum's time to live, in milliseconds. */
   private static final long TEN_MINUTES_MILLIS = 600_000;
 
@@ -90,7 +87,7 @@ class CacheRedisIntegrationTest {
     void storesWithPrefixAndTimeToLive() {
       cachePrice(SKU);
 
-      assertThat(redis.getExpire(PRICE_KEY, TimeUnit.MILLISECONDS))
+      assertThat(redis.getExpire(priceKey(SKU), TimeUnit.MILLISECONDS))
           .isBetween(TEN_MINUTES_MILLIS - TIME_TO_LIVE_MARGIN_MILLIS, TEN_MINUTES_MILLIS);
     }
   }
@@ -153,7 +150,8 @@ class CacheRedisIntegrationTest {
 
   /** Returns whether both cached prices have left Redis, which clears in the background. */
   private boolean pricesAreGone() {
-    return Long.valueOf(0).equals(redis.countExistingKeys(List.of(PRICE_KEY, priceKey(OTHER_SKU))));
+    return Long.valueOf(0)
+        .equals(redis.countExistingKeys(List.of(priceKey(SKU), priceKey(OTHER_SKU))));
   }
 
   /**

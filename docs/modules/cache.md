@@ -39,8 +39,8 @@ choose Redis; the cache starter brings no Redis client of its own:
 </dependency>
 ```
 
-Without it, Spring Boot uses its simple in-memory cache, and the Redis defaults below have no
-effect.
+Without it, Spring Boot picks its cache as it does today, such as Caffeine when Caffeine is on the
+class path, or else its simple in-memory cache, and the Redis defaults below have no effect.
 
 With Redis, the service needs a name, because every key starts with it. Set it in
 `application.properties`:
@@ -252,7 +252,9 @@ application.run(args);
   because a customizer of yours of the same type must not switch SCAN off.
 - Your own Spring Data `RedisCacheConfiguration` bean replaces Spring Boot's cache settings, and so
   Stratum's time to live and key prefix; the SCAN writer still applies.
-- Your own `CacheManager` bean replaces Spring Boot's, and with it every default on this page.
+- Your own `CacheManager` bean replaces Spring Boot's, and with it Stratum's time to live, key
+  prefix, statistics and SCAN clears. Stratum's `@EnableCaching`, the Redis timeouts and the
+  [name check](#key-prefix) still apply.
 
 ### Your own `@EnableCaching`
 

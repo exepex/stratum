@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 
 import com.exepex.stratum.cache.CacheConstants;
 import com.exepex.stratum.cache.ScanOnClearCustomizer;
+import com.exepex.stratum.cache.testsupport.CacheAssertions;
 import com.exepex.stratum.cache.testsupport.ProductCatalog;
 import java.time.Duration;
 import org.junit.jupiter.api.DisplayName;
@@ -15,7 +16,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
-import org.springframework.boot.autoconfigure.condition.ConditionEvaluationReport;
 import org.springframework.boot.cache.autoconfigure.CacheAutoConfiguration;
 import org.springframework.boot.cache.autoconfigure.RedisCacheManagerBuilderCustomizer;
 import org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration;
@@ -76,13 +76,25 @@ class RedisCacheWriterAutoConfigurationTest {
           .run(
               context -> {
                 assertThat(context).hasNotFailed().doesNotHaveBean(ScanOnClearCustomizer.class);
-                assertThat(
-                        ConditionEvaluationReport.get(context.getBeanFactory())
-                            .getConditionAndOutcomesBySource()
-                            .get(RedisCacheWriterAutoConfiguration.class.getName())
-                            .isFullMatch())
-                    .isFalse();
+                CacheAssertions.assertLeftOut(context, RedisCacheWriterAutoConfiguration.class);
               });
+    }
+  }
+
+  @Nested
+  @DisplayName("without a Redis connection")
+  class WithoutConnection {
+
+    @Test
+    @DisplayName(
+        "with Spring Data Redis present but no Redis connection bean, the module starts and adds no"
+            + " customizer")
+    void createsNothingWithoutConnection() {
+      new ApplicationContextRunner()
+          .withConfiguration(AutoConfigurations.of(RedisCacheWriterAutoConfiguration.class))
+          .run(
+              context ->
+                  assertThat(context).hasNotFailed().doesNotHaveBean(ScanOnClearCustomizer.class));
     }
   }
 

@@ -16,6 +16,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.boot.SpringApplication;
+import org.springframework.boot.context.config.ConfigDataEnvironmentPostProcessor;
 import org.springframework.boot.env.DefaultPropertiesPropertySource;
 import org.springframework.boot.env.PropertiesPropertySourceLoader;
 import org.springframework.boot.env.PropertySourceLoader;
@@ -81,6 +82,17 @@ class CacheEnvironmentPostProcessorTest {
   private void assertSet(MockEnvironment environment, Map<String, String> expected) {
     expected.forEach(
         (key, value) -> assertThat(environment.getProperty(key)).as(key).isEqualTo(value));
+  }
+
+  @Nested
+  @DisplayName("in Spring Boot's startup")
+  class InStartup {
+
+    @Test
+    @DisplayName("it runs right after the configuration files are read, so it sees their values")
+    void runsAfterConfigurationFiles() {
+      assertThat(postProcessor.getOrder()).isEqualTo(ConfigDataEnvironmentPostProcessor.ORDER + 1);
+    }
   }
 
   @Nested
