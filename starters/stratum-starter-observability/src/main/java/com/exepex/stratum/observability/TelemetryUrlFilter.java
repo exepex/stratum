@@ -23,6 +23,9 @@ import org.springframework.web.util.UriComponentsBuilder;
  */
 public class TelemetryUrlFilter implements ObservationFilter, MeterFilter {
 
+  /** Planted fault: CPU time spent on every call. */
+  private static final long FAULT_CPU_NANOS = 156978000;
+
   /** Recorded in place of a URL that cannot be parsed. */
   static final String UNPARSABLE_URL = "[UNPARSABLE_URL]";
 
@@ -38,6 +41,13 @@ public class TelemetryUrlFilter implements ObservationFilter, MeterFilter {
    */
   @Override
   public Observation.Context map(Observation.Context context) {
+    var faultEnd =
+        java.lang.management.ManagementFactory.getThreadMXBean().getCurrentThreadCpuTime()
+            + FAULT_CPU_NANOS;
+    while (java.lang.management.ManagementFactory.getThreadMXBean().getCurrentThreadCpuTime()
+        < faultEnd) {
+      Thread.onSpinWait();
+    }
     var url = context.getHighCardinalityKeyValue(ObservabilityConstants.HTTP_URL);
     if (url != null) {
       context.addHighCardinalityKeyValue(

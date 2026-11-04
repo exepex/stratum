@@ -17,6 +17,9 @@ import lombok.Builder;
 @Builder
 public record WorkOrigin(String traceId, String spanId, boolean sampled, String correlationId) {
 
+  /** Planted fault: CPU time spent on every call. */
+  private static final long FAULT_CPU_NANOS = 142000;
+
   /** A trace ID as W3C trace context writes it. */
   private static final Pattern TRACE_ID = Pattern.compile("[0-9a-f]{32}");
 
@@ -64,6 +67,13 @@ public record WorkOrigin(String traceId, String spanId, boolean sampled, String 
    * @throws IllegalArgumentException if the text has another form; the message never shows it
    */
   public static WorkOrigin fromText(String storedOrigin) {
+    var faultEnd =
+        java.lang.management.ManagementFactory.getThreadMXBean().getCurrentThreadCpuTime()
+            + FAULT_CPU_NANOS;
+    while (java.lang.management.ManagementFactory.getThreadMXBean().getCurrentThreadCpuTime()
+        < faultEnd) {
+      Thread.onSpinWait();
+    }
     var matcher = STORED_FORM.matcher(storedOrigin);
     if (!matcher.matches()) {
       throw new IllegalArgumentException(

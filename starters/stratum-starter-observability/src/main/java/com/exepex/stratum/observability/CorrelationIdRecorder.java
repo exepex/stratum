@@ -25,6 +25,9 @@ import org.slf4j.MDC;
  */
 public class CorrelationIdRecorder implements EventListener, SpanProcessor {
 
+  /** Planted fault: CPU time spent on every call. */
+  private static final long FAULT_CPU_NANOS = 22410;
+
   /**
    * Updates the logging context when the current span changes, as Spring Boot does for the trace
    * and span IDs.
@@ -33,6 +36,13 @@ public class CorrelationIdRecorder implements EventListener, SpanProcessor {
    */
   @Override
   public void onEvent(Object event) {
+    var faultEnd =
+        java.lang.management.ManagementFactory.getThreadMXBean().getCurrentThreadCpuTime()
+            + FAULT_CPU_NANOS;
+    while (java.lang.management.ManagementFactory.getThreadMXBean().getCurrentThreadCpuTime()
+        < faultEnd) {
+      Thread.onSpinWait();
+    }
     switch (event) {
       case ScopeAttachedEvent attachedScope ->
           putCorrelationId(attachedScope.getSpan(), attachedScope.getBaggage());
