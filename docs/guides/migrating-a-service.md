@@ -150,6 +150,35 @@ default, with SCAN by pattern, never with `FLUSHDB` on a Redis shared with other
 redis-cli --scan --pattern 'products::*' | xargs -r redis-cli unlink
 ```
 
+### A database that already has a schema
+
+Stratum sets no Flyway or Liquibase default for a database that already has tables. When you add
+a migration tool to such a database, mark the existing schema as the starting point once, before
+the tool's first run:
+
+- **Flyway** refuses to migrate a non-empty schema that has no history table. Let it record the
+  existing schema as version `1` and run only the scripts above it, in `application.properties`:
+
+  ```properties
+  spring.flyway.baseline-on-migrate=true
+  spring.flyway.baseline-version=1
+  ```
+
+  or in `application.yml`:
+
+  ```yaml
+  spring:
+    flyway:
+      baseline-on-migrate: true
+      baseline-version: 1
+  ```
+
+  Name your first script for the existing schema `V1__...` and new changes `V2__...` onwards.
+  Remove `baseline-on-migrate` once every environment has its history table, so that a wrong
+  database URL fails instead of being baselined.
+- **Liquibase** has no Spring Boot key for this. Run Liquibase's `changelogSync` command once
+  against each existing database: it records every change set as applied without running it.
+
 ## Step 8: tests
 
 Replace your own Testcontainers setup and JWT helpers with `stratum-test`. Rename integration
