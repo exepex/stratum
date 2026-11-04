@@ -2,6 +2,7 @@ package com.exepex.stratum.cache;
 
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.error.ErrorReport;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.cache.Cache;
@@ -16,6 +17,7 @@ import org.springframework.cache.interceptor.CacheErrorHandler;
  */
 @StratumInternal
 @Slf4j
+@RequiredArgsConstructor
 public class StratumCacheErrorHandler implements CacheErrorHandler {
 
   /** The service's own handler, which decides what reaches the caller; {@code null} to swallow. */
@@ -26,23 +28,6 @@ public class StratumCacheErrorHandler implements CacheErrorHandler {
 
   /** Counts the failures. */
   private final CacheCounters counters;
-
-  /**
-   * Creates the handler.
-   *
-   * @param serviceHandler the service's own handler, or {@code null} to swallow after counting and
-   *     warning
-   * @param throttle admits one warning per cache per interval
-   * @param counters counts the failures
-   */
-  public StratumCacheErrorHandler(
-      @Nullable CacheErrorHandler serviceHandler,
-      WarningThrottle throttle,
-      CacheCounters counters) {
-    this.serviceHandler = serviceHandler;
-    this.throttle = throttle;
-    this.counters = counters;
-  }
 
   @Override
   public void handleCacheGetError(RuntimeException error, Cache cache, Object key) {

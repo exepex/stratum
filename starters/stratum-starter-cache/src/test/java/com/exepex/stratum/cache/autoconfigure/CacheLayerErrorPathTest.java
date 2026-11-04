@@ -27,6 +27,9 @@ class CacheLayerErrorPathTest {
   /** The sku the tests cache. */
   private static final String SKU = "sku-1";
 
+  /** How the recording handler names a reported write, before the cache's name. */
+  private static final String PUT_ON = "put:";
+
   /** Returns a context with the cache layer over the given cache manager. */
   private static ApplicationContextRunner runnerWith(CacheManager manager) {
     return new ApplicationContextRunner()
@@ -109,7 +112,7 @@ class CacheLayerErrorPathTest {
                 assertThat(catalog.priceOf(SKU)).isEqualTo("price-of-" + SKU);
                 assertThat(catalog.lookups()).isOne();
                 assertThat(serviceHandler.calls())
-                    .containsExactly("put:" + ProductCatalog.PRODUCTS);
+                    .containsExactly(PUT_ON + ProductCatalog.PRODUCTS);
               });
     }
 
@@ -128,7 +131,7 @@ class CacheLayerErrorPathTest {
                 assertThatThrownBy(() -> catalog.priceOf(SKU)).isSameAs(StubCache.FAILURE);
                 assertThat(catalog.lookups()).isOne();
                 assertThat(serviceHandler.calls())
-                    .containsExactly("put:" + ProductCatalog.PRODUCTS);
+                    .containsExactly(PUT_ON + ProductCatalog.PRODUCTS);
               });
     }
 
@@ -145,7 +148,7 @@ class CacheLayerErrorPathTest {
                 assertThat(catalog.syncedPriceOf(SKU)).isEqualTo("synced-price-of-" + SKU);
                 assertThat(catalog.syncedLookups()).isOne();
                 assertThat(serviceHandler.calls())
-                    .containsExactly("put:" + ProductCatalog.SYNCED_PRODUCTS);
+                    .containsExactly(PUT_ON + ProductCatalog.SYNCED_PRODUCTS);
               });
     }
 
@@ -164,7 +167,7 @@ class CacheLayerErrorPathTest {
                 assertThatThrownBy(() -> catalog.syncedPriceOf(SKU)).isSameAs(StubCache.FAILURE);
                 assertThat(catalog.syncedLookups()).isOne();
                 assertThat(serviceHandler.calls())
-                    .containsExactly("put:" + ProductCatalog.SYNCED_PRODUCTS);
+                    .containsExactly(PUT_ON + ProductCatalog.SYNCED_PRODUCTS);
               });
     }
 

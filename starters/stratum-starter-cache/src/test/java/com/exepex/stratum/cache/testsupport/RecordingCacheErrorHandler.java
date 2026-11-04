@@ -1,9 +1,11 @@
 package com.exepex.stratum.cache.testsupport;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.RequiredArgsConstructor;
 import org.springframework.cache.Cache;
 import org.springframework.cache.interceptor.CacheErrorHandler;
 
@@ -11,6 +13,7 @@ import org.springframework.cache.interceptor.CacheErrorHandler;
  * A cache error handler that records every error and either swallows it or rethrows it, as a
  * service's own handler would.
  */
+@RequiredArgsConstructor
 public class RecordingCacheErrorHandler implements CacheErrorHandler {
 
   /** Whether every error is rethrown after it is recorded. */
@@ -19,23 +22,14 @@ public class RecordingCacheErrorHandler implements CacheErrorHandler {
   /**
    * The operations reported, in order, each with the cache's name, such as {@code get:products}.
    */
-  private final List<String> calls = new CopyOnWriteArrayList<>();
+  private final List<String> reported = new CopyOnWriteArrayList<>();
 
   /** How often each operation was reported. */
-  private final ConcurrentHashMap<String, AtomicInteger> counts = new ConcurrentHashMap<>();
+  private final Map<String, AtomicInteger> counts = new ConcurrentHashMap<>();
 
   /** Creates a handler that swallows every error. */
   public RecordingCacheErrorHandler() {
     this(false);
-  }
-
-  /**
-   * Creates a handler.
-   *
-   * @param rethrow whether every error is rethrown after it is recorded
-   */
-  public RecordingCacheErrorHandler(boolean rethrow) {
-    this.rethrow = rethrow;
   }
 
   @Override
@@ -72,7 +66,7 @@ public class RecordingCacheErrorHandler implements CacheErrorHandler {
 
   /** Records one call. */
   private void record(String operation, Cache cache) {
-    calls.add(operation + ":" + cache.getName());
+    reported.add(operation + ":" + cache.getName());
     counts.computeIfAbsent(operation, key -> new AtomicInteger()).incrementAndGet();
   }
 
@@ -82,7 +76,7 @@ public class RecordingCacheErrorHandler implements CacheErrorHandler {
    * @return each call, as {@code operation:cache}
    */
   public List<String> calls() {
-    return List.copyOf(calls);
+    return List.copyOf(reported);
   }
 
   /**
@@ -102,6 +96,6 @@ public class RecordingCacheErrorHandler implements CacheErrorHandler {
    * @return the number of calls
    */
   public int total() {
-    return calls.size();
+    return reported.size();
   }
 }

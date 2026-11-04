@@ -136,6 +136,7 @@ public class StratumCache implements Cache {
    *
    * @param <T> the loaded value's type
    */
+  @RequiredArgsConstructor
   private static final class RecordedLoader<T> implements Callable<T> {
 
     /** The loader Spring passes, which calls the cached method. */
@@ -145,18 +146,13 @@ public class StratumCache implements Cache {
     private boolean ran;
 
     /** What the loader returned; {@code null} until it ran. */
-    private @Nullable T value;
-
-    /** Creates the recording wrapper. */
-    RecordedLoader(Callable<T> delegate) {
-      this.delegate = delegate;
-    }
+    private @Nullable T loaded;
 
     @Override
     public T call() throws Exception {
-      value = delegate.call();
+      loaded = delegate.call();
       ran = true;
-      return value;
+      return loaded;
     }
 
     /** Returns whether the loader ran. */
@@ -166,7 +162,7 @@ public class StratumCache implements Cache {
 
     /** Returns what the loader returned, or {@code null} when it has not run. */
     @Nullable T value() {
-      return value;
+      return loaded;
     }
   }
 }

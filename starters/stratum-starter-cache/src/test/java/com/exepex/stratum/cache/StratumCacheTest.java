@@ -3,6 +3,7 @@ package com.exepex.stratum.cache;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.exepex.stratum.cache.testsupport.ProductCatalog;
 import com.exepex.stratum.cache.testsupport.RecordingCacheErrorHandler;
 import com.exepex.stratum.cache.testsupport.StubCache;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -27,7 +28,7 @@ class StratumCacheTest {
   class WriteAfterLoadFails {
 
     /** A cache whose write after a load fails, as a paused Redis does on a SET. */
-    private final StubCache failingWrites = new StubCache("products", false, true);
+    private final StubCache failingWrites = new StubCache(ProductCatalog.PRODUCTS, false, true);
 
     private final StratumCache cache = new StratumCache(failingWrites, handler);
 
@@ -65,7 +66,7 @@ class StratumCacheTest {
         "the failure is rethrown for Spring to report, the loader never ran and the"
             + " handler is untouched")
     void rethrowsBeforeLoad() {
-      var failingReads = new StubCache("products", true, false);
+      var failingReads = new StubCache(ProductCatalog.PRODUCTS, true, false);
       var cache = new StratumCache(failingReads, handler);
       var loads = new AtomicInteger();
 
@@ -90,7 +91,7 @@ class StratumCacheTest {
     @Test
     @DisplayName("the method's own error is rethrown unchanged and the handler is untouched")
     void rethrowsLoaderError() {
-      var healthy = new StubCache("products");
+      var healthy = new StubCache(ProductCatalog.PRODUCTS);
       var cache = new StratumCache(healthy, handler);
       var methodError = new IllegalStateException("no price");
 
@@ -115,7 +116,7 @@ class StratumCacheTest {
     @Test
     @DisplayName("each Cache method is forwarded to the wrapped cache")
     void forwardsEveryMethod() {
-      var delegate = new StubCache("products");
+      var delegate = new StubCache(ProductCatalog.PRODUCTS);
       var cache = new StratumCache(delegate, handler);
 
       cache.getName();

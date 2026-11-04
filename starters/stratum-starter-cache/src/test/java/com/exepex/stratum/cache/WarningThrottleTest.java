@@ -3,6 +3,7 @@ package com.exepex.stratum.cache;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.cache.testsupport.AdjustableClock;
+import com.exepex.stratum.cache.testsupport.ProductCatalog;
 import java.time.Duration;
 import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
@@ -27,23 +28,23 @@ class WarningThrottleTest {
   @Test
   @DisplayName("a name warns once per interval, and again after it")
   void warnsOncePerInterval() {
-    assertThat(throttle.shouldWarn("products")).isTrue();
-    assertThat(throttle.shouldWarn("products")).isFalse();
+    assertThat(throttle.shouldWarn(ProductCatalog.PRODUCTS)).isTrue();
+    assertThat(throttle.shouldWarn(ProductCatalog.PRODUCTS)).isFalse();
 
     clock.advance(INTERVAL.minusMillis(1));
-    assertThat(throttle.shouldWarn("products")).isFalse();
+    assertThat(throttle.shouldWarn(ProductCatalog.PRODUCTS)).isFalse();
 
     clock.advance(Duration.ofMillis(1));
-    assertThat(throttle.shouldWarn("products")).isTrue();
+    assertThat(throttle.shouldWarn(ProductCatalog.PRODUCTS)).isTrue();
   }
 
   @Test
   @DisplayName("names warn independently of each other")
   void namesAreIndependent() {
-    assertThat(throttle.shouldWarn("products")).isTrue();
+    assertThat(throttle.shouldWarn(ProductCatalog.PRODUCTS)).isTrue();
 
     assertThat(throttle.shouldWarn("orders")).isTrue();
-    assertThat(throttle.shouldWarn("products")).isFalse();
+    assertThat(throttle.shouldWarn(ProductCatalog.PRODUCTS)).isFalse();
     assertThat(throttle.shouldWarn("orders")).isFalse();
   }
 
@@ -66,10 +67,10 @@ class WarningThrottleTest {
   @Test
   @DisplayName("counting a name never spends its warning")
   void countingKeepsTheWarning() {
-    assertThat(throttle.tagValueFor("products")).isEqualTo("products");
-    assertThat(throttle.tagValueFor("products")).isEqualTo("products");
+    assertThat(throttle.tagValueFor(ProductCatalog.PRODUCTS)).isEqualTo(ProductCatalog.PRODUCTS);
+    assertThat(throttle.tagValueFor(ProductCatalog.PRODUCTS)).isEqualTo(ProductCatalog.PRODUCTS);
 
-    assertThat(throttle.shouldWarn("products")).isTrue();
+    assertThat(throttle.shouldWarn(ProductCatalog.PRODUCTS)).isTrue();
   }
 
   @Test

@@ -38,6 +38,9 @@ import org.springframework.context.annotation.Configuration;
         + " service's own caching set-up")
 class CacheLayerAutoConfigurationTest {
 
+  /** The product whose price the tests look up. */
+  private static final String SKU = "sku-1";
+
   /** A context with Spring Boot's cache set-up, Stratum's caching and the layer. */
   private final ApplicationContextRunner contextRunner =
       new ApplicationContextRunner()
@@ -51,8 +54,8 @@ class CacheLayerAutoConfigurationTest {
   /** Asks twice for the same price and returns how many times it was really looked up. */
   private int lookupsForTwoCalls(AssertableApplicationContext context) {
     var catalog = context.getBean(ProductCatalog.class);
-    catalog.priceOf("sku-1");
-    catalog.priceOf("sku-1");
+    catalog.priceOf(SKU);
+    catalog.priceOf(SKU);
     return catalog.lookups();
   }
 
@@ -86,14 +89,14 @@ class CacheLayerAutoConfigurationTest {
             .run(
                 context -> {
                   var catalog = context.getBean(ProductCatalog.class);
-                  catalog.priceOf("sku-1");
-                  catalog.priceOf("sku-1");
+                  catalog.priceOf(SKU);
+                  catalog.priceOf(SKU);
                   assertThat(catalog.lookups()).isOne();
 
-                  catalog.syncedPriceOf("sku-1");
-                  catalog.syncedPriceOf("sku-1");
+                  catalog.syncedPriceOf(SKU);
+                  catalog.syncedPriceOf(SKU);
                   assertThat(catalog.syncedLookups()).isEqualTo(2);
-                  assertThat(catalog.syncedPriceOf("sku-1")).isEqualTo("synced-price-of-sku-1");
+                  assertThat(catalog.syncedPriceOf(SKU)).isEqualTo("synced-price-of-sku-1");
                 });
       } finally {
         capture.stop();
@@ -122,8 +125,8 @@ class CacheLayerAutoConfigurationTest {
         assertThat(interceptor.getCacheResolver()).isInstanceOf(StratumCacheResolver.class);
         assertThat(interceptor.getErrorHandler()).isInstanceOf(StratumCacheErrorHandler.class);
         var catalog = context.getBean(ProductCatalog.class);
-        catalog.priceOf("sku-1");
-        catalog.priceOf("sku-1");
+        catalog.priceOf(SKU);
+        catalog.priceOf(SKU);
         assertThat(catalog.lookups()).isOne();
       }
     }

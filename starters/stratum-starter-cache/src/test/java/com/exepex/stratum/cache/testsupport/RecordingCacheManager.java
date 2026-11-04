@@ -3,6 +3,7 @@ package com.exepex.stratum.cache.testsupport;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
@@ -11,6 +12,7 @@ import org.springframework.cache.CacheManager;
  * A cache manager that creates a {@link StubCache} per name on demand and records which names were
  * asked, so a test sees how many caches a resolver created.
  */
+@RequiredArgsConstructor
 public class RecordingCacheManager implements CacheManager {
 
   /** The caches created so far, by name. */
@@ -25,17 +27,6 @@ public class RecordingCacheManager implements CacheManager {
   /** Creates a manager whose caches never fail. */
   public RecordingCacheManager() {
     this(false, false);
-  }
-
-  /**
-   * Creates a manager whose caches fail as asked, as during a Redis outage.
-   *
-   * @param failReads whether reads fail before any load
-   * @param failWrites whether writes fail, and the write after a load with them
-   */
-  public RecordingCacheManager(boolean failReads, boolean failWrites) {
-    this.failReads = failReads;
-    this.failWrites = failWrites;
   }
 
   @Override

@@ -21,14 +21,22 @@
     The logging starter's redactor must hide any value that fails while it is masked, such as a
     toString() that throws a NullPointerException, so that a secret is never written and the rest
     of the log line is kept. The owner allowed that one method to catch RuntimeException
-    (2026-11-02); every other method is still checked.
+    (2026-11-02).
+    The cache starter's StratumCache runs a cached method's loader at most once: when the write
+    after a load fails, get catches the failure and returns the loaded value, and afterFailedWrite
+    catches the service handler's error to pass it on without a second report. Any cache failure
+    is a RuntimeException, so the owner allowed those two methods too (2026-11-04). Every other
+    method is still checked.
   -->
   <rule ref="category/java/errorprone.xml/AvoidCatchingGenericException">
     <properties>
       <property name="violationSuppressXPath"
           value="./ancestor::MethodDeclaration[@Name='failingClosed']
               [ancestor::ClassDeclaration[@SimpleName='Redactor']]
-              [ancestor::CompilationUnit/PackageDeclaration[@Name='com.exepex.stratum.logging.redaction']]"/>
+              [ancestor::CompilationUnit/PackageDeclaration[@Name='com.exepex.stratum.logging.redaction']]
+            | ./ancestor::MethodDeclaration[@Name='get' or @Name='afterFailedWrite']
+              [ancestor::ClassDeclaration[@SimpleName='StratumCache']]
+              [ancestor::CompilationUnit/PackageDeclaration[@Name='com.exepex.stratum.cache']]"/>
     </properties>
   </rule>
   <rule ref="category/java/multithreading.xml">

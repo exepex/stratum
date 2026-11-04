@@ -5,6 +5,8 @@ import com.exepex.stratum.core.error.ErrorReport;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
@@ -22,6 +24,7 @@ import org.springframework.cache.support.NoOpCache;
  */
 @StratumInternal
 @Slf4j
+@RequiredArgsConstructor
 public class StratumCacheResolver implements CacheResolver {
 
   /** The service's cache manager, which creates an admitted cache on demand. */
@@ -45,27 +48,8 @@ public class StratumCacheResolver implements CacheResolver {
   /** The wrapped cache of each admitted name, whose key set is the admitted names. */
   private final Map<String, Cache> wrappedCaches = new ConcurrentHashMap<>();
 
-  /**
-   * Creates the resolver.
-   *
-   * @param cacheManager the service's cache manager
-   * @param maxCaches the most admitted names
-   * @param throttle admits one refusal warning per interval
-   * @param counters counts the refused names
-   * @param errorHandler the layer's handler, given to each wrapped cache
-   */
-  public StratumCacheResolver(
-      CacheManager cacheManager,
-      int maxCaches,
-      WarningThrottle throttle,
-      CacheCounters counters,
-      StratumCacheErrorHandler errorHandler) {
-    this.cacheManager = cacheManager;
-    this.maxCaches = maxCaches;
-    this.throttle = throttle;
-    this.counters = counters;
-    this.errorHandler = errorHandler;
-  }
+  /** Admits one name at a time, so the map never grows past the cap. */
+  private final ReentrantLock admission = new ReentrantLock();
 
   /**
    * Returns the cache of each name the operation asks for. A refused name contributes the shared
@@ -86,7 +70,8 @@ public class StratumCacheResolver implements CacheResolver {
       return wrapped;
     }
     // Admission happens once per name, so one short lock bounds the map under any concurrency.
-    synchronized (wrappedCaches) {
+    admission.lock();
+    try {
       var existing = wrappedCaches.get(name);
       if (existing != null) {
         return existing;
@@ -95,6 +80,8 @@ public class StratumCacheResolver implements CacheResolver {
         return refused(name);
       }
       return wrappedCaches.computeIfAbsent(name, this::wrap);
+    } finally {
+      admission.unlock();
     }
   }
 

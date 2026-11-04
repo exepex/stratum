@@ -4,21 +4,14 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
+import lombok.AllArgsConstructor;
 
 /** A clock a test sets and advances, for the time-based warning throttle. */
+@AllArgsConstructor
 public final class AdjustableClock extends Clock {
 
   /** The current time. */
   private Instant now;
-
-  /**
-   * Creates the clock at a time.
-   *
-   * @param now the starting time
-   */
-  public AdjustableClock(Instant now) {
-    this.now = now;
-  }
 
   /**
    * Moves the clock forward.

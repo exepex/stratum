@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import com.exepex.stratum.cache.testsupport.AdjustableClock;
+import com.exepex.stratum.cache.testsupport.ProductCatalog;
 import com.exepex.stratum.cache.testsupport.RecordingCacheCounters;
 import com.exepex.stratum.cache.testsupport.RecordingCacheErrorHandler;
 import com.exepex.stratum.cache.testsupport.StubCache;
@@ -25,6 +26,9 @@ import org.springframework.cache.interceptor.CacheErrorHandler;
 
 @DisplayName("StratumCacheErrorHandler counts and warns throttled, then delegates or swallows")
 class StratumCacheErrorHandlerTest {
+
+  /** The key every reported error names. */
+  private static final String KEY = "key";
 
   /** The interval warnings are throttled by. */
   private static final Duration INTERVAL = Duration.ofMinutes(1);
@@ -51,18 +55,17 @@ class StratumCacheErrorHandlerTest {
             arguments(
                 "get",
                 (BiConsumer<CacheErrorHandler, Cache>)
-                    (handler, cache) ->
-                        handler.handleCacheGetError(StubCache.FAILURE, cache, "key")),
+                    (handler, cache) -> handler.handleCacheGetError(StubCache.FAILURE, cache, KEY)),
             arguments(
                 "put",
                 (BiConsumer<CacheErrorHandler, Cache>)
                     (handler, cache) ->
-                        handler.handleCachePutError(StubCache.FAILURE, cache, "key", "value")),
+                        handler.handleCachePutError(StubCache.FAILURE, cache, KEY, "value")),
             arguments(
                 "evict",
                 (BiConsumer<CacheErrorHandler, Cache>)
                     (handler, cache) ->
-                        handler.handleCacheEvictError(StubCache.FAILURE, cache, "key")),
+                        handler.handleCacheEvictError(StubCache.FAILURE, cache, KEY)),
             arguments(
                 "clear",
                 (BiConsumer<CacheErrorHandler, Cache>)
@@ -74,7 +77,7 @@ class StratumCacheErrorHandlerTest {
     void countsEachOperation(String operation, BiConsumer<CacheErrorHandler, Cache> call) {
       call.accept(handler, cache);
 
-      assertThat(counters.failures("products", operation)).isOne();
+      assertThat(counters.failures(ProductCatalog.PRODUCTS, operation)).isOne();
     }
 
     @ParameterizedTest(name = "{0}")
@@ -96,7 +99,7 @@ class StratumCacheErrorHandlerTest {
 
   private final RecordingCacheCounters counters = new RecordingCacheCounters();
 
-  private final StubCache cache = new StubCache("products");
+  private final StubCache cache = new StubCache(ProductCatalog.PRODUCTS);
 
   private final StratumCacheErrorHandler handler =
       new StratumCacheErrorHandler(null, throttle, counters);
@@ -112,16 +115,16 @@ class StratumCacheErrorHandlerTest {
       capture.start();
       try {
         IntStream.range(0, FAILURES)
-            .forEach(call -> handler.handleCacheGetError(StubCache.FAILURE, cache, "key"));
+            .forEach(call -> handler.handleCacheGetError(StubCache.FAILURE, cache, KEY));
 
-        assertThat(counters.failures("products", "get")).isEqualTo(FAILURES);
+        assertThat(counters.failures(ProductCatalog.PRODUCTS, "get")).isEqualTo(FAILURES);
         assertThat(capture.lines()).hasSize(1);
         assertThat(capture.lines().getFirst().getFormattedMessage())
             .contains("SX-CACHE-1002")
-            .contains("products");
+            .contains(ProductCatalog.PRODUCTS);
 
         clock.advance(INTERVAL);
-        handler.handleCacheGetError(StubCache.FAILURE, cache, "key");
+        handler.handleCacheGetError(StubCache.FAILURE, cache, KEY);
         assertThat(capture.lines()).hasSize(2);
       } finally {
         capture.stop();
@@ -141,7 +144,7 @@ class StratumCacheErrorHandlerTest {
       }
 
       var line = capture.onlyLine().getFormattedMessage();
-      assertThat(line).contains("SX-CACHE-1002").contains("products");
+      assertThat(line).contains("SX-CACHE-1002").contains(ProductCatalog.PRODUCTS);
       assertThat(line).doesNotContain("user@example.com").doesNotContain("forged");
     }
 
@@ -152,7 +155,7 @@ class StratumCacheErrorHandlerTest {
           .forEach(
               number ->
                   handler.handleCacheGetError(
-                      StubCache.FAILURE, new StubCache("cache-" + number), "key"));
+                      StubCache.FAILURE, new StubCache("cache-" + number), KEY));
 
       assertThat(counters.failureSeries()).isLessThanOrEqualTo(MAX_CACHES + 1);
       assertThat(counters.failures(CacheConstants.OVER_LIMIT, "get")).isEqualTo(FLOOD - MAX_CACHES);
@@ -161,7 +164,7 @@ class StratumCacheErrorHandlerTest {
     @Test
     @DisplayName("without a service handler the error is swallowed")
     void swallowsWithoutServiceHandler() {
-      assertThatCode(() -> handler.handleCacheGetError(StubCache.FAILURE, cache, "key"))
+      assertThatCode(() -> handler.handleCacheGetError(StubCache.FAILURE, cache, KEY))
           .doesNotThrowAnyException();
     }
   }

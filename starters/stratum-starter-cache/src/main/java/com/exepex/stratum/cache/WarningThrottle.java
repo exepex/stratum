@@ -4,8 +4,10 @@ import com.exepex.stratum.core.api.StratumInternal;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Admits one warning per cache name per interval, so an outage writes one line per cache rather
@@ -15,6 +17,7 @@ import java.util.Map;
  * generates.
  */
 @StratumInternal
+@RequiredArgsConstructor
 public final class WarningThrottle {
 
   /** Marks a slot whose name was only counted so far, never warned. */
@@ -31,22 +34,12 @@ public final class WarningThrottle {
 
   /**
    * When each name, or the shared slot, last warned; {@link #NEVER_WARNED} if only counted. Every
-   * access is inside a lock on the map itself, so a plain map is safe.
+   * access holds {@link #lock}, so the size check and the insert stay one step.
    */
-  private final Map<String, Instant> lastWarningAt = new HashMap<>();
+  private final Map<String, Instant> lastWarningAt = new ConcurrentHashMap<>();
 
-  /**
-   * Creates the throttle.
-   *
-   * @param interval how often one name's warning is repeated at most
-   * @param clock tells the current time
-   * @param maxCaches the most caches the layer admits, {@code stratum.cache.max-caches}
-   */
-  public WarningThrottle(Duration interval, Clock clock, int maxCaches) {
-    this.interval = interval;
-    this.clock = clock;
-    this.maxCaches = maxCaches;
-  }
+  /** Guards {@link #lastWarningAt}. */
+  private final ReentrantLock lock = new ReentrantLock();
 
   /**
    * Returns whether a warning for the cache may be written now: the first one for its name, or the
@@ -59,14 +52,17 @@ public final class WarningThrottle {
   public boolean shouldWarn(String cacheName) {
     var now = clock.instant();
     // Failures and refusals are rare next to cache hits, so one short lock serves every thread.
-    synchronized (lastWarningAt) {
+    lock.lock();
+    try {
       var slot = slotFor(cacheName);
       var last = lastWarningAt.get(slot);
-      if (last != null && last != NEVER_WARNED && last.plus(interval).isAfter(now)) {
+      if (last != null && !NEVER_WARNED.equals(last) && last.plus(interval).isAfter(now)) {
         return false;
       }
       lastWarningAt.put(slot, now);
       return true;
+    } finally {
+      lock.unlock();
     }
   }
 
@@ -78,10 +74,13 @@ public final class WarningThrottle {
    * @return the tag value to count under
    */
   public String tagValueFor(String cacheName) {
-    synchronized (lastWarningAt) {
+    lock.lock();
+    try {
       var slot = slotFor(cacheName);
       lastWarningAt.putIfAbsent(slot, NEVER_WARNED);
       return slot;
+    } finally {
+      lock.unlock();
     }
   }
 

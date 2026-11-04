@@ -15,6 +15,12 @@ public class ProductCatalog {
   /** The name of the cache that holds the prices looked up with {@code sync=true}. */
   public static final String SYNCED_PRODUCTS = "synced-products";
 
+  /**
+   * The name of a second {@code sync=true} cache, so a test that fails only its writes warns on its
+   * own name and leaves the warning of {@value #SYNCED_PRODUCTS} to the other tests.
+   */
+  public static final String WRITE_TEST_PRODUCTS = "write-test-products";
+
   /** The name of the cache whose loads fail, for a method's own error. */
   public static final String MISSING_PRODUCTS = "missing-products";
 
@@ -44,6 +50,19 @@ public class ProductCatalog {
    */
   @Cacheable(cacheNames = SYNCED_PRODUCTS, sync = true)
   public String syncedPriceOf(String sku) {
+    syncedLookupCount.incrementAndGet();
+    return "synced-price-of-" + sku;
+  }
+
+  /**
+   * Looks up a product's price with {@code sync=true}, cached under {@value #WRITE_TEST_PRODUCTS};
+   * counted with the synced lookups.
+   *
+   * @param sku the product's stock-keeping unit
+   * @return the price, as text
+   */
+  @Cacheable(cacheNames = WRITE_TEST_PRODUCTS, sync = true)
+  public String writeTestPriceOf(String sku) {
     syncedLookupCount.incrementAndGet();
     return "synced-price-of-" + sku;
   }

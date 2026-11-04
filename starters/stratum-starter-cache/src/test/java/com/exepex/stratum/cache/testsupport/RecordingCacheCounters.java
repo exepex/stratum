@@ -12,19 +12,21 @@ import java.util.concurrent.atomic.AtomicLong;
 public class RecordingCacheCounters implements CacheCounters {
 
   /** The failures counted, by {@code cache:operation}. */
-  private final Map<String, AtomicLong> failures = new ConcurrentHashMap<>();
+  private final Map<String, AtomicLong> failuresByTags = new ConcurrentHashMap<>();
 
   /** The skips counted, by {@code cache:reason}. */
-  private final Map<String, AtomicLong> skips = new ConcurrentHashMap<>();
+  private final Map<String, AtomicLong> skipsByTags = new ConcurrentHashMap<>();
 
   @Override
   public void failure(String cache, String operation) {
-    failures.computeIfAbsent(cache + ":" + operation, key -> new AtomicLong()).incrementAndGet();
+    failuresByTags
+        .computeIfAbsent(cache + ":" + operation, key -> new AtomicLong())
+        .incrementAndGet();
   }
 
   @Override
   public void skip(String cache, String reason) {
-    skips.computeIfAbsent(cache + ":" + reason, key -> new AtomicLong()).incrementAndGet();
+    skipsByTags.computeIfAbsent(cache + ":" + reason, key -> new AtomicLong()).incrementAndGet();
   }
 
   /**
@@ -35,7 +37,7 @@ public class RecordingCacheCounters implements CacheCounters {
    * @return the count
    */
   public long failures(String cache, String operation) {
-    var count = failures.get(cache + ":" + operation);
+    var count = failuresByTags.get(cache + ":" + operation);
     return count == null ? 0 : count.get();
   }
 
@@ -47,7 +49,7 @@ public class RecordingCacheCounters implements CacheCounters {
    * @return the count
    */
   public long skips(String cache, String reason) {
-    var count = skips.get(cache + ":" + reason);
+    var count = skipsByTags.get(cache + ":" + reason);
     return count == null ? 0 : count.get();
   }
 
@@ -57,7 +59,7 @@ public class RecordingCacheCounters implements CacheCounters {
    * @return the number of series
    */
   public int failureSeries() {
-    return failures.size();
+    return failuresByTags.size();
   }
 
   /**
@@ -66,6 +68,6 @@ public class RecordingCacheCounters implements CacheCounters {
    * @return the number of series
    */
   public int skipSeries() {
-    return skips.size();
+    return skipsByTags.size();
   }
 }

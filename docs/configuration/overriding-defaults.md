@@ -175,7 +175,7 @@ Customizers Stratum supports:
 | `StratumSecurityCustomizer` | The `HttpSecurity` before Stratum's chain is built | security | Planned |
 | `StratumErrorResponseCustomizer` | Extra fields on every error response | web | Planned |
 | `MeterFilter` / `ObservationFilter` (Micrometer) | Metric names, tags and observations | observability | Works today: Spring Boot applies them |
-| `RedisCacheManagerBuilderCustomizer`, `CacheManagerCustomizer` (Spring Boot) | The Redis cache manager, and any cache manager, as Spring Boot builds them, after Stratum's customizer | cache | Works today. The module's level-1 settings customizer is planned |
+| `RedisCacheManagerBuilderCustomizer`, `CacheManagerCustomizer` (Spring Boot) | The Redis cache manager, and any cache manager, as Spring Boot builds them, after Stratum's customizer | cache | Works today, as does the module's level-1 settings customizer, `StratumCachePropertiesCustomizer` |
 | `StratumKafkaErrorHandlerCustomizer` | Retry and dead-letter handling | kafka | Planned |
 
 When several customizers of the same type exist, Spring applies them in `@Order` order.

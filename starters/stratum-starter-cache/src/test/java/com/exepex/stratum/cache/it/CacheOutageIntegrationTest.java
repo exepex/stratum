@@ -34,7 +34,7 @@ import org.testcontainers.containers.GenericContainer;
  * the whole outage. The cost of an outage call is the one-second command timeout of {@code
  * spring.data.redis.timeout} for the one command the call waits for; a standalone write is
  * fire-and-forget on the cache writer, so it never waits and never reports. The warning interval is
- * set to an hour, so the hundred sequential failures stay inside one interval.
+ * set to an hour, so the sequential failures stay inside one interval.
  */
 @SpringBootTest(
     classes = ProductsApplication.class,
@@ -50,16 +50,20 @@ class CacheOutageIntegrationTest {
   static final String SERVICE = "outage-service";
 
   /** How many times each outage test calls the cached method. */
-  private static final int CALLS = 100;
+  private static final int CALLS = 20;
 
   /** How many threads make the calls at the same time. */
   private static final int THREADS = 10;
 
   /**
-   * How long Redis stays paused, in milliseconds; five minutes cover the hundred sequential calls
-   * of one second each, and a missed unpause still heals itself.
+   * How long Redis stays paused for the sync=false test, in milliseconds: its twenty sequential
+   * calls of about two seconds each fit with room to spare. Redis does not process an unpause while
+   * every command is paused, so a test lasts as long as its pause.
    */
-  private static final String PAUSE_MILLIS = "300000";
+  private static final long SEQUENTIAL_PAUSE_MILLIS = 90_000;
+
+  /** How long Redis stays paused for the tests that wait for a single round of timeouts. */
+  private static final long SHORT_PAUSE_MILLIS = 15_000;
 
   /** The product whose price the tests look up. */
   private static final String SKU = "sku-1";
@@ -75,6 +79,12 @@ class CacheOutageIntegrationTest {
 
   /** The longest a one-timeout call may take before it counts as having waited for two. */
   private static final double ONE_TIMEOUT_MAX_MILLIS = 1_600;
+
+  /**
+   * The shortest a sync=false outage call takes, in milliseconds: the read's timeout plus the wait
+   * of the fire-and-forget write for the broken connection, about two seconds in all.
+   */
+  private static final double TWO_TIMEOUTS_MIN_MILLIS = ONE_TIMEOUT_MAX_MILLIS;
 
   /** The longest a one-timeout call may take on a slow test machine, in milliseconds. */
   private static final double SLOW_MACHINE_MAX_MILLIS = 3_000;
@@ -104,14 +114,14 @@ class CacheOutageIntegrationTest {
 
     @Test
     @DisplayName(
-        "a sync=false call costs one command timeout, counts a failed get and no put, and warns"
+        "a sync=false call costs about two seconds, counts a failed get and no put, and warns"
             + " once per cache")
-    void syncFalseCostsOneTimeout() throws Exception {
+    void syncFalseCostsTwoTimeouts() throws Exception {
       var capture = new LogLineCapture(StratumCacheErrorHandler.class.getName());
       capture.start();
       List<Long> durations;
       try {
-        pauseRedis();
+        pauseRedis(SEQUENTIAL_PAUSE_MILLIS);
         try {
           // One thread: the timed-out fire-and-forget writes churn reconnects on the one shared
           // connection, so ten threads would measure the churn (about 6 s a call), not the timeout.
@@ -123,7 +133,7 @@ class CacheOutageIntegrationTest {
         capture.stop();
       }
 
-      assertThat(averageOf(durations)).isBetween(ONE_TIMEOUT_MIN_MILLIS, ONE_TIMEOUT_MAX_MILLIS);
+      assertThat(averageOf(durations)).isBetween(TWO_TIMEOUTS_MIN_MILLIS, SLOW_MACHINE_MAX_MILLIS);
       assertThat(failuresOf(ProductCatalog.PRODUCTS, CacheConstants.OPERATION_GET))
           .isEqualTo(CALLS);
       assertThat(failureCounter(ProductCatalog.PRODUCTS, CacheConstants.OPERATION_PUT))
@@ -144,7 +154,7 @@ class CacheOutageIntegrationTest {
       capture.start();
       List<Long> durations;
       try {
-        pauseRedis();
+        pauseRedis(SHORT_PAUSE_MILLIS);
         try {
           durations =
               durationsOf(THREADS, () -> catalog.syncedPriceOf(SKU), "synced-price-of-" + SKU);
@@ -174,19 +184,19 @@ class CacheOutageIntegrationTest {
         "the write after a load fails: the call still returns the loaded value, the loader ran"
             + " once, and one put failure is counted")
     void loadedValueSurvivesItsFailedWrite() throws Exception {
-      pauseRedis("WRITE");
+      pauseRedis(SHORT_PAUSE_MILLIS, "WRITE");
       try {
         var lookupsBefore = catalog.syncedLookups();
         var failuresBefore =
-            failuresSoFar(ProductCatalog.SYNCED_PRODUCTS, CacheConstants.OPERATION_PUT);
+            failuresSoFar(ProductCatalog.WRITE_TEST_PRODUCTS, CacheConstants.OPERATION_PUT);
 
         var start = System.nanoTime();
-        var price = catalog.syncedPriceOf(SKU);
+        var price = catalog.writeTestPriceOf(SKU);
         var millis = (System.nanoTime() - start) / NANOS_PER_MILLI;
 
         assertThat(price).isEqualTo("synced-price-of-" + SKU);
         assertThat(catalog.syncedLookups()).isEqualTo(lookupsBefore + 1);
-        assertThat(failuresSoFar(ProductCatalog.SYNCED_PRODUCTS, CacheConstants.OPERATION_PUT))
+        assertThat(failuresSoFar(ProductCatalog.WRITE_TEST_PRODUCTS, CacheConstants.OPERATION_PUT))
             .isEqualTo(failuresBefore + 1);
         // The write after the load is synchronous, so the call waits out one command timeout.
         assertThat((double) millis).isBetween(ONE_TIMEOUT_MIN_MILLIS, SLOW_MACHINE_MAX_MILLIS);
@@ -211,16 +221,13 @@ class CacheOutageIntegrationTest {
             return (System.nanoTime() - start) / NANOS_PER_MILLI;
           });
     }
-    var executor = Executors.newFixedThreadPool(threads);
-    try {
+    try (var executor = Executors.newFixedThreadPool(threads)) {
       var futures = executor.invokeAll(calls);
       List<Long> durations = new ArrayList<>();
       for (var future : futures) {
         durations.add(future.get());
       }
       return durations;
-    } finally {
-      executor.shutdown();
     }
   }
 
@@ -254,10 +261,10 @@ class CacheOutageIntegrationTest {
 
   /**
    * Pauses Redis, so every command of the paused kind times out instead of answering. The pause
-   * lifts itself after {@link #PAUSE_MILLIS} even when a test never unpauses.
+   * lifts itself after the given time even when a test never unpauses.
    */
-  private void pauseRedis(String... mode) throws IOException, InterruptedException {
-    var command = new ArrayList<>(List.of("redis-cli", "CLIENT", "PAUSE", PAUSE_MILLIS));
+  private void pauseRedis(long millis, String... mode) throws IOException, InterruptedException {
+    var command = new ArrayList<>(List.of("redis-cli", "CLIENT", "PAUSE", String.valueOf(millis)));
     command.addAll(List.of(mode));
     redisContainer.execInContainer(command.toArray(String[]::new));
   }

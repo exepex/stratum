@@ -6,14 +6,17 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
+import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.springframework.cache.Cache;
+import org.springframework.cache.support.NoOpCache;
 
 /**
  * A cache whose reads, writes or the write after a load can be made to fail, as during a Redis
  * outage, and that records the calls it gets. A loader error is wrapped in a {@link
  * ValueRetrievalException}, as Spring's own caches wrap it.
  */
+@RequiredArgsConstructor
 public class StubCache implements Cache {
 
   /** The failure every failing call throws. */
@@ -29,10 +32,10 @@ public class StubCache implements Cache {
   private final boolean failWrites;
 
   /** The methods called, in order. */
-  private final List<String> calls = new CopyOnWriteArrayList<>();
+  private final List<String> callsMade = new CopyOnWriteArrayList<>();
 
   /** How many times a loader ran. */
-  private final AtomicInteger loads = new AtomicInteger();
+  private final AtomicInteger loadCount = new AtomicInteger();
 
   /**
    * Creates a healthy cache.
@@ -43,34 +46,21 @@ public class StubCache implements Cache {
     this(name, false, false);
   }
 
-  /**
-   * Creates a cache that may fail.
-   *
-   * @param name the cache's name
-   * @param failReads whether reads fail before any load
-   * @param failWrites whether writes fail, and the write after a load with them
-   */
-  public StubCache(String name, boolean failReads, boolean failWrites) {
-    this.name = name;
-    this.failReads = failReads;
-    this.failWrites = failWrites;
-  }
-
   @Override
   public String getName() {
-    calls.add("getName");
+    callsMade.add("getName");
     return name;
   }
 
   @Override
   public Object getNativeCache() {
-    calls.add("getNativeCache");
+    callsMade.add("getNativeCache");
     return this;
   }
 
   @Override
   public @Nullable ValueWrapper get(Object key) {
-    calls.add("get");
+    callsMade.add("get");
     if (failReads) {
       throw FAILURE;
     }
@@ -79,7 +69,7 @@ public class StubCache implements Cache {
 
   @Override
   public <T> @Nullable T get(Object key, Class<T> type) {
-    calls.add("getTyped");
+    callsMade.add("getTyped");
     if (failReads) {
       throw FAILURE;
     }
@@ -88,17 +78,13 @@ public class StubCache implements Cache {
 
   @Override
   public <T> T get(Object key, Callable<T> valueLoader) {
-    calls.add("getWithLoader");
+    callsMade.add("getWithLoader");
     if (failReads) {
       throw FAILURE;
     }
-    T value;
-    try {
-      loads.incrementAndGet();
-      value = valueLoader.call();
-    } catch (Exception failure) {
-      throw new ValueRetrievalException(key, valueLoader, failure);
-    }
+    loadCount.incrementAndGet();
+    // Spring's no-op cache runs the loader and wraps its error, as every Spring cache does.
+    var value = new NoOpCache(name).get(key, valueLoader);
     if (failWrites) {
       throw FAILURE;
     }
@@ -107,19 +93,19 @@ public class StubCache implements Cache {
 
   @Override
   public CompletableFuture<?> retrieve(Object key) {
-    calls.add("retrieve");
+    callsMade.add("retrieve");
     return CompletableFuture.completedFuture(null);
   }
 
   @Override
   public <T> CompletableFuture<T> retrieve(Object key, Supplier<CompletableFuture<T>> valueLoader) {
-    calls.add("retrieveWithLoader");
+    callsMade.add("retrieveWithLoader");
     return valueLoader.get();
   }
 
   @Override
   public void put(Object key, Object value) {
-    calls.add("put");
+    callsMade.add("put");
     if (failWrites) {
       throw FAILURE;
     }
@@ -127,13 +113,13 @@ public class StubCache implements Cache {
 
   @Override
   public ValueWrapper putIfAbsent(Object key, Object value) {
-    calls.add("putIfAbsent");
+    callsMade.add("putIfAbsent");
     return () -> null;
   }
 
   @Override
   public void evict(Object key) {
-    calls.add("evict");
+    callsMade.add("evict");
     if (failWrites) {
       throw FAILURE;
     }
@@ -141,13 +127,13 @@ public class StubCache implements Cache {
 
   @Override
   public boolean evictIfPresent(Object key) {
-    calls.add("evictIfPresent");
+    callsMade.add("evictIfPresent");
     return true;
   }
 
   @Override
   public void clear() {
-    calls.add("clear");
+    callsMade.add("clear");
     if (failWrites) {
       throw FAILURE;
     }
@@ -155,7 +141,7 @@ public class StubCache implements Cache {
 
   @Override
   public boolean invalidate() {
-    calls.add("invalidate");
+    callsMade.add("invalidate");
     return true;
   }
 
@@ -165,7 +151,7 @@ public class StubCache implements Cache {
    * @return the calls
    */
   public List<String> calls() {
-    return List.copyOf(calls);
+    return List.copyOf(callsMade);
   }
 
   /**
@@ -174,6 +160,6 @@ public class StubCache implements Cache {
    * @return the number of loads
    */
   public int loads() {
-    return loads.get();
+    return loadCount.get();
   }
 }
