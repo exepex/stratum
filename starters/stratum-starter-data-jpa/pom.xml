@@ -76,5 +76,67 @@
       <artifactId>spring-batch-core</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- JMH, for the JDBC boundary's benchmark, which only the benchmark profile below runs. -->
+    <dependency>
+      <groupId>org.openjdk.jmh</groupId>
+      <artifactId>jmh-core</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
+
+  <profiles>
+    <!-- Measures what the JDBC boundary adds to each JDBC call, against the raw pool, on a
+         PostgreSQL container. Run on demand only; docs/contributing.md gives the command. -->
+    <profile>
+      <id>benchmark</id>
+      <build>
+        <plugins>
+          <!-- JMH's generator, added to the processors the library parent lists, so that the test
+               compile writes the benchmark code and META-INF/BenchmarkList. -->
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+              <annotationProcessorPaths combine.children="append">
+                <path>
+                  <groupId>org.openjdk.jmh</groupId>
+                  <artifactId>jmh-generator-annprocess</artifactId>
+                </path>
+              </annotationProcessorPaths>
+            </configuration>
+          </plugin>
+          <!-- antrun launches JMH because Spring Boot already manages it, so the build needs no new
+               plugin (ST-ENG-62). It passes no argLine, so JaCoCo's agent stays out of the
+               benchmark, and -jvmArgs stops JMH's forks from copying this JVM's arguments. -->
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-antrun-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>stratum-jmh</id>
+                <phase>integration-test</phase>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+                <configuration>
+                  <target>
+                    <java classname="org.openjdk.jmh.Main" classpathref="maven.test.classpath"
+                        fork="true" failonerror="true">
+                      <arg value="-jvmArgs"/>
+                      <arg value="-Xms1g -Xmx1g"/>
+                      <arg value="-rf"/>
+                      <arg value="json"/>
+                      <arg value="-rff"/>
+                      <arg value="${project.build.directory}/jmh-result.json"/>
+                      <arg value="JdbcBoundaryBenchmark"/>
+                    </java>
+                  </target>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>
