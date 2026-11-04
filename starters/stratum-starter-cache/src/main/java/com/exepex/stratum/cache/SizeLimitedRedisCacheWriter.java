@@ -21,10 +21,11 @@ import org.springframework.data.redis.connection.RedisConnection;
 
 /**
  * A Redis cache writer that bounds the bytes of each entry and forwards everything else. A key over
- * its cache's {@code max-key-size} is stored under {@code <prefix><name>::sha256:<hex>}, on reads,
- * writes and evicts alike, so it still hits and is still cleared. A value over {@code
- * max-value-size} is not stored and the caller gets it back as usual. Each is counted in {@code
- * stratum.cache.skips}. Sizes are checked on the caller's thread.
+ * its cache's {@code max-key-size}, or one that already starts with {@code sha256:} after its
+ * prefix, is stored under {@code <prefix><name>::sha256:<hex>}, on reads, writes and evicts alike,
+ * so it still hits and is still cleared. A value over {@code max-value-size} is not stored and the
+ * caller gets it back as usual. Each is counted in {@code stratum.cache.skips}. Sizes are checked
+ * on the caller's thread.
  */
 @StratumInternal
 @RequiredArgsConstructor
@@ -163,13 +164,18 @@ public class SizeLimitedRedisCacheWriter implements RedisCacheWriter {
     return delegate.getCacheStatistics(cacheName);
   }
 
-  /** Returns the key as it is, or, when it is over the limit, hashed after its prefix. */
+  /**
+   * Returns the key as it is, or hashed after its prefix when it is over the limit or already looks
+   * like a hashed key, so that a literal key such as {@code sha256:<hex>} never reads another key's
+   * entry.
+   */
   private byte[] limitedKey(String name, byte[] key) {
-    if (key.length <= properties.maxKeyBytesFor(name)) {
+    var limit = properties.maxKeyBytesFor(name);
+    var prefixLength = prefixLength(name, key, limit);
+    if (key.length <= limit && !hasHashMark(key, prefixLength)) {
       return key;
     }
     counters.skip(name, CacheConstants.REASON_KEY_HASHED);
-    var prefixLength = prefixLength(name, key);
     var hash = HexFormat.of().formatHex(sha256(key)).getBytes(StandardCharsets.US_ASCII);
     var hashedKey = Arrays.copyOf(key, prefixLength + HASH_MARK.length + hash.length);
     System.arraycopy(HASH_MARK, 0, hashedKey, prefixLength, HASH_MARK.length);
@@ -178,18 +184,28 @@ public class SizeLimitedRedisCacheWriter implements RedisCacheWriter {
   }
 
   /**
-   * Returns the length of the key's prefix, up to and including the first {@code <name>::}, or 0
-   * when the key has none, as with a prefix of the service's own that leaves out the name.
+   * Returns the length of the key's prefix, up to and including the first {@code <name>::} that
+   * ends within the key limit, or 0 when there is none, as with {@code
+   * spring.cache.redis.use-key-prefix=false}. Searching only within the limit keeps a hashed key at
+   * most the limit plus the hash, whatever the key holds.
    */
-  private int prefixLength(String name, byte[] key) {
+  private int prefixLength(String name, byte[] key, long limit) {
     var prefixEnd = (name + PREFIX_END).getBytes(StandardCharsets.UTF_8);
-    return IntStream.rangeClosed(0, key.length - prefixEnd.length)
+    var lastStart = (int) Math.min(key.length, limit) - prefixEnd.length;
+    return IntStream.rangeClosed(0, lastStart)
         .filter(
             start ->
                 Arrays.equals(key, start, start + prefixEnd.length, prefixEnd, 0, prefixEnd.length))
         .map(start -> start + prefixEnd.length)
         .findFirst()
         .orElse(0);
+  }
+
+  /** Returns whether the key goes on, after its prefix, with the mark of a hashed key. */
+  private boolean hasHashMark(byte[] key, int prefixLength) {
+    return key.length >= prefixLength + HASH_MARK.length
+        && Arrays.equals(
+            key, prefixLength, prefixLength + HASH_MARK.length, HASH_MARK, 0, HASH_MARK.length);
   }
 
   /** Returns whether the value is within its cache's limit, counting it when it is not. */

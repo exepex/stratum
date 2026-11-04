@@ -393,7 +393,9 @@ Stratum's Redis writer bounds the bytes of each entry, for every cache, however 
   stored as `<prefix><cache>::sha256:<64 hex digits>`, such as
   `order-service:products::sha256:9f86d0…`. Reads, writes and evicts use the same hashed key, so the
   entry still hits and `@CacheEvict(allEntries = true)` still clears it. A 10 MB key takes about 100
-  bytes in Redis. The key's own text, which may hold personal data, is never stored or logged.
+  bytes in Redis. The key's own text, which may hold personal data, is never stored or logged. A
+  short key that itself starts with `sha256:` is hashed too, so it can never read another key's
+  entry.
 - **Values.** A value larger than `stratum.cache.max-value-size`, 1 MiB by default, is not stored:
   the method's result is returned as usual and the next call runs the method again. When an
   `@CachePut` replaces an entry with a value too large, the older entry is removed instead, so no
@@ -404,8 +406,8 @@ Stratum's Redis writer bounds the bytes of each entry, for every cache, however 
   ([Properties](#properties)).
 
 Not covered: a cache manager or Redis cache writer of your own ([Customize](#customize)), and a
-key prefix of your own (a `CacheKeyPrefix`) that leaves out `<cache>::`. With such a prefix, a hashed
-key is stored as `sha256:<hex>` alone, which `allEntries` does not clear; it expires with its time to
+key prefix of your own (a `CacheKeyPrefix`) that leaves out `<cache>::` or is longer than
+`max-key-size`. With such a prefix, a hashed key is stored as `sha256:<hex>` alone, which `allEntries` does not clear; it expires with its time to
 live. Caches other than Redis have no size limits.
 
 ### Planned

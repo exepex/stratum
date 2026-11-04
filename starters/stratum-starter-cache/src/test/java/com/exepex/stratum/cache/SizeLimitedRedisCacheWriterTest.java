@@ -156,6 +156,30 @@ class SizeLimitedRedisCacheWriterTest {
     }
 
     @Test
+    @DisplayName(
+        "a long key that holds the cache's name past the limit keeps no prefix, so the stored key"
+            + " stays small")
+    void boundsKeyWithLatePrefix() {
+      var key = bytes("x".repeat(2 * KEY_LIMIT) + CACHE + "::record");
+
+      writer.get(CACHE, key);
+
+      verify(delegate).get(CACHE, hashed("", key));
+    }
+
+    @Test
+    @DisplayName(
+        "a short literal key that looks hashed is hashed too, so it never reads another key")
+    void hashesLiteralHashedKey() {
+      var literal = HASHED_LONG_KEY;
+
+      writer.get(CACHE, literal);
+
+      verify(delegate).get(CACHE, hashed(PREFIX, literal));
+      assertThat(hashed(PREFIX, literal)).isNotEqualTo(HASHED_LONG_KEY);
+    }
+
+    @Test
     @DisplayName("a cache's own key limit wins")
     void usesCacheKeyLimit() {
       var key = key("orders-service:" + REPORTS + "::", 2 * KEY_LIMIT);

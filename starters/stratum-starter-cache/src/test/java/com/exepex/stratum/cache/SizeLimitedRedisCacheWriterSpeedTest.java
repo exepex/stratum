@@ -30,11 +30,11 @@ class SizeLimitedRedisCacheWriterSpeedTest {
   private static final double NANOS_PER_MILLISECOND = 1_000_000.0;
 
   /**
-   * CPU time one 10 MB key may take, prefix search and SHA-256 included: 10 times M = 39.444 ms,
-   * the largest best value of 3 runs on a 4-CPU build machine (39.370, 39.444 and 39.369 ms), on
-   * JDK 25, 2026-11-04.
+   * CPU time one 10 MB key may take, prefix search and SHA-256 included: 10 times M = 8.752 ms, the
+   * largest best value of 3 runs on a 4-CPU build machine (8.744, 8.752 and 8.610 ms), on JDK 25,
+   * 2026-11-04.
    */
-  private static final Duration HOSTILE_KEY_LIMIT = Duration.of(394, ChronoUnit.MILLIS);
+  private static final Duration HOSTILE_KEY_LIMIT = Duration.of(88, ChronoUnit.MILLIS);
 
   /** The size of the hostile key. */
   private static final int TEN_MEGABYTES = 10 * 1024 * 1024;
@@ -43,8 +43,8 @@ class SizeLimitedRedisCacheWriterSpeedTest {
   private static final String HOSTILE_UNIT = "products:";
 
   /**
-   * A 10 MB key made of the cache's name without its {@code ::}, so the prefix search reads every
-   * byte and finds nothing: the slowest key the writer can be given.
+   * A 10 MB key made of the cache's name without its {@code ::}, so the prefix search reads as far
+   * as it may and finds nothing: the slowest key the writer can be given.
    */
   private static final byte[] HOSTILE_KEY =
       HOSTILE_UNIT.repeat(TEN_MEGABYTES / HOSTILE_UNIT.length()).getBytes(StandardCharsets.UTF_8);
