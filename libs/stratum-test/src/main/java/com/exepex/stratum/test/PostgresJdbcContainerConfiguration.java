@@ -25,6 +25,6 @@ public class PostgresJdbcContainerConfiguration {
   @Bean
   @ServiceConnection(type = JdbcConnectionDetails.class)
   PostgreSQLContainer postgresContainer() {
-    return new PostgreSQLContainer(PostgresContainerConfiguration.IMAGE);
+    return new PostgreSQLContainer(ContainerImages.POSTGRES);
   }
 }

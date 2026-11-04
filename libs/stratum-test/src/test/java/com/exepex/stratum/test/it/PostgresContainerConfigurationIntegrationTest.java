@@ -23,7 +23,7 @@ class PostgresContainerConfigurationIntegrationTest {
 
   /**
    * Checks that the data source, which no {@code spring.datasource.*} property configures, reaches
-   * the pinned PostgreSQL 18.6.
+   * the PostgreSQL the build pinned in the root {@code pom.xml}.
    *
    * @param dataSource the application's data source
    * @throws SQLException when no connection can be opened
@@ -31,7 +31,8 @@ class PostgresContainerConfigurationIntegrationTest {
   void assertReachesPinnedPostgres(DataSource dataSource) throws SQLException {
     try (Connection connection = dataSource.getConnection()) {
       assertThat(connection.getMetaData().getDatabaseProductName()).isEqualTo("PostgreSQL");
-      assertThat(connection.getMetaData().getDatabaseProductVersion()).isEqualTo("18.6");
+      assertThat(connection.getMetaData().getDatabaseProductVersion())
+          .isEqualTo(PinnedImages.serverVersion("postgres"));
     }
   }
 
@@ -44,7 +45,7 @@ class PostgresContainerConfigurationIntegrationTest {
     @Autowired private DataSource dataSource;
 
     @Test
-    @DisplayName("The data source reaches the pinned PostgreSQL 18.6 with no connection properties")
+    @DisplayName("The data source reaches the pinned PostgreSQL with no connection properties")
     void connectsToPinnedPostgresWithoutConnectionProperties() throws SQLException {
       assertReachesPinnedPostgres(dataSource);
     }
@@ -59,7 +60,7 @@ class PostgresContainerConfigurationIntegrationTest {
     @Autowired private DataSource dataSource;
 
     @Test
-    @DisplayName("The data source reaches the pinned PostgreSQL 18.6 with no connection properties")
+    @DisplayName("The data source reaches the pinned PostgreSQL with no connection properties")
     void connectsToPinnedPostgresWithoutConnectionProperties() throws SQLException {
       assertReachesPinnedPostgres(dataSource);
     }

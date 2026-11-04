@@ -27,14 +27,14 @@ class RedisContainerConfigurationIntegrationTest {
   @Autowired private RedisConnectionFactory connectionFactory;
 
   @Test
-  @DisplayName("A value set through the client is read back from the pinned Redis 8.10.3")
+  @DisplayName("A value set through the client is read back from the pinned Redis")
   void storesAndReadsValueOnPinnedRedis() {
     redis.opsForValue().set("order:A-1", "2");
 
     assertThat(redis.opsForValue().get("order:A-1")).isEqualTo("2");
     try (RedisConnection connection = connectionFactory.getConnection()) {
       assertThat(connection.serverCommands().info("server"))
-          .containsEntry("redis_version", "8.10.3");
+          .containsEntry("redis_version", PinnedImages.serverVersion("redis"));
     }
   }
 
