@@ -2,11 +2,12 @@
 
 **Status: Partly built.** Planned: one test dependency with everything a Stratum service needs for
 unit, mock and integration tests: JUnit 5, AssertJ, Mockito, Testcontainers, HTTP stubs and security
-helpers. Built today: `PostgresContainerConfiguration`, which starts PostgreSQL for a service's
-integration tests ([Containers](#containers)). The module also holds what Stratum's own starters'
-tests share: `StarterTestSupport`, their shared checks, and `OrderErrorCode`, the sample error codes
-of an orders service that the web tests use. A service has no use for those, and each of them is
-marked `@StratumInternal` ([Public API](../guides/upgrading.md#public-api)).
+helpers. Built today: `PostgresContainerConfiguration` and `RedisContainerConfiguration`, which
+start PostgreSQL and Redis for a service's integration tests ([Containers](#containers)). The
+module also holds what Stratum's own starters' tests share: `StarterTestSupport`, their shared
+checks, and `OrderErrorCode`, the sample error codes of an orders service that the web tests use.
+A service has no use for those, and each of them is marked `@StratumInternal`
+([Public API](../guides/upgrading.md#public-api)).
 
 [← Documentation home](../README.md) · Property prefix: `stratum.test`
 
@@ -37,8 +38,13 @@ already has `spring-boot-starter-test`, the JDBC support and the PostgreSQL driv
 </dependency>
 ```
 
-`stratum-test` declares these two as optional, so a module or service that does not test against
-PostgreSQL does not get them.
+To test against Redis, add only Spring Boot's Testcontainers support above, in test scope, even if
+your service uses no PostgreSQL: it brings Testcontainers' generic container, which runs Redis. Your
+service already has `spring-boot-starter-data-redis`, the Redis client.
+
+`stratum-test` declares `spring-boot-test`, `spring-boot-testcontainers` and
+`testcontainers-postgresql` as optional, so a module or service gets none of them through
+`stratum-test`, only the ones it adds itself.
 
 **Planned:** `stratum-test` will bring `spring-boot-starter-test` (JUnit 5, AssertJ, Mockito, Spring
 test support), Testcontainers with the modules Stratum supports, an HTTP stub server and Spring
@@ -100,7 +106,8 @@ class OrderControllerTest {
 
 **Planned:** `@StratumIntegrationTest` will start the whole application with the `test` profile, and
 start the containers your service needs. Until then, use `@SpringBootTest` with
-`PostgresContainerConfiguration`, as [Containers](#containers) shows.
+`PostgresContainerConfiguration` or `RedisContainerConfiguration`, as [Containers](#containers)
+shows.
 
 ```java
 @StratumIntegrationTest
@@ -146,9 +153,15 @@ class OrderRepositoryIntegrationTest {
 }
 ```
 
+For Redis, import `RedisContainerConfiguration` the same way, as
+`@Import(RedisContainerConfiguration.class)`. Spring Boot starts Redis and points your Redis client
+at it, so you set no `spring.data.redis.*` property. Its container bean carries
+`@ServiceConnection(name = "redis")`: that name is what lets Spring Boot find its Redis connection
+details for a container declared as a bean, so keep it if you declare your own.
+
 The container lives as long as the test's Spring application context. Spring keeps that context,
 and so the container, for every test class with the same configuration, so those classes share one
-database and start it once. A test class with a different configuration, such as other properties
+container and start it once. A test class with a different configuration, such as other properties
 or `@MockitoBean`s, gets its own context and its own container.
 
 | Container | Image | Connects | Status |
@@ -156,7 +169,7 @@ or `@MockitoBean`s, gets its own context and its own container.
 | `PostgresContainerConfiguration` | `postgres:18.6-alpine` | `spring.datasource.*` | Built |
 | MySQL | MySQL | `spring.datasource.*` | Planned |
 | Kafka | Apache Kafka | `spring.kafka.*` | Planned |
-| Redis | Redis | `spring.data.redis.*` | Planned |
+| `RedisContainerConfiguration` | `redis:8.10.3-alpine` | `spring.data.redis.*` | Built |
 | Keycloak | Keycloak | `stratum.security.resource-server.issuer-uri` | Planned |
 | LocalStack | LocalStack (AWS emulator) | `stratum.cloud.*` (AWS) | Planned |
 

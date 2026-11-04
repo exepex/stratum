@@ -14,7 +14,7 @@
   <artifactId>stratum-test</artifactId>
 
   <name>Stratum test</name>
-  <description>Test support: the checks every Stratum starter's tests share, a PostgreSQL container for services' integration tests, and, planned, JUnit 5, AssertJ, Mockito, more containers, HTTP stubs and JWT helpers.</description>
+  <description>Test support: the checks every Stratum starter's tests share, PostgreSQL and Redis containers for services' integration tests, and, planned, JUnit 5, AssertJ, Mockito, more containers, HTTP stubs and JWT helpers.</description>
 
   <!-- Teams add this module in test scope only, so its libraries never reach a running service. -->
   <dependencies>
@@ -43,9 +43,11 @@
       <groupId>com.jayway.jsonpath</groupId>
       <artifactId>json-path</artifactId>
     </dependency>
-    <!-- PostgresContainerConfiguration. Optional, so a module or service that uses stratum-test gets
-         none of them unless it tests against PostgreSQL: it then adds spring-boot-testcontainers and
-         testcontainers-postgresql itself; spring-boot-starter-test already brings spring-boot-test. -->
+    <!-- PostgresContainerConfiguration and RedisContainerConfiguration. Optional, so a module or
+         service that uses stratum-test gets none of them unless it tests against a container: it
+         then adds spring-boot-testcontainers itself, which brings Testcontainers' GenericContainer
+         for Redis, and testcontainers-postgresql for PostgreSQL; spring-boot-starter-test already
+         brings spring-boot-test. -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-test</artifactId>
@@ -83,6 +85,13 @@
     <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- The Redis client that RedisContainerConfigurationIntegrationTest connects with, as a
+         service's Redis starter brings it. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-data-redis</artifactId>
       <scope>test</scope>
     </dependency>
     <!-- Loads stratum-core's OneShotContextScheduledExecutorService, whose supertype comes from this
