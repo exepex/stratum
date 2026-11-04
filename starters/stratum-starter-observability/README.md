@@ -99,7 +99,7 @@ and installs the OpenTelemetry appender itself.
 | Correlation ID | In the logging context of every traced operation, so log lines and error reports carry it ([traces](../../docs/modules/observability-traces.md#correlation-id)) |
 | Other threads | `@Async` methods and Spring Boot's executors keep the caller's trace and correlation ID ([below](#threads-and-reactive-code)). `@Scheduled` jobs start clean, and `LinkedWork` links work that a request saves for a later job back to that request ([guide](../../docs/guides/linking-later-work.md)) |
 | Messages | Kafka, JMS (IBM MQ, ActiveMQ) and RabbitMQ: sending and handling a message are timed and traced, and the consumer joins the sender's trace and correlation ID ([below](#messages)) |
-| Traces | OpenTelemetry traces. A request joins the caller's trace from its W3C `traceparent`, B3 `b3` or B3 multi `X-B3-*` header; calls made with Spring's HTTP clients send W3C `traceparent` only. To send B3 as well, set Spring Boot's `management.tracing.propagation.produce`, such as `w3c,b3`. Spring Boot keeps 10% of new traces, and always follows the caller's decision, so a trace is never half kept |
+| Traces | OpenTelemetry traces. A request joins the caller's trace from its W3C `traceparent`, B3 `b3` or B3 multi `X-B3-*` header; calls made with Spring's HTTP clients send W3C `traceparent` only. To send B3 as well, set Spring Boot's `management.tracing.propagation.produce` ([examples](#examples)). Spring Boot keeps 10% of new traces, and always follows the caller's decision, so a trace is never half kept |
 | Trace and metric resource | `service.name` from `spring.application.name` (set by Spring Boot), `deployment.environment.name` from `stratum.environment`, and `service.instance.id`, the [instance ID](../../docs/configuration/reference.md#instance-id) of this running copy, which its log lines carry too |
 | URLs on spans | The full URL of each HTTP client call, query string included, is kept on its span; only the user info is removed. Metrics never carry the query ([traces](../../docs/modules/observability-traces.md#urls-on-spans-and-metrics)) |
 | Health | `/actuator/health`, with Spring Boot's Kubernetes `liveness` and `readiness` groups |
@@ -301,6 +301,20 @@ stratum:
         - deviceId
       allowed:
         - customerId
+```
+
+When a service you call reads only B3 headers, send B3 next to W3C `traceparent` on every call
+made with Spring's HTTP clients:
+
+```properties
+management.tracing.propagation.produce=w3c,b3
+```
+
+```yaml
+management:
+  tracing:
+    propagation:
+      produce: w3c,b3
 ```
 
 Keep every trace while you develop, in `application-local.properties` or `application-local.yml`.
