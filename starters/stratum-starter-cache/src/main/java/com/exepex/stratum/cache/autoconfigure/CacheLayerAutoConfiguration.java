@@ -74,11 +74,15 @@ public final class CacheLayerAutoConfiguration {
    * Keeps the hook eager when the service sets {@code spring.main.lazy-initialization=true}, so the
    * layer is still installed before a cached call is made. Static because a {@code
    * BeanFactoryPostProcessor} reads the filter before ordinary beans exist, ST-ENG-47's exception,
-   * as Spring Boot's own {@code scheduledBeanLazyInitializationExcludeFilter} is static.
+   * as Spring Boot's own {@code scheduledBeanLazyInitializationExcludeFilter} is static. It backs
+   * off by its name, not its type, because other filters, such as Spring Boot's, must not switch it
+   * off.
    *
    * @return the filter
    */
-  @Bean
+  @Bean(CacheConstants.LAZY_INITIALIZATION_FILTER)
+  @Fallback
+  @ConditionalOnMissingBean(name = CacheConstants.LAZY_INITIALIZATION_FILTER)
   public static LazyInitializationExcludeFilter stratumCacheLayerLazyInitializationExcludeFilter() {
     return LazyInitializationExcludeFilter.forBeanTypes(StratumCacheLayerHook.class);
   }

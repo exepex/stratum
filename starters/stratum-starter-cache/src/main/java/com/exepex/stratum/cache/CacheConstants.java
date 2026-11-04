@@ -93,4 +93,8 @@ public class CacheConstants {
 
   /** The name of the bean that makes Redis caches clear with SCAN. */
   public static final String SCAN_ON_CLEAR = "stratumScanOnClear";
+
+  /** The name of the filter that keeps the cache layer's hook eager under lazy initialization. */
+  public static final String LAZY_INITIALIZATION_FILTER =
+      "stratumCacheLayerLazyInitializationExcludeFilter";
 }

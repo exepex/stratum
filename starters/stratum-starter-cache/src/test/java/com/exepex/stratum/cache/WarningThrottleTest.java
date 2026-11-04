@@ -18,6 +18,9 @@ class WarningThrottleTest {
   /** The cap the throttle in these tests is built with. */
   private static final int MAX_CACHES = 3;
 
+  /** The start of each generated cache name. */
+  private static final String CACHE_PREFIX = "cache-";
+
   /** When the tests start. */
   private static final Instant START = Instant.parse("2026-11-04T08:00:00Z");
 
@@ -52,7 +55,7 @@ class WarningThrottleTest {
   @DisplayName("a name past the cap shares the over-limit slot, one warning per interval")
   void overflowSharesOneSlot() {
     for (var name = 0; name < MAX_CACHES; name++) {
-      assertThat(throttle.shouldWarn("cache-" + name)).isTrue();
+      assertThat(throttle.shouldWarn(CACHE_PREFIX + name)).isTrue();
     }
 
     // Both names past the cap share the one slot, so only the first warns this interval.
@@ -77,10 +80,20 @@ class WarningThrottleTest {
   @DisplayName("counting folds names past the cap into the over-limit tag")
   void countingFoldsOverflow() {
     for (var name = 0; name < MAX_CACHES; name++) {
-      throttle.tagValueFor("cache-" + name);
+      throttle.tagValueFor(CACHE_PREFIX + name);
     }
 
     assertThat(throttle.tagValueFor("extra-1")).isEqualTo(CacheConstants.OVER_LIMIT);
     assertThat(throttle.tagValueFor("extra-2")).isEqualTo(CacheConstants.OVER_LIMIT);
+  }
+
+  @Test
+  @DisplayName("an over-limit warning takes no slot from the admitted names")
+  void overLimitSlotIsExtra() {
+    assertThat(throttle.shouldWarn(CacheConstants.OVER_LIMIT)).isTrue();
+    for (var name = 0; name < MAX_CACHES; name++) {
+      assertThat(throttle.tagValueFor(CACHE_PREFIX + name)).isEqualTo(CACHE_PREFIX + name);
+      assertThat(throttle.shouldWarn(CACHE_PREFIX + name)).isTrue();
+    }
   }
 }

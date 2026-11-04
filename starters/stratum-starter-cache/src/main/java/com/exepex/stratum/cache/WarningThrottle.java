@@ -84,9 +84,14 @@ public final class WarningThrottle {
     }
   }
 
-  /** Returns the name's own slot while there is room, otherwise the shared one. Never null. */
+  /**
+   * Returns the name's own slot while there is room, otherwise the shared one. Never null. The
+   * shared slot is the extra one, so it never takes a slot from the admitted names.
+   */
   private String slotFor(String cacheName) {
-    if (lastWarningAt.size() < maxCaches || lastWarningAt.containsKey(cacheName)) {
+    var ownSlots =
+        lastWarningAt.size() - (lastWarningAt.containsKey(CacheConstants.OVER_LIMIT) ? 1 : 0);
+    if (ownSlots < maxCaches || lastWarningAt.containsKey(cacheName)) {
       return cacheName;
     }
     return CacheConstants.OVER_LIMIT;

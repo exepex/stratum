@@ -4,8 +4,7 @@ import com.exepex.stratum.core.api.StratumInternal;
 
 /**
  * Counts the cache layer's failures and refused cache names, so that the decorator, the handler and
- * the resolver never name a Micrometer type and stay loadable without {@code micrometer-core}. A
- * service that prefers its own counters declares a {@code CacheCounters} bean.
+ * the resolver never name a Micrometer type and stay loadable without {@code micrometer-core}.
  */
 @StratumInternal
 public interface CacheCounters {
