@@ -23,6 +23,7 @@ class ObservabilityArchTest {
           MetricTagGuard.class,
           ObservabilityProperties.class,
           ObservabilityProperties.ObservabilityPropertiesBuilder.class,
+          ObservabilityProperties.Baggage.class,
           ObservabilityProperties.Tags.class,
           ObservabilityProperties.Tags.TagsBuilder.class,
           ObservabilityPropertiesCustomizer.class,

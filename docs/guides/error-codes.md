@@ -85,12 +85,13 @@ line or break a response.
 With the observability module on, the correlation ID is the `correlationId` entry of the
 tracing baggage when one is set, and otherwise the trace ID, which every service in the same trace
 shares ([observability module](../modules/observability-traces.md#correlation-id)).
-Baggage is sent on every outgoing call made with Spring's HTTP clients, `WebClient` in reactive
-code included, to every host, so never put a secret or personal data in the correlation ID. With
+Only the [allowed baggage entries](../modules/observability-traces.md#baggage) are sent, but they go
+on every outgoing call made with Spring's HTTP clients, `WebClient` in reactive code included, to
+every host, so never put a secret or personal data in the correlation ID. With
 the web module on, the web module also takes the ID from the caller's `X-Correlation-Id`
 header and returns it in the response
-([web module](../modules/web.md#correlation-id)). **Planned:** the logging module will limit the
-baggage to the service's own hosts.
+([web module](../modules/web.md#correlation-id)). Sending baggage only to the service's own hosts is
+planned ([#171](https://github.com/exepex/stratum/issues/171)).
 
 ## Using codes in your service
 

@@ -115,6 +115,9 @@ public class ObservabilityConstants {
   public static final String TRACING_EXPORT_ENDPOINT =
       "management.opentelemetry.tracing.export.otlp.endpoint";
 
+  /** Spring Boot's baggage names that are also sent in headers of their own; always kept. */
+  public static final String BAGGAGE_REMOTE_FIELDS = "management.tracing.baggage.remote-fields";
+
   /** The span attribute in which Spring puts the full URL of an outgoing HTTP call. */
   public static final String HTTP_URL = "http.url";
 

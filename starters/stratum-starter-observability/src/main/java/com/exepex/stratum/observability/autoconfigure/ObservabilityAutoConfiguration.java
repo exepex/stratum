@@ -6,6 +6,7 @@ import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.executor.ContextCarryingExecutorsConfiguration;
 import com.exepex.stratum.core.properties.StratumCustomizers;
 import com.exepex.stratum.core.reactor.ReactorOperatorContextPropagation;
+import com.exepex.stratum.observability.BaggageAllowList;
 import com.exepex.stratum.observability.CorrelationIdRecorder;
 import com.exepex.stratum.observability.MetricTagGuard;
 import com.exepex.stratum.observability.ObservabilityConstants;
@@ -87,6 +88,22 @@ public final class ObservabilityAutoConfiguration {
   public MetricTagGuard metricTagGuard(Environment environment) {
     var tags = ObservabilityProperties.resolve(environment).tags();
     return new MetricTagGuard(tags.extraForbidden(), tags.allowed());
+  }
+
+  /**
+   * Keeps only the allowed baggage entries in every call and message the service sends or reads.
+   * The names come from {@link ObservabilityProperties#resolve} and Spring Boot's remote fields.
+   *
+   * @param environment the application's environment
+   * @return the allow-list
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean
+  // Static, because Spring creates post-processors before other beans: an instance method would
+  // create this configuration that early, and its constructor checks the customizer beans.
+  public static BaggageAllowList baggageAllowList(Environment environment) {
+    return BaggageAllowList.from(environment);
   }
 
   /**

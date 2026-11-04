@@ -18,8 +18,9 @@ This page says what travels, where, and the few places your code has to help.
 | `httpMethod`, `httpRoute`, `clientIp` and the other [request fields](../modules/web.md#request-fields-in-logs) | The web starters | Yes |
 | Any field your code puts with `MDC.put`, such as `customerId` | Your code | Yes, with the logging starter |
 
-Fields stay inside the service. Only `traceparent` and the correlation ID in `baggage` go to the
-services you call; your own MDC fields never do.
+Fields stay inside the service. Only `traceparent` and the
+[allowed baggage entries](../modules/observability-traces.md#baggage), such as the correlation ID,
+go to the services you call; your own MDC fields never do.
 
 When the work on another thread ends, that thread's MDC goes back to what it held before, normally
 nothing. The next request served by the same pool thread starts clean.

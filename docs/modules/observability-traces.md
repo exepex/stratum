@@ -28,17 +28,88 @@ try (var correlation = tracer.createBaggageInScope("correlationId", order.correl
 }
 ```
 
-Baggage travels with the trace: Spring's HTTP clients, `WebClient` in reactive code included, send it
-in the W3C `baggage` header on every outgoing call, to every host, third parties included, and
-Kafka, JMS and RabbitMQ senders put it in a `baggage` message header ([messages](../../starters/stratum-starter-observability/README.md#messages)). So the
-correlation ID set in baggage reaches every service you call or send a message to.
+Baggage travels with the trace: Spring's HTTP clients, `WebClient` in reactive code included, send the
+[allowed entries](#baggage) in the W3C `baggage` header on every outgoing call, to every host, third
+parties included, and Kafka, JMS and RabbitMQ senders put them in a `baggage` message header
+([messages](../../starters/stratum-starter-observability/README.md#messages)). So the correlation ID
+set in baggage reaches every service you call or send a message to.
 
 > [!WARNING]
 > Never put a secret or personal data, such as a customer's name or email address, in the
 > correlation ID or any other baggage entry. Every host your service calls receives it.
 
 The web starters also take it from the `X-Correlation-Id` header ([web](web.md#correlation-id)).
-**Planned:** the logging starter will limit the baggage to your own hosts.
+
+## Baggage
+
+Stratum reads and sends only the baggage entries you allow: by default only `correlationId`, plus
+the names in Spring Boot's `management.tracing.baggage.remote-fields`, which Spring Boot also sends
+in headers of their own. Any other entry a caller sends is dropped when the call or message is read,
+so your code never sees it and never passes it on. Any other entry your own code sets is not sent in
+the `baggage` header. Names match exactly, case included: `CORRELATIONID` is not `correlationId`.
+
+One exception comes from Spring Boot: it sends, in a header of its own, each entry your code sets
+whose name equals a remote field ignoring case, such as `TENANTID` for the remote field `tenantId`.
+
+Allow more names with `stratum.observability.baggage.allowed`. The list you set **replaces** the
+default, so keep `correlationId` in it: without it, the correlation ID that callers send, and the one
+the web starters take from `X-Correlation-Id`, is dropped, and each service uses its own trace ID.
+
+Pass a caller's `tenantId` on, and also send `region` in a header of its own:
+
+```properties
+stratum.observability.baggage.allowed=correlationId,tenantId
+management.tracing.baggage.remote-fields=region
+```
+
+```yaml
+stratum:
+  observability:
+    baggage:
+      allowed:
+        - correlationId
+        - tenantId
+management:
+  tracing:
+    baggage:
+      remote-fields:
+        - region
+```
+
+The same allowed names in Java, in an `ObservabilityPropertiesCustomizer` listed in
+`META-INF/spring.factories` ([configure in Java](../../starters/stratum-starter-observability/README.md#configure-in-java)),
+which wins over the files. Spring Boot's `remote-fields` is set in Java through
+[default properties](../configuration/overriding-defaults.md#switches-shared-properties-and-spring-boot-properties-in-java).
+
+```java
+public class OrdersObservabilitySettings implements ObservabilityPropertiesCustomizer {
+
+  @Override
+  public ObservabilityProperties customize(ObservabilityProperties properties) {
+    var baggage = new ObservabilityProperties.Baggage(List.of("correlationId", "tenantId"));
+    return properties.toBuilder().baggage(baggage).build();
+  }
+}
+```
+
+Set an allowed entry in your own code with Micrometer's `Tracer`; calls and messages inside the block
+send it:
+
+```java
+try (var tenant = tracer.createBaggageInScope("tenantId", order.tenantId())) {
+  shippingClient.ship(order); // sends baggage: correlationId=...,tenantId=...
+}
+```
+
+The list applies to the propagators that Spring Boot's tracing and OpenTelemetry use, including a
+`ContextPropagators` bean you declare yourself. Known limits:
+
+- Allowed entries still go to every host you call, third parties included. Sending baggage only to
+  your own hosts is planned ([#171](https://github.com/exepex/stratum/issues/171)).
+- Code that calls OpenTelemetry's `W3CBaggagePropagator` itself, and the OpenTelemetry Java agent,
+  do not go through the list.
+- Reading a call or message limits all the baggage current at that moment, so an entry your code set
+  before it, and did not allow, is dropped there too.
 
 ## URLs on spans and metrics
 

@@ -4,10 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 import com.exepex.stratum.core.logging.LoggingContextConstants;
+import com.exepex.stratum.observability.testsupport.BaggageTestData;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import io.micrometer.tracing.Tracer;
+import jakarta.jms.JMSException;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Consumer;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AutoClose;
@@ -15,6 +18,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jms.core.JmsTemplate;
 import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -30,7 +34,8 @@ import org.springframework.test.context.DynamicPropertySource;
       "management.opentelemetry.tracing.export.otlp.endpoint=http://localhost:1/v1/traces",
       "management.otlp.metrics.export.enabled=false",
       "spring.kafka.bootstrap-servers=${spring.embedded.kafka.brokers}",
-      "spring.kafka.consumer.auto-offset-reset=earliest"
+      "spring.kafka.consumer.auto-offset-reset=earliest",
+      "spring.jms.template.receive-timeout=30s"
     })
 // Closes the application after this class, so its tracing and threads never reach the next one.
 @DirtiesContext
@@ -61,6 +66,9 @@ class MessagingIntegrationTest {
   /** The MDC key in which Spring Boot puts the trace ID. */
   private static final String TRACE_ID = "traceId";
 
+  /** The JMS queue that no listener reads, so the test reads the sent message itself. */
+  private static final String AUDIT_QUEUE = "order-audit";
+
   /** Sends the order events and keeps what each receiver saw. */
   @Autowired private OrderEvents orderEvents;
 
@@ -69,6 +77,9 @@ class MessagingIntegrationTest {
 
   /** Holds the timers of the senders and receivers. */
   @Autowired private MeterRegistry meterRegistry;
+
+  /** Spring Boot's JMS sender, which also reads the audit queue. */
+  @Autowired private JmsTemplate jmsTemplate;
 
   /**
    * Sends an event inside a span whose baggage holds the correlation ID, and returns the trace ID.
@@ -128,5 +139,25 @@ class MessagingIntegrationTest {
 
     assertReceivedInSameTrace(orderEvents.nextReceivedLoggingContext(), traceId);
     assertTimedOnce("jms.message.publish", "jms.message.process");
+  }
+
+  @Test
+  @DisplayName("a JMS message carries the correlation ID and none of the sender's other baggage")
+  void jmsMessageCarriesOnlyAllowedBaggage() throws JMSException {
+    var span = tracer.nextSpan().name("audit-order").start();
+    try (var _ = tracer.withSpan(span);
+        var _ =
+            tracer.createBaggageInScope(
+                LoggingContextConstants.CORRELATION_ID, ORDER_CORRELATION_ID);
+        var _ = tracer.createBaggageInScope("evil", "SECRET");
+        var _ = tracer.createBaggageInScope("CORRELATIONID", "leak")) {
+      jmsTemplate.convertAndSend(AUDIT_QUEUE, ORDER_PLACED);
+    } finally {
+      span.end();
+    }
+
+    var auditMessage = Objects.requireNonNull(jmsTemplate.receive(AUDIT_QUEUE));
+    assertThat(auditMessage.getStringProperty(BaggageTestData.BAGGAGE_HEADER))
+        .isEqualTo(BaggageTestData.CORRELATION_ID_ENTRY);
   }
 }
