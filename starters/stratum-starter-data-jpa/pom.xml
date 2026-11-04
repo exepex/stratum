@@ -40,6 +40,20 @@
       <artifactId>postgresql</artifactId>
       <optional>true</optional>
     </dependency>
+    <!-- Spring Boot's Flyway support, optional: its customizer is where the boundary wraps the
+         connection Boot builds for Flyway. A service brings it with spring-boot-starter-flyway. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-flyway</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <!-- Liquibase, optional: its SpringLiquibase bean holds the connection the boundary wraps. A
+         service brings it with spring-boot-starter-liquibase. -->
+    <dependency>
+      <groupId>org.liquibase</groupId>
+      <artifactId>liquibase-core</artifactId>
+      <optional>true</optional>
+    </dependency>
     <!-- The checks and set-up that every starter's tests share, and the PostgreSQL container that
          stratum-test declares optional. -->
     <dependency>
@@ -74,6 +88,22 @@
     <dependency>
       <groupId>org.springframework.batch</groupId>
       <artifactId>spring-batch-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Flyway and Liquibase as a service adds them, to prove their connections get the boundary. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-flyway</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-database-postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-liquibase</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

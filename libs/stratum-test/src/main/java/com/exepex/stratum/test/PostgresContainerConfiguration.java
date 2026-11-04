@@ -17,7 +17,7 @@ public class PostgresContainerConfiguration {
   /**
    * The PostgreSQL image every Stratum test runs against; changed by hand, never {@code latest}.
    */
-  private static final String IMAGE = "postgres:18.6-alpine";
+  static final String IMAGE = "postgres:18.6-alpine";
 
   /**
    * Creates the PostgreSQL container, which Spring Boot starts and connects the application to.
