@@ -55,9 +55,10 @@ the span, so you can see which values were sent, and changes two things:
 - **The `uri` tag loses its query**, on spans and metrics, because each distinct value would create
   a new time series and can overload the metrics backend.
 
-A URL that cannot be parsed is recorded as `[UNPARSABLE_URL]`. This cannot be switched off. It
-applies when Spring's web classes are on the classpath, which is the only way Spring makes HTTP
-client spans and metrics.
+A URL that cannot be parsed is recorded as `[UNPARSABLE_URL]`. Declaring your own
+`TelemetryUrlFilter` bean replaces this cleaning, and `stratum.observability.enabled=false` turns it
+off with the rest of the module. It applies when Spring's web classes are on the classpath, which
+is the only way Spring makes HTTP client spans and metrics.
 
 > [!WARNING]
 > Never put a secret or personal data, such as a token, an IBAN or a card number, in a URL's path

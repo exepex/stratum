@@ -98,13 +98,13 @@ and traces, so it never sends anything, not even to Spring Boot's default addres
 | Correlation ID | In the logging context of every traced operation, so log lines and error reports carry it ([traces](../../docs/modules/observability-traces.md#correlation-id)) |
 | Other threads | `@Async` methods and Spring Boot's executors keep the caller's trace and correlation ID ([below](#threads-and-reactive-code)). `@Scheduled` jobs start clean, and `LinkedWork` links work that a request saves for a later job back to that request ([guide](../../docs/guides/linking-later-work.md)) |
 | Messages | Kafka, JMS (IBM MQ, ActiveMQ) and RabbitMQ: sending and handling a message are timed and traced, and the consumer joins the sender's trace and correlation ID ([below](#messages)) |
-| Traces | OpenTelemetry traces. W3C `traceparent` is read from incoming requests and sent on calls made with Spring's HTTP clients. Spring Boot keeps 10% of new traces, and always follows the caller's decision, so a trace is never half kept |
+| Traces | OpenTelemetry traces. A request joins the caller's trace from its W3C `traceparent`, B3 `b3` or B3 multi `X-B3-*` header; calls made with Spring's HTTP clients send W3C `traceparent` only. To send B3 as well, set Spring Boot's `management.tracing.propagation.produce`, such as `w3c,b3`. Spring Boot keeps 10% of new traces, and always follows the caller's decision, so a trace is never half kept |
 | Trace and metric resource | `service.name` from `spring.application.name` (set by Spring Boot), `deployment.environment.name` from `stratum.environment`, and `service.instance.id`, the [instance ID](../../docs/configuration/reference.md#instance-id) of this running copy, which its log lines carry too |
 | URLs on spans | The full URL of each HTTP client call, query string included, is kept on its span; only the user info is removed. Metrics never carry the query ([traces](../../docs/modules/observability-traces.md#urls-on-spans-and-metrics)) |
 | Health | `/actuator/health`, with Spring Boot's Kubernetes `liveness` and `readiness` groups |
 | Safe exposure | Only `health` and `info` are reachable over HTTP |
 | Startup check | With the module on, startup stops if an export address is missing, in every profile ([below](#startup-check)) |
-| No Collector on your laptop | With an address on `localhost`, metrics and spans that cannot be sent are dropped without a warning ([below](#running-without-a-collector)) |
+| No Collector on your laptop | With an address on `localhost`, metrics and spans that cannot be sent are dropped without a failed-send log; a full span queue still logs one warning ([below](#running-without-a-collector)) |
 
 Pushing means a short-lived job, such as a batch run or a command-line tool, still sends its data:
 Spring Boot sends the last metrics and traces when the application stops.
@@ -124,8 +124,22 @@ pod or for all pods added together, which percentiles computed inside each pod c
 no bucket limits to choose. Dashboards and alerts decide what counts as too slow.
 
 Check that your metrics backend, or the Collector exporter in front of it, accepts OTLP
-exponential histograms. If it does not, send classic fixed buckets instead with
-`management.otlp.metrics.export.histogram-flavor=explicit-bucket-histogram`.
+exponential histograms. If it does not, send classic fixed buckets instead, in
+`application.properties`:
+
+```properties
+management.otlp.metrics.export.histogram-flavor=explicit-bucket-histogram
+```
+
+or in `application.yml`:
+
+```yaml
+management:
+  otlp:
+    metrics:
+      export:
+        histogram-flavor: explicit-bucket-histogram
+```
 
 ### Tag guard
 
@@ -208,13 +222,32 @@ turn the module off in that profile with `stratum.observability.enabled=false`.
 On your laptop you may point the exports at `localhost` without running a Collector. For each
 export whose address is on this machine (`localhost`, `127.0.0.1` or `[::1]`), Stratum turns off
 the log of a failed send: Micrometer's warning for metrics and OpenTelemetry's error for spans, each
-of which would otherwise print a stack trace at every attempt. The data is dropped quietly. To see
-them again, set `logging.level.io.micrometer.registry.otlp.OtlpMeterRegistry=warn` or
-`logging.level.io.opentelemetry.exporter.internal.http.HttpExporter=error` (`...grpc.GrpcExporter`
-with the gRPC transport). Any other address, such as `http://otel-collector:4318`, keeps both: a
-warning with a stack trace at every metrics push, every minute by default, and an error with a stack
-trace for each batch of spans that cannot be sent, so a broken Collector in a shared environment is
-noticed. The service keeps running.
+of which would otherwise print a stack trace at every attempt. The data is dropped without those
+logs. One warning stays, at any address: when spans are made faster than they can be sent,
+OpenTelemetry keeps at most 2048 waiting and logs `BatchSpanProcessor dropped <n> span(s) since the
+last export because the queue is full (maxQueueSize=2048)`.
+
+To see the failed sends again, set the two log levels, in `application.properties`:
+
+```properties
+logging.level.io.micrometer.registry.otlp.OtlpMeterRegistry=warn
+logging.level.io.opentelemetry.exporter.internal.http.HttpExporter=error
+```
+
+or in `application.yml`:
+
+```yaml
+logging:
+  level:
+    io.micrometer.registry.otlp.OtlpMeterRegistry: warn
+    io.opentelemetry.exporter.internal.http.HttpExporter: error
+```
+
+With the gRPC transport, the second logger is `io.opentelemetry.exporter.internal.grpc.GrpcExporter`.
+Any other address, such as `http://otel-collector:4318`, keeps both: a warning with a stack trace at
+every metrics push, every minute by default, and an error with a stack trace for each batch of
+spans that cannot be sent, so a broken Collector in a shared environment is noticed. The service
+keeps running.
 
 ## Properties
 
@@ -271,7 +304,7 @@ stratum:
 
 Keep every trace while you develop, in `application-local.properties` or `application-local.yml`.
 Point the exports at `localhost`; start a Collector on your laptop if you want to see the data, or
-leave it off and the data is dropped quietly:
+leave it off and the data is dropped ([running without a Collector](#running-without-a-collector)):
 
 ```properties
 management.otlp.metrics.export.url=http://localhost:4318/v1/metrics
@@ -297,9 +330,10 @@ management:
 
 Send metrics to Prometheus by scraping instead of pushing. Add `io.micrometer:micrometer-registry-prometheus`
 (its version comes from Spring Boot), expose the endpoint, and turn OTLP metrics off. With Stratum's
-histograms on, each timer becomes about 70 `_bucket` series per set of tags in the scrape. The
-`percentiles-histogram.all` line below turns them off, leaving count, sum and max; to keep them
-for one metric, also set `management.metrics.distribution.percentiles-histogram.<metric-name>=true`.
+histograms on, each timer becomes 69 `_bucket` series per set of tags in the scrape: 68 bounds
+from 1 ms to 30 s, plus `+Inf`. The `percentiles-histogram.all` line below turns them off, leaving
+count, sum and max; to keep them for one metric, also set
+`management.metrics.distribution.percentiles-histogram.<metric-name>=true`.
 
 ```properties
 management.endpoints.web.exposure.include=health,info,prometheus

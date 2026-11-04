@@ -12,7 +12,9 @@ With the module on, sending and handling a message are observed like an HTTP cal
 - **Errors.** A Kafka or RabbitMQ listener that throws records its timing with the `error` tag set
   to an exception's class name: on Kafka the listener's own exception, such as
   `IllegalStateException`; on RabbitMQ Spring's wrapper, `ListenerExecutionFailedException`. Every
-  retry is counted. A message handled without error has `error=none`. JMS timers do not show
+  redelivery is counted, Kafka's error handler retries included. With Spring Boot's RabbitMQ
+  listener retry on (`spring.rabbitmq.listener.simple.retry.enabled=true`), the attempts inside one
+  delivery are timed once. A message handled without error has `error=none`. JMS timers do not show
   failures: a `@JmsListener` that throws is still recorded with `error=none`, so count JMS failures
   from your logs.
 - **Kafka batch listeners.** Spring Kafka observes listeners that take one record at a time. A
@@ -40,6 +42,20 @@ This works with the senders and listeners Spring Boot sets up, such as `KafkaTem
 `@KafkaListener`, `JmsTemplate` and `@JmsListener`. This starter adds no messaging library, so
 Stratum's switches do nothing until your service brings Kafka or RabbitMQ.
 
-To turn one off, set its switch to `false`, for example
-`spring.kafka.listener.observation-enabled=false`. To turn them all off, set each of the six Kafka
-and RabbitMQ switches in the table above to `false`.
+To turn one off, set its switch to `false`, for example in `application.properties`:
+
+```properties
+spring.kafka.listener.observation-enabled=false
+```
+
+or in `application.yml`:
+
+```yaml
+spring:
+  kafka:
+    listener:
+      observation-enabled: false
+```
+
+To turn them all off, set each of the six Kafka and RabbitMQ switches in the table above to
+`false`.

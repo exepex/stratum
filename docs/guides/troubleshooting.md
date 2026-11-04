@@ -47,7 +47,9 @@ Negative matches:
 
 ### 3. Actuator, in a safe environment
 
-On your laptop (the `local` profile exposes these endpoints) you can inspect the running service:
+Stratum exposes only `health` and `info`, in every profile. On your laptop, add these endpoints to
+`management.endpoints.web.exposure.include` in your `local` profile's file to inspect the running
+service:
 
 | Endpoint | Shows |
 | --- | --- |
