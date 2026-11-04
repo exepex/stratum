@@ -7,10 +7,11 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HexFormat;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.redis.cache.CacheStatistics;
@@ -66,16 +67,11 @@ public class SizeLimitedRedisCacheWriter implements RedisCacheWriter {
       Supplier<byte[]> valueLoader,
       @Nullable Duration ttl,
       boolean timeToIdleEnabled) {
-    var oversized = new AtomicReference<byte[]>();
+    var loader = new SizeCheckedLoader(name, valueLoader);
     try {
-      return delegate.get(
-          name,
-          limitedKey(name, key),
-          refuseOversized(name, valueLoader, oversized),
-          ttl,
-          timeToIdleEnabled);
+      return delegate.get(name, limitedKey(name, key), loader, ttl, timeToIdleEnabled);
     } catch (OversizedValue refused) {
-      return oversized.get();
+      return Objects.requireNonNull(loader.oversized);
     }
   }
 
@@ -185,14 +181,15 @@ public class SizeLimitedRedisCacheWriter implements RedisCacheWriter {
    * Returns the length of the key's prefix, up to and including the first {@code <name>::}, or 0
    * when the key has none, as with a prefix of the service's own that leaves out the name.
    */
-  private static int prefixLength(String name, byte[] key) {
+  private int prefixLength(String name, byte[] key) {
     var prefixEnd = (name + PREFIX_END).getBytes(StandardCharsets.UTF_8);
-    for (var start = 0; start <= key.length - prefixEnd.length; start++) {
-      if (Arrays.equals(key, start, start + prefixEnd.length, prefixEnd, 0, prefixEnd.length)) {
-        return start + prefixEnd.length;
-      }
-    }
-    return 0;
+    return IntStream.rangeClosed(0, key.length - prefixEnd.length)
+        .filter(
+            start ->
+                Arrays.equals(key, start, start + prefixEnd.length, prefixEnd, 0, prefixEnd.length))
+        .map(start -> start + prefixEnd.length)
+        .findFirst()
+        .orElse(0);
   }
 
   /** Returns whether the value is within its cache's limit, counting it when it is not. */
@@ -204,29 +201,40 @@ public class SizeLimitedRedisCacheWriter implements RedisCacheWriter {
     return false;
   }
 
-  /**
-   * Wraps the loader so that a value over the limit is kept in {@code oversized} and the wrapped
-   * writer is stopped before it stores it.
-   */
-  private Supplier<byte[]> refuseOversized(
-      String name, Supplier<byte[]> valueLoader, AtomicReference<byte[]> oversized) {
-    return () -> {
-      var value = valueLoader.get();
-      if (!fits(name, value)) {
-        oversized.set(value);
-        throw OversizedValue.INSTANCE;
-      }
-      return value;
-    };
-  }
-
   /** Returns the SHA-256 hash of the bytes. */
-  private static byte[] sha256(byte[] bytes) {
+  private byte[] sha256(byte[] bytes) {
     try {
       return MessageDigest.getInstance("SHA-256").digest(bytes);
     } catch (NoSuchAlgorithmException missing) {
       // Every Java platform must have SHA-256 (MessageDigest's Javadoc).
       throw new IllegalStateException(missing);
+    }
+  }
+
+  /**
+   * Loads a value for the wrapped writer, and stops that writer before it stores a value over the
+   * limit, keeping the value for the caller.
+   */
+  @RequiredArgsConstructor
+  private final class SizeCheckedLoader implements Supplier<byte[]> {
+
+    /** The cache's name. */
+    private final String name;
+
+    /** The loader Spring Data Redis passes, which calls the cached method. */
+    private final Supplier<byte[]> valueLoader;
+
+    /** The loaded value over the limit; {@code null} until one is loaded. */
+    private byte @Nullable [] oversized;
+
+    @Override
+    public byte[] get() {
+      var value = valueLoader.get();
+      if (!fits(name, value)) {
+        oversized = value;
+        throw OversizedValue.INSTANCE;
+      }
+      return value;
     }
   }
 

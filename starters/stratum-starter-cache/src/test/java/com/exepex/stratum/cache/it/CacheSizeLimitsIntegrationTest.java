@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.testcontainers.containers.GenericContainer;
 
@@ -67,12 +68,13 @@ class CacheSizeLimitsIntegrationTest {
   /** Empties Redis. */
   @BeforeEach
   void startFromEmptyRedis() {
-    redis.execute(
-        connection -> {
-          connection.serverCommands().flushDb();
-          return true;
-        },
-        true);
+    redis.execute(this::emptyRedis, true);
+  }
+
+  /** Empties Redis. */
+  private Object emptyRedis(RedisConnection connection) {
+    connection.serverCommands().flushDb();
+    return true;
   }
 
   @Nested

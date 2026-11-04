@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.FieldSource;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.invocation.InvocationOnMock;
 import org.springframework.cache.Cache.ValueRetrievalException;
 import org.springframework.data.redis.cache.CacheStatisticsCollector;
 import org.springframework.data.redis.cache.RedisCacheWriter;
@@ -71,6 +71,13 @@ class SizeLimitedRedisCacheWriterTest {
   /** A value one byte over the limit. */
   private static final byte[] LARGE_VALUE = new byte[VALUE_LIMIT + 1];
 
+  /** Key lengths kept as they are: one byte under the limit, and exactly the limit. */
+  private static final List<Integer> KEPT_KEY_LENGTHS = List.of(KEY_LIMIT - 1, KEY_LIMIT);
+
+  /** The loader's own error, which must reach the caller unchanged. */
+  private static final ValueRetrievalException LOADER_ERROR =
+      new ValueRetrievalException("sku-1", () -> null, new IllegalStateException("lookup failed"));
+
   /** Every call that takes a key, given the writer and the key, so each is checked to hash. */
   private static final List<Arguments> KEY_CALLS =
       List.of(
@@ -104,7 +111,7 @@ class SizeLimitedRedisCacheWriterTest {
   class Keys {
 
     @ParameterizedTest(name = "{0} bytes")
-    @ValueSource(ints = {KEY_LIMIT - 1, KEY_LIMIT})
+    @FieldSource("com.exepex.stratum.cache.SizeLimitedRedisCacheWriterTest#KEPT_KEY_LENGTHS")
     @DisplayName("a key up to the limit is used as it is")
     void keepsKeyUpToLimit(int length) {
       var key = key(PREFIX, length);
@@ -240,36 +247,30 @@ class SizeLimitedRedisCacheWriterTest {
     @DisplayName("the loader's own error reaches the caller unchanged")
     void keepsLoaderError() {
       loadOnMiss();
-      var loaderError =
-          new ValueRetrievalException("sku-1", () -> null, new IllegalStateException());
 
       assertThatExceptionOfType(ValueRetrievalException.class)
-          .isThrownBy(
-              () ->
-                  writer.get(
-                      CACHE,
-                      KEY_AT_LIMIT,
-                      () -> {
-                        throw loaderError;
-                      },
-                      TTL,
-                      false))
-          .isSameAs(loaderError);
+          .isThrownBy(() -> writer.get(CACHE, KEY_AT_LIMIT, this::failToLoad, TTL, false))
+          .isSameAs(LOADER_ERROR);
+    }
+
+    /** Fails as a cached method whose own lookup fails. */
+    private byte[] failToLoad() {
+      throw LOADER_ERROR;
     }
 
     /**
      * Makes the wrapped writer's load-through miss, call the loader and, as Spring Data Redis does,
      * write what it returned in the same call.
      */
-    @SuppressWarnings("unchecked")
     private void loadOnMiss() {
-      when(delegate.get(any(), any(), any(Supplier.class), any(), anyBoolean()))
-          .thenAnswer(
-              invocation -> {
-                byte[] value = invocation.<Supplier<byte[]>>getArgument(2).get();
-                delegate.store(CACHE, invocation.getArgument(1), value, TTL);
-                return value;
-              });
+      when(delegate.get(any(), any(), any(), any(), anyBoolean())).thenAnswer(this::loadAndStore);
+    }
+
+    /** Calls the loader the wrapped writer was given and stores its value, as on a miss. */
+    private byte[] loadAndStore(InvocationOnMock invocation) {
+      var value = invocation.<Supplier<byte[]>>getArgument(2).get();
+      delegate.store(CACHE, invocation.getArgument(1), value, TTL);
+      return value;
     }
   }
 
@@ -292,10 +293,9 @@ class SizeLimitedRedisCacheWriterTest {
 
     @Test
     @DisplayName("clears, statistics and connection callbacks reach the wrapped writer")
-    @SuppressWarnings("unchecked")
     void forwardsOtherCalls() {
       var pattern = bytes(PREFIX + "*");
-      Function<RedisConnection, Object> callback = mock(Function.class);
+      Function<RedisConnection, Object> callback = RedisConnection::isClosed;
 
       writer.clear(CACHE, pattern);
       writer.invalidate(CACHE, pattern);
