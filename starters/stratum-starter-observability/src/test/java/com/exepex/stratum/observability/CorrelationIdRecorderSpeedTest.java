@@ -28,8 +28,13 @@ class CorrelationIdRecorderSpeedTest {
   /** Characters in each hostile correlation ID: 1MB. */
   private static final int LARGE_LENGTH = 1_000_000;
 
-  /** Scope changes in each timed batch: a few milliseconds of work. */
-  private static final int CALLS_PER_BATCH = 3_000;
+  // A scope change takes from under 1 to a few microseconds, so a batch of a few thousand measures
+  // scheduler and JIT noise; batches of about 50ms of CPU time average it out.
+  /** Scope changes in each timed batch with the ID of safe characters: about 50ms of work. */
+  private static final int SAFE_ID_CALLS_PER_BATCH = 50_000;
+
+  /** Scope changes in each timed batch with the ID of unsafe characters: about 50ms of work. */
+  private static final int UNSAFE_ID_CALLS_PER_BATCH = 1_000_000;
 
   /** The trace ID of the span, which the logging context gets in place of a refused ID. */
   private static final String TRACE_ID = "4bf92f3577b34da6a3ce929d0e0e4736";
@@ -52,16 +57,22 @@ class CorrelationIdRecorderSpeedTest {
   private static final Duration UNSAFE_ID_LIMIT = Duration.of(3_115, ChronoUnit.NANOS);
 
   /**
-   * Baggage correlation IDs of 1MB, each with the CPU time a scope change carrying it may take,
-   * built only when the test runs: safe characters only, and characters that are not safe for logs.
+   * Baggage correlation IDs of 1MB, each with the scope changes in a timed batch and the CPU time a
+   * scope change carrying it may take, built only when the test runs: safe characters only, and
+   * characters that are not safe for logs.
    */
   private static final Supplier<Stream<Arguments>> HOSTILE_IDS_AND_LIMITS =
       () ->
           Stream.of(
-              Arguments.of("a 1MB ID of safe characters", "a".repeat(LARGE_LENGTH), SAFE_ID_LIMIT),
+              Arguments.of(
+                  "a 1MB ID of safe characters",
+                  "a".repeat(LARGE_LENGTH),
+                  SAFE_ID_CALLS_PER_BATCH,
+                  SAFE_ID_LIMIT),
               Arguments.of(
                   "a 1MB ID of unsafe characters",
                   UNSAFE_CHARACTERS.repeat(LARGE_LENGTH / UNSAFE_CHARACTERS.length()),
+                  UNSAFE_ID_CALLS_PER_BATCH,
                   UNSAFE_ID_LIMIT));
 
   /** The span made current with each baggage. */
@@ -72,8 +83,6 @@ class CorrelationIdRecorderSpeedTest {
 
   private final CorrelationIdRecorder recorder = new CorrelationIdRecorder();
 
-  private final CpuCostMeter meter = new CpuCostMeter(CALLS_PER_BATCH);
-
   /** Clears the logging context after each test. */
   @AfterEach
   void clearLoggingContext() {
@@ -83,7 +92,8 @@ class CorrelationIdRecorderSpeedTest {
   @ParameterizedTest(name = "{0}")
   @FieldSource("HOSTILE_IDS_AND_LIMITS")
   @DisplayName("a span made current with a 1MB ID gets the trace ID within its limit")
-  void hostileIdIsRefusedWithinLimit(String idName, String correlationId, Duration limit) {
+  void hostileIdIsRefusedWithinLimit(
+      String idName, String correlationId, int callsPerBatch, Duration limit) {
     var baggage =
         Baggage.builder().put(LoggingContextConstants.CORRELATION_ID, correlationId).build();
     var scope = new ScopeAttachedEvent(Context.root().with(SPAN).with(baggage));
@@ -91,6 +101,7 @@ class CorrelationIdRecorderSpeedTest {
     recorder.onEvent(scope);
     assertThat(MDC.get(LoggingContextConstants.CORRELATION_ID)).isEqualTo(TRACE_ID);
 
-    meter.assertCpuCostWithin(idName, limit, () -> recorder.onEvent(scope));
+    new CpuCostMeter(callsPerBatch)
+        .assertCpuCostWithin(idName, limit, () -> recorder.onEvent(scope));
   }
 }
