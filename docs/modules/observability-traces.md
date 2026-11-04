@@ -176,10 +176,10 @@ service:
 ```
 
 Each tail-sampling instance holds the spans of up to 100,000 traces in memory (`num_traces`) and
-decides 10 seconds later (`decision_wait`). It keeps a trace if any span failed, or if the trace
-lasted longer than 2 seconds from its earliest start to its latest end, and drops the rest. Replace
-`debug` with the exporter of your tracing backend, and turn TLS on between the tiers outside a
-test:
+decides 10 seconds after the trace's first span (`decision_wait`). It keeps a trace if any span
+failed, or if the trace lasted longer than 2 seconds from its earliest start to its latest end, and
+drops the rest. Replace `debug` with the exporter of your tracing backend, and turn TLS on between
+the tiers outside a test:
 
 ```yaml
 receivers:
