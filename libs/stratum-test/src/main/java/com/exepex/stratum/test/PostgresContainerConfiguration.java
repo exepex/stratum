@@ -15,18 +15,14 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 public class PostgresContainerConfiguration {
 
   /**
-   * The PostgreSQL image every Stratum test runs against; changed by hand, never {@code latest}.
-   */
-  static final String IMAGE = "postgres:18.6-alpine";
-
-  /**
-   * Creates the PostgreSQL container, which Spring Boot starts and connects the application to.
+   * Creates the PostgreSQL container, which Spring Boot starts and connects the application to. Its
+   * image is pinned in the root {@code pom.xml}, never {@code latest}.
    *
    * @return the container
    */
   @Bean
   @ServiceConnection
   PostgreSQLContainer postgresContainer() {
-    return new PostgreSQLContainer(IMAGE);
+    return new PostgreSQLContainer(ContainerImages.POSTGRES_IMAGE);
   }
 }
