@@ -124,11 +124,17 @@ Before deploying this step, run the service once with `validate` in development 
 copy of the production schema. A mismatch stops startup with `SX-DATA-1001`, naming the table and
 column; see [Data → Schema check](../modules/data-jpa.md#schema-check).
 
+> [!WARNING]
+> With `stratum.backward-compatible=false`, `stratum-starter-data-jpa` also sets
+> `spring.jpa.open-in-view=false`. Code that loads lazy relations after the service method has
+> returned will then fail with `LazyInitializationException`. Run your integration tests before
+> turning the mode off.
+
 ### A database that already has a schema
 
-Stratum sets no Flyway or Liquibase default for a database that already has tables, so a migration
-tool you add for the first time does not run against it by surprise. Mark the existing schema as
-the starting point once, before the tool's first run:
+Stratum sets no Flyway or Liquibase default for a database that already has tables. When you add
+a migration tool to such a database, mark the existing schema as the starting point once, before
+the tool's first run:
 
 - **Flyway** refuses to migrate a non-empty schema that has no history table. Let it record the
   existing schema as version `1` and run only the scripts above it, in `application.properties`:
@@ -152,11 +158,6 @@ the starting point once, before the tool's first run:
   database URL fails instead of being baselined.
 - **Liquibase** has no Spring Boot key for this. Run Liquibase's `changelogSync` command once
   against each existing database: it records every change set as applied without running it.
-
-
-> `spring.jpa.open-in-view=false`. Code that loads lazy relations after the service method has
-> returned will then fail with `LazyInitializationException`. Run your integration tests before
-> turning the mode off.
 
 ## Step 8: tests
 
