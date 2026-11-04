@@ -15,6 +15,7 @@ import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 
 @DisplayName(
     "Stratum's PostgreSQL container configurations connect a test application to the pinned"
@@ -23,17 +24,19 @@ class PostgresContainerConfigurationIntegrationTest {
 
   /**
    * Checks that the data source, which no {@code spring.datasource.*} property configures, reaches
-   * the PostgreSQL the build pinned in the root {@code pom.xml}.
+   * PostgreSQL, and that the container behind it runs the image the build pinned in the root {@code
+   * pom.xml}.
    *
    * @param dataSource the application's data source
+   * @param container the container the configuration started
    * @throws SQLException when no connection can be opened
    */
-  void assertReachesPinnedPostgres(DataSource dataSource) throws SQLException {
+  void assertReachesPinnedPostgres(DataSource dataSource, PostgreSQLContainer container)
+      throws SQLException {
     try (Connection connection = dataSource.getConnection()) {
       assertThat(connection.getMetaData().getDatabaseProductName()).isEqualTo("PostgreSQL");
-      assertThat(connection.getMetaData().getDatabaseProductVersion())
-          .isEqualTo(PinnedImages.serverVersion("postgres"));
     }
+    assertThat(container.getDockerImageName()).isEqualTo(PinnedImages.image("postgres"));
   }
 
   @Nested
@@ -43,11 +46,12 @@ class PostgresContainerConfigurationIntegrationTest {
   class WithPostgresContainerConfiguration {
 
     @Autowired private DataSource dataSource;
+    @Autowired private PostgreSQLContainer container;
 
     @Test
     @DisplayName("The data source reaches the pinned PostgreSQL with no connection properties")
     void connectsToPinnedPostgresWithoutConnectionProperties() throws SQLException {
-      assertReachesPinnedPostgres(dataSource);
+      assertReachesPinnedPostgres(dataSource, container);
     }
   }
 
@@ -58,11 +62,12 @@ class PostgresContainerConfigurationIntegrationTest {
   class WithPostgresJdbcContainerConfiguration {
 
     @Autowired private DataSource dataSource;
+    @Autowired private PostgreSQLContainer container;
 
     @Test
     @DisplayName("The data source reaches the pinned PostgreSQL with no connection properties")
     void connectsToPinnedPostgresWithoutConnectionProperties() throws SQLException {
-      assertReachesPinnedPostgres(dataSource);
+      assertReachesPinnedPostgres(dataSource, container);
     }
   }
 

@@ -28,6 +28,6 @@ public class RedisContainerConfiguration {
   @Bean
   @ServiceConnection(name = "redis")
   GenericContainer<?> redisContainer() {
-    return new GenericContainer<>(ContainerImages.REDIS).withExposedPorts(REDIS_PORT);
+    return new GenericContainer<>(ContainerImages.REDIS_IMAGE).withExposedPorts(REDIS_PORT);
   }
 }

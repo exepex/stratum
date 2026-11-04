@@ -23,6 +23,6 @@ public class PostgresContainerConfiguration {
   @Bean
   @ServiceConnection
   PostgreSQLContainer postgresContainer() {
-    return new PostgreSQLContainer(ContainerImages.POSTGRES);
+    return new PostgreSQLContainer(ContainerImages.POSTGRES_IMAGE);
   }
 }

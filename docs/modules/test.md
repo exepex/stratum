@@ -173,9 +173,10 @@ or `@MockitoBean`s, gets its own context and its own container.
 | Keycloak | Keycloak | `stratum.security.resource-server.issuer-uri` | Planned |
 | LocalStack | LocalStack (AWS emulator) | `stratum.cloud.*` (AWS) | Planned |
 
-Each image is pinned once, as a `testcontainers.image.*` property in the root `pom.xml`, and never
-set to `latest`, so every service tests against the same version. Stratum's maintainers update it by
-hand.
+Each image is pinned once, as a `testcontainers.image.<container>.name` and
+`testcontainers.image.<container>.tag` property pair in the root `pom.xml`, and never set to
+`latest`, so every service tests against the same version. The build combines name and tag into the
+full image. Stratum's maintainers update it by hand.
 
 Because data stays between test classes that share a container, each test should create its own data
 and not depend on what other tests left behind.

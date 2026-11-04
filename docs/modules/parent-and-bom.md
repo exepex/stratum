@@ -41,8 +41,9 @@ The BOM manages versions of:
 - every Stratum module, including the [bundle starters](bundles.md),
 - the extra libraries Stratum uses or recommends that Spring Boot does not manage (Resilience4j,
   cloud SDKs, and so on),
-- the container images used in tests, as Maven properties (`testcontainers.image.postgres`,
-  `testcontainers.image.redis`).
+- the container images used in tests, as Maven properties (`testcontainers.image.postgres.name`
+  and `testcontainers.image.postgres.tag`, and the same two for Redis), which the build combines
+  into each full image.
 
 Today it lists Stratum's own modules and MapStruct (`mapstruct`, `mapstruct-processor` and
 `lombok-mapstruct-binding`). Each other extra library is added together with the first starter that
