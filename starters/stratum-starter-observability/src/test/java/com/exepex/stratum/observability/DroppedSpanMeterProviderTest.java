@@ -46,6 +46,17 @@ class DroppedSpanMeterProviderTest {
   }
 
   @Test
+  @DisplayName("each read gives the total since startup, not the drops since the last read")
+  void keepsTotalAcrossReads() {
+    var counter = processedSpans(ObservabilityConstants.SPAN_PROCESSOR_METER);
+    counter.add(DROPPED_SPANS, DROPPED);
+    provider.droppedSpans();
+    counter.add(DROPPED_SPANS, DROPPED);
+
+    assertThat(provider.droppedSpans()).isEqualTo(2 * DROPPED_SPANS);
+  }
+
+  @Test
   @DisplayName("before any span, the count is zero")
   void startsAtZero() {
     assertThat(provider.droppedSpans()).isZero();
