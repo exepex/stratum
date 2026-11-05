@@ -31,7 +31,7 @@ public class CaffeineFutures {
     try {
       cache.getAsyncCache();
       return true;
-    } catch (IllegalStateException noAsyncCache) {
+    } catch (IllegalStateException _) {
       // Spring's documented answer for a cache built without async mode; asked once per cache.
       return false;
     }

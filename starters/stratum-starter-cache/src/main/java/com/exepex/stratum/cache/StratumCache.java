@@ -1,6 +1,7 @@
 package com.exepex.stratum.cache;
 
 import com.exepex.stratum.core.api.StratumInternal;
+import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -114,9 +115,11 @@ public class StratumCache implements Cache {
   @Override
   public <T> CompletableFuture<T> retrieve(Object key, Supplier<CompletableFuture<T>> valueLoader) {
     var loading = new AtomicReference<@Nullable CompletableFuture<T>>();
-    return delegate
-        .retrieve(key, () -> started(loading, valueLoader))
-        .exceptionallyCompose(failure -> afterFailedRetrieve(key, loading.get(), failure));
+    // Spring's contract: this future is never null.
+    var retrieved =
+        Objects.requireNonNull(delegate.retrieve(key, () -> started(loading, valueLoader)));
+    return retrieved.exceptionallyCompose(
+        failure -> afterFailedRetrieve(key, loading.get(), failure));
   }
 
   /**
