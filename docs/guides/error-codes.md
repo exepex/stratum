@@ -288,9 +288,9 @@ while the module is on, which it is unless `stratum.cache.enabled=false`. See th
 
 ## stratum-starter-webmvc and stratum-starter-webflux
 
-These apply only while the module is on, which it is unless `stratum.web.enabled=false`. A caller gets all but `SX-WEB-1006` in the error
+These apply only while the module is on, which it is unless `stratum.web.enabled=false`. A caller gets all but `SX-WEB-1006` and `SX-WEB-1009` in the error
 body of a request that failed outside your own error handling, such as an unknown path, a request
-that broke validation or one that ran out of time. `SX-WEB-1006` stops the application at startup. Both web starters send the same
+that broke validation or one that ran out of time. `SX-WEB-1006` and `SX-WEB-1009` stop the application at startup. Both web starters send the same
 codes. See the
 [web MVC starter](../../starters/stratum-starter-webmvc/README.md) and the
 [WebFlux starter](../../starters/stratum-starter-webflux/README.md).
@@ -305,3 +305,4 @@ codes. See the
 | `SX-WEB-1006` | Startup stopped: `stratum.web.client-location.database` names a file that is missing or is not a MaxMind `.mmdb` database. | Point the property at your GeoIP2 or GeoLite2 City or Country file, or remove it to log no country or city. |
 | `SX-WEB-1007` | The request ran out of time before its response started. The status is `stratum.web.timeout.status`, `503` by default, and the service logs a warning with the limit. | The service's team finds the slow call in the trace, adds a timeout to it, or gives the API more time with `stratum.web.timeout.routes` or `@ResponseTimeout`. The caller may retry an idempotent request later. |
 | `SX-WEB-1008` | The request body is larger than the API accepts. The status is `413`, and the service logs a warning: with the limit for Stratum's own limit, or saying that one of Spring's multipart or form limits was passed. | The caller sends a smaller body. If the API should accept more, the service's team raises its limit with `stratum.web.body-limit.routes` or `@RequestBodyLimit`. |
+| `SX-WEB-1009` | Startup stopped: a path pattern in `stratum.web.timeout.routes`, `stratum.web.body-limit.routes` or `stratum.web.request-log.skip-paths` is not a valid Spring path pattern, such as `/api/{id` or `/api/**/orders`. The message names the key, the pattern and Spring's reason. | Correct the pattern; Spring's path patterns allow {name}, * and **, and ** only at the end. |

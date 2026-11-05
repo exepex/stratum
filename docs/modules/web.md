@@ -419,7 +419,7 @@ it is listed in [Configuration reference](../configuration/reference.md) and exp
 | `stratum.web.body-limit.default-limit` | data size | `256KB`, or none while `stratum.backward-compatible` is `true` | no such key | How large any request's body may be. `0` means no limit. |
 | `stratum.web.body-limit.routes` | map of path pattern to data size | empty | no such key | The limit of the bodies of the requests whose path matches a pattern, such as `/uploads/**`. The most specific pattern wins. |
 | `stratum.web.request-log.enabled` | boolean | `true` | no such key | Whether each request writes one log line when it is answered. |
-| `stratum.web.request-log.skip-paths` | list of path patterns | `/actuator/**` | no such key | Paths whose requests write no log line. Replaces the default; static files are always skipped. |
+| `stratum.web.request-log.skip-paths` | list of path patterns | `/actuator/**` | no such key | Paths whose requests write no log line. Replaces the default; static files are always skipped. A pattern that is not valid stops startup with `SX-WEB-1009`. |
 | `stratum.web.request-log.request-headers` | map of header to field name | empty | no such key | The request headers written in the line, and the field each is written as. |
 | `stratum.web.request-log.response-headers` | map of header to field name | empty | no such key | The response headers written in the line, and the field each is written as. |
 | `stratum.web.request-log.denied-headers` | list of header names | empty | no such key | Headers never written, on top of `Authorization`, `Cookie`, `Set-Cookie` and `X-Api-Key`. |

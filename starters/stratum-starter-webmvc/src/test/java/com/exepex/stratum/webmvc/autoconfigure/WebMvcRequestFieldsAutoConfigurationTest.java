@@ -9,6 +9,7 @@ import com.exepex.stratum.web.RequestFieldsPropagation;
 import com.exepex.stratum.web.RequestFieldsReader;
 import com.exepex.stratum.web.RequestLogWriter;
 import com.exepex.stratum.web.ResponseTimeouts;
+import com.exepex.stratum.web.StandardModeReport;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebProperties;
 import com.exepex.stratum.webmvc.RequestBodyLimitFilter;
@@ -99,6 +100,7 @@ class WebMvcRequestFieldsAutoConfigurationTest {
                   .hasBean(CORRELATION_FILTER)
                   .hasBean(BAGGAGE_FILTER)
                   .hasSingleBean(RequestLogWriter.class)
+                  .hasSingleBean(StandardModeReport.class)
                   .hasBean(REQUEST_LOG_FILTER)
                   .hasBean(MDC_CLEANUP_FILTER)
                   .hasBean(MDC_CLEANUP_LISTENER));
@@ -148,6 +150,19 @@ class WebMvcRequestFieldsAutoConfigurationTest {
                       .isInstanceOf(StratumException.class)
                       .hasMessageStartingWith("SX-CORE-1003")
                       .hasMessageNotContaining(TOO_LONG_RANGE));
+    }
+
+    @Test
+    @DisplayName("a route that is not a valid path pattern stops startup with its key")
+    void badRoutePatternStopsStartup() {
+      contextRunner
+          .withPropertyValues(WebConstants.TIMEOUT_ROUTES + "[/api/{id]=5s")
+          .run(
+              context ->
+                  assertThat(context)
+                      .getFailure()
+                      .hasMessageContaining("SX-WEB-1009: ")
+                      .hasMessageContaining(WebConstants.TIMEOUT_ROUTES + " has '/api/{id'"));
     }
   }
 

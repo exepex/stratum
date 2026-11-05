@@ -1,11 +1,13 @@
 package com.exepex.stratum.web;
 
+import com.exepex.stratum.core.error.StratumException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.springframework.http.server.PathContainer;
 import org.springframework.web.util.pattern.PathPattern;
 import org.springframework.web.util.pattern.PathPatternParser;
+import org.springframework.web.util.pattern.PatternParseException;
 
 /**
  * Holds a setting per path pattern, such as a time or body size limit, and finds the value of the
@@ -21,16 +23,14 @@ class RouteValues<T> {
   /**
    * Parses the patterns.
    *
+   * @param key the property the patterns come from, named in the error of a wrong pattern
    * @param routes the value of each path pattern, such as {@code /reports/**}
-   * @throws org.springframework.web.util.pattern.PatternParseException if a pattern is not valid
+   * @throws StratumException {@code SX-WEB-1009} if a pattern is not valid
    */
-  RouteValues(Map<String, T> routes) {
+  RouteValues(String key, Map<String, T> routes) {
     this.routes =
         routes.entrySet().stream()
-            .map(
-                route ->
-                    Map.entry(
-                        PathPatternParser.defaultInstance.parse(route.getKey()), route.getValue()))
+            .map(route -> Map.entry(parse(key, route.getKey()), route.getValue()))
             .sorted(Map.Entry.comparingByKey(PathPattern.SPECIFICITY_COMPARATOR))
             .toList();
   }
@@ -47,5 +47,17 @@ class RouteValues<T> {
         .filter(route -> route.getKey().matches(path))
         .map(Map.Entry::getValue)
         .findFirst();
+  }
+
+  /** Parses one pattern, naming the property and the pattern when it is not valid. */
+  private PathPattern parse(String key, String pattern) {
+    try {
+      return PathPatternParser.defaultInstance.parse(pattern);
+    } catch (PatternParseException invalidPattern) {
+      throw new StratumException(
+          WebErrorCode.INVALID_PATH_PATTERN,
+          key + " has '" + pattern + "' (" + invalidPattern.getMessage() + ")",
+          invalidPattern);
+    }
   }
 }
