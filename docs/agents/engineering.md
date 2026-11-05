@@ -323,3 +323,14 @@ These rules apply to every published module: the libraries, the starters and `st
 - **ST-ENG-64** Every dependency and Maven plugin comes from Maven Central. No other repository in any POM, no
   JitPack, no jars downloaded from GitHub and no source copied from another project. The library must be actively
   maintained and its licence compatible with Apache 2.0.
+
+## Exceptions
+
+- **ST-ENG-66** Catch the specific exceptions a call can throw. Catch `RuntimeException` or `Exception` only in a
+  method at a boundary that must answer for any failure, such as a servlet filter, a global exception handler or a
+  masker that fails closed, and only when no specific exception covers every case. Never catch `Throwable`. Catch an
+  `Error` only where it is known and recoverable, such as the `StackOverflowError` that a service's own pattern can
+  cause in the logging redactor. PMD's `AvoidCatchingGenericException` fails the build on every other catch of
+  `RuntimeException` or `Exception`: after the owner's go, each allowed method gets its own scoped entry in
+  `stratum/pmd-ruleset.xml`, with a comment that gives the reason and the date of that go, and the judge checks that
+  reason. PMD does not check `Error` catches, so the judge does.
