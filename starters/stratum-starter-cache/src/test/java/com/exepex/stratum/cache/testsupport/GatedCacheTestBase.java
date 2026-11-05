@@ -15,7 +15,7 @@ import org.springframework.cache.Cache;
  * The set-up the tests of a gated Redis cache share: a mocked Redis cache named {@code products}
  * behind a real gate, on a clock the tests move.
  */
-public abstract class GatedCacheTestBase {
+public class GatedCacheTestBase {
 
   /** The key the tests use. */
   protected static final String KEY = "sku-1";
