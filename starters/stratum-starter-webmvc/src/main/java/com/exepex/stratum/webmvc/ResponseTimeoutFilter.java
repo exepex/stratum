@@ -40,7 +40,8 @@ public class ResponseTimeoutFilter extends OncePerRequestFilter {
   /**
    * Runs the rest of the chain within the request's limit. If the chain fails after the time ran
    * out and the response has not started, the request is answered with the timeout status instead
-   * of the failure. Spring MVC hands a handler's failure on as a {@link ServletException}.
+   * of the failure. Spring MVC hands a handler's failure on as a {@link ServletException}; a later
+   * filter, such as Spring Security's or the service's own, can also fail with an unchecked one.
    *
    * @param request the request
    * @param response the response
@@ -60,7 +61,7 @@ public class ResponseTimeoutFilter extends OncePerRequestFilter {
     request.setAttribute(DEADLINE_ATTRIBUTE, deadline);
     try {
       filterChain.doFilter(request, response);
-    } catch (ServletException | IOException failure) {
+    } catch (ServletException | IOException | RuntimeException failure) {
       endAndClearInterrupt(deadline);
       if (!deadline.hasExpired() || response.isCommitted()) {
         throw failure;

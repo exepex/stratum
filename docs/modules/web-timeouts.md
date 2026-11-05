@@ -47,6 +47,10 @@ stratum:
   so Spring Boot keeps its `/` and `*`. When several patterns match a path, the most specific wins.
 - `status` is any status from `400` to `599`. `503` tells callers the service is too busy now and
   that a retry later can work; some gateways expect `504`.
+- Behind a gateway or load balancer, keep every limit, route and `@ResponseTimeout` limits included,
+  below the gateway's own timeout. With a 30s gateway and a 10s limit, the caller gets Stratum's
+  `503` with a trace ID to quote; with a limit above 30s, the gateway answers first with its own
+  `504`, without Stratum's error body or trace ID.
 
 Each key, with its type and default, is listed in [Web → Properties](web.md#properties).
 
@@ -131,9 +135,9 @@ When the time is up, Stratum interrupts the request's thread, as Tomcat's stuck 
   that. Socket reads on ordinary platform threads ignore interrupts, so a database query waiting
   on its socket usually runs on. Give every remote call its own timeout, shorter than the
   request's, such as a query timeout on the database and a read timeout on the HTTP client.
-- Whatever your code answers after the time is up, from the handler or from your own
-  `@ExceptionHandler`, the caller gets `503`, as on WebFlux. Only a response that started in time
-  is sent as it is.
+- Whatever your code answers or throws after the time is up, from the handler, from your own
+  `@ExceptionHandler` or from a filter such as Spring Security's or your own, the caller gets `503`,
+  as on WebFlux. Only a response that started in time is sent as it is.
 - For a handler that returns a `Callable`, a `DeferredResult` or an `SseEmitter`, the limit ends
   when the handler method returns. Spring's `spring.mvc.async.request-timeout` limits the rest.
 

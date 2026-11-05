@@ -82,6 +82,19 @@ class ResponseTimeoutIntegrationTest {
   }
 
   @Test
+  @DisplayName(
+      "a service's own filter that fails with an unchecked exception after the limit still"
+          + " gets SX-WEB-1007")
+  void lateFilterFailure() throws Exception {
+    var response = StarterTestSupport.getFromService(port, SlowApplication.FILTER_FAILS_PATH);
+
+    StarterTestSupport.checkProblemDetails(
+        response, HttpStatus.GATEWAY_TIMEOUT.value(), WebErrorCode.REQUEST_TIMED_OUT.getCode());
+    assertThat(lines.fieldsOf(lines.onlyLine()))
+        .containsEntry(WebConstants.HTTP_STATUS, HttpStatus.GATEWAY_TIMEOUT.value());
+  }
+
+  @Test
   @DisplayName("a method's @ResponseTimeout gives it more time than its route")
   void annotationWinsOverRoute() throws Exception {
     var response = StarterTestSupport.getFromService(port, "/slow/given-more-time");

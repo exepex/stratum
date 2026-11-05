@@ -127,6 +127,9 @@ upload API that accepts more than they allow raises both.
 | WebFlux | Each part of a multipart upload written to disk | `spring.webflux.multipart.max-disk-usage-per-part` | `10MB`, set by Stratum in standard mode |
 | WebFlux | The number of parts of a multipart upload | `spring.webflux.multipart.max-parts` | `50`, set by Stratum in standard mode |
 
+Request headers are not part of the body. Their size is limited by Spring Boot's own key,
+`server.max-http-request-header-size` (`8KB` by default), and Stratum adds no key of its own for it.
+
 A WebFlux part larger than `max-in-memory-size` is written to disk. Spring Boot sets no limit on that
 disk use or on the number of parts, and a multipart upload sent in chunks is not limited by Stratum's
 own limit (see [What is counted](#what-is-counted)), so one request could fill the disk. With the
