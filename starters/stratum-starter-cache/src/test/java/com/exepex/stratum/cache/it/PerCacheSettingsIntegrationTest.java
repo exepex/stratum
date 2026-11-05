@@ -35,6 +35,8 @@ import org.testcontainers.containers.GenericContainer;
     properties = {
       "spring.application.name=" + PerCacheSettingsIntegrationTest.SERVICE,
       CacheConstants.WARNING_INTERVAL + "=1h",
+      // One global timeout would make Redis skipped, so a short-timeout cache's must not count.
+      CacheConstants.REDIS_FAILURE_THRESHOLD + "=1",
       CacheConstants.CACHES + ".reports.time-to-live=30s",
       CacheConstants.CACHES + ".reports.command-timeout=3s",
       CacheConstants.CACHES + ".quotes.command-timeout=200ms"

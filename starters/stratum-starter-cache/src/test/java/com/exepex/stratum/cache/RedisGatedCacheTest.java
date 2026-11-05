@@ -14,10 +14,12 @@ import static org.mockito.Mockito.when;
 
 import com.exepex.stratum.cache.testsupport.GatedCacheTestBase;
 import com.exepex.stratum.cache.testsupport.RedisFailureTestData;
+import com.exepex.stratum.cache.testsupport.RedisRetryGates;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Supplier;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -29,6 +31,9 @@ import org.springframework.data.redis.cache.RedisCacheWriter;
 
 @DisplayName("RedisGatedCache calls Redis only when the gate lets it")
 class RedisGatedCacheTest extends GatedCacheTestBase {
+
+  /** The default threshold: the timed-out reads that make the calls skip Redis. */
+  private static final int TIMED_OUT_READS = 3;
 
   /** The value the loaders return. */
   private static final String VALUE = "price-of-sku-1";
@@ -78,6 +83,27 @@ class RedisGatedCacheTest extends GatedCacheTestBase {
 
       assertThat(gate.usesRedis()).isFalse();
       assertThat(counters.redisConnectFailures()).isOne();
+    }
+
+    @Test
+    @DisplayName(
+        "a background write between timed-out reads does not prove Redis answered, so the reads"
+            + " still make the calls skip Redis")
+    void backgroundWriteKeepsFailureCount() {
+      var threeFailuresGate = RedisRetryGates.gate(TIMED_OUT_READS, clock, counters);
+      var threeFailuresCache = new RedisGatedCache(redis, threeFailuresGate, true);
+      threeFailuresCache.get("sku-2");
+      when(redis.get(KEY)).thenThrow(RedisFailureTestData.TIMED_OUT);
+
+      IntStream.range(0, TIMED_OUT_READS).forEach(attempt -> missThenWrite(threeFailuresCache));
+
+      assertThat(threeFailuresGate.usesRedis()).isFalse();
+    }
+
+    /** Reads the key, which times out, then writes the method's value, as a sync=false call. */
+    private void missThenWrite(RedisGatedCache gatedCache) {
+      assertThatExceptionOfType(QueryTimeoutException.class).isThrownBy(() -> gatedCache.get(KEY));
+      gatedCache.put(KEY, VALUE);
     }
   }
 

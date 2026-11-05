@@ -1,10 +1,13 @@
 package com.exepex.stratum.cache.autoconfigure;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.exepex.stratum.cache.CacheConstants;
 import com.exepex.stratum.cache.RedisRetryGate;
+import com.exepex.stratum.cache.testsupport.RedisFailureTestData;
 import io.lettuce.core.ClientOptions;
 import io.lettuce.core.ClientOptions.DisconnectedBehavior;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -22,6 +25,8 @@ import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
+import org.springframework.dao.DataAccessException;
+import org.springframework.data.redis.cache.RedisCache;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 
 @DisplayName(
@@ -67,6 +72,14 @@ class RedisRetryGateAutoConfigurationTest {
     }
 
     @Test
+    @DisplayName("stratum.cache.redis-failure-threshold sets how many failures make Redis skipped")
+    void thresholdReachesGate() {
+      contextRunner
+          .withPropertyValues(CacheConstants.REDIS_FAILURE_THRESHOLD + "=2")
+          .run(context -> assertGateSkipsAfterTwoFailures(context.getBean(RedisRetryGate.class)));
+    }
+
+    @Test
     @DisplayName("with the module off, Lettuce keeps its own behaviour and no gate is made")
     void createsNothingWithModuleOff() {
       contextRunner
@@ -78,6 +91,20 @@ class RedisRetryGateAutoConfigurationTest {
     private void assertGateRejects(AssertableApplicationContext context) {
       assertThat(context).hasSingleBean(RedisRetryGate.class);
       assertThat(disconnectedBehavior(context)).isEqualTo(DisconnectedBehavior.REJECT_COMMANDS);
+    }
+
+    /** Reaches Redis once, then checks that the first failure keeps Redis and the second skips. */
+    private void assertGateSkipsAfterTwoFailures(RedisRetryGate gate) {
+      var redisProducts = mock(RedisCache.class);
+      when(redisProducts.getName()).thenReturn("products");
+      when(redisProducts.get("sku-1")).thenThrow(RedisFailureTestData.CONNECT_FAILED);
+      var gated = gate.gated(redisProducts);
+      gated.get("sku-2");
+
+      assertThatExceptionOfType(DataAccessException.class).isThrownBy(() -> gated.get("sku-1"));
+      assertThat(gate.isAvailable()).isTrue();
+      assertThatExceptionOfType(DataAccessException.class).isThrownBy(() -> gated.get("sku-1"));
+      assertThat(gate.isAvailable()).isFalse();
     }
 
     /** Binds the gauge to a fresh registry and checks that it reads 1. */

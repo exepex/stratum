@@ -33,16 +33,19 @@ import org.testcontainers.containers.GenericContainer;
 
 /**
  * Pauses Redis itself and checks that the fail-open layer keeps cached calls working: every call
- * returns the method's real value, and after the first command timeout every Redis cache skips
- * Redis for {@code stratum.cache.redis-retry-interval} instead of waiting. A {@code sync=false}
- * call waits for one timeout, not two, because the write after its timed-out read is skipped. The
- * warning interval is set to an hour, so the failures stay inside one interval.
+ * returns the method's real value, and after the first command timeout (with {@code
+ * stratum.cache.redis-failure-threshold=1}) every Redis cache skips Redis for {@code
+ * stratum.cache.redis-retry-interval} instead of waiting. A {@code sync=false} call waits for one
+ * timeout, not two, because the write after its timed-out read is skipped. The warning interval is
+ * set to an hour, so the failures stay inside one interval.
  */
 @SpringBootTest(
     classes = ProductsApplication.class,
     properties = {
       "spring.application.name=" + CacheOutageIntegrationTest.SERVICE,
-      CacheConstants.WARNING_INTERVAL + "=1h"
+      CacheConstants.WARNING_INTERVAL + "=1h",
+      // These tests time what happens once Redis is skipped; RedisRetryGateTest covers the count.
+      CacheConstants.REDIS_FAILURE_THRESHOLD + "=1"
     })
 @Import(RedisContainerConfiguration.class)
 @DisplayName("With Redis paused, a cached call still returns the method's value")

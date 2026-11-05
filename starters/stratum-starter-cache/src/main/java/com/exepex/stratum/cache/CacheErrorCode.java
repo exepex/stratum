@@ -64,7 +64,9 @@ public enum CacheErrorCode implements ErrorCode {
   REDIS_UNREACHABLE(
       "SX-CACHE-1006",
       Severity.WARNING,
-      "Redis could not be reached or did not answer in time; Redis caches skip it for "
+      "Redis could not be reached or did not answer in time, "
+          + CacheConstants.REDIS_FAILURE_THRESHOLD
+          + " times in a row; Redis caches skip it for "
           + CacheConstants.REDIS_RETRY_INTERVAL
           + ", then one call tries again",
       ""),

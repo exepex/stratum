@@ -3,6 +3,7 @@ package com.exepex.stratum.cache;
 import com.exepex.stratum.core.properties.StratumCustomizers;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Duration;
@@ -35,6 +36,9 @@ import org.springframework.util.unit.DataSize;
  *     method's result is returned as usual. Above 0. Defaults to 1MB.
  * @param redisRetryInterval How long every Redis cache skips Redis after Redis could not be reached
  *     or a command timed out; then one call tries again. From 1s to 5m. Defaults to 5s.
+ * @param redisFailureThreshold How many failed Redis calls in a row, each unable to reach Redis or
+ *     timed out, make every Redis cache skip Redis; a call that reaches Redis starts the count
+ *     again. 1 skips Redis after the first failure. From 1 to 10. Defaults to 3.
  * @param serialization How Redis cache values are stored and which types are read back.
  * @param caffeine How Caffeine caches treat a method's null result.
  * @param caches Settings for one cache, by its name, which win over the settings for every cache.
@@ -47,6 +51,7 @@ public record StratumCacheProperties(
     @DefaultValue("1KB") DataSize maxKeySize,
     @DefaultValue("1MB") DataSize maxValueSize,
     @DefaultValue("5s") Duration redisRetryInterval,
+    @DefaultValue("3") @Min(1) @Max(10) int redisFailureThreshold,
     @DefaultValue @Valid Serialization serialization,
     @DefaultValue CaffeineSettings caffeine,
     Map<String, CacheSettings> caches) {

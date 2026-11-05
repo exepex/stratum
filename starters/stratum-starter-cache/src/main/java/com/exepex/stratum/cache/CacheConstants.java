@@ -40,6 +40,9 @@ public class CacheConstants {
   /** How long Redis caches skip Redis after Redis could not be reached. */
   public static final String REDIS_RETRY_INTERVAL = PREFIX + ".redis-retry-interval";
 
+  /** How many failed Redis calls in a row make Redis caches skip Redis. */
+  public static final String REDIS_FAILURE_THRESHOLD = PREFIX + ".redis-failure-threshold";
+
   /** The packages, beyond the service's own and {@code java}, whose types Redis caches read. */
   public static final String ALLOWED_PACKAGES = PREFIX + ".serialization.allowed-packages";
 

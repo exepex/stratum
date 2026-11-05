@@ -37,6 +37,8 @@ import org.testcontainers.containers.GenericContainer;
     properties = {
       "spring.application.name=stopped-service",
       CacheConstants.REDIS_RETRY_INTERVAL + "=1s",
+      // The cut is checked with one in-flight command; RedisRetryGateTest covers the count.
+      CacheConstants.REDIS_FAILURE_THRESHOLD + "=1",
       CacheConstants.WARNING_INTERVAL + "=1h",
       // Long enough that the command in flight fails because the link drops, not by timing out.
       CacheConstants.REDIS_TIMEOUT + "=5s"

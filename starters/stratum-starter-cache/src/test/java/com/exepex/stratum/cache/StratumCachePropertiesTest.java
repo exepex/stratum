@@ -67,6 +67,12 @@ class StratumCachePropertiesTest {
   /** The default time Redis caches skip Redis after a failure. */
   private static final Duration DEFAULT_REDIS_RETRY_INTERVAL = Duration.ofSeconds(5);
 
+  /** The default number of failures in a row that make Redis caches skip Redis. */
+  private static final int DEFAULT_REDIS_FAILURE_THRESHOLD = 3;
+
+  /** The failure threshold both test files set. */
+  private static final int REDIS_FAILURE_THRESHOLD_IN_FILES = 5;
+
   /** The retry interval both test files set. */
   private static final Duration REDIS_RETRY_INTERVAL_IN_FILES = Duration.ofSeconds(2);
 
@@ -115,6 +121,12 @@ class StratumCachePropertiesTest {
             arguments(
                 "redis-retry-interval", "6m", "redis-retry-interval-in-range breaks @AssertTrue"),
             arguments(
+                "redis-failure-threshold", "0", "redis-failure-threshold breaks @Min(value=1)"),
+            arguments(
+                "redis-failure-threshold", "-1", "redis-failure-threshold breaks @Min(value=1)"),
+            arguments(
+                "redis-failure-threshold", "11", "redis-failure-threshold breaks @Max(value=10)"),
+            arguments(
                 "serialization.allowed-packages",
                 " ",
                 "serialization.allowed-packages[*] breaks @NotBlank"));
@@ -122,8 +134,9 @@ class StratumCachePropertiesTest {
     @Test
     @DisplayName(
         "unset, the cap is 100 caches, warnings repeat at most once a minute, every cache stores"
-            + " keys up to 1 KiB and values up to 1 MiB, Redis is retried after 5 seconds and no"
-            + " package is allowed beyond the service's own; Caffeine caches store no nulls")
+            + " keys up to 1 KiB and values up to 1 MiB, Redis is skipped after 3 failures in a row"
+            + " and retried after 5 seconds, and no package is allowed beyond the service's own;"
+            + " Caffeine caches store no nulls")
     void defaultsAreSafe() {
       var properties = StratumCacheProperties.resolve(new MockEnvironment());
 
@@ -133,6 +146,7 @@ class StratumCachePropertiesTest {
       assertThat(properties.maxKeyBytesFor(REPORTS)).isEqualTo(DEFAULT_KEY_BYTES);
       assertThat(properties.maxValueBytesFor(REPORTS)).isEqualTo(DEFAULT_VALUE_BYTES);
       assertThat(properties.redisRetryInterval()).isEqualTo(DEFAULT_REDIS_RETRY_INTERVAL);
+      assertThat(properties.redisFailureThreshold()).isEqualTo(DEFAULT_REDIS_FAILURE_THRESHOLD);
       assertThat(properties.serialization().allowedPackages()).isEmpty();
       assertThat(properties.timesToLive()).isEmpty();
       assertThat(properties.commandTimeouts()).isEmpty();
@@ -157,6 +171,7 @@ class StratumCachePropertiesTest {
       assertThat(properties.maxValueBytesFor("products")).isEqualTo(VALUE_BYTES_IN_FILES);
       assertThat(properties.maxKeyBytesFor(REPORTS)).isEqualTo(DEFAULT_KEY_BYTES);
       assertThat(properties.redisRetryInterval()).isEqualTo(REDIS_RETRY_INTERVAL_IN_FILES);
+      assertThat(properties.redisFailureThreshold()).isEqualTo(REDIS_FAILURE_THRESHOLD_IN_FILES);
       assertThat(properties.serialization().allowedPackages())
           .containsExactlyElementsOf(ALLOWED_PACKAGES_IN_FILES);
       assertThat(properties.timesToLive())
@@ -200,6 +215,8 @@ class StratumCachePropertiesTest {
       assertThat(properties.maxCaches()).isEqualTo(ThreeCachesSettings.MAX_CACHES);
       assertThat(properties.redisRetryInterval())
           .isEqualTo(ThreeCachesSettings.REDIS_RETRY_INTERVAL);
+      assertThat(properties.redisFailureThreshold())
+          .isEqualTo(ThreeCachesSettings.REDIS_FAILURE_THRESHOLD);
       assertThat(properties.serialization().allowedPackages())
           .containsExactly(ThreeCachesSettings.ALLOWED_PACKAGE);
       assertThat(properties.maxEntries())
