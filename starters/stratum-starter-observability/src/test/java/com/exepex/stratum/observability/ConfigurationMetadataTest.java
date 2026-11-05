@@ -24,7 +24,8 @@ class ConfigurationMetadataTest {
           ObservabilityConstants.ENABLED,
           ObservabilityConstants.PREFIX + ".tags.extra-forbidden",
           ObservabilityConstants.PREFIX + ".tags.allowed",
-          ObservabilityConstants.PREFIX + ".baggage.allowed");
+          ObservabilityConstants.PREFIX + ".baggage.allowed",
+          ObservabilityConstants.PREFIX + ".tracing.health-probes");
 
   @Test
   @DisplayName("every property is listed with a description")

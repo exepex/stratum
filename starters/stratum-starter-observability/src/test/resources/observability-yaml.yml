@@ -9,6 +9,8 @@ stratum:
       allowed: orderId
     baggage:
       allowed: correlationId,tenantId
+    tracing:
+      health-probes: true
 management:
   opentelemetry:
     resource-attributes:

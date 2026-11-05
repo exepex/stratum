@@ -8,11 +8,16 @@ import com.exepex.stratum.test.BackwardCompatibleErrorChecks;
 import com.exepex.stratum.test.WebTestSupport;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -23,6 +28,9 @@ import org.junit.jupiter.params.provider.FieldSource;
 
 @DisplayName("WebTestSupport and BackwardCompatibleErrorChecks call a running service")
 class WebTestSupportIntegrationTest {
+
+  /** The media type of a text body. */
+  private static final String TEXT_PLAIN = "text/plain";
 
   /** The size of the bodies sent. */
   private static final int BODY_BYTES = 2048;
@@ -55,6 +63,18 @@ class WebTestSupportIntegrationTest {
   private static final String REFERENCE_PAGE =
       "<title>Not Found</title><p>Reference: <code>" + TRACE_ID + "</code></p>";
 
+  /** The path whose answers the server times, as Spring Boot times a request. */
+  private static final String TIMED_PATH = "/timed";
+
+  /** The timer Spring Boot records for each request a service answers. */
+  private static final String SERVER_REQUESTS_TIMER = "http.server.requests";
+
+  /** How long after its answer the server times a request. */
+  private static final Duration TIMER_DELAY = Duration.ofMillis(200);
+
+  /** The server's timers. */
+  private final MeterRegistry meterRegistry = new SimpleMeterRegistry();
+
   private HttpServer server;
 
   /** Starts a server that echoes a header, reads a body, or refuses a body as too large. */
@@ -67,7 +87,7 @@ class WebTestSupportIntegrationTest {
             answer(
                 exchange,
                 HttpURLConnection.HTTP_OK,
-                "text/plain",
+                TEXT_PLAIN,
                 exchange.getRequestHeaders().getFirst("X-Order")));
     server.createContext(
         "/accepted",
@@ -75,7 +95,7 @@ class WebTestSupportIntegrationTest {
             answer(
                 exchange,
                 HttpURLConnection.HTTP_OK,
-                "text/plain",
+                TEXT_PLAIN,
                 String.valueOf(exchange.getRequestBody().readAllBytes().length)));
     server.createContext(
         "/refused",
@@ -85,6 +105,7 @@ class WebTestSupportIntegrationTest {
                 HttpURLConnection.HTTP_ENTITY_TOO_LARGE,
                 "application/problem+json",
                 TOO_LARGE_BODY));
+    server.createContext(TIMED_PATH, this::answerAndTime);
     server.createContext(UNKNOWN_PATH, this::answerUnknownPath);
     server.createContext(
         "/coded",
@@ -119,6 +140,29 @@ class WebTestSupportIntegrationTest {
   }
 
   @Nested
+  @DisplayName("getAndAwaitTimer")
+  class GetAndAwaitTimer {
+
+    @Test
+    @DisplayName("returns once the server has timed the request, even after it answered")
+    void waitsForTimer() throws IOException, InterruptedException {
+      WebTestSupport.getAndAwaitTimer(port(), TIMED_PATH, meterRegistry);
+
+      assertThat(meterRegistry.get(SERVER_REQUESTS_TIMER).timer().count()).isOne();
+    }
+
+    @Test
+    @DisplayName("rejects an answer that is not 200")
+    void rejectsFailedRequest() {
+      var serverPort = port();
+
+      assertThatExceptionOfType(AssertionError.class)
+          .isThrownBy(
+              () -> WebTestSupport.getAndAwaitTimer(serverPort, UNKNOWN_PATH, meterRegistry));
+    }
+  }
+
+  @Nested
   @DisplayName("checkBodyAccepted")
   class CheckBodyAccepted {
 
@@ -143,7 +187,7 @@ class WebTestSupportIntegrationTest {
     @DisplayName("accepts a 413 with the code")
     void readsRefusal() throws IOException, InterruptedException {
       WebTestSupport.checkBodyRefused(
-          port(), "/refused", "text/plain", BODY_BYTES, true, TOO_LARGE_CODE);
+          port(), "/refused", TEXT_PLAIN, BODY_BYTES, true, TOO_LARGE_CODE);
     }
   }
 
@@ -170,6 +214,16 @@ class WebTestSupportIntegrationTest {
       assertThatExceptionOfType(AssertionError.class)
           .isThrownBy(() -> BackwardCompatibleErrorChecks.checkBootBody(serverPort, "/coded"));
     }
+  }
+
+  /**
+   * Answers, then times the request a little later, as Spring Boot may once the response has gone
+   * out, so a caller that does not wait finds no timer.
+   */
+  private void answerAndTime(HttpExchange exchange) throws IOException {
+    answer(exchange, HttpURLConnection.HTTP_OK, TEXT_PLAIN, "UP");
+    CompletableFuture.delayedExecutor(TIMER_DELAY.toMillis(), TimeUnit.MILLISECONDS)
+        .execute(() -> meterRegistry.timer(SERVER_REQUESTS_TIMER).record(TIMER_DELAY));
   }
 
   /** Answers an unknown path with the body or page the request's Accept header asks for. */

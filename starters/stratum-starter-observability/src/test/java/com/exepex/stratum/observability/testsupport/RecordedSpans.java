@@ -52,6 +52,16 @@ public class RecordedSpans implements SpanProcessor {
     return endedSpans.stream().filter(span -> span.getTraceId().equals(traceId)).toList();
   }
 
+  /**
+   * Returns the spans that have ended so far, without waiting, so a test can check that none was
+   * made.
+   *
+   * @return the ended spans, oldest first
+   */
+  public List<SpanData> ended() {
+    return List.copyOf(endedSpans);
+  }
+
   /** Forgets every span kept so far, so that a test sees only the spans it ends itself. */
   public void clear() {
     endedSpans.clear();

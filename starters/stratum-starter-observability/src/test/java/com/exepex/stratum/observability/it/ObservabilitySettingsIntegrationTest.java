@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.observability.BaggageAllowList;
 import com.exepex.stratum.observability.MetricTagGuard;
+import com.exepex.stratum.observability.ObservabilityProperties;
 import com.exepex.stratum.observability.testsupport.BaggageTestData;
 import com.exepex.stratum.observability.testsupport.ObservabilityTestData;
 import io.micrometer.core.instrument.config.MeterFilterReply;
@@ -43,6 +44,7 @@ class ObservabilitySettingsIntegrationTest {
     assertThat(environment.getProperty("management.metrics.tags.environment")).isEqualTo("staging");
     assertThat(resource.getAttribute(AttributeKey.stringKey("service.instance.id")))
         .isEqualTo("orders-file-1");
+    assertThat(ObservabilityProperties.resolve(environment).tracing().healthProbes()).isTrue();
   }
 
   @Nested
@@ -73,8 +75,8 @@ class ObservabilitySettingsIntegrationTest {
 
     @Test
     @DisplayName(
-        "the forbidden and allowed tags, allowed baggage, endpoints, environment tag and"
-            + " instance ID are applied")
+        "the forbidden and allowed tags, allowed baggage, endpoints, environment tag, instance ID"
+            + " and probe tracing are applied")
     void settingsApplied() {
       assertSettingsApplied(guard, allowList, environment, resource);
     }
@@ -108,8 +110,8 @@ class ObservabilitySettingsIntegrationTest {
 
     @Test
     @DisplayName(
-        "the forbidden and allowed tags, allowed baggage, endpoints, environment tag and"
-            + " instance ID are applied")
+        "the forbidden and allowed tags, allowed baggage, endpoints, environment tag, instance ID"
+            + " and probe tracing are applied")
     void settingsApplied() {
       assertSettingsApplied(guard, allowList, environment, resource);
     }

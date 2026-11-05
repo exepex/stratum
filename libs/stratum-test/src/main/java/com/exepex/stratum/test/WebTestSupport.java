@@ -1,10 +1,13 @@
 package com.exepex.stratum.test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.jayway.jsonpath.JsonPath;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
@@ -13,6 +16,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -42,6 +46,12 @@ public class WebTestSupport {
   /** The number of bytes in an IPv4 address. */
   private static final int IPV4_BYTES = 4;
 
+  /** The timer Spring Boot records for each request a service answers. */
+  private static final String SERVER_REQUESTS_TIMER = "http.server.requests";
+
+  /** How long a test waits for a service to time a request. */
+  private static final Duration TIMER_WAIT = Duration.ofSeconds(5);
+
   /**
    * Checks an error answer of a web starter: its status, the Problem Details media type, the {@code
    * status} and {@code code} members of the body, and a 32-hex {@code traceId}.
@@ -57,6 +67,35 @@ public class WebTestSupport {
     assertThat(JsonPath.<Integer>read(response.body(), "$.status")).isEqualTo(status);
     assertThat(JsonPath.<String>read(response.body(), "$." + LoggingContextConstants.TRACE_ID))
         .matches("\\p{XDigit}{32}");
+  }
+
+  /**
+   * Sends a GET request that must answer 200, then waits until the service has timed it, which is
+   * when its observation, and any span it made, has ended.
+   *
+   * @param port the service's port
+   * @param path the path to call
+   * @param meterRegistry the service's meter registry
+   * @throws IOException if the request cannot be sent or the response read
+   * @throws InterruptedException if the thread is interrupted while it waits
+   */
+  public static void getAndAwaitTimer(int port, String path, MeterRegistry meterRegistry)
+      throws IOException, InterruptedException {
+    var timedBefore = requestsTimed(meterRegistry);
+    assertThat(getFromService(port, path).statusCode()).isEqualTo(HttpURLConnection.HTTP_OK);
+    await().atMost(TIMER_WAIT).until(() -> requestsTimed(meterRegistry) > timedBefore);
+  }
+
+  /**
+   * Returns how many requests a service has timed so far.
+   *
+   * @param meterRegistry the service's meter registry
+   * @return the sum of the counts of its request timers
+   */
+  private static long requestsTimed(MeterRegistry meterRegistry) {
+    return meterRegistry.find(SERVER_REQUESTS_TIMER).timers().stream()
+        .mapToLong(Timer::count)
+        .sum();
   }
 
   /**

@@ -18,11 +18,14 @@ import org.springframework.core.env.Environment;
  *
  * @param tags Which metric tags are refused.
  * @param baggage Which baggage entries are read from callers and sent on.
+ * @param tracing Which requests get spans.
  */
 @Builder(toBuilder = true)
 @ConfigurationProperties(prefix = ObservabilityConstants.PREFIX)
 public record ObservabilityProperties(
-    @DefaultValue @Valid Tags tags, @DefaultValue @Valid Baggage baggage) {
+    @DefaultValue @Valid Tags tags,
+    @DefaultValue @Valid Baggage baggage,
+    @DefaultValue Tracing tracing) {
 
   /**
    * Returns the settings the module uses: {@code stratum.observability.*} with the defaults for
@@ -80,4 +83,13 @@ public record ObservabilityProperties(
       allowed = List.copyOf(allowed);
     }
   }
+
+  /**
+   * Which requests get spans.
+   *
+   * @param healthProbes Whether health probe requests, such as Kubernetes liveness and readiness
+   *     checks, get spans. Defaults to false: probes keep their timers but make no spans.
+   */
+  @Builder(toBuilder = true)
+  public record Tracing(@DefaultValue("false") boolean healthProbes) {}
 }
