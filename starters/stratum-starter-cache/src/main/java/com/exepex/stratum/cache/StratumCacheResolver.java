@@ -22,11 +22,12 @@ import org.springframework.cache.support.NoOpCache;
  * StratumCache}, so its calls are fail-open, its loader runs at most once and a null result is not
  * stored where the cache refuses nulls, with a Redis cache behind the Redis retry gate; Spring
  * Boot's cache metrics measure it from its first use. A cache whose values are stored as JSON is
- * read as each calling method's return type. The first {@code stratum.cache.max-caches} distinct
- * names are admitted; a name beyond that is never resolved with the cache manager, so no cache is
- * created for it, and the method runs uncached through one shared no-op cache. The refusal is
- * counted per call as {@code stratum.cache.skips} under {@code _over-limit} and warned once per
- * interval with {@code SX-CACHE-1003}.
+ * read as each calling method's return type, and a Redis cache's name goes on its command spans.
+ * The first {@code stratum.cache.max-caches} distinct names are admitted; a name beyond that is
+ * never resolved with the cache manager, so no cache is created for it, and the method runs
+ * uncached through one shared no-op cache. The refusal is counted per call as {@code
+ * stratum.cache.skips} under {@code _over-limit} and warned once per interval with {@code
+ * SX-CACHE-1003}.
  */
 @StratumInternal
 @Slf4j
@@ -56,6 +57,9 @@ public class StratumCacheResolver implements CacheResolver {
 
   /** Gives each call of a method its own value type, for caches that store values untyped. */
   private final CacheValueTyping typing;
+
+  /** The cache names Redis command spans carry, which each admitted name joins. */
+  private final RedisCacheNames spanCacheNames;
 
   /** The one cache every refused name shares: reads miss, writes do nothing, loaders run. */
   private final Cache overLimitCache = new NoOpCache(CacheConstants.OVER_LIMIT);
@@ -123,6 +127,7 @@ public class StratumCacheResolver implements CacheResolver {
           "No cache named " + name + " could be resolved by " + cacheManager);
     }
     counters.bindCacheMetrics(cache, cacheManagerName);
+    spanCacheNames.add(name);
     if (typing.appliesTo(cache)) {
       typedNames.add(name);
     }

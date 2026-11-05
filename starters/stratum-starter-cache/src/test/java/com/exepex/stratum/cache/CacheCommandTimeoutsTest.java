@@ -1,5 +1,7 @@
 package com.exepex.stratum.cache;
 
+import static com.exepex.stratum.cache.testsupport.RedisCommandTestData.get;
+import static com.exepex.stratum.cache.testsupport.RedisCommandTestData.ping;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
@@ -7,12 +9,6 @@ import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.test.LogLineCapture;
 import io.lettuce.core.ClientOptions;
 import io.lettuce.core.TimeoutOptions;
-import io.lettuce.core.codec.ByteArrayCodec;
-import io.lettuce.core.output.StatusOutput;
-import io.lettuce.core.protocol.Command;
-import io.lettuce.core.protocol.CommandArgs;
-import io.lettuce.core.protocol.CommandType;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
@@ -67,14 +63,6 @@ class CacheCommandTimeoutsTest {
             .build());
   }
 
-  /** Returns a GET of the key, as Spring Data sends it. */
-  private Command<byte[], byte[], String> get(String key) {
-    return new Command<>(
-        CommandType.GET,
-        new StatusOutput<>(ByteArrayCodec.INSTANCE),
-        new CommandArgs<>(ByteArrayCodec.INSTANCE).addKey(key.getBytes(StandardCharsets.UTF_8)));
-  }
-
   @Nested
   @DisplayName("for each command")
   class PerCommand {
@@ -120,11 +108,7 @@ class CacheCommandTimeoutsTest {
     @DisplayName(
         "any other command gets the global timeout, never 0 or -1, which would wait forever")
     void otherCommandsGetGlobal() {
-      var ping =
-          new Command<>(
-              CommandType.PING,
-              new StatusOutput<>(ByteArrayCodec.INSTANCE),
-              new CommandArgs<>(ByteArrayCodec.INSTANCE));
+      var ping = ping();
 
       assertThat(timeouts.getTimeout(get("orders:products::42"))).isEqualTo(GLOBAL.toMillis());
       assertThat(timeouts.getTimeout(get("session-42"))).isEqualTo(GLOBAL.toMillis());

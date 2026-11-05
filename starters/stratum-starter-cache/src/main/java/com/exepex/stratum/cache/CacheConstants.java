@@ -198,4 +198,20 @@ public class CacheConstants {
   /** The name of the filter that keeps the cache layer's hook eager under lazy initialization. */
   public static final String LAZY_INITIALIZATION_FILTER =
       "stratumCacheLayerLazyInitializationExcludeFilter";
+
+  /** The span attribute that names the cache of a Redis command. */
+  public static final String SPAN_CACHE_NAME = "cache.name";
+
+  /** Spring Boot's key that names the caches made at startup. */
+  public static final String CACHE_NAMES = "spring.cache.cache-names";
+
+  /** The bean name of the cache names Redis spans can carry. */
+  public static final String REDIS_CACHE_NAMES = "stratumRedisCacheNames";
+
+  /** The bean name of the filter that puts the cache name on Redis spans. */
+  public static final String CACHE_NAME_ON_SPANS = "stratumCacheNameOnSpans";
+
+  /** Spring Boot's auto-configuration of the observation registry. */
+  public static final String OBSERVATION_AUTO_CONFIGURATION =
+      "org.springframework.boot.micrometer.observation.autoconfigure.ObservationAutoConfiguration";
 }
