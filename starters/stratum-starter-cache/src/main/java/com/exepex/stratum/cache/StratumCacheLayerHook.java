@@ -34,6 +34,7 @@ public final class StratumCacheLayerHook {
    * @param counters count the layer's failures and refused names, and measure its caches
    * @param beanFactory the service's beans, which name the cache manager for the metrics
    * @param redisRetryGate the gate in front of Redis caches, when the service has Spring Data Redis
+   * @param typing reads Redis cache values as each method's type, when they are stored as JSON
    */
   public StratumCacheLayerHook(
       ObjectProvider<CacheInterceptor> cacheInterceptor,
@@ -41,7 +42,8 @@ public final class StratumCacheLayerHook {
       StratumCacheProperties properties,
       CacheCounters counters,
       ListableBeanFactory beanFactory,
-      ObjectProvider<RedisRetryGate> redisRetryGate) {
+      ObjectProvider<RedisRetryGate> redisRetryGate,
+      ObjectProvider<CacheValueTyping> typing) {
     var interceptor = cacheInterceptor.getIfAvailable();
     if (interceptor == null || interceptor.getCacheResolver() != null) {
       return;
@@ -70,7 +72,8 @@ public final class StratumCacheLayerHook {
             throttle,
             counters,
             handler,
-            redisGate));
+            redisGate,
+            typing.getIfAvailable(CacheValueTyping::none)));
     interceptor.setErrorHandler(handler);
   }
 

@@ -73,7 +73,8 @@ class StratumCacheResolverTest {
         throttle,
         counters,
         new StratumCacheErrorHandler(null, throttle, counters),
-        UnaryOperator.identity());
+        UnaryOperator.identity(),
+        CacheValueTyping.none());
   }
 
   /** Returns an invocation context whose operation asks for the given cache names. */
@@ -269,11 +270,52 @@ class StratumCacheResolverTest {
               throttle,
               counters,
               new StratumCacheErrorHandler(null, throttle, counters),
-              cache -> new NoOpCache("gated-" + cache.getName()));
+              cache -> new NoOpCache("gated-" + cache.getName()),
+              CacheValueTyping.none());
 
       var resolved = gatedResolver.resolveCaches(invocation("products"));
 
       assertThat(resolved).singleElement().extracting(Cache::getName).isEqualTo("gated-products");
+    }
+  }
+
+  @Nested
+  @DisplayName("with value typing")
+  class ValueTyping {
+
+    /** Types only the cache named "typed", renaming it so the test sees the typed view. */
+    private final CacheValueTyping typing =
+        new CacheValueTyping() {
+          @Override
+          public boolean appliesTo(Cache cache) {
+            return "typed".equals(cache.getName());
+          }
+
+          @Override
+          public Cache typed(Cache cache, CacheOperationInvocationContext<?> context) {
+            return new NoOpCache("view-" + cache.getName());
+          }
+        };
+
+    @Test
+    @DisplayName("a cache the typing applies to is given each call's typed view; others are not")
+    void typesOnlyTheCachesItAppliesTo() {
+      var typingResolver =
+          new StratumCacheResolver(
+              manager,
+              MANAGER_NAME,
+              MAX_CACHES,
+              throttle,
+              counters,
+              new StratumCacheErrorHandler(null, throttle, counters),
+              UnaryOperator.identity(),
+              typing);
+
+      var resolved = typingResolver.resolveCaches(invocation("typed", "plain"));
+
+      assertThat(resolved)
+          .extracting(Cache::getName)
+          .containsExactlyInAnyOrder("view-typed", "plain");
     }
   }
 }

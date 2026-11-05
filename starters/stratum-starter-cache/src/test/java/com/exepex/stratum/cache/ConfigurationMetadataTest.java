@@ -26,6 +26,7 @@ class ConfigurationMetadataTest {
           CacheConstants.MAX_KEY_SIZE,
           CacheConstants.MAX_VALUE_SIZE,
           CacheConstants.REDIS_RETRY_INTERVAL,
+          CacheConstants.ALLOWED_PACKAGES,
           CacheConstants.PREFIX + ".caches");
 
   @Test

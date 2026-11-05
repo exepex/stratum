@@ -144,7 +144,10 @@ gives Spring Boot's Redis keys these defaults, in both modes, because no caller 
 - during a Redis outage a cached method now runs and returns its result, where the call used to
   fail: after the first failure every Redis cache skips Redis for 5 seconds, then one call tries
   again, so that load goes to your database or downstream service
-  ([Cache → When Redis is down](../modules/cache-redis-down.md)).
+  ([Cache → When Redis is down](../modules/cache-redis-down.md));
+- values are stored as plain JSON, read only as allowed types, so Jackson must be on the class
+  path and old Java-serialized entries are read once as a miss
+  ([Cache → Stored values](../modules/cache-values.md)).
 
 Once the new version runs, delete the old keys, which start with the cache name under Spring Boot's
 default, with SCAN by pattern, never with `FLUSHDB` on a Redis shared with other data. For the cache

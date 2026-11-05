@@ -8,8 +8,8 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * The codes of the cache module, each listed with its fix in {@code docs/guides/error-codes.md}.
- * Every error here stops the application at startup, apart from the warnings {@code SX-CACHE-1002},
- * {@code SX-CACHE-1003} and {@code SX-CACHE-1006}, which are logged while the calls carry on.
+ * Every error here stops the application at startup, apart from the warnings {@code SX-CACHE-1002}
+ * to {@code SX-CACHE-1006}, which are logged while the calls carry on.
  */
 @StratumInternal
 @Getter
@@ -46,6 +46,20 @@ public enum CacheErrorCode implements ErrorCode {
           + "; its calls run without a cache",
       ""),
 
+  /** A cached method's type cannot be read from Redis, so the method runs without the cache. */
+  TYPE_REFUSED(
+      "SX-CACHE-1004",
+      Severity.WARNING,
+      "A cached method's type cannot be read from a Redis cache; its calls run without the cache",
+      ""),
+
+  /** A stored value could not be read as the method's type, so it was a miss and is replaced. */
+  VALUE_UNREADABLE(
+      "SX-CACHE-1005",
+      Severity.WARNING,
+      "A cached value could not be read as the method's type; it was treated as a miss",
+      ""),
+
   /** Redis could not be reached or timed out, so Redis caches skip Redis for a while. */
   REDIS_UNREACHABLE(
       "SX-CACHE-1006",
@@ -53,7 +67,18 @@ public enum CacheErrorCode implements ErrorCode {
       "Redis could not be reached or did not answer in time; Redis caches skip it for "
           + CacheConstants.REDIS_RETRY_INTERVAL
           + ", then one call tries again",
-      "");
+      ""),
+
+  /** Spring Boot builds a Redis cache manager, but Jackson, which stores its values, is missing. */
+  JACKSON_MISSING(
+      "SX-CACHE-1007",
+      Severity.ERROR,
+      "Jackson is missing; the cache module stores Redis cache values as JSON",
+      "Add "
+          + CacheConstants.JSON_STARTER
+          + ", or declare your own RedisCacheConfiguration bean, or turn the module off with "
+          + CacheConstants.ENABLED
+          + "=false.");
 
   /** The code, such as {@code SX-CACHE-1001}. */
   private final String code;

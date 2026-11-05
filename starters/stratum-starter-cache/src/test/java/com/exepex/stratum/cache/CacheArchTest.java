@@ -10,14 +10,15 @@ class CacheArchTest {
 
   /**
    * The cache starter's types, top-level or nested, that services may use: the settings record and
-   * its customizer, as every module's, and the settings for one cache. Every other type carries the
-   * label.
+   * its customizer, as every module's, the settings for one cache and for stored values. Every
+   * other type carries the label.
    */
   private static final Set<Class<?>> API_TYPES =
       Set.of(
           StratumCacheProperties.class,
           StratumCacheProperties.StratumCachePropertiesBuilder.class,
           StratumCacheProperties.CacheSettings.class,
+          StratumCacheProperties.Serialization.class,
           StratumCacheProperties.CacheSettings.CacheSettingsBuilder.class,
           StratumCachePropertiesCustomizer.class);
 

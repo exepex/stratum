@@ -7,3 +7,7 @@ stratum:
     caches:
       reports:
         max-value-size: 5MB
+    serialization:
+      allowed-packages:
+        - com.acme.shared
+        - com.acme.billing
