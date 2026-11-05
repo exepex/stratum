@@ -66,11 +66,14 @@ public final class StratumCacheLayerHook {
     interceptor.setErrorHandler(handler);
   }
 
-  /** Returns the bean name of the cache manager the layer uses, once, at startup. */
+  /**
+   * Returns the bean name of the cache manager the layer uses, once, at startup, or Spring Boot's
+   * default name when this context does not hold it, such as a manager in a parent context.
+   */
   private String beanName(ListableBeanFactory beanFactory, CacheManager manager) {
     return Arrays.stream(beanFactory.getBeanNamesForType(CacheManager.class))
         .filter(name -> manager.equals(beanFactory.getBean(name)))
         .findFirst()
-        .orElseThrow();
+        .orElse(CacheConstants.DEFAULT_CACHE_MANAGER);
   }
 }

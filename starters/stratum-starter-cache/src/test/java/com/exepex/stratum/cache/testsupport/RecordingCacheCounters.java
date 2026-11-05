@@ -23,6 +23,9 @@ public class RecordingCacheCounters implements CacheCounters {
   /** The caches given to be measured, in order. */
   private final List<Cache> measuredCaches = new CopyOnWriteArrayList<>();
 
+  /** The cache manager name given with each measured cache, in order. */
+  private final List<String> managerNamesMeasured = new CopyOnWriteArrayList<>();
+
   @Override
   public void failure(String cache, String operation) {
     failuresByTags
@@ -38,6 +41,16 @@ public class RecordingCacheCounters implements CacheCounters {
   @Override
   public void bindCacheMetrics(Cache cache, String cacheManagerName) {
     measuredCaches.add(cache);
+    managerNamesMeasured.add(cacheManagerName);
+  }
+
+  /**
+   * Returns the cache manager name given with each measured cache, in order.
+   *
+   * @return the names
+   */
+  public List<String> measuredManagerNames() {
+    return List.copyOf(managerNamesMeasured);
   }
 
   /**

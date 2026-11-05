@@ -44,16 +44,44 @@ class MicrometerCacheCountersTest {
     verify(registrar).bindCacheToRegistry(cache, Tag.of(CacheConstants.TAG_CACHE_MANAGER, "redis"));
   }
 
+  /** Registers a {@code cache.gets} meter, as Spring Boot does for a cache it measures. */
+  private void measuredByBoot(String cacheName, String managerTag) {
+    FunctionCounter.builder(CacheConstants.METRIC_CACHE_GETS, cache, measuredCache -> 0)
+        .tag(CacheConstants.TAG_CACHE, cacheName)
+        .tag(CacheConstants.TAG_CACHE_MANAGER, managerTag)
+        .register(registry);
+  }
+
   @Test
   @DisplayName("a cache Spring Boot measured at startup is not bound again")
   void skipsMeasuredCache() {
-    FunctionCounter.builder(CacheConstants.METRIC_CACHE_GETS, cache, measuredCache -> 0)
-        .tag(CacheConstants.TAG_CACHE, ProductCatalog.PRODUCTS)
-        .tag(CacheConstants.TAG_CACHE_MANAGER, BOOT_MANAGER)
-        .register(registry);
+    measuredByBoot(ProductCatalog.PRODUCTS, BOOT_MANAGER);
 
     counters().bindCacheMetrics(cache, BOOT_MANAGER);
 
     verifyNoInteractions(registrar);
+  }
+
+  @Test
+  @DisplayName("a measured cache of another name does not stop this one from being bound")
+  void bindsBesideOtherCache() {
+    measuredByBoot(ProductCatalog.SYNCED_PRODUCTS, BOOT_MANAGER);
+
+    counters().bindCacheMetrics(cache, BOOT_MANAGER);
+
+    verify(registrar)
+        .bindCacheToRegistry(cache, Tag.of(CacheConstants.TAG_CACHE_MANAGER, BOOT_MANAGER));
+  }
+
+  @Test
+  @DisplayName(
+      "a cache of the same name in another manager does not stop this one from being bound")
+  void bindsBesideOtherManager() {
+    measuredByBoot(ProductCatalog.PRODUCTS, "local");
+
+    counters().bindCacheMetrics(cache, BOOT_MANAGER);
+
+    verify(registrar)
+        .bindCacheToRegistry(cache, Tag.of(CacheConstants.TAG_CACHE_MANAGER, BOOT_MANAGER));
   }
 }

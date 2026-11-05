@@ -128,6 +128,19 @@ class StratumCacheTest {
     }
 
     @Test
+    @DisplayName(
+        "in a cache that stores nulls, a failed write after a null load is still reported once")
+    void failedNullWriteIsReportedWhereNullsAreStored() {
+      var failingWrites = new StubCache(ProductCatalog.PRODUCTS, false, true);
+      var cache = new StratumCache(failingWrites, handler, false);
+
+      var value = cache.get(KEY, () -> null);
+
+      assertThat(value).isNull();
+      assertThat(handler.calls()).containsExactly("put:products");
+    }
+
+    @Test
     @DisplayName("a null put removes the old entry instead of storing anything")
     void nullPutEvicts() {
       var delegate = new StubCache(ProductCatalog.PRODUCTS);

@@ -42,6 +42,9 @@ public class CacheConstants {
   /** Spring Boot's tag with the name of the cache manager a cache belongs to. */
   public static final String TAG_CACHE_MANAGER = "cache.manager";
 
+  /** The bean name of Spring Boot's own cache manager, used when the layer's has no name here. */
+  public static final String DEFAULT_CACHE_MANAGER = "cacheManager";
+
   /** The end of a cache manager's bean name that Spring Boot drops in its tag. */
   public static final String CACHE_MANAGER_SUFFIX = "cacheManager";
 
