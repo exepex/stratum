@@ -83,7 +83,7 @@ class StratumCacheResolverTest {
         throttle,
         counters,
         new StratumCacheErrorHandler(null, throttle, counters),
-        RedisCacheParts.none().toBuilder().spanNames(spanCacheNames).build());
+        CacheTypeParts.none().toBuilder().spanNames(spanCacheNames).build());
   }
 
   /** Returns an invocation context whose operation asks for the given cache names. */
@@ -296,7 +296,7 @@ class StratumCacheResolverTest {
               throttle,
               counters,
               new StratumCacheErrorHandler(null, throttle, counters),
-              RedisCacheParts.none().toBuilder()
+              CacheTypeParts.none().toBuilder()
                   .gate(cache -> new NoOpCache("gated-" + cache.getName()))
                   .build());
 
@@ -335,7 +335,7 @@ class StratumCacheResolverTest {
               throttle,
               counters,
               new StratumCacheErrorHandler(null, throttle, counters),
-              RedisCacheParts.none().toBuilder().typing(typing).build());
+              CacheTypeParts.none().toBuilder().typing(typing).build());
 
       var resolved = typingResolver.resolveCaches(invocation("typed", "plain"));
 

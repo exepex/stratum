@@ -2,10 +2,11 @@ package com.exepex.stratum.cache.autoconfigure;
 
 import com.exepex.stratum.cache.CacheConstants;
 import com.exepex.stratum.cache.CacheCounters;
+import com.exepex.stratum.cache.CacheTypeParts;
 import com.exepex.stratum.cache.CacheValueTyping;
+import com.exepex.stratum.cache.CaffeineFutures;
 import com.exepex.stratum.cache.MicrometerCacheCounters;
 import com.exepex.stratum.cache.RedisCacheNames;
-import com.exepex.stratum.cache.RedisCacheParts;
 import com.exepex.stratum.cache.RedisRetryGate;
 import com.exepex.stratum.cache.StratumCacheLayerHook;
 import com.exepex.stratum.cache.StratumCacheProperties;
@@ -63,6 +64,8 @@ public final class CacheLayerAutoConfiguration {
    * @param counters count the layer's failures and refused names, and measure its caches
    * @param beanFactory the service's beans, which name the cache manager for the metrics
    * @param redisRetryGate the Redis retry gate, when the service has Redis caches
+   * @param caffeineFutures the answers to future and reactive methods, when the service has
+   *     Caffeine
    * @param typing the typing of JSON values, when Redis caches store JSON
    * @param spanNames the cache names on Redis spans, when the service observes Redis
    * @return the hook
@@ -77,6 +80,7 @@ public final class CacheLayerAutoConfiguration {
       CacheCounters counters,
       ListableBeanFactory beanFactory,
       ObjectProvider<RedisRetryGate> redisRetryGate,
+      ObjectProvider<CaffeineFutures> caffeineFutures,
       ObjectProvider<CacheValueTyping> typing,
       ObjectProvider<RedisCacheNames> spanNames) {
     return new StratumCacheLayerHook(
@@ -85,8 +89,11 @@ public final class CacheLayerAutoConfiguration {
         StratumCacheProperties.resolve(environment),
         counters,
         beanFactory,
-        RedisCacheParts.of(
-            redisRetryGate.getIfAvailable(), typing.getIfAvailable(), spanNames.getIfAvailable()));
+        CacheTypeParts.of(
+            redisRetryGate.getIfAvailable(),
+            caffeineFutures.getIfAvailable(),
+            typing.getIfAvailable(),
+            spanNames.getIfAvailable()));
   }
 
   /**

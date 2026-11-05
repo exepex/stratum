@@ -257,6 +257,12 @@ dropped, and Redis is skipped for a few seconds after it fails. See
 A Redis or Caffeine cache does not store a method's `null` result, so the method runs again on the
 next call; see [Null results](cache-null-results.md).
 
+## Reactive and async methods
+
+Methods that return a `Mono`, a `Flux` or a `CompletableFuture` are cached like other methods, with
+Redis and Caffeine; see [Reactive and async methods](cache-reactive.md), which also says when
+`sync = true` stops a stampede.
+
 ## Metrics
 
 With Micrometer present, as with the actuator or the
@@ -411,8 +417,6 @@ then always run.
   Spring Boot's behaviour only. Caffeine's own limits are in [Caffeine](cache-caffeine.md#not-covered).
 - Redis memory is bounded by the server's `maxmemory` policy, which your team sets.
 - Redis reports no evictions to the metrics.
-- A `@Cacheable(sync = true)` method that returns a `CompletableFuture` or a `Mono` still counts a
-  `null` result as a failure and runs twice ([Null results](cache-null-results.md)).
 - At most `stratum.cache.max-caches` cache names, 100 by default, get a cache. Calls for a name
   beyond that run uncached, through one shared no-op cache, and no cache is created for the name.
   Each such call is counted in `stratum.cache.skips` under `cache=_over-limit`, and
@@ -444,10 +448,7 @@ key prefix of your own (a `CacheKeyPrefix`) that leaves out `<cache>::` or is lo
 `max-key-size`. With such a prefix, a hashed key is stored as `sha256:<hex>` alone, which `allEntries` does not clear; it expires with its time to
 live. Caches other than Redis have no byte limits.
 
-### Planned
-
-These are planned for later releases of this module:
-reactive return types.
+### Not planned
 
 Not planned for this release: a two-level cache, several regions, keys per tenant, other cache
 clients than Redis and Caffeine, distributed locks, spans for hits and misses, Spring Session,

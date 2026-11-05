@@ -31,7 +31,7 @@ public final class StratumCacheLayerHook {
    * @param properties the module's settings
    * @param counters count the layer's failures and refused names, and measure its caches
    * @param beanFactory the service's beans, which name the cache manager for the metrics
-   * @param redisParts the parts only Redis caches use
+   * @param typeParts the parts only one kind of cache uses
    */
   public StratumCacheLayerHook(
       ObjectProvider<CacheInterceptor> cacheInterceptor,
@@ -39,7 +39,7 @@ public final class StratumCacheLayerHook {
       StratumCacheProperties properties,
       CacheCounters counters,
       ListableBeanFactory beanFactory,
-      RedisCacheParts redisParts) {
+      CacheTypeParts typeParts) {
     var interceptor = cacheInterceptor.getIfAvailable();
     if (interceptor == null || interceptor.getCacheResolver() != null) {
       return;
@@ -66,7 +66,7 @@ public final class StratumCacheLayerHook {
             throttle,
             counters,
             handler,
-            redisParts));
+            typeParts));
     interceptor.setErrorHandler(handler);
   }
 

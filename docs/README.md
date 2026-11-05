@@ -73,6 +73,7 @@ Each module page follows the same layout so you always know where to look:
 | Cache name on Redis spans | [cache-traces.md](modules/cache-traces.md) |
 | Cache null results | [cache-null-results.md](modules/cache-null-results.md) |
 | Cache in Caffeine | [cache-caffeine.md](modules/cache-caffeine.md) |
+| Cache reactive and async methods | [cache-reactive.md](modules/cache-reactive.md) |
 | Kafka | [kafka.md](modules/kafka.md) |
 | Cloud connectors | [cloud.md](modules/cloud.md) |
 | Testing (`stratum-test`) | [test.md](modules/test.md) |

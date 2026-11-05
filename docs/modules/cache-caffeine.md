@@ -20,6 +20,9 @@ a value changed by another pod is served stale for good. Stratum gives them safe
 These apply in both modes of `stratum.backward-compatible`, because no consumer of the service sees
 them.
 
+Caffeine's async mode stays off; methods that return a `Mono`, a `Flux` or a `CompletableFuture`
+are still cached ([Reactive and async methods](cache-reactive.md#caffeine)).
+
 ## Use it
 
 Add Caffeine next to the cache starter:
@@ -112,6 +115,7 @@ In Java, set the `stratum.cache.*` keys with a `StratumCachePropertiesCustomizer
 | `stratumCaffeine` | `Caffeine<Object, Object>` | Caffeine is on the class path and the service has no `Caffeine` bean; Spring Boot uses it only without a spec or `CaffeineSpec` bean |
 | `stratumCaffeineNullValues` | `CacheManagerCustomizer<CaffeineCacheManager>` | Caffeine is on the class path; it runs before your own customizers, so theirs win |
 | `stratumCaffeineCacheSettings` | `CaffeineCacheSettingsCustomizer` | Caffeine is on the class path; it runs after your own customizers |
+| `stratumCaffeineFutures` | `CaffeineFutures` | Caffeine is on the class path; it lets Caffeine caches answer reactive and async methods |
 
 Replace any of them with a bean of the same name.
 

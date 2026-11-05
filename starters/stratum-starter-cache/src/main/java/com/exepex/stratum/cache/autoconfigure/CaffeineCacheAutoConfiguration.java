@@ -2,6 +2,7 @@ package com.exepex.stratum.cache.autoconfigure;
 
 import com.exepex.stratum.cache.CacheConstants;
 import com.exepex.stratum.cache.CaffeineCacheSettingsCustomizer;
+import com.exepex.stratum.cache.CaffeineFutures;
 import com.exepex.stratum.cache.StratumCacheProperties;
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
@@ -25,7 +26,8 @@ import org.springframework.core.env.Environment;
  * {@code stratum.cache.enabled=false}: each cache holds at most 10,000 entries, each entry lives 10
  * minutes, hits and misses are recorded for the cache metrics, a null result is not stored, and
  * single caches get their own bound and time to live. Spring Boot uses them only when it picks
- * Caffeine, as it does without Redis.
+ * Caffeine, as it does without Redis. Caffeine caches also serve methods that return a future or a
+ * reactive type.
  */
 @StratumInternal
 @AutoConfiguration(after = CacheAutoConfiguration.class)
@@ -84,5 +86,18 @@ public final class CaffeineCacheAutoConfiguration {
   public CaffeineCacheSettingsCustomizer stratumCaffeineCacheSettings(Environment environment) {
     var properties = StratumCacheProperties.resolve(environment);
     return new CaffeineCacheSettingsCustomizer(properties.maxEntries(), properties.timesToLive());
+  }
+
+  /**
+   * Creates the answers to cached methods that return a {@code CompletableFuture}, a {@code Mono}
+   * or a {@code Flux}, for Caffeine caches built without Caffeine's async mode.
+   *
+   * @return the answers the cache layer gives Caffeine caches
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean
+  public CaffeineFutures stratumCaffeineFutures() {
+    return new CaffeineFutures();
   }
 }

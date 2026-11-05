@@ -100,7 +100,20 @@ public class StubCache implements Cache {
   @Override
   public <T> CompletableFuture<T> retrieve(Object key, Supplier<CompletableFuture<T>> valueLoader) {
     callsMade.add("retrieveWithLoader");
-    return valueLoader.get();
+    if (failReads) {
+      return CompletableFuture.failedFuture(FAILURE);
+    }
+    loadCount.incrementAndGet();
+    // As Spring Data Redis does, the returned future also waits for the write after the load.
+    return valueLoader.get().thenApply(value -> written(value));
+  }
+
+  /** Returns a loaded value once it is written, or fails as a failing write does. */
+  private <T> T written(T value) {
+    if (failWrites) {
+      throw FAILURE;
+    }
+    return value;
   }
 
   @Override
