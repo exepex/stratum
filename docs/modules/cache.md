@@ -407,8 +407,8 @@ then always run.
 
 ## Limits
 
-- Other cache types than Redis, such as Spring Boot's simple in-memory cache, get Spring Boot's
-  behaviour only.
+- Other cache types than Redis and Caffeine, such as Spring Boot's simple in-memory cache, get
+  Spring Boot's behaviour only. Caffeine's own limits are in [Caffeine](cache-caffeine.md#not-covered).
 - Redis memory is bounded by the server's `maxmemory` policy, which your team sets.
 - Redis reports no evictions to the metrics.
 - A `@Cacheable(sync = true)` method that returns a `CompletableFuture` or a `Mono` still counts a

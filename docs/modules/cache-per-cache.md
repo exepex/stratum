@@ -57,6 +57,9 @@ Spring Boot's settings, your own Spring Data `RedisCacheConfiguration` bean or y
 after yours, so this key wins over a time to live your own code gives the same cache. A cache with
 its own time to live is created when the service starts, not on its first call.
 
+For a Caffeine cache, the key sets the expiry of that cache's entries in memory
+([Caffeine](cache-caffeine.md#settings-per-cache)).
+
 ## Command timeout
 
 Lettuce has one command timeout for its connection. With a cache value above
@@ -110,4 +113,4 @@ service, and a cache without its own value, still times out at the global value.
   value is lower also counts like any other, so it makes every cache skip Redis. A cache name that
   contains `::` never matches, and one that ends in `:`, such as `reports:`, cannot be told apart
   from `reports`, so it gets the global timeout or that cache's.
-- Caches other than Redis are not affected.
+- Caches other than Redis and Caffeine are not affected; the command timeout is for Redis only.
