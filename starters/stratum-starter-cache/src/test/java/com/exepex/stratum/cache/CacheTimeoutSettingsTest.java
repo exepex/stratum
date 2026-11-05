@@ -16,6 +16,9 @@ class CacheTimeoutSettingsTest {
   /** The global {@code spring.data.redis.timeout} the tests set. */
   private static final Duration GLOBAL = Duration.ofSeconds(1);
 
+  /** The reports cache's own command timeout, above the global one. */
+  private static final Duration REPORTS_TIMEOUT = Duration.ofSeconds(3);
+
   /** The key of the reports cache's own command timeout. */
   private static final String REPORTS_COMMAND_TIMEOUT_KEY =
       CacheConstants.CACHES + ".reports.command-timeout";
@@ -67,6 +70,21 @@ class CacheTimeoutSettingsTest {
     /** Returns the key's bytes in a buffer, as Lettuce gives them. */
     private ByteBuffer key(String text) {
       return ByteBuffer.wrap(text.getBytes(StandardCharsets.UTF_8));
+    }
+  }
+
+  @Nested
+  @DisplayName("the shared timeout")
+  class SharedTimeout {
+
+    @Test
+    @DisplayName("is the largest of several cache values above the global one")
+    void largestValue() {
+      var settings =
+          CacheTimeoutSettings.resolve(
+              environment().withProperty(CacheConstants.CACHES + ".prices.command-timeout", "2s"));
+
+      assertThat(settings.sharedTimeout()).isEqualTo(REPORTS_TIMEOUT);
     }
   }
 
