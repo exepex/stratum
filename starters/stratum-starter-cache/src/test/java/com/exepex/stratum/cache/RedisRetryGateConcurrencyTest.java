@@ -58,7 +58,8 @@ class RedisRetryGateConcurrencyTest {
     var gate = reachedGate(FAILURE_THRESHOLD);
 
     try (var executor = Executors.newFixedThreadPool(2)) {
-      IntStream.range(0, RACE_ROUNDS).forEach(round -> raceSuccessAgainstFailure(gate, executor));
+      assertThat(IntStream.range(0, RACE_ROUNDS).allMatch(round -> raceKeepsRedis(gate, executor)))
+          .isTrue();
     }
   }
 
@@ -71,10 +72,11 @@ class RedisRetryGateConcurrencyTest {
   }
 
   /**
-   * From one counted failure, lets a success and a failure end at the same time. Either order
-   * leaves at most one failure, so one more failure still stays below the threshold of 3.
+   * From one counted failure, lets a success and a failure end at the same time, then adds one more
+   * failure and returns whether the calls still use Redis. Either order of the race leaves at most
+   * one failure, so the extra one stays below the threshold of 3.
    */
-  private void raceSuccessAgainstFailure(RedisRetryGate gate, ExecutorService executor) {
+  private boolean raceKeepsRedis(RedisRetryGate gate, ExecutorService executor) {
     gate.failed(RedisFailureTestData.TIMED_OUT, true);
     var barrier = new CyclicBarrier(2);
 
@@ -86,9 +88,9 @@ class RedisRetryGateConcurrencyTest {
                 executor))
         .join();
     gate.failed(RedisFailureTestData.TIMED_OUT, true);
-
-    assertThat(gate.usesRedis()).isTrue();
+    var keepsRedis = gate.usesRedis();
     gate.reached();
+    return keepsRedis;
   }
 
   /** Waits until the other side of the race is ready, then runs this side's call. */
