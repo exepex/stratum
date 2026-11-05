@@ -7,12 +7,13 @@ import com.exepex.stratum.cache.testsupport.RecordingCacheCounters;
 import com.exepex.stratum.cache.testsupport.RecordingCacheManager;
 import com.exepex.stratum.test.LogLineCapture;
 import java.lang.reflect.Method;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.UnaryOperator;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -48,8 +49,14 @@ class StratumCacheResolverTest {
   /** The bean name of the cache manager in these tests. */
   private static final String MANAGER_NAME = "cacheManager";
 
+  /** The start of every cache name the tests resolve. */
+  private static final String NAME_PREFIX = "cache-";
+
   /** The name of the one cache the admitted-cache tests resolve. */
-  private static final String FIRST_CACHE = "cache-0";
+  private static final String FIRST_CACHE = NAME_PREFIX + "0";
+
+  /** The key prefix of the span-name tests. */
+  private static final String KEY_PREFIX = "orders:";
 
   /** The key the null tests write. */
   private static final String KEY = "sku-1";
@@ -62,6 +69,9 @@ class StratumCacheResolverTest {
 
   private final RecordingCacheManager manager = new RecordingCacheManager();
 
+  /** The cache names Redis spans carry, which the resolver adds each admitted name to. */
+  private final RedisCacheNames spanCacheNames = new RedisCacheNames(KEY_PREFIX, List.of());
+
   private final StratumCacheResolver resolver = resolverFor(manager);
 
   /** Returns a resolver over a cache manager, with the tests' cap, throttle and counters. */
@@ -73,8 +83,7 @@ class StratumCacheResolverTest {
         throttle,
         counters,
         new StratumCacheErrorHandler(null, throttle, counters),
-        UnaryOperator.identity(),
-        CacheValueTyping.none());
+        RedisCacheParts.none().toBuilder().spanNames(spanCacheNames).build());
   }
 
   /** Returns an invocation context whose operation asks for the given cache names. */
@@ -105,7 +114,7 @@ class StratumCacheResolverTest {
   /** Resolves one cache per name, {@code cache-0} to {@code cache-(count-1)}. */
   private List<? extends Cache> resolveNames(int count) {
     return IntStream.range(0, count)
-        .mapToObj(number -> "cache-" + number)
+        .mapToObj(number -> NAME_PREFIX + number)
         .flatMap(name -> resolver.resolveCaches(invocation(name)).stream())
         .toList();
   }
@@ -157,6 +166,23 @@ class StratumCacheResolverTest {
     }
 
     @Test
+    @DisplayName("the 100 admitted names go on Redis spans, the 50 refused ones never do")
+    void onlyAdmittedNamesGoOnSpans() {
+      resolveNames(ALL_NAMES);
+
+      assertThat(spanCacheNames.cacheNameOf(keyOf(FIRST_CACHE))).isEqualTo(FIRST_CACHE);
+      assertThat(spanCacheNames.cacheNameOf(keyOf(NAME_PREFIX + (MAX_CACHES - 1))))
+          .isEqualTo(NAME_PREFIX + (MAX_CACHES - 1));
+      assertThat(spanCacheNames.cacheNameOf(keyOf(NAME_PREFIX + MAX_CACHES))).isNull();
+    }
+
+    /** Returns the bytes of a Redis key of the given cache. */
+    private ByteBuffer keyOf(String cacheName) {
+      return ByteBuffer.wrap(
+          (KEY_PREFIX + cacheName + "::" + KEY).getBytes(StandardCharsets.UTF_8));
+    }
+
+    @Test
     @DisplayName("the refusals warn once per interval, naming the refused cache")
     void warnsOncePerInterval() {
       var capture = new LogLineCapture(StratumCacheResolver.class.getName());
@@ -166,10 +192,10 @@ class StratumCacheResolverTest {
 
         assertThat(capture.lines()).hasSize(1);
         var line = capture.lines().getFirst().getFormattedMessage();
-        assertThat(line).contains("SX-CACHE-1003").contains("cache-" + MAX_CACHES);
+        assertThat(line).contains("SX-CACHE-1003").contains(NAME_PREFIX + MAX_CACHES);
 
         clock.advance(INTERVAL);
-        resolver.resolveCaches(invocation("cache-" + (ALL_NAMES - 1)));
+        resolver.resolveCaches(invocation(NAME_PREFIX + (ALL_NAMES - 1)));
         assertThat(capture.lines()).hasSize(2);
       } finally {
         capture.stop();
@@ -270,8 +296,9 @@ class StratumCacheResolverTest {
               throttle,
               counters,
               new StratumCacheErrorHandler(null, throttle, counters),
-              cache -> new NoOpCache("gated-" + cache.getName()),
-              CacheValueTyping.none());
+              RedisCacheParts.none().toBuilder()
+                  .gate(cache -> new NoOpCache("gated-" + cache.getName()))
+                  .build());
 
       var resolved = gatedResolver.resolveCaches(invocation("products"));
 
@@ -308,8 +335,7 @@ class StratumCacheResolverTest {
               throttle,
               counters,
               new StratumCacheErrorHandler(null, throttle, counters),
-              UnaryOperator.identity(),
-              typing);
+              RedisCacheParts.none().toBuilder().typing(typing).build());
 
       var resolved = typingResolver.resolveCaches(invocation("typed", "plain"));
 

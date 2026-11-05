@@ -70,6 +70,7 @@ Each module page follows the same layout so you always know where to look:
 | Cache when Redis is down | [cache-redis-down.md](modules/cache-redis-down.md) |
 | Cache stored values | [cache-values.md](modules/cache-values.md) |
 | Cache time to live and timeout per cache | [cache-per-cache.md](modules/cache-per-cache.md) |
+| Cache name on Redis spans | [cache-traces.md](modules/cache-traces.md) |
 | Kafka | [kafka.md](modules/kafka.md) |
 | Cloud connectors | [cloud.md](modules/cloud.md) |
 | Testing (`stratum-test`) | [test.md](modules/test.md) |

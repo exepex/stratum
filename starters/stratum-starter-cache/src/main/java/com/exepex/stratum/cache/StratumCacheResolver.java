@@ -7,7 +7,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.UnaryOperator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.Cache;
@@ -22,11 +21,12 @@ import org.springframework.cache.support.NoOpCache;
  * StratumCache}, so its calls are fail-open, its loader runs at most once and a null result is not
  * stored where the cache refuses nulls, with a Redis cache behind the Redis retry gate; Spring
  * Boot's cache metrics measure it from its first use. A cache whose values are stored as JSON is
- * read as each calling method's return type. The first {@code stratum.cache.max-caches} distinct
- * names are admitted; a name beyond that is never resolved with the cache manager, so no cache is
- * created for it, and the method runs uncached through one shared no-op cache. The refusal is
- * counted per call as {@code stratum.cache.skips} under {@code _over-limit} and warned once per
- * interval with {@code SX-CACHE-1003}.
+ * read as each calling method's return type, and a Redis cache's name goes on its command spans.
+ * The first {@code stratum.cache.max-caches} distinct names are admitted; a name beyond that is
+ * never resolved with the cache manager, so no cache is created for it, and the method runs
+ * uncached through one shared no-op cache. The refusal is counted per call as {@code
+ * stratum.cache.skips} under {@code _over-limit} and warned once per interval with {@code
+ * SX-CACHE-1003}.
  */
 @StratumInternal
 @Slf4j
@@ -51,11 +51,8 @@ public class StratumCacheResolver implements CacheResolver {
   /** Reports the failed write of a loaded value inside each wrapped cache. */
   private final StratumCacheErrorHandler errorHandler;
 
-  /** Puts the Redis retry gate in front of a Redis cache; returns any other cache unchanged. */
-  private final UnaryOperator<Cache> redisGate;
-
-  /** Gives each call of a method its own value type, for caches that store values untyped. */
-  private final CacheValueTyping typing;
+  /** The retry gate, value typing and span names, which only Redis caches use. */
+  private final RedisCacheParts redisParts;
 
   /** The one cache every refused name shares: reads miss, writes do nothing, loaders run. */
   private final Cache overLimitCache = new NoOpCache(CacheConstants.OVER_LIMIT);
@@ -87,7 +84,7 @@ public class StratumCacheResolver implements CacheResolver {
   /** Returns a name's cache, as the calling method's typed view where its values need one. */
   private Cache typedFor(String name, CacheOperationInvocationContext<?> context) {
     var cache = cacheFor(name);
-    return typedNames.contains(name) ? typing.typed(cache, context) : cache;
+    return typedNames.contains(name) ? redisParts.getTyping().typed(cache, context) : cache;
   }
 
   /** Returns the wrapped cache of an admitted name, or the shared no-op cache of a refused one. */
@@ -123,10 +120,11 @@ public class StratumCacheResolver implements CacheResolver {
           "No cache named " + name + " could be resolved by " + cacheManager);
     }
     counters.bindCacheMetrics(cache, cacheManagerName);
-    if (typing.appliesTo(cache)) {
+    redisParts.nameOnSpans(name);
+    if (redisParts.getTyping().appliesTo(cache)) {
       typedNames.add(name);
     }
-    return new StratumCache(redisGate.apply(cache), errorHandler, rejectsNulls(cache));
+    return new StratumCache(redisParts.gated(cache), errorHandler, rejectsNulls(cache));
   }
 
   /** Returns whether a cache refuses to store nulls, as Redis does with Stratum's default. */

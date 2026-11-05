@@ -313,6 +313,7 @@ Stratum adds three counters of its own:
 
 and one gauge: `stratum.cache.redis.available`, 1 while Redis caches use Redis and 0 from a failure
 until Redis answers again. It reads 1 before the first cache call. Alert when it stays at 0.
+Redis command spans carry the name of their cache ([Traces](cache-traces.md)).
 
 ## An existing service
 
@@ -467,7 +468,7 @@ live. Caches other than Redis have no size limits.
 ### Planned
 
 These are planned for later releases of this module:
-the cache name on Redis spans; Caffeine with a bounded size; and reactive return types.
+Caffeine with a bounded size, and reactive return types.
 
 Not planned for this release: a two-level cache, several regions, keys per tenant, other cache
 clients than Redis and Caffeine, distributed locks, spans for hits and misses, Spring Session,

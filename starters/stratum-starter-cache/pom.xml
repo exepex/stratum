@@ -49,6 +49,13 @@
       <artifactId>micrometer-core</artifactId>
       <optional>true</optional>
     </dependency>
+    <!-- Micrometer's observation API, for the filter that puts the cache name on Redis spans.
+         Optional: Spring Boot brings it with metrics or tracing, and without it no filter is made. -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-observation</artifactId>
+      <optional>true</optional>
+    </dependency>
     <!-- The checks and set-up that every starter's tests share, and the Redis container that
          stratum-test declares optional. -->
     <dependency>
@@ -76,6 +83,24 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-micrometer-metrics</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Spring Boot's tracing with OpenTelemetry, without an exporter, and OpenTelemetry's in-memory
+         exporter, to prove that Redis spans carry the cache name. Services bring tracing with the
+         observability starter. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-micrometer-tracing-opentelemetry</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-tracing-bridge-otel</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-sdk-testing</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

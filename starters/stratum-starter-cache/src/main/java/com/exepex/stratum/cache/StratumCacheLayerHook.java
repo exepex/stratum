@@ -3,10 +3,8 @@ package com.exepex.stratum.cache;
 import com.exepex.stratum.core.api.StratumInternal;
 import java.time.Clock;
 import java.util.Arrays;
-import java.util.function.UnaryOperator;
 import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.interceptor.CacheErrorHandler;
 import org.springframework.cache.interceptor.CacheInterceptor;
@@ -33,8 +31,7 @@ public final class StratumCacheLayerHook {
    * @param properties the module's settings
    * @param counters count the layer's failures and refused names, and measure its caches
    * @param beanFactory the service's beans, which name the cache manager for the metrics
-   * @param redisRetryGate the gate in front of Redis caches, when the service has Spring Data Redis
-   * @param typing reads Redis cache values as each method's type, when they are stored as JSON
+   * @param redisParts the parts only Redis caches use
    */
   public StratumCacheLayerHook(
       ObjectProvider<CacheInterceptor> cacheInterceptor,
@@ -42,8 +39,7 @@ public final class StratumCacheLayerHook {
       StratumCacheProperties properties,
       CacheCounters counters,
       ListableBeanFactory beanFactory,
-      ObjectProvider<RedisRetryGate> redisRetryGate,
-      ObjectProvider<CacheValueTyping> typing) {
+      RedisCacheParts redisParts) {
     var interceptor = cacheInterceptor.getIfAvailable();
     if (interceptor == null || interceptor.getCacheResolver() != null) {
       return;
@@ -62,8 +58,6 @@ public final class StratumCacheLayerHook {
     CacheErrorHandler serviceHandler =
         installed.getClass() == SimpleCacheErrorHandler.class ? null : installed;
     var handler = new StratumCacheErrorHandler(serviceHandler, throttle, counters);
-    var gate = redisRetryGate.getIfAvailable();
-    UnaryOperator<Cache> redisGate = gate == null ? UnaryOperator.identity() : gate::gated;
     interceptor.setCacheResolver(
         new StratumCacheResolver(
             manager,
@@ -72,8 +66,7 @@ public final class StratumCacheLayerHook {
             throttle,
             counters,
             handler,
-            redisGate,
-            typing.getIfAvailable(CacheValueTyping::none)));
+            redisParts));
     interceptor.setErrorHandler(handler);
   }
 

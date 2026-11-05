@@ -4,6 +4,8 @@ import com.exepex.stratum.cache.CacheConstants;
 import com.exepex.stratum.cache.CacheCounters;
 import com.exepex.stratum.cache.CacheValueTyping;
 import com.exepex.stratum.cache.MicrometerCacheCounters;
+import com.exepex.stratum.cache.RedisCacheNames;
+import com.exepex.stratum.cache.RedisCacheParts;
 import com.exepex.stratum.cache.RedisRetryGate;
 import com.exepex.stratum.cache.StratumCacheLayerHook;
 import com.exepex.stratum.cache.StratumCacheProperties;
@@ -60,8 +62,9 @@ public final class CacheLayerAutoConfiguration {
    * @param environment the service's environment, from which the settings are resolved
    * @param counters count the layer's failures and refused names, and measure its caches
    * @param beanFactory the service's beans, which name the cache manager for the metrics
-   * @param redisRetryGate the gate in front of Redis caches, when the service has Spring Data Redis
-   * @param typing reads Redis cache values as each method's type, when they are stored as JSON
+   * @param redisRetryGate the Redis retry gate, when the service has Redis caches
+   * @param typing the typing of JSON values, when Redis caches store JSON
+   * @param spanNames the cache names on Redis spans, when the service observes Redis
    * @return the hook
    */
   @Bean
@@ -74,15 +77,16 @@ public final class CacheLayerAutoConfiguration {
       CacheCounters counters,
       ListableBeanFactory beanFactory,
       ObjectProvider<RedisRetryGate> redisRetryGate,
-      ObjectProvider<CacheValueTyping> typing) {
+      ObjectProvider<CacheValueTyping> typing,
+      ObjectProvider<RedisCacheNames> spanNames) {
     return new StratumCacheLayerHook(
         cacheInterceptor,
         cacheManager,
         StratumCacheProperties.resolve(environment),
         counters,
         beanFactory,
-        redisRetryGate,
-        typing);
+        RedisCacheParts.of(
+            redisRetryGate.getIfAvailable(), typing.getIfAvailable(), spanNames.getIfAvailable()));
   }
 
   /**
