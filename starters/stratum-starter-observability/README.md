@@ -417,6 +417,11 @@ The switch and the Spring Boot properties above are set in Java through
 - **Your own tag rule:** declare a `MetricTagGuard` bean; Stratum's then backs off.
 - **Your own correlation ID handling:** declare a `CorrelationIdRecorder` bean; Stratum's then
   backs off.
+- **Exception data on spans:** a bean named `stratumExceptionFreeSpans` replaces the
+  post-processor that keeps exception data off your spans
+  ([errors on spans](../../docs/modules/observability-traces.md#errors-on-spans)); declare it
+  `static`, as any `BeanPostProcessor`. Your spans then carry the exception's message, which can
+  hold personal data.
 - **Not replaceable:** the Spring Boot defaults and the export address check run before any bean
   exists, so no bean of yours replaces them. `stratum.observability.enabled` turns them all off;
   turning an export off also satisfies the check for that export ([startup check](#startup-check)).

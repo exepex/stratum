@@ -58,7 +58,7 @@ class ExceptionFreeSpanExporterTest {
   }
 
   /** Records what Spring and the SDK record for a failed request. */
-  private static void recordFailure(Span span) {
+  private void recordFailure(Span span) {
     span.setAttribute(ROUTE, ROUTE_VALUE);
     span.setAttribute("exception", "IllegalStateException");
     span.recordException(new IllegalStateException(MESSAGE));
@@ -80,7 +80,7 @@ class ExceptionFreeSpanExporterTest {
     @Test
     @DisplayName("the exception event is dropped, with its type, message and stack trace")
     void dropsExceptionEvent() {
-      var exported = export(ExceptionFreeSpanExporterTest::recordFailure).exported();
+      var exported = export(span -> recordFailure(span)).exported();
       assertThat(exported.getEvents())
           .extracting(EventData::getName)
           .doesNotContain(ObservabilityConstants.EXCEPTION_EVENT);
@@ -90,7 +90,7 @@ class ExceptionFreeSpanExporterTest {
     @Test
     @DisplayName("other events are kept with their attributes")
     void keepsOtherEvents() {
-      var exported = export(ExceptionFreeSpanExporterTest::recordFailureAndSave).exported();
+      var exported = export(span -> recordFailureAndSave(span)).exported();
       assertThat(exported.getEvents()).singleElement().satisfies(this::isSavedEvent);
       assertThat(exported.getTotalRecordedEvents()).isOne();
     }
@@ -103,7 +103,7 @@ class ExceptionFreeSpanExporterTest {
   }
 
   /** Records a failure and an event of the service's own. */
-  private static void recordFailureAndSave(Span span) {
+  private void recordFailureAndSave(Span span) {
     span.addEvent(SAVED_EVENT, Attributes.of(ROUTE, ROUTE_VALUE));
     recordFailure(span);
   }
@@ -129,7 +129,7 @@ class ExceptionFreeSpanExporterTest {
   }
 
   /** Records a route and both of Spring's exception attributes with the given value. */
-  private static void recordExceptionAttributes(Span span, String value) {
+  private void recordExceptionAttributes(Span span, String value) {
     span.setAttribute(ROUTE, ROUTE_VALUE);
     span.setAttribute("exception", value);
     span.setAttribute("error.type", value);
@@ -142,7 +142,7 @@ class ExceptionFreeSpanExporterTest {
     @Test
     @DisplayName("a failed span stays ERROR, without the exception message")
     void keepsErrorWithoutMessage() {
-      assertThat(export(ExceptionFreeSpanExporterTest::recordFailure).exported().getStatus())
+      assertThat(export(span -> recordFailure(span)).exported().getStatus())
           .isEqualTo(StatusData.error());
     }
 
