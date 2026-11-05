@@ -100,6 +100,9 @@ The beans the starter adds, with their types:
 | `stratumRedisCacheWriter` | `RedisCacheManagerBuilderCustomizer` | Spring Data Redis and a Redis connection are present; it sets a writer that clears with SCAN and applies the [size limits](#size-limits) |
 | `stratumCacheLayerHook` | `StratumCacheLayerHook` | Always; it installs the layer on Spring's `cacheInterceptor` unless your own caching set-up says otherwise ([below](cache-redis-down.md)) |
 | `cacheCounters` or `micrometerCacheCounters` | `CacheCounters` | Always; the Micrometer one when a `MeterRegistry` bean is present |
+| `redisRetryGate` | `RedisRetryGate` | A Redis connection is present; it makes every Redis cache skip Redis for a while after a failure ([When Redis is down](cache-redis-down.md)) |
+| `stratumRejectWhileDisconnected` | `LettuceClientOptionsBuilderCustomizer` | Lettuce is on the class path; it makes Lettuce refuse commands while disconnected |
+| `stratumRedisAvailabilityMetric` | `MeterBinder` | Micrometer and a Redis connection are present; it registers the gauge `stratum.cache.redis.available` |
 
 Spring Boot's cache auto-configuration sets up a cache manager only once caching is switched on, so
 Stratum's `@EnableCaching` is ordered before it. That is the one reason this module is ordered
@@ -371,6 +374,10 @@ application.run(args);
   because a customizer of yours of the same type must not switch SCAN off.
 - A bean named `stratumRejectWhileDisconnected` replaces Stratum's Lettuce customizer, and your
   own `LettuceClientOptionsBuilderCustomizer` beans run after it, so they win.
+- A bean named `stratumRedisAvailabilityMetric` replaces Stratum's gauge. It backs off by its name,
+  because your own `MeterBinder` beans measure other things.
+- `redisRetryGate` backs off to any `RedisRetryGate` bean, but that type is internal to Stratum. To
+  change how long Redis is skipped, set `stratum.cache.redis-retry-interval` instead.
 - Your own Spring Data `RedisCacheConfiguration` bean replaces Spring Boot's cache settings, and so
   Stratum's time to live, key prefix and [null setting](#null-results): Spring Data's
   `defaultCacheConfig()` stores nulls. The SCAN writer and the size limits still apply.
