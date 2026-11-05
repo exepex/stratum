@@ -62,11 +62,23 @@ public class MeterCountTestData {
    * @param hostCount how many hosts to call
    */
   public static void registerClientTimers(MeterRegistry registry, int hostCount) {
+    registerClientTimers(registry, ObservabilityConstants.DEFAULT_CLIENT_REQUESTS_NAME, hostCount);
+  }
+
+  /**
+   * Registers one HTTP client timer under a meter name for each of a number of hosts.
+   *
+   * @param registry the registry to fill
+   * @param clientMeterName the name of the HTTP client meters
+   * @param hostCount how many hosts to call
+   */
+  public static void registerClientTimers(
+      MeterRegistry registry, String clientMeterName, int hostCount) {
     IntStream.range(0, hostCount)
         .forEach(
             host ->
                 registry.timer(
-                    ObservabilityConstants.DEFAULT_CLIENT_REQUESTS_NAME,
+                    clientMeterName,
                     ObservabilityConstants.CLIENT_NAME_TAG,
                     "partner-" + host + ".example.com"));
   }
@@ -78,7 +90,18 @@ public class MeterCountTestData {
    * @return the distinct {@code client.name} values
    */
   public static Set<String> clientNamesIn(MeterRegistry registry) {
-    return registry.find(ObservabilityConstants.DEFAULT_CLIENT_REQUESTS_NAME).meters().stream()
+    return clientNamesIn(registry, ObservabilityConstants.DEFAULT_CLIENT_REQUESTS_NAME);
+  }
+
+  /**
+   * Returns the hosts the HTTP client meters of a meter name hold in a registry.
+   *
+   * @param registry the registry
+   * @param clientMeterName the name of the HTTP client meters
+   * @return the distinct {@code client.name} values
+   */
+  public static Set<String> clientNamesIn(MeterRegistry registry, String clientMeterName) {
+    return registry.find(clientMeterName).meters().stream()
         .map(meter -> meter.getId().getTag(ObservabilityConstants.CLIENT_NAME_TAG))
         .collect(Collectors.toSet());
   }

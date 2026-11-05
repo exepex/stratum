@@ -25,7 +25,7 @@ class MeterCountGuardTest {
   /** A small total cap, so a test fills it quickly. */
   private static final int MAX_METERS = 5;
 
-  /** Spring Boot's default cap on the client hosts, which the plan keeps. */
+  /** Stratum's default cap on the client hosts (owner decision Q5). */
   private static final int MAX_CLIENT_NAMES = 100;
 
   /** The order of the first counter registered. */

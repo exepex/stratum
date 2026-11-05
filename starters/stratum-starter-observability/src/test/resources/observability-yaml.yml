@@ -10,6 +10,7 @@ stratum:
     baggage:
       allowed: correlationId,tenantId
     metrics:
+      max-meters: 20000
       max-client-names: 3
 management:
   opentelemetry:

@@ -33,6 +33,12 @@ class ObservabilitySettingsIntegrationTest {
   /** More hosts than the files allow. */
   private static final int MANY_HOSTS = 10;
 
+  /** The total cap both files set, twice the default. */
+  private static final int MAX_METERS_IN_FILES = 20_000;
+
+  /** Stratum's default total cap, which the files raise. */
+  private static final int DEFAULT_MAX_METERS = 10_000;
+
   /** Checks the settings that both files set the same way. */
   private void assertSettingsApplied(
       MetricTagGuard guard,
@@ -50,6 +56,9 @@ class ObservabilitySettingsIntegrationTest {
     var registry = MeterCountTestData.registryGuardedBy(meterCountGuard);
     MeterCountTestData.registerClientTimers(registry, MANY_HOSTS);
     assertThat(MeterCountTestData.clientNamesIn(registry)).hasSize(MAX_CLIENT_NAMES_IN_FILES);
+    // The application's own meters share the guard's slots, so the registry holds a little less.
+    MeterCountTestData.registerOrderCounters(registry, MAX_METERS_IN_FILES + 1);
+    assertThat(registry.getMeters()).hasSizeBetween(DEFAULT_MAX_METERS + 1, MAX_METERS_IN_FILES);
     assertThat(environment.getProperty("management.endpoints.web.exposure.include"))
         .isEqualTo("health,info");
     assertThat(environment.getProperty("management.metrics.tags.environment")).isEqualTo("staging");
@@ -88,7 +97,7 @@ class ObservabilitySettingsIntegrationTest {
 
     @Test
     @DisplayName(
-        "the forbidden and allowed tags, allowed baggage, host cap, endpoints, environment tag and"
+        "the forbidden and allowed tags, allowed baggage, meter caps, endpoints, environment tag and"
             + " instance ID are applied")
     void settingsApplied() {
       assertSettingsApplied(guard, allowList, meterCountGuard, environment, resource);
@@ -126,7 +135,7 @@ class ObservabilitySettingsIntegrationTest {
 
     @Test
     @DisplayName(
-        "the forbidden and allowed tags, allowed baggage, host cap, endpoints, environment tag and"
+        "the forbidden and allowed tags, allowed baggage, meter caps, endpoints, environment tag and"
             + " instance ID are applied")
     void settingsApplied() {
       assertSettingsApplied(guard, allowList, meterCountGuard, environment, resource);

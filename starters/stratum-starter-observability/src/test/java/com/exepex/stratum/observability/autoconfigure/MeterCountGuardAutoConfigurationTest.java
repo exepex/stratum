@@ -9,12 +9,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.exepex.stratum.observability.MeterCountGuard;
 import com.exepex.stratum.observability.ObservabilityConstants;
 import com.exepex.stratum.observability.ObservabilityPropertiesCustomizer;
-import com.exepex.stratum.observability.testsupport.FewHostsObservabilitySettings;
+import com.exepex.stratum.observability.testsupport.SmallCapsObservabilitySettings;
 import com.exepex.stratum.test.StarterTestSupport;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.ToIntFunction;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -45,6 +46,12 @@ class MeterCountGuardAutoConfigurationTest {
   /** The client host cap the tests set in properties. */
   private static final int MAX_CLIENT_NAMES_IN_PROPERTIES = 3;
 
+  /** The total cap the tests set in properties. */
+  private static final int MAX_METERS_IN_PROPERTIES = 12;
+
+  /** A name a service gives its HTTP client meters through Spring Boot's key. */
+  private static final String RENAMED_CLIENT_METERS = "partner.calls";
+
   /** More hosts than any cap in these tests. */
   private static final int MANY_HOSTS = 2 * DEFAULT_MAX_CLIENT_NAMES;
 
@@ -58,11 +65,26 @@ class MeterCountGuardAutoConfigurationTest {
               AutoConfigurations.of(
                   ValidationAutoConfiguration.class, ObservabilityAutoConfiguration.class));
 
+  /**
+   * Returns how many meters the context's guard holds when the service makes more than the default
+   * cap.
+   */
+  private int metersHeldIn(ApplicationContext context) {
+    var registry = registryGuardedBy(context.getBean(MeterCountGuard.class));
+    registerOrderCounters(registry, DEFAULT_MAX_METERS + 1);
+    return registry.getMeters().size();
+  }
+
   /** Returns how many hosts the context's guard keeps when the service calls many. */
   private int hostsKeptIn(ApplicationContext context) {
+    return hostsKeptIn(context, ObservabilityConstants.DEFAULT_CLIENT_REQUESTS_NAME);
+  }
+
+  /** Returns how many hosts the guard keeps when the service calls many, under a meter name. */
+  private int hostsKeptIn(ApplicationContext context, String clientMeterName) {
     var registry = registryGuardedBy(context.getBean(MeterCountGuard.class));
-    registerClientTimers(registry, MANY_HOSTS);
-    return clientNamesIn(registry).size();
+    registerClientTimers(registry, clientMeterName, MANY_HOSTS);
+    return clientNamesIn(registry, clientMeterName).size();
   }
 
   @Nested
@@ -80,13 +102,6 @@ class MeterCountGuardAutoConfigurationTest {
     void createsGuardKeepingDefaultHosts() {
       contextRunner.run(
           context -> assertThat(hostsKeptIn(context)).isEqualTo(DEFAULT_MAX_CLIENT_NAMES));
-    }
-
-    /** Returns how many meters the context's guard holds when the service makes one too many. */
-    private int metersHeldIn(ApplicationContext context) {
-      var registry = registryGuardedBy(context.getBean(MeterCountGuard.class));
-      registerOrderCounters(registry, DEFAULT_MAX_METERS + 1);
-      return registry.getMeters().size();
     }
 
     @Test
@@ -133,7 +148,7 @@ class MeterCountGuardAutoConfigurationTest {
   class Settings {
 
     @Test
-    @DisplayName("a cap set in properties replaces the default")
+    @DisplayName("a host cap set in properties replaces the default")
     void propertyCapReplacesDefault() {
       contextRunner
           .withPropertyValues(MAX_CLIENT_NAMES + "=" + MAX_CLIENT_NAMES_IN_PROPERTIES)
@@ -143,16 +158,38 @@ class MeterCountGuardAutoConfigurationTest {
     }
 
     @Test
-    @DisplayName("a cap set in a customizer listed in spring.factories wins over properties")
-    void javaCapWins(@TempDir Path folder) throws IOException {
-      var hostsKept =
-          StarterTestSupport.withCustomizers(
-              folder,
-              ObservabilityPropertiesCustomizer.class,
-              List.of(FewHostsObservabilitySettings.class),
-              this::hostsKeptWithThreeInProperties);
+    @DisplayName("a total cap set in properties replaces the default")
+    void propertyMeterCapReplacesDefault() {
+      contextRunner
+          .withPropertyValues(MAX_METERS + "=" + MAX_METERS_IN_PROPERTIES)
+          .run(context -> assertThat(metersHeldIn(context)).isEqualTo(MAX_METERS_IN_PROPERTIES));
+    }
 
-      assertThat(hostsKept).isEqualTo(FewHostsObservabilitySettings.MAX_CLIENT_NAMES);
+    @Test
+    @DisplayName("the host cap follows the client meters Spring Boot's key renames")
+    void hostCapFollowsRenamedClientMeters() {
+      contextRunner
+          .withPropertyValues(
+              ObservabilityConstants.CLIENT_REQUESTS_NAME + "=" + RENAMED_CLIENT_METERS,
+              MAX_CLIENT_NAMES + "=" + MAX_CLIENT_NAMES_IN_PROPERTIES)
+          .run(
+              context ->
+                  assertThat(hostsKeptIn(context, RENAMED_CLIENT_METERS))
+                      .isEqualTo(MAX_CLIENT_NAMES_IN_PROPERTIES));
+    }
+
+    @Test
+    @DisplayName("a host cap set in a customizer listed in spring.factories wins over properties")
+    void javaCapWins(@TempDir Path folder) throws IOException {
+      assertThat(keptWithJavaCaps(folder, MeterCountGuardAutoConfigurationTest.this::hostsKeptIn))
+          .isEqualTo(SmallCapsObservabilitySettings.MAX_CLIENT_NAMES);
+    }
+
+    @Test
+    @DisplayName("a total cap set in a customizer listed in spring.factories wins over properties")
+    void javaMeterCapWins(@TempDir Path folder) throws IOException {
+      assertThat(keptWithJavaCaps(folder, MeterCountGuardAutoConfigurationTest.this::metersHeldIn))
+          .isEqualTo(SmallCapsObservabilitySettings.MAX_METERS);
     }
 
     @Test
@@ -169,13 +206,28 @@ class MeterCountGuardAutoConfigurationTest {
                       .hasMessageContaining(MAX_METERS));
     }
 
-    /** Starts with three hosts allowed in properties and returns the hosts kept. */
-    private int hostsKeptWithThreeInProperties() {
-      var hostsKept = new AtomicInteger();
+    /**
+     * Starts with caps set in properties and a customizer that sets smaller ones, and returns what
+     * the guard keeps.
+     */
+    private int keptWithJavaCaps(Path folder, ToIntFunction<ApplicationContext> kept)
+        throws IOException {
+      return StarterTestSupport.withCustomizers(
+          folder,
+          ObservabilityPropertiesCustomizer.class,
+          List.of(SmallCapsObservabilitySettings.class),
+          () -> keptWithPropertyCaps(kept));
+    }
+
+    /** Starts with caps set in properties and returns what the guard keeps. */
+    private int keptWithPropertyCaps(ToIntFunction<ApplicationContext> kept) {
+      var keptCount = new AtomicInteger();
       contextRunner
-          .withPropertyValues(MAX_CLIENT_NAMES + "=" + MAX_CLIENT_NAMES_IN_PROPERTIES)
-          .run(context -> hostsKept.set(hostsKeptIn(context)));
-      return hostsKept.get();
+          .withPropertyValues(
+              MAX_CLIENT_NAMES + "=" + MAX_CLIENT_NAMES_IN_PROPERTIES,
+              MAX_METERS + "=" + MAX_METERS_IN_PROPERTIES)
+          .run(context -> keptCount.set(kept.applyAsInt(context)));
+      return keptCount.get();
     }
   }
 
