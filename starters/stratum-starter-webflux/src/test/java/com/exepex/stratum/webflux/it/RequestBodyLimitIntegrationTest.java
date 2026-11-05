@@ -1,6 +1,6 @@
 package com.exepex.stratum.webflux.it;
 
-import com.exepex.stratum.test.StarterTestSupport;
+import com.exepex.stratum.test.WebTestSupport;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebErrorCode;
 import java.io.ByteArrayInputStream;
@@ -74,7 +74,7 @@ class RequestBodyLimitIntegrationTest {
   @FieldSource("DECLARED_AND_STREAMED")
   @DisplayName("a body over the default limit gets SX-WEB-1008, declared or streamed")
   void defaultLimit(boolean declareLength) throws Exception {
-    StarterTestSupport.checkBodyRefused(
+    WebTestSupport.checkBodyRefused(
         port, "/orders", MediaType.TEXT_PLAIN_VALUE, OVER_DEFAULT_LIMIT, declareLength, TOO_LARGE);
   }
 
@@ -82,8 +82,8 @@ class RequestBodyLimitIntegrationTest {
   @FieldSource("DECLARED_AND_STREAMED")
   @DisplayName("a route's limit lets a larger upload in, and stops one over it")
   void routeLimit(boolean declareLength) throws Exception {
-    StarterTestSupport.checkBodyAccepted(port, "/uploads/raw", WITHIN_ROUTE_LIMIT, declareLength);
-    StarterTestSupport.checkBodyRefused(
+    WebTestSupport.checkBodyAccepted(port, "/uploads/raw", WITHIN_ROUTE_LIMIT, declareLength);
+    WebTestSupport.checkBodyRefused(
         port,
         "/uploads/raw",
         MediaType.TEXT_PLAIN_VALUE,
@@ -96,14 +96,14 @@ class RequestBodyLimitIntegrationTest {
   @FieldSource("DECLARED_AND_STREAMED")
   @DisplayName("a method's @RequestBodyLimit wins over the default")
   void annotationWins(boolean declareLength) throws Exception {
-    StarterTestSupport.checkBodyAccepted(
+    WebTestSupport.checkBodyAccepted(
         port, "/orders/imports", WITHIN_ANNOTATION_LIMIT, declareLength);
   }
 
   @Test
   @DisplayName("a form over the limit, which Spring reads itself, is stopped by its length")
   void formOverLimit() throws Exception {
-    StarterTestSupport.checkBodyRefused(
+    WebTestSupport.checkBodyRefused(
         port,
         "/forms",
         MediaType.APPLICATION_FORM_URLENCODED_VALUE,
@@ -115,7 +115,7 @@ class RequestBodyLimitIntegrationTest {
   @Test
   @DisplayName("a chunked form over Spring's form reader limit gets SX-WEB-1008")
   void chunkedFormOverReaderLimit() throws Exception {
-    StarterTestSupport.checkBodyRefused(
+    WebTestSupport.checkBodyRefused(
         port,
         "/forms",
         MediaType.APPLICATION_FORM_URLENCODED_VALUE,
@@ -129,8 +129,7 @@ class RequestBodyLimitIntegrationTest {
   void multipartOverDiskLimit() throws Exception {
     var response = postMultipartInChunks(1, OVER_ROUTE_LIMIT);
 
-    StarterTestSupport.checkProblemDetails(
-        response, HttpStatus.CONTENT_TOO_LARGE.value(), TOO_LARGE);
+    WebTestSupport.checkProblemDetails(response, HttpStatus.CONTENT_TOO_LARGE.value(), TOO_LARGE);
   }
 
   @Test
@@ -138,16 +137,16 @@ class RequestBodyLimitIntegrationTest {
   void multipartOverPartLimit() throws Exception {
     var response = postMultipartInChunks(OVER_DEFAULT_PART_LIMIT, 1);
 
-    StarterTestSupport.checkProblemDetails(
+    WebTestSupport.checkProblemDetails(
         response, HttpStatus.BAD_REQUEST.value(), WebErrorCode.UNREADABLE_REQUEST.getCode());
   }
 
   @Test
   @DisplayName("a buffer limit that is not the request body's, such as a downstream one, keeps 500")
   void otherBufferLimitKeeps500() throws Exception {
-    var response = StarterTestSupport.getFromService(port, "/reports");
+    var response = WebTestSupport.getFromService(port, "/reports");
 
-    StarterTestSupport.checkProblemDetails(
+    WebTestSupport.checkProblemDetails(
         response, HttpStatus.INTERNAL_SERVER_ERROR.value(), WebErrorCode.INTERNAL_ERROR.getCode());
   }
 

@@ -76,4 +76,4 @@ to it. See
 Only for integration tests (`*IntegrationTest.java`). Unit and slice tests (`mvn test`) run without it.
 
 **Do I need a real identity provider in tests?**
-No. `stratumJwt(...)` creates test tokens. See [Testing secured endpoints](../modules/test.md#testing-secured-endpoints).
+No. Use Spring Security's own test support, such as `SecurityMockMvcRequestPostProcessors.jwt()`.

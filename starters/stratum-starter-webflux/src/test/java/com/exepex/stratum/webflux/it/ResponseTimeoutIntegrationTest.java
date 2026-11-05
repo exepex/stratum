@@ -3,7 +3,7 @@ package com.exepex.stratum.webflux.it;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.test.LogLineCapture;
-import com.exepex.stratum.test.StarterTestSupport;
+import com.exepex.stratum.test.WebTestSupport;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebErrorCode;
 import org.junit.jupiter.api.AfterEach;
@@ -53,9 +53,9 @@ class ResponseTimeoutIntegrationTest {
   @DisplayName(
       "a request waiting past its route's limit gets SX-WEB-1007, and its log line the status")
   void routeLimit() throws Exception {
-    var response = StarterTestSupport.getFromService(port, "/slow/blocked");
+    var response = WebTestSupport.getFromService(port, "/slow/blocked");
 
-    StarterTestSupport.checkProblemDetails(
+    WebTestSupport.checkProblemDetails(
         response, HttpStatus.GATEWAY_TIMEOUT.value(), WebErrorCode.REQUEST_TIMED_OUT.getCode());
     assertThat(lines.fieldsOf(lines.onlyLine()))
         .containsEntry(WebConstants.HTTP_STATUS, HttpStatus.GATEWAY_TIMEOUT.value());
@@ -64,7 +64,7 @@ class ResponseTimeoutIntegrationTest {
   @Test
   @DisplayName("a method's @ResponseTimeout gives it more time than its route")
   void annotationWinsOverRoute() throws Exception {
-    var response = StarterTestSupport.getFromService(port, "/slow/given-more-time");
+    var response = WebTestSupport.getFromService(port, "/slow/given-more-time");
 
     assertThat(response.statusCode()).isEqualTo(HttpStatus.OK.value());
     assertThat(response.body()).isEqualTo("done");
@@ -73,16 +73,16 @@ class ResponseTimeoutIntegrationTest {
   @Test
   @DisplayName("a method's @ResponseTimeout gives it less time than the default")
   void annotationWinsOverDefault() throws Exception {
-    var response = StarterTestSupport.getFromService(port, "/orders/own-limit");
+    var response = WebTestSupport.getFromService(port, "/orders/own-limit");
 
-    StarterTestSupport.checkProblemDetails(
+    WebTestSupport.checkProblemDetails(
         response, HttpStatus.GATEWAY_TIMEOUT.value(), WebErrorCode.REQUEST_TIMED_OUT.getCode());
   }
 
   @Test
   @DisplayName("a stream that started in time is not cut off")
   void startedStream() throws Exception {
-    var response = StarterTestSupport.getFromService(port, "/slow/lines");
+    var response = WebTestSupport.getFromService(port, "/slow/lines");
 
     assertThat(response.body()).isEqualTo("line 0\nline 1\nline 2\nline 3\n");
   }
@@ -90,9 +90,9 @@ class ResponseTimeoutIntegrationTest {
   @Test
   @DisplayName("the service's own timeout is answered as the failure it is, not as a time limit")
   void serviceTimeoutIsKept() throws Exception {
-    var response = StarterTestSupport.getFromService(port, "/orders/own-timeout");
+    var response = WebTestSupport.getFromService(port, "/orders/own-timeout");
 
-    StarterTestSupport.checkProblemDetails(
+    WebTestSupport.checkProblemDetails(
         response, HttpStatus.INTERNAL_SERVER_ERROR.value(), WebErrorCode.INTERNAL_ERROR.getCode());
   }
 }

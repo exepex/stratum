@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.core.error.StratumException;
-import com.exepex.stratum.test.StarterTestSupport;
+import com.exepex.stratum.test.WebTestSupport;
 import com.exepex.stratum.web.testsupport.WebTestData;
 import java.net.InetAddress;
 import java.util.List;
@@ -22,33 +22,32 @@ class ClientIpResolverTest {
 
   /** A load balancer in the service's own network. */
   private static final InetAddress LOAD_BALANCER =
-      InetAddress.ofLiteral(StarterTestSupport.ipAddress(10, 0, 0, 5));
+      InetAddress.ofLiteral(WebTestSupport.ipAddress(10, 0, 0, 5));
 
   /** The address of a client on the internet. */
-  private static final String INTERNET_CLIENT_ADDRESS =
-      StarterTestSupport.ipAddress(198, 51, 100, 20);
+  private static final String INTERNET_CLIENT_ADDRESS = WebTestSupport.ipAddress(198, 51, 100, 20);
 
   /** A client on the internet. */
   private static final InetAddress INTERNET_CLIENT = InetAddress.ofLiteral(INTERNET_CLIENT_ADDRESS);
 
   /** Another address on the internet, which the client can write into the header itself. */
-  private static final String SPOOFED_ADDRESS = StarterTestSupport.ipAddress(203, 0, 113, 1);
+  private static final String SPOOFED_ADDRESS = WebTestSupport.ipAddress(203, 0, 113, 1);
 
   /** A proxy inside the service's own network. */
-  private static final String INNER_PROXY_ADDRESS = StarterTestSupport.ipAddress(10, 0, 0, 9);
+  private static final String INNER_PROXY_ADDRESS = WebTestSupport.ipAddress(10, 0, 0, 9);
 
   /** A private address a client claims to have. */
-  private static final String CLAIMED_ADDRESS = StarterTestSupport.ipAddress(10, 9, 9, 9);
+  private static final String CLAIMED_ADDRESS = WebTestSupport.ipAddress(10, 9, 9, 9);
 
   /** A client inside an office network, behind private proxies only. */
-  private static final String OFFICE_CLIENT_ADDRESS = StarterTestSupport.ipAddress(192, 168, 1, 2);
+  private static final String OFFICE_CLIENT_ADDRESS = WebTestSupport.ipAddress(192, 168, 1, 2);
 
   /** The IPv6 loopback address. */
-  private static final String IPV6_LOOPBACK = StarterTestSupport.ipAddress(0, 0, 0, 0, 0, 0, 0, 1);
+  private static final String IPV6_LOOPBACK = WebTestSupport.ipAddress(0, 0, 0, 0, 0, 0, 0, 1);
 
   /** A client on the internet with an IPv6 address. */
   private static final String IPV6_CLIENT_ADDRESS =
-      StarterTestSupport.ipAddress(0x2001, 0xdb8, 0, 0, 0, 0, 0, 1);
+      WebTestSupport.ipAddress(0x2001, 0xdb8, 0, 0, 0, 0, 0, 1);
 
   @Nested
   @DisplayName("with the default trusted proxies")

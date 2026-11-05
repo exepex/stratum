@@ -199,13 +199,11 @@ truly without security, remove the starter.
 
 ## Testing secured endpoints
 
-`stratum-test` gives you a test JWT in one call, so you never need a real identity provider in tests:
+Use Spring Security's own test support, so you never need a real identity provider in tests:
 
 ```java
-mvc.get().uri("/orders/42").with(stratumJwt("orders:read"))
+mvc.get().uri("/orders/42").with(jwt().authorities(new SimpleGrantedAuthority("SCOPE_orders:read")))
 ```
-
-See [Testing](test.md#testing-secured-endpoints).
 
 ## Troubleshooting
 

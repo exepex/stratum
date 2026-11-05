@@ -27,7 +27,7 @@ cite it.
   behaviour (headers, HTTP clients, error responses, retries, logging, test containers), find the Stratum module that
   already provides it and use it. When the same lines appear in a second place, move them into one method or class
   that both call. When a rule would have every module repeat the same code, the rule names a shared method for the
-  modules to call instead. Test code that several starters need goes into `StarterTestSupport` in `stratum-test`,
+  modules to call instead. Test code that several modules need goes into `stratum-test` (ST-TEST-35),
   which the starters use in test scope; for any other shared test code with no shared place yet, ask the owner where
   it goes instead of copying it, except to fix a finding inside approved work (ST-AG-12). A copy the owner has
   approved is not a finding.

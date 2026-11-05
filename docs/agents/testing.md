@@ -79,6 +79,9 @@ conventions. Each rule has an ID so that reviews and judge verdicts can cite it.
   hardcoded hosts or ports.
 - **ST-TEST-34** Downstream HTTP services are stubbed, for example with WireMock. Tests cover their timeouts, error
   responses and retries as well as the normal case.
+- **ST-TEST-35** `stratum-test` holds only test helpers that two or more modules or services' own tests use, and
+  internal container fixtures that need its pinned images, with one copy of each behaviour under one name. A test
+  that checks a starter's behaviour lives in that starter.
 
 ## Coverage
 

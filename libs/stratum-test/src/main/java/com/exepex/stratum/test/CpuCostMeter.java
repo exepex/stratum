@@ -7,7 +7,7 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
 import java.time.Duration;
 import java.util.stream.IntStream;
-import lombok.RequiredArgsConstructor;
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -17,11 +17,11 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @StratumInternal
-@RequiredArgsConstructor
+@AllArgsConstructor
 public class CpuCostMeter {
 
-  /** Batches run first and not counted, so the JIT compiler has compiled the code under test. */
-  private static final int WARM_UP_BATCHES = 3;
+  /** Warm-up batches when a test sets none, enough for most code under test. */
+  private static final int DEFAULT_WARM_UP_BATCHES = 3;
 
   /** Batches timed; the fastest counts, so one slow batch on a busy build machine is ignored. */
   private static final int MEASURED_BATCHES = 5;
@@ -36,6 +36,21 @@ public class CpuCostMeter {
 
   /** Calls in each batch; enough that a batch takes at least a few milliseconds. */
   private final int callsPerBatch;
+
+  /**
+   * Batches run first and not counted, so the JIT compiler has compiled the code under test; more
+   * for code it needs longer to compile, such as hashing while other tests keep it busy.
+   */
+  private final int warmUpBatches;
+
+  /**
+   * Creates a meter that runs 3 warm-up batches before it measures.
+   *
+   * @param callsPerBatch calls in each batch
+   */
+  public CpuCostMeter(int callsPerBatch) {
+    this(callsPerBatch, DEFAULT_WARM_UP_BATCHES);
+  }
 
   /**
    * Measures the call, logs its best CPU time per call and checks it is within the limit.
@@ -66,7 +81,7 @@ public class CpuCostMeter {
 
   /** Returns the fewest CPU nanoseconds per call over the measured batches, after the warm-up. */
   private double bestCpuNanosPerCall(Runnable call) {
-    IntStream.range(0, WARM_UP_BATCHES).forEach(batch -> cpuNanosPerCall(call));
+    IntStream.range(0, warmUpBatches).forEach(batch -> cpuNanosPerCall(call));
     return IntStream.range(0, MEASURED_BATCHES)
         .mapToDouble(batch -> cpuNanosPerCall(call))
         .min()

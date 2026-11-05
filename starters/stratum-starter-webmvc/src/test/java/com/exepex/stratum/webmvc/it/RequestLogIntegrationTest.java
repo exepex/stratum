@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.test.LogLineCapture;
-import com.exepex.stratum.test.StarterTestSupport;
+import com.exepex.stratum.test.WebTestSupport;
 import com.exepex.stratum.web.WebConstants;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,13 +52,13 @@ class RequestLogIntegrationTest {
   @Test
   @DisplayName("the line has the status, route, request fields, named header and token payload")
   void answeredRequest() throws Exception {
-    StarterTestSupport.getFromService(
+    WebTestSupport.getFromService(
         port,
         ORDER_FIELDS_PATH,
         "X-Tenant-Id",
         "acme",
         HttpHeaders.AUTHORIZATION,
-        StarterTestSupport.bearerToken(PAYLOAD));
+        WebTestSupport.bearerToken(PAYLOAD));
 
     var line = lines.onlyLine();
     assertThat(line.getFormattedMessage())
@@ -74,7 +74,7 @@ class RequestLogIntegrationTest {
   @Test
   @DisplayName("a path with no handler is logged with its 404")
   void unknownPath() throws Exception {
-    StarterTestSupport.getFromService(port, "/no-such-path");
+    WebTestSupport.getFromService(port, "/no-such-path");
 
     assertThat(lines.fieldsOf(lines.onlyLine()))
         .containsEntry(WebConstants.HTTP_STATUS, HttpStatus.NOT_FOUND.value());
@@ -83,7 +83,7 @@ class RequestLogIntegrationTest {
   @Test
   @DisplayName("a request answered on an asynchronous dispatch writes one line, when answered")
   void asyncRequest() throws Exception {
-    StarterTestSupport.getFromService(port, "/orders/42/response-thread-fields");
+    WebTestSupport.getFromService(port, "/orders/42/response-thread-fields");
 
     assertThat(lines.onlyLine().getFormattedMessage())
         .startsWith("GET /orders/{orderId}/response-thread-fields answered 200 in ");
@@ -92,9 +92,9 @@ class RequestLogIntegrationTest {
   @Test
   @DisplayName("the actuator's paths and static files write no line")
   void skippedRequests() throws Exception {
-    StarterTestSupport.getFromService(port, "/actuator/health");
-    StarterTestSupport.getFromService(port, "/app.js");
-    StarterTestSupport.getFromService(port, ORDER_FIELDS_PATH);
+    WebTestSupport.getFromService(port, "/actuator/health");
+    WebTestSupport.getFromService(port, "/app.js");
+    WebTestSupport.getFromService(port, ORDER_FIELDS_PATH);
 
     assertThat(lines.onlyLine().getMDCPropertyMap())
         .containsEntry(LoggingContextConstants.HTTP_PATH, ORDER_FIELDS_PATH);

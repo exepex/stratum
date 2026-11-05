@@ -1,6 +1,6 @@
 package com.exepex.stratum.webmvc.it;
 
-import com.exepex.stratum.test.StarterTestSupport;
+import com.exepex.stratum.test.WebTestSupport;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebErrorCode;
 import java.net.URI;
@@ -60,7 +60,7 @@ class RequestBodyLimitIntegrationTest {
   @FieldSource("DECLARED_AND_STREAMED")
   @DisplayName("a body over the default limit gets SX-WEB-1008, declared or streamed")
   void defaultLimit(boolean declareLength) throws Exception {
-    StarterTestSupport.checkBodyRefused(
+    WebTestSupport.checkBodyRefused(
         port, "/orders", MediaType.TEXT_PLAIN_VALUE, OVER_DEFAULT_LIMIT, declareLength, TOO_LARGE);
   }
 
@@ -68,8 +68,8 @@ class RequestBodyLimitIntegrationTest {
   @FieldSource("DECLARED_AND_STREAMED")
   @DisplayName("a route's limit lets a larger upload in, and stops one over it")
   void routeLimit(boolean declareLength) throws Exception {
-    StarterTestSupport.checkBodyAccepted(port, "/uploads/raw", WITHIN_ROUTE_LIMIT, declareLength);
-    StarterTestSupport.checkBodyRefused(
+    WebTestSupport.checkBodyAccepted(port, "/uploads/raw", WITHIN_ROUTE_LIMIT, declareLength);
+    WebTestSupport.checkBodyRefused(
         port,
         "/uploads/raw",
         MediaType.TEXT_PLAIN_VALUE,
@@ -82,14 +82,14 @@ class RequestBodyLimitIntegrationTest {
   @FieldSource("DECLARED_AND_STREAMED")
   @DisplayName("a method's @RequestBodyLimit wins over the default")
   void annotationWins(boolean declareLength) throws Exception {
-    StarterTestSupport.checkBodyAccepted(
+    WebTestSupport.checkBodyAccepted(
         port, "/orders/imports", WITHIN_ANNOTATION_LIMIT, declareLength);
   }
 
   @Test
   @DisplayName("a form over the limit, which Spring reads itself, is stopped by its length")
   void formOverLimit() throws Exception {
-    StarterTestSupport.checkBodyRefused(
+    WebTestSupport.checkBodyRefused(
         port,
         "/forms",
         MediaType.APPLICATION_FORM_URLENCODED_VALUE,
@@ -110,8 +110,7 @@ class RequestBodyLimitIntegrationTest {
     try (var client = HttpClient.newHttpClient()) {
       var response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
-      StarterTestSupport.checkProblemDetails(
-          response, HttpStatus.CONTENT_TOO_LARGE.value(), TOO_LARGE);
+      WebTestSupport.checkProblemDetails(response, HttpStatus.CONTENT_TOO_LARGE.value(), TOO_LARGE);
     }
   }
 }

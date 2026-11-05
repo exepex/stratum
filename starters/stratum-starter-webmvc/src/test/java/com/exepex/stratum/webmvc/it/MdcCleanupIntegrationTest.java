@@ -2,7 +2,7 @@ package com.exepex.stratum.webmvc.it;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.exepex.stratum.test.StarterTestSupport;
+import com.exepex.stratum.test.WebTestSupport;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -32,9 +32,9 @@ class MdcCleanupIntegrationTest {
   @FieldSource("LEAVING_REQUESTS")
   @DisplayName("the next request on the same server thread starts with no customer")
   void nextRequestStartsClean(String leavingRequest) throws Exception {
-    StarterTestSupport.getFromService(port, leavingRequest);
+    WebTestSupport.getFromService(port, leavingRequest);
 
-    assertThat(StarterTestSupport.getFromService(port, "/customer-on-thread").body())
+    assertThat(WebTestSupport.getFromService(port, "/customer-on-thread").body())
         .isEqualTo(LeftoverFieldsApplication.NO_CUSTOMER);
   }
 }
