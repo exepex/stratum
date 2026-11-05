@@ -14,6 +14,7 @@ import io.opentelemetry.context.propagation.TextMapGetter;
 import io.opentelemetry.context.propagation.TextMapPropagator;
 import io.opentelemetry.context.propagation.TextMapSetter;
 import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -41,20 +42,30 @@ class AllowedBaggagePropagatorSpeedTest {
   /** The bytes of each entry in the capped header, so 64 of them fill 8,192 bytes. */
   private static final int CAPPED_ENTRY_LENGTH = 8_192 / CAPPED_ENTRIES;
 
-  // A read takes from a few to about 10 microseconds, so a batch of a few hundred measures
-  // scheduler
-  // and JIT noise; batches of about 50ms of CPU time average it out.
-  /** Reads in each timed batch of the capped baggage: about 50ms of work. */
+  // A read of the capped baggage takes about 10 to 18 microseconds; 5,000 a batch is about 50 to
+  // 90ms of CPU time, which averages out scheduler and JIT noise.
+  /** Reads in each timed batch of the capped baggage. */
   private static final int CAPPED_CALLS_PER_BATCH = 5_000;
 
-  /** Reads in each timed batch of the 1MB header, which OpenTelemetry drops: about 50ms of work. */
+  /**
+   * Reads in each timed batch of the 1MB header, which OpenTelemetry drops: a few milliseconds of
+   * work, so a read that parses the header still finishes in minutes.
+   */
   private static final int HUGE_CALLS_PER_BATCH = 50_000;
 
-  /** Provisional, until the limits are calibrated on CI. */
-  private static final Duration CAPPED_LIMIT = Duration.ofSeconds(1);
+  /**
+   * CPU time a read of 64 entries in 8,192 bytes may take: 5 times M, where M = 18.059 µs is the
+   * largest best value of 3 CI runs with coverage on (9.658 µs, 17.557 µs, 18.059 µs), CI run
+   * 42090140160 on JDK 25, 2026-11-05.
+   */
+  private static final Duration CAPPED_LIMIT = Duration.of(90_293, ChronoUnit.NANOS);
 
-  /** Provisional, until the limits are calibrated on CI. */
-  private static final Duration HUGE_LIMIT = Duration.ofSeconds(1);
+  /**
+   * CPU time a read of a 1MB header may take: 5 times M, where M = 0.166 µs is the largest best
+   * value of 3 CI runs with coverage on (0.058 µs, 0.154 µs, 0.166 µs), CI run 42090140160 on JDK
+   * 25, 2026-11-05.
+   */
+  private static final Duration HUGE_LIMIT = Duration.of(830, ChronoUnit.NANOS);
 
   /** The names kept, as by default. */
   private static final Set<String> ALLOWED = Set.of(LoggingContextConstants.CORRELATION_ID);
