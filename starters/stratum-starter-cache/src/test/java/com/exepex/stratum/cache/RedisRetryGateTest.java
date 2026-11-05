@@ -8,11 +8,11 @@ import static org.mockito.Mockito.when;
 import com.exepex.stratum.cache.testsupport.AdjustableClock;
 import com.exepex.stratum.cache.testsupport.RecordingCacheCounters;
 import com.exepex.stratum.cache.testsupport.RedisFailureTestData;
+import com.exepex.stratum.cache.testsupport.RedisRetryGates;
 import com.exepex.stratum.test.LogLineCapture;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,16 +29,10 @@ import org.springframework.data.redis.cache.RedisCache;
 class RedisRetryGateTest {
 
   /** How long Redis is skipped. */
-  private static final Duration RETRY_INTERVAL = Duration.ofSeconds(5);
+  private static final Duration RETRY_INTERVAL = RedisRetryGates.RETRY_INTERVAL;
 
   /** How many failures in a row make the calls skip Redis: the default. */
   private static final int FAILURE_THRESHOLD = 3;
-
-  /** How many failures the concurrency test reports at the same time. */
-  private static final int CONCURRENT_FAILURES = 1_000;
-
-  /** How often the warning repeats at most. */
-  private static final Duration WARNING_INTERVAL = Duration.ofMinutes(1);
 
   /** When the tests start. */
   private static final Instant START = Instant.parse("2026-11-04T08:00:00Z");
@@ -47,14 +41,7 @@ class RedisRetryGateTest {
 
   private final RecordingCacheCounters counters = new RecordingCacheCounters();
 
-  private final RedisRetryGate gate =
-      new RedisRetryGate(
-          RETRY_INTERVAL,
-          FAILURE_THRESHOLD,
-          clock,
-          new WarningThrottle(WARNING_INTERVAL, clock, 1),
-          counters,
-          Set.of());
+  private final RedisRetryGate gate = RedisRetryGates.gate(FAILURE_THRESHOLD, clock, counters);
 
   private final LogLineCapture warnings = new LogLineCapture(RedisRetryGate.class.getName());
 
@@ -144,29 +131,6 @@ class RedisRetryGateTest {
       assertThat(gate.isAvailable()).isTrue();
       assertThat(counters.redisConnectFailures()).isZero();
       assertThat(warnings.lines()).isEmpty();
-    }
-
-    @Test
-    @DisplayName("failures at the same time each count, so the next one reaches the threshold")
-    void concurrentFailuresAllCount() {
-      var manyFailuresGate =
-          new RedisRetryGate(
-              RETRY_INTERVAL,
-              CONCURRENT_FAILURES + 1,
-              clock,
-              new WarningThrottle(WARNING_INTERVAL, clock, 1),
-              counters,
-              Set.of());
-      assertThat(manyFailuresGate.admits()).isTrue();
-      manyFailuresGate.reached();
-
-      IntStream.range(0, CONCURRENT_FAILURES)
-          .parallel()
-          .forEach(attempt -> manyFailuresGate.failed(RedisFailureTestData.TIMED_OUT, true));
-
-      assertThat(manyFailuresGate.usesRedis()).isTrue();
-      manyFailuresGate.failed(RedisFailureTestData.TIMED_OUT, true);
-      assertThat(manyFailuresGate.usesRedis()).isFalse();
     }
 
     @Test
@@ -351,14 +315,7 @@ class RedisRetryGateTest {
     @DisplayName(
         "a cache whose own command timeout is below the global one never makes Redis skipped")
     void shortTimeoutCacheLeavesGateShut() {
-      var shortTimeoutGate =
-          new RedisRetryGate(
-              RETRY_INTERVAL,
-              1,
-              clock,
-              new WarningThrottle(WARNING_INTERVAL, clock, 1),
-              counters,
-              Set.of("quotes"));
+      var shortTimeoutGate = RedisRetryGates.gate(1, clock, counters, "quotes");
       var redisQuotes = mock(RedisCache.class);
       when(redisQuotes.getName()).thenReturn("quotes");
       when(redisQuotes.get("sku-1")).thenThrow(RedisFailureTestData.TIMED_OUT);

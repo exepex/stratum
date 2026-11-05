@@ -142,8 +142,9 @@ gives Spring Boot's Redis keys these defaults, in both modes, because no caller 
   unread;
 - startup stops with `SX-CACHE-1001` when the service has no `spring.application.name`;
 - during a Redis outage a cached method now runs and returns its result, where the call used to
-  fail: after the first failure every Redis cache skips Redis for 5 seconds, then one call tries
-  again, so that load goes to your database or downstream service
+  fail: after 3 failures in a row (`stratum.cache.redis-failure-threshold`) every Redis cache
+  skips Redis for 5 seconds, then one call tries again, so that load goes to your database or
+  downstream service
   ([Cache → When Redis is down](../modules/cache-redis-down.md));
 - values are stored as plain JSON, read only as allowed types, so Jackson must be on the class
   path and old Java-serialized entries are read once as a miss

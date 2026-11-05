@@ -4,10 +4,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.exepex.stratum.cache.RedisRetryGate;
-import com.exepex.stratum.cache.WarningThrottle;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.cache.Cache;
 
@@ -21,7 +19,7 @@ public class GatedCacheTestBase {
   protected static final String KEY = "sku-1";
 
   /** How long Redis is skipped. */
-  protected static final Duration RETRY_INTERVAL = Duration.ofSeconds(5);
+  protected static final Duration RETRY_INTERVAL = RedisRetryGates.RETRY_INTERVAL;
 
   /** Skips Redis at the first failure, so each test opens the gate with one failure. */
   protected static final int FAILURE_THRESHOLD = 1;
@@ -34,14 +32,7 @@ public class GatedCacheTestBase {
   protected final RecordingCacheCounters counters = new RecordingCacheCounters();
 
   /** The gate in front of Redis. */
-  protected final RedisRetryGate gate =
-      new RedisRetryGate(
-          RETRY_INTERVAL,
-          FAILURE_THRESHOLD,
-          clock,
-          new WarningThrottle(Duration.ofMinutes(1), clock, 1),
-          counters,
-          Set.of());
+  protected final RedisRetryGate gate = RedisRetryGates.gate(FAILURE_THRESHOLD, clock, counters);
 
   /** The Redis cache behind the gate. */
   protected final Cache redis = mock(Cache.class);

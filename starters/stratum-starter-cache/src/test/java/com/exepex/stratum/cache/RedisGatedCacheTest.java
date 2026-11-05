@@ -14,8 +14,7 @@ import static org.mockito.Mockito.when;
 
 import com.exepex.stratum.cache.testsupport.GatedCacheTestBase;
 import com.exepex.stratum.cache.testsupport.RedisFailureTestData;
-import java.time.Duration;
-import java.util.Set;
+import com.exepex.stratum.cache.testsupport.RedisRetryGates;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -91,14 +90,7 @@ class RedisGatedCacheTest extends GatedCacheTestBase {
         "a background write between timed-out reads does not prove Redis answered, so the reads"
             + " still make the calls skip Redis")
     void backgroundWriteKeepsFailureCount() {
-      var threeFailuresGate =
-          new RedisRetryGate(
-              RETRY_INTERVAL,
-              TIMED_OUT_READS,
-              clock,
-              new WarningThrottle(Duration.ofMinutes(1), clock, 1),
-              counters,
-              Set.of());
+      var threeFailuresGate = RedisRetryGates.gate(TIMED_OUT_READS, clock, counters);
       var threeFailuresCache = new RedisGatedCache(redis, threeFailuresGate, true);
       threeFailuresCache.get("sku-2");
       when(redis.get(KEY)).thenThrow(RedisFailureTestData.TIMED_OUT);

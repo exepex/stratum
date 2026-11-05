@@ -83,12 +83,13 @@ service, and a cache without its own value, still times out at the global value.
   one connection.
 - **Clears and pings use the global value.** A clear finds keys with SCAN, which carries no key of
   the cache, so `@CacheEvict(allEntries = true)` on a large cache still waits at most
-  `spring.data.redis.timeout` per SCAN call. A clear that times out makes every Redis cache skip
-  Redis, as a timeout at the global value does.
+  `spring.data.redis.timeout` per SCAN call. A clear that times out counts toward
+  `stratum.cache.redis-failure-threshold`, as a timeout at the global value does.
 - **A short timeout never makes the other caches skip Redis.** When a command of a cache whose own
   value is below the global one times out, it counts as a failure of that cache
   (`stratum.cache.failures`), and the method runs. Unlike a timeout at the global value, it does not
-  make every Redis cache skip Redis ([When Redis is down](cache-redis-down.md)). The one exception is
+  count toward making every Redis cache skip Redis ([When Redis is down](cache-redis-down.md)), and
+  it does not start that count again either. The one exception is
   `use-key-prefix=false` ([Limits](#limits)), where the short value never applies.
 
 ## Customize
@@ -110,7 +111,7 @@ service, and a cache without its own value, still times out at the global value.
   `spring.cache.redis.key-prefix` followed by `<cache>::`. A `RedisCacheConfiguration` bean or a
   `CacheKeyPrefix` of your own that writes keys another way, or `spring.cache.redis.use-key-prefix=false`,
   gives every command the global timeout. With `use-key-prefix=false`, a timeout of a cache whose own
-  value is lower also counts like any other, so it makes every cache skip Redis. A cache name that
+  value is lower also counts toward making every cache skip Redis, like any other. A cache name that
   contains `::` never matches, and one that ends in `:`, such as `reports:`, cannot be told apart
   from `reports`, so it gets the global timeout or that cache's.
 - Caches other than Redis and Caffeine are not affected; the command timeout is for Redis only.
