@@ -80,7 +80,8 @@ service, and a cache without its own value, still times out at the global value.
   one connection.
 - **Clears and pings use the global value.** A clear finds keys with SCAN, which carries no key of
   the cache, so `@CacheEvict(allEntries = true)` on a large cache still waits at most
-  `spring.data.redis.timeout` per SCAN call.
+  `spring.data.redis.timeout` per SCAN call. A clear that times out makes every Redis cache skip
+  Redis, as a timeout at the global value does.
 - **A short timeout never makes the other caches skip Redis.** When a command of a cache whose own
   value is below the global one times out, it counts as a failure of that cache
   (`stratum.cache.failures`), and the method runs. Unlike a timeout at the global value, it does not

@@ -12,21 +12,15 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
-import com.exepex.stratum.cache.testsupport.AdjustableClock;
-import com.exepex.stratum.cache.testsupport.RecordingCacheCounters;
+import com.exepex.stratum.cache.testsupport.GatedCacheTestBase;
 import com.exepex.stratum.cache.testsupport.RedisFailureTestData;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Supplier;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.springframework.cache.Cache;
 import org.springframework.cache.Cache.ValueRetrievalException;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.QueryTimeoutException;
@@ -34,39 +28,12 @@ import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.cache.RedisCacheWriter;
 
 @DisplayName("RedisGatedCache calls Redis only when the gate lets it")
-class RedisGatedCacheTest {
-
-  /** The key the tests use. */
-  private static final String KEY = "sku-1";
+class RedisGatedCacheTest extends GatedCacheTestBase {
 
   /** The value the loaders return. */
   private static final String VALUE = "price-of-sku-1";
 
-  /** How long Redis is skipped. */
-  private static final Duration RETRY_INTERVAL = Duration.ofSeconds(5);
-
-  private final AdjustableClock clock = new AdjustableClock(Instant.parse("2026-11-04T08:00:00Z"));
-
-  private final RecordingCacheCounters counters = new RecordingCacheCounters();
-
-  private final RedisRetryGate gate =
-      new RedisRetryGate(
-          RETRY_INTERVAL,
-          clock,
-          new WarningThrottle(Duration.ofMinutes(1), clock, 1),
-          counters,
-          Set.of());
-
-  /** The Redis cache behind the gate. */
-  private final Cache redis = mock(Cache.class);
-
   private final RedisGatedCache cache = new RedisGatedCache(redis, gate, true);
-
-  /** Gives the Redis cache its name, as every cache has one. */
-  @BeforeEach
-  void nameTheCache() {
-    when(redis.getName()).thenReturn("products");
-  }
 
   @Nested
   @DisplayName("while Redis is in use")
@@ -111,75 +78,6 @@ class RedisGatedCacheTest {
 
       assertThat(gate.usesRedis()).isFalse();
       assertThat(counters.redisConnectFailures()).isOne();
-    }
-  }
-
-  @Nested
-  @DisplayName("for a cache whose own command timeout is below the global one")
-  class ShortTimeout {
-
-    /** The same Redis cache, whose timeouts never make the other caches skip Redis. */
-    private final RedisGatedCache shortCache = new RedisGatedCache(redis, gate, false);
-
-    /** Makes the calls skip Redis until the next trial is due, then lets the wait pass. */
-    private void awaitTrial() {
-      gate.admits();
-      gate.failed(RedisFailureTestData.CONNECT_FAILED, true);
-      clock.advance(RETRY_INTERVAL);
-    }
-
-    /** Asserts that the trial ended without putting Redis back, and the next call tries again. */
-    private void assertTrialEnded() {
-      assertThat(gate.isAvailable()).isFalse();
-      assertThat(gate.admits()).isTrue();
-    }
-
-    @Test
-    @DisplayName("its timeout on a trial ends the trial without putting Redis back")
-    void timeoutEndsTrial() {
-      awaitTrial();
-      when(redis.get(KEY)).thenThrow(RedisFailureTestData.TIMED_OUT);
-
-      assertThatExceptionOfType(DataAccessException.class).isThrownBy(() -> shortCache.get(KEY));
-
-      assertTrialEnded();
-    }
-
-    @Test
-    @DisplayName("its background timeout on a trial ends the trial without putting Redis back")
-    void backgroundTimeoutEndsTrial() {
-      awaitTrial();
-      when(redis.retrieve(KEY))
-          .thenReturn(
-              CompletableFuture.failedFuture(
-                  new CompletionException(RedisFailureTestData.TIMED_OUT)));
-
-      shortCache.retrieve(KEY);
-
-      assertTrialEnded();
-    }
-
-    @Test
-    @DisplayName("its timeout before a background read starts ends the trial the same way")
-    void timeoutBeforeBackgroundReadEndsTrial() {
-      awaitTrial();
-      when(redis.retrieve(KEY)).thenThrow(RedisFailureTestData.TIMED_OUT);
-
-      assertThatExceptionOfType(DataAccessException.class)
-          .isThrownBy(() -> shortCache.retrieve(KEY));
-
-      assertTrialEnded();
-    }
-
-    @Test
-    @DisplayName("while Redis is in use, its timeout leaves every cache using Redis")
-    void timeoutKeepsRedis() {
-      shortCache.get(KEY);
-      when(redis.get(KEY)).thenThrow(RedisFailureTestData.TIMED_OUT);
-
-      assertThatExceptionOfType(DataAccessException.class).isThrownBy(() -> shortCache.get(KEY));
-
-      assertThat(gate.usesRedis()).isTrue();
     }
   }
 
