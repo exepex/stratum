@@ -18,9 +18,10 @@ import org.junit.jupiter.params.provider.FieldSource;
 @DisplayName("Cleaning a 1MB URL stays inside its CPU time limit")
 class TelemetryUrlFilterSpeedTest {
 
-  // A 1MB URL takes milliseconds, so a few calls make a batch of a few tens of milliseconds.
+  // A 1MB URL takes milliseconds. With 30 calls a batch, the 3 warm-up batches bring the parser to
+  // its steady cost, so a slower parser shows; with 3 calls, M was mostly JIT warm-up.
   /** Calls in each timed batch. */
-  private static final int CALLS_PER_BATCH = 3;
+  private static final int CALLS_PER_BATCH = 30;
 
   /**
    * CPU time cleaning a URL with a 1MB path may take: 5 times M, where M = 13442.071 µs is the
