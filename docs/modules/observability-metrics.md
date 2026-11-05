@@ -44,7 +44,7 @@ public class GatewayObservabilitySettings implements ObservabilityPropertiesCust
   @Override
   public ObservabilityProperties customize(ObservabilityProperties settings) {
     return settings.toBuilder()
-        .metrics(settings.metrics().toBuilder().maxClientNames(200).build())
+        .metrics(settings.metrics().toBuilder().maxMeters(20000).maxClientNames(200).build())
         .build();
   }
 }
