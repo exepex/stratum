@@ -1,10 +1,14 @@
 package com.exepex.stratum.webmvc.it;
 
+import static com.exepex.stratum.test.WebTestSupport.getFromService;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.http.HttpHeaders.ACCEPT;
+import static org.springframework.http.MediaType.ALL_VALUE;
+import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.test.BackwardCompatibleErrorChecks;
-import com.exepex.stratum.test.StarterTestSupport;
+import com.exepex.stratum.test.WebTestSupport;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebErrorCode;
 import com.jayway.jsonpath.JsonPath;
@@ -62,10 +66,9 @@ class ErrorResponsesIntegrationTest {
       "a mapped StratumException gets its status, code and trace ID, and no stack trace or path")
   void mappedStratumException() throws Exception {
     var path = DUPLICATE_PATH;
-    var response = get(path, MediaType.APPLICATION_JSON);
+    var response = getFromService(port, path, ACCEPT, APPLICATION_JSON_VALUE);
 
-    StarterTestSupport.checkProblemDetails(
-        response, HttpStatus.CONFLICT.value(), DUPLICATE_ORDER_CODE);
+    WebTestSupport.checkProblemDetails(response, HttpStatus.CONFLICT.value(), DUPLICATE_ORDER_CODE);
     assertThat(JsonPath.<String>read(response.body(), "$.detail"))
         .isEqualTo("Order already exists: order 42");
     assertThat(JsonPath.<String>read(response.body(), "$.severity")).isEqualTo("ERROR");
@@ -78,8 +81,8 @@ class ErrorResponsesIntegrationTest {
   @Test
   @DisplayName("an unmapped StratumException gets 500 with its own code")
   void unmappedStratumException() throws Exception {
-    StarterTestSupport.checkProblemDetails(
-        get("/orders/unpriced", MediaType.APPLICATION_JSON),
+    WebTestSupport.checkProblemDetails(
+        getFromService(port, "/orders/unpriced", ACCEPT, APPLICATION_JSON_VALUE),
         HttpStatus.INTERNAL_SERVER_ERROR.value(),
         "ORD-0003");
   }
@@ -88,10 +91,10 @@ class ErrorResponsesIntegrationTest {
   @DisplayName(
       "an exception that implements FailureWithErrorCode gets the same status, code and detail")
   void failureWithErrorCode() throws Exception {
-    var response = get("/orders/duplicate-existing", MediaType.APPLICATION_JSON);
+    var response =
+        getFromService(port, "/orders/duplicate-existing", ACCEPT, APPLICATION_JSON_VALUE);
 
-    StarterTestSupport.checkProblemDetails(
-        response, HttpStatus.CONFLICT.value(), DUPLICATE_ORDER_CODE);
+    WebTestSupport.checkProblemDetails(response, HttpStatus.CONFLICT.value(), DUPLICATE_ORDER_CODE);
     assertThat(JsonPath.<String>read(response.body(), "$.detail"))
         .isEqualTo("Order already exists: order 42");
   }
@@ -99,8 +102,8 @@ class ErrorResponsesIntegrationTest {
   @Test
   @DisplayName("a FailureWithErrorCode with @ResponseStatus gets its code's status and is logged")
   void failureWithErrorCodeWinsOverResponseStatus(CapturedOutput output) throws Exception {
-    StarterTestSupport.checkProblemDetails(
-        get("/orders/duplicate-annotated", MediaType.APPLICATION_JSON),
+    WebTestSupport.checkProblemDetails(
+        getFromService(port, "/orders/duplicate-annotated", ACCEPT, APPLICATION_JSON_VALUE),
         HttpStatus.CONFLICT.value(),
         DUPLICATE_ORDER_CODE);
     assertThat(output).contains(DUPLICATE_ORDER_CODE + ": Order already exists: order 42");
@@ -109,8 +112,8 @@ class ErrorResponsesIntegrationTest {
   @Test
   @DisplayName("a code in the cause of a plain exception gets the code's status and is logged")
   void codeOfCauseReplaces500(CapturedOutput output) throws Exception {
-    StarterTestSupport.checkProblemDetails(
-        get("/orders/duplicate-wrapped", MediaType.APPLICATION_JSON),
+    WebTestSupport.checkProblemDetails(
+        getFromService(port, "/orders/duplicate-wrapped", ACCEPT, APPLICATION_JSON_VALUE),
         HttpStatus.CONFLICT.value(),
         DUPLICATE_ORDER_CODE);
     assertThat(output).contains(DUPLICATE_ORDER_CODE + ": Order already exists: order 42");
@@ -132,7 +135,8 @@ class ErrorResponsesIntegrationTest {
       "a code in the cause of a status Spring is given, even an explicit 500 or @ResponseStatus,"
           + " keeps Spring's answer")
   void springStatusWinsOverCodeOfCause(String path, int status, String code) throws Exception {
-    StarterTestSupport.checkProblemDetails(get(path, MediaType.APPLICATION_JSON), status, code);
+    WebTestSupport.checkProblemDetails(
+        getFromService(port, path, ACCEPT, APPLICATION_JSON_VALUE), status, code);
   }
 
   @Test
@@ -144,10 +148,10 @@ class ErrorResponsesIntegrationTest {
   @Test
   @DisplayName("a method the path does not allow still gets Spring's 405 and SX-WEB-1004")
   void methodNotAllowed() throws Exception {
-    StarterTestSupport.checkProblemDetails(
+    WebTestSupport.checkProblemDetails(
         send(
             HttpRequest.newBuilder(uri(DUPLICATE_PATH))
-                .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
+                .header(ACCEPT, APPLICATION_JSON_VALUE)
                 .DELETE()),
         HttpStatus.METHOD_NOT_ALLOWED.value(),
         WebErrorCode.REQUEST_FAILED.getCode());
@@ -164,7 +168,7 @@ class ErrorResponsesIntegrationTest {
                     HttpRequest.BodyPublishers.ofString(
                         "{\"quantity\":0,\"account\":\"" + OrdersApplication.IBAN + "\"}")));
 
-    StarterTestSupport.checkProblemDetails(
+    WebTestSupport.checkProblemDetails(
         response, HttpStatus.BAD_REQUEST.value(), WebErrorCode.INVALID_FIELDS.getCode());
     assertThat(JsonPath.<Object>read(response.body(), "$.details[*].field").toString())
         .contains("quantity", "account");
@@ -174,9 +178,10 @@ class ErrorResponsesIntegrationTest {
   @Test
   @DisplayName("an invalid parameter gets SX-WEB-1001 naming the parameter")
   void invalidParameter() throws Exception {
-    var response = get("/orders/search?quantity=0", MediaType.APPLICATION_JSON);
+    var response =
+        getFromService(port, "/orders/search?quantity=0", ACCEPT, APPLICATION_JSON_VALUE);
 
-    StarterTestSupport.checkProblemDetails(
+    WebTestSupport.checkProblemDetails(
         response, HttpStatus.BAD_REQUEST.value(), WebErrorCode.INVALID_FIELDS.getCode());
     assertThat(JsonPath.<Object>read(response.body(), "$.details[0].field")).isEqualTo("quantity");
   }
@@ -184,8 +189,8 @@ class ErrorResponsesIntegrationTest {
   @Test
   @DisplayName("a path variable of the wrong type gets SX-WEB-1002")
   void unreadableRequest() throws Exception {
-    StarterTestSupport.checkProblemDetails(
-        get("/orders/abc", MediaType.APPLICATION_JSON),
+    WebTestSupport.checkProblemDetails(
+        getFromService(port, "/orders/abc", ACCEPT, APPLICATION_JSON_VALUE),
         HttpStatus.BAD_REQUEST.value(),
         WebErrorCode.UNREADABLE_REQUEST.getCode());
   }
@@ -193,8 +198,8 @@ class ErrorResponsesIntegrationTest {
   @Test
   @DisplayName("an ErrorResponseException gets its own status, 400 and SX-WEB-1002")
   void errorResponseKeepsItsStatus() throws Exception {
-    StarterTestSupport.checkProblemDetails(
-        get(OrdersApplication.INVALID_STATE_PATH, MediaType.APPLICATION_JSON),
+    WebTestSupport.checkProblemDetails(
+        getFromService(port, OrdersApplication.INVALID_STATE_PATH, ACCEPT, APPLICATION_JSON_VALUE),
         HttpStatus.BAD_REQUEST.value(),
         WebErrorCode.UNREADABLE_REQUEST.getCode());
   }
@@ -202,8 +207,9 @@ class ErrorResponsesIntegrationTest {
   @Test
   @DisplayName("an ErrorResponseException with an unnamed status, 499, keeps it, with SX-WEB-1004")
   void unlistedStatusKeepsItsStatus() throws Exception {
-    StarterTestSupport.checkProblemDetails(
-        get(OrdersApplication.UNLISTED_STATUS_PATH, MediaType.APPLICATION_JSON),
+    WebTestSupport.checkProblemDetails(
+        getFromService(
+            port, OrdersApplication.UNLISTED_STATUS_PATH, ACCEPT, APPLICATION_JSON_VALUE),
         OrdersApplication.UNLISTED_STATUS,
         WebErrorCode.REQUEST_FAILED.getCode());
   }
@@ -227,8 +233,8 @@ class ErrorResponsesIntegrationTest {
   @Test
   @DisplayName("an unknown path gets SX-WEB-1003 with the trace ID")
   void unknownPath() throws Exception {
-    StarterTestSupport.checkProblemDetails(
-        get("/no-such-path", MediaType.APPLICATION_JSON),
+    WebTestSupport.checkProblemDetails(
+        getFromService(port, "/no-such-path", ACCEPT, APPLICATION_JSON_VALUE),
         HttpStatus.NOT_FOUND.value(),
         WebErrorCode.NOT_FOUND.getCode());
   }
@@ -236,8 +242,8 @@ class ErrorResponsesIntegrationTest {
   @Test
   @DisplayName("an exception with @ResponseStatus gets its status and SX-WEB-1004")
   void responseStatusException() throws Exception {
-    StarterTestSupport.checkProblemDetails(
-        get("/orders/gone", MediaType.APPLICATION_JSON),
+    WebTestSupport.checkProblemDetails(
+        getFromService(port, "/orders/gone", ACCEPT, APPLICATION_JSON_VALUE),
         HttpStatus.GONE.value(),
         WebErrorCode.REQUEST_FAILED.getCode());
   }
@@ -245,9 +251,9 @@ class ErrorResponsesIntegrationTest {
   @Test
   @DisplayName("an unexpected exception gets SX-WEB-1005 and none of its message")
   void unexpectedException() throws Exception {
-    var response = get("/orders/broken", MediaType.APPLICATION_JSON);
+    var response = getFromService(port, "/orders/broken", ACCEPT, APPLICATION_JSON_VALUE);
 
-    StarterTestSupport.checkProblemDetails(
+    WebTestSupport.checkProblemDetails(
         response, HttpStatus.INTERNAL_SERVER_ERROR.value(), WebErrorCode.INTERNAL_ERROR.getCode());
     assertThat(response.body())
         .doesNotContain(OrdersApplication.INTERNAL_DETAIL, "IllegalStateException", "\tat ");
@@ -256,7 +262,7 @@ class ErrorResponsesIntegrationTest {
   @Test
   @DisplayName("the service's own Problem Details body is kept, with only the IDs added")
   void serviceProblemDetailKept() throws Exception {
-    var response = get("/orders/refund", MediaType.APPLICATION_JSON);
+    var response = getFromService(port, "/orders/refund", ACCEPT, APPLICATION_JSON_VALUE);
 
     assertThat(response.statusCode()).isEqualTo(HttpStatus.PAYMENT_REQUIRED.value());
     assertThat(JsonPath.<String>read(response.body(), "$.detail"))
@@ -268,7 +274,7 @@ class ErrorResponsesIntegrationTest {
   @Test
   @DisplayName("the service's own body of another shape is not touched")
   void serviceCustomBodyUntouched() throws Exception {
-    var response = get("/orders/legacy", MediaType.APPLICATION_JSON);
+    var response = getFromService(port, "/orders/legacy", ACCEPT, APPLICATION_JSON_VALUE);
 
     assertThat(response.statusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT.value());
     assertThat(JsonPath.<Map<String, Object>>read(response.body(), "$"))
@@ -287,8 +293,10 @@ class ErrorResponsesIntegrationTest {
   @Test
   @DisplayName("a caller that accepts anything gets the Problem Details body")
   void anyMediaTypeGetsProblemDetails() throws Exception {
-    StarterTestSupport.checkProblemDetails(
-        get(DUPLICATE_PATH, MediaType.ALL), HttpStatus.CONFLICT.value(), DUPLICATE_ORDER_CODE);
+    WebTestSupport.checkProblemDetails(
+        getFromService(port, DUPLICATE_PATH, ACCEPT, ALL_VALUE),
+        HttpStatus.CONFLICT.value(),
+        DUPLICATE_ORDER_CODE);
   }
 
   @Test
@@ -300,8 +308,8 @@ class ErrorResponsesIntegrationTest {
   @Test
   @DisplayName("a controller's own sendError gets the error body with the trace ID")
   void sendErrorKeepsTraceId() throws Exception {
-    StarterTestSupport.checkProblemDetails(
-        get("/orders/missing", MediaType.APPLICATION_JSON),
+    WebTestSupport.checkProblemDetails(
+        getFromService(port, "/orders/missing", ACCEPT, APPLICATION_JSON_VALUE),
         HttpStatus.NOT_FOUND.value(),
         WebErrorCode.NOT_FOUND.getCode());
   }
@@ -309,9 +317,11 @@ class ErrorResponsesIntegrationTest {
   @Test
   @DisplayName("a filter that fails gets SX-WEB-1005 with the trace ID and none of its message")
   void failingFilterKeepsTraceId() throws Exception {
-    var response = get(OrdersApplication.FailingFilter.FAILING_PATH, MediaType.APPLICATION_JSON);
+    var response =
+        getFromService(
+            port, OrdersApplication.FailingFilter.FAILING_PATH, ACCEPT, APPLICATION_JSON_VALUE);
 
-    StarterTestSupport.checkProblemDetails(
+    WebTestSupport.checkProblemDetails(
         response, HttpStatus.INTERNAL_SERVER_ERROR.value(), WebErrorCode.INTERNAL_ERROR.getCode());
     assertThat(response.body()).doesNotContain(OrdersApplication.INTERNAL_DETAIL);
   }
@@ -319,8 +329,9 @@ class ErrorResponsesIntegrationTest {
   @Test
   @DisplayName("a filter that rejects the caller with 401 gets SX-WEB-1004 with the trace ID")
   void rejectingFilterKeepsTraceId() throws Exception {
-    StarterTestSupport.checkProblemDetails(
-        get(OrdersApplication.FailingFilter.REJECTING_PATH, MediaType.APPLICATION_JSON),
+    WebTestSupport.checkProblemDetails(
+        getFromService(
+            port, OrdersApplication.FailingFilter.REJECTING_PATH, ACCEPT, APPLICATION_JSON_VALUE),
         HttpStatus.UNAUTHORIZED.value(),
         WebErrorCode.REQUEST_FAILED.getCode());
   }
@@ -330,12 +341,6 @@ class ErrorResponsesIntegrationTest {
       throws IOException, InterruptedException {
     return BackwardCompatibleErrorChecks.checkBrowserPage(
         port, path, status.value(), status.getReasonPhrase());
-  }
-
-  /** Sends a GET that accepts the given media type. */
-  private HttpResponse<String> get(String path, MediaType accepted)
-      throws IOException, InterruptedException {
-    return send(HttpRequest.newBuilder(uri(path)).header(HttpHeaders.ACCEPT, accepted.toString()));
   }
 
   /** Sends a request to the service and reads the body as text. */

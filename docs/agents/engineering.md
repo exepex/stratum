@@ -27,7 +27,7 @@ cite it.
   behaviour (headers, HTTP clients, error responses, retries, logging, test containers), find the Stratum module that
   already provides it and use it. When the same lines appear in a second place, move them into one method or class
   that both call. When a rule would have every module repeat the same code, the rule names a shared method for the
-  modules to call instead. Test code that several starters need goes into `StarterTestSupport` in `stratum-test`,
+  modules to call instead. Test code that several modules need goes into `stratum-test` (ST-TEST-35),
   which the starters use in test scope; for any other shared test code with no shared place yet, ask the owner where
   it goes instead of copying it, except to fix a finding inside approved work (ST-AG-12). A copy the owner has
   approved is not a finding.
@@ -323,3 +323,14 @@ These rules apply to every published module: the libraries, the starters and `st
 - **ST-ENG-64** Every dependency and Maven plugin comes from Maven Central. No other repository in any POM, no
   JitPack, no jars downloaded from GitHub and no source copied from another project. The library must be actively
   maintained and its licence compatible with Apache 2.0.
+
+## Exceptions
+
+- **ST-ENG-66** Catch the specific exceptions a call can throw. Catch `RuntimeException` or `Exception` only in a
+  method at a boundary that must answer for any failure, such as a servlet filter, a global exception handler or a
+  masker that fails closed, and only when no specific exception covers every case. Never catch `Throwable`. Catch an
+  `Error` only where it is known and recoverable, such as the `StackOverflowError` that a service's own pattern can
+  cause in the logging redactor. PMD's `AvoidCatchingGenericException` fails the build on every other catch of
+  `RuntimeException` or `Exception`: after the owner's go, each allowed method gets its own scoped entry in
+  `stratum/pmd-ruleset.xml`, with a comment that gives the reason and the date of that go, and the judge checks that
+  reason. PMD does not check `Error` catches, so the judge does.

@@ -104,6 +104,7 @@ and installs the OpenTelemetry appender itself.
 | Baggage | Only `correlationId` and Spring Boot's remote fields are read from callers and sent on; other entries are dropped ([baggage](../../docs/modules/observability-traces.md#baggage)) |
 | Errors on spans | A failed span keeps its `ERROR` status but carries no exception type, message or stack trace, which belong in the logs; metrics keep their `exception` tag ([traces](../../docs/modules/observability-traces.md#errors-on-spans)) |
 | URLs on spans | The full URL of each HTTP client call, query string included, is kept on its span up to 1,024 characters ([span size](../../docs/modules/observability-traces.md#span-size)); only the user info is removed. Metrics never carry the query ([traces](../../docs/modules/observability-traces.md#urls-on-spans-and-metrics)) |
+| Dropped spans | Spans lost because the export queue was full are counted in `stratum.observability.spans.dropped`, with the alert to set ([traces](../../docs/modules/observability-traces.md#dropped-spans)) |
 | Health | `/actuator/health`, with Spring Boot's Kubernetes `liveness` and `readiness` groups |
 | Safe exposure | Only `health` and `info` are reachable over HTTP |
 | Startup check | With the module on, startup stops if an export address is missing, in every profile ([below](#startup-check)) |
@@ -229,7 +230,8 @@ of which would otherwise print a stack trace at every attempt. The data is dropp
 logs. One warning stays, at any address: when spans are made faster than they can be sent,
 OpenTelemetry keeps at most 2048 waiting by default (Spring Boot's
 `management.opentelemetry.tracing.export.max-queue-size`), and at each export after a drop it logs
-`BatchSpanProcessor dropped <n> span(s) since the last export because the queue is full`.
+`BatchSpanProcessor dropped <n> span(s) since the last export because the queue is full`. Each
+dropped span is also counted ([dropped spans](../../docs/modules/observability-traces.md#dropped-spans)).
 
 To see the failed sends again, set the two log levels, in `application.properties`:
 

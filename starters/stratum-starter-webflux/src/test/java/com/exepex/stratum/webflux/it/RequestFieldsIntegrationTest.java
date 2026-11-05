@@ -3,7 +3,7 @@ package com.exepex.stratum.webflux.it;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.logging.LoggingContextConstants;
-import com.exepex.stratum.test.StarterTestSupport;
+import com.exepex.stratum.test.WebTestSupport;
 import com.exepex.stratum.web.WebConstants;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.DisplayName;
@@ -19,14 +19,13 @@ import org.springframework.http.MediaType;
 class RequestFieldsIntegrationTest {
 
   /** A client on the internet. */
-  private static final String INTERNET_CLIENT_ADDRESS =
-      StarterTestSupport.ipAddress(203, 0, 113, 7);
+  private static final String INTERNET_CLIENT_ADDRESS = WebTestSupport.ipAddress(203, 0, 113, 7);
 
   /** An address a client writes into X-Forwarded-For to claim it as its own. */
-  private static final String SPOOFED_ADDRESS = StarterTestSupport.ipAddress(198, 51, 100, 9);
+  private static final String SPOOFED_ADDRESS = WebTestSupport.ipAddress(198, 51, 100, 9);
 
   /** A proxy inside the service's own network. */
-  private static final String INNER_PROXY_ADDRESS = StarterTestSupport.ipAddress(10, 1, 2, 3);
+  private static final String INNER_PROXY_ADDRESS = WebTestSupport.ipAddress(10, 1, 2, 3);
 
   /** The path of the endpoint that returns the logging context its handler sees. */
   private static final String ORDER_FIELDS_PATH = "/orders/42/fields";
@@ -61,10 +60,10 @@ class RequestFieldsIntegrationTest {
     @DisplayName("the handler's log lines carry method, route, path, query, client IP and agent")
     void handlerSeesRequestFields() throws Exception {
       var response =
-          StarterTestSupport.getFromService(
+          WebTestSupport.getFromService(
               port, ORDER_FIELDS_PATH + "?" + EXPAND_QUERY, HttpHeaders.USER_AGENT, USER_AGENT);
 
-      StarterTestSupport.checkRequestFields(
+      WebTestSupport.checkRequestFields(
           response, "/orders/{orderId}/fields", ORDER_FIELDS_PATH + "?" + EXPAND_QUERY, USER_AGENT);
     }
 
@@ -72,7 +71,7 @@ class RequestFieldsIntegrationTest {
     @DisplayName("a request from a trusted proxy gets the client IP from X-Forwarded-For")
     void forwardedClientIp() throws Exception {
       var response =
-          StarterTestSupport.getFromService(
+          WebTestSupport.getFromService(
               port,
               ORDER_FIELDS_PATH,
               "X-Forwarded-For",
@@ -86,10 +85,10 @@ class RequestFieldsIntegrationTest {
     @DisplayName("the caller's X-Correlation-Id is logged, returned and sent to services called")
     void callerCorrelationId() throws Exception {
       var fields =
-          StarterTestSupport.getFromService(
+          WebTestSupport.getFromService(
               port, ORDER_FIELDS_PATH, WebConstants.CORRELATION_ID_HEADER, CALLER_ID);
       var downstream =
-          StarterTestSupport.getFromService(
+          WebTestSupport.getFromService(
               port, "/downstream", WebConstants.CORRELATION_ID_HEADER, CALLER_ID);
 
       assertThat(
@@ -105,7 +104,7 @@ class RequestFieldsIntegrationTest {
     @DisplayName("the error body of an unknown path keeps its trace ID and the caller's ID")
     void callerCorrelationIdInErrorBody() throws Exception {
       var response =
-          StarterTestSupport.getFromService(
+          WebTestSupport.getFromService(
               port,
               "/no-such-path",
               WebConstants.CORRELATION_ID_HEADER,
@@ -127,8 +126,8 @@ class RequestFieldsIntegrationTest {
     @Test
     @DisplayName("without a caller ID, the trace ID is returned and no baggage is added")
     void traceIdWhenNoCallerId() throws Exception {
-      var fields = StarterTestSupport.getFromService(port, ORDER_FIELDS_PATH);
-      var downstream = StarterTestSupport.getFromService(port, "/downstream");
+      var fields = WebTestSupport.getFromService(port, ORDER_FIELDS_PATH);
+      var downstream = WebTestSupport.getFromService(port, "/downstream");
 
       var traceId = JsonPath.<String>read(fields.body(), "$." + LoggingContextConstants.TRACE_ID);
       assertThat(fields.headers().firstValue(WebConstants.CORRELATION_ID_HEADER)).hasValue(traceId);
@@ -141,13 +140,13 @@ class RequestFieldsIntegrationTest {
             + " escape is ignored for the trace ID")
     void encodedBaggageIdDecoded() throws Exception {
       var encoded =
-          StarterTestSupport.getFromService(
+          WebTestSupport.getFromService(
               port,
               ORDER_FIELDS_PATH,
               WebConstants.BAGGAGE_HEADER,
               LoggingContextConstants.CORRELATION_ID + "=checkout%3A777");
       var broken =
-          StarterTestSupport.getFromService(
+          WebTestSupport.getFromService(
               port,
               ORDER_FIELDS_PATH,
               WebConstants.BAGGAGE_HEADER,
@@ -163,7 +162,7 @@ class RequestFieldsIntegrationTest {
     @DisplayName("an X-Correlation-Id with unsafe characters is ignored for the trace ID")
     void unsafeCallerIdIgnored() throws Exception {
       var fields =
-          StarterTestSupport.getFromService(
+          WebTestSupport.getFromService(
               port, ORDER_FIELDS_PATH, WebConstants.CORRELATION_ID_HEADER, "a b");
 
       var traceId = JsonPath.<String>read(fields.body(), "$." + LoggingContextConstants.TRACE_ID);
@@ -173,8 +172,8 @@ class RequestFieldsIntegrationTest {
     @Test
     @DisplayName("the request fields are gone from the server thread after the request")
     void fieldsDoNotLeakIntoNextRequest() throws Exception {
-      StarterTestSupport.getFromService(port, ORDER_FIELDS_PATH + "?" + EXPAND_QUERY);
-      var next = StarterTestSupport.getFromService(port, "/orders/7/fields");
+      WebTestSupport.getFromService(port, ORDER_FIELDS_PATH + "?" + EXPAND_QUERY);
+      var next = WebTestSupport.getFromService(port, "/orders/7/fields");
 
       assertThat(next.body()).doesNotContain(EXPAND_QUERY);
     }
@@ -199,7 +198,7 @@ class RequestFieldsIntegrationTest {
     @DisplayName("the caller's header and baggage are ignored and the trace ID is used")
     void callerIdsIgnored() throws Exception {
       var fields =
-          StarterTestSupport.getFromService(
+          WebTestSupport.getFromService(
               port,
               ORDER_FIELDS_PATH,
               WebConstants.CORRELATION_ID_HEADER,
@@ -232,7 +231,7 @@ class RequestFieldsIntegrationTest {
     @DisplayName("an address the client writes into X-Forwarded-For is not taken as its own")
     void spoofedForwardedAddressIgnored() throws Exception {
       var response =
-          StarterTestSupport.getFromService(
+          WebTestSupport.getFromService(
               port,
               ORDER_FIELDS_PATH,
               "X-Forwarded-For",

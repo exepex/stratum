@@ -3,6 +3,9 @@ package com.exepex.stratum.webmvc.it;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.test.OrderErrorCode;
 import com.exepex.stratum.web.ResponseTimeout;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.springframework.boot.SpringBootConfiguration;
@@ -10,12 +13,52 @@ import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.context.annotation.Import;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 /** A service whose endpoints block, as a slow database or downstream call does. */
 @SpringBootConfiguration
 @EnableAutoConfiguration
-@Import(SlowApplication.SlowController.class)
+@Import({SlowApplication.SlowController.class, SlowApplication.SlowLookupFilter.class})
 public class SlowApplication {
+
+  /** The path whose request the service's own filter blocks and then fails. */
+  static final String FILTER_FAILS_PATH = "/slow/filter-fails";
+
+  /**
+   * A filter of the service's own, after Stratum's, that blocks on a slow lookup, as a token check
+   * can, and fails with an unchecked exception once interrupted.
+   */
+  static class SlowLookupFilter extends OncePerRequestFilter {
+
+    /**
+     * Leaves every other request alone.
+     *
+     * @param request the request
+     * @return whether the request is not the one this filter blocks
+     */
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+      return !FILTER_FAILS_PATH.equals(request.getRequestURI());
+    }
+
+    /**
+     * Blocks until interrupted, then fails.
+     *
+     * @param request the request
+     * @param response the response
+     * @param filterChain the rest of the chain, never reached
+     */
+    @Override
+    protected void doFilterInternal(
+        HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) {
+      try {
+        new CountDownLatch(1).await();
+      } catch (InterruptedException interrupted) {
+        Thread.currentThread().interrupt();
+        throw new IllegalStateException("the token lookup was interrupted", interrupted);
+      }
+    }
+  }
 
   /** The endpoints. */
   @RestController

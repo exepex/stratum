@@ -9,6 +9,7 @@ import com.exepex.stratum.web.RequestFieldsPropagation;
 import com.exepex.stratum.web.RequestFieldsReader;
 import com.exepex.stratum.web.RequestLogWriter;
 import com.exepex.stratum.web.ResponseTimeouts;
+import com.exepex.stratum.web.StandardModeReport;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebProperties;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -22,8 +23,8 @@ import org.springframework.core.env.Environment;
 
 /**
  * Creates what both web starters use to give every log line of a request its fields, the request
- * its correlation ID, its one closing log line, its time limit and its body size limit. The web MVC
- * and WebFlux auto-configurations import it.
+ * its correlation ID, its one closing log line, its time limit and its body size limit, and the
+ * startup line of standard mode. The web MVC and WebFlux auto-configurations import it.
  */
 @StratumInternal
 @Configuration(proxyBeanMethods = false)
@@ -114,5 +115,23 @@ public class RequestFieldsConfiguration {
   @ConditionalOnMissingBean
   public RequestBodyLimits requestBodyLimits(WebProperties webProperties, Environment environment) {
     return new RequestBodyLimits(webProperties, BackwardCompatibleMode.isOn(environment));
+  }
+
+  /**
+   * Logs at startup, outside backward-compatible mode, the default time and body size limits.
+   *
+   * @param environment where {@code stratum.backward-compatible} is read from
+   * @param responseTimeouts the time limits
+   * @param requestBodyLimits the body size limits
+   * @return the report
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean
+  public StandardModeReport standardModeReport(
+      Environment environment,
+      ResponseTimeouts responseTimeouts,
+      RequestBodyLimits requestBodyLimits) {
+    return new StandardModeReport(environment, responseTimeouts, requestBodyLimits);
   }
 }

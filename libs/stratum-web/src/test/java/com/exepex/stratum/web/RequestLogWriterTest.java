@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.test.LogLineCapture;
-import com.exepex.stratum.test.StarterTestSupport;
+import com.exepex.stratum.test.WebTestSupport;
 import com.exepex.stratum.web.testsupport.WebTestData;
 import java.time.Duration;
 import java.util.List;
@@ -105,7 +105,7 @@ class RequestLogWriterTest {
     @DisplayName("leaves the token payload out")
     void noTokenPayload() {
       var headers = new HttpHeaders();
-      headers.set(HttpHeaders.AUTHORIZATION, StarterTestSupport.bearerToken(PAYLOAD));
+      headers.set(HttpHeaders.AUTHORIZATION, WebTestSupport.bearerToken(PAYLOAD));
 
       writer.write(OK, TOOK, headers, new HttpHeaders());
 
@@ -186,7 +186,7 @@ class RequestLogWriterTest {
     void writesTokenPayload() {
       var tokenPayloadOn = writer(defaultRequestLog().toBuilder().tokenPayload(true).build());
       var signed = new HttpHeaders();
-      signed.set(HttpHeaders.AUTHORIZATION, StarterTestSupport.bearerToken(PAYLOAD));
+      signed.set(HttpHeaders.AUTHORIZATION, WebTestSupport.bearerToken(PAYLOAD));
       var encrypted = new HttpHeaders();
       encrypted.set(HttpHeaders.AUTHORIZATION, "Bearer a.b.c.d.e");
 
@@ -212,9 +212,9 @@ class RequestLogWriterTest {
       var withTenant = new HttpHeaders();
       withTenant.set(
           HttpHeaders.AUTHORIZATION,
-          StarterTestSupport.bearerToken("{\"sub\":\"order-service\",\"tenant\":\"acme\"}"));
+          WebTestSupport.bearerToken("{\"sub\":\"order-service\",\"tenant\":\"acme\"}"));
       var withoutTenant = new HttpHeaders();
-      withoutTenant.set(HttpHeaders.AUTHORIZATION, StarterTestSupport.bearerToken(PAYLOAD));
+      withoutTenant.set(HttpHeaders.AUTHORIZATION, WebTestSupport.bearerToken(PAYLOAD));
 
       tenantClaimOnly.write(OK, TOOK, withTenant, new HttpHeaders());
       tenantClaimOnly.write(OK, TOOK, withoutTenant, new HttpHeaders());
@@ -231,6 +231,20 @@ class RequestLogWriterTest {
       var off = writer(defaultRequestLog().toBuilder().enabled(false).build());
 
       assertThat(off.isLogged("/orders/42")).isFalse();
+    }
+
+    @Test
+    @DisplayName("skips a path listed twice, and still logs the others")
+    void skipPathListedTwice() {
+      var twice =
+          writer(
+              defaultRequestLog().toBuilder()
+                  .skipPaths(List.of("/actuator/**", "/internal/**", "/actuator/**"))
+                  .build());
+
+      assertThat(twice.isLogged("/actuator/health")).isFalse();
+      assertThat(twice.isLogged("/internal/jobs")).isFalse();
+      assertThat(twice.isLogged("/orders/42")).isTrue();
     }
   }
 }

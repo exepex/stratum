@@ -14,7 +14,7 @@
   <artifactId>stratum-test</artifactId>
 
   <name>Stratum test</name>
-  <description>Test support: the checks every Stratum starter's tests share, PostgreSQL and Redis containers for services' integration tests, and, planned, JUnit 5, AssertJ, Mockito, more containers, HTTP stubs and JWT helpers.</description>
+  <description>Test support: the helpers and checks that several Stratum modules' tests share, and PostgreSQL and Redis containers for services' integration tests.</description>
 
   <!-- Teams add this module in test scope only, so its libraries never reach a running service. -->
   <dependencies>
@@ -73,25 +73,6 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <!-- The data source and the PostgreSQL driver that PostgresContainerConfigurationIntegrationTest
-         connects with, as a service's data starter brings them. -->
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-jdbc</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.postgresql</groupId>
-      <artifactId>postgresql</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <!-- The Redis client that RedisContainerConfigurationIntegrationTest connects with, as a
-         service's Redis starter brings it. -->
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-data-redis</artifactId>
       <scope>test</scope>
     </dependency>
     <!-- Loads stratum-core's OneShotContextScheduledExecutorService, whose supertype comes from this

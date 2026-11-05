@@ -2,24 +2,21 @@ package com.exepex.stratum.cache;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.exepex.stratum.test.CpuCostMeter;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.lettuce.core.output.StatusOutput;
 import io.lettuce.core.protocol.Command;
 import io.lettuce.core.protocol.CommandArgs;
 import io.lettuce.core.protocol.CommandType;
-import java.lang.management.ManagementFactory;
-import java.lang.management.ThreadMXBean;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.stream.IntStream;
-import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
-@Slf4j
 @DisplayName("Finding the timeout of a command with a hostile 10 MB key stays inside its CPU limit")
 class CacheCommandTimeoutsSpeedTest {
 
@@ -29,17 +26,8 @@ class CacheCommandTimeoutsSpeedTest {
    */
   private static final int STOP_AFTER_SECONDS = 60;
 
-  /** Rounds run first and not counted, so the JIT compiler has compiled the lookup. */
-  private static final int WARM_UP_ROUNDS = 3;
-
-  /** Rounds timed; the fastest counts, so one slow round on a busy build machine is ignored. */
-  private static final int MEASURED_ROUNDS = 5;
-
   /** Lookups per round, so a round lasts long enough to be timed. */
   private static final int LOOKUPS_PER_ROUND = 100_000;
-
-  /** Nanoseconds in a millisecond, the unit the limit and the logged time are in. */
-  private static final double NANOS_PER_MILLISECOND = 1_000_000.0;
 
   /**
    * CPU time 100,000 lookups of the hostile key may take: 10 times M = 3.077 ms, the largest best
@@ -64,9 +52,6 @@ class CacheCommandTimeoutsSpeedTest {
       (PREFIX + "x:".repeat((TEN_MEGABYTES - PREFIX.length()) / 2))
           .getBytes(StandardCharsets.UTF_8);
 
-  /** Times the CPU this test's thread uses, so time spent waiting is not counted. */
-  private final ThreadMXBean threads = ManagementFactory.getThreadMXBean();
-
   /** The long-named cache's own timeout, above the global one. */
   private static final Duration CACHE_TIMEOUT = Duration.ofSeconds(3);
 
@@ -86,37 +71,25 @@ class CacheCommandTimeoutsSpeedTest {
           new StatusOutput<>(ByteArrayCodec.INSTANCE),
           new CommandArgs<>(ByteArrayCodec.INSTANCE).addKey(HOSTILE_KEY));
 
+  /** Times one round of lookups per batch, after the default warm-up. */
+  private final CpuCostMeter meter = new CpuCostMeter(1);
+
   @Test
   @Timeout(value = STOP_AFTER_SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
   @DisplayName("a 10 MB key of the service's own gets the global timeout within the limit")
   void findsTimeoutWithinLimit() {
-    assertThat(threads.isCurrentThreadCpuTimeSupported())
-        .as("CPU time of the current thread can be measured")
-        .isTrue();
     assertThat(timeouts.getTimeout(hostileGet)).isEqualTo(GLOBAL.toMillis());
 
-    IntStream.range(0, WARM_UP_ROUNDS).forEach(round -> cpuNanosPerRound());
-    var bestMillis =
-        IntStream.range(0, MEASURED_ROUNDS)
-                .mapToLong(round -> cpuNanosPerRound())
-                .min()
-                .orElseThrow()
-            / NANOS_PER_MILLISECOND;
-    log.info("Best CPU milliseconds per {} hostile lookups: {}", LOOKUPS_PER_ROUND, bestMillis);
-
-    assertThat(bestMillis)
-        .as("CPU milliseconds per round")
-        .isLessThanOrEqualTo(HOSTILE_KEY_LIMIT.toNanos() / NANOS_PER_MILLISECOND);
+    meter.assertCpuCostWithin(
+        LOOKUPS_PER_ROUND + " hostile lookups", HOSTILE_KEY_LIMIT, this::lookUpRound);
   }
 
-  /** Returns the CPU nanoseconds one round of lookups takes. */
-  private long cpuNanosPerRound() {
-    var start = threads.getCurrentThreadCpuTime();
+  /** Looks up the hostile key's timeout once per round; the sum keeps the JIT from dropping it. */
+  private void lookUpRound() {
     var sum =
         IntStream.range(0, LOOKUPS_PER_ROUND)
-            .mapToLong(round -> timeouts.getTimeout(hostileGet))
+            .mapToLong(lookup -> timeouts.getTimeout(hostileGet))
             .sum();
     assertThat(sum).isPositive();
-    return threads.getCurrentThreadCpuTime() - start;
   }
 }

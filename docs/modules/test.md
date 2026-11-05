@@ -1,15 +1,13 @@
 # Testing: `stratum-test`
 
-**Status: Partly built.** Planned: one test dependency with everything a Stratum service needs for
-unit, mock and integration tests: JUnit 5, AssertJ, Mockito, Testcontainers, HTTP stubs and security
-helpers. Built today: `PostgresContainerConfiguration` and `RedisContainerConfiguration`, which
-start PostgreSQL and Redis for a service's integration tests ([Containers](#containers)). The
-module also holds what Stratum's own starters' tests share: `StarterTestSupport`, their shared
-checks, and `OrderErrorCode`, the sample error codes of an orders service that the web tests use.
-A service has no use for those, and each of them is marked `@StratumInternal`
-([Public API](../guides/upgrading.md#public-api)).
+`stratum-test` gives a service's integration tests two containers, `PostgresContainerConfiguration`
+and `RedisContainerConfiguration`, which start PostgreSQL and Redis with pinned images
+([Containers](#containers)). It also holds the test helpers that several of Stratum's own modules
+share, such as `StarterTestSupport`, `WebTestSupport`, `LogLineCapture`, `CpuCostMeter` and the sample
+`OrderErrorCode`. A service has no use for those, and each of them is marked `@StratumInternal`
+([Public API](../guides/upgrading.md#public-api)). It has no `stratum.test.*` properties.
 
-[← Documentation home](../README.md) · Property prefix: `stratum.test`
+[← Documentation home](../README.md)
 
 ## Add it
 
@@ -46,9 +44,8 @@ service already has `spring-boot-starter-data-redis`, the Redis client.
 `testcontainers-postgresql` as optional, so a module or service gets none of them through
 `stratum-test`, only the ones it adds itself.
 
-**Planned:** `stratum-test` will bring `spring-boot-starter-test` (JUnit 5, AssertJ, Mockito, Spring
-test support), Testcontainers with the modules Stratum supports, an HTTP stub server and Spring
-Security's test support.
+JUnit 5, AssertJ and Mockito come from Spring Boot's `spring-boot-starter-test`, which your service
+adds in test scope; `stratum-test` does not bring it.
 
 ## Three kinds of tests
 
@@ -80,13 +77,10 @@ class PriceCalculatorTest {
 
 ### Mock test (web slice)
 
-**Planned:** `@ImportStratumWebTest` and `stratumJwt` are not built yet.
-
-Starts only the web layer; other beans are mocked.
+Starts only the web layer; other beans are mocked. Spring Boot gives you this with `@WebMvcTest`.
 
 ```java
 @WebMvcTest(OrderController.class)
-@ImportStratumWebTest            // applies Stratum's error format, correlation and security rules
 class OrderControllerTest {
 
   @Autowired MockMvcTester mvc;
@@ -94,39 +88,17 @@ class OrderControllerTest {
 
   @Test
   void returnsProblemDetailsForInvalidInput() {
-    assertThat(mvc.post().uri("/orders").with(stratumJwt("orders:write"))
+    assertThat(mvc.post().uri("/orders")
             .contentType(APPLICATION_JSON).content("{\"sku\":\"\",\"quantity\":0}"))
-        .hasStatus(HttpStatus.BAD_REQUEST)
-        .bodyJson().extractingPath("$.errors").asArray().hasSize(2);
+        .hasStatus(HttpStatus.BAD_REQUEST);
   }
 }
 ```
 
 ### Integration test
 
-**Planned:** `@StratumIntegrationTest` will start the whole application with the `test` profile, and
-start the containers your service needs. Until then, use `@SpringBootTest` with
-`PostgresContainerConfiguration` or `RedisContainerConfiguration`, as [Containers](#containers)
-shows.
-
-```java
-@StratumIntegrationTest
-@WithContainers({Postgres.class, Kafka.class})
-class OrderFlowIntegrationTest {
-
-  @Autowired MockMvcTester mvc;
-  @Autowired OrderRepository repository;
-
-  @Test
-  void storesTheOrder() {
-    assertThat(mvc.post().uri("/orders").with(stratumJwt("orders:write"))
-            .contentType(APPLICATION_JSON).content("{\"sku\":\"A-1\",\"quantity\":2}"))
-        .hasStatus(HttpStatus.CREATED);
-
-    assertThat(repository.count()).isEqualTo(1);
-  }
-}
-```
+Starts the whole application with `@SpringBootTest`, and the containers it needs, as
+[Containers](#containers) shows.
 
 ## Containers
 
@@ -164,14 +136,10 @@ and so the container, for every test class with the same configuration, so those
 container and start it once. A test class with a different configuration, such as other properties
 or `@MockitoBean`s, gets its own context and its own container.
 
-| Container | Image | Connects | Status |
-| --- | --- | --- | --- |
-| `PostgresContainerConfiguration` | `postgres:18.6-alpine` | `spring.datasource.*` | Built |
-| MySQL | MySQL | `spring.datasource.*` | Planned |
-| Kafka | Apache Kafka | `spring.kafka.*` | Planned |
-| `RedisContainerConfiguration` | `redis:8.10.3-alpine` | `spring.data.redis.*` | Built |
-| Keycloak | Keycloak | `stratum.security.resource-server.issuer-uri` | Planned |
-| LocalStack | LocalStack (AWS emulator) | `stratum.cloud.*` (AWS) | Planned |
+| Container | Image | Connects |
+| --- | --- | --- |
+| `PostgresContainerConfiguration` | `postgres:18.6-alpine` | `spring.datasource.*` |
+| `RedisContainerConfiguration` | `redis:8.10.3-alpine` | `spring.data.redis.*` |
 
 Each image is pinned once, as one `testcontainers.image.<container>` property in the root
 `pom.xml` holding the full image, and never set to `latest`, so every service tests against the
@@ -179,66 +147,6 @@ same version. Stratum's maintainers update it by hand.
 
 Because data stays between test classes that share a container, each test should create its own data
 and not depend on what other tests left behind.
-
-## Stubbing services you call
-
-**Planned.** `@StubHttpClient("<name>")` will start a local HTTP stub and point the HTTP client group `<name>` at it.
-
-```java
-@StratumIntegrationTest
-@StubHttpClient("inventory")
-class ReservationIntegrationTest {
-
-  @Autowired HttpStub inventory;
-
-  @Test
-  void handlesInventoryOutage() {
-    inventory.stubGet("/stock/A-1", 503);
-    // ... call your API and assert it answers 503 with Problem Details
-  }
-}
-```
-
-## Testing secured endpoints
-
-**Planned.** `stratumJwt(...)` will create a valid test token with the given scopes; no identity
-provider will be needed.
-
-| Call | Result |
-| --- | --- |
-| `.with(stratumJwt("orders:read"))` | Token with scope `orders:read` |
-| `.with(stratumJwt().subject("user-42").roles("ADMIN"))` | Token for a given user with roles |
-| no `.with(...)` | No token: expect `401` |
-
-For the rare test that must check real token validation, use the `Keycloak` container.
-
-## Properties
-
-**Planned.** None of these keys exists yet. They will go in `src/test/resources/application-test.yml`
-(or `.properties`).
-
-| Property | Type | Default | Description |
-| --- | --- | --- | --- |
-| `stratum.test.containers.reuse` | boolean | `false` | Keeps containers running between local test runs (needs Testcontainers reuse enabled on the machine). Never on CI. |
-| `stratum.test.containers.images.<container>` | string | *(the image pinned as the `testcontainers.image.<container>` property in the root `pom.xml`)* | Overrides one image, e.g. to test a newer PostgreSQL. |
-| `stratum.test.jwt.default-issuer` | URI | `https://test-issuer.stratum.local` | Issuer used for test tokens. |
-
-```yaml
-stratum:
-  test:
-    containers:
-      images:
-        postgres: postgres:18-alpine
-```
-
-```properties
-stratum.test.containers.images.postgres=postgres:18-alpine
-```
-
-## Configure in Java
-
-**Planned.** You will also be able to set every property on this page in Java code, through this module's
-customizer or builder, with the same names and defaults. This section will show how once that API is designed.
 
 ## Running tests
 

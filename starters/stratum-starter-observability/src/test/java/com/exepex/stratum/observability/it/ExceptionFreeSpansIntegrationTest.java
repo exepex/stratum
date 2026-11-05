@@ -3,13 +3,10 @@ package com.exepex.stratum.observability.it;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+import com.exepex.stratum.test.WebTestSupport;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.List;
 import org.junit.jupiter.api.AutoClose;
@@ -75,7 +72,9 @@ class ExceptionFreeSpansIntegrationTest {
   @DisplayName(
       "has no exception type, message or stack trace, and its timer keeps the exception tag")
   void sendsSpanWithoutExceptionData() throws IOException, InterruptedException {
-    assertThat(callFailingHandler().statusCode())
+    assertThat(
+            WebTestSupport.getFromService(port, ReactiveOrdersApplication.FAILING_ORDER_PATH)
+                .statusCode())
         .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR.value());
 
     tracerProvider.forceFlush();
@@ -91,18 +90,6 @@ class ExceptionFreeSpansIntegrationTest {
                 .timer()
                 .count())
         .isOne();
-  }
-
-  /** Calls the handler that always fails. */
-  private HttpResponse<String> callFailingHandler() throws IOException, InterruptedException {
-    try (var client = HttpClient.newHttpClient()) {
-      var request =
-          HttpRequest.newBuilder(
-                  URI.create(
-                      "http://localhost:" + port + ReactiveOrdersApplication.FAILING_ORDER_PATH))
-              .build();
-      return client.send(request, HttpResponse.BodyHandlers.ofString());
-    }
   }
 
   /**

@@ -46,6 +46,8 @@ stratum:
 - A limit is a size, such as `256KB`, `5MB` or `20MB`. `0` means no limit.
 - `routes` maps a Spring path pattern to its limit. Write each pattern in square brackets, as above,
   so Spring Boot keeps its `/` and `*`. When several patterns match a path, the most specific wins.
+  A pattern that is not valid, such as `/api/{id`, stops startup with `SX-WEB-1009`, which names the
+  key and the pattern.
 
 Each key, with its type and default, is listed in [Web → Properties](web.md#properties).
 
@@ -126,6 +128,9 @@ upload API that accepts more than they allow raises both.
 | WebFlux | Each part of a multipart upload kept in memory | `spring.webflux.multipart.max-in-memory-size` | `256KB` |
 | WebFlux | Each part of a multipart upload written to disk | `spring.webflux.multipart.max-disk-usage-per-part` | `10MB`, set by Stratum in standard mode |
 | WebFlux | The number of parts of a multipart upload | `spring.webflux.multipart.max-parts` | `50`, set by Stratum in standard mode |
+
+Request headers are not part of the body. Their size is limited by Spring Boot's own key,
+`server.max-http-request-header-size` (`8KB` by default), and Stratum adds no key of its own for it.
 
 A WebFlux part larger than `max-in-memory-size` is written to disk. Spring Boot sets no limit on that
 disk use or on the number of parts, and a multipart upload sent in chunks is not limited by Stratum's

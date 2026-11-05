@@ -3,7 +3,7 @@ package com.exepex.stratum.webmvc.it;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.test.LogLineCapture;
-import com.exepex.stratum.test.StarterTestSupport;
+import com.exepex.stratum.test.WebTestSupport;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebErrorCode;
 import org.junit.jupiter.api.AfterEach;
@@ -53,9 +53,9 @@ class ResponseTimeoutIntegrationTest {
   @DisplayName(
       "a request blocked past its route's limit gets SX-WEB-1007, and its log line the status")
   void routeLimit() throws Exception {
-    var response = StarterTestSupport.getFromService(port, "/slow/blocked");
+    var response = WebTestSupport.getFromService(port, "/slow/blocked");
 
-    StarterTestSupport.checkProblemDetails(
+    WebTestSupport.checkProblemDetails(
         response, HttpStatus.GATEWAY_TIMEOUT.value(), WebErrorCode.REQUEST_TIMED_OUT.getCode());
     assertThat(lines.fieldsOf(lines.onlyLine()))
         .containsEntry(WebConstants.HTTP_STATUS, HttpStatus.GATEWAY_TIMEOUT.value());
@@ -64,9 +64,9 @@ class ResponseTimeoutIntegrationTest {
   @Test
   @DisplayName("a handler that ignores the interrupt and answers late gets SX-WEB-1007")
   void lateAnswer() throws Exception {
-    var response = StarterTestSupport.getFromService(port, "/slow/ignores-interrupt");
+    var response = WebTestSupport.getFromService(port, "/slow/ignores-interrupt");
 
-    StarterTestSupport.checkProblemDetails(
+    WebTestSupport.checkProblemDetails(
         response, HttpStatus.GATEWAY_TIMEOUT.value(), WebErrorCode.REQUEST_TIMED_OUT.getCode());
     assertThat(lines.fieldsOf(lines.onlyLine()))
         .containsEntry(WebConstants.HTTP_STATUS, HttpStatus.GATEWAY_TIMEOUT.value());
@@ -75,16 +75,29 @@ class ResponseTimeoutIntegrationTest {
   @Test
   @DisplayName("a handler that runs late and then throws a mapped code still gets SX-WEB-1007")
   void lateFailureWithErrorCode() throws Exception {
-    var response = StarterTestSupport.getFromService(port, "/slow/ignores-interrupt-then-fails");
+    var response = WebTestSupport.getFromService(port, "/slow/ignores-interrupt-then-fails");
 
-    StarterTestSupport.checkProblemDetails(
+    WebTestSupport.checkProblemDetails(
         response, HttpStatus.GATEWAY_TIMEOUT.value(), WebErrorCode.REQUEST_TIMED_OUT.getCode());
+  }
+
+  @Test
+  @DisplayName(
+      "a service's own filter that fails with an unchecked exception after the limit still"
+          + " gets SX-WEB-1007")
+  void lateFilterFailure() throws Exception {
+    var response = WebTestSupport.getFromService(port, SlowApplication.FILTER_FAILS_PATH);
+
+    WebTestSupport.checkProblemDetails(
+        response, HttpStatus.GATEWAY_TIMEOUT.value(), WebErrorCode.REQUEST_TIMED_OUT.getCode());
+    assertThat(lines.fieldsOf(lines.onlyLine()))
+        .containsEntry(WebConstants.HTTP_STATUS, HttpStatus.GATEWAY_TIMEOUT.value());
   }
 
   @Test
   @DisplayName("a method's @ResponseTimeout gives it more time than its route")
   void annotationWinsOverRoute() throws Exception {
-    var response = StarterTestSupport.getFromService(port, "/slow/given-more-time");
+    var response = WebTestSupport.getFromService(port, "/slow/given-more-time");
 
     assertThat(response.statusCode()).isEqualTo(HttpStatus.OK.value());
     assertThat(response.body()).isEqualTo("done");
@@ -93,9 +106,9 @@ class ResponseTimeoutIntegrationTest {
   @Test
   @DisplayName("a method's @ResponseTimeout gives it less time than the default")
   void annotationWinsOverDefault() throws Exception {
-    var response = StarterTestSupport.getFromService(port, "/orders/own-limit");
+    var response = WebTestSupport.getFromService(port, "/orders/own-limit");
 
-    StarterTestSupport.checkProblemDetails(
+    WebTestSupport.checkProblemDetails(
         response, HttpStatus.GATEWAY_TIMEOUT.value(), WebErrorCode.REQUEST_TIMED_OUT.getCode());
   }
 }

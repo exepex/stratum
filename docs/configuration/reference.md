@@ -104,7 +104,6 @@ Each module's full table, with every key it reads or gives a default:
 | `stratum.cache.*` | `stratum-starter-cache` | [Cache → Properties](../modules/cache.md#properties) | `spring.application.name` with Spring Data Redis, unless you set `spring.cache.redis.key-prefix`; `spring.data.redis.*` to reach your Redis (with `spring-boot-starter-data-redis`) |
 | `stratum.kafka.*` | `stratum-starter-kafka` | [Kafka → Properties](../modules/kafka.md#properties) | `spring.kafka.bootstrap-servers` |
 | `stratum.cloud.*` | `stratum-starter-cloud-*` | [Cloud → Properties](../modules/cloud.md#properties-draft) | depends on provider |
-| `stratum.test.*` | `stratum-test` | [Testing → Properties](../modules/test.md#properties) | none |
 
 ## On/off switches
 
