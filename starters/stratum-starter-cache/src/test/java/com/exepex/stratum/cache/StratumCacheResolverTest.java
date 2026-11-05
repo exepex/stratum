@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.UnaryOperator;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -71,7 +72,8 @@ class StratumCacheResolverTest {
         MAX_CACHES,
         throttle,
         counters,
-        new StratumCacheErrorHandler(null, throttle, counters));
+        new StratumCacheErrorHandler(null, throttle, counters),
+        UnaryOperator.identity());
   }
 
   /** Returns an invocation context whose operation asks for the given cache names. */
@@ -249,6 +251,29 @@ class StratumCacheResolverTest {
       resolvedThrough(manager).put(KEY, null);
 
       assertThat(manager.created(FIRST_CACHE).calls()).contains("put").doesNotContain("evict");
+    }
+  }
+
+  @Nested
+  @DisplayName("with the Redis retry gate")
+  class RedisGate {
+
+    @Test
+    @DisplayName("each admitted cache is passed through the gate before it is wrapped")
+    void admittedCacheIsGated() {
+      var gatedResolver =
+          new StratumCacheResolver(
+              manager,
+              MANAGER_NAME,
+              MAX_CACHES,
+              throttle,
+              counters,
+              new StratumCacheErrorHandler(null, throttle, counters),
+              cache -> new NoOpCache("gated-" + cache.getName()));
+
+      var resolved = gatedResolver.resolveCaches(invocation("products"));
+
+      assertThat(resolved).singleElement().extracting(Cache::getName).isEqualTo("gated-products");
     }
   }
 }

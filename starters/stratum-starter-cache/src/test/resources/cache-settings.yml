@@ -2,6 +2,7 @@ stratum:
   cache:
     max-caches: 7
     warning-interval: 5m
+    redis-retry-interval: 2s
     max-value-size: 2MB
     caches:
       reports:

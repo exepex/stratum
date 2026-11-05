@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import org.springframework.cache.Cache;
 
@@ -26,6 +27,9 @@ public class RecordingCacheCounters implements CacheCounters {
   /** The cache manager name given with each measured cache, in order. */
   private final List<String> managerNamesMeasured = new CopyOnWriteArrayList<>();
 
+  /** The Redis connect failures counted. */
+  private final AtomicInteger redisConnectFailureCount = new AtomicInteger();
+
   @Override
   public void failure(String cache, String operation) {
     failuresByTags
@@ -36,6 +40,20 @@ public class RecordingCacheCounters implements CacheCounters {
   @Override
   public void skip(String cache, String reason) {
     skipsByTags.computeIfAbsent(cache + ":" + reason, key -> new AtomicLong()).incrementAndGet();
+  }
+
+  @Override
+  public void redisConnectFailure() {
+    redisConnectFailureCount.incrementAndGet();
+  }
+
+  /**
+   * Returns the Redis connect failures counted.
+   *
+   * @return the count
+   */
+  public int redisConnectFailures() {
+    return redisConnectFailureCount.get();
   }
 
   @Override
