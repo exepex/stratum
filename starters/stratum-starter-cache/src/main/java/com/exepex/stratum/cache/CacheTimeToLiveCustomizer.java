@@ -11,7 +11,8 @@ import org.springframework.data.redis.cache.RedisCacheManager.RedisCacheManagerB
  * Gives each Redis cache that sets {@code stratum.cache.caches.<name>.time-to-live} its own time to
  * live. Only the time to live changes: the cache keeps the rest of its configuration, from Spring
  * Boot's defaults, the service's own Redis cache configuration or its own customizers, which run
- * before this one. Such a cache is created at startup.
+ * before this one. Such a cache is created at startup. Caffeine caches get theirs from {@link
+ * CaffeineCacheSettingsCustomizer}.
  */
 @StratumInternal
 @RequiredArgsConstructor

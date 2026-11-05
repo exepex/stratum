@@ -19,6 +19,7 @@ class CacheArchTest {
           StratumCacheProperties.StratumCachePropertiesBuilder.class,
           StratumCacheProperties.CacheSettings.class,
           StratumCacheProperties.Serialization.class,
+          StratumCacheProperties.CaffeineSettings.class,
           StratumCacheProperties.CacheSettings.CacheSettingsBuilder.class,
           StratumCachePropertiesCustomizer.class);
 

@@ -6,11 +6,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.exepex.stratum.cache.testsupport.ProductCatalog;
 import com.exepex.stratum.cache.testsupport.RecordingCacheErrorHandler;
 import com.exepex.stratum.cache.testsupport.StubCache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.cache.Cache;
+import org.springframework.cache.caffeine.CaffeineCache;
 
 @DisplayName("StratumCache forwards every call and runs the loader at most once")
 class StratumCacheTest {
@@ -124,6 +126,22 @@ class StratumCacheTest {
 
       assertThat(value).isNull();
       assertThat(refusing.loads()).isOne();
+      assertThat(handler.total()).isZero();
+    }
+
+    @Test
+    @DisplayName(
+        "a Caffeine cache that refuses the loaded null, wrapped as a ValueRetrievalException,"
+            + " gives null and nothing is reported")
+    void caffeineRefusalIsNotReported() {
+      var caffeine =
+          new CaffeineCache(ProductCatalog.PRODUCTS, Caffeine.newBuilder().build(), false);
+      var cache = new StratumCache(caffeine, handler, true);
+
+      var value = cache.get(KEY, () -> null);
+
+      assertThat(value).isNull();
+      assertThat(caffeine.get(KEY)).isNull();
       assertThat(handler.total()).isZero();
     }
 

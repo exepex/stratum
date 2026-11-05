@@ -78,7 +78,18 @@ public enum CacheErrorCode implements ErrorCode {
           + CacheConstants.JSON_STARTER
           + ", or declare your own RedisCacheConfiguration bean, or turn the module off with "
           + CacheConstants.ENABLED
-          + "=false.");
+          + "=false."),
+
+  /** A cache's own setting cannot apply to its Caffeine cache, so startup stops. */
+  CAFFEINE_SETTING_UNUSABLE(
+      "SX-CACHE-1008",
+      Severity.ERROR,
+      "A cache's own setting cannot apply to its Caffeine cache",
+      "Give the Caffeine caches a maximumSize and an expireAfterWrite, such as in "
+          + CacheConstants.CAFFEINE_SPEC
+          + ", list the cache in "
+          + CacheConstants.CACHE_NAMES
+          + ", or remove the cache's own setting.");
 
   /** The code, such as {@code SX-CACHE-1001}. */
   private final String code;

@@ -52,7 +52,7 @@ What skips parts of the layer:
 - A `CachingConfigurer` of yours that sets a `cacheResolver()` or a `cacheManager()`: Stratum then
   adds nothing, and Spring's behaviour applies.
 - `@Cacheable(cacheManager = ...)` or `cacheResolver = ...` on a method: its calls are still
-  fail-open, but they get no run-once loader, no cap, no [null skip](cache.md#null-results), no
+  fail-open, but they get no run-once loader, no cap, no [null skip](cache-null-results.md), no
   [metrics](cache.md#metrics) for a cache made on its first use, and never skip Redis.
 - Your code calling `CacheManager.getCache(...)` itself, and `@EnableCaching(mode =
   AdviceMode.ASPECTJ)`, which has no `cacheInterceptor`: neither gets the layer.

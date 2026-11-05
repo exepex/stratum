@@ -7,7 +7,8 @@ clearing a cache never blocks Redis. Cached calls keep working when Redis is dow
 run at most once, skip Redis for a few seconds after it fails, the number of caches is capped, and
 keys and values have size limits, also per cache, and values are stored as plain JSON, read only as
 allowed types ([Stored values](cache-values.md)). Each cache can have its own time to live and
-command timeout ([per cache](cache-per-cache.md)). Caffeine is **planned** ([below](#planned)).
+command timeout ([per cache](cache-per-cache.md)). Caffeine caches are bounded to 10,000 entries
+that live 10 minutes ([Caffeine](cache-caffeine.md)).
 
 [← Documentation home](../README.md) · Property prefix: `stratum.cache`
 
@@ -43,7 +44,8 @@ choose Redis; the cache starter brings no Redis client of its own:
 ```
 
 Without it, Spring Boot picks its cache as it does today, such as Caffeine when Caffeine is on the
-class path, or else its simple in-memory cache, and the Redis defaults below have no effect.
+class path, with Stratum's [Caffeine defaults](cache-caffeine.md), or else its simple in-memory
+cache, and the Redis defaults below have no effect.
 
 With Redis, the service needs a name, because every key starts with it. Set it in
 `application.properties`:
@@ -86,7 +88,7 @@ class ProductService {
 | Entries expire | Every Redis entry lives 10 minutes by default, unless you set your own time to live or [cache configuration](#customize) |
 | Key prefix | Redis keys start with `<spring.application.name>:`, as in `order-service:products::sku-1` |
 | Hits and misses counted | Redis caches keep statistics, so `cache.gets` reports hits and misses, also for caches made on their first use ([Metrics](#metrics)) |
-| Null results not stored | A method that returns `null` is not cached, so it runs again on the next call; no `unless` needed ([Null results](#null-results)) |
+| Null results not stored | A method that returns `null` is not cached, so it runs again on the next call; no `unless` needed ([Null results](cache-null-results.md)) |
 | Short Redis timeouts | A Redis command waits at most 1 second and a connect at most 2 seconds, instead of 60 and 10 |
 | Clearing with SCAN | `@CacheEvict(allEntries = true)` deletes keys found with SCAN, 1,000 at a time, never with KEYS |
 | Works when Redis is down | A failed cache read is a miss and a failed write is dropped, so the method runs and returns its real result ([below](cache-redis-down.md)) |
@@ -109,6 +111,7 @@ The beans the starter adds, with their types:
 | `stratumCacheTimeToLive` | `RedisCacheManagerBuilderCustomizer` | A Redis connection is present; it sets each cache's own [time to live](cache-per-cache.md) |
 | `stratumCacheCommandTimeouts` | `CacheCommandTimeouts` | Lettuce is on the class path; it sets each cache's own [command timeout](cache-per-cache.md#command-timeout) |
 | `stratumCacheCommandTimeoutsCheck` | `SmartInitializingSingleton` | A Redis connection is present; it warns when caches set a command timeout but the client is not Lettuce |
+| `stratumCaffeine`, `stratumCaffeineNullValues`, `stratumCaffeineCacheSettings` | See [Caffeine](cache-caffeine.md#beans) | Caffeine is on the class path |
 
 Spring Boot's cache auto-configuration sets up a cache manager only once caching is switched on, so
 Stratum's `@EnableCaching` is ordered before it. That is the one reason this module is ordered
@@ -118,7 +121,7 @@ before a Spring Boot auto-configuration.
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.cache.enabled` | boolean | `true` | Whether the module is on. With `false`, Stratum does not switch caching on, adds no fail-open layer or cap, and sets none of the defaults below, and Spring Boot's own apply. |
+| `stratum.cache.enabled` | boolean | `true` | Whether the module is on. With `false`, Stratum does not switch caching on, adds no fail-open layer or cap, and sets none of the defaults below, for Redis or Caffeine, and Spring Boot's own apply. |
 | `stratum.cache.max-caches` | integer, from 1 | `100` | The most cache names that get a cache. A name beyond it runs uncached ([Limits](#limits)). |
 | `stratum.cache.warning-interval` | duration, from `1s` to `1h` | `1m` | How often one cache's warning, `SX-CACHE-1002` to `SX-CACHE-1005`, and the warning `SX-CACHE-1006` are repeated at most. |
 | `stratum.cache.max-key-size` | data size, above 0 | `1KB` | The longest Redis key, prefix included, stored as it is. A longer key is stored under its SHA-256 hash ([Size limits](#size-limits)). |
@@ -127,10 +130,12 @@ before a Spring Boot auto-configuration.
 | `stratum.cache.serialization.allowed-packages` | list of package names | none | Packages, beside the service's own and `java`, whose types Redis cache values may be read as ([Stored values](cache-values.md)). |
 | `stratum.cache.caches.<name>.max-key-size` | data size, above 0 | `max-key-size` | The key limit of the cache `<name>`. |
 | `stratum.cache.caches.<name>.max-value-size` | data size, above 0 | `max-value-size` | The value limit of the cache `<name>`, such as `5MB` for a cache of large reports. |
-| `stratum.cache.caches.<name>.time-to-live` | duration, above 0 | `spring.cache.redis.time-to-live` | How long an entry of the cache `<name>` lives in Redis ([per cache](cache-per-cache.md)). |
+| `stratum.cache.caffeine.cache-null-values` | boolean | `false` | Whether Caffeine caches store a method's `null` result ([Null results](cache-null-results.md)). |
+| `stratum.cache.caches.<name>.time-to-live` | duration, above 0 | `spring.cache.redis.time-to-live` for Redis, the builder's expiry (`10m`) for Caffeine | How long an entry of the cache `<name>` lives, in Redis or Caffeine ([per cache](cache-per-cache.md)). |
 | `stratum.cache.caches.<name>.command-timeout` | duration, above 0, at most the larger of `10s` and `spring.data.redis.timeout` | `spring.data.redis.timeout` | How long a Redis command of the cache `<name>` waits, higher or lower than the global value. The largest one also bounds every connect ([per cache](cache-per-cache.md#command-timeout)). |
+| `stratum.cache.caches.<name>.max-entries` | integer, above 0 | the builder's `maximumSize` (`10000`) | The most entries the Caffeine cache `<name>` holds ([Caffeine](cache-caffeine.md#settings-per-cache)). Redis caches ignore it. |
 
-A value out of range stops startup with `SX-CORE-1003`, which names the key. A size of 0 or less, in any of the four size keys and for any cache, is reported as `stratum.cache.sizes-positive` instead, and a time to live or command timeout of 0 or less as `stratum.cache.durations-positive`.
+A value out of range stops startup with `SX-CORE-1003`, which names the key. A size of 0 or less, in any of the four size keys or `max-entries`, is reported as `stratum.cache.sizes-positive` instead, and a time to live or command timeout of 0 or less as `stratum.cache.durations-positive`.
 
 Spring Boot properties this module gives a default (your values win):
 
@@ -139,7 +144,8 @@ Spring Boot properties this module gives a default (your values win):
 | `spring.cache.redis.time-to-live` | duration | `10m` | unset: entries never expire | How long a Redis cache entry lives. |
 | `spring.cache.redis.key-prefix` | string | `${spring.application.name}:` | unset: keys start with the cache name | The text every Redis cache key starts with, before `<cache>::`. See [Key prefix](#key-prefix). |
 | `spring.cache.redis.enable-statistics` | boolean | `true` | `false` | Whether Redis caches count hits and misses for the metrics. |
-| `spring.cache.redis.cache-null-values` | boolean | `false` | `true` | Whether Redis caches store a method's `null` result. See [Null results](#null-results). |
+| `spring.cache.redis.cache-null-values` | boolean | `false` | `true` | Whether Redis caches store a method's `null` result. See [Null results](cache-null-results.md). |
+| `spring.cache.caffeine.spec` | string | none: Stratum's `stratumCaffeine` builder, `maximumSize=10000,expireAfterWrite=10m,recordStats` | unset: no bound, no expiry, no statistics | The builder of every Caffeine cache; yours replaces Stratum's whole builder ([Caffeine](cache-caffeine.md#your-own-caffeine-settings)). |
 | `spring.data.redis.timeout` | duration | `1s` | unset: Lettuce's 60 seconds | How long any Redis command waits for its answer. |
 | `spring.data.redis.connect-timeout` | duration | `2s` | unset: Lettuce's 10 seconds | How long connecting to Redis may take. |
 
@@ -248,35 +254,8 @@ dropped, and Redis is skipped for a few seconds after it fails. See
 
 ## Null results
 
-A Redis cache does not store a method's `null` result: the method runs again on the next call for
-that key, and you write no `unless = "#result == null"`. A `null` result is not a failure: it is not
-counted in `stratum.cache.failures` and logs nothing.
-
-- **A null removes the old entry.** A `null` written to a cache, such as by a `@CachePut` method
-  that returns `null`, deletes the key's entry, so the next call runs the method. Each delete is one
-  Redis command, sent in the background with Lettuce, Spring Boot's default Redis client, and is
-  counted in `cache.removals`. That includes every
-  `@Cacheable` miss whose method returns `null`.
-- **Async and reactive methods with `sync = true`.** A `@Cacheable(sync = true)` method that
-  returns a `CompletableFuture` or a `Mono` that ends with no value is still counted in
-  `stratum.cache.failures` with `operation=get`, logs `SX-CACHE-1002` once per
-  `stratum.cache.warning-interval`, and runs twice. Making these quiet is **planned**. Without
-  `sync`, they behave as above.
-
-To store `null` results again, set Spring Boot's key in `application.properties`:
-
-```properties
-spring.cache.redis.cache-null-values=true
-```
-
-or in `application.yml`:
-
-```yaml
-spring:
-  cache:
-    redis:
-      cache-null-values: true
-```
+A Redis or Caffeine cache does not store a method's `null` result, so the method runs again on the
+next call; see [Null results](cache-null-results.md).
 
 ## Metrics
 
@@ -396,7 +375,7 @@ application.run(args);
 - `redisRetryGate` backs off to any `RedisRetryGate` bean, but that type is internal to Stratum. To
   change how long Redis is skipped, set `stratum.cache.redis-retry-interval` instead.
 - Your own Spring Data `RedisCacheConfiguration` bean replaces Spring Boot's cache settings, and so
-  Stratum's time to live, key prefix, [null setting](#null-results) and JSON values: Spring Data's
+  Stratum's time to live, key prefix, [null setting](cache-null-results.md) and JSON values: Spring Data's
   `defaultCacheConfig()` stores nulls. The SCAN writer and the size limits still apply. A
   `CachingConfigurer` bean also keeps Spring Boot's values ([Stored values](cache-values.md)).
 - Your own `CacheManager` bean replaces Spring Boot's, and with it Stratum's time to live, key
@@ -433,7 +412,7 @@ then always run.
 - Redis memory is bounded by the server's `maxmemory` policy, which your team sets.
 - Redis reports no evictions to the metrics.
 - A `@Cacheable(sync = true)` method that returns a `CompletableFuture` or a `Mono` still counts a
-  `null` result as a failure and runs twice ([Null results](#null-results)).
+  `null` result as a failure and runs twice ([Null results](cache-null-results.md)).
 - At most `stratum.cache.max-caches` cache names, 100 by default, get a cache. Calls for a name
   beyond that run uncached, through one shared no-op cache, and no cache is created for the name.
   Each such call is counted in `stratum.cache.skips` under `cache=_over-limit`, and
@@ -468,7 +447,7 @@ live. Caches other than Redis have no size limits.
 ### Planned
 
 These are planned for later releases of this module:
-Caffeine with a bounded size, and reactive return types.
+reactive return types.
 
 Not planned for this release: a two-level cache, several regions, keys per tenant, other cache
 clients than Redis and Caffeine, distributed locks, spans for hits and misses, Spring Session,
@@ -493,4 +472,5 @@ jittered time to live per instance.
 | `SX-CACHE-1004` in the log, and the method always runs | Its return type is `Object`, an interface, an abstract class, or from a package not allowed. Return a concrete type or allow its package ([Stored values](cache-values.md)). |
 | `SX-CACHE-1005` in the log | A stored value no longer fits its class, often after a release. It was a miss and is replaced; to avoid a burst, rename the cache ([Stored values](cache-values.md#moving-from-java-serialized-values)). |
 | Startup stops with `SX-CACHE-1007` | Jackson is missing. Add `spring-boot-starter-json` ([Stored values](cache-values.md#when-json-values-apply)). |
+| Startup stops with `SX-CACHE-1008` | A Caffeine cache sets `max-entries` or `time-to-live`, but your own Caffeine builder has no `maximumSize` or `expireAfterWrite`, or `spring.cache.cache-names` leaves the cache out ([Caffeine](cache-caffeine.md#settings-per-cache)). |
 | `SX-CACHE-1003` in the log | The service uses more than `stratum.cache.max-caches` cache names. Name caches explicitly, so they stay few, or raise the limit ([Limits](#limits)). |

@@ -35,6 +35,13 @@
       <artifactId>spring-boot-data-redis</artifactId>
       <optional>true</optional>
     </dependency>
+    <!-- Caffeine, for Stratum's defaults on Spring Boot's Caffeine caches. Optional: a service
+         chooses Caffeine by adding it itself. -->
+    <dependency>
+      <groupId>com.github.ben-manes.caffeine</groupId>
+      <artifactId>caffeine</artifactId>
+      <optional>true</optional>
+    </dependency>
     <!-- Jackson, which stores Redis cache values as plain JSON. Optional: only Redis caches need it,
          and a service on Redis without it stops at startup with SX-CACHE-1007. -->
     <dependency>

@@ -61,6 +61,9 @@ class StratumCachePropertiesTest {
   /** The command timeout both test files set for {@value #REPORTS}. */
   private static final Duration REPORTS_COMMAND_TIMEOUT_IN_FILES = Duration.ofSeconds(3);
 
+  /** The most entries both test files give the reports cache. */
+  private static final long REPORTS_MAX_ENTRIES_IN_FILES = 500;
+
   /** The default time Redis caches skip Redis after a failure. */
   private static final Duration DEFAULT_REDIS_RETRY_INTERVAL = Duration.ofSeconds(5);
 
@@ -103,6 +106,8 @@ class StratumCachePropertiesTest {
             arguments("caches.reports.time-to-live", "0s", DURATIONS_POSITIVE),
             arguments("caches.reports.command-timeout", "0ms", DURATIONS_POSITIVE),
             arguments("caches.reports.command-timeout", "-1s", DURATIONS_POSITIVE),
+            arguments("caches.reports.max-entries", "0", SIZES_POSITIVE),
+            arguments("caches.reports.max-entries", "-1", SIZES_POSITIVE),
             arguments(
                 "redis-retry-interval",
                 "999ms",
@@ -118,7 +123,7 @@ class StratumCachePropertiesTest {
     @DisplayName(
         "unset, the cap is 100 caches, warnings repeat at most once a minute, every cache stores"
             + " keys up to 1 KiB and values up to 1 MiB, Redis is retried after 5 seconds and no"
-            + " package is allowed beyond the service's own")
+            + " package is allowed beyond the service's own; Caffeine caches store no nulls")
     void defaultsAreSafe() {
       var properties = StratumCacheProperties.resolve(new MockEnvironment());
 
@@ -131,6 +136,8 @@ class StratumCachePropertiesTest {
       assertThat(properties.serialization().allowedPackages()).isEmpty();
       assertThat(properties.timesToLive()).isEmpty();
       assertThat(properties.commandTimeouts()).isEmpty();
+      assertThat(properties.maxEntries()).isEmpty();
+      assertThat(properties.caffeine().cacheNullValues()).isFalse();
     }
 
     @ParameterizedTest(name = "{0}")
@@ -156,6 +163,9 @@ class StratumCachePropertiesTest {
           .containsExactly(entry(REPORTS, REPORTS_TIME_TO_LIVE_IN_FILES));
       assertThat(properties.commandTimeouts())
           .containsExactly(entry(REPORTS, REPORTS_COMMAND_TIMEOUT_IN_FILES));
+      assertThat(properties.maxEntries())
+          .containsExactly(entry(REPORTS, REPORTS_MAX_ENTRIES_IN_FILES));
+      assertThat(properties.caffeine().cacheNullValues()).isTrue();
     }
 
     @ParameterizedTest(name = "{0}={1}")
@@ -192,6 +202,9 @@ class StratumCachePropertiesTest {
           .isEqualTo(ThreeCachesSettings.REDIS_RETRY_INTERVAL);
       assertThat(properties.serialization().allowedPackages())
           .containsExactly(ThreeCachesSettings.ALLOWED_PACKAGE);
+      assertThat(properties.maxEntries())
+          .containsExactly(entry(REPORTS, ThreeCachesSettings.REPORTS_MAX_ENTRIES));
+      assertThat(properties.caffeine().cacheNullValues()).isTrue();
     }
   }
 }

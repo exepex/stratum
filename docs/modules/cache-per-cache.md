@@ -12,8 +12,8 @@ change every few seconds, or large reports that take longer to read. Two keys gi
 own value; every other cache, and every other Redis call of the service, keeps the global one. Both
 keys are listed in [Cache → Properties](cache.md#properties).
 
-- **`stratum.cache.caches.<name>.time-to-live`**: how long an entry of that cache lives in Redis.
-  Above 0.
+- **`stratum.cache.caches.<name>.time-to-live`**: how long an entry of that cache lives, in Redis
+  or in [Caffeine](cache-caffeine.md#settings-per-cache). Above 0.
 - **`stratum.cache.caches.<name>.command-timeout`**: how long a Redis command of that cache waits
   for its answer, higher or lower than `spring.data.redis.timeout`. Above 0, and at most the larger
   of 10 seconds and `spring.data.redis.timeout`. It needs the Lettuce client, Spring Boot's default.

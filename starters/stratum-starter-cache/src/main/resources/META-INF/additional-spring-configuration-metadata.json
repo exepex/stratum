@@ -3,7 +3,7 @@
     {
       "name": "stratum.cache.enabled",
       "type": "java.lang.Boolean",
-      "description": "Whether the cache module is on. With false, the starter does not switch Spring's caching on and sets none of its defaults for Spring Boot's Redis cache and client: time to live, key prefix, statistics, timeouts, clearing with SCAN, the size limits of keys and values, and the time to live and command timeout of single caches.",
+      "description": "Whether the cache module is on. With false, the starter does not switch Spring's caching on and sets none of its defaults for Spring Boot's Redis cache and client: time to live, key prefix, statistics, timeouts, clearing with SCAN, the size limits of keys and values, and the time to live and command timeout of single caches; and none of its defaults for Spring Boot's Caffeine caches: the bound on entries, the expiry, statistics, null results and the settings of single caches.",
       "defaultValue": true
     }
   ]
