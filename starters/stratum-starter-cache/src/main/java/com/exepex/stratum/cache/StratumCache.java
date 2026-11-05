@@ -1,8 +1,12 @@
 package com.exepex.stratum.cache;
 
 import com.exepex.stratum.core.api.StratumInternal;
+import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
@@ -17,7 +21,8 @@ import org.springframework.util.ReflectionUtils;
  * the loader never runs twice for one call. Every other failure is rethrown for Spring to report to
  * the error handler, which decides whether the caller sees it. When the wrapped cache does not
  * store nulls, a null result is not stored and not reported, and a null {@code put} removes the old
- * entry, so the next call runs the method.
+ * entry, so the next call runs the method. Methods that return a future or a reactive type, served
+ * by {@link #retrieve(Object, Supplier)}, get the same.
  */
 @StratumInternal
 @RequiredArgsConstructor
@@ -95,9 +100,26 @@ public class StratumCache implements Cache {
     return delegate.retrieve(key);
   }
 
+  /**
+   * Returns the cached value in the background or loads it, as {@link #get(Object, Callable)} does:
+   * when the call fails after the loader's future completed, a null the wrapped cache refuses to
+   * store is returned without a report, and a failed write is reported once and the loaded value
+   * returned, so the loader never runs twice. A failure before the load, and the loader's own
+   * failure, are passed on unchanged for Spring to report.
+   *
+   * @param key the key
+   * @param valueLoader loads the value on a miss
+   * @param <T> the value's type
+   * @return the future value
+   */
   @Override
   public <T> CompletableFuture<T> retrieve(Object key, Supplier<CompletableFuture<T>> valueLoader) {
-    return delegate.retrieve(key, valueLoader);
+    var loading = new AtomicReference<@Nullable CompletableFuture<T>>();
+    // Spring's contract: this future is never null.
+    var retrieved =
+        Objects.requireNonNull(delegate.retrieve(key, () -> started(loading, valueLoader)));
+    return retrieved.exceptionallyCompose(
+        failure -> afterFailedRetrieve(key, loading.get(), failure));
   }
 
   /**
@@ -139,6 +161,40 @@ public class StratumCache implements Cache {
   @Override
   public boolean invalidate() {
     return delegate.invalidate();
+  }
+
+  /** Starts the loader and records its future. */
+  private <T> CompletableFuture<T> started(
+      AtomicReference<@Nullable CompletableFuture<T>> loading,
+      Supplier<CompletableFuture<T>> valueLoader) {
+    var load = valueLoader.get();
+    loading.set(load);
+    return load;
+  }
+
+  /**
+   * Turns a failure after a completed load into the loaded value: a refused null unreported, any
+   * other failure, the write's, reported once as a put. Any other failure is passed on.
+   */
+  private <T> CompletableFuture<T> afterFailedRetrieve(
+      Object key, @Nullable CompletableFuture<T> load, Throwable failure) {
+    if (load == null || load.state() != Future.State.SUCCESS) {
+      return CompletableFuture.failedFuture(failure);
+    }
+    var value = load.resultNow();
+    if (!(nullsRejected && value == null)) {
+      errorHandler.handleCachePutError(writeFailure(failure), this, key, value);
+    }
+    return CompletableFuture.completedFuture(value);
+  }
+
+  /** Returns the write's own failure, without the wrapper a dependent future adds. */
+  private RuntimeException writeFailure(Throwable failure) {
+    if (failure instanceof CompletionException wrapper
+        && wrapper.getCause() instanceof RuntimeException cause) {
+      return cause;
+    }
+    return failure instanceof RuntimeException runtime ? runtime : new CompletionException(failure);
   }
 
   /** Returns whether the loader returned a null that the wrapped cache refuses to store. */

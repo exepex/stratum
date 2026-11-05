@@ -15,11 +15,9 @@ failure: it is not counted in `stratum.cache.failures` and logs nothing.
   Redis command, sent in the background with Lettuce, Spring Boot's default Redis client, and is
   counted in `cache.removals`. That includes every
   `@Cacheable` miss whose method returns `null`.
-- **Async and reactive methods with `sync = true`.** A `@Cacheable(sync = true)` method that
-  returns a `CompletableFuture` or a `Mono` that ends with no value is still counted in
-  `stratum.cache.failures` with `operation=get`, logs `SX-CACHE-1002` once per
-  `stratum.cache.warning-interval`, and runs twice. Making these quiet is **planned**. Without
-  `sync`, they behave as above.
+- **Reactive and async methods.** A `Mono` that ends with no value, or a `CompletableFuture` of
+  `null`, is treated the same, with or without `sync = true`
+  ([Reactive and async methods](cache-reactive.md)).
 
 To store `null` results again in Redis, set Spring Boot's key in `application.properties`:
 

@@ -3,13 +3,12 @@ package com.exepex.stratum.cache.autoconfigure;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.cache.CacheConstants;
+import com.exepex.stratum.cache.testsupport.CaffeineLayerContexts;
 import com.exepex.stratum.cache.testsupport.ProductCatalog;
 import com.exepex.stratum.cache.testsupport.RecordingCacheCounters;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.autoconfigure.AutoConfigurations;
-import org.springframework.boot.cache.autoconfigure.CacheAutoConfiguration;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
@@ -22,16 +21,7 @@ class CaffeineNullResultsTest {
 
   /** Spring Boot's Caffeine caches with Stratum's defaults and cache layer. */
   private final ApplicationContextRunner contextRunner =
-      new ApplicationContextRunner()
-          .withPropertyValues("spring.cache.type=caffeine")
-          .withConfiguration(
-              AutoConfigurations.of(
-                  CacheAutoConfiguration.class,
-                  StratumCacheAutoConfiguration.class,
-                  CaffeineCacheAutoConfiguration.class,
-                  CacheLayerAutoConfiguration.class))
-          .withBean(RecordingCacheCounters.class, RecordingCacheCounters::new)
-          .withBean(ProductCatalog.class);
+      CaffeineLayerContexts.caffeineWithLayer().withBean(ProductCatalog.class);
 
   @Test
   @DisplayName("without sync, the method runs on each call and no failure is counted")

@@ -19,14 +19,14 @@ import org.springframework.cache.support.NoOpCache;
 /**
  * Resolves the caches of a cached method: each admitted name is wrapped in one {@link
  * StratumCache}, so its calls are fail-open, its loader runs at most once and a null result is not
- * stored where the cache refuses nulls, with a Redis cache behind the Redis retry gate; Spring
- * Boot's cache metrics measure it from its first use. A cache whose values are stored as JSON is
- * read as each calling method's return type, and a Redis cache's name goes on its command spans.
- * The first {@code stratum.cache.max-caches} distinct names are admitted; a name beyond that is
- * never resolved with the cache manager, so no cache is created for it, and the method runs
- * uncached through one shared no-op cache. The refusal is counted per call as {@code
- * stratum.cache.skips} under {@code _over-limit} and warned once per interval with {@code
- * SX-CACHE-1003}.
+ * stored where the cache refuses nulls, with a Redis cache behind the Redis retry gate and a
+ * Caffeine cache able to serve future and reactive methods; Spring Boot's cache metrics measure it
+ * from its first use. A cache whose values are stored as JSON is read as each calling method's
+ * return type, and a Redis cache's name goes on its command spans. The first {@code
+ * stratum.cache.max-caches} distinct names are admitted; a name beyond that is never resolved with
+ * the cache manager, so no cache is created for it, and the method runs uncached through one shared
+ * no-op cache. The refusal is counted per call as {@code stratum.cache.skips} under {@code
+ * _over-limit} and warned once per interval with {@code SX-CACHE-1003}.
  */
 @StratumInternal
 @Slf4j
@@ -51,8 +51,8 @@ public class StratumCacheResolver implements CacheResolver {
   /** Reports the failed write of a loaded value inside each wrapped cache. */
   private final StratumCacheErrorHandler errorHandler;
 
-  /** The retry gate, value typing and span names, which only Redis caches use. */
-  private final RedisCacheParts redisParts;
+  /** The parts only one kind of cache uses, such as the Redis retry gate. */
+  private final CacheTypeParts typeParts;
 
   /** The one cache every refused name shares: reads miss, writes do nothing, loaders run. */
   private final Cache overLimitCache = new NoOpCache(CacheConstants.OVER_LIMIT);
@@ -84,7 +84,7 @@ public class StratumCacheResolver implements CacheResolver {
   /** Returns a name's cache, as the calling method's typed view where its values need one. */
   private Cache typedFor(String name, CacheOperationInvocationContext<?> context) {
     var cache = cacheFor(name);
-    return typedNames.contains(name) ? redisParts.getTyping().typed(cache, context) : cache;
+    return typedNames.contains(name) ? typeParts.getTyping().typed(cache, context) : cache;
   }
 
   /** Returns the wrapped cache of an admitted name, or the shared no-op cache of a refused one. */
@@ -120,11 +120,11 @@ public class StratumCacheResolver implements CacheResolver {
           "No cache named " + name + " could be resolved by " + cacheManager);
     }
     counters.bindCacheMetrics(cache, cacheManagerName);
-    redisParts.nameOnSpans(name);
-    if (redisParts.getTyping().appliesTo(cache)) {
+    typeParts.nameOnSpans(name);
+    if (typeParts.getTyping().appliesTo(cache)) {
       typedNames.add(name);
     }
-    return new StratumCache(redisParts.gated(cache), errorHandler, rejectsNulls(cache));
+    return new StratumCache(typeParts.adapted(cache), errorHandler, rejectsNulls(cache));
   }
 
   /** Returns whether a cache refuses to store nulls, as Redis does with Stratum's default. */
