@@ -67,11 +67,17 @@ class CacheCommandTimeoutsSpeedTest {
   /** Times the CPU this test's thread uses, so time spent waiting is not counted. */
   private final ThreadMXBean threads = ManagementFactory.getThreadMXBean();
 
+  /** The long-named cache's own timeout, above the global one. */
+  private static final Duration CACHE_TIMEOUT = Duration.ofSeconds(3);
+
   /** Timeouts for one cache with a long name, the most the search may read. */
   private final CacheCommandTimeouts timeouts =
       new CacheCommandTimeouts(
-          new CacheTimeoutSettings(
-              GLOBAL, Map.of("monthly-sales-reports-by-region", Duration.ofSeconds(3)), PREFIX));
+          CacheTimeoutSettings.builder()
+              .global(GLOBAL)
+              .cacheTimeouts(Map.of("monthly-sales-reports-by-region", CACHE_TIMEOUT))
+              .keyPrefix(PREFIX)
+              .build());
 
   /** A GET of the hostile key, as Spring Data sends it. */
   private final Command<byte[], byte[], String> hostileGet =

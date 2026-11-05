@@ -59,7 +59,12 @@ class CacheCommandTimeoutsTest {
 
   /** Returns the timeouts for the given global value and caches, with the prefix above. */
   private CacheCommandTimeouts timeoutsFor(Duration global, Map<String, Duration> cacheTimeouts) {
-    return new CacheCommandTimeouts(new CacheTimeoutSettings(global, cacheTimeouts, PREFIX));
+    return new CacheCommandTimeouts(
+        CacheTimeoutSettings.builder()
+            .global(global)
+            .cacheTimeouts(cacheTimeouts)
+            .keyPrefix(PREFIX)
+            .build());
   }
 
   /** Returns a GET of the key, as Spring Data sends it. */

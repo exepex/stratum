@@ -24,7 +24,7 @@ import org.springframework.core.env.Environment;
  *     empty when unset, or {@code null} with {@code spring.cache.redis.use-key-prefix=false}
  */
 @StratumInternal
-@Builder(access = AccessLevel.PRIVATE)
+@Builder(access = AccessLevel.PACKAGE)
 public record CacheTimeoutSettings(
     Duration global, Map<String, Duration> cacheTimeouts, @Nullable String keyPrefix) {
 
