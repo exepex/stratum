@@ -32,6 +32,14 @@ public class ProductCatalog {
   /** The name of the cache whose loads fail, for a method's own error. */
   public static final String MISSING_PRODUCTS = "missing-products";
 
+  /** The name of the cache of quotes, which a test gives a command timeout below the global one. */
+  public static final String QUOTES = "quotes";
+
+  /**
+   * The name of the cache of reports, which a test gives a command timeout above the global one.
+   */
+  public static final String REPORTS = "reports";
+
   /** How many times a price was really looked up, rather than read from the cache. */
   private final AtomicInteger lookupCount = new AtomicInteger();
 
@@ -111,6 +119,28 @@ public class ProductCatalog {
   public @Nullable String syncedUnpricedPriceOf(String sku) {
     unpricedLookupCount.incrementAndGet();
     return null;
+  }
+
+  /**
+   * Looks up a product's quote, or returns it from the cache {@value #QUOTES}.
+   *
+   * @param sku the product's stock-keeping unit
+   * @return the quote, as text
+   */
+  @Cacheable(QUOTES)
+  public String quoteOf(String sku) {
+    return "quote-of-" + sku;
+  }
+
+  /**
+   * Builds a product's report, or returns it from the cache {@value #REPORTS}.
+   *
+   * @param sku the product's stock-keeping unit
+   * @return the report, as text
+   */
+  @Cacheable(REPORTS)
+  public String reportOf(String sku) {
+    return "report-of-" + sku;
   }
 
   /**

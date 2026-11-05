@@ -2,6 +2,7 @@ package com.exepex.stratum.cache;
 
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
+import java.time.Duration;
 import lombok.experimental.UtilityClass;
 
 /** The property keys and names the cache module uses (ST-ENG-45). */
@@ -32,6 +33,9 @@ public class CacheConstants {
 
   /** The largest value a Redis cache stores. */
   public static final String MAX_VALUE_SIZE = PREFIX + ".max-value-size";
+
+  /** The settings of single caches, as in {@code stratum.cache.caches.reports.command-timeout}. */
+  public static final String CACHES = PREFIX + ".caches";
 
   /** How long Redis caches skip Redis after Redis could not be reached. */
   public static final String REDIS_RETRY_INTERVAL = PREFIX + ".redis-retry-interval";
@@ -174,6 +178,22 @@ public class CacheConstants {
 
   /** The name of the bean that sets Stratum's Redis cache writer: SCAN clears and size limits. */
   public static final String REDIS_CACHE_WRITER = "stratumRedisCacheWriter";
+
+  /** The name of the bean that gives single Redis caches their own time to live. */
+  public static final String CACHE_TIME_TO_LIVE = "stratumCacheTimeToLive";
+
+  /** The name of the bean that gives single Redis caches their own command timeout. */
+  public static final String CACHE_COMMAND_TIMEOUTS = "stratumCacheCommandTimeouts";
+
+  /** The name of the bean that warns when single caches' command timeouts cannot apply. */
+  public static final String CACHE_COMMAND_TIMEOUTS_CHECK = "stratumCacheCommandTimeoutsCheck";
+
+  /** Lettuce's own command timeout, used when {@code spring.data.redis.timeout} is unset. */
+  public static final Duration LETTUCE_DEFAULT_TIMEOUT = Duration.ofSeconds(60);
+
+  /** Spring Data's Lettuce connection factory, named so the check works without Lettuce. */
+  public static final String LETTUCE_CONNECTION_FACTORY =
+      "org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory";
 
   /** The name of the filter that keeps the cache layer's hook eager under lazy initialization. */
   public static final String LAZY_INITIALIZATION_FILTER =

@@ -7,10 +7,10 @@ import com.exepex.stratum.cache.CacheConstants;
 import com.exepex.stratum.cache.RedisRetryGate;
 import com.exepex.stratum.cache.StratumCacheErrorHandler;
 import com.exepex.stratum.cache.it.products.ProductsApplication;
+import com.exepex.stratum.cache.testsupport.PausedRedisSteps;
 import com.exepex.stratum.cache.testsupport.ProductCatalog;
 import com.exepex.stratum.test.LogLineCapture;
 import com.exepex.stratum.test.RedisContainerConfiguration;
-import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.io.IOException;
 import java.time.Duration;
@@ -21,7 +21,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
-import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -102,13 +101,7 @@ class CacheOutageIntegrationTest {
   /** Waits until the caches use Redis again, then empties it, so a test's calls all miss. */
   @BeforeEach
   void startFromEmptyRedis() {
-    await().atMost(RECOVERY_WAIT).until(this::redisInUseAfterOneCall);
-    redis.execute(
-        connection -> {
-          connection.serverCommands().flushDb();
-          return true;
-        },
-        true);
+    PausedRedisSteps.startFromEmptyRedis(catalog, gate, redis);
   }
 
   @Nested
@@ -123,15 +116,18 @@ class CacheOutageIntegrationTest {
       var capture = new LogLineCapture(StratumCacheErrorHandler.class.getName());
       capture.start();
       try {
-        pauseRedis(PAUSE_MILLIS);
+        PausedRedisSteps.pauseRedis(redisContainer, PAUSE_MILLIS);
         var start = System.nanoTime();
-        var first = durationOf(() -> catalog.priceOf(SKU), "price-of-" + SKU);
+        var first = PausedRedisSteps.durationOf(() -> catalog.priceOf(SKU), "price-of-" + SKU);
         var skipped = durationOfCalls(1, () -> catalog.priceOf(SKU), "price-of-" + SKU);
 
         assertThat(first).isBetween(ONE_TIMEOUT_MIN, ONE_TIMEOUT_MAX);
         assertThat(skipped).isLessThan(SKIPPED_CALLS_MAX);
         assertThat(failuresOf(ProductCatalog.PRODUCTS, CacheConstants.OPERATION_GET)).isOne();
-        assertThat(failureCounter(ProductCatalog.PRODUCTS, CacheConstants.OPERATION_PUT)).isNull();
+        assertThat(
+                PausedRedisSteps.failureCounter(
+                    meterRegistry, ProductCatalog.PRODUCTS, CacheConstants.OPERATION_PUT))
+            .isNull();
 
         await().atMost(RECOVERY_WAIT).until(this::secondFailureAfterOneCall);
         assertThat(Duration.ofNanos(System.nanoTime() - start)).isGreaterThan(RETRY_MIN);
@@ -150,9 +146,10 @@ class CacheOutageIntegrationTest {
             + " the rest skip Redis")
     void syncTrueOnlyFirstBurstWaits() throws Exception {
       final var failuresBefore =
-          failuresSoFar(ProductCatalog.SYNCED_PRODUCTS, CacheConstants.OPERATION_GET);
+          PausedRedisSteps.failuresSoFar(
+              meterRegistry, ProductCatalog.SYNCED_PRODUCTS, CacheConstants.OPERATION_GET);
       List<Duration> durations;
-      pauseRedis(SHORT_PAUSE_MILLIS);
+      PausedRedisSteps.pauseRedis(redisContainer, SHORT_PAUSE_MILLIS);
       try {
         durations =
             durationsOf(THREADS, () -> catalog.syncedPriceOf(SKU), "synced-price-of-" + SKU);
@@ -162,7 +159,9 @@ class CacheOutageIntegrationTest {
 
       assertThat(durations)
           .allSatisfy(duration -> assertThat(duration).isLessThan(SLOW_MACHINE_MAX));
-      assertThat(failuresSoFar(ProductCatalog.SYNCED_PRODUCTS, CacheConstants.OPERATION_GET))
+      assertThat(
+              PausedRedisSteps.failuresSoFar(
+                  meterRegistry, ProductCatalog.SYNCED_PRODUCTS, CacheConstants.OPERATION_GET))
           .isBetween(failuresBefore + 1, failuresBefore + THREADS);
     }
 
@@ -182,16 +181,23 @@ class CacheOutageIntegrationTest {
         "the write after a load fails: the call still returns the loaded value, the loader ran"
             + " once, and one put failure is counted")
     void loadedValueSurvivesItsFailedWrite() throws Exception {
-      pauseRedis(SHORT_PAUSE_MILLIS, "WRITE");
+      PausedRedisSteps.pauseRedis(redisContainer, SHORT_PAUSE_MILLIS, "WRITE");
       try {
         var lookupsBefore = catalog.syncedLookups();
         var failuresBefore =
-            failuresSoFar(ProductCatalog.WRITE_TEST_PRODUCTS, CacheConstants.OPERATION_PUT);
+            PausedRedisSteps.failuresSoFar(
+                meterRegistry, ProductCatalog.WRITE_TEST_PRODUCTS, CacheConstants.OPERATION_PUT);
 
-        var duration = durationOf(() -> catalog.writeTestPriceOf(SKU), "synced-price-of-" + SKU);
+        var duration =
+            PausedRedisSteps.durationOf(
+                () -> catalog.writeTestPriceOf(SKU), "synced-price-of-" + SKU);
 
         assertThat(catalog.syncedLookups()).isEqualTo(lookupsBefore + 1);
-        assertThat(failuresSoFar(ProductCatalog.WRITE_TEST_PRODUCTS, CacheConstants.OPERATION_PUT))
+        assertThat(
+                PausedRedisSteps.failuresSoFar(
+                    meterRegistry,
+                    ProductCatalog.WRITE_TEST_PRODUCTS,
+                    CacheConstants.OPERATION_PUT))
             .isEqualTo(failuresBefore + 1);
         // The write after the load is synchronous, so the call waits out one command timeout.
         assertThat(duration).isBetween(ONE_TIMEOUT_MIN, SLOW_MACHINE_MAX);
@@ -199,19 +205,6 @@ class CacheOutageIntegrationTest {
         unpauseRedis();
       }
     }
-  }
-
-  /** Makes one cached call and returns whether Redis caches use Redis. */
-  private boolean redisInUseAfterOneCall() {
-    catalog.priceOf("warm-up");
-    return gate.isAvailable();
-  }
-
-  /** Makes one call, checks it returns the method's real value and returns how long it took. */
-  private Duration durationOf(Supplier<String> call, String expectedValue) {
-    var start = System.nanoTime();
-    assertThat(call.get()).isEqualTo(expectedValue);
-    return Duration.ofNanos(System.nanoTime() - start);
   }
 
   /**
@@ -222,7 +215,8 @@ class CacheOutageIntegrationTest {
       throws InterruptedException, ExecutionException {
     List<Callable<Duration>> calls =
         IntStream.range(0, CALLS)
-            .<Callable<Duration>>mapToObj(index -> () -> durationOf(call, expectedValue))
+            .<Callable<Duration>>mapToObj(
+                index -> () -> PausedRedisSteps.durationOf(call, expectedValue))
             .toList();
     try (var executor = Executors.newFixedThreadPool(threads)) {
       List<Duration> durations = new ArrayList<>();
@@ -247,30 +241,6 @@ class CacheOutageIntegrationTest {
         .tags(CacheConstants.TAG_CACHE, cache, CacheConstants.TAG_OPERATION, operation)
         .counter()
         .count();
-  }
-
-  /** Returns the counter of one operation's failures on one cache, or {@code null} when none. */
-  private @Nullable Counter failureCounter(String cache, String operation) {
-    return meterRegistry
-        .find(CacheConstants.METRIC_FAILURES)
-        .tags(CacheConstants.TAG_CACHE, cache, CacheConstants.TAG_OPERATION, operation)
-        .counter();
-  }
-
-  /** Returns the counted failures of one operation on one cache, or zero when none exist yet. */
-  private double failuresSoFar(String cache, String operation) {
-    var counter = failureCounter(cache, operation);
-    return counter == null ? 0 : counter.count();
-  }
-
-  /**
-   * Pauses Redis, so every command of the paused kind times out instead of answering. The pause
-   * lifts itself after the given time even when a test never unpauses.
-   */
-  private void pauseRedis(long millis, String... mode) throws IOException, InterruptedException {
-    var command = new ArrayList<>(List.of("redis-cli", "CLIENT", "PAUSE", String.valueOf(millis)));
-    command.addAll(List.of(mode));
-    redisContainer.execInContainer(command.toArray(String[]::new));
   }
 
   /** Lets Redis answer again; always runs, so a failed test never leaves a paused Redis behind. */

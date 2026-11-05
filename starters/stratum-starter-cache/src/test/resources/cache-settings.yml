@@ -7,6 +7,8 @@ stratum:
     caches:
       reports:
         max-value-size: 5MB
+        time-to-live: 1h
+        command-timeout: 3s
     serialization:
       allowed-packages:
         - com.acme.shared

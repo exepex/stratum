@@ -9,6 +9,7 @@ import com.exepex.stratum.cache.JsonValuesCustomizer;
 import com.exepex.stratum.cache.TypedCacheValues;
 import com.exepex.stratum.cache.testsupport.ProductCatalog;
 import com.exepex.stratum.core.error.StratumException;
+import java.time.Duration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -79,6 +80,26 @@ class JsonValuesAutoConfigurationTest {
               context ->
                   assertThat(valueReaderOf(context, ProductCatalog.PRODUCTS))
                       .isSameAs(context.getBean(CacheJsonValues.class)));
+    }
+
+    @Test
+    @DisplayName(
+        "a cache with its own time to live keeps the JSON values, whichever customizer runs last")
+    void timeToLiveKeepsJson() {
+      contextRunner
+          .withPropertyValues(
+              CacheConstants.CACHES + "." + ProductCatalog.PRODUCTS + ".time-to-live=1h")
+          .run(context -> assertOwnTimeToLiveWithJson(context));
+    }
+
+    /** Checks that the products cache has its own time to live and still reads JSON. */
+    private void assertOwnTimeToLiveWithJson(AssertableApplicationContext context) {
+      var cache =
+          (RedisCache) context.getBean(CacheManager.class).getCache(ProductCatalog.PRODUCTS);
+      assertThat(cache.getCacheConfiguration().getTtlFunction().getTimeToLive("any-key", null))
+          .isEqualTo(Duration.ofHours(1));
+      assertThat(valueReaderOf(context, ProductCatalog.PRODUCTS))
+          .isSameAs(context.getBean(CacheJsonValues.class));
     }
 
     @Test

@@ -12,20 +12,15 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
-import com.exepex.stratum.cache.testsupport.AdjustableClock;
-import com.exepex.stratum.cache.testsupport.RecordingCacheCounters;
+import com.exepex.stratum.cache.testsupport.GatedCacheTestBase;
 import com.exepex.stratum.cache.testsupport.RedisFailureTestData;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Supplier;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.springframework.cache.Cache;
 import org.springframework.cache.Cache.ValueRetrievalException;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.QueryTimeoutException;
@@ -33,35 +28,12 @@ import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.cache.RedisCacheWriter;
 
 @DisplayName("RedisGatedCache calls Redis only when the gate lets it")
-class RedisGatedCacheTest {
-
-  /** The key the tests use. */
-  private static final String KEY = "sku-1";
+class RedisGatedCacheTest extends GatedCacheTestBase {
 
   /** The value the loaders return. */
   private static final String VALUE = "price-of-sku-1";
 
-  /** How long Redis is skipped. */
-  private static final Duration RETRY_INTERVAL = Duration.ofSeconds(5);
-
-  private final AdjustableClock clock = new AdjustableClock(Instant.parse("2026-11-04T08:00:00Z"));
-
-  private final RecordingCacheCounters counters = new RecordingCacheCounters();
-
-  private final RedisRetryGate gate =
-      new RedisRetryGate(
-          RETRY_INTERVAL, clock, new WarningThrottle(Duration.ofMinutes(1), clock, 1), counters);
-
-  /** The Redis cache behind the gate. */
-  private final Cache redis = mock(Cache.class);
-
-  private final RedisGatedCache cache = new RedisGatedCache(redis, gate);
-
-  /** Gives the Redis cache its name, as every cache has one. */
-  @BeforeEach
-  void nameTheCache() {
-    when(redis.getName()).thenReturn("products");
-  }
+  private final RedisGatedCache cache = new RedisGatedCache(redis, gate, true);
 
   @Nested
   @DisplayName("while Redis is in use")
@@ -116,7 +88,7 @@ class RedisGatedCacheTest {
     /** Makes the calls skip Redis, as after a failed connect. */
     private void skipRedis() {
       gate.admits();
-      gate.failed(RedisFailureTestData.CONNECT_FAILED);
+      gate.failed(RedisFailureTestData.CONNECT_FAILED, true);
     }
 
     @Test
@@ -297,7 +269,7 @@ class RedisGatedCacheTest {
       when(writer.retrieve(any(), any(), any()))
           .thenReturn(CompletableFuture.completedFuture(null));
       return new RedisGatedCache(
-          RedisCacheManager.builder(writer).build().getCache("products"), gate);
+          RedisCacheManager.builder(writer).build().getCache("products"), gate, true);
     }
 
     @Test

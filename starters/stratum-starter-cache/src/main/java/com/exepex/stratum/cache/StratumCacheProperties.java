@@ -8,8 +8,10 @@ import jakarta.validation.constraints.NotBlank;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.Builder;
 import org.jspecify.annotations.Nullable;
@@ -145,6 +147,47 @@ public record StratumCacheProperties(
         && redisRetryInterval.compareTo(MAX_REDIS_RETRY_INTERVAL) <= 0;
   }
 
+  /**
+   * Returns the caches that set their own {@code time-to-live}, each with its time to live.
+   *
+   * @return the time to live of each cache that sets one; empty when none does
+   */
+  public Map<String, Duration> timesToLive() {
+    return ownDurations(CacheSettings::timeToLive);
+  }
+
+  /**
+   * Returns the caches that set their own {@code command-timeout}, each with its timeout.
+   *
+   * @return the command timeout of each cache that sets one; empty when none does
+   */
+  public Map<String, Duration> commandTimeouts() {
+    return ownDurations(CacheSettings::commandTimeout);
+  }
+
+  /**
+   * Returns whether every time to live and command timeout of a single cache is above 0. Validation
+   * reports one that is not under {@code stratum.cache.durations-positive}.
+   *
+   * @return whether every duration is above 0
+   */
+  @AssertTrue
+  public boolean isDurationsPositive() {
+    return caches.values().stream()
+        .flatMap(settings -> Stream.of(settings.timeToLive(), settings.commandTimeout()))
+        .allMatch(duration -> duration == null || duration.isPositive());
+  }
+
+  /** Returns each cache's own duration of one kind, leaving out the caches that set none. */
+  private Map<String, Duration> ownDurations(Function<CacheSettings, @Nullable Duration> duration) {
+    return caches.entrySet().stream()
+        .filter(entry -> duration.apply(entry.getValue()) != null)
+        .collect(
+            Collectors.toUnmodifiableMap(
+                Map.Entry::getKey,
+                entry -> Objects.requireNonNull(duration.apply(entry.getValue()))));
+  }
+
   /** Returns a cache's own size limit in bytes, or the one for every cache. */
   private long sizeFor(
       String cacheName, Function<CacheSettings, @Nullable DataSize> limit, DataSize everyCache) {
@@ -174,7 +217,17 @@ public record StratumCacheProperties(
    * @param maxKeySize The longest key of this cache stored as it is. Above 0.
    * @param maxValueSize The largest value this cache stores, such as 5MB for a cache of large
    *     reports. Above 0.
+   * @param timeToLive How long an entry of this Redis cache lives, such as 30s for prices. Above 0.
+   *     Defaults to spring.cache.redis.time-to-live.
+   * @param commandTimeout How long a Redis command of this cache waits for its answer, higher or
+   *     lower than spring.data.redis.timeout, such as 3s for large reports. Above 0, and at most
+   *     the larger of 10s and spring.data.redis.timeout. Needs Lettuce. Defaults to
+   *     spring.data.redis.timeout.
    */
   @Builder(toBuilder = true)
-  public record CacheSettings(@Nullable DataSize maxKeySize, @Nullable DataSize maxValueSize) {}
+  public record CacheSettings(
+      @Nullable DataSize maxKeySize,
+      @Nullable DataSize maxValueSize,
+      @Nullable Duration timeToLive,
+      @Nullable Duration commandTimeout) {}
 }

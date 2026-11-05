@@ -1,7 +1,9 @@
 package com.exepex.stratum.cache;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.exepex.stratum.cache.testsupport.AdjustableClock;
 import com.exepex.stratum.cache.testsupport.RecordingCacheCounters;
@@ -10,6 +12,7 @@ import com.exepex.stratum.test.LogLineCapture;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -18,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.cache.concurrent.ConcurrentMapCache;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.cache.RedisCache;
 
 @DisplayName("RedisRetryGate makes Redis caches skip Redis for a while after it fails")
@@ -38,7 +42,11 @@ class RedisRetryGateTest {
 
   private final RedisRetryGate gate =
       new RedisRetryGate(
-          RETRY_INTERVAL, clock, new WarningThrottle(WARNING_INTERVAL, clock, 1), counters);
+          RETRY_INTERVAL,
+          clock,
+          new WarningThrottle(WARNING_INTERVAL, clock, 1),
+          counters,
+          Set.of());
 
   private final LogLineCapture warnings = new LogLineCapture(RedisRetryGate.class.getName());
 
@@ -107,7 +115,7 @@ class RedisRetryGateTest {
     void callsSkipRedis(RuntimeException failure) {
       reachRedis();
 
-      gate.failed(failure);
+      gate.failed(failure, true);
 
       assertThat(gate.admits()).isFalse();
       assertThat(gate.usesRedis()).isFalse();
@@ -122,7 +130,7 @@ class RedisRetryGateTest {
     @DisplayName("after the retry interval one call tries again, and a success puts Redis back")
     void oneCallRetries() {
       reachRedis();
-      gate.failed(RedisFailureTestData.CONNECT_FAILED);
+      gate.failed(RedisFailureTestData.CONNECT_FAILED, true);
 
       clock.advance(RETRY_INTERVAL.minusMillis(1));
       assertThat(gate.admits()).isFalse();
@@ -140,11 +148,11 @@ class RedisRetryGateTest {
     @DisplayName("a failed retry skips Redis again and counts, but warns only once per interval")
     void failedRetryCountsAgain() {
       reachRedis();
-      gate.failed(RedisFailureTestData.CONNECT_FAILED);
+      gate.failed(RedisFailureTestData.CONNECT_FAILED, true);
       clock.advance(RETRY_INTERVAL);
       assertThat(gate.admits()).isTrue();
 
-      gate.failed(RedisFailureTestData.REJECTED);
+      gate.failed(RedisFailureTestData.REJECTED, true);
 
       assertThat(gate.admits()).isFalse();
       assertThat(counters.redisConnectFailures()).isEqualTo(2);
@@ -155,10 +163,10 @@ class RedisRetryGateTest {
     @DisplayName("a late failure while calls skip Redis neither extends the wait nor counts")
     void lateFailureChangesNothing() {
       reachRedis();
-      gate.failed(RedisFailureTestData.CONNECT_FAILED);
+      gate.failed(RedisFailureTestData.CONNECT_FAILED, true);
       clock.advance(RETRY_INTERVAL.minusSeconds(1));
 
-      gate.failed(RedisFailureTestData.DISCONNECTED);
+      gate.failed(RedisFailureTestData.DISCONNECTED, true);
       clock.advance(Duration.ofSeconds(1));
 
       assertThat(gate.admits()).isTrue();
@@ -175,12 +183,41 @@ class RedisRetryGateTest {
     void callsSkipWithoutConnectFailure() {
       reachRedis();
 
-      gate.failed(RedisFailureTestData.TIMED_OUT);
+      gate.failed(RedisFailureTestData.TIMED_OUT, true);
 
       assertThat(gate.admits()).isFalse();
       assertThat(gate.isAvailable()).isFalse();
       assertThat(counters.redisConnectFailures()).isZero();
       assertThat(warnings.lines()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName(
+        "a cache whose own timeout is below the global one times out, and calls keep using Redis")
+    void shortTimeoutKeepsRedis() {
+      reachRedis();
+
+      gate.failed(RedisFailureTestData.TIMED_OUT, false);
+
+      assertThat(gate.usesRedis()).isTrue();
+      assertThat(gate.isAvailable()).isTrue();
+      assertThat(warnings.lines()).isEmpty();
+    }
+
+    @Test
+    @DisplayName(
+        "a trial ended by such a timeout neither puts Redis back nor waits: the next call tries")
+    void shortTimeoutEndsTrial() {
+      reachRedis();
+      gate.failed(RedisFailureTestData.CONNECT_FAILED, true);
+      clock.advance(RETRY_INTERVAL);
+      assertThat(gate.admits()).isTrue();
+
+      gate.failed(RedisFailureTestData.TIMED_OUT, false);
+
+      assertThat(gate.usesRedis()).isFalse();
+      assertThat(gate.isAvailable()).isFalse();
+      assertThat(gate.admits()).isTrue();
     }
   }
 
@@ -192,13 +229,13 @@ class RedisRetryGateTest {
     @DisplayName("calls keep using Redis, and a trial with that answer puts Redis back")
     void redisWasReached() {
       reachRedis();
-      gate.failed(RedisFailureTestData.ANSWERED);
+      gate.failed(RedisFailureTestData.ANSWERED, true);
       assertThat(gate.usesRedis()).isTrue();
 
-      gate.failed(RedisFailureTestData.CONNECT_FAILED);
+      gate.failed(RedisFailureTestData.CONNECT_FAILED, true);
       clock.advance(RETRY_INTERVAL);
       assertThat(gate.admits()).isTrue();
-      gate.failed(RedisFailureTestData.ANSWERED);
+      gate.failed(RedisFailureTestData.ANSWERED, true);
 
       assertThat(gate.usesRedis()).isTrue();
       assertThat(warnings.lines()).hasSize(1);
@@ -212,7 +249,32 @@ class RedisRetryGateTest {
     @Test
     @DisplayName("a Redis cache is gated")
     void redisCacheIsGated() {
-      assertThat(gate.gated(mock(RedisCache.class))).isInstanceOf(RedisGatedCache.class);
+      var redisCache = mock(RedisCache.class);
+      when(redisCache.getName()).thenReturn("products");
+
+      assertThat(gate.gated(redisCache)).isInstanceOf(RedisGatedCache.class);
+    }
+
+    @Test
+    @DisplayName(
+        "a cache whose own command timeout is below the global one never makes Redis skipped")
+    void shortTimeoutCacheLeavesGateShut() {
+      var shortTimeoutGate =
+          new RedisRetryGate(
+              RETRY_INTERVAL,
+              clock,
+              new WarningThrottle(WARNING_INTERVAL, clock, 1),
+              counters,
+              Set.of("quotes"));
+      var redisQuotes = mock(RedisCache.class);
+      when(redisQuotes.getName()).thenReturn("quotes");
+      when(redisQuotes.get("sku-1")).thenThrow(RedisFailureTestData.TIMED_OUT);
+      var gated = shortTimeoutGate.gated(redisQuotes);
+      gated.get("sku-2");
+
+      assertThatExceptionOfType(DataAccessException.class).isThrownBy(() -> gated.get("sku-1"));
+
+      assertThat(shortTimeoutGate.usesRedis()).isTrue();
     }
 
     @Test

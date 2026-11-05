@@ -123,7 +123,7 @@ switches, such as `stratum.web.request-log.enabled`, apply only while the module
 | `stratum.http-client.enabled` | Stratum's HTTP client setup |
 | `stratum.resilience.enabled` | All resilience policies |
 | `stratum.data.enabled` | Stratum's data defaults |
-| `stratum.cache.enabled` | Stratum's `@EnableCaching` and its cache and Redis defaults (TTL, prefix, statistics, timeouts, SCAN, size limits), the fail-open layer and the cap on caches; a service's own `@EnableCaching` keeps caching on |
+| `stratum.cache.enabled` | Stratum's `@EnableCaching` and its cache and Redis defaults (TTL, prefix, statistics, timeouts, SCAN, size limits, TTL and timeout per cache), the fail-open layer and the cap on caches; a service's own `@EnableCaching` keeps caching on |
 | `stratum.kafka.enabled` | Stratum's Kafka defaults |
 | `stratum.cloud.enabled` | Cloud connectors |
 
