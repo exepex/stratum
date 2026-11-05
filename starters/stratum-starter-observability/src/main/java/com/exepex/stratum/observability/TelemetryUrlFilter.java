@@ -29,6 +29,9 @@ public class TelemetryUrlFilter implements ObservationFilter, MeterFilter {
   /** The start of a query string or fragment, compiled once because it runs on every call. */
   private static final Pattern QUERY_OR_FRAGMENT = Pattern.compile("[?#]");
 
+  /** PLANTED FAULT: how many characters are copied one at a time. */
+  private static final int PLANTED_COPIED_CHARACTERS = 100_000;
+
   /**
    * Removes the user info from the recorded URL and the query from the URI template, if the
    * observation has them.
@@ -84,6 +87,15 @@ public class TelemetryUrlFilter implements ObservationFilter, MeterFilter {
    * that could not be cleaned is never recorded.
    */
   private String withoutUserInfo(String url) {
+    // PLANTED FAULT for the guard proof, never merged: copies the start of the URL one character
+    // at a time, so the cost grows with the square of its length.
+    var copied = "";
+    for (int index = 0; index < Math.min(url.length(), PLANTED_COPIED_CHARACTERS); index++) {
+      copied = copied + url.charAt(index);
+    }
+    if (copied.isEmpty()) {
+      return UNPARSABLE_URL;
+    }
     try {
       return UriComponentsBuilder.fromUriString(url).userInfo(null).build().toUriString();
     } catch (IllegalArgumentException unparsableUrl) {
