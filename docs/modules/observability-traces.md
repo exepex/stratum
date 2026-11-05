@@ -65,8 +65,31 @@ way Spring makes HTTP client spans and metrics.
 > or query string. Trace backends store the URL as it is, and so do proxies and access logs on the
 > way. Send such values in a header or the request body. When a call fails, Spring's error message
 > also names the URL with its user info, such as
-> `I/O error on GET request for "https://user:secret@partner.com/rates"`, and the span records that
-> message.
+> `I/O error on GET request for "https://user:secret@partner.com/rates"`. Exported spans do not carry that
+> message ([errors on spans](#errors-on-spans)), but your logs do if your code logs the exception.
+
+## Errors on spans
+
+Spans are for following a request across services, not for logging. An exception's message can
+hold personal data, such as a customer's email address, so Stratum sends no exception data to the
+trace backend:
+
+| Recorded by Spring and OpenTelemetry | Sent with the span |
+| --- | --- |
+| Status `ERROR` | Kept, so a backend can still find and count failed spans |
+| The status description, which is the exception's message | Removed |
+| The `exception` event, with the exception's type, message and stack trace | Removed |
+| The `exception` attribute (the type, or `none`) and, with Spring's OpenTelemetry conventions, `error.type` | Removed, on every span |
+
+The exception's details belong in your logs. Each log line carries the trace ID, so a failed span
+leads to its log lines in your log backend. Metrics are not changed: `http.server.requests` and
+the other timers keep their `exception` or `error` tag.
+
+Stratum removes this data when the spans are sent, from every exporter that Spring Boot's span
+processor uses, your own `SpanExporter` beans included, and from spans made with the OpenTelemetry
+API directly. Until then, a span waiting in the queue still holds its exception. Two kinds of code
+see spans before Stratum removes the data, or without it: a Micrometer `SpanReporter` bean, and a
+`SpanProcessor` bean of your own that sends spans through an exporter it holds itself.
 
 ## Sampling
 

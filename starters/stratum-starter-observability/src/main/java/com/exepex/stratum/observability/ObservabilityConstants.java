@@ -3,6 +3,7 @@ package com.exepex.stratum.observability;
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import java.util.List;
+import java.util.Set;
 import lombok.experimental.UtilityClass;
 
 /** The property keys, tag names and span attributes the observability module uses (ST-ENG-45). */
@@ -136,6 +137,18 @@ public class ObservabilityConstants {
    */
   public static final String URI_COMPONENTS_BUILDER =
       "org.springframework.web.util.UriComponentsBuilder";
+
+  /**
+   * The span attributes that hold an exception's type: Spring's {@code exception} and, with its
+   * OpenTelemetry conventions, {@code error.type}. Spans never carry them; metrics keep them.
+   */
+  public static final Set<String> EXCEPTION_ATTRIBUTES = Set.of("exception", "error.type");
+
+  /** The span event that holds an exception's type, message and stack trace. */
+  public static final String EXCEPTION_EVENT = "exception";
+
+  /** The bean that keeps exception data out of spans; a bean of this name replaces it. */
+  public static final String EXCEPTION_FREE_SPANS = "stratumExceptionFreeSpans";
 
   /** The name of the timer and span of every run of linked work. */
   public static final String LINKED_WORK_OBSERVATION = "stratum.linked.work";

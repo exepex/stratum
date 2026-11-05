@@ -7,6 +7,7 @@ import com.exepex.stratum.core.executor.ContextCarryingExecutorsConfiguration;
 import com.exepex.stratum.core.properties.StratumCustomizers;
 import com.exepex.stratum.core.reactor.ReactorOperatorContextPropagation;
 import com.exepex.stratum.observability.CorrelationIdRecorder;
+import com.exepex.stratum.observability.ExceptionFreeSpans;
 import com.exepex.stratum.observability.JmsBeanObserver;
 import com.exepex.stratum.observability.JmsListenerContainerObserver;
 import com.exepex.stratum.observability.MetricTagGuard;
@@ -91,6 +92,21 @@ public final class ObservabilityAutoConfiguration {
   public MetricTagGuard metricTagGuard(Environment environment) {
     var tags = ObservabilityProperties.resolve(environment).tags();
     return new MetricTagGuard(tags.extraForbidden(), tags.allowed());
+  }
+
+  /**
+   * Keeps the exception's type, message and stack trace out of every span the service sends. A
+   * service replaces it with a bean of the same name.
+   *
+   * @return the post-processor
+   */
+  @Bean(ObservabilityConstants.EXCEPTION_FREE_SPANS)
+  @Fallback
+  @ConditionalOnMissingBean(name = ObservabilityConstants.EXCEPTION_FREE_SPANS)
+  // Static, because Spring creates post-processors before other beans: an instance method would
+  // create this configuration that early, and its constructor checks the customizer beans.
+  public static ExceptionFreeSpans exceptionFreeSpans() {
+    return new ExceptionFreeSpans();
   }
 
   /**
