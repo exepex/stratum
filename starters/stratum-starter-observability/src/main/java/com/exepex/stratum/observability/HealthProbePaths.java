@@ -80,7 +80,7 @@ public final class HealthProbePaths {
                         ObservabilityConstants.HEALTH_ENDPOINT_ID),
                 SLASH);
     var probePaths =
-        environment.getProperty(ObservabilityConstants.PROBE_ADDITIONAL_PATHS, Boolean.class, false)
+        Boolean.parseBoolean(environment.getProperty(ObservabilityConstants.PROBE_ADDITIONAL_PATHS))
             ? ObservabilityConstants.PROBE_PATHS.stream().map(serverBase::concat)
             : Stream.<String>empty();
     var groupPaths =
@@ -104,7 +104,10 @@ public final class HealthProbePaths {
    * or empty, so a path can follow it.
    */
   private static String basePath(String path) {
-    var trimmed = StringUtils.trimTrailingCharacter(path, SLASH);
-    return trimmed.isEmpty() || trimmed.charAt(0) == SLASH ? trimmed : SLASH + trimmed;
+    var withoutTrailing =
+        path.endsWith(String.valueOf(SLASH)) ? path.substring(0, path.length() - 1) : path;
+    return withoutTrailing.isEmpty() || withoutTrailing.startsWith(String.valueOf(SLASH))
+        ? withoutTrailing
+        : SLASH + withoutTrailing;
   }
 }
