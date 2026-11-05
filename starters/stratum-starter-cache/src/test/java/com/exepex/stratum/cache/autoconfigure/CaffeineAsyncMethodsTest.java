@@ -111,10 +111,14 @@ class CaffeineAsyncMethodsTest {
             IntStream.range(0, CALLERS)
                 .mapToObj(caller -> executor.submit(() -> catalog.slowPriceOf(SKU)))
                 .toList();
-        await()
-            .atMost(CALLERS_WAIT)
-            .until(() -> callers.size() == CALLERS && callers.stream().allMatch(this::isWaiting));
-        catalog.releaseSlowLookups();
+        // Release in finally, so a failed wait cannot leave the executor's close() hanging.
+        try {
+          await()
+              .atMost(CALLERS_WAIT)
+              .until(() -> callers.size() == CALLERS && callers.stream().allMatch(this::isWaiting));
+        } finally {
+          catalog.releaseSlowLookups();
+        }
 
         // A loop rather than a stream: Future.get throws checked exceptions.
         for (var price : prices) {
