@@ -116,7 +116,7 @@ before a Spring Boot auto-configuration.
 | `stratum.cache.caches.<name>.max-key-size` | data size, above 0 | `max-key-size` | The key limit of the cache `<name>`. |
 | `stratum.cache.caches.<name>.max-value-size` | data size, above 0 | `max-value-size` | The value limit of the cache `<name>`, such as `5MB` for a cache of large reports. |
 
-A value out of range stops startup with `SX-CORE-1003`, which names the key.
+A value out of range stops startup with `SX-CORE-1003`, which names the key. A size of 0 or less, in any of the four size keys and for any cache, is reported as `stratum.cache.sizes-positive` instead.
 
 Spring Boot properties this module gives a default (your values win):
 
