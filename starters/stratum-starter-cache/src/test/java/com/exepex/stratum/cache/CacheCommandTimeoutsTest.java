@@ -108,7 +108,8 @@ class CacheCommandTimeoutsTest {
               Duration.ZERO, CACHE_TIMEOUTS, new CacheKeyMatcher(PREFIX, CACHE_TIMEOUTS.keySet()));
 
       assertThat(noGlobalTimeout.getTimeout(get("session-42"))).isZero();
-      assertThat(noGlobalTimeout.getTimeout(get(REPORTS_KEY))).isEqualTo(REPORTS_TIMEOUT.toMillis());
+      assertThat(noGlobalTimeout.getTimeout(get(REPORTS_KEY)))
+          .isEqualTo(REPORTS_TIMEOUT.toMillis());
     }
 
     @Test
