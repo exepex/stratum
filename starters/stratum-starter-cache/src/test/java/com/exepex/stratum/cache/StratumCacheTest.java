@@ -11,6 +11,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.cache.Cache;
 import org.springframework.cache.caffeine.CaffeineCache;
 
@@ -90,11 +92,14 @@ class StratumCacheTest {
   @DisplayName("when the loader itself fails")
   class LoaderFails {
 
-    @Test
-    @DisplayName("the method's own error is rethrown unchanged and the handler is untouched")
-    void rethrowsLoaderError() {
+    @ParameterizedTest(name = "nulls refused: {0}")
+    @ValueSource(booleans = {false, true})
+    @DisplayName(
+        "the method's own error is rethrown unchanged and the handler is untouched,"
+            + " whether nulls are refused or not")
+    void rethrowsLoaderError(boolean nullsRejected) {
       var healthy = new StubCache(ProductCatalog.PRODUCTS);
-      var cache = new StratumCache(healthy, handler, false);
+      var cache = new StratumCache(healthy, handler, nullsRejected);
       var methodError = new IllegalStateException("no price");
 
       assertThatThrownBy(

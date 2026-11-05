@@ -442,7 +442,7 @@ Stratum's Redis writer bounds the bytes of each entry, for every cache, however 
 Not covered: a cache manager or Redis cache writer of your own ([Customize](#customize)), and a
 key prefix of your own (a `CacheKeyPrefix`) that leaves out `<cache>::` or is longer than
 `max-key-size`. With such a prefix, a hashed key is stored as `sha256:<hex>` alone, which `allEntries` does not clear; it expires with its time to
-live. Caches other than Redis have no size limits.
+live. Caches other than Redis have no byte limits.
 
 ### Planned
 
