@@ -58,6 +58,7 @@ public final class CacheKeyMatcher {
     }
     var nameStart = key.position() + keyPrefix.length;
     var lastSeparator = Math.min(key.limit() - 1, nameStart + longestName + 1);
+    // A loop rather than a stream: it reads two neighbouring bytes and stops at the first match.
     for (var index = nameStart + 1; index < lastSeparator; index++) {
       if (key.get(index) == SEPARATOR && key.get(index + 1) == SEPARATOR) {
         return knownName(key, nameStart, index);
@@ -72,6 +73,8 @@ public final class CacheKeyMatcher {
     if (key.limit() - start < prefix.length) {
       return false;
     }
+    // A loop rather than a stream: a byte[] has no stream, and the check stops at the first
+    // difference.
     for (var index = 0; index < prefix.length; index++) {
       if (key.get(start + index) != prefix[index]) {
         return false;
