@@ -186,7 +186,8 @@ class BaggageAllowListIntegrationTest {
      */
     private void callBothClientsWithBaggage() {
       try (var _ =
-              tracer.createBaggageInScope(LoggingContextConstants.CORRELATION_ID, MessageTraceChecks.ORDER_CORRELATION_ID);
+              tracer.createBaggageInScope(
+                  LoggingContextConstants.CORRELATION_ID, MessageTraceChecks.ORDER_CORRELATION_ID);
           var _ = tracer.createBaggageInScope(BaggageTestData.REMOTE_FIELD, "t-1");
           var _ = tracer.createBaggageInScope("evil", "SECRET");
           var _ = tracer.createBaggageInScope("CORRELATIONID", "leak")) {
