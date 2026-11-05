@@ -128,13 +128,16 @@ public final class RedisCacheWriterAutoConfiguration {
 
   /**
    * Creates the check that warns, once at startup, when caches set their own command timeout but
-   * the service's Redis client is not Lettuce, such as Jedis: then those timeouts are ignored.
+   * the service's Redis client is not Lettuce, such as Jedis: then those timeouts are ignored. A
+   * service replaces it with a bean of the same name.
    *
    * @param connectionFactory the connection to Redis
    * @param environment the service's environment, from which the settings are resolved
    * @return the check, which runs once every bean is created
    */
   @Bean(CacheConstants.CACHE_COMMAND_TIMEOUTS_CHECK)
+  @Fallback
+  @ConditionalOnMissingBean(name = CacheConstants.CACHE_COMMAND_TIMEOUTS_CHECK)
   @ConditionalOnBean(RedisConnectionFactory.class)
   public CacheCommandTimeoutsCheck stratumCacheCommandTimeoutsCheck(
       RedisConnectionFactory connectionFactory, Environment environment) {

@@ -71,6 +71,8 @@ service, and a cache without its own value, still times out at the global value.
   command-timeout; this also bounds every Redis connect handshake`. That is why a cache's value is
   at most 10 seconds; a higher one stops startup with `SX-CORE-1003`, naming the key. Raising
   `spring.data.redis.timeout` above 10 seconds lifts this limit to its own value.
+- **Values count in whole milliseconds.** Lettuce counts in milliseconds, so `1500us` waits 1 ms,
+  and a value below 1 ms waits 1 ms, never 0, which Lettuce reads as no timeout.
 - **`spring.data.redis.connect-timeout` stays one value for the service**, because all caches share
   one connection.
 - **Clears and pings use the global value.** A clear finds keys with SCAN, which carries no key of
@@ -83,8 +85,9 @@ service, and a cache without its own value, still times out at the global value.
 
 ## Customize
 
-- A bean named `stratumCacheTimeToLive` replaces Stratum's time to live customizer, and a bean named
-  `stratumCacheCommandTimeouts` replaces Stratum's timeouts.
+- A bean named `stratumCacheTimeToLive` replaces Stratum's time to live customizer, a bean named
+  `stratumCacheCommandTimeouts` replaces Stratum's timeouts, and a bean named
+  `stratumCacheCommandTimeoutsCheck` replaces the check that warns when the client is not Lettuce.
 - Your own `LettuceClientConfigurationBuilderCustomizer` and `LettuceClientOptionsBuilderCustomizer`
   beans run after Stratum's, so they win. One that sets `commandTimeout` sets how long Spring Data
   waits, so a cache value above it is cut at that value. One that sets its own `timeoutOptions`

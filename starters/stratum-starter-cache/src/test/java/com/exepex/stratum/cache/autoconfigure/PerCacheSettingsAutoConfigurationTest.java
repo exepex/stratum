@@ -14,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.cache.autoconfigure.CacheAutoConfiguration;
 import org.springframework.boot.cache.autoconfigure.RedisCacheManagerBuilderCustomizer;
@@ -218,6 +219,25 @@ class PerCacheSettingsAutoConfigurationTest {
                 assertThat(warnings.onlyLine().getFormattedMessage())
                     .contains("[reports]")
                     .contains("Lettuce");
+              });
+    }
+
+    @Test
+    @DisplayName("a service's bean of the same name replaces the check, which then never warns")
+    void backsOffForServiceBean() {
+      SmartInitializingSingleton serviceCheck = () -> {};
+      otherClient()
+          .withPropertyValues(REPORTS_COMMAND_TIMEOUT_KEY)
+          .withBean(
+              CacheConstants.CACHE_COMMAND_TIMEOUTS_CHECK,
+              SmartInitializingSingleton.class,
+              () -> serviceCheck)
+          .run(
+              context -> {
+                assertThat(context)
+                    .getBean(CacheConstants.CACHE_COMMAND_TIMEOUTS_CHECK)
+                    .isSameAs(serviceCheck);
+                assertThat(warnings.lines()).isEmpty();
               });
     }
 

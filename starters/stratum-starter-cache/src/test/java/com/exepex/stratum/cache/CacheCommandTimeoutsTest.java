@@ -34,8 +34,14 @@ class CacheCommandTimeoutsTest {
   /** The timeout of the fast cache, below the global one. */
   private static final Duration QUOTES_TIMEOUT = Duration.ofMillis(200);
 
+  /** A cache timeout shorter than the 1 ms Lettuce counts in, in ns. */
+  private static final long SUB_MILLISECOND_NANOS = 500_000;
+
   /** The cache with a timeout above the global one. */
   private static final String REPORTS = "reports";
+
+  /** A key of the reports cache, as Spring Data writes it. */
+  private static final String REPORTS_KEY = "orders:reports::42";
 
   /** The key prefix of the service. */
   private static final String PREFIX = "orders:";
@@ -67,10 +73,17 @@ class CacheCommandTimeoutsTest {
     @Test
     @DisplayName("a command of a cache with its own timeout gets that timeout, higher or lower")
     void cacheCommandGetsOwnTimeout() {
-      assertThat(timeouts.getTimeout(get("orders:reports::42")))
-          .isEqualTo(REPORTS_TIMEOUT.toMillis());
+      assertThat(timeouts.getTimeout(get(REPORTS_KEY))).isEqualTo(REPORTS_TIMEOUT.toMillis());
       assertThat(timeouts.getTimeout(get("orders:quotes::42")))
           .isEqualTo(QUOTES_TIMEOUT.toMillis());
+    }
+
+    @Test
+    @DisplayName("a cache timeout below 1 ms gets 1 ms, never 0, which would wait forever")
+    void belowOneMillisecondGetsOne() {
+      var subMillisecond = timeoutsFor(Map.of(REPORTS, Duration.ofNanos(SUB_MILLISECOND_NANOS)));
+
+      assertThat(subMillisecond.getTimeout(get(REPORTS_KEY))).isOne();
     }
 
     @Test
@@ -188,7 +201,7 @@ class CacheCommandTimeoutsTest {
     void allowsCap() {
       var atCap = timeoutsFor(Map.of(REPORTS, CAP));
 
-      assertThat(atCap.getTimeout(get("orders:reports::42"))).isEqualTo(CAP.toMillis());
+      assertThat(atCap.getTimeout(get(REPORTS_KEY))).isEqualTo(CAP.toMillis());
     }
 
     @Test
@@ -199,7 +212,7 @@ class CacheCommandTimeoutsTest {
           new CacheCommandTimeouts(
               HIGH_GLOBAL, cacheTimeouts, new CacheKeyMatcher(PREFIX, cacheTimeouts.keySet()));
 
-      assertThat(lifted.getTimeout(get("orders:reports::42"))).isEqualTo(ABOVE_CAP.toMillis());
+      assertThat(lifted.getTimeout(get(REPORTS_KEY))).isEqualTo(ABOVE_CAP.toMillis());
     }
   }
 }

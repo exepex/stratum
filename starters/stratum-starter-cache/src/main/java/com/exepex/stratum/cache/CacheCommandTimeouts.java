@@ -37,7 +37,9 @@ public class CacheCommandTimeouts extends TimeoutSource
   /** The timeout of every command that belongs to no cache with its own value, in ms. */
   private final long globalMillis;
 
-  /** Each cache's own timeout, in ms. */
+  /**
+   * Each cache's own timeout, in whole ms and at least 1, because Lettuce reads 0 as no timeout.
+   */
   private final Map<String, Long> millisByCache;
 
   /** Finds the cache of a command's key. */
@@ -76,7 +78,8 @@ public class CacheCommandTimeouts extends TimeoutSource
         Collections.unmodifiableMap(
             cacheTimeouts.entrySet().stream()
                 .collect(
-                    Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().toMillis())));
+                    Collectors.toMap(
+                        Map.Entry::getKey, entry -> Math.max(1, entry.getValue().toMillis()))));
     this.matcher = matcher;
     this.sharedTimeout =
         cacheTimeouts.values().stream()
