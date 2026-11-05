@@ -207,9 +207,6 @@ public class CacheConstants {
   /** Spring Boot's Caffeine builder specification, which wins over Stratum's Caffeine builder. */
   public static final String CAFFEINE_SPEC = "spring.cache.caffeine.spec";
 
-  /** Spring Boot's fixed list of cache names; a cache manager given one creates no other cache. */
-  public static final String CACHE_NAMES = "spring.cache.cache-names";
-
   /** The most entries each Caffeine cache holds by Stratum's default. */
   public static final long CAFFEINE_MAX_ENTRIES = 10_000;
 
