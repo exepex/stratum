@@ -59,7 +59,6 @@ public final class DroppedSpanMeterProvider implements MeterProvider, MeterBinde
             this,
             DroppedSpanMeterProvider::droppedSpans)
         .description("Spans lost because OpenTelemetry's export queue was full")
-        .baseUnit("spans")
         .register(registry);
   }
 
