@@ -255,12 +255,17 @@ class PerCacheSettingsAutoConfigurationTest {
           .run(context -> assertWarnedIgnored(context));
     }
 
-    /** Checks the context started without Stratum's timeouts and warned once, naming the cache. */
+    /**
+     * Checks the context started without Stratum's timeouts and warned once, with the number of
+     * caches but not their names, which may be secret.
+     */
     private void assertWarnedIgnored(AssertableApplicationContext context) {
       assertThat(context).hasNotFailed().doesNotHaveBean(CacheCommandTimeouts.class);
       assertThat(warnings.onlyLine().getFormattedMessage())
-          .contains("[reports]")
-          .contains("Lettuce");
+          .contains(CacheConstants.CACHES + "[*].command-timeout")
+          .contains("for 1 caches")
+          .contains("Lettuce")
+          .doesNotContain("reports");
     }
 
     @Test

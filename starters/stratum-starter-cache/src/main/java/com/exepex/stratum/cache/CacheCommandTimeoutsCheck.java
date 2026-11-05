@@ -3,7 +3,6 @@ package com.exepex.stratum.cache;
 import com.exepex.stratum.core.api.StratumInternal;
 import java.util.Objects;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,8 +11,9 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 
 /**
  * Warns once at startup when caches set their own {@code command-timeout} but the service's Redis
- * client is not Lettuce, such as Jedis: those timeouts then do nothing. It names Lettuce's factory
- * by its class name, so it runs without Lettuce on the class path.
+ * client is not Lettuce, such as Jedis: those timeouts then do nothing. Like the startup error of
+ * the cap, it gives the number of caches, never their names, which may be secret. It names
+ * Lettuce's factory by its class name, so it runs without Lettuce on the class path.
  */
 @StratumInternal
 @Slf4j
@@ -30,13 +30,12 @@ public class CacheCommandTimeoutsCheck implements SmartInitializingSingleton {
   @Override
   public void afterSingletonsInstantiated() {
     if (!cacheNames.isEmpty() && !usesLettuce() && log.isWarnEnabled()) {
-      var message =
-          "The command-timeout of caches "
-              + new TreeSet<>(cacheNames)
-              + " is ignored: it needs the Lettuce Redis client, so their commands use "
-              + CacheConstants.REDIS_TIMEOUT;
-      // Cache names come from the service's own settings; SpotBugs only sees this replacement.
-      log.warn(message.replaceAll("[\r\n]", " "));
+      log.warn(
+          "{}[*].command-timeout is ignored for {} caches: it needs the Lettuce Redis client, so"
+              + " their commands use {}",
+          CacheConstants.CACHES,
+          cacheNames.size(),
+          CacheConstants.REDIS_TIMEOUT);
     }
   }
 

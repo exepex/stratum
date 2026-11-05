@@ -106,7 +106,7 @@ public class RedisGatedCache implements Cache {
    */
   @Override
   public void put(Object key, @Nullable Object value) {
-    written(() -> delegate.put(key, value), () -> evictThenPut(key, value), timeoutOpensGate);
+    written(() -> delegate.put(key, value), () -> evictThenPut(key, value));
   }
 
   @Override
@@ -116,7 +116,7 @@ public class RedisGatedCache implements Cache {
 
   @Override
   public void evict(Object key) {
-    written(() -> delegate.evict(key), () -> delegate.evictIfPresent(key), timeoutOpensGate);
+    written(() -> delegate.evict(key), () -> delegate.evictIfPresent(key));
   }
 
   @Override
@@ -130,7 +130,7 @@ public class RedisGatedCache implements Cache {
    */
   @Override
   public void clear() {
-    written(delegate::clear, delegate::invalidate, true);
+    clearing().written(delegate::clear, delegate::invalidate);
   }
 
   /**
@@ -141,25 +141,32 @@ public class RedisGatedCache implements Cache {
    */
   @Override
   public boolean invalidate() {
-    return gate.admits() && tried(delegate::invalidate, true);
+    return gate.admits() && clearing().tried(delegate::invalidate);
+  }
+
+  /**
+   * Returns this cache as a clear sees it: one whose timeout makes every Redis cache skip Redis,
+   * because a clear's SCAN waits the global timeout.
+   */
+  private RedisGatedCache clearing() {
+    return timeoutOpensGate ? this : new RedisGatedCache(delegate, gate, true);
   }
 
   /**
    * Sends a write while Redis is in use. A trial sends its immediate form instead, because the
-   * background form never fails; while Redis is skipped, the write is dropped. {@code timeoutOpens}
-   * says whether its timeout makes every Redis cache skip Redis.
+   * background form never fails; while Redis is skipped, the write is dropped.
    */
-  private void written(Runnable inBackground, Runnable immediate, boolean timeoutOpens) {
+  private void written(Runnable inBackground, Runnable immediate) {
     if (gate.usesRedis()) {
-      triedWithoutResult(inBackground, timeoutOpens);
+      triedWithoutResult(inBackground);
     } else if (gate.admits()) {
-      triedWithoutResult(immediate, timeoutOpens);
+      triedWithoutResult(immediate);
     }
   }
 
   /** Calls Redis for a call without a result and tells the gate whether it was reached. */
-  private void triedWithoutResult(Runnable redisCall, boolean timeoutOpens) {
-    tried(() -> ran(redisCall), timeoutOpens);
+  private void triedWithoutResult(Runnable redisCall) {
+    tried(() -> ran(redisCall));
   }
 
   /** Runs a call without a result, so it can be passed where a result is expected. */
@@ -179,13 +186,6 @@ public class RedisGatedCache implements Cache {
    * loader's, releases a trial rather than ending it in success, so it never holds the trial.
    */
   private <T> T tried(Supplier<T> redisCall) {
-    return tried(redisCall, timeoutOpensGate);
-  }
-
-  /**
-   * Calls Redis as {@link #tried(Supplier)} does; {@code timeoutOpens} says what a timeout does.
-   */
-  private <T> T tried(Supplier<T> redisCall, boolean timeoutOpens) {
     var settled = false;
     try {
       var result = redisCall.get();
@@ -194,7 +194,7 @@ public class RedisGatedCache implements Cache {
       return result;
     } catch (DataAccessException failure) {
       settled = true;
-      gate.failed(failure, timeoutOpens);
+      gate.failed(failure, timeoutOpensGate);
       throw failure;
     } finally {
       if (!settled) {
