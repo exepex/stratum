@@ -55,9 +55,9 @@ public record CacheTimeoutSettings(
   }
 
   /**
-   * Returns the caches whose own value is below the global one: their timeout says nothing about
-   * Redis as a whole. None when keys carry no cache name, because then every command gets the
-   * global timeout.
+   * Returns the caches whose own value is below the global one, or every cache with its own value
+   * when the global one is 0 (no timeout): their timeout says nothing about Redis as a whole. None
+   * when keys carry no cache name, because then every command gets the global timeout.
    *
    * @return the names of those caches
    */
@@ -66,7 +66,7 @@ public record CacheTimeoutSettings(
       return Set.of();
     }
     return cacheTimeouts.entrySet().stream()
-        .filter(entry -> entry.getValue().compareTo(global) < 0)
+        .filter(entry -> !global.isPositive() || entry.getValue().compareTo(global) < 0)
         .map(Map.Entry::getKey)
         .collect(Collectors.toUnmodifiableSet());
   }

@@ -100,6 +100,19 @@ class CacheCommandTimeoutsTest {
 
     @Test
     @DisplayName(
+        "a global timeout of 0 stays no timeout for other commands, as Lettuce reads it, while a"
+            + " cache keeps its own value")
+    void zeroGlobalStaysNoTimeout() {
+      var noGlobalTimeout =
+          new CacheCommandTimeouts(
+              Duration.ZERO, CACHE_TIMEOUTS, new CacheKeyMatcher(PREFIX, CACHE_TIMEOUTS.keySet()));
+
+      assertThat(noGlobalTimeout.getTimeout(get("session-42"))).isZero();
+      assertThat(noGlobalTimeout.getTimeout(get(REPORTS_KEY))).isEqualTo(REPORTS_TIMEOUT.toMillis());
+    }
+
+    @Test
+    @DisplayName(
         "any other command gets the global timeout, never 0 or -1, which would wait forever")
     void otherCommandsGetGlobal() {
       var ping =

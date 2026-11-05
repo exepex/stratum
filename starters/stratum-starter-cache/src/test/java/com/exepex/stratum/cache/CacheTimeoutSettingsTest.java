@@ -90,6 +90,18 @@ class CacheTimeoutSettingsTest {
 
     @Test
     @DisplayName(
+        "with a global timeout of 0 (no timeout), every cache with its own value is short, because"
+            + " its value is below no timeout")
+    void everyCacheWithZeroGlobal() {
+      var settings =
+          CacheTimeoutSettings.resolve(
+              environment().withProperty(CacheConstants.REDIS_TIMEOUT, "0"));
+
+      assertThat(settings.shortTimeoutCaches()).containsExactly("reports");
+    }
+
+    @Test
+    @DisplayName(
         "with use-key-prefix=false no cache is short, because its own value never applies, so its"
             + " timeouts make every cache skip Redis")
     void noneWithoutKeyPrefix() {

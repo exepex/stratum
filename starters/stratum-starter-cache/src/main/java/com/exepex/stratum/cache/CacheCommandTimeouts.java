@@ -35,8 +35,8 @@ public class CacheCommandTimeouts extends TimeoutSource
   static final Duration MAX_CACHE_TIMEOUT = Duration.ofSeconds(10);
 
   /**
-   * The timeout of every command that belongs to no cache with its own value, in whole ms and at
-   * least 1.
+   * The timeout of every command that belongs to no cache with its own value, in whole ms: at least
+   * 1, or 0 (no timeout) when {@code spring.data.redis.timeout} is 0, as Lettuce reads it.
    */
   private final long globalMillis;
 
@@ -63,7 +63,7 @@ public class CacheCommandTimeouts extends TimeoutSource
       Duration global, Map<String, Duration> cacheTimeouts, CacheKeyMatcher matcher) {
     var cap = global.compareTo(MAX_CACHE_TIMEOUT) > 0 ? global : MAX_CACHE_TIMEOUT;
     cacheTimeouts.forEach((name, timeout) -> rejectAboveCap(name, timeout, cap));
-    this.globalMillis = Math.max(1, global.toMillis());
+    this.globalMillis = global.isPositive() ? Math.max(1, global.toMillis()) : 0;
     this.millisByCache =
         Collections.unmodifiableMap(
             cacheTimeouts.entrySet().stream()
@@ -126,8 +126,8 @@ public class CacheCommandTimeouts extends TimeoutSource
   }
 
   /**
-   * Returns the command's timeout: its cache's own value, else the global one. Never 0 or -1, which
-   * Lettuce reads as no timeout.
+   * Returns the command's timeout: its cache's own value, else the global one. Never 0, which
+   * Lettuce reads as no timeout, unless the global timeout is 0 itself.
    *
    * @param command the command, or {@code null} before it is known
    * @return the timeout in milliseconds

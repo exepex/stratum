@@ -72,7 +72,9 @@ service, and a cache without its own value, still times out at the global value.
   at most 10 seconds; a higher one stops startup with `SX-CORE-1003`, naming the key. Raising
   `spring.data.redis.timeout` above 10 seconds lifts this limit to its own value.
 - **Values count in whole milliseconds.** Lettuce counts in milliseconds, so `1500us` waits 1 ms,
-  and a value below 1 ms waits 1 ms, never 0, which Lettuce reads as no timeout.
+  and a value below 1 ms waits 1 ms, never 0, which Lettuce reads as no timeout. With
+  `spring.data.redis.timeout=0` (no timeout), other commands keep no timeout, and every cache with
+  its own value counts as short.
 - **`spring.data.redis.connect-timeout` stays one value for the service**, because all caches share
   one connection.
 - **Clears and pings use the global value.** A clear finds keys with SCAN, which carries no key of
