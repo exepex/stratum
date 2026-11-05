@@ -4,8 +4,9 @@
 `@EnableCaching`, and safe defaults for Spring Boot's Redis cache: every entry expires, keys start
 with the service's name, hits and misses are counted, Redis commands have short timeouts and
 clearing a cache never blocks Redis. Cached calls keep working when Redis is down, with the method
-run at most once, and the number of caches is capped. Per-cache settings, size limits, JSON values
-and Caffeine are **planned** ([below](#planned)).
+run at most once, the number of caches is capped, and keys and values have size limits, also per
+cache. Per-cache time to live and timeouts, JSON values and Caffeine are **planned**
+([below](#planned)).
 
 [← Documentation home](../README.md) · Property prefix: `stratum.cache`
 
@@ -89,13 +90,14 @@ class ProductService {
 | Clearing with SCAN | `@CacheEvict(allEntries = true)` deletes keys found with SCAN, 1,000 at a time, never with KEYS |
 | Works when Redis is down | A failed cache read is a miss and a failed write is dropped, so the method runs and returns its real result ([below](#when-redis-is-down)) |
 | A cap on caches | At most 100 cache names get a cache; a name beyond that runs uncached ([Limits](#limits)) |
+| Size limits | A Redis key over 1 KiB is stored under its hash and still hits; a value over 1 MiB is not stored ([Size limits](#size-limits)) |
 
 The beans the starter adds, with their types:
 
 | Bean | Type | Created when |
 | --- | --- | --- |
 | `cacheInterceptor`, `cacheOperationSource`, `org.springframework.cache.config.internalCacheAdvisor` | `CacheInterceptor`, `CacheOperationSource`, `BeanFactoryCacheOperationSourceAdvisor` (Spring's, through `@EnableCaching`) | No `@EnableCaching` is present yet |
-| `stratumScanOnClear` | `RedisCacheManagerBuilderCustomizer` | Spring Data Redis and a Redis connection are present |
+| `stratumRedisCacheWriter` | `RedisCacheManagerBuilderCustomizer` | Spring Data Redis and a Redis connection are present; it sets a writer that clears with SCAN and applies the [size limits](#size-limits) |
 | `stratumCacheLayerHook` | `StratumCacheLayerHook` | Always; it installs the layer on Spring's `cacheInterceptor` unless your own caching set-up says otherwise ([below](#when-redis-is-down)) |
 | `cacheCounters` or `micrometerCacheCounters` | `CacheCounters` | Always; the Micrometer one when a `MeterRegistry` bean is present |
 
@@ -110,8 +112,12 @@ before a Spring Boot auto-configuration.
 | `stratum.cache.enabled` | boolean | `true` | Whether the module is on. With `false`, Stratum does not switch caching on, adds no fail-open layer or cap, and sets none of the defaults below, and Spring Boot's own apply. |
 | `stratum.cache.max-caches` | integer, from 1 | `100` | The most cache names that get a cache. A name beyond it runs uncached ([Limits](#limits)). |
 | `stratum.cache.warning-interval` | duration, from `1s` to `1h` | `1m` | How often one cache's warning, `SX-CACHE-1002` or `SX-CACHE-1003`, is repeated at most. |
+| `stratum.cache.max-key-size` | data size, above 0 | `1KB` | The longest Redis key, prefix included, stored as it is. A longer key is stored under its SHA-256 hash ([Size limits](#size-limits)). |
+| `stratum.cache.max-value-size` | data size, above 0 | `1MB` | The largest value a Redis cache stores. A larger one is not stored ([Size limits](#size-limits)). |
+| `stratum.cache.caches.<name>.max-key-size` | data size, above 0 | `max-key-size` | The key limit of the cache `<name>`. |
+| `stratum.cache.caches.<name>.max-value-size` | data size, above 0 | `max-value-size` | The value limit of the cache `<name>`, such as `5MB` for a cache of large reports. |
 
-A value out of range stops startup with `SX-CORE-1003`, which names the key.
+A value out of range stops startup with `SX-CORE-1003`, which names the key. A size of 0 or less, in any of the four size keys and for any cache, is reported as `stratum.cache.sizes-positive` instead.
 
 Spring Boot properties this module gives a default (your values win):
 
@@ -133,6 +139,7 @@ Set your own values in `application.properties`:
 ```properties
 stratum.cache.max-caches=200
 stratum.cache.warning-interval=5m
+stratum.cache.caches.reports.max-value-size=5MB
 spring.cache.redis.time-to-live=1h
 spring.data.redis.timeout=2s
 ```
@@ -144,6 +151,9 @@ stratum:
   cache:
     max-caches: 200
     warning-interval: 5m
+    caches:
+      reports:
+        max-value-size: 5MB
 spring:
   cache:
     redis:
@@ -203,7 +213,7 @@ To trust your own certificate authority, name a Spring Boot SSL bundle with
 
 `@CacheEvict(allEntries = true)` deletes every entry of a cache. Spring Boot's writer finds the keys
 with KEYS, which blocks Redis for every client while it walks the whole keyspace. Stratum's
-`stratumScanOnClear` customizer gives Spring Boot's cache manager a writer that finds them with
+`stratumRedisCacheWriter` customizer gives Spring Boot's cache manager a writer that finds them with
 SCAN instead, asking Redis for 1,000 keys per call, so Redis keeps serving other commands between
 calls. The writer takes no lock, as Spring Boot's does, and keeps the statistics setting.
 
@@ -306,6 +316,7 @@ Stratum adds two counters of its own:
 | --- | --- | --- |
 | `stratum.cache.failures` | `cache`, `operation` (`get`, `put`, `evict`, `clear`) | Cache calls that failed and were handled fail-open ([When Redis is down](#when-redis-is-down)) |
 | `stratum.cache.skips` | `cache` (`_over-limit`), `reason` (`cache-limit`) | Calls for a cache name over `stratum.cache.max-caches` ([Limits](#limits)) |
+| `stratum.cache.skips` | `cache`, `reason` (`key-hashed`, `value-too-large`) | Calls whose key was hashed, and values not stored ([Size limits](#size-limits)) |
 
 ## An existing service
 
@@ -332,7 +343,16 @@ public class OrdersCacheSettings implements StratumCachePropertiesCustomizer {
 
   @Override
   public StratumCacheProperties customize(StratumCacheProperties properties) {
-    return properties.toBuilder().maxCaches(200).warningInterval(Duration.ofMinutes(5)).build();
+    return properties.toBuilder()
+        .maxCaches(200)
+        .warningInterval(Duration.ofMinutes(5))
+        .caches(
+            Map.of(
+                "reports",
+                StratumCacheProperties.CacheSettings.builder()
+                    .maxValueSize(DataSize.ofMegabytes(5))
+                    .build()))
+        .build();
   }
 }
 ```
@@ -358,16 +378,17 @@ application.run(args);
 - Your own `RedisCacheManagerBuilderCustomizer` or `CacheManagerCustomizer` beans run after
   Stratum's customizer, which has `@Order(Ordered.HIGHEST_PRECEDENCE)`, so they win. A customizer of
   yours with that same order runs first, and Stratum's then replaces its writer; give yours a later
-  order, or name it `stratumScanOnClear` to replace Stratum's.
-- A bean named `stratumScanOnClear` replaces Stratum's customizer. Note: it backs off by its name,
+  order, or name it `stratumRedisCacheWriter` to replace Stratum's. A writer of your own replaces
+  Stratum's, and with it the SCAN clears and the [size limits](#size-limits).
+- A bean named `stratumRedisCacheWriter` replaces Stratum's customizer. Note: it backs off by its name,
   not by its type, as most beans do ([Overriding defaults, level 3](../configuration/overriding-defaults.md#level-3-replace-a-bean)),
   because a customizer of yours of the same type must not switch SCAN off.
 - Your own Spring Data `RedisCacheConfiguration` bean replaces Spring Boot's cache settings, and so
   Stratum's time to live, key prefix and [null setting](#null-results): Spring Data's
-  `defaultCacheConfig()` stores nulls. The SCAN writer still applies.
+  `defaultCacheConfig()` stores nulls. The SCAN writer and the size limits still apply.
 - Your own `CacheManager` bean replaces Spring Boot's, and with it Stratum's time to live, key
-  prefix, statistics, null setting and SCAN clears. Stratum's `@EnableCaching`, the Redis timeouts and the
-  [name check](#key-prefix) still apply.
+  prefix, statistics, null setting, SCAN clears and size limits. Stratum's `@EnableCaching`, the
+  Redis timeouts and the [name check](#key-prefix) still apply.
 
 ### Your own `@EnableCaching`
 
@@ -386,8 +407,8 @@ The starter is on when it is on the classpath. Leaving `stratum.cache.enabled` u
 the same as `true`.
 
 `stratum.cache.enabled=false` turns off Stratum's `@EnableCaching` and its cache and Redis
-defaults: time to live, key prefix, statistics, timeouts, clearing with SCAN, the fail-open layer
-and the cap on caches. A service with its
+defaults: time to live, key prefix, statistics, timeouts, clearing with SCAN, the size limits, the
+fail-open layer and the cap on caches. A service with its
 own `@EnableCaching` keeps caching, with Spring Boot's defaults; without one, `@Cacheable` methods
 then always run.
 
@@ -405,10 +426,35 @@ then always run.
   [`SX-CACHE-1003`](../guides/error-codes.md#stratum-starter-cache) is logged at most once per
   `stratum.cache.warning-interval`.
 
+### Size limits
+
+Stratum's Redis writer bounds the bytes of each entry, for every cache, however it is called:
+
+- **Keys.** A key longer than `stratum.cache.max-key-size`, 1 KiB by default, prefix included, is
+  stored as `<prefix><cache>::sha256:<64 hex digits>`, such as
+  `order-service:products::sha256:9f86d0…`. Reads, writes and evicts use the same hashed key, so the
+  entry still hits and `@CacheEvict(allEntries = true)` still clears it. A 10 MB key takes about 100
+  bytes in Redis. The key's own text, which may hold personal data, is never stored or logged. A
+  short key that itself starts with `sha256:` is hashed too, so it can never read another key's
+  entry.
+- **Values.** A value larger than `stratum.cache.max-value-size`, 1 MiB by default, is not stored:
+  the method's result is returned as usual and the next call runs the method again. When an
+  `@CachePut` replaces an entry with a value too large, the older entry is removed instead, so no
+  stale value is read; like other writes, Redis may remove it a moment later.
+- Each case is counted in `stratum.cache.skips` under the cache's name, with `reason=key-hashed`
+  or `reason=value-too-large` ([Metrics](#metrics)). Nothing is logged.
+- Each cache can have its own limits, under `stratum.cache.caches.<name>.*`
+  ([Properties](#properties)).
+
+Not covered: a cache manager or Redis cache writer of your own ([Customize](#customize)), and a
+key prefix of your own (a `CacheKeyPrefix`) that leaves out `<cache>::` or is longer than
+`max-key-size`. With such a prefix, a hashed key is stored as `sha256:<hex>` alone, which `allEntries` does not clear; it expires with its time to
+live. Caches other than Redis have no size limits.
+
 ### Planned
 
-These are planned for later releases of this module: a time to live, command timeout and size
-limits for each cache;
+These are planned for later releases of this module: a time to live and command timeout for each
+cache;
 values stored as JSON, read only for allowed types; a retry interval while Redis is unreachable;
 the cache name on Redis spans; Caffeine with a bounded size; and reactive return types.
 
@@ -429,4 +475,5 @@ jittered time to live per instance.
 | `cache.gets` is missing for a cache | The cache is reached by a path that skips Stratum's layer, or its name is over `stratum.cache.max-caches`. List it in `spring.cache.cache-names` ([Metrics](#metrics)). |
 | Redis calls time out after 1 second | A command takes longer than Stratum's `spring.data.redis.timeout`. Raise it for the whole service. |
 | `SX-CACHE-1002` in the log | A cache call failed, usually because Redis is down; the method still ran. Check Redis ([When Redis is down](#when-redis-is-down)). |
+| The method always runs for one key, and `stratum.cache.skips` counts `value-too-large` | Its result is larger than `stratum.cache.max-value-size`. Return less, or raise the limit for that cache ([Size limits](#size-limits)). |
 | `SX-CACHE-1003` in the log | The service uses more than `stratum.cache.max-caches` cache names. Name caches explicitly, so they stay few, or raise the limit ([Limits](#limits)). |

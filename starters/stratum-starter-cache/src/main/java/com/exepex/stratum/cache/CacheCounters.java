@@ -4,9 +4,10 @@ import com.exepex.stratum.core.api.StratumInternal;
 import org.springframework.cache.Cache;
 
 /**
- * Records the cache layer's metrics: it counts failures and refused cache names, and has Spring
- * Boot measure each cache made on its first use. The decorator, the handler and the resolver never
- * name a Micrometer type, so they stay loadable without {@code micrometer-core}.
+ * Records the cache layer's metrics: it counts failures and skips (refused cache names, hashed keys
+ * and values too large to store), and has Spring Boot measure each cache made on its first use. The
+ * decorator, the handler and the resolver never name a Micrometer type, so they stay loadable
+ * without {@code micrometer-core}.
  */
 @StratumInternal
 public interface CacheCounters {
@@ -20,10 +21,10 @@ public interface CacheCounters {
   void failure(String cache, String operation);
 
   /**
-   * Counts one refused cache name.
+   * Counts one skip: a refused cache name, a key stored under its hash or a value not stored.
    *
-   * @param cache the tag value the refusal is counted under, {@code _over-limit}
-   * @param reason why the name was refused, {@code cache-limit}
+   * @param cache the cache's name, or {@code _over-limit} for a refused name
+   * @param reason why, such as {@code cache-limit}, {@code key-hashed} or {@code value-too-large}
    */
   void skip(String cache, String reason);
 

@@ -27,10 +27,16 @@ public class CacheConstants {
   /** How often one cache's warning is repeated at most. */
   public static final String WARNING_INTERVAL = PREFIX + ".warning-interval";
 
+  /** The longest Redis cache key stored as it is; longer ones are stored under their hash. */
+  public static final String MAX_KEY_SIZE = PREFIX + ".max-key-size";
+
+  /** The largest value a Redis cache stores. */
+  public static final String MAX_VALUE_SIZE = PREFIX + ".max-value-size";
+
   /** The counter of cache calls that failed and were handled fail-open. */
   public static final String METRIC_FAILURES = "stratum.cache.failures";
 
-  /** The counter of cache names refused over the limit. */
+  /** The counter of cache names refused over the limit and of keys and values over their size. */
   public static final String METRIC_SKIPS = "stratum.cache.skips";
 
   /** The tag with the cache's name. */
@@ -51,14 +57,20 @@ public class CacheConstants {
   /** The tag with the operation that failed, such as {@code get}. */
   public static final String TAG_OPERATION = "operation";
 
-  /** The tag with the reason a cache name was refused. */
+  /** The tag with the reason a skip was counted. */
   public static final String TAG_REASON = "reason";
 
   /** The one tag value and throttle slot that every refused or overflowing name shares. */
   public static final String OVER_LIMIT = "_over-limit";
 
-  /** The only reason a name is refused: over the limit of {@code stratum.cache.max-caches}. */
+  /** The reason a name is refused: over the limit of {@code stratum.cache.max-caches}. */
   public static final String REASON_CACHE_LIMIT = "cache-limit";
+
+  /** The reason counted when a key over its size limit is stored under its hash. */
+  public static final String REASON_KEY_HASHED = "key-hashed";
+
+  /** The reason counted when a value over its size limit is not stored. */
+  public static final String REASON_VALUE_TOO_LARGE = "value-too-large";
 
   /** The operation tag of a failed read. */
   public static final String OPERATION_GET = "get";
@@ -106,8 +118,8 @@ public class CacheConstants {
   /** How many keys one SCAN call asks Redis for when a cache is cleared. */
   public static final int SCAN_BATCH_SIZE = 1000;
 
-  /** The name of the bean that makes Redis caches clear with SCAN. */
-  public static final String SCAN_ON_CLEAR = "stratumScanOnClear";
+  /** The name of the bean that sets Stratum's Redis cache writer: SCAN clears and size limits. */
+  public static final String REDIS_CACHE_WRITER = "stratumRedisCacheWriter";
 
   /** The name of the filter that keeps the cache layer's hook eager under lazy initialization. */
   public static final String LAZY_INITIALIZATION_FILTER =

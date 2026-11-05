@@ -39,9 +39,27 @@ class StratumCachePropertiesTest {
   /** The interval both test files set. */
   private static final Duration WARNING_INTERVAL_IN_FILES = Duration.ofMinutes(5);
 
+  /** The cache both test files give its own value limit. */
+  private static final String REPORTS = "reports";
+
+  /** The default key limit, 1 KiB. */
+  private static final long DEFAULT_KEY_BYTES = 1024;
+
+  /** The default value limit, 1 MiB. */
+  private static final long DEFAULT_VALUE_BYTES = 1024 * 1024;
+
+  /** The value limit both test files set for every cache, 2 MiB. */
+  private static final long VALUE_BYTES_IN_FILES = 2 * DEFAULT_VALUE_BYTES;
+
+  /** The value limit both test files set for {@value #REPORTS}, 5 MiB. */
+  private static final long REPORTS_VALUE_BYTES_IN_FILES = 5 * DEFAULT_VALUE_BYTES;
+
   @Nested
   @DisplayName("bound from the environment")
   class Binding {
+
+    /** The rule a size limit of 0 or below breaks. */
+    private static final String SIZES_POSITIVE = "sizes-positive breaks @AssertTrue";
 
     /** The two files, one in each format, with the same settings. */
     private static final List<Arguments> SERVICE_FILES =
@@ -57,15 +75,24 @@ class StratumCachePropertiesTest {
         List.of(
             arguments("max-caches", "0", "max-caches breaks @Min(value=1)"),
             arguments("warning-interval", "500ms", "warning-interval-in-range breaks @AssertTrue"),
-            arguments("warning-interval", "2h", "warning-interval-in-range breaks @AssertTrue"));
+            arguments("warning-interval", "2h", "warning-interval-in-range breaks @AssertTrue"),
+            arguments("max-key-size", "0B", SIZES_POSITIVE),
+            arguments("max-value-size", "0B", SIZES_POSITIVE),
+            arguments("caches.reports.max-value-size", "0B", SIZES_POSITIVE),
+            arguments("caches.reports.max-key-size", "-1B", SIZES_POSITIVE));
 
     @Test
-    @DisplayName("unset, the cap is 100 caches and warnings repeat at most once a minute")
+    @DisplayName(
+        "unset, the cap is 100 caches, warnings repeat at most once a minute, and every cache"
+            + " stores keys up to 1 KiB and values up to 1 MiB")
     void defaultsAreSafe() {
       var properties = StratumCacheProperties.resolve(new MockEnvironment());
 
       assertThat(properties.maxCaches()).isEqualTo(DEFAULT_MAX_CACHES);
       assertThat(properties.warningInterval()).isEqualTo(DEFAULT_WARNING_INTERVAL);
+      assertThat(properties.caches()).isEmpty();
+      assertThat(properties.maxKeyBytesFor(REPORTS)).isEqualTo(DEFAULT_KEY_BYTES);
+      assertThat(properties.maxValueBytesFor(REPORTS)).isEqualTo(DEFAULT_VALUE_BYTES);
     }
 
     @ParameterizedTest(name = "{0}")
@@ -81,6 +108,9 @@ class StratumCachePropertiesTest {
 
       assertThat(properties.maxCaches()).isEqualTo(MAX_CACHES_IN_FILES);
       assertThat(properties.warningInterval()).isEqualTo(WARNING_INTERVAL_IN_FILES);
+      assertThat(properties.maxValueBytesFor(REPORTS)).isEqualTo(REPORTS_VALUE_BYTES_IN_FILES);
+      assertThat(properties.maxValueBytesFor("products")).isEqualTo(VALUE_BYTES_IN_FILES);
+      assertThat(properties.maxKeyBytesFor(REPORTS)).isEqualTo(DEFAULT_KEY_BYTES);
     }
 
     @ParameterizedTest(name = "{0}={1}")
