@@ -173,8 +173,9 @@ or `@MockitoBean`s, gets its own context and its own container.
 | Keycloak | Keycloak | `stratum.security.resource-server.issuer-uri` | Planned |
 | LocalStack | LocalStack (AWS emulator) | `stratum.cloud.*` (AWS) | Planned |
 
-Each image is pinned once, in its container class, and never set to `latest`, so every service tests
-against the same version. Stratum's maintainers update it by hand.
+Each image is pinned once, as one `testcontainers.image.<container>` property in the root
+`pom.xml` holding the full image, and never set to `latest`, so every service tests against the
+same version. Stratum's maintainers update it by hand.
 
 Because data stays between test classes that share a container, each test should create its own data
 and not depend on what other tests left behind.
@@ -219,7 +220,7 @@ For the rare test that must check real token validation, use the `Keycloak` cont
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
 | `stratum.test.containers.reuse` | boolean | `false` | Keeps containers running between local test runs (needs Testcontainers reuse enabled on the machine). Never on CI. |
-| `stratum.test.containers.images.<container>` | string | *(the container class's image)* | Overrides one image, e.g. to test a newer PostgreSQL. |
+| `stratum.test.containers.images.<container>` | string | *(the image pinned as the `testcontainers.image.<container>` property in the root `pom.xml`)* | Overrides one image, e.g. to test a newer PostgreSQL. |
 | `stratum.test.jwt.default-issuer` | URI | `https://test-issuer.stratum.local` | Issuer used for test tokens. |
 
 ```yaml

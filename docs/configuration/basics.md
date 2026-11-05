@@ -161,7 +161,8 @@ stratum.http-client.clients.payments.read-timeout=10s
 ```
 
 Use lower-case kebab-case for the names you choose (`inventory`, `payment-gateway`). If a name
-contains dots or slashes, wrap it in brackets: `stratum.cache.caches.[orders.v2].ttl=5m`.
+contains dots or slashes, wrap it in brackets, as in the per-cache setting
+`stratum.cache.caches.[orders.v2].max-value-size=5MB`.
 
 ## Environment variables and command-line arguments
 

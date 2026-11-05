@@ -1,0 +1,222 @@
+package com.exepex.stratum.cache;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import com.exepex.stratum.cache.testsupport.ProductCatalog;
+import com.exepex.stratum.cache.testsupport.RecordingCacheErrorHandler;
+import com.exepex.stratum.cache.testsupport.StubCache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.FieldSource;
+import org.springframework.cache.Cache;
+import org.springframework.cache.caffeine.CaffeineCache;
+
+@DisplayName("StratumCache forwards every call and runs the loader at most once")
+class StratumCacheTest {
+
+  /** The key the tests use. */
+  private static final String KEY = "sku-1";
+
+  /** The value the loaders return. */
+  private static final String VALUE = "price-of-sku-1";
+
+  private final RecordingCacheErrorHandler handler = new RecordingCacheErrorHandler();
+
+  @Nested
+  @DisplayName("when the write after a load fails")
+  class WriteAfterLoadFails {
+
+    /** A cache whose write after a load fails, as a paused Redis does on a SET. */
+    private final StubCache failingWrites = new StubCache(ProductCatalog.PRODUCTS, false, true);
+
+    private final StratumCache cache = new StratumCache(failingWrites, handler, false);
+
+    @Test
+    @DisplayName(
+        "the loaded value is returned, the loader ran once and the failure was reported"
+            + " once as a put")
+    void returnsLoadedValue() {
+      var value = cache.get(KEY, () -> VALUE);
+
+      assertThat(value).isEqualTo(VALUE);
+      assertThat(failingWrites.loads()).isOne();
+      assertThat(handler.calls()).containsExactly("put:products");
+    }
+
+    @Test
+    @DisplayName("a handler that rethrows gives the caller its error, wrapped for Spring to unwrap")
+    void handlerRethrowReachesCaller() {
+      var rethrowing = new StratumCache(failingWrites, new RecordingCacheErrorHandler(true), false);
+
+      assertThatThrownBy(() -> rethrowing.get(KEY, () -> VALUE))
+          .isInstanceOfSatisfying(
+              Cache.ValueRetrievalException.class,
+              failure -> assertThat(failure).hasCause(StubCache.FAILURE));
+      assertThat(failingWrites.loads()).isOne();
+    }
+  }
+
+  @Nested
+  @DisplayName("when the read before a load fails")
+  class ReadFails {
+
+    @Test
+    @DisplayName(
+        "the failure is rethrown for Spring to report, the loader never ran and the"
+            + " handler is untouched")
+    void rethrowsBeforeLoad() {
+      var failingReads = new StubCache(ProductCatalog.PRODUCTS, true, false);
+      var cache = new StratumCache(failingReads, handler, false);
+      var loads = new AtomicInteger();
+
+      assertThatThrownBy(
+              () ->
+                  cache.get(
+                      KEY,
+                      () -> {
+                        loads.incrementAndGet();
+                        return VALUE;
+                      }))
+          .isSameAs(StubCache.FAILURE);
+      assertThat(loads).hasValue(0);
+      assertThat(handler.total()).isZero();
+    }
+  }
+
+  @Nested
+  @DisplayName("when the loader itself fails")
+  class LoaderFails {
+
+    /** Whether the cache refuses nulls: the method's error must come through either way. */
+    private static final List<Boolean> NULLS_REJECTED = List.of(false, true);
+
+    @ParameterizedTest(name = "nulls refused: {0}")
+    @FieldSource("NULLS_REJECTED")
+    @DisplayName(
+        "the method's own error is rethrown unchanged and the handler is untouched,"
+            + " whether nulls are refused or not")
+    void rethrowsLoaderError(boolean nullsRejected) {
+      var healthy = new StubCache(ProductCatalog.PRODUCTS);
+      var cache = new StratumCache(healthy, handler, nullsRejected);
+      var methodError = new IllegalStateException("no price");
+
+      assertThatThrownBy(
+              () ->
+                  cache.get(
+                      KEY,
+                      () -> {
+                        throw methodError;
+                      }))
+          .isInstanceOfSatisfying(
+              Cache.ValueRetrievalException.class,
+              failure -> assertThat(failure).hasCause(methodError));
+      assertThat(handler.total()).isZero();
+    }
+  }
+
+  @Nested
+  @DisplayName("with a null result, in a cache that refuses nulls")
+  class NullResult {
+
+    @Test
+    @DisplayName("a load that returns null gives null, the loader ran once and nothing is reported")
+    void loadedNullIsNotReported() {
+      // The write after the load fails, as Redis refuses to store the loaded null.
+      var refusing = new StubCache(ProductCatalog.PRODUCTS, false, true);
+      var cache = new StratumCache(refusing, handler, true);
+
+      var value = cache.get(KEY, () -> null);
+
+      assertThat(value).isNull();
+      assertThat(refusing.loads()).isOne();
+      assertThat(handler.total()).isZero();
+    }
+
+    @Test
+    @DisplayName(
+        "a Caffeine cache that refuses the loaded null, wrapped as a ValueRetrievalException,"
+            + " gives null and nothing is reported")
+    void caffeineRefusalIsNotReported() {
+      var caffeine =
+          new CaffeineCache(ProductCatalog.PRODUCTS, Caffeine.newBuilder().build(), false);
+      var cache = new StratumCache(caffeine, handler, true);
+
+      var value = cache.get(KEY, () -> null);
+
+      assertThat(value).isNull();
+      assertThat(caffeine.get(KEY)).isNull();
+      assertThat(handler.total()).isZero();
+    }
+
+    @Test
+    @DisplayName(
+        "in a cache that stores nulls, a failed write after a null load is still reported once")
+    void failedNullWriteIsReportedWhereNullsAreStored() {
+      var failingWrites = new StubCache(ProductCatalog.PRODUCTS, false, true);
+      var cache = new StratumCache(failingWrites, handler, false);
+
+      var value = cache.get(KEY, () -> null);
+
+      assertThat(value).isNull();
+      assertThat(handler.calls()).containsExactly("put:products");
+    }
+
+    @Test
+    @DisplayName("a null put removes the old entry instead of storing anything")
+    void nullPutEvicts() {
+      var delegate = new StubCache(ProductCatalog.PRODUCTS);
+      var cache = new StratumCache(delegate, handler, true);
+
+      cache.put(KEY, null);
+
+      assertThat(delegate.calls()).containsExactly("evict");
+      assertThat(handler.total()).isZero();
+    }
+  }
+
+  @Nested
+  @DisplayName("on every other call")
+  class Forwarding {
+
+    @Test
+    @DisplayName("each Cache method is forwarded to the wrapped cache")
+    void forwardsEveryMethod() {
+      var delegate = new StubCache(ProductCatalog.PRODUCTS);
+      var cache = new StratumCache(delegate, handler, false);
+
+      cache.getName();
+      cache.getNativeCache();
+      cache.get(KEY);
+      cache.get(KEY, String.class);
+      cache.retrieve(KEY);
+      cache.retrieve(KEY, () -> java.util.concurrent.CompletableFuture.completedFuture(VALUE));
+      cache.put(KEY, VALUE);
+      cache.putIfAbsent(KEY, VALUE);
+      cache.evict(KEY);
+      cache.evictIfPresent(KEY);
+      cache.clear();
+      cache.invalidate();
+
+      assertThat(delegate.calls())
+          .containsExactly(
+              "getName",
+              "getNativeCache",
+              "get",
+              "getTyped",
+              "retrieve",
+              "retrieveWithLoader",
+              "put",
+              "putIfAbsent",
+              "evict",
+              "evictIfPresent",
+              "clear",
+              "invalidate");
+    }
+  }
+}

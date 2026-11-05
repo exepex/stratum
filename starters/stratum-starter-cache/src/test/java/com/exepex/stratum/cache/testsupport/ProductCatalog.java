@@ -1,0 +1,189 @@
+package com.exepex.stratum.cache.testsupport;
+
+import java.util.concurrent.atomic.AtomicInteger;
+import org.jspecify.annotations.Nullable;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
+
+/**
+ * A service whose prices are cached under {@value #PRODUCTS}, counting how often it looks one up.
+ */
+public class ProductCatalog {
+
+  /** The name of the cache that holds the prices. */
+  public static final String PRODUCTS = "products";
+
+  /** The name of the cache that holds the prices looked up with {@code sync=true}. */
+  public static final String SYNCED_PRODUCTS = "synced-products";
+
+  /**
+   * The name of a second {@code sync=true} cache, so a test that fails only its writes warns on its
+   * own name and leaves the warning of {@value #SYNCED_PRODUCTS} to the other tests.
+   */
+  public static final String WRITE_TEST_PRODUCTS = "write-test-products";
+
+  /** The name of the cache of products that have no price, so their lookups return null. */
+  public static final String UNPRICED_PRODUCTS = "unpriced-products";
+
+  /** The name of the cache of products that have no price, looked up with {@code sync=true}. */
+  public static final String SYNCED_UNPRICED_PRODUCTS = "synced-unpriced-products";
+
+  /** The name of the cache whose loads fail, for a method's own error. */
+  public static final String MISSING_PRODUCTS = "missing-products";
+
+  /** The name of the cache of quotes, which a test gives a command timeout below the global one. */
+  public static final String QUOTES = "quotes";
+
+  /**
+   * The name of the cache of reports, which a test gives a command timeout above the global one.
+   */
+  public static final String REPORTS = "reports";
+
+  /** How many times a price was really looked up, rather than read from the cache. */
+  private final AtomicInteger lookupCount = new AtomicInteger();
+
+  /** How many times a synced price was really looked up. */
+  private final AtomicInteger syncedLookupCount = new AtomicInteger();
+
+  /** How many times a product without a price was really looked up. */
+  private final AtomicInteger unpricedLookupCount = new AtomicInteger();
+
+  /**
+   * Looks up a product's price, or returns it from the cache.
+   *
+   * @param sku the product's stock-keeping unit
+   * @return the price, as text
+   */
+  @Cacheable(PRODUCTS)
+  public String priceOf(String sku) {
+    lookupCount.incrementAndGet();
+    return "price-of-" + sku;
+  }
+
+  /**
+   * Looks up a product's price with {@code sync=true}, so one load serves concurrent callers.
+   *
+   * @param sku the product's stock-keeping unit
+   * @return the price, as text
+   */
+  @Cacheable(cacheNames = SYNCED_PRODUCTS, sync = true)
+  public String syncedPriceOf(String sku) {
+    syncedLookupCount.incrementAndGet();
+    return "synced-price-of-" + sku;
+  }
+
+  /**
+   * Looks up a product's price with {@code sync=true}, cached under {@value #WRITE_TEST_PRODUCTS};
+   * counted with the synced lookups.
+   *
+   * @param sku the product's stock-keeping unit
+   * @return the price, as text
+   */
+  @Cacheable(cacheNames = WRITE_TEST_PRODUCTS, sync = true)
+  public String writeTestPriceOf(String sku) {
+    syncedLookupCount.incrementAndGet();
+    return "synced-price-of-" + sku;
+  }
+
+  /**
+   * Fails as a method whose own error must reach the caller unchanged, cache or no cache.
+   *
+   * @param sku the product's stock-keeping unit
+   * @return never
+   */
+  @Cacheable(cacheNames = MISSING_PRODUCTS, sync = true)
+  public String missingPriceOf(String sku) {
+    throw new IllegalStateException("unknown sku " + sku);
+  }
+
+  /**
+   * Looks up the price of a product that has none, or returns it from the cache.
+   *
+   * @param sku the product's stock-keeping unit
+   * @return {@code null}, as no price exists
+   */
+  @Cacheable(UNPRICED_PRODUCTS)
+  public @Nullable String unpricedPriceOf(String sku) {
+    unpricedLookupCount.incrementAndGet();
+    return null;
+  }
+
+  /**
+   * Looks up the price of a product that has none with {@code sync=true}.
+   *
+   * @param sku the product's stock-keeping unit
+   * @return {@code null}, as no price exists
+   */
+  @Cacheable(cacheNames = SYNCED_UNPRICED_PRODUCTS, sync = true)
+  public @Nullable String syncedUnpricedPriceOf(String sku) {
+    unpricedLookupCount.incrementAndGet();
+    return null;
+  }
+
+  /**
+   * Looks up a product's quote, or returns it from the cache {@value #QUOTES}.
+   *
+   * @param sku the product's stock-keeping unit
+   * @return the quote, as text
+   */
+  @Cacheable(QUOTES)
+  public String quoteOf(String sku) {
+    return "quote-of-" + sku;
+  }
+
+  /**
+   * Builds a product's report, or returns it from the cache {@value #REPORTS}.
+   *
+   * @param sku the product's stock-keeping unit
+   * @return the report, as text
+   */
+  @Cacheable(REPORTS)
+  public String reportOf(String sku) {
+    return "report-of-" + sku;
+  }
+
+  /**
+   * Withdraws a product's price, so the cached price must go.
+   *
+   * @param sku the product's stock-keeping unit
+   * @return {@code null}, the price after the withdrawal
+   */
+  @CachePut(PRODUCTS)
+  public @Nullable String withdrawPrice(String sku) {
+    return null;
+  }
+
+  /** Removes every price from the cache. */
+  @CacheEvict(cacheNames = PRODUCTS, allEntries = true)
+  public void forgetAllPrices() {
+    // The annotation does the work.
+  }
+
+  /**
+   * Returns how many times a price was really looked up.
+   *
+   * @return the number of lookups
+   */
+  public int lookups() {
+    return lookupCount.get();
+  }
+
+  /**
+   * Returns how many times a synced price was really looked up.
+   *
+   * @return the number of synced lookups
+   */
+  public int syncedLookups() {
+    return syncedLookupCount.get();
+  }
+
+  /**
+   * Returns how many times a product without a price was really looked up.
+   *
+   * @return the number of lookups
+   */
+  public int unpricedLookups() {
+    return unpricedLookupCount.get();
+  }
+}
