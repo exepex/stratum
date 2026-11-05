@@ -145,8 +145,8 @@ with `for: 10m` and a warning severity. When it fires, check that the Collector 
 then raise `management.opentelemetry.tracing.export.max-queue-size` or lower
 `management.tracing.sampling.probability`.
 
-The count comes from OpenTelemetry's own span processor, which Spring Boot gives every
-OpenTelemetry `MeterProvider` bean. If your service declares its own `MeterProvider`, it replaces
+The count comes from OpenTelemetry's own span processor, and Spring Boot gives that processor
+the service's OpenTelemetry `MeterProvider` bean. If your service declares its own `MeterProvider`, it replaces
 Stratum's, and the counter is not registered. To turn the counter off, set Spring Boot's key:
 
 ```properties
