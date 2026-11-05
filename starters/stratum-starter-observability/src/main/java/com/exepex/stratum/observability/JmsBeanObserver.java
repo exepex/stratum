@@ -4,6 +4,7 @@ import com.exepex.stratum.core.api.StratumInternal;
 import io.micrometer.observation.ObservationRegistry;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.jms.core.JmsTemplate;
@@ -12,7 +13,8 @@ import org.springframework.jms.listener.AbstractMessageListenerContainer;
 /**
  * Times and traces the JMS senders and listeners the service declares as beans, which Spring Boot
  * leaves unobserved: each {@code JmsTemplate} and listener container bean that has no observation
- * registry gets the application's. A registry the service set itself, such as {@code
+ * registry gets the application's, and each listener container without an error handler records
+ * failed messages as errors. A registry or error handler the service set itself, such as {@code
  * ObservationRegistry.NOOP}, is kept.
  */
 @StratumInternal
@@ -52,13 +54,20 @@ public class JmsBeanObserver implements BeanPostProcessor {
   }
 
   /**
-   * Gives the registry to a listener container that has none.
+   * Gives the registry to a listener container that has none, and, when it then has a registry and
+   * no error handler, a handler that records each failed message as an error.
    *
    * @param container the listener container
    */
   public void observe(AbstractMessageListenerContainer container) {
     if (container.getObservationRegistry() == null) {
       applicationRegistry().ifPresent(container::setObservationRegistry);
+    }
+    var containerRegistry = container.getObservationRegistry();
+    if (containerRegistry != null && container.getErrorHandler() == null) {
+      container.setErrorHandler(
+          new ObservedJmsErrorHandler(
+              containerRegistry, LoggerFactory.getLogger(container.getClass())));
     }
   }
 

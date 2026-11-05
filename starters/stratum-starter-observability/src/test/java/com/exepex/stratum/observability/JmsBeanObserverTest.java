@@ -2,6 +2,8 @@ package com.exepex.stratum.observability;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import com.exepex.stratum.test.LogLineCapture;
 import io.micrometer.observation.ObservationRegistry;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -10,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.jms.core.JmsTemplate;
 import org.springframework.jms.listener.DefaultMessageListenerContainer;
+import org.springframework.scheduling.support.TaskUtils;
 
 @DisplayName(
     "JmsBeanObserver gives the application's observation registry to JMS beans that have none")
@@ -83,6 +86,40 @@ class JmsBeanObserverTest {
 
       assertThat(container.getObservationRegistry()).isSameAs(ObservationRegistry.NOOP);
     }
+
+    @Test
+    @DisplayName(
+        "with no error handler gets one that logs Spring's warning under the container's logger")
+    void getsErrorHandler() {
+      var container = new DefaultMessageListenerContainer();
+      var containerLines = new LogLineCapture(DefaultMessageListenerContainer.class.getName());
+      observer().postProcessAfterInitialization(container, BEAN_NAME);
+
+      containerLines.start();
+      try {
+        container.getErrorHandler().handleError(new IllegalStateException("listener failed"));
+      } finally {
+        containerLines.stop();
+      }
+
+      assertThat(container.getErrorHandler()).isInstanceOf(ObservedJmsErrorHandler.class);
+      assertThat(containerLines.lines())
+          .singleElement()
+          .extracting(ILoggingEvent::getFormattedMessage)
+          .isEqualTo(ObservedJmsErrorHandler.LISTENER_FAILED);
+    }
+
+    @Test
+    @DisplayName("keeps the error handler the service set")
+    void keepsServiceErrorHandler() {
+      var container = new DefaultMessageListenerContainer();
+      var serviceHandler = TaskUtils.LOG_AND_SUPPRESS_ERROR_HANDLER;
+      container.setErrorHandler(serviceHandler);
+
+      observer().postProcessAfterInitialization(container, BEAN_NAME);
+
+      assertThat(container.getErrorHandler()).isSameAs(serviceHandler);
+    }
   }
 
   @Nested
@@ -113,6 +150,7 @@ class JmsBeanObserverTest {
           .postProcessAfterInitialization(container, BEAN_NAME);
 
       assertThat(container.getObservationRegistry()).isNull();
+      assertThat(container.getErrorHandler()).isNull();
     }
   }
 
