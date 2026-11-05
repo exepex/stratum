@@ -24,25 +24,25 @@ class TelemetryUrlFilterSpeedTest {
   private static final int CALLS_PER_BATCH = 30;
 
   /**
-   * CPU time cleaning a URL with a 1MB path may take: 5 times M, where M = 13442.071 µs is the
-   * largest best value of 3 CI runs with coverage on (13442.071 µs, 13412.232 µs, 13373.219 µs), CI
-   * run 41755894601 on JDK 25, 2026-11-04.
+   * CPU time cleaning a URL with a 1MB path may take: 5 times M, where M = 18840.079 µs is the
+   * largest best value of 3 CI runs with coverage on (14625.357 µs, 11316.040 µs, 18840.079 µs), CI
+   * run 42063752215 on JDK 25, 2026-11-05.
    */
-  private static final Duration PATH_LIMIT = Duration.of(67_210_355, ChronoUnit.NANOS);
+  private static final Duration PATH_LIMIT = Duration.of(94_200_396, ChronoUnit.NANOS);
 
   /**
-   * CPU time cleaning a URL with a 1MB query may take: 5 times M, where M = 15697.712 µs is the
-   * largest best value of 3 CI runs with coverage on (15697.712 µs, 15250.553 µs, 15306.313 µs), CI
-   * run 41755894601 on JDK 25, 2026-11-04.
+   * CPU time cleaning a URL with a 1MB query may take: 5 times M, where M = 19597.943 µs is the
+   * largest best value of 3 CI runs with coverage on (15465.252 µs, 7782.930 µs, 19597.943 µs), CI
+   * run 42063752215 on JDK 25, 2026-11-05.
    */
-  private static final Duration QUERY_LIMIT = Duration.of(78_488_559, ChronoUnit.NANOS);
+  private static final Duration QUERY_LIMIT = Duration.of(97_989_714, ChronoUnit.NANOS);
 
   /**
-   * CPU time cleaning a URL with a 1MB user info may take: 5 times M, where M = 10932.756 µs is the
-   * largest best value of 3 CI runs with coverage on (10830.844 µs, 10677.798 µs, 10932.756 µs), CI
-   * run 41755894601 on JDK 25, 2026-11-04.
+   * CPU time cleaning a URL with a 1MB user info may take: 5 times M, where M = 14499.435 µs is the
+   * largest best value of 3 CI runs with coverage on (10621.095 µs, 7318.338 µs, 14499.435 µs), CI
+   * run 42063752215 on JDK 25, 2026-11-05.
    */
-  private static final Duration USER_INFO_LIMIT = Duration.of(54_663_780, ChronoUnit.NANOS);
+  private static final Duration USER_INFO_LIMIT = Duration.of(72_497_174, ChronoUnit.NANOS);
 
   /**
    * URLs with a 1MB path, query or user info, each with its URI template and the CPU time cleaning
