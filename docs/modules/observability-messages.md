@@ -26,7 +26,7 @@ With the module on, sending and handling a message are observed like an HTTP cal
 | Technology | Timers | How it is switched on |
 | --- | --- | --- |
 | Kafka (`spring-kafka`) | `spring.kafka.template` (send), `spring.kafka.listener` (handle) | Stratum sets `spring.kafka.template.observation-enabled` and `spring.kafka.listener.observation-enabled` to `true`; Spring Boot leaves them off |
-| JMS, such as IBM MQ or ActiveMQ | `jms.message.publish` (send), `jms.message.process` (handle) | Spring Boot observes `JmsTemplate` and `@JmsListener` on its own |
+| JMS, such as IBM MQ or ActiveMQ | `jms.message.publish` (send), `jms.message.process` (handle) | On by default: Spring Boot observes the JMS beans it sets up, and Stratum the ones your service sets up ([below](#jms-senders-and-listeners-you-set-up)) |
 | RabbitMQ (`spring-rabbit`) | `spring.rabbit.template` (send), `spring.rabbit.listener` (handle) | Stratum sets `spring.rabbitmq.template.observation-enabled` and `spring.rabbitmq.listener.{simple,direct,stream}.observation-enabled` to `true`; Spring Boot leaves them off |
 
 Kafka and RabbitMQ timers carry where the message went or came from: Kafka sends carry the topic in
@@ -41,8 +41,9 @@ Spring also tags the RabbitMQ send timer, `spring.rabbit.template`, with the mes
 always removes that tag. Sends are still timed per destination, just not per routing key.
 
 This works with the senders and listeners Spring Boot sets up, such as `KafkaTemplate`,
-`@KafkaListener`, `JmsTemplate` and `@JmsListener`. This starter adds no messaging library, so
-Stratum's switches do nothing until your service brings Kafka or RabbitMQ.
+`@KafkaListener`, `JmsTemplate` and `@JmsListener`, and with the JMS ones your service sets up
+itself (below). This starter adds no messaging library, so Stratum's switches do nothing until
+your service brings Kafka or RabbitMQ.
 
 To turn one off, set its switch to `false`, for example in `application.properties`:
 
@@ -61,3 +62,29 @@ spring:
 
 To turn them all off, set each of the six Kafka and RabbitMQ switches in the table above to
 `false`.
+
+## JMS senders and listeners you set up
+
+Spring Boot observes only the JMS beans it builds itself. It builds no `JmsTemplate` when your
+service declares its own or has two connection factories, as a service with two brokers does.
+Stratum gives the same observation to the JMS objects your service sets up, with nothing to write:
+
+- every `JmsTemplate` bean, and so every `JmsClient.create(jmsTemplate)` and
+  `new JmsMessagingTemplate(jmsTemplate)` built on it;
+- every listener container bean, such as a `DefaultMessageListenerContainer`;
+- every `@JmsListener`, whatever listener container factory builds it, including one made with
+  `new DefaultJmsListenerContainerFactory()`.
+
+Each is timed and traced like Spring Boot's own, and each message it sends carries the trace headers
+as JMS properties (`traceparent`, and `baggage` when there is any), whatever
+`stratum.backward-compatible` is set to. An object on which your service set its own observation
+registry keeps it: set `ObservationRegistry.NOOP` on a template, a container or a listener container
+factory to leave it unobserved.
+
+These stay unobserved, because Stratum cannot reach them:
+
+- a template or container made with `new` and never declared as a bean, and the template inside
+  `JmsClient.create(connectionFactory)` or `new JmsMessagingTemplate(connectionFactory)`; declare a
+  `JmsTemplate` bean and pass it in instead;
+- a `@JmsListener` registered after the application has started;
+- every JMS object, when the application has more than one `ObservationRegistry` bean.

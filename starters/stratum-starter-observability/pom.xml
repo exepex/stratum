@@ -49,6 +49,13 @@
       <artifactId>spring-web</artifactId>
       <optional>true</optional>
     </dependency>
+    <!-- Gives the observation registry to the JMS senders and listeners a service declares itself.
+         Optional: only a service that uses JMS has it. -->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-jms</artifactId>
+      <optional>true</optional>
+    </dependency>
     <!-- Runs a Mono or Flux as linked work. Optional: only a service that uses Reactor has it. -->
     <dependency>
       <groupId>io.projectreactor</groupId>
