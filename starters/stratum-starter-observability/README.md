@@ -101,6 +101,7 @@ and installs the OpenTelemetry appender itself.
 | Messages | Kafka, JMS (IBM MQ, ActiveMQ) and RabbitMQ: sending and handling a message are timed and traced, and the consumer joins the sender's trace and correlation ID ([below](#messages)) |
 | Traces | OpenTelemetry traces. A request joins the caller's trace from its W3C `traceparent`, B3 `b3` or B3 multi `X-B3-*` header; calls made with Spring's HTTP clients send W3C `traceparent` only. To send B3 as well, set Spring Boot's `management.tracing.propagation.produce` ([examples](#examples)). Spring Boot keeps 10% of traces. Stratum makes each service choose by trace ID, so a caller's sampled flag cannot make it keep more, and services with the same probability keep the same traces ([sampling](../../docs/modules/observability-traces.md#sampling)). With the cache starter, Redis cache command spans carry `cache.name` ([Cache → Traces](../../docs/modules/cache-traces.md)) |
 | Trace and metric resource | `service.name` from `spring.application.name` (set by Spring Boot), `deployment.environment.name` from `stratum.environment`, and `service.instance.id`, the [instance ID](../../docs/configuration/reference.md#instance-id) of this running copy, which its log lines carry too |
+| Errors on spans | A failed span keeps its `ERROR` status but carries no exception type, message or stack trace, which belong in the logs; metrics keep their `exception` tag ([traces](../../docs/modules/observability-traces.md#errors-on-spans)) |
 | URLs on spans | The full URL of each HTTP client call, query string included, is kept on its span; only the user info is removed. Metrics never carry the query ([traces](../../docs/modules/observability-traces.md#urls-on-spans-and-metrics)) |
 | Health | `/actuator/health`, with Spring Boot's Kubernetes `liveness` and `readiness` groups |
 | Safe exposure | Only `health` and `info` are reachable over HTTP |
@@ -416,6 +417,11 @@ The switch and the Spring Boot properties above are set in Java through
 - **Your own tag rule:** declare a `MetricTagGuard` bean; Stratum's then backs off.
 - **Your own correlation ID handling:** declare a `CorrelationIdRecorder` bean; Stratum's then
   backs off.
+- **Exception data on spans:** a bean named `stratumExceptionFreeSpans` replaces the
+  post-processor that keeps exception data off your spans
+  ([errors on spans](../../docs/modules/observability-traces.md#errors-on-spans)); declare it
+  `static`, as any `BeanPostProcessor`. Your spans then carry the exception's message, which can
+  hold personal data.
 - **Not replaceable:** the Spring Boot defaults and the export address check run before any bean
   exists, so no bean of yours replaces them. `stratum.observability.enabled` turns them all off;
   turning an export off also satisfies the check for that export ([startup check](#startup-check)).

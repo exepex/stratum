@@ -17,9 +17,9 @@ import org.springframework.web.util.UriComponentsBuilder;
  * The {@code uri} tag, on the span and on every metric, loses its query, {@code /rates}, because
  * each distinct value there would be a new time series. It is a {@link MeterFilter} as well as an
  * {@link ObservationFilter}, because Spring creates the {@code http.client.requests.active} metric
- * when a call starts, before an observation filter runs. It cannot clean the message of an
- * exception: when a call fails, Spring's message names the URL with its user info, and the span
- * records that message.
+ * when a call starts, before an observation filter runs. When a call fails, Spring's exception
+ * message names the URL with its user info; Stratum keeps that message off the span when it is
+ * sent.
  */
 public class TelemetryUrlFilter implements ObservationFilter, MeterFilter {
 
