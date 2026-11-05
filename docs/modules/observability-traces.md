@@ -232,6 +232,35 @@ management:
       "[stratum.observability.spans.dropped]": false
 ```
 
+## Health probes
+
+Kubernetes probes and load balancers call the health endpoint every few seconds on every pod.
+Stratum keeps those calls out of traces: a probe request, and any timed work inside it such as a
+health check of your own, makes no span. Its `http.server.requests` timer stays, so probe latency
+and failures still show in metrics. Logs written during a probe carry no trace ID.
+
+A probe is a request to the health endpoint or below it (`/actuator/health/liveness`), to a health
+group's `additional-path`, or to `/livez` and `/readyz` when
+`management.endpoint.health.probes.add-additional-paths=true`. The paths follow
+`management.endpoints.web.base-path`, `management.endpoints.web.path-mapping.health`, the server's
+base path (`server.servlet.context-path` or `spring.webflux.base-path`) and
+`management.server.base-path`. To trace probes again:
+
+```properties
+stratum.observability.tracing.health-probes=true
+```
+
+```yaml
+stratum:
+  observability:
+    tracing:
+      health-probes: true
+```
+
+Two cases still make spans: a span your health check starts with the tracer or OpenTelemetry's
+API directly, which becomes a trace of its own; and, on Spring MVC with a separate management
+port, timed work in a health check, because Spring Boot does not time those probe requests.
+
 ## Sampling
 
 A trace is the record of one request across every service it reaches. Keeping every trace costs

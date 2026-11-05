@@ -26,6 +26,8 @@ class ObservabilityArchTest {
           ObservabilityProperties.Baggage.class,
           ObservabilityProperties.Tags.class,
           ObservabilityProperties.Tags.TagsBuilder.class,
+          ObservabilityProperties.Tracing.class,
+          ObservabilityProperties.Tracing.TracingBuilder.class,
           ObservabilityPropertiesCustomizer.class,
           TelemetryUrlFilter.class,
           LinkedWork.class,
