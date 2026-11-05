@@ -59,6 +59,7 @@ Each module page follows the same layout so you always know where to look:
 | Logging workflows (named business work in logs, metrics and traces) | [logging-workflows.md](modules/logging-workflows.md) |
 | Logging rate limits and sampling (each logger's lines per second, kept DEBUG and INFO lines) | [logging-volume.md](modules/logging-volume.md) |
 | Observability (metrics, tracing, health) | [stratum-starter-observability/README.md](../starters/stratum-starter-observability/README.md) |
+| Observability meter caps (total meters, HTTP client hosts, the `uri` tag) | [observability-metrics.md](modules/observability-metrics.md) |
 | Observability of Kafka, RabbitMQ and JMS messages | [observability-messages.md](modules/observability-messages.md) |
 | Observability traces (correlation ID, baggage, URLs on spans, errors on spans, span size, dropped spans, sampling and tail sampling) | [observability-traces.md](modules/observability-traces.md) |
 | Security (resource server, JWT) | [security.md](modules/security.md) |

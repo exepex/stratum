@@ -4,6 +4,7 @@ import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.core.properties.StratumCustomizers;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
 import java.util.List;
 import lombok.Builder;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -18,11 +19,14 @@ import org.springframework.core.env.Environment;
  *
  * @param tags Which metric tags are refused.
  * @param baggage Which baggage entries are read from callers and sent on.
+ * @param metrics How many meters the service may make.
  */
 @Builder(toBuilder = true)
 @ConfigurationProperties(prefix = ObservabilityConstants.PREFIX)
 public record ObservabilityProperties(
-    @DefaultValue @Valid Tags tags, @DefaultValue @Valid Baggage baggage) {
+    @DefaultValue @Valid Tags tags,
+    @DefaultValue @Valid Baggage baggage,
+    @DefaultValue @Valid Metrics metrics) {
 
   /**
    * Returns the settings the module uses: {@code stratum.observability.*} with the defaults for
@@ -80,4 +84,18 @@ public record ObservabilityProperties(
       allowed = List.copyOf(allowed);
     }
   }
+
+  /**
+   * How many meters the service may make, so a tag that holds many values cannot overload the
+   * metrics backend. Past a cap, new meters are dropped with one warning.
+   *
+   * @param maxMeters The most meters each metrics registry holds. Defaults to 10000; raise it only
+   *     after checking the backend's series budget.
+   * @param maxClientNames The most hosts that the HTTP client metrics keep in their client.name
+   *     tag. Defaults to 100.
+   */
+  @Builder(toBuilder = true)
+  public record Metrics(
+      @DefaultValue("10000") @Positive int maxMeters,
+      @DefaultValue("100") @Positive int maxClientNames) {}
 }

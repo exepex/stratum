@@ -9,6 +9,8 @@ stratum:
       allowed: orderId
     baggage:
       allowed: correlationId,tenantId
+    metrics:
+      max-client-names: 3
 management:
   opentelemetry:
     resource-attributes:

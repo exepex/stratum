@@ -8,7 +8,8 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * The codes of the observability module, each listed with its fix in {@code
- * docs/guides/error-codes.md}. Every error here stops the application at startup.
+ * docs/guides/error-codes.md}. Each error stops the application at startup; each warning is logged
+ * and the application runs on.
  */
 @StratumInternal
 @Getter
@@ -38,6 +39,18 @@ public enum ObservabilityErrorCode implements ErrorCode {
       "SX-OBSERVABILITY-1002",
       Severity.WARNING,
       "A metric was dropped because a tag holds an ID; put IDs in logs or span attributes",
+      ""),
+
+  /**
+   * A new meter was dropped because the registry already holds the most meters allowed, or the HTTP
+   * client meters already have the most hosts allowed. The detail names the meter and the key to
+   * raise, never a tag value.
+   */
+  METER_CAP_REACHED(
+      "SX-OBSERVABILITY-1003",
+      Severity.WARNING,
+      "A new meter was dropped because a meter cap is reached; a tag probably holds unbounded"
+          + " values",
       "");
 
   /** The code, such as {@code SX-OBSERVABILITY-1001}. */
