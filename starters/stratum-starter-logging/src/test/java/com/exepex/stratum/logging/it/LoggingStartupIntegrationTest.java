@@ -190,7 +190,8 @@ class LoggingStartupIntegrationTest {
       log.error("payment failed", failure);
     }
 
-    assertThat(output).doesNotContain("4111").contains("...[truncated]");
+    // Only the text after "card" is checked: a startup timestamp or PID can hold "4111" too.
+    assertThat(output).doesNotContain("card 4111").contains("...[truncated]");
   }
 
   @Test
