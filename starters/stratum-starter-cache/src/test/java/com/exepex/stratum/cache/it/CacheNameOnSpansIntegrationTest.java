@@ -42,8 +42,11 @@ class CacheNameOnSpansIntegrationTest {
   /** The service's name, which its Redis cache keys start with. */
   static final String SERVICE = "spans-service";
 
-  /** The product whose price the tests cache; its text must never reach a span. */
+  /** The product whose price the span test caches; its text must never reach a span. */
   private static final String SKU = "sku-traced-1";
+
+  /** The product whose price the timer test caches, so each test makes its own Redis commands. */
+  private static final String TIMED_SKU = "sku-timed-1";
 
   /** How long a test waits for Lettuce to end a span. */
   private static final Duration SPAN_WAIT = Duration.ofSeconds(5);
@@ -131,7 +134,7 @@ class CacheNameOnSpansIntegrationTest {
   @Test
   @DisplayName("Spring Boot's lettuce timer gets no cache.name tag, so its series stay as they are")
   void timerHasNoCacheNameTag() {
-    catalog.priceOf(SKU);
+    catalog.priceOf(TIMED_SKU);
     redisSpansAfter("get");
 
     assertThat(meterRegistry.find(LETTUCE_TIMER).timers())

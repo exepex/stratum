@@ -2,7 +2,11 @@ package com.exepex.stratum.cache.autoconfigure;
 
 import com.exepex.stratum.cache.CacheConstants;
 import com.exepex.stratum.cache.CacheCounters;
+import com.exepex.stratum.cache.CacheValueTyping;
 import com.exepex.stratum.cache.MicrometerCacheCounters;
+import com.exepex.stratum.cache.RedisCacheNames;
+import com.exepex.stratum.cache.RedisCacheParts;
+import com.exepex.stratum.cache.RedisRetryGate;
 import com.exepex.stratum.cache.StratumCacheLayerHook;
 import com.exepex.stratum.cache.StratumCacheProperties;
 import com.exepex.stratum.core.api.StratumInternal;
@@ -57,8 +61,10 @@ public final class CacheLayerAutoConfiguration {
    * @param cacheManager the service's cache manager
    * @param environment the service's environment, from which the settings are resolved
    * @param counters count the layer's failures and refused names, and measure its caches
-   * @param beanFactory the service's beans, which name the cache manager for the metrics and hold
-   *     the optional Redis parts of the layer
+   * @param beanFactory the service's beans, which name the cache manager for the metrics
+   * @param redisRetryGate the Redis retry gate, when the service has Redis caches
+   * @param typing the typing of JSON values, when Redis caches store JSON
+   * @param spanNames the cache names on Redis spans, when the service observes Redis
    * @return the hook
    */
   @Bean
@@ -69,13 +75,18 @@ public final class CacheLayerAutoConfiguration {
       ObjectProvider<CacheManager> cacheManager,
       Environment environment,
       CacheCounters counters,
-      ListableBeanFactory beanFactory) {
+      ListableBeanFactory beanFactory,
+      ObjectProvider<RedisRetryGate> redisRetryGate,
+      ObjectProvider<CacheValueTyping> typing,
+      ObjectProvider<RedisCacheNames> spanNames) {
     return new StratumCacheLayerHook(
         cacheInterceptor,
         cacheManager,
         StratumCacheProperties.resolve(environment),
         counters,
-        beanFactory);
+        beanFactory,
+        RedisCacheParts.of(
+            redisRetryGate.getIfAvailable(), typing.getIfAvailable(), spanNames.getIfAvailable()));
   }
 
   /**

@@ -7,7 +7,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.UnaryOperator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.Cache;
@@ -52,14 +51,8 @@ public class StratumCacheResolver implements CacheResolver {
   /** Reports the failed write of a loaded value inside each wrapped cache. */
   private final StratumCacheErrorHandler errorHandler;
 
-  /** Puts the Redis retry gate in front of a Redis cache; returns any other cache unchanged. */
-  private final UnaryOperator<Cache> redisGate;
-
-  /** Gives each call of a method its own value type, for caches that store values untyped. */
-  private final CacheValueTyping typing;
-
-  /** The cache names Redis command spans carry, which each admitted name joins. */
-  private final RedisCacheNames spanCacheNames;
+  /** The retry gate, value typing and span names, which only Redis caches use. */
+  private final RedisCacheParts redisParts;
 
   /** The one cache every refused name shares: reads miss, writes do nothing, loaders run. */
   private final Cache overLimitCache = new NoOpCache(CacheConstants.OVER_LIMIT);
@@ -91,7 +84,7 @@ public class StratumCacheResolver implements CacheResolver {
   /** Returns a name's cache, as the calling method's typed view where its values need one. */
   private Cache typedFor(String name, CacheOperationInvocationContext<?> context) {
     var cache = cacheFor(name);
-    return typedNames.contains(name) ? typing.typed(cache, context) : cache;
+    return typedNames.contains(name) ? redisParts.getTyping().typed(cache, context) : cache;
   }
 
   /** Returns the wrapped cache of an admitted name, or the shared no-op cache of a refused one. */
@@ -127,11 +120,11 @@ public class StratumCacheResolver implements CacheResolver {
           "No cache named " + name + " could be resolved by " + cacheManager);
     }
     counters.bindCacheMetrics(cache, cacheManagerName);
-    spanCacheNames.add(name);
-    if (typing.appliesTo(cache)) {
+    redisParts.nameOnSpans(name);
+    if (redisParts.getTyping().appliesTo(cache)) {
       typedNames.add(name);
     }
-    return new StratumCache(redisGate.apply(cache), errorHandler, rejectsNulls(cache));
+    return new StratumCache(redisParts.gated(cache), errorHandler, rejectsNulls(cache));
   }
 
   /** Returns whether a cache refuses to store nulls, as Redis does with Stratum's default. */

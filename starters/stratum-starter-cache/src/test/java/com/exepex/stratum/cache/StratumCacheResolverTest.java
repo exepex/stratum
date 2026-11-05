@@ -14,7 +14,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.UnaryOperator;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -84,9 +83,7 @@ class StratumCacheResolverTest {
         throttle,
         counters,
         new StratumCacheErrorHandler(null, throttle, counters),
-        UnaryOperator.identity(),
-        CacheValueTyping.none(),
-        spanCacheNames);
+        RedisCacheParts.none().toBuilder().spanNames(spanCacheNames).build());
   }
 
   /** Returns an invocation context whose operation asks for the given cache names. */
@@ -299,9 +296,9 @@ class StratumCacheResolverTest {
               throttle,
               counters,
               new StratumCacheErrorHandler(null, throttle, counters),
-              cache -> new NoOpCache("gated-" + cache.getName()),
-              CacheValueTyping.none(),
-              RedisCacheNames.none());
+              RedisCacheParts.none().toBuilder()
+                  .gate(cache -> new NoOpCache("gated-" + cache.getName()))
+                  .build());
 
       var resolved = gatedResolver.resolveCaches(invocation("products"));
 
@@ -338,9 +335,7 @@ class StratumCacheResolverTest {
               throttle,
               counters,
               new StratumCacheErrorHandler(null, throttle, counters),
-              UnaryOperator.identity(),
-              typing,
-              RedisCacheNames.none());
+              RedisCacheParts.none().toBuilder().typing(typing).build());
 
       var resolved = typingResolver.resolveCaches(invocation("typed", "plain"));
 
