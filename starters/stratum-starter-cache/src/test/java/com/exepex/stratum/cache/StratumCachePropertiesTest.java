@@ -134,8 +134,9 @@ class StratumCachePropertiesTest {
     @Test
     @DisplayName(
         "unset, the cap is 100 caches, warnings repeat at most once a minute, every cache stores"
-            + " keys up to 1 KiB and values up to 1 MiB, Redis is skipped after 3 failures in a row and retried after 5 seconds, and no"
-            + " package is allowed beyond the service's own; Caffeine caches store no nulls")
+            + " keys up to 1 KiB and values up to 1 MiB, Redis is skipped after 3 failures in a row"
+            + " and retried after 5 seconds, and no package is allowed beyond the service's own;"
+            + " Caffeine caches store no nulls")
     void defaultsAreSafe() {
       var properties = StratumCacheProperties.resolve(new MockEnvironment());
 

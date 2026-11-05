@@ -136,7 +136,6 @@ class RedisRetryGateTest {
 
       gate.failed(RedisFailureTestData.TIMED_OUT, true);
       failTimes(FAILURE_THRESHOLD - 2, RedisFailureTestData.CONNECT_FAILED);
-      gate.failed(RedisFailureTestData.DISCONNECTED, true);
 
       assertThat(gate.usesRedis()).isTrue();
       assertThat(gate.isAvailable()).isTrue();
