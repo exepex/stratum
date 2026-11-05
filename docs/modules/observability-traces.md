@@ -95,13 +95,10 @@ see spans before Stratum removes the data, or without it: a Micrometer `SpanRepo
 ## Span size
 
 Each span waits in a queue of up to 2,048 spans until it is sent. So that a span cannot hold
-megabytes, Stratum lowers three of Spring Boot's span limits:
-
-| Spring Boot's key | Stratum's default | Spring Boot's default | What happens past it |
-| --- | --- | --- | --- |
-| `management.opentelemetry.tracing.limits.max-attribute-value-length` | `1024` | no limit | The value is cut to 1,024 characters |
-| `management.opentelemetry.tracing.limits.max-attributes` | `64` | `128` | Later attributes are dropped |
-| `management.opentelemetry.tracing.limits.max-events` | `16` | `128` | Later events are dropped |
+megabytes, Stratum lowers three of Spring Boot's span limits (the `limits` keys in the starter's
+[property table](../../starters/stratum-starter-observability/README.md#properties)): a value longer
+than 1,024 characters is cut to 1,024, and a span keeps at most 64 attributes and 16 events; later
+ones are dropped.
 
 The values most likely to be cut are long URLs and SQL text (`db.query.text`). An exception's stack
 trace is rendered only up to 1,024 characters, so failed requests also cost less. The backend is
