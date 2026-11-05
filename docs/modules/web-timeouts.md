@@ -47,6 +47,10 @@ stratum:
   so Spring Boot keeps its `/` and `*`. When several patterns match a path, the most specific wins.
 - `status` is any status from `400` to `599`. `503` tells callers the service is too busy now and
   that a retry later can work; some gateways expect `504`.
+- Behind a gateway or load balancer, keep every limit, route and `@ResponseTimeout` limits included,
+  below the gateway's own timeout. With a 30s gateway and a 10s limit, the caller gets Stratum's
+  `503` with a trace ID to quote; with a limit above 30s, the gateway answers first with its own
+  `504`, without Stratum's error body or trace ID.
 
 Each key, with its type and default, is listed in [Web → Properties](web.md#properties).
 
