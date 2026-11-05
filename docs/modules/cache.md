@@ -339,6 +339,7 @@ public class OrdersCacheSettings implements StratumCachePropertiesCustomizer {
         .maxCaches(200)
         .warningInterval(Duration.ofMinutes(5))
         .redisRetryInterval(Duration.ofSeconds(2))
+        .redisFailureThreshold(5)
         .caches(
             Map.of(
                 "reports",
