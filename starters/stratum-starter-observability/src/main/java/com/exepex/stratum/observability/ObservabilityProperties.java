@@ -1,5 +1,6 @@
 package com.exepex.stratum.observability;
 
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.core.properties.StratumCustomizers;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -16,10 +17,12 @@ import org.springframework.core.env.Environment;
  * already has a key for, such as the exposed actuator endpoints, is set with Spring Boot's key.
  *
  * @param tags Which metric tags are refused.
+ * @param baggage Which baggage entries are read from callers and sent on.
  */
 @Builder(toBuilder = true)
 @ConfigurationProperties(prefix = ObservabilityConstants.PREFIX)
-public record ObservabilityProperties(@DefaultValue @Valid Tags tags) {
+public record ObservabilityProperties(
+    @DefaultValue @Valid Tags tags, @DefaultValue @Valid Baggage baggage) {
 
   /**
    * Returns the settings the module uses: {@code stratum.observability.*} with the defaults for
@@ -57,6 +60,23 @@ public record ObservabilityProperties(@DefaultValue @Valid Tags tags) {
     /** Keeps unchangeable copies of the names. */
     public Tags {
       extraForbidden = List.copyOf(extraForbidden);
+      allowed = List.copyOf(allowed);
+    }
+  }
+
+  /**
+   * Which baggage entries are read from callers and sent on calls and messages; every other entry
+   * is dropped. Spring Boot's {@code management.tracing.baggage.remote-fields} are always kept too.
+   * Names match exactly, case included.
+   *
+   * @param allowed The baggage names that are kept. Defaults to correlationId; a list set here
+   *     replaces the default, so keep correlationId in it.
+   */
+  public record Baggage(
+      @DefaultValue(LoggingContextConstants.CORRELATION_ID) List<@NotBlank String> allowed) {
+
+    /** Keeps an unchangeable copy of the names. */
+    public Baggage {
       allowed = List.copyOf(allowed);
     }
   }

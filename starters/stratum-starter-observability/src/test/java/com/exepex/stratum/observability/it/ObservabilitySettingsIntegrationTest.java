@@ -2,7 +2,10 @@ package com.exepex.stratum.observability.it;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.exepex.stratum.core.logging.LoggingContextConstants;
+import com.exepex.stratum.observability.BaggageAllowList;
 import com.exepex.stratum.observability.MetricTagGuard;
+import com.exepex.stratum.observability.testsupport.BaggageTestData;
 import com.exepex.stratum.observability.testsupport.ObservabilityTestData;
 import io.micrometer.core.instrument.config.MeterFilterReply;
 import io.opentelemetry.api.common.AttributeKey;
@@ -18,13 +21,23 @@ import org.springframework.test.annotation.DirtiesContext;
 @DisplayName("The observability settings work from application.yml and application.properties")
 class ObservabilitySettingsIntegrationTest {
 
+  /** A caller's baggage with a tenant, which both files allow, and names they do not allow. */
+  private static final String TENANT_BAGGAGE =
+      BaggageTestData.CALLER_BAGGAGE + "," + BaggageTestData.REMOTE_FIELD + "=t-1";
+
   /** Checks the settings that both files set the same way. */
   private void assertSettingsApplied(
-      MetricTagGuard guard, Environment environment, Resource resource) {
+      MetricTagGuard guard,
+      BaggageAllowList allowList,
+      Environment environment,
+      Resource resource) {
     assertThat(guard.accept(ObservabilityTestData.counterTaggedWith("tenantId")))
         .isEqualTo(MeterFilterReply.DENY);
     assertThat(guard.accept(ObservabilityTestData.counterTaggedWith("orderId")))
         .isEqualTo(MeterFilterReply.NEUTRAL);
+    assertThat(BaggageTestData.namesKeptBy(allowList, TENANT_BAGGAGE))
+        .containsExactlyInAnyOrder(
+            LoggingContextConstants.CORRELATION_ID, BaggageTestData.REMOTE_FIELD);
     assertThat(environment.getProperty("management.endpoints.web.exposure.include"))
         .isEqualTo("health,info");
     assertThat(environment.getProperty("management.metrics.tags.environment")).isEqualTo("staging");
@@ -49,6 +62,9 @@ class ObservabilitySettingsIntegrationTest {
     /** The guard the settings configure. */
     @Autowired private MetricTagGuard guard;
 
+    /** The baggage allow-list the settings configure. */
+    @Autowired private BaggageAllowList allowList;
+
     /** The application's settings. */
     @Autowired private Environment environment;
 
@@ -57,9 +73,10 @@ class ObservabilitySettingsIntegrationTest {
 
     @Test
     @DisplayName(
-        "the forbidden and allowed tags, endpoints, environment tag and instance ID are applied")
+        "the forbidden and allowed tags, allowed baggage, endpoints, environment tag and"
+            + " instance ID are applied")
     void settingsApplied() {
-      assertSettingsApplied(guard, environment, resource);
+      assertSettingsApplied(guard, allowList, environment, resource);
     }
   }
 
@@ -80,6 +97,9 @@ class ObservabilitySettingsIntegrationTest {
     /** The guard the settings configure. */
     @Autowired private MetricTagGuard guard;
 
+    /** The baggage allow-list the settings configure. */
+    @Autowired private BaggageAllowList allowList;
+
     /** The application's settings. */
     @Autowired private Environment environment;
 
@@ -88,9 +108,10 @@ class ObservabilitySettingsIntegrationTest {
 
     @Test
     @DisplayName(
-        "the forbidden and allowed tags, endpoints, environment tag and instance ID are applied")
+        "the forbidden and allowed tags, allowed baggage, endpoints, environment tag and"
+            + " instance ID are applied")
     void settingsApplied() {
-      assertSettingsApplied(guard, environment, resource);
+      assertSettingsApplied(guard, allowList, environment, resource);
     }
   }
 }

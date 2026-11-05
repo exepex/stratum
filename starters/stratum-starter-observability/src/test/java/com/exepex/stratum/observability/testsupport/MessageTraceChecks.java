@@ -27,10 +27,10 @@ public class MessageTraceChecks {
   public static final String JMS_PROCESS_TIMER = "jms.message.process";
 
   /** The correlation ID the sender puts in baggage. */
-  private static final String ORDER_CORRELATION_ID = "order-42-c7d1";
+  public static final String ORDER_CORRELATION_ID = "order-42-c7d1";
 
   /** The message sent in each test. */
-  private static final String ORDER_PLACED = "order-placed";
+  public static final String ORDER_PLACED = "order-placed";
 
   /** The MDC key in which Spring Boot puts the trace ID. */
   private static final String TRACE_ID = "traceId";
