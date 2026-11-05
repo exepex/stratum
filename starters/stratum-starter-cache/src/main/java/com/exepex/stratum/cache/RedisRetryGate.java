@@ -160,18 +160,15 @@ public class RedisRetryGate {
       reached();
       return;
     }
-    var current = state.get();
-    if (current.phase() == Phase.USING_REDIS && current.failures() + 1 < failureThreshold) {
-      state.compareAndSet(current, current.toBuilder().failures(current.failures() + 1).build());
-      return;
-    }
     var skipping =
         GateState.builder()
             .phase(Phase.SKIPPING)
             .until(clock.instant().plus(retryInterval))
             .down(true)
             .build();
-    if (current.phase() == Phase.SKIPPING || !state.compareAndSet(current, skipping)) {
+    var before = state.getAndUpdate(current -> afterFailure(current, skipping));
+    if (before.phase() == Phase.SKIPPING
+        || afterFailure(before, skipping).phase() != Phase.SKIPPING) {
       return;
     }
     if (unreachable) {
@@ -182,6 +179,20 @@ public class RedisRetryGate {
       // The report already turns line breaks into spaces; SpotBugs only sees this replacement.
       log.warn(report.getCodeAndMessage().replaceAll("[\r\n]", " "));
     }
+  }
+
+  /**
+   * Returns the state after one more failure that can make the calls skip Redis: the count grows
+   * while every call uses Redis and is below the threshold; otherwise the calls skip Redis, unless
+   * they already do. It has no side effects, as the state's update may run it more than once.
+   */
+  private GateState afterFailure(GateState current, GateState skipping) {
+    if (current.phase() == Phase.SKIPPING) {
+      return current;
+    }
+    return current.phase() == Phase.USING_REDIS && current.failures() + 1 < failureThreshold
+        ? current.toBuilder().failures(current.failures() + 1).build()
+        : skipping;
   }
 
   /**

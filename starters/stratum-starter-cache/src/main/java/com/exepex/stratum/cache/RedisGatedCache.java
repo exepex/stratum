@@ -158,9 +158,22 @@ public class RedisGatedCache implements Cache {
    */
   private void written(Runnable inBackground, Runnable immediate) {
     if (gate.usesRedis()) {
-      triedWithoutResult(inBackground);
+      sentInBackground(inBackground);
     } else if (gate.admits()) {
       triedWithoutResult(immediate);
+    }
+  }
+
+  /**
+   * Sends a background write and tells the gate only of a failure: a sent write does not prove that
+   * Redis answered, so it never ends a run of failures.
+   */
+  private void sentInBackground(Runnable redisCall) {
+    try {
+      redisCall.run();
+    } catch (DataAccessException failure) {
+      gate.failed(failure, timeoutOpensGate);
+      throw failure;
     }
   }
 

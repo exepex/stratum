@@ -34,6 +34,9 @@ class RedisRetryGateTest {
   /** How many failures in a row make the calls skip Redis: the default. */
   private static final int FAILURE_THRESHOLD = 3;
 
+  /** How many failures the concurrency test reports at the same time. */
+  private static final int CONCURRENT_FAILURES = 1_000;
+
   /** How often the warning repeats at most. */
   private static final Duration WARNING_INTERVAL = Duration.ofMinutes(1);
 
@@ -141,6 +144,29 @@ class RedisRetryGateTest {
       assertThat(gate.isAvailable()).isTrue();
       assertThat(counters.redisConnectFailures()).isZero();
       assertThat(warnings.lines()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("failures at the same time each count, so the next one reaches the threshold")
+    void concurrentFailuresAllCount() {
+      var manyFailuresGate =
+          new RedisRetryGate(
+              RETRY_INTERVAL,
+              CONCURRENT_FAILURES + 1,
+              clock,
+              new WarningThrottle(WARNING_INTERVAL, clock, 1),
+              counters,
+              Set.of());
+      assertThat(manyFailuresGate.admits()).isTrue();
+      manyFailuresGate.reached();
+
+      IntStream.range(0, CONCURRENT_FAILURES)
+          .parallel()
+          .forEach(attempt -> manyFailuresGate.failed(RedisFailureTestData.TIMED_OUT, true));
+
+      assertThat(manyFailuresGate.usesRedis()).isTrue();
+      manyFailuresGate.failed(RedisFailureTestData.TIMED_OUT, true);
+      assertThat(manyFailuresGate.usesRedis()).isFalse();
     }
 
     @Test
