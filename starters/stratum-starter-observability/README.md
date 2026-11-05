@@ -92,7 +92,7 @@ and installs the OpenTelemetry appender itself.
 
 | Feature | Behaviour |
 | --- | --- |
-| Metrics | Spring Boot's metrics (HTTP server and client, JVM, connection pools, caches named in `spring.cache.cache-names` ([Cache → Metrics](../../docs/modules/cache.md#metrics)), `@Scheduled` jobs, Spring Batch jobs), pushed over OTLP every minute |
+| Metrics | Spring Boot's metrics (HTTP server and client, JVM, connection pools, caches, including those made on their first use ([Cache → Metrics](../../docs/modules/cache.md#metrics)), `@Scheduled` jobs, Spring Batch jobs), pushed over OTLP every minute |
 | Tags on every metric | `application` from `spring.application.name`, `environment` from [`stratum.environment`](../../docs/configuration/reference.md#shared-properties), and `host` from the `HOSTNAME` environment variable, which in Kubernetes is the pod's name. Each is left out when its value is not set |
 | Timings as histograms | Every timer, such as HTTP server and client calls, `@Scheduled` jobs and Spring Batch steps, is sent as a base-2 exponential histogram ([below](#timings)) |
 | Tag guard | A metric with a tag named like an ID, such as `userId`, is dropped with one warning; the RabbitMQ routing key is removed from send timers ([below](#tag-guard)) |

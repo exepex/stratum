@@ -42,11 +42,16 @@ class CacheEnvironmentPostProcessorTest {
 
   private static final String ENABLE_STATISTICS = "spring.cache.redis.enable-statistics";
 
+  private static final String CACHE_NULL_VALUES = "spring.cache.redis.cache-null-values";
+
   private static final String REDIS_TIMEOUT = "spring.data.redis.timeout";
 
   private static final String REDIS_CONNECT_TIMEOUT = "spring.data.redis.connect-timeout";
 
   private static final String SERVICE_NAME = "orders";
+
+  /** The value that switches a setting off. */
+  private static final String OFF = "false";
 
   /** Every default, with Stratum's value, for a service named {@value #SERVICE_NAME}. */
   private static final Map<String, String> DEFAULTS =
@@ -54,6 +59,7 @@ class CacheEnvironmentPostProcessorTest {
           TIME_TO_LIVE, "10m",
           KEY_PREFIX, "orders:",
           ENABLE_STATISTICS, "true",
+          CACHE_NULL_VALUES, OFF,
           REDIS_TIMEOUT, "1s",
           REDIS_CONNECT_TIMEOUT, "2s");
 
@@ -103,7 +109,7 @@ class CacheEnvironmentPostProcessorTest {
     @DisplayName("it sets nothing and needs no service name")
     void setsNothing() {
       var environment =
-          runPostProcessor(new MockEnvironment().withProperty(CacheConstants.ENABLED, "false"));
+          runPostProcessor(new MockEnvironment().withProperty(CacheConstants.ENABLED, OFF));
 
       DEFAULTS.keySet().forEach(key -> assertThat(environment.getProperty(key)).as(key).isNull());
     }
@@ -118,7 +124,8 @@ class CacheEnvironmentPostProcessorTest {
         List.of(
             arguments(TIME_TO_LIVE, "1h"),
             arguments(KEY_PREFIX, "team:"),
-            arguments(ENABLE_STATISTICS, "false"),
+            arguments(ENABLE_STATISTICS, OFF),
+            arguments(CACHE_NULL_VALUES, "true"),
             arguments(REDIS_TIMEOUT, "5s"),
             arguments(REDIS_CONNECT_TIMEOUT, "10s"));
 
@@ -177,7 +184,7 @@ class CacheEnvironmentPostProcessorTest {
 
     /** A service's own prefix, and a service that turns prefixes off. */
     private static final List<Arguments> PREFIX_CHOICES =
-        List.of(arguments(KEY_PREFIX, "team:"), arguments(USE_KEY_PREFIX, "false"));
+        List.of(arguments(KEY_PREFIX, "team:"), arguments(USE_KEY_PREFIX, OFF));
 
     @Test
     @DisplayName("with Spring Data Redis present, startup stops with SX-CACHE-1001")

@@ -9,8 +9,10 @@ import com.exepex.stratum.cache.StratumCacheLayerHook;
 import com.exepex.stratum.cache.StratumCachePropertiesCustomizer;
 import com.exepex.stratum.cache.StratumCacheResolver;
 import com.exepex.stratum.cache.testsupport.ProductCatalog;
+import com.exepex.stratum.cache.testsupport.RecordingCacheCounters;
 import com.exepex.stratum.cache.testsupport.RecordingCacheManager;
 import com.exepex.stratum.test.LogLineCapture;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -32,6 +34,7 @@ import org.springframework.cache.interceptor.SimpleCacheErrorHandler;
 import org.springframework.cache.interceptor.SimpleCacheResolver;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.support.GenericApplicationContext;
 
 @DisplayName(
     "CacheLayerAutoConfiguration installs the fail-open layer, and stands back for the"
@@ -57,6 +60,51 @@ class CacheLayerAutoConfigurationTest {
     catalog.priceOf(SKU);
     catalog.priceOf(SKU);
     return catalog.lookups();
+  }
+
+  /** Makes one cached call and returns the cache manager names the layer measured with. */
+  private List<String> measuredManagerNames(AssertableApplicationContext context) {
+    context.getBean(ProductCatalog.class).priceOf(SKU);
+    return context.getBean(RecordingCacheCounters.class).measuredManagerNames();
+  }
+
+  @Nested
+  @DisplayName("names the cache manager in the metrics")
+  class ManagerName {
+
+    @Test
+    @DisplayName("with two managers, the caches are measured under the primary one's bean name")
+    void namesThePrimaryManager() {
+      contextRunner
+          .withBean(RecordingCacheCounters.class, RecordingCacheCounters::new)
+          .withBean("localCaches", CacheManager.class, () -> new ConcurrentMapCacheManager())
+          .withBean(
+              "orderCaches",
+              CacheManager.class,
+              () -> new ConcurrentMapCacheManager(),
+              definition -> definition.setPrimary(true))
+          .run(context -> assertThat(measuredManagerNames(context)).containsExactly("orderCaches"));
+    }
+
+    @Test
+    @DisplayName(
+        "with the manager only in a parent context, the service starts and Spring Boot's"
+            + " default name is used")
+    void startsWithManagerInParent() {
+      try (var parent = new GenericApplicationContext()) {
+        parent.registerBean(
+            "sharedCaches", CacheManager.class, () -> new ConcurrentMapCacheManager());
+        parent.refresh();
+
+        contextRunner
+            .withParent(parent)
+            .withBean(RecordingCacheCounters.class, RecordingCacheCounters::new)
+            .run(
+                context ->
+                    assertThat(measuredManagerNames(context))
+                        .containsExactly(CacheConstants.DEFAULT_CACHE_MANAGER));
+      }
+    }
   }
 
   @Nested

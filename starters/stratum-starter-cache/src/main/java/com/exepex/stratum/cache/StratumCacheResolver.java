@@ -12,15 +12,18 @@ import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.interceptor.CacheOperationInvocationContext;
 import org.springframework.cache.interceptor.CacheResolver;
+import org.springframework.cache.support.AbstractValueAdaptingCache;
 import org.springframework.cache.support.NoOpCache;
 
 /**
  * Resolves the caches of a cached method: each admitted name is wrapped in one {@link
- * StratumCache}, so its calls are fail-open and its loader runs at most once. The first {@code
- * stratum.cache.max-caches} distinct names are admitted; a name beyond that is never resolved with
- * the cache manager, so no cache is created for it, and the method runs uncached through one shared
- * no-op cache. The refusal is counted per call as {@code stratum.cache.skips} under {@code
- * _over-limit} and warned once per interval with {@code SX-CACHE-1003}.
+ * StratumCache}, so its calls are fail-open, its loader runs at most once and a null result is not
+ * stored where the cache refuses nulls; Spring Boot's cache metrics measure it from its first use.
+ * The first {@code stratum.cache.max-caches} distinct names are admitted; a name beyond that is
+ * never resolved with the cache manager, so no cache is created for it, and the method runs
+ * uncached through one shared no-op cache. The refusal is counted per call as {@code
+ * stratum.cache.skips} under {@code _over-limit} and warned once per interval with {@code
+ * SX-CACHE-1003}.
  */
 @StratumInternal
 @Slf4j
@@ -30,13 +33,16 @@ public class StratumCacheResolver implements CacheResolver {
   /** The service's cache manager, which creates an admitted cache on demand. */
   private final CacheManager cacheManager;
 
+  /** The cache manager's bean name, which Spring Boot's {@code cache.manager} tag comes from. */
+  private final String cacheManagerName;
+
   /** The most admitted names, {@code stratum.cache.max-caches}. */
   private final int maxCaches;
 
   /** Admits one warning per interval on the shared {@code _over-limit} slot. */
   private final WarningThrottle throttle;
 
-  /** Counts the refused names. */
+  /** Counts the refused names and has each admitted cache measured. */
   private final CacheCounters counters;
 
   /** Reports the failed write of a loaded value inside each wrapped cache. */
@@ -85,14 +91,23 @@ public class StratumCacheResolver implements CacheResolver {
     }
   }
 
-  /** Wraps an admitted name's cache, which the cache manager creates on demand. */
+  /**
+   * Wraps an admitted name's cache, which the cache manager creates on demand, and has it measured.
+   * Both read the cache the manager made, so a decorator between it and Stratum's hides neither.
+   */
   private Cache wrap(String name) {
     var cache = cacheManager.getCache(name);
     if (cache == null) {
       throw new IllegalStateException(
           "No cache named " + name + " could be resolved by " + cacheManager);
     }
-    return new StratumCache(cache, errorHandler);
+    counters.bindCacheMetrics(cache, cacheManagerName);
+    return new StratumCache(cache, errorHandler, rejectsNulls(cache));
+  }
+
+  /** Returns whether a cache refuses to store nulls, as Redis does with Stratum's default. */
+  private boolean rejectsNulls(Cache cache) {
+    return cache instanceof AbstractValueAdaptingCache adapting && !adapting.isAllowNullValues();
   }
 
   /** Counts a refused name, warns once per interval, and returns the shared no-op cache. */

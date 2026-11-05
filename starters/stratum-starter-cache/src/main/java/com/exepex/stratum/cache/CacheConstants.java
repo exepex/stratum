@@ -42,6 +42,18 @@ public class CacheConstants {
   /** The tag with the cache's name. */
   public static final String TAG_CACHE = "cache";
 
+  /** Spring Boot's cache metric of hits and misses, which shows that a cache is measured. */
+  public static final String METRIC_CACHE_GETS = "cache.gets";
+
+  /** Spring Boot's tag with the name of the cache manager a cache belongs to. */
+  public static final String TAG_CACHE_MANAGER = "cache.manager";
+
+  /** The bean name of Spring Boot's own cache manager, used when the layer's has no name here. */
+  public static final String DEFAULT_CACHE_MANAGER = "cacheManager";
+
+  /** The end of a cache manager's bean name that Spring Boot drops in its tag. */
+  public static final String CACHE_MANAGER_SUFFIX = "cacheManager";
+
   /** The tag with the operation that failed, such as {@code get}. */
   public static final String TAG_OPERATION = "operation";
 
@@ -86,6 +98,9 @@ public class CacheConstants {
 
   /** Whether Redis caches count their hits and misses, for the cache metrics. */
   public static final String ENABLE_STATISTICS = "spring.cache.redis.enable-statistics";
+
+  /** Whether Redis caches store a method's null result. */
+  public static final String CACHE_NULL_VALUES = "spring.cache.redis.cache-null-values";
 
   /** How long a Redis command may take. */
   public static final String REDIS_TIMEOUT = "spring.data.redis.timeout";

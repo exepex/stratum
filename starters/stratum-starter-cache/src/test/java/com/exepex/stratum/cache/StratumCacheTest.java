@@ -30,7 +30,7 @@ class StratumCacheTest {
     /** A cache whose write after a load fails, as a paused Redis does on a SET. */
     private final StubCache failingWrites = new StubCache(ProductCatalog.PRODUCTS, false, true);
 
-    private final StratumCache cache = new StratumCache(failingWrites, handler);
+    private final StratumCache cache = new StratumCache(failingWrites, handler, false);
 
     @Test
     @DisplayName(
@@ -47,7 +47,7 @@ class StratumCacheTest {
     @Test
     @DisplayName("a handler that rethrows gives the caller its error, wrapped for Spring to unwrap")
     void handlerRethrowReachesCaller() {
-      var rethrowing = new StratumCache(failingWrites, new RecordingCacheErrorHandler(true));
+      var rethrowing = new StratumCache(failingWrites, new RecordingCacheErrorHandler(true), false);
 
       assertThatThrownBy(() -> rethrowing.get(KEY, () -> VALUE))
           .isInstanceOfSatisfying(
@@ -67,7 +67,7 @@ class StratumCacheTest {
             + " handler is untouched")
     void rethrowsBeforeLoad() {
       var failingReads = new StubCache(ProductCatalog.PRODUCTS, true, false);
-      var cache = new StratumCache(failingReads, handler);
+      var cache = new StratumCache(failingReads, handler, false);
       var loads = new AtomicInteger();
 
       assertThatThrownBy(
@@ -92,7 +92,7 @@ class StratumCacheTest {
     @DisplayName("the method's own error is rethrown unchanged and the handler is untouched")
     void rethrowsLoaderError() {
       var healthy = new StubCache(ProductCatalog.PRODUCTS);
-      var cache = new StratumCache(healthy, handler);
+      var cache = new StratumCache(healthy, handler, false);
       var methodError = new IllegalStateException("no price");
 
       assertThatThrownBy(
@@ -110,6 +110,50 @@ class StratumCacheTest {
   }
 
   @Nested
+  @DisplayName("with a null result, in a cache that refuses nulls")
+  class NullResult {
+
+    @Test
+    @DisplayName("a load that returns null gives null, the loader ran once and nothing is reported")
+    void loadedNullIsNotReported() {
+      // The write after the load fails, as Redis refuses to store the loaded null.
+      var refusing = new StubCache(ProductCatalog.PRODUCTS, false, true);
+      var cache = new StratumCache(refusing, handler, true);
+
+      var value = cache.get(KEY, () -> null);
+
+      assertThat(value).isNull();
+      assertThat(refusing.loads()).isOne();
+      assertThat(handler.total()).isZero();
+    }
+
+    @Test
+    @DisplayName(
+        "in a cache that stores nulls, a failed write after a null load is still reported once")
+    void failedNullWriteIsReportedWhereNullsAreStored() {
+      var failingWrites = new StubCache(ProductCatalog.PRODUCTS, false, true);
+      var cache = new StratumCache(failingWrites, handler, false);
+
+      var value = cache.get(KEY, () -> null);
+
+      assertThat(value).isNull();
+      assertThat(handler.calls()).containsExactly("put:products");
+    }
+
+    @Test
+    @DisplayName("a null put removes the old entry instead of storing anything")
+    void nullPutEvicts() {
+      var delegate = new StubCache(ProductCatalog.PRODUCTS);
+      var cache = new StratumCache(delegate, handler, true);
+
+      cache.put(KEY, null);
+
+      assertThat(delegate.calls()).containsExactly("evict");
+      assertThat(handler.total()).isZero();
+    }
+  }
+
+  @Nested
   @DisplayName("on every other call")
   class Forwarding {
 
@@ -117,7 +161,7 @@ class StratumCacheTest {
     @DisplayName("each Cache method is forwarded to the wrapped cache")
     void forwardsEveryMethod() {
       var delegate = new StubCache(ProductCatalog.PRODUCTS);
-      var cache = new StratumCache(delegate, handler);
+      var cache = new StratumCache(delegate, handler, false);
 
       cache.getName();
       cache.getNativeCache();
