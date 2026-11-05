@@ -145,7 +145,7 @@ skips step 4: a text-only change needs no build (AGENTS.md, Build).
 3. **Design, rules and documents.**
    - The code matches the design note.
    - Check the change against every rule: [AGENTS.md](../../AGENTS.md), [engineering](engineering.md) (ST-ENG-01 to
-     ST-ENG-64), [testing](testing.md), [documentation](documentation.md) and [review](review.md). Check the line
+     ST-ENG-66), [testing](testing.md), [documentation](documentation.md) and [review](review.md). Check the line
      count of every changed file against the limits in AGENTS.md.
    - Check simplicity in both directions. For each new type, method, option and branch, name its use today. One
      with no use, or Javadoc that explains internals or restates the code, is a should-fix finding (ST-ENG-05,
