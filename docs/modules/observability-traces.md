@@ -115,7 +115,8 @@ The list applies to the propagators that Spring Boot's tracing and OpenTelemetry
 
 Spring records the full URL of every outgoing HTTP call on its span, and the URI template in the
 `uri` tag of the span and of the `http.client.requests` metrics. Stratum keeps the query string on
-the span, so you can see which values were sent, and changes two things:
+the span, up to 1,024 characters ([span size](#span-size)), so you can see which values were sent,
+and changes two things:
 
 | Recorded by Spring | Kept on the span | Kept in the `uri` tag |
 | --- | --- | --- |
@@ -161,6 +162,44 @@ processor uses, your own `SpanExporter` beans included, and from spans made with
 API directly. Until then, a span waiting in the queue still holds its exception. Two kinds of code
 see spans before Stratum removes the data, or without it: a Micrometer `SpanReporter` bean, and a
 `SpanProcessor` bean of your own that sends spans through an exporter it holds itself.
+
+## Span size
+
+Each span waits in a queue of up to 2,048 spans until it is sent. So that a span cannot hold
+megabytes, Stratum lowers three of Spring Boot's span limits (the `limits` keys in the starter's
+[property table](../../starters/stratum-starter-observability/README.md#properties)): a value longer
+than 1,024 characters is cut to 1,024, and a span keeps at most 64 attributes and 16 events; later
+ones are dropped.
+
+The values most likely to be cut are long URLs and SQL text (`db.query.text`). An exception's stack
+trace is rendered only up to 1,024 characters, so failed requests also cost less. The backend is
+not told that something was cut: Micrometer's exporter rebuilds each span from what it kept, so the
+dropped counts reach the backend as zero.
+
+To keep more, set Spring Boot's key; your value wins:
+
+```properties
+management.opentelemetry.tracing.limits.max-attribute-value-length=4096
+```
+
+```yaml
+management:
+  opentelemetry:
+    tracing:
+      limits:
+        max-attribute-value-length: 4096
+```
+
+Not bounded by these keys:
+
+- Attribute names, the number of items in a list attribute, and span names (only values are cut).
+- The `Throwable` behind each exception event, with its stack, and the status description, which
+  is the exception's message. Both are held until the span is sent; Stratum removes them then
+  ([errors on spans](#errors-on-spans)).
+- Code that uses the OpenTelemetry API directly: events with many attributes (up to 128 each),
+  extra attributes on `recordException` (up to 64), and links (up to 128, with 128 attributes
+  each).
+- A `SpanLimits` bean or an `SdkTracerProvider` of your own, which ignore these keys.
 
 ## Sampling
 

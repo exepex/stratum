@@ -37,6 +37,20 @@ public class ExportedSpans implements SpanExporter {
   }
 
   /**
+   * Returns the one span exported so far with the given name.
+   *
+   * @param name the span's name
+   * @return the span
+   * @throws AssertionError if not exactly one span has that name
+   */
+  public SpanData named(String name) {
+    return assertThat(spans)
+        .filteredOn(span -> name.equals(span.getName()))
+        .singleElement()
+        .actual();
+  }
+
+  /**
    * Returns whether the exporter was flushed.
    *
    * @return {@code true} once {@link #flush()} was called

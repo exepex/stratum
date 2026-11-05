@@ -103,7 +103,7 @@ and installs the OpenTelemetry appender itself.
 | Trace and metric resource | `service.name` from `spring.application.name` (set by Spring Boot), `deployment.environment.name` from `stratum.environment`, and `service.instance.id`, the [instance ID](../../docs/configuration/reference.md#instance-id) of this running copy, which its log lines carry too |
 | Baggage | Only `correlationId` and Spring Boot's remote fields are read from callers and sent on; other entries are dropped ([baggage](../../docs/modules/observability-traces.md#baggage)) |
 | Errors on spans | A failed span keeps its `ERROR` status but carries no exception type, message or stack trace, which belong in the logs; metrics keep their `exception` tag ([traces](../../docs/modules/observability-traces.md#errors-on-spans)) |
-| URLs on spans | The full URL of each HTTP client call, query string included, is kept on its span; only the user info is removed. Metrics never carry the query ([traces](../../docs/modules/observability-traces.md#urls-on-spans-and-metrics)) |
+| URLs on spans | The full URL of each HTTP client call, query string included, is kept on its span up to 1,024 characters ([span size](../../docs/modules/observability-traces.md#span-size)); only the user info is removed. Metrics never carry the query ([traces](../../docs/modules/observability-traces.md#urls-on-spans-and-metrics)) |
 | Health | `/actuator/health`, with Spring Boot's Kubernetes `liveness` and `readiness` groups |
 | Safe exposure | Only `health` and `info` are reachable over HTTP |
 | Startup check | With the module on, startup stops if an export address is missing, in every profile ([below](#startup-check)) |
@@ -276,6 +276,9 @@ value you set wins, from any file, the environment, the command line or Java def
 | `management.metrics.distribution.percentiles-histogram.all` | boolean | `true` | none, so no histogram | Every timing is a [histogram](#timings). `false` keeps only count, sum and max. |
 | `management.otlp.metrics.export.histogram-flavor` | `explicit-bucket-histogram` or `base2-exponential-bucket-histogram` | `base2-exponential-bucket-histogram` | `explicit-bucket-histogram` | How histograms are sent. |
 | `management.opentelemetry.tracing.sampler` | `always-on`, `always-off`, `trace-id-ratio`, `parent-based-always-on`, `parent-based-always-off` or `parent-based-trace-id-ratio` | `trace-id-ratio` | `parent-based-trace-id-ratio` | How each service chooses the traces it keeps: by trace ID, so a caller cannot ask for more ([sampling](../../docs/modules/observability-traces.md#sampling)). |
+| `management.opentelemetry.tracing.limits.max-attribute-value-length` | int | `1024` | no limit | The longest attribute value on a span, in characters; longer values are cut ([span size](../../docs/modules/observability-traces.md#span-size)). |
+| `management.opentelemetry.tracing.limits.max-attributes` | int | `64` | `128` | The most attributes one span keeps. |
+| `management.opentelemetry.tracing.limits.max-events` | int | `16` | `128` | The most events one span keeps. |
 | `spring.task.execution.propagate-context` | boolean | `true` | `false` | Whether `@Async` methods and Spring Boot's executors keep the trace ([threads](#threads-and-reactive-code)). |
 | `spring.reactor.context-propagation` | `limited` or `auto` | `auto` | `limited` | Whether every Reactor operator keeps the trace, not only `handle` and `tap` ([threads](#threads-and-reactive-code)). |
 | `spring.kafka.template.observation-enabled`, `spring.kafka.listener.observation-enabled` | boolean | `true` | `false` | Whether Kafka sends and listeners are traced and timed ([messages](#messages)). |

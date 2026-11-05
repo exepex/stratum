@@ -3,6 +3,7 @@ package com.exepex.stratum.observability;
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import lombok.experimental.UtilityClass;
 
@@ -79,6 +80,16 @@ public class ObservabilityConstants {
    * this service keep more than the configured probability of traces.
    */
   public static final String TRACE_ID_RATIO_SAMPLER = "trace-id-ratio";
+
+  /**
+   * Spring Boot's span limits, set below its defaults so that each span waiting to be sent has a
+   * size bound: attribute values cut at 1,024 characters, at most 64 attributes and 16 events.
+   */
+  public static final Map<String, Integer> SPAN_LIMITS =
+      Map.of(
+          "management.opentelemetry.tracing.limits.max-attribute-value-length", 1024,
+          "management.opentelemetry.tracing.limits.max-attributes", 64,
+          "management.opentelemetry.tracing.limits.max-events", 16);
 
   /**
    * Spring Boot's switches that trace and time Kafka and RabbitMQ messages, which it leaves off.
