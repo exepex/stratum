@@ -1,11 +1,9 @@
 package com.exepex.stratum.webmvc.it;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
 
 import com.exepex.stratum.test.WebTestSupport;
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import io.opentelemetry.context.Context;
@@ -13,7 +11,6 @@ import io.opentelemetry.sdk.trace.ReadWriteSpan;
 import io.opentelemetry.sdk.trace.ReadableSpan;
 import io.opentelemetry.sdk.trace.SpanProcessor;
 import java.io.IOException;
-import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,7 +24,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Bean;
-import org.springframework.http.HttpStatus;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.web.client.RestClient;
@@ -62,9 +58,6 @@ class HealthProbeSpansIntegrationTest {
   /** The span name Spring MVC gives the liveness probe's request. */
   private static final String PROBE_SPAN = "http get /actuator/health/**";
 
-  /** How long a test waits for a request's timer. */
-  private static final Duration WAIT = Duration.ofSeconds(5);
-
   /** A service health check that needs observation beans, and the spans that ended. */
   @TestConfiguration(proxyBeanMethods = false)
   static class ServiceHealthCheck {
@@ -81,11 +74,21 @@ class HealthProbeSpansIntegrationTest {
     @Bean
     HealthIndicator ordersHealthCheck(
         RestClient.Builder restClientBuilder, ObservationRegistry observationRegistry) {
-      return () -> {
-        Observation.createNotStarted(HEALTH_CHECK_OBSERVATION, observationRegistry)
-            .observe(restClientBuilder::build);
-        return Health.up().build();
-      };
+      return () -> checkOrders(restClientBuilder, observationRegistry);
+    }
+
+    /**
+     * Times a check, as a check of a downstream service does, and reports the service up.
+     *
+     * @param restClientBuilder the builder a downstream check would use
+     * @param observationRegistry times the check
+     * @return the service's health
+     */
+    private Health checkOrders(
+        RestClient.Builder restClientBuilder, ObservationRegistry observationRegistry) {
+      Observation.createNotStarted(HEALTH_CHECK_OBSERVATION, observationRegistry)
+          .observe(restClientBuilder::build);
+      return Health.up().build();
     }
 
     /**
@@ -175,18 +178,8 @@ class HealthProbeSpansIntegrationTest {
      * @throws InterruptedException if the thread is interrupted while it waits
      */
     List<String> callAndAwaitTimer(String path) throws IOException, InterruptedException {
-      var timedBefore = requestsTimed();
-      assertThat(WebTestSupport.getFromService(port, path).statusCode())
-          .isEqualTo(HttpStatus.OK.value());
-      await().atMost(WAIT).until(() -> requestsTimed() > timedBefore);
+      WebTestSupport.getAndAwaitTimer(port, path, meterRegistry);
       return List.copyOf(endedSpans.names);
-    }
-
-    /** Returns how many requests the service has timed so far. */
-    private long requestsTimed() {
-      return meterRegistry.find("http.server.requests").timers().stream()
-          .mapToLong(Timer::count)
-          .sum();
     }
   }
 

@@ -2,10 +2,11 @@ package com.exepex.stratum.observability;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.mock.env.MockEnvironment;
 
 @DisplayName("HealthProbePaths finds the health and probe paths in Spring Boot's settings")
@@ -20,6 +21,25 @@ class HealthProbePathsTest {
   /** The additional path of a health group a service adds. */
   private static final String GROUP_PATH = "/ping";
 
+  /** The health endpoint and its groups' paths, which are probe paths. */
+  private static final List<String> HEALTH_PATHS =
+      List.of(HEALTH_PATH, HEALTH_PATH + "/liveness", HEALTH_PATH + "/readiness");
+
+  /** Paths that are not probe paths, some starting with the same letters. */
+  private static final List<String> OTHER_PATHS =
+      List.of("/actuator/healthy", "/actuator", "/orders", "/orders" + HEALTH_PATH);
+
+  /** The health endpoint's mapping, with and without its leading slash. */
+  private static final List<String> HEALTH_MAPPINGS = List.of("healthz", "/healthz");
+
+  /** The keys of the server's and the management port's base paths. */
+  private static final List<String> BASE_PATH_KEYS =
+      List.of(
+          "server.servlet.context-path", "spring.webflux.base-path", "management.server.base-path");
+
+  /** A base path written with a trailing slash, and without its leading one. */
+  private static final List<String> UNCLEAN_BASE_PATHS = List.of(BASE_PATH + "/", "svc");
+
   private final MockEnvironment environment = new MockEnvironment();
 
   /** Returns whether the path is a probe path with the test's settings. */
@@ -28,14 +48,14 @@ class HealthProbePathsTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {HEALTH_PATH, HEALTH_PATH + "/liveness", HEALTH_PATH + "/readiness"})
+  @FieldSource("HEALTH_PATHS")
   @DisplayName("the health endpoint and its groups are probe paths")
   void containsHealthPaths(String path) {
     assertThat(contains(path)).isTrue();
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"/actuator/healthy", "/actuator", "/orders", "/orders" + HEALTH_PATH})
+  @FieldSource("OTHER_PATHS")
   @DisplayName("other paths, even ones that start with the same letters, are not")
   void leavesOtherPaths(String path) {
     assertThat(contains(path)).isFalse();
@@ -50,7 +70,7 @@ class HealthProbePathsTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"healthz", "/healthz"})
+  @FieldSource("HEALTH_MAPPINGS")
   @DisplayName("the health endpoint's mapping is followed, with or without its leading slash")
   void followsHealthMapping(String mapping) {
     environment.setProperty("management.endpoints.web.path-mapping.health", mapping);
@@ -59,12 +79,7 @@ class HealthProbePathsTest {
   }
 
   @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "server.servlet.context-path",
-        "spring.webflux.base-path",
-        "management.server.base-path"
-      })
+  @FieldSource("BASE_PATH_KEYS")
   @DisplayName("the server's or the management port's base path comes first")
   void followsServerBasePath(String key) {
     environment.setProperty(key, BASE_PATH);
@@ -73,7 +88,7 @@ class HealthProbePathsTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {BASE_PATH + "/", "svc"})
+  @FieldSource("UNCLEAN_BASE_PATHS")
   @DisplayName(
       "a base path is cleaned as Spring Boot cleans it, with one leading and no trailing /")
   void cleansBasePath(String basePath) {

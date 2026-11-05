@@ -56,7 +56,7 @@ public final class HealthProbePaths {
   }
 
   /** Returns every probe path, each behind the server's and the management port's base path. */
-  private static List<String> probePaths(Environment environment) {
+  private List<String> probePaths(Environment environment) {
     var binder = Binder.get(environment);
     var endpoints =
         binder.bindOrCreate(ObservabilityConstants.WEB_ENDPOINTS, WebEndpointProperties.class);
@@ -103,7 +103,7 @@ public final class HealthProbePaths {
    * Returns a base path as Spring Boot cleans it: with a leading slash and without a trailing one,
    * or empty, so a path can follow it.
    */
-  private static String basePath(String path) {
+  private String basePath(String path) {
     var withoutTrailing =
         path.endsWith(String.valueOf(SLASH)) ? path.substring(0, path.length() - 1) : path;
     return withoutTrailing.isEmpty() || withoutTrailing.startsWith(String.valueOf(SLASH))

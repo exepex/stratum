@@ -398,7 +398,8 @@ public class OrdersObservabilitySettings implements ObservabilityPropertiesCusto
   @Override
   public ObservabilityProperties customize(ObservabilityProperties properties) {
     var tags = properties.tags().toBuilder().extraForbidden(List.of("tenantId")).build();
-    return properties.toBuilder().tags(tags).build();
+    var tracing = properties.tracing().toBuilder().healthProbes(true).build();
+    return properties.toBuilder().tags(tags).tracing(tracing).build();
   }
 }
 ```

@@ -41,7 +41,7 @@ public final class HealthProbeTracingHandler
     var probe =
         Optional.ofNullable(context.getParentObservation())
                 .map(ObservationView::getContextView)
-                .filter(HealthProbeTracingHandler::isMarked)
+                .filter(this::isMarked)
                 .isPresent()
             || isProbeRequest(context);
     if (probe) {
@@ -141,7 +141,7 @@ public final class HealthProbeTracingHandler
   }
 
   /** Returns whether the observation was marked as part of a probe. */
-  private static boolean isMarked(Observation.ContextView context) {
+  private boolean isMarked(Observation.ContextView context) {
     return context.get(PROBE_MARK) != null;
   }
 }

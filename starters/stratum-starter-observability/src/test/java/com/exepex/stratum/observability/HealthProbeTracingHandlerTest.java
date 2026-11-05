@@ -24,12 +24,12 @@ class HealthProbeTracingHandlerTest {
       new HealthProbeTracingHandler(new HealthProbePaths(new MockEnvironment()));
 
   /** Returns the context of a received request, before or after its path is set. */
-  private static ReceiverContext<Object> receivedRequest() {
+  private ReceiverContext<Object> receivedRequest() {
     return new ReceiverContext<>((carrier, key) -> null);
   }
 
   /** Sets the request path Spring puts on a server observation. */
-  private static <T extends Observation.Context> T withPath(T context, String path) {
+  private <T extends Observation.Context> T withPath(T context, String path) {
     context.addHighCardinalityKeyValue(KeyValue.of(ObservabilityConstants.HTTP_URL, path));
     return context;
   }

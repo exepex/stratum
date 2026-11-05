@@ -1,22 +1,20 @@
 package com.exepex.stratum.observability.it;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
 
 import com.exepex.stratum.observability.testsupport.RecordedSpans;
 import com.exepex.stratum.test.WebTestSupport;
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import java.io.IOException;
-import java.time.Duration;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.HealthIndicator;
@@ -25,7 +23,6 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.server.LocalManagementPort;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Bean;
-import org.springframework.http.HttpStatus;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -63,9 +60,6 @@ class HealthProbeSpansIntegrationTest {
   /** The span name Spring gives the liveness probe's request. */
   private static final String PROBE_SPAN = "http get /actuator/health/{*path}";
 
-  /** How long a test waits for a request's timer or span. */
-  private static final Duration WAIT = Duration.ofSeconds(5);
-
   /** A service health check that needs observation beans, so it would close a bean cycle. */
   @TestConfiguration(proxyBeanMethods = false)
   static class ServiceHealthCheck {
@@ -82,11 +76,21 @@ class HealthProbeSpansIntegrationTest {
     @Bean
     HealthIndicator ordersHealthCheck(
         WebClient.Builder webClientBuilder, ObservationRegistry observationRegistry) {
-      return () -> {
-        Observation.createNotStarted(HEALTH_CHECK_OBSERVATION, observationRegistry)
-            .observe(webClientBuilder::build);
-        return Health.up().build();
-      };
+      return () -> checkOrders(webClientBuilder, observationRegistry);
+    }
+
+    /**
+     * Times a check, as a check of a downstream service does, and reports the service up.
+     *
+     * @param webClientBuilder the builder a downstream check would use
+     * @param observationRegistry times the check
+     * @return the service's health
+     */
+    private Health checkOrders(
+        WebClient.Builder webClientBuilder, ObservationRegistry observationRegistry) {
+      Observation.createNotStarted(HEALTH_CHECK_OBSERVATION, observationRegistry)
+          .observe(webClientBuilder::build);
+      return Health.up().build();
     }
   }
 
@@ -107,28 +111,6 @@ class HealthProbeSpansIntegrationTest {
     void forgetSpans() {
       recordedSpans.clear();
     }
-
-    /**
-     * Calls a path and waits until its request is timed, which is when its span would end.
-     *
-     * @param servicePort the port to call
-     * @param path the path to call
-     * @throws IOException if the request cannot be sent
-     * @throws InterruptedException if the thread is interrupted while it waits
-     */
-    void callAndAwaitTimer(int servicePort, String path) throws IOException, InterruptedException {
-      var timedBefore = requestsTimed();
-      assertThat(WebTestSupport.getFromService(servicePort, path).statusCode())
-          .isEqualTo(HttpStatus.OK.value());
-      await().atMost(WAIT).until(() -> requestsTimed() > timedBefore);
-    }
-
-    /** Returns how many requests the service has timed so far. */
-    private long requestsTimed() {
-      return meterRegistry.find("http.server.requests").timers().stream()
-          .mapToLong(Timer::count)
-          .sum();
-    }
   }
 
   @Nested
@@ -138,7 +120,7 @@ class HealthProbeSpansIntegrationTest {
     @Test
     @DisplayName("a probe is timed but makes no span")
     void probeMakesNoSpan() throws IOException, InterruptedException {
-      callAndAwaitTimer(port, LIVENESS_PATH);
+      WebTestSupport.getAndAwaitTimer(port, LIVENESS_PATH, meterRegistry);
 
       assertThat(recordedSpans.ended()).isEmpty();
     }
@@ -146,7 +128,7 @@ class HealthProbeSpansIntegrationTest {
     @Test
     @DisplayName("the service's health check inside a probe makes no span either")
     void healthCheckMakesNoSpan() throws IOException, InterruptedException {
-      callAndAwaitTimer(port, HEALTH_PATH);
+      WebTestSupport.getAndAwaitTimer(port, HEALTH_PATH, meterRegistry);
 
       assertThat(meterRegistry.find(HEALTH_CHECK_OBSERVATION).timer()).isNotNull();
       assertThat(recordedSpans.ended()).isEmpty();
@@ -170,7 +152,7 @@ class HealthProbeSpansIntegrationTest {
     @Test
     @DisplayName("a probe makes its span")
     void probeMakesSpan() throws IOException, InterruptedException {
-      callAndAwaitTimer(port, LIVENESS_PATH);
+      WebTestSupport.getAndAwaitTimer(port, LIVENESS_PATH, meterRegistry);
 
       assertThat(recordedSpans.named(PROBE_SPAN)).isNotNull();
     }
@@ -181,11 +163,14 @@ class HealthProbeSpansIntegrationTest {
   @DisplayName("with the probes also served on the main port")
   class MainPortProbes extends RunningService {
 
+    /** The liveness and readiness probes' paths on the main port. */
+    private static final List<String> MAIN_PORT_PROBE_PATHS = List.of("/livez", "/readyz");
+
     @ParameterizedTest
-    @ValueSource(strings = {"/livez", "/readyz"})
+    @FieldSource("MAIN_PORT_PROBE_PATHS")
     @DisplayName("a probe on its main-port path makes no span")
     void mainPortProbeMakesNoSpan(String path) throws IOException, InterruptedException {
-      callAndAwaitTimer(port, path);
+      WebTestSupport.getAndAwaitTimer(port, path, meterRegistry);
 
       assertThat(recordedSpans.ended()).isEmpty();
     }
@@ -202,7 +187,7 @@ class HealthProbeSpansIntegrationTest {
     @Test
     @DisplayName("a probe on the management port makes no span")
     void probeMakesNoSpan() throws IOException, InterruptedException {
-      callAndAwaitTimer(managementPort, LIVENESS_PATH);
+      WebTestSupport.getAndAwaitTimer(managementPort, LIVENESS_PATH, meterRegistry);
 
       assertThat(recordedSpans.ended()).isEmpty();
     }
