@@ -3,6 +3,7 @@ package com.exepex.stratum.cache;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -27,6 +28,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.cache.Cache;
 import org.springframework.cache.Cache.ValueRetrievalException;
 import org.springframework.dao.DataAccessException;
+import org.springframework.dao.QueryTimeoutException;
+import org.springframework.data.redis.cache.RedisCacheManager;
+import org.springframework.data.redis.cache.RedisCacheWriter;
 
 @DisplayName("RedisGatedCache calls Redis only when the gate lets it")
 class RedisGatedCacheTest {
@@ -264,10 +268,11 @@ class RedisGatedCacheTest {
     }
 
     @Test
-    @DisplayName("a background loader's error releases the trial, so the next call tries at once")
-    void backgroundLoaderErrorReleasesTrial() {
+    @DisplayName(
+        "a background error that is not Redis's releases the trial, so the next call tries")
+    void backgroundOtherErrorReleasesTrial() {
       Supplier<CompletableFuture<String>> loader = () -> CompletableFuture.completedFuture(VALUE);
-      when(redis.retrieve(KEY, loader))
+      when(redis.retrieve(eq(KEY), any()))
           .thenReturn(
               CompletableFuture.failedFuture(new CompletionException(new IllegalStateException())));
 
@@ -275,6 +280,39 @@ class RedisGatedCacheTest {
 
       assertThat(gate.usesRedis()).isFalse();
       assertThat(gate.admits()).isTrue();
+    }
+  }
+
+  @Nested
+  @DisplayName("over Spring Data's Redis cache")
+  class OverRedisCache {
+
+    /** The writer behind the Redis cache; it answers every read with a miss. */
+    private final RedisCacheWriter writer = mock(RedisCacheWriter.class);
+
+    /** Returns Spring Data's Redis cache over the writer, behind the gate. */
+    private RedisGatedCache gatedRedisCache() {
+      when(writer.supportsAsyncRetrieve()).thenReturn(true);
+      when(writer.retrieve(any(), any())).thenReturn(CompletableFuture.completedFuture(null));
+      when(writer.retrieve(any(), any(), any()))
+          .thenReturn(CompletableFuture.completedFuture(null));
+      return new RedisGatedCache(
+          RedisCacheManager.builder(writer).build().getCache("products"), gate);
+    }
+
+    @Test
+    @DisplayName("a database timeout in a background loader leaves Redis in use, as Redis answered")
+    void loaderTimeoutKeepsRedis() {
+      var gated = gatedRedisCache();
+      var databaseTimeout = new QueryTimeoutException("database query timed out");
+
+      var result = gated.retrieve(KEY, () -> CompletableFuture.failedFuture(databaseTimeout));
+
+      assertThatExceptionOfType(CompletionException.class)
+          .isThrownBy(result::join)
+          .withCause(databaseTimeout);
+      assertThat(gate.usesRedis()).isTrue();
+      assertThat(gate.isAvailable()).isTrue();
     }
   }
 }

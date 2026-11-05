@@ -4,6 +4,8 @@ import com.exepex.stratum.core.api.StratumInternal;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
@@ -69,12 +71,27 @@ public class RedisGatedCache implements Cache {
    */
   @Override
   public @Nullable CompletableFuture<?> retrieve(Object key) {
-    return gate.admits() ? answered(() -> delegate.retrieve(key)) : null;
+    return gate.admits() ? answered(() -> delegate.retrieve(key), () -> false) : null;
   }
 
+  /**
+   * Returns the cached value in the background or loads it. Once the loader starts, Redis has
+   * answered with a miss, so the loader's own failure, such as a database timeout, never reaches
+   * the gate.
+   *
+   * @param key the key
+   * @param valueLoader loads the value on a miss
+   * @param <T> the value's type
+   * @return the future value
+   */
   @Override
   public <T> CompletableFuture<T> retrieve(Object key, Supplier<CompletableFuture<T>> valueLoader) {
-    return gate.admits() ? answered(() -> delegate.retrieve(key, valueLoader)) : valueLoader.get();
+    if (!gate.admits()) {
+      return valueLoader.get();
+    }
+    var missed = new AtomicBoolean();
+    return answered(
+        () -> delegate.retrieve(key, () -> loadedAfterMiss(missed, valueLoader)), missed::get);
   }
 
   /**
@@ -169,13 +186,14 @@ public class RedisGatedCache implements Cache {
    * Calls Redis in the background and tells the gate how it went once Redis answers. An error
    * thrown before the call is sent is told at once, as for {@link #tried}.
    */
-  private <F extends @Nullable CompletableFuture<?>> F answered(Supplier<F> redisCall) {
+  private <F extends @Nullable CompletableFuture<?>> F answered(
+      Supplier<F> redisCall, BooleanSupplier toldAlready) {
     var settled = false;
     try {
       var future = redisCall.get();
       if (future != null) {
         settled = true;
-        future.whenComplete((value, error) -> settle(error));
+        future.whenComplete((value, error) -> settle(error, toldAlready));
       }
       return future;
     } catch (DataAccessException failure) {
@@ -189,8 +207,22 @@ public class RedisGatedCache implements Cache {
     }
   }
 
-  /** Tells the gate how a background call ended: answered, failed in Redis, or failed otherwise. */
-  private void settle(@Nullable Throwable error) {
+  /** Tells the gate that Redis answered with a miss, then starts the loader. */
+  private <T> CompletableFuture<T> loadedAfterMiss(
+      AtomicBoolean missed, Supplier<CompletableFuture<T>> valueLoader) {
+    missed.set(true);
+    gate.reached();
+    return valueLoader.get();
+  }
+
+  /**
+   * Tells the gate how a background call ended: answered, failed in Redis, or failed otherwise;
+   * nothing when the gate was already told, once a loader started.
+   */
+  private void settle(@Nullable Throwable error, BooleanSupplier toldAlready) {
+    if (toldAlready.getAsBoolean()) {
+      return;
+    }
     var cause = error instanceof CompletionException completion ? completion.getCause() : error;
     if (cause == null) {
       gate.reached();
