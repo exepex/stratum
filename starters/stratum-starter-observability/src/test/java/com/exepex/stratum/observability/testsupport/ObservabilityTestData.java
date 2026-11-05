@@ -1,5 +1,6 @@
 package com.exepex.stratum.observability.testsupport;
 
+import com.exepex.stratum.observability.autoconfigure.ObservabilityAutoConfiguration;
 import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.Tags;
 import io.opentelemetry.api.trace.Span;
@@ -8,10 +9,16 @@ import io.opentelemetry.api.trace.TraceFlags;
 import io.opentelemetry.api.trace.TraceState;
 import java.util.List;
 import lombok.experimental.UtilityClass;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.logging.LoggingSystem;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.boot.validation.autoconfigure.ValidationAutoConfiguration;
 import org.springframework.util.ClassUtils;
 
-/** Sample metrics, spans and environments, and the clean-up, shared by the observability tests. */
+/**
+ * Sample metrics, spans and environments, the context runner and the clean-up, shared by the
+ * observability tests.
+ */
 @UtilityClass
 public class ObservabilityTestData {
 
@@ -69,5 +76,17 @@ public class ObservabilityTestData {
   public static void resetExportLogLevels() {
     var loggingSystem = LoggingSystem.get(ClassUtils.getDefaultClassLoader());
     EXPORT_LOGGERS.forEach(logger -> loggingSystem.setLogLevel(logger, null));
+  }
+
+  /**
+   * Returns a context with the observability auto-configuration and the validation it needs.
+   *
+   * @return the runner
+   */
+  public static ApplicationContextRunner contextRunner() {
+    return new ApplicationContextRunner()
+        .withConfiguration(
+            AutoConfigurations.of(
+                ValidationAutoConfiguration.class, ObservabilityAutoConfiguration.class));
   }
 }

@@ -7,6 +7,7 @@ import com.exepex.stratum.core.executor.ContextCarryingExecutorsConfiguration;
 import com.exepex.stratum.core.properties.StratumCustomizers;
 import com.exepex.stratum.core.reactor.ReactorOperatorContextPropagation;
 import com.exepex.stratum.observability.CorrelationIdRecorder;
+import com.exepex.stratum.observability.DroppedSpanMeterProvider;
 import com.exepex.stratum.observability.ExceptionFreeSpans;
 import com.exepex.stratum.observability.JmsBeanObserver;
 import com.exepex.stratum.observability.JmsListenerContainerObserver;
@@ -20,6 +21,7 @@ import com.exepex.stratum.observability.linkedwork.LinkedWorkTracingHandler;
 import com.exepex.stratum.observability.linkedwork.ReactiveLinkedWork;
 import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.tracing.Tracer;
+import io.opentelemetry.api.metrics.MeterProvider;
 import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -120,6 +122,20 @@ public final class ObservabilityAutoConfiguration {
   @ConditionalOnMissingBean
   public CorrelationIdRecorder correlationIdRecorder() {
     return new CorrelationIdRecorder();
+  }
+
+  /**
+   * Counts the spans OpenTelemetry drops when its export queue is full. Spring Boot gives every
+   * {@code MeterProvider} bean to its batch span processor and binds every {@code MeterBinder} bean
+   * to the meter registry. A service's own {@code MeterProvider} replaces it.
+   *
+   * @return the provider
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean(MeterProvider.class)
+  public DroppedSpanMeterProvider droppedSpanMeterProvider() {
+    return new DroppedSpanMeterProvider();
   }
 
   /**
