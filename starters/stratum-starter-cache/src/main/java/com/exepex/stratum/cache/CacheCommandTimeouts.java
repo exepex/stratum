@@ -1,16 +1,13 @@
 package com.exepex.stratum.cache;
 
 import com.exepex.stratum.core.api.StratumInternal;
-import com.exepex.stratum.core.error.CoreErrorCode;
 import com.exepex.stratum.core.error.StratumException;
 import io.lettuce.core.ClientOptions;
 import io.lettuce.core.TimeoutOptions;
 import io.lettuce.core.TimeoutOptions.TimeoutSource;
 import io.lettuce.core.protocol.RedisCommand;
 import java.time.Duration;
-import java.util.Collections;
 import java.util.Map;
-import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.data.redis.autoconfigure.LettuceClientConfigurationBuilderCustomizer;
@@ -22,27 +19,18 @@ import org.springframework.data.redis.connection.lettuce.LettuceClientConfigurat
  * stratum.cache.caches.<name>.command-timeout} their own timeout, higher or lower than {@code
  * spring.data.redis.timeout}, which every other command keeps. Lettuce has one timeout per
  * connection, so it is raised to the largest value, and Lettuce asks this source for each command's
- * own timeout. With no cache value set, it changes nothing. The largest value also bounds every
- * connect handshake, so each value is at most the larger of 10 seconds and {@code
- * spring.data.redis.timeout}.
+ * own timeout. With no cache value set, it changes nothing. The values come from {@link
+ * CacheTimeoutSettings}.
  */
 @StratumInternal
 @Slf4j
 public class CacheCommandTimeouts extends TimeoutSource
     implements LettuceClientConfigurationBuilderCustomizer, LettuceClientOptionsBuilderCustomizer {
 
-  /** The cap on a cache's own timeout while the global timeout is lower. */
-  static final Duration MAX_CACHE_TIMEOUT = Duration.ofSeconds(10);
-
-  /**
-   * The timeout of every command that belongs to no cache with its own value, in whole ms: at least
-   * 1, or 0 (no timeout) when {@code spring.data.redis.timeout} is 0, as Lettuce reads it.
-   */
+  /** The timeout of every command that belongs to no cache with its own value, in whole ms. */
   private final long globalMillis;
 
-  /**
-   * Each cache's own timeout, in whole ms and at least 1, because Lettuce reads 0 as no timeout.
-   */
+  /** Each cache's own timeout, in whole ms. */
   private final Map<String, Long> millisByCache;
 
   /** Finds the cache of a command's key. */
@@ -54,45 +42,15 @@ public class CacheCommandTimeouts extends TimeoutSource
   /**
    * Checks each cache's own timeout against the cap and prepares the timeouts.
    *
-   * @param global {@code spring.data.redis.timeout}
-   * @param cacheTimeouts the caches that set their own timeout, each with its value
-   * @param matcher finds the cache of a key; it knows the names of {@code cacheTimeouts}
-   * @throws StratumException {@code SX-CORE-1003} if a value is above the cap; the message names
-   *     the key without the cache name, which may be secret
+   * @param settings the global timeout, each cache's own value and the key prefix
+   * @throws StratumException {@code SX-CORE-1003} if a value is above the cap
    */
-  public CacheCommandTimeouts(
-      Duration global, Map<String, Duration> cacheTimeouts, CacheKeyMatcher matcher) {
-    var cap = global.compareTo(MAX_CACHE_TIMEOUT) > 0 ? global : MAX_CACHE_TIMEOUT;
-    cacheTimeouts.values().forEach(timeout -> rejectAboveCap(timeout, cap));
-    this.globalMillis = global.isPositive() ? Math.max(1, global.toMillis()) : 0;
-    this.millisByCache =
-        Collections.unmodifiableMap(
-            cacheTimeouts.entrySet().stream()
-                .collect(
-                    Collectors.toMap(
-                        Map.Entry::getKey, entry -> Math.max(1, entry.getValue().toMillis()))));
-    this.matcher = matcher;
-    this.sharedTimeout =
-        cacheTimeouts.values().stream()
-            .filter(timeout -> timeout.compareTo(global) > 0)
-            .max(Duration::compareTo)
-            .orElse(global);
-  }
-
-  /**
-   * Stops startup when a cache's own timeout is above the cap. The message names the key without
-   * the cache name, which may be secret.
-   */
-  private void rejectAboveCap(Duration timeout, Duration cap) {
-    if (timeout.compareTo(cap) > 0) {
-      throw new StratumException(
-          CoreErrorCode.INVALID_SETTINGS,
-          CacheConstants.CACHES
-              + "[*].command-timeout is above "
-              + cap
-              + ", the larger of 10s and "
-              + CacheConstants.REDIS_TIMEOUT);
-    }
+  public CacheCommandTimeouts(CacheTimeoutSettings settings) {
+    settings.rejectAboveCap();
+    this.globalMillis = settings.globalMillis();
+    this.millisByCache = settings.millisByCache();
+    this.matcher = settings.matcher();
+    this.sharedTimeout = settings.sharedTimeout();
   }
 
   /**

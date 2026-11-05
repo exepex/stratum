@@ -13,7 +13,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.IntStream;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.DisplayName;
@@ -71,9 +70,8 @@ class CacheCommandTimeoutsSpeedTest {
   /** Timeouts for one cache with a long name, the most the search may read. */
   private final CacheCommandTimeouts timeouts =
       new CacheCommandTimeouts(
-          GLOBAL,
-          Map.of("monthly-sales-reports-by-region", Duration.ofSeconds(3)),
-          new CacheKeyMatcher(PREFIX, Set.of("monthly-sales-reports-by-region")));
+          new CacheTimeoutSettings(
+              GLOBAL, Map.of("monthly-sales-reports-by-region", Duration.ofSeconds(3)), PREFIX));
 
   /** A GET of the hostile key, as Spring Data sends it. */
   private final Command<byte[], byte[], String> hostileGet =

@@ -44,7 +44,7 @@ public class GatedCacheTestBase {
 
   /** Gives the Redis cache its name, as every cache has one. */
   @BeforeEach
-  protected void nameTheCache() {
+  void nameTheCache() {
     when(redis.getName()).thenReturn("products");
   }
 }

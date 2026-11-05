@@ -54,8 +54,12 @@ class CacheCommandTimeoutsTest {
 
   /** Returns the timeouts for the given caches, with the global value and the prefix above. */
   private CacheCommandTimeouts timeoutsFor(Map<String, Duration> cacheTimeouts) {
-    return new CacheCommandTimeouts(
-        GLOBAL, cacheTimeouts, new CacheKeyMatcher(PREFIX, cacheTimeouts.keySet()));
+    return timeoutsFor(GLOBAL, cacheTimeouts);
+  }
+
+  /** Returns the timeouts for the given global value and caches, with the prefix above. */
+  private CacheCommandTimeouts timeoutsFor(Duration global, Map<String, Duration> cacheTimeouts) {
+    return new CacheCommandTimeouts(new CacheTimeoutSettings(global, cacheTimeouts, PREFIX));
   }
 
   /** Returns a GET of the key, as Spring Data sends it. */
@@ -90,10 +94,7 @@ class CacheCommandTimeoutsTest {
     @DisplayName("a global timeout below 1 ms gets 1 ms for every other command, never 0")
     void globalBelowOneMillisecondGetsOne() {
       var subMillisecondGlobal =
-          new CacheCommandTimeouts(
-              Duration.ofNanos(SUB_MILLISECOND_NANOS),
-              CACHE_TIMEOUTS,
-              new CacheKeyMatcher(PREFIX, CACHE_TIMEOUTS.keySet()));
+          timeoutsFor(Duration.ofNanos(SUB_MILLISECOND_NANOS), CACHE_TIMEOUTS);
 
       assertThat(subMillisecondGlobal.getTimeout(get("session-42"))).isOne();
     }
@@ -103,9 +104,7 @@ class CacheCommandTimeoutsTest {
         "a global timeout of 0 stays no timeout for other commands, as Lettuce reads it, while a"
             + " cache keeps its own value")
     void zeroGlobalStaysNoTimeout() {
-      var noGlobalTimeout =
-          new CacheCommandTimeouts(
-              Duration.ZERO, CACHE_TIMEOUTS, new CacheKeyMatcher(PREFIX, CACHE_TIMEOUTS.keySet()));
+      var noGlobalTimeout = timeoutsFor(Duration.ZERO, CACHE_TIMEOUTS);
 
       assertThat(noGlobalTimeout.getTimeout(get("session-42"))).isZero();
       assertThat(noGlobalTimeout.getTimeout(get(REPORTS_KEY)))
@@ -236,9 +235,7 @@ class CacheCommandTimeoutsTest {
     @DisplayName("a global timeout above 10 seconds lifts the cap to the global value")
     void globalLiftsCap() {
       var cacheTimeouts = Map.of(REPORTS, ABOVE_CAP);
-      var lifted =
-          new CacheCommandTimeouts(
-              HIGH_GLOBAL, cacheTimeouts, new CacheKeyMatcher(PREFIX, cacheTimeouts.keySet()));
+      var lifted = timeoutsFor(HIGH_GLOBAL, cacheTimeouts);
 
       assertThat(lifted.getTimeout(get(REPORTS_KEY))).isEqualTo(ABOVE_CAP.toMillis());
     }

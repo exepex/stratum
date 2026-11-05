@@ -101,8 +101,8 @@ service, and a cache without its own value, still times out at the global value.
 ## Limits
 
 - **Other Redis clients.** With Jedis (`spring.data.redis.client-type=jedis`), the command timeouts
-  of single caches are ignored, and one warning at startup names the caches. Time to live works
-  with any client.
+  of single caches are ignored, and one warning at startup gives how many caches set one, but not
+  their names, which may be secret. Time to live works with any client.
 - **Your own key prefix.** The timeouts find a command's cache from its key, which must start with
   `spring.cache.redis.key-prefix` followed by `<cache>::`. A `RedisCacheConfiguration` bean or a
   `CacheKeyPrefix` of your own that writes keys another way, or `spring.cache.redis.use-key-prefix=false`,

@@ -187,9 +187,7 @@ public final class RedisCacheWriterAutoConfiguration {
     @ConditionalOnMissingBean(name = CacheConstants.CACHE_COMMAND_TIMEOUTS)
     @Order(Ordered.HIGHEST_PRECEDENCE)
     public CacheCommandTimeouts stratumCacheCommandTimeouts(Environment environment) {
-      var settings = CacheTimeoutSettings.resolve(environment);
-      return new CacheCommandTimeouts(
-          settings.global(), settings.cacheTimeouts(), settings.matcher());
+      return new CacheCommandTimeouts(CacheTimeoutSettings.resolve(environment));
     }
   }
 
