@@ -1,5 +1,7 @@
 package com.exepex.stratum.observability.it;
 
+import static com.exepex.stratum.observability.testsupport.ObservabilityTestData.SPAN_ID;
+
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 
@@ -15,7 +17,7 @@ enum CallerSamplingHeader {
   TRACEPARENT_SAMPLED("1111111111111111") {
     @Override
     Map<String, String> headers(String traceId) {
-      return Map.of("traceparent", "00-" + traceId + "-" + CALLER_SPAN_ID + "-01");
+      return Map.of("traceparent", "00-" + traceId + "-" + SPAN_ID + "-01");
     }
   },
 
@@ -23,7 +25,7 @@ enum CallerSamplingHeader {
   B3_SAMPLED("2222222222222222") {
     @Override
     Map<String, String> headers(String traceId) {
-      return Map.of("b3", traceId + "-" + CALLER_SPAN_ID + "-1");
+      return Map.of("b3", traceId + "-" + SPAN_ID + "-1");
     }
   },
 
@@ -31,7 +33,7 @@ enum CallerSamplingHeader {
   B3_DEBUG("3333333333333333") {
     @Override
     Map<String, String> headers(String traceId) {
-      return Map.of("b3", traceId + "-" + CALLER_SPAN_ID + "-d");
+      return Map.of("b3", traceId + "-" + SPAN_ID + "-d");
     }
   },
 
@@ -39,12 +41,9 @@ enum CallerSamplingHeader {
   MULTIPLE_B3_DEBUG("4444444444444444") {
     @Override
     Map<String, String> headers(String traceId) {
-      return Map.of("X-B3-TraceId", traceId, "X-B3-SpanId", CALLER_SPAN_ID, "X-B3-Flags", "1");
+      return Map.of("X-B3-TraceId", traceId, "X-B3-SpanId", SPAN_ID, "X-B3-Flags", "1");
     }
   };
-
-  /** The caller's span ID, the parent of the service's span. */
-  private static final String CALLER_SPAN_ID = "00f067aa0ba902b7";
 
   /** The first 16 hex digits of every trace ID this form sends. */
   private final String firstHexDigits;
