@@ -213,7 +213,7 @@ class CacheCommandTimeoutsTest {
 
     @Test
     @DisplayName(
-        "a value above 10 seconds stops startup with SX-CORE-1003, naming the key but not the cache")
+        "a value above 10 seconds stops startup with SX-CORE-1003, naming the key, not the cache")
     void rejectsAboveCap() {
       var tooLong = Map.of(REPORTS, CAP.plusMillis(1));
 
