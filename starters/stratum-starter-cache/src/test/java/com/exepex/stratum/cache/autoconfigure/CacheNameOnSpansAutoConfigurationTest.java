@@ -80,12 +80,13 @@ class CacheNameOnSpansAutoConfigurationTest {
   class ServiceChoices {
 
     @Test
-    @DisplayName("beans named stratumRedisCacheNames and stratumCacheNameOnSpans replace Stratum's")
-    void namedBeansReplaceStratums() {
+    @DisplayName(
+        "cache names of any bean name and a filter named stratumCacheNameOnSpans replace Stratum's")
+    void serviceBeansReplaceStratums() {
       var serviceNames = RedisCacheNames.none();
       ObservationFilter serviceFilter = context -> context;
       contextRunner
-          .withBean(CacheConstants.REDIS_CACHE_NAMES, RedisCacheNames.class, () -> serviceNames)
+          .withBean("serviceCacheNames", RedisCacheNames.class, () -> serviceNames)
           .withBean(
               CacheConstants.CACHE_NAME_ON_SPANS, ObservationFilter.class, () -> serviceFilter)
           .run(context -> assertKept(context, serviceNames, serviceFilter));
@@ -107,7 +108,8 @@ class CacheNameOnSpansAutoConfigurationTest {
     /** Checks that the given names and filter took Stratum's places. */
     private void assertKept(
         AssertableApplicationContext context, RedisCacheNames names, ObservationFilter filter) {
-      assertThat(context).getBean(CacheConstants.REDIS_CACHE_NAMES).isSameAs(names);
+      assertThat(context).hasSingleBean(RedisCacheNames.class);
+      assertThat(context).getBean(RedisCacheNames.class).isSameAs(names);
       assertThat(context).getBean(CacheConstants.CACHE_NAME_ON_SPANS).isSameAs(filter);
     }
   }
@@ -138,7 +140,7 @@ class CacheNameOnSpansAutoConfigurationTest {
   @AutoConfiguration
   static class CompanySpanAutoConfiguration {
 
-    /** The company's names, under the name of Stratum's. */
+    /** The company's names, under a name of its own. */
     static final RedisCacheNames NAMES = mock(RedisCacheNames.class);
 
     /** The company's filter, under the name of Stratum's. */
@@ -149,7 +151,7 @@ class CacheNameOnSpansAutoConfigurationTest {
      *
      * @return the names
      */
-    @Bean(CacheConstants.REDIS_CACHE_NAMES)
+    @Bean
     RedisCacheNames companyNames() {
       return NAMES;
     }

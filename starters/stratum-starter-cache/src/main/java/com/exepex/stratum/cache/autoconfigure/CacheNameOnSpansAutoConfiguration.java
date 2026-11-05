@@ -41,14 +41,14 @@ public final class CacheNameOnSpansAutoConfiguration {
 
   /**
    * Creates the cache names spans can carry: {@code spring.cache.cache-names}, and each name
-   * Stratum's cache layer admits. A service replaces it with a bean of the same name.
+   * Stratum's cache layer admits. A service replaces it with its own bean of this type.
    *
    * @param environment the service's environment, from which the names and key prefix are resolved
    * @return the names
    */
-  @Bean(CacheConstants.REDIS_CACHE_NAMES)
+  @Bean
   @Fallback
-  @ConditionalOnMissingBean(name = CacheConstants.REDIS_CACHE_NAMES)
+  @ConditionalOnMissingBean
   public RedisCacheNames stratumRedisCacheNames(Environment environment) {
     return RedisCacheNames.resolve(environment);
   }

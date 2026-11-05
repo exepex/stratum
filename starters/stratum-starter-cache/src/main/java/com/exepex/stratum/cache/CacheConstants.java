@@ -205,9 +205,6 @@ public class CacheConstants {
   /** Spring Boot's key that names the caches made at startup. */
   public static final String CACHE_NAMES = "spring.cache.cache-names";
 
-  /** The bean name of the cache names Redis spans can carry. */
-  public static final String REDIS_CACHE_NAMES = "stratumRedisCacheNames";
-
   /** The bean name of the filter that puts the cache name on Redis spans. */
   public static final String CACHE_NAME_ON_SPANS = "stratumCacheNameOnSpans";
 
