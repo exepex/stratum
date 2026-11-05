@@ -109,7 +109,9 @@ class CacheCommandTimeoutsSpeedTest {
   private long cpuNanosPerRound() {
     var start = threads.getCurrentThreadCpuTime();
     var sum =
-        IntStream.range(0, LOOKUPS_PER_ROUND).mapToLong(i -> timeouts.getTimeout(hostileGet)).sum();
+        IntStream.range(0, LOOKUPS_PER_ROUND)
+            .mapToLong(round -> timeouts.getTimeout(hostileGet))
+            .sum();
     assertThat(sum).isPositive();
     return threads.getCurrentThreadCpuTime() - start;
   }

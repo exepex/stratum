@@ -74,7 +74,7 @@ public class CacheCommandTimeouts extends TimeoutSource
     this.matcher = matcher;
     this.sharedTimeout =
         cacheTimeouts.values().stream()
-            .filter(t -> t.compareTo(global) > 0)
+            .filter(timeout -> timeout.compareTo(global) > 0)
             .max(Duration::compareTo)
             .orElse(global);
   }

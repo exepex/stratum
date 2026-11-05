@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.time.Duration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -88,61 +89,71 @@ class PerCacheSettingsIntegrationTest {
     PausedRedisSteps.startFromEmptyRedis(catalog, gate, redis);
   }
 
-  @Test
-  @DisplayName("each cache's entries expire after its own time to live, the others after 10 min")
-  void eachCacheHasItsOwnTimeToLive() {
-    catalog.reportOf(SKU);
-    catalog.priceOf(SKU);
+  @Nested
+  @DisplayName("time to live")
+  class TimeToLive {
 
-    var reportsKey = SERVICE + ":" + ProductCatalog.REPORTS + "::" + SKU;
-    var productsKey = SERVICE + ":" + ProductCatalog.PRODUCTS + "::" + SKU;
-    await().atMost(WAIT).until(() -> redis.hasKey(reportsKey) && redis.hasKey(productsKey));
+    @Test
+    @DisplayName("each cache's entries expire after its own time to live, the others after 10 min")
+    void eachCacheHasItsOwnTimeToLive() {
+      catalog.reportOf(SKU);
+      catalog.priceOf(SKU);
 
-    assertThat(redis.getExpire(reportsKey))
-        .isBetween(
-            REPORTS_TIME_TO_LIVE_SECONDS - TIME_TO_LIVE_MARGIN_SECONDS,
-            REPORTS_TIME_TO_LIVE_SECONDS);
-    assertThat(redis.getExpire(productsKey))
-        .isBetween(
-            DEFAULT_TIME_TO_LIVE_SECONDS - TIME_TO_LIVE_MARGIN_SECONDS,
-            DEFAULT_TIME_TO_LIVE_SECONDS);
+      var reportsKey = SERVICE + ":" + ProductCatalog.REPORTS + "::" + SKU;
+      var productsKey = SERVICE + ":" + ProductCatalog.PRODUCTS + "::" + SKU;
+      await().atMost(WAIT).until(() -> redis.hasKey(reportsKey) && redis.hasKey(productsKey));
+
+      assertThat(redis.getExpire(reportsKey))
+          .isBetween(
+              REPORTS_TIME_TO_LIVE_SECONDS - TIME_TO_LIVE_MARGIN_SECONDS,
+              REPORTS_TIME_TO_LIVE_SECONDS);
+      assertThat(redis.getExpire(productsKey))
+          .isBetween(
+              DEFAULT_TIME_TO_LIVE_SECONDS - TIME_TO_LIVE_MARGIN_SECONDS,
+              DEFAULT_TIME_TO_LIVE_SECONDS);
+    }
   }
 
-  @Test
-  @DisplayName(
-      "with Redis paused, a 200 ms cache times out near 200 ms without making the other caches"
-          + " skip Redis, and a 3 s cache waits for Redis and reads its entry")
-  void shortAndLongCacheTimeouts() throws Exception {
-    catalog.reportOf(SKU);
-    var reportsKey = SERVICE + ":" + ProductCatalog.REPORTS + "::" + SKU;
-    await().atMost(WAIT).until(() -> redis.hasKey(reportsKey));
-    final var reportLookupFailures = failures(ProductCatalog.REPORTS);
+  @Nested
+  @DisplayName("command timeout")
+  class CommandTimeout {
 
-    pauseRedis();
-    var quote = PausedRedisSteps.durationOf(() -> catalog.quoteOf(SKU), "quote-of-" + SKU);
-    var gateOpenAfterQuote = !gate.isAvailable();
-    var report = PausedRedisSteps.durationOf(() -> catalog.reportOf(SKU), "report-of-" + SKU);
+    @Test
+    @DisplayName(
+        "with Redis paused, a 200 ms cache times out near 200 ms without making the other caches"
+            + " skip Redis, and a 3 s cache waits for Redis and reads its entry")
+    void shortAndLongCacheTimeouts() throws Exception {
+      catalog.reportOf(SKU);
+      var reportsKey = SERVICE + ":" + ProductCatalog.REPORTS + "::" + SKU;
+      await().atMost(WAIT).until(() -> redis.hasKey(reportsKey));
+      final var reportLookupFailures = failures(ProductCatalog.REPORTS);
 
-    assertThat(quote).isLessThan(SHORT_TIMEOUT_MAX);
-    assertThat(gateOpenAfterQuote).as("the quotes timeout made every cache skip Redis").isFalse();
-    assertThat(failures(ProductCatalog.QUOTES)).isOne();
-    assertThat(report).isGreaterThan(Duration.ofMillis(PAUSE_MILLIS / 2));
-    assertThat(failures(ProductCatalog.REPORTS)).isEqualTo(reportLookupFailures);
-  }
+      pauseRedis();
+      var quote = PausedRedisSteps.durationOf(() -> catalog.quoteOf(SKU), "quote-of-" + SKU);
+      var gateOpenAfterQuote = !gate.isAvailable();
+      var report = PausedRedisSteps.durationOf(() -> catalog.reportOf(SKU), "report-of-" + SKU);
 
-  @Test
-  @DisplayName(
-      "with Redis paused, a cache without its own timeout and the service's own Redis calls time"
-          + " out near the 1 s global timeout")
-  void otherCommandsKeepGlobalTimeout() throws Exception {
-    pauseRedis();
-    var start = System.nanoTime();
-    assertThatExceptionOfType(QueryTimeoutException.class).isThrownBy(() -> redis.hasKey(SKU));
-    var template = Duration.ofNanos(System.nanoTime() - start);
-    var product = PausedRedisSteps.durationOf(() -> catalog.priceOf(SKU), "price-of-" + SKU);
+      assertThat(quote).isLessThan(SHORT_TIMEOUT_MAX);
+      assertThat(gateOpenAfterQuote).as("the quotes timeout made every cache skip Redis").isFalse();
+      assertThat(failures(ProductCatalog.QUOTES)).isOne();
+      assertThat(report).isGreaterThan(Duration.ofMillis(PAUSE_MILLIS / 2));
+      assertThat(failures(ProductCatalog.REPORTS)).isEqualTo(reportLookupFailures);
+    }
 
-    assertThat(template).isBetween(GLOBAL_TIMEOUT_MIN, GLOBAL_TIMEOUT_MAX);
-    assertThat(product).isBetween(GLOBAL_TIMEOUT_MIN, GLOBAL_TIMEOUT_MAX);
+    @Test
+    @DisplayName(
+        "with Redis paused, a cache without its own timeout and the service's own Redis calls time"
+            + " out near the 1 s global timeout")
+    void otherCommandsKeepGlobalTimeout() throws Exception {
+      pauseRedis();
+      var start = System.nanoTime();
+      assertThatExceptionOfType(QueryTimeoutException.class).isThrownBy(() -> redis.hasKey(SKU));
+      var template = Duration.ofNanos(System.nanoTime() - start);
+      var product = PausedRedisSteps.durationOf(() -> catalog.priceOf(SKU), "price-of-" + SKU);
+
+      assertThat(template).isBetween(GLOBAL_TIMEOUT_MIN, GLOBAL_TIMEOUT_MAX);
+      assertThat(product).isBetween(GLOBAL_TIMEOUT_MIN, GLOBAL_TIMEOUT_MAX);
+    }
   }
 
   /** Pauses every Redis command; the pause lifts itself, so no test leaves Redis paused. */
