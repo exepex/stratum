@@ -97,8 +97,8 @@ class ObservabilitySettingsIntegrationTest {
 
     @Test
     @DisplayName(
-        "the forbidden and allowed tags, allowed baggage, meter caps, endpoints, environment tag and"
-            + " instance ID are applied")
+        "the forbidden and allowed tags, allowed baggage, meter caps, endpoints, environment tag"
+            + " and instance ID are applied")
     void settingsApplied() {
       assertSettingsApplied(guard, allowList, meterCountGuard, environment, resource);
     }
@@ -135,8 +135,8 @@ class ObservabilitySettingsIntegrationTest {
 
     @Test
     @DisplayName(
-        "the forbidden and allowed tags, allowed baggage, meter caps, endpoints, environment tag and"
-            + " instance ID are applied")
+        "the forbidden and allowed tags, allowed baggage, meter caps, endpoints, environment tag"
+            + " and instance ID are applied")
     void settingsApplied() {
       assertSettingsApplied(guard, allowList, meterCountGuard, environment, resource);
     }
