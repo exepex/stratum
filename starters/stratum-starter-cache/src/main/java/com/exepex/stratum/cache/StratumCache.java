@@ -70,6 +70,11 @@ public class StratumCache implements Cache {
     try {
       return delegate.get(key, loader);
     } catch (ValueRetrievalException failure) {
+      // Caffeine reports its refusal of the loaded null this way; any other is the loader's own
+      // error, which Spring reports.
+      if (refusedNull(loader)) {
+        return null;
+      }
       throw failure;
     } catch (RuntimeException failure) {
       if (!loader.hasRun()) {
@@ -77,7 +82,7 @@ public class StratumCache implements Cache {
         // unchanged, as CacheAspectSupport does for a loader's own error.
         ReflectionUtils.rethrowRuntimeException(failure);
       }
-      if (nullsRejected && loader.value() == null) {
+      if (refusedNull(loader)) {
         // The cache refused to store the null before writing anything: no failure to report.
         return null;
       }
@@ -134,6 +139,11 @@ public class StratumCache implements Cache {
   @Override
   public boolean invalidate() {
     return delegate.invalidate();
+  }
+
+  /** Returns whether the loader returned a null that the wrapped cache refuses to store. */
+  private boolean refusedNull(RecordedLoader<?> loader) {
+    return nullsRejected && loader.hasRun() && loader.value() == null;
   }
 
   /**

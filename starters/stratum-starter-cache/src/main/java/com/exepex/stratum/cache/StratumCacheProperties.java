@@ -36,6 +36,7 @@ import org.springframework.util.unit.DataSize;
  * @param redisRetryInterval How long every Redis cache skips Redis after Redis could not be reached
  *     or a command timed out; then one call tries again. From 1s to 5m. Defaults to 5s.
  * @param serialization How Redis cache values are stored and which types are read back.
+ * @param caffeine How Caffeine caches treat a method's null result.
  * @param caches Settings for one cache, by its name, which win over the settings for every cache.
  */
 @Builder(toBuilder = true)
@@ -47,6 +48,7 @@ public record StratumCacheProperties(
     @DefaultValue("1MB") DataSize maxValueSize,
     @DefaultValue("5s") Duration redisRetryInterval,
     @DefaultValue @Valid Serialization serialization,
+    @DefaultValue CaffeineSettings caffeine,
     Map<String, CacheSettings> caches) {
 
   /** The shortest allowed {@code warning-interval}. */
@@ -64,6 +66,7 @@ public record StratumCacheProperties(
   /** Keeps the settings for single caches a fixed map, empty when none are set. */
   public StratumCacheProperties {
     serialization = serialization == null ? new Serialization(List.of()) : serialization;
+    caffeine = caffeine == null ? new CaffeineSettings(false) : caffeine;
     caches = caches == null ? Map.of() : Map.copyOf(caches);
   }
 
@@ -121,18 +124,20 @@ public record StratumCacheProperties(
   }
 
   /**
-   * Returns whether every size limit, for every cache and for single caches, is above 0. Validation
-   * reports one that is not as {@code stratum.cache.sizes-positive breaks @AssertTrue}.
+   * Returns whether every size limit, for every cache and for single caches, and every cache's
+   * {@code max-entries}, is above 0. Validation reports one that is not as {@code
+   * stratum.cache.sizes-positive breaks @AssertTrue}.
    *
    * @return whether every limit is above 0
    */
   @AssertTrue
   public boolean isSizesPositive() {
     return Stream.concat(
-            Stream.of(maxKeySize, maxValueSize),
-            caches.values().stream()
-                .flatMap(settings -> Stream.of(settings.maxKeySize(), settings.maxValueSize())))
-        .allMatch(size -> size == null || size.toBytes() > 0);
+                Stream.of(maxKeySize, maxValueSize),
+                caches.values().stream()
+                    .flatMap(settings -> Stream.of(settings.maxKeySize(), settings.maxValueSize())))
+            .allMatch(size -> size == null || size.toBytes() > 0)
+        && maxEntries().values().stream().allMatch(entries -> entries > 0);
   }
 
   /**
@@ -153,7 +158,7 @@ public record StratumCacheProperties(
    * @return the time to live of each cache that sets one; empty when none does
    */
   public Map<String, Duration> timesToLive() {
-    return ownDurations(CacheSettings::timeToLive);
+    return ownValues(CacheSettings::timeToLive);
   }
 
   /**
@@ -162,7 +167,16 @@ public record StratumCacheProperties(
    * @return the command timeout of each cache that sets one; empty when none does
    */
   public Map<String, Duration> commandTimeouts() {
-    return ownDurations(CacheSettings::commandTimeout);
+    return ownValues(CacheSettings::commandTimeout);
+  }
+
+  /**
+   * Returns the caches that set their own {@code max-entries}, each with its bound.
+   *
+   * @return the most entries of each cache that sets them; empty when none does
+   */
+  public Map<String, Long> maxEntries() {
+    return ownValues(CacheSettings::maxEntries);
   }
 
   /**
@@ -178,14 +192,14 @@ public record StratumCacheProperties(
         .allMatch(duration -> duration == null || duration.isPositive());
   }
 
-  /** Returns each cache's own duration of one kind, leaving out the caches that set none. */
-  private Map<String, Duration> ownDurations(Function<CacheSettings, @Nullable Duration> duration) {
+  /** Returns each cache's own value of one setting, leaving out the caches that set none. */
+  private <T> Map<String, T> ownValues(Function<CacheSettings, @Nullable T> setting) {
     return caches.entrySet().stream()
-        .filter(entry -> duration.apply(entry.getValue()) != null)
+        .filter(entry -> setting.apply(entry.getValue()) != null)
         .collect(
             Collectors.toUnmodifiableMap(
                 Map.Entry::getKey,
-                entry -> Objects.requireNonNull(duration.apply(entry.getValue()))));
+                entry -> Objects.requireNonNull(setting.apply(entry.getValue()))));
   }
 
   /** Returns a cache's own size limit in bytes, or the one for every cache. */
@@ -211,23 +225,36 @@ public record StratumCacheProperties(
   }
 
   /**
+   * How Caffeine caches treat a method's null result, under {@code stratum.cache.caffeine.*}.
+   *
+   * @param cacheNullValues Whether Caffeine caches store a method's null result. With false, the
+   *     method runs again on the next call for that key. Defaults to false.
+   */
+  public record CaffeineSettings(@DefaultValue("false") boolean cacheNullValues) {}
+
+  /**
    * The settings for one cache, under {@code stratum.cache.caches.<name>.*}. Each one left unset
    * takes the value for every cache.
    *
    * @param maxKeySize The longest key of this cache stored as it is. Above 0.
    * @param maxValueSize The largest value this cache stores, such as 5MB for a cache of large
    *     reports. Above 0.
-   * @param timeToLive How long an entry of this Redis cache lives, such as 30s for prices. Above 0.
-   *     Defaults to spring.cache.redis.time-to-live.
+   * @param timeToLive How long an entry of this cache lives, such as 30s for prices. Above 0.
+   *     Defaults to spring.cache.redis.time-to-live for Redis, and to the expiry of the Caffeine
+   *     builder, 10m by Stratum's default, for Caffeine.
    * @param commandTimeout How long a Redis command of this cache waits for its answer, higher or
    *     lower than spring.data.redis.timeout, such as 3s for large reports. Above 0, and at most
    *     the larger of 10s and spring.data.redis.timeout. Needs Lettuce. Defaults to
    *     spring.data.redis.timeout.
+   * @param maxEntries The most entries this Caffeine cache holds, such as 500 for a cache of large
+   *     reports. Above 0. Defaults to the maximum size of the Caffeine builder, 10000 by Stratum's
+   *     default. Redis caches ignore it.
    */
   @Builder(toBuilder = true)
   public record CacheSettings(
       @Nullable DataSize maxKeySize,
       @Nullable DataSize maxValueSize,
       @Nullable Duration timeToLive,
-      @Nullable Duration commandTimeout) {}
+      @Nullable Duration commandTimeout,
+      @Nullable Long maxEntries) {}
 }

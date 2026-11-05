@@ -195,6 +195,33 @@ public class CacheConstants {
   public static final String LETTUCE_CONNECTION_FACTORY =
       "org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory";
 
+  /** Whether Caffeine caches store a method's null result. */
+  public static final String CAFFEINE_CACHE_NULL_VALUES = PREFIX + ".caffeine.cache-null-values";
+
+  /** A cache's own bound on its Caffeine entries, as named in {@code SX-CACHE-1008}. */
+  public static final String MAX_ENTRIES = "max-entries";
+
+  /** A cache's own time to live, as named in {@code SX-CACHE-1008}. */
+  public static final String OWN_TIME_TO_LIVE = "time-to-live";
+
+  /** Spring Boot's Caffeine builder specification, which wins over Stratum's Caffeine builder. */
+  public static final String CAFFEINE_SPEC = "spring.cache.caffeine.spec";
+
+  /** The most entries each Caffeine cache holds by Stratum's default. */
+  public static final long CAFFEINE_MAX_ENTRIES = 10_000;
+
+  /** How long a Caffeine cache entry lives by Stratum's default, as a Redis entry does. */
+  public static final Duration CAFFEINE_TIME_TO_LIVE = Duration.ofMinutes(10);
+
+  /** The name of Stratum's Caffeine builder, which Spring Boot uses when the service sets none. */
+  public static final String CAFFEINE = "stratumCaffeine";
+
+  /** The name of the customizer that sets whether Caffeine caches store null results. */
+  public static final String CAFFEINE_NULL_VALUES = "stratumCaffeineNullValues";
+
+  /** The name of the customizer that gives single Caffeine caches their own settings. */
+  public static final String CAFFEINE_CACHE_SETTINGS = "stratumCaffeineCacheSettings";
+
   /** The name of the filter that keeps the cache layer's hook eager under lazy initialization. */
   public static final String LAZY_INITIALIZATION_FILTER =
       "stratumCacheLayerLazyInitializationExcludeFilter";

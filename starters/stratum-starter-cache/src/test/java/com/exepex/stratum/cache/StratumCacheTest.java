@@ -6,11 +6,16 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.exepex.stratum.cache.testsupport.ProductCatalog;
 import com.exepex.stratum.cache.testsupport.RecordingCacheErrorHandler;
 import com.exepex.stratum.cache.testsupport.StubCache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.cache.Cache;
+import org.springframework.cache.caffeine.CaffeineCache;
 
 @DisplayName("StratumCache forwards every call and runs the loader at most once")
 class StratumCacheTest {
@@ -88,11 +93,17 @@ class StratumCacheTest {
   @DisplayName("when the loader itself fails")
   class LoaderFails {
 
-    @Test
-    @DisplayName("the method's own error is rethrown unchanged and the handler is untouched")
-    void rethrowsLoaderError() {
+    /** Whether the cache refuses nulls: the method's error must come through either way. */
+    private static final List<Boolean> NULLS_REJECTED = List.of(false, true);
+
+    @ParameterizedTest(name = "nulls refused: {0}")
+    @FieldSource("NULLS_REJECTED")
+    @DisplayName(
+        "the method's own error is rethrown unchanged and the handler is untouched,"
+            + " whether nulls are refused or not")
+    void rethrowsLoaderError(boolean nullsRejected) {
       var healthy = new StubCache(ProductCatalog.PRODUCTS);
-      var cache = new StratumCache(healthy, handler, false);
+      var cache = new StratumCache(healthy, handler, nullsRejected);
       var methodError = new IllegalStateException("no price");
 
       assertThatThrownBy(
@@ -124,6 +135,22 @@ class StratumCacheTest {
 
       assertThat(value).isNull();
       assertThat(refusing.loads()).isOne();
+      assertThat(handler.total()).isZero();
+    }
+
+    @Test
+    @DisplayName(
+        "a Caffeine cache that refuses the loaded null, wrapped as a ValueRetrievalException,"
+            + " gives null and nothing is reported")
+    void caffeineRefusalIsNotReported() {
+      var caffeine =
+          new CaffeineCache(ProductCatalog.PRODUCTS, Caffeine.newBuilder().build(), false);
+      var cache = new StratumCache(caffeine, handler, true);
+
+      var value = cache.get(KEY, () -> null);
+
+      assertThat(value).isNull();
+      assertThat(caffeine.get(KEY)).isNull();
       assertThat(handler.total()).isZero();
     }
 

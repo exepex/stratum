@@ -12,8 +12,8 @@ change every few seconds, or large reports that take longer to read. Two keys gi
 own value; every other cache, and every other Redis call of the service, keeps the global one. Both
 keys are listed in [Cache → Properties](cache.md#properties).
 
-- **`stratum.cache.caches.<name>.time-to-live`**: how long an entry of that cache lives in Redis.
-  Above 0.
+- **`stratum.cache.caches.<name>.time-to-live`**: how long an entry of that cache lives, in Redis
+  or in [Caffeine](cache-caffeine.md#settings-per-cache). Above 0.
 - **`stratum.cache.caches.<name>.command-timeout`**: how long a Redis command of that cache waits
   for its answer, higher or lower than `spring.data.redis.timeout`. Above 0, and at most the larger
   of 10 seconds and `spring.data.redis.timeout`. It needs the Lettuce client, Spring Boot's default.
@@ -56,6 +56,9 @@ Spring Boot's settings, your own Spring Data `RedisCacheConfiguration` bean or y
 `RedisCacheManagerBuilderCustomizer` beans. Stratum's customizer, `stratumCacheTimeToLive`, runs
 after yours, so this key wins over a time to live your own code gives the same cache. A cache with
 its own time to live is created when the service starts, not on its first call.
+
+For a Caffeine cache, the key sets the expiry of that cache's entries in memory
+([Caffeine](cache-caffeine.md#settings-per-cache)).
 
 ## Command timeout
 
@@ -110,4 +113,4 @@ service, and a cache without its own value, still times out at the global value.
   value is lower also counts like any other, so it makes every cache skip Redis. A cache name that
   contains `::` never matches, and one that ends in `:`, such as `reports:`, cannot be told apart
   from `reports`, so it gets the global timeout or that cache's.
-- Caches other than Redis are not affected.
+- Caches other than Redis and Caffeine are not affected; the command timeout is for Redis only.

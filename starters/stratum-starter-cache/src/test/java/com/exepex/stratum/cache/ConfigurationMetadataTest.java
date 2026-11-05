@@ -27,6 +27,7 @@ class ConfigurationMetadataTest {
           CacheConstants.MAX_VALUE_SIZE,
           CacheConstants.REDIS_RETRY_INTERVAL,
           CacheConstants.ALLOWED_PACKAGES,
+          CacheConstants.CAFFEINE_CACHE_NULL_VALUES,
           CacheConstants.CACHES);
 
   @Test

@@ -9,6 +9,9 @@ stratum:
         max-value-size: 5MB
         time-to-live: 1h
         command-timeout: 3s
+        max-entries: 500
+    caffeine:
+      cache-null-values: true
     serialization:
       allowed-packages:
         - com.acme.shared

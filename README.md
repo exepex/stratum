@@ -269,7 +269,7 @@ Every starter's module is on when the starter is on the classpath. A service tur
 | [`stratum-starter-http-client`](docs/modules/http-client.md) | Declarative HTTP clients with timeouts, tracing, tokens and retries. | `stratum.http-client` |
 | [`stratum-starter-resilience`](docs/modules/resilience.md) | Named retry, circuit breaker, bulkhead and time limit policies. | `stratum.resilience` |
 | [`stratum-starter-data-jpa`](docs/modules/data-jpa.md) | Spring Data JPA with safe defaults for the connection pool, Hibernate and transactions, and database errors that carry no data values. | `stratum.data` |
-| [`stratum-starter-cache`](docs/modules/cache.md) | Spring's caching switched on, with a time to live, a service key prefix, statistics, short timeouts, SCAN clears, key and value size limits and plain JSON values for Redis; cached calls keep working when Redis is down. | `stratum.cache` |
+| [`stratum-starter-cache`](docs/modules/cache.md) | Spring's caching switched on, with a time to live, a service key prefix, statistics, short timeouts, SCAN clears, key and value size limits and plain JSON values for Redis, and bounded, expiring Caffeine caches; cached calls keep working when Redis is down. | `stratum.cache` |
 | [`stratum-starter-kafka`](docs/modules/kafka.md) | Kafka producers and consumers with retries and dead-letter topics. | `stratum.kafka` |
 | [`stratum-starter-cloud-*`](docs/modules/cloud.md) | Cloud services such as storage, queues and secrets, per provider. | `stratum.cloud` |
 

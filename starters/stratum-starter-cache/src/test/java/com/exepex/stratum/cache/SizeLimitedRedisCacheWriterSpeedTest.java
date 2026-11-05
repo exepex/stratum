@@ -20,8 +20,12 @@ import org.springframework.mock.env.MockEnvironment;
 @DisplayName("Hashing a hostile 10 MB key stays inside its CPU time limit")
 class SizeLimitedRedisCacheWriterSpeedTest {
 
-  /** Rounds run first and not counted, so the JIT compiler has compiled the hashing code. */
-  private static final int WARM_UP_ROUNDS = 3;
+  /**
+   * Rounds run first and not counted, so the JIT compiler has compiled the hashing code, also while
+   * it is still busy with the tests run before: with 3 rounds, a full module run measured SHA-256
+   * alone at 35 ms instead of 5 ms, because it was not compiled yet.
+   */
+  private static final int WARM_UP_ROUNDS = 20;
 
   /** Rounds timed; the fastest counts, so one slow round on a busy build machine is ignored. */
   private static final int MEASURED_ROUNDS = 5;
