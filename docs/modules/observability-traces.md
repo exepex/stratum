@@ -146,8 +146,9 @@ then raise `management.opentelemetry.tracing.export.max-queue-size` or lower
 `management.tracing.sampling.probability`.
 
 The count comes from OpenTelemetry's own span processor, and Spring Boot gives that processor
-the service's OpenTelemetry `MeterProvider` bean. If your service declares its own `MeterProvider`, it replaces
-Stratum's, and the counter is not registered. To turn the counter off, set Spring Boot's key:
+the service's OpenTelemetry `MeterProvider` bean. If your service declares its own
+`MeterProvider`, it replaces Stratum's, and the counter is not registered. To turn the counter
+off, set Spring Boot's key:
 
 ```properties
 management.metrics.enable.stratum.observability.spans.dropped=false
