@@ -1,6 +1,7 @@
 package com.exepex.stratum.cache;
 
 import com.exepex.stratum.core.api.StratumInternal;
+import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -102,9 +103,10 @@ public class TypedCache implements Cache {
   @Override
   public <T> CompletableFuture<T> retrieve(Object key, Supplier<CompletableFuture<T>> valueLoader) {
     var loaded = new AtomicBoolean();
-    return delegate
-        .retrieve(key, () -> loadedOnMiss(loaded, valueLoader))
-        .thenCompose(cached -> afterRetrieve(key, cached, loaded, valueLoader));
+    // Spring's contract: this future is never null.
+    var retrieved =
+        Objects.requireNonNull(delegate.retrieve(key, () -> loadedOnMiss(loaded, valueLoader)));
+    return retrieved.thenCompose(cached -> afterRetrieve(key, cached, loaded, valueLoader));
   }
 
   @Override

@@ -66,10 +66,10 @@ class CacheJsonValuesIntegrationTest {
       List.of(
           Arguments.of(
               OrderCatalog.ORDERS,
-              (Function<OrderCatalog, Order>) catalog -> catalog.orderOf(ORDER_ID)),
+              (Function<OrderCatalog, Order>) orders -> orders.orderOf(ORDER_ID)),
           Arguments.of(
               OrderCatalog.SYNCED_ORDERS,
-              (Function<OrderCatalog, Order>) catalog -> catalog.syncedOrderOf(ORDER_ID)));
+              (Function<OrderCatalog, Order>) orders -> orders.syncedOrderOf(ORDER_ID)));
 
   @Autowired private OrderCatalog catalog;
 

@@ -118,7 +118,7 @@ public class CacheJsonValues implements RedisElementReader<Object>, RedisElement
   public Optional<Object> read(CachedJson value, JavaType type) {
     try (var stored = value.open()) {
       return Optional.ofNullable(mapper.readValue(stored, type));
-    } catch (JacksonException unreadable) {
+    } catch (JacksonException _) {
       return Optional.empty();
     } catch (IOException closing) {
       // A stream over memory never fails to close.
