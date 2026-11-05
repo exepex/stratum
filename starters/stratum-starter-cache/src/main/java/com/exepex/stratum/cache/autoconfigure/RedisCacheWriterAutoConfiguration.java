@@ -1,10 +1,13 @@
 package com.exepex.stratum.cache.autoconfigure;
 
 import com.exepex.stratum.cache.CacheConstants;
-import com.exepex.stratum.cache.ScanOnClearCustomizer;
+import com.exepex.stratum.cache.CacheCounters;
+import com.exepex.stratum.cache.RedisCacheWriterCustomizer;
+import com.exepex.stratum.cache.StratumCacheProperties;
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureOrder;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -15,11 +18,13 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Fallback;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.core.env.Environment;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 
 /**
- * Makes Spring Boot's Redis caches clear with SCAN when the service has Spring Data Redis, unless
- * {@code stratum.cache.enabled=false}.
+ * Gives Spring Boot's Redis caches Stratum's writer, which clears with SCAN and bounds the size of
+ * each key and value, when the service has Spring Data Redis, unless {@code
+ * stratum.cache.enabled=false}.
  */
 @StratumInternal
 @AutoConfiguration(after = DataRedisAutoConfiguration.class)
@@ -29,19 +34,27 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 public final class RedisCacheWriterAutoConfiguration {
 
   /**
-   * Creates the customizer that clears Redis caches with SCAN. It runs before the service's own
+   * Creates the customizer that sets Stratum's Redis cache writer. It runs before the service's own
    * customizers, so theirs win. A service replaces it with a bean of the same name; it backs off by
    * name, because a service may add its own customizers of the same type beside it.
    *
    * @param connectionFactory the connection to Redis
+   * @param environment the service's environment, from which the size limits are resolved
+   * @param counters count the hashed keys and the values not stored; no-ops when absent
    * @return the customizer, which Spring Boot applies to its Redis cache manager
    */
-  @Bean(CacheConstants.SCAN_ON_CLEAR)
+  @Bean(CacheConstants.REDIS_CACHE_WRITER)
   @Fallback
-  @ConditionalOnMissingBean(name = CacheConstants.SCAN_ON_CLEAR)
+  @ConditionalOnMissingBean(name = CacheConstants.REDIS_CACHE_WRITER)
   @ConditionalOnBean(RedisConnectionFactory.class)
   @Order(Ordered.HIGHEST_PRECEDENCE)
-  public ScanOnClearCustomizer scanOnClear(RedisConnectionFactory connectionFactory) {
-    return new ScanOnClearCustomizer(connectionFactory);
+  public RedisCacheWriterCustomizer stratumRedisCacheWriter(
+      RedisConnectionFactory connectionFactory,
+      Environment environment,
+      ObjectProvider<CacheCounters> counters) {
+    return new RedisCacheWriterCustomizer(
+        connectionFactory,
+        StratumCacheProperties.resolve(environment),
+        counters.getIfAvailable(CacheCounters::noop));
   }
 }

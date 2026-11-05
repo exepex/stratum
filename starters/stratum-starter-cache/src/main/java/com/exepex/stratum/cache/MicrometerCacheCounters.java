@@ -5,8 +5,8 @@ import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 
 /**
- * Counts the cache layer's failures and refused cache names in the service's {@link MeterRegistry}:
- * {@code stratum.cache.failures} with the tags {@code cache} and {@code operation}, and {@code
+ * Counts the cache layer's failures and skips in the service's {@link MeterRegistry}: {@code
+ * stratum.cache.failures} with the tags {@code cache} and {@code operation}, and {@code
  * stratum.cache.skips} with {@code cache} and {@code reason}. The registry keeps one meter per tag
  * set, so counting adds no allocation after the first call.
  */

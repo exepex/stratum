@@ -19,7 +19,13 @@ class ConfigurationMetadataTest {
 
   /** Every property of the module, the switch included. */
   private static final List<String> PROPERTY_NAMES =
-      List.of(CacheConstants.ENABLED, CacheConstants.MAX_CACHES, CacheConstants.WARNING_INTERVAL);
+      List.of(
+          CacheConstants.ENABLED,
+          CacheConstants.MAX_CACHES,
+          CacheConstants.WARNING_INTERVAL,
+          CacheConstants.MAX_KEY_SIZE,
+          CacheConstants.MAX_VALUE_SIZE,
+          CacheConstants.PREFIX + ".caches");
 
   @Test
   @DisplayName("every property is listed with a description")

@@ -7,7 +7,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import com.exepex.stratum.cache.CacheConstants;
-import com.exepex.stratum.cache.ScanOnClearCustomizer;
+import com.exepex.stratum.cache.RedisCacheWriterCustomizer;
+import com.exepex.stratum.cache.SizeLimitedRedisCacheWriter;
 import com.exepex.stratum.cache.testsupport.CacheAssertions;
 import com.exepex.stratum.cache.testsupport.ProductCatalog;
 import java.time.Duration;
@@ -29,7 +30,9 @@ import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.cache.RedisCacheWriter;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 
-@DisplayName("RedisCacheWriterAutoConfiguration makes Spring Boot's Redis caches clear with SCAN")
+@DisplayName(
+    "RedisCacheWriterAutoConfiguration makes Spring Boot's Redis caches clear with SCAN and limits"
+        + " entry sizes")
 class RedisCacheWriterAutoConfigurationTest {
 
   /** Spring Boot's Redis and cache set-up with Stratum's; nothing connects to Redis. */
@@ -52,10 +55,28 @@ class RedisCacheWriterAutoConfigurationTest {
       contextRunner.run(
           context -> {
             assertThat(context)
-                .getBean(CacheConstants.SCAN_ON_CLEAR)
-                .isInstanceOf(ScanOnClearCustomizer.class);
+                .getBean(CacheConstants.REDIS_CACHE_WRITER)
+                .isInstanceOf(RedisCacheWriterCustomizer.class);
             assertThat(context).getBean(CacheManager.class).isInstanceOf(RedisCacheManager.class);
           });
+    }
+
+    @Test
+    @DisplayName(
+        "with statistics on and the service's own Redis cache configuration, caches still get the"
+            + " size limits")
+    void limitsSizesWithServiceConfiguration() {
+      contextRunner
+          .withPropertyValues("spring.cache.redis.enable-statistics=true")
+          .withBean(RedisCacheConfiguration.class, RedisCacheConfiguration::defaultCacheConfig)
+          .run(
+              context ->
+                  assertThat(
+                          context
+                              .getBean(CacheManager.class)
+                              .getCache(ProductCatalog.PRODUCTS)
+                              .getNativeCache())
+                      .isInstanceOf(SizeLimitedRedisCacheWriter.class));
     }
 
     @Test
@@ -63,7 +84,7 @@ class RedisCacheWriterAutoConfigurationTest {
     void createsNothingWithModuleOff() {
       contextRunner
           .withPropertyValues(CacheConstants.ENABLED + "=false")
-          .run(context -> assertThat(context).doesNotHaveBean(ScanOnClearCustomizer.class));
+          .run(context -> assertThat(context).doesNotHaveBean(RedisCacheWriterCustomizer.class));
     }
 
     @Test
@@ -75,7 +96,9 @@ class RedisCacheWriterAutoConfigurationTest {
           .withClassLoader(new FilteredClassLoader(RedisConnectionFactory.class))
           .run(
               context -> {
-                assertThat(context).hasNotFailed().doesNotHaveBean(ScanOnClearCustomizer.class);
+                assertThat(context)
+                    .hasNotFailed()
+                    .doesNotHaveBean(RedisCacheWriterCustomizer.class);
                 CacheAssertions.assertLeftOut(context, RedisCacheWriterAutoConfiguration.class);
               });
     }
@@ -94,7 +117,9 @@ class RedisCacheWriterAutoConfigurationTest {
           .withConfiguration(AutoConfigurations.of(RedisCacheWriterAutoConfiguration.class))
           .run(
               context ->
-                  assertThat(context).hasNotFailed().doesNotHaveBean(ScanOnClearCustomizer.class));
+                  assertThat(context)
+                      .hasNotFailed()
+                      .doesNotHaveBean(RedisCacheWriterCustomizer.class));
     }
   }
 
@@ -123,14 +148,14 @@ class RedisCacheWriterAutoConfigurationTest {
       RedisCacheManagerBuilderCustomizer serviceChoice = builder -> builder.enableStatistics();
       contextRunner
           .withBean(
-              CacheConstants.SCAN_ON_CLEAR,
+              CacheConstants.REDIS_CACHE_WRITER,
               RedisCacheManagerBuilderCustomizer.class,
               () -> serviceChoice)
           .run(
               context ->
                   assertThat(context)
-                      .doesNotHaveBean(ScanOnClearCustomizer.class)
-                      .getBean(CacheConstants.SCAN_ON_CLEAR)
+                      .doesNotHaveBean(RedisCacheWriterCustomizer.class)
+                      .getBean(CacheConstants.REDIS_CACHE_WRITER)
                       .isSameAs(serviceChoice));
     }
 
@@ -146,8 +171,8 @@ class RedisCacheWriterAutoConfigurationTest {
           .run(
               context ->
                   assertThat(context)
-                      .doesNotHaveBean(ScanOnClearCustomizer.class)
-                      .getBean(CacheConstants.SCAN_ON_CLEAR)
+                      .doesNotHaveBean(RedisCacheWriterCustomizer.class)
+                      .getBean(CacheConstants.REDIS_CACHE_WRITER)
                       .isSameAs(CompanyWriterAutoConfiguration.WRITER_CHOICE));
     }
 
@@ -185,7 +210,7 @@ class RedisCacheWriterAutoConfigurationTest {
      *
      * @return the customizer
      */
-    @Bean(CacheConstants.SCAN_ON_CLEAR)
+    @Bean(CacheConstants.REDIS_CACHE_WRITER)
     RedisCacheManagerBuilderCustomizer companyWriterChoice() {
       return WRITER_CHOICE;
     }
