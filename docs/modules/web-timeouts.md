@@ -45,6 +45,8 @@ stratum:
 - A limit is a duration, such as `500ms`, `5s` or `2m`. `0` means no limit.
 - `routes` maps a Spring path pattern to its limit. Write each pattern in square brackets, as above,
   so Spring Boot keeps its `/` and `*`. When several patterns match a path, the most specific wins.
+  A pattern that is not valid, such as `/api/{id`, stops startup with `SX-WEB-1009`, which names the
+  key and the pattern.
 - `status` is any status from `400` to `599`. `503` tells callers the service is too busy now and
   that a retry later can work; some gateways expect `504`.
 

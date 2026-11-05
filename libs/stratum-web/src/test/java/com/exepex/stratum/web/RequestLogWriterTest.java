@@ -232,5 +232,19 @@ class RequestLogWriterTest {
 
       assertThat(off.isLogged("/orders/42")).isFalse();
     }
+
+    @Test
+    @DisplayName("skips a path listed twice, and still logs the others")
+    void skipPathListedTwice() {
+      var twice =
+          writer(
+              defaultRequestLog().toBuilder()
+                  .skipPaths(List.of("/actuator/**", "/internal/**", "/actuator/**"))
+                  .build());
+
+      assertThat(twice.isLogged("/actuator/health")).isFalse();
+      assertThat(twice.isLogged("/internal/jobs")).isFalse();
+      assertThat(twice.isLogged("/orders/42")).isTrue();
+    }
   }
 }

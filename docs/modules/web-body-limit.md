@@ -46,6 +46,8 @@ stratum:
 - A limit is a size, such as `256KB`, `5MB` or `20MB`. `0` means no limit.
 - `routes` maps a Spring path pattern to its limit. Write each pattern in square brackets, as above,
   so Spring Boot keeps its `/` and `*`. When several patterns match a path, the most specific wins.
+  A pattern that is not valid, such as `/api/{id`, stops startup with `SX-WEB-1009`, which names the
+  key and the pattern.
 
 Each key, with its type and default, is listed in [Web → Properties](web.md#properties).
 

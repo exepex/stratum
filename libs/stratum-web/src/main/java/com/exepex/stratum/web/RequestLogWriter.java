@@ -11,14 +11,12 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.TreeSet;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.server.PathContainer;
-import org.springframework.web.util.pattern.PathPattern;
-import org.springframework.web.util.pattern.PathPatternParser;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -51,8 +49,8 @@ public final class RequestLogWriter {
   /** Whether requests write the line. */
   private final boolean enabled;
 
-  /** The paths whose requests write no line. */
-  private final List<PathPattern> skipPaths;
+  /** The paths whose requests write no line; each pattern's value is unused. */
+  private final RouteValues<Boolean> skipPaths;
 
   /** The request headers to log, by field name, without the denied ones. */
   private final Map<String, String> requestHeaderFields;
@@ -74,6 +72,8 @@ public final class RequestLogWriter {
    *
    * @param settings the web settings
    * @param requestFieldsReader makes each value safe for the logs
+   * @throws com.exepex.stratum.core.error.StratumException {@code SX-WEB-1009} if a skip path is
+   *     not a valid path pattern
    */
   public RequestLogWriter(WebProperties settings, RequestFieldsReader requestFieldsReader) {
     var requestLog = settings.requestLog();
@@ -81,8 +81,13 @@ public final class RequestLogWriter {
     Stream.concat(CREDENTIAL_HEADERS.stream(), requestLog.deniedHeaders().stream())
         .forEach(deniedHeaders::add);
     this.enabled = requestLog.enabled();
+    // A team may list a pattern twice; distinct() keeps that from failing the map.
     this.skipPaths =
-        requestLog.skipPaths().stream().map(PathPatternParser.defaultInstance::parse).toList();
+        new RouteValues<>(
+            WebConstants.REQUEST_LOG_SKIP_PATHS,
+            requestLog.skipPaths().stream()
+                .distinct()
+                .collect(Collectors.toMap(Function.identity(), skipPath -> Boolean.TRUE)));
     this.requestHeaderFields = allowedOnly(requestLog.requestHeaders(), deniedHeaders);
     this.responseHeaderFields = allowedOnly(requestLog.responseHeaders(), deniedHeaders);
     this.tokenPayload = requestLog.tokenPayload();
@@ -97,8 +102,7 @@ public final class RequestLogWriter {
    * @return true when the line is on and the path is not skipped
    */
   public boolean isLogged(String pathWithinApplication) {
-    var path = PathContainer.parsePath(pathWithinApplication);
-    return enabled && skipPaths.stream().noneMatch(pattern -> pattern.matches(path));
+    return enabled && skipPaths.find(pathWithinApplication).isEmpty();
   }
 
   /**
