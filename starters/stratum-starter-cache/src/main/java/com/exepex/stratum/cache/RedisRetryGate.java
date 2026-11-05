@@ -5,6 +5,7 @@ import com.exepex.stratum.core.error.ErrorReport;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Builder;
 import lombok.RequiredArgsConstructor;
@@ -50,6 +51,12 @@ public class RedisRetryGate {
   /** Counts the times Redis could not be reached. */
   private final CacheCounters counters;
 
+  /**
+   * The caches whose own command timeout is below {@code spring.data.redis.timeout}: their timeout
+   * says nothing about Redis as a whole, so it never makes the other caches skip Redis.
+   */
+  private final Set<String> shortTimeoutCaches;
+
   /** The current state; replaced only on a change, so a call using Redis costs one read. */
   private final AtomicReference<GateState> state = new AtomicReference<>(STARTING);
 
@@ -61,7 +68,9 @@ public class RedisRetryGate {
    * @return the gated cache, or the cache unchanged
    */
   public Cache gated(Cache cache) {
-    return cache instanceof RedisCache ? new RedisGatedCache(cache, this) : cache;
+    return cache instanceof RedisCache
+        ? new RedisGatedCache(cache, this, !shortTimeoutCaches.contains(cache.getName()))
+        : cache;
   }
 
   /**
@@ -124,13 +133,22 @@ public class RedisRetryGate {
   /**
    * Records a failed Redis call. A connect failure, a command refused because the connection is
    * down, or a timed-out command makes every call skip Redis, unless they already do, so a late
-   * failure neither extends the wait nor counts twice. Any other failure means Redis answered.
+   * failure neither extends the wait nor counts twice. A timeout of a cache whose own timeout is
+   * below the global one releases a trial instead, as it says nothing about Redis as a whole. Any
+   * other failure means Redis answered.
    *
    * @param failure the failure, as Spring Data translated it
+   * @param timeoutOpensGate whether a timeout of the failed call's cache makes every call skip
+   *     Redis
    */
-  void failed(RuntimeException failure) {
+  void failed(RuntimeException failure, boolean timeoutOpensGate) {
     var unreachable = isUnreachable(failure);
-    if (!unreachable && !(failure instanceof QueryTimeoutException)) {
+    var timedOut = failure instanceof QueryTimeoutException;
+    if (timedOut && !timeoutOpensGate) {
+      released();
+      return;
+    }
+    if (!unreachable && !timedOut) {
       reached();
       return;
     }

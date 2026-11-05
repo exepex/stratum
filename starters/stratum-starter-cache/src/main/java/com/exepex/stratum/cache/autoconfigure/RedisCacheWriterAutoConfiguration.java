@@ -1,8 +1,12 @@
 package com.exepex.stratum.cache.autoconfigure;
 
+import com.exepex.stratum.cache.CacheCommandTimeouts;
+import com.exepex.stratum.cache.CacheCommandTimeoutsCheck;
 import com.exepex.stratum.cache.CacheConstants;
 import com.exepex.stratum.cache.CacheCounters;
 import com.exepex.stratum.cache.CacheJsonValues;
+import com.exepex.stratum.cache.CacheTimeToLiveCustomizer;
+import com.exepex.stratum.cache.CacheTimeoutSettings;
 import com.exepex.stratum.cache.JacksonRequiredCustomizer;
 import com.exepex.stratum.cache.JsonValuesCustomizer;
 import com.exepex.stratum.cache.RedisCacheWriterCustomizer;
@@ -45,8 +49,9 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
  * Sets up Redis caches when the service has Spring Data Redis, unless {@code
  * stratum.cache.enabled=false}: Spring Boot's Redis caches get Stratum's writer, which clears with
  * SCAN and bounds the size of each key and value; they skip Redis for a while after it could not be
- * reached; with Lettuce, their commands are refused at once while the connection is down; and,
- * where Stratum's cache layer reads them, their values are stored as plain JSON.
+ * reached; single caches get their own time to live; with Lettuce, their commands are refused at
+ * once while the connection is down and single caches get their own command timeout; and, where
+ * Stratum's cache layer reads them, their values are stored as plain JSON.
  */
 @StratumInternal
 @AutoConfiguration(after = {DataRedisAutoConfiguration.class, StratumCacheAutoConfiguration.class})
@@ -100,18 +105,53 @@ public final class RedisCacheWriterAutoConfiguration {
         properties.redisRetryInterval(),
         clock,
         new WarningThrottle(properties.warningInterval(), clock, 1),
-        counters.getIfAvailable(CacheCounters::noop));
+        counters.getIfAvailable(CacheCounters::noop),
+        CacheTimeoutSettings.resolve(environment).shortTimeoutCaches());
+  }
+
+  /**
+   * Creates the customizer that gives single Redis caches their own time to live. It runs after the
+   * service's own customizers, so it sets the time to live on each cache's final configuration; a
+   * service replaces it with a bean of the same name.
+   *
+   * @param environment the service's environment, from which the settings are resolved
+   * @return the customizer, which Spring Boot applies to its Redis cache manager
+   */
+  @Bean(CacheConstants.CACHE_TIME_TO_LIVE)
+  @Fallback
+  @ConditionalOnMissingBean(name = CacheConstants.CACHE_TIME_TO_LIVE)
+  @ConditionalOnBean(RedisConnectionFactory.class)
+  @Order(Ordered.LOWEST_PRECEDENCE)
+  public CacheTimeToLiveCustomizer stratumCacheTimeToLive(Environment environment) {
+    return new CacheTimeToLiveCustomizer(StratumCacheProperties.resolve(environment).timesToLive());
+  }
+
+  /**
+   * Creates the check that warns, once at startup, when caches set their own command timeout but
+   * the service's Redis client is not Lettuce, such as Jedis: then those timeouts are ignored.
+   *
+   * @param connectionFactory the connection to Redis
+   * @param environment the service's environment, from which the settings are resolved
+   * @return the check, which runs once every bean is created
+   */
+  @Bean(CacheConstants.CACHE_COMMAND_TIMEOUTS_CHECK)
+  @ConditionalOnBean(RedisConnectionFactory.class)
+  public CacheCommandTimeoutsCheck stratumCacheCommandTimeoutsCheck(
+      RedisConnectionFactory connectionFactory, Environment environment) {
+    return new CacheCommandTimeoutsCheck(
+        connectionFactory, StratumCacheProperties.resolve(environment).commandTimeouts().keySet());
   }
 
   /**
    * Makes Lettuce refuse a command at once while its connection is down, instead of holding it
-   * until the connection is back. A nested class, so Lettuce's types are only loaded when present.
+   * until the connection is back, and gives single caches their own command timeout. A nested
+   * class, so Lettuce's types are only loaded when present.
    */
   @StratumInternal
   @Configuration(proxyBeanMethods = false)
   @ConditionalOnStratumModule(CacheConstants.MODULE)
   @ConditionalOnClass(ClientOptions.class)
-  public static class LettuceRejectConfiguration {
+  public static class LettuceConfiguration {
 
     /**
      * Creates the customizer that refuses commands while disconnected. It runs before the service's
@@ -126,6 +166,27 @@ public final class RedisCacheWriterAutoConfiguration {
     public LettuceClientOptionsBuilderCustomizer stratumRejectWhileDisconnected() {
       return options ->
           options.disconnectedBehavior(ClientOptions.DisconnectedBehavior.REJECT_COMMANDS);
+    }
+
+    /**
+     * Creates the timeouts of single Redis caches: Lettuce's connection timeout is raised to the
+     * largest value, and each command gets its cache's own value or {@code
+     * spring.data.redis.timeout}. Both hooks run before the service's own customizers, so theirs
+     * win; a service replaces it with a bean of the same name.
+     *
+     * @param environment the service's environment, from which the settings are resolved
+     * @return the timeouts, which Spring Boot applies to Lettuce's configuration and options
+     * @throws com.exepex.stratum.core.error.StratumException {@code SX-CORE-1003} if a cache's
+     *     value is above the larger of 10s and {@code spring.data.redis.timeout}
+     */
+    @Bean(CacheConstants.CACHE_COMMAND_TIMEOUTS)
+    @Fallback
+    @ConditionalOnMissingBean(name = CacheConstants.CACHE_COMMAND_TIMEOUTS)
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    public CacheCommandTimeouts stratumCacheCommandTimeouts(Environment environment) {
+      var settings = CacheTimeoutSettings.resolve(environment);
+      return new CacheCommandTimeouts(
+          settings.global(), settings.cacheTimeouts(), settings.matcher());
     }
   }
 

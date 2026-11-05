@@ -12,7 +12,8 @@ method's own exception reaches the caller unchanged, as without caching.
 
 - **Redis is skipped for a while.** When Redis cannot be reached, a command is refused because the
   connection is down, or a command waits longer than `spring.data.redis.timeout`, every Redis cache
-  of the service skips Redis for `stratum.cache.redis-retry-interval` (5 seconds by default). Reads
+  of the service skips Redis (a cache whose own [command timeout](cache-per-cache.md#command-timeout)
+  is lower never causes it) for `stratum.cache.redis-retry-interval` (5 seconds by default). Reads
   then miss at once and writes and evictions are dropped, without a call to Redis. Then one call
   tries Redis again while the others keep skipping it; when it gets an answer, every call uses Redis
   again. A write or evict that tries first deletes its key at once, since a write in the background

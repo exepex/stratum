@@ -29,6 +29,9 @@ public class RedisGatedCache implements Cache {
   /** Decides whether Redis is called. */
   private final RedisRetryGate gate;
 
+  /** Whether a timeout of this cache makes every Redis cache skip Redis. */
+  private final boolean timeoutOpensGate;
+
   @Override
   public String getName() {
     return delegate.getName();
@@ -173,7 +176,7 @@ public class RedisGatedCache implements Cache {
       return result;
     } catch (DataAccessException failure) {
       settled = true;
-      gate.failed(failure);
+      gate.failed(failure, timeoutOpensGate);
       throw failure;
     } finally {
       if (!settled) {
@@ -198,7 +201,7 @@ public class RedisGatedCache implements Cache {
       return future;
     } catch (DataAccessException failure) {
       settled = true;
-      gate.failed(failure);
+      gate.failed(failure, timeoutOpensGate);
       throw failure;
     } finally {
       if (!settled) {
@@ -227,7 +230,7 @@ public class RedisGatedCache implements Cache {
     if (cause == null) {
       gate.reached();
     } else if (cause instanceof DataAccessException failure) {
-      gate.failed(failure);
+      gate.failed(failure, timeoutOpensGate);
     } else {
       gate.released();
     }

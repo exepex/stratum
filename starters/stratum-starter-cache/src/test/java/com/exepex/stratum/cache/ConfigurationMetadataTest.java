@@ -27,7 +27,7 @@ class ConfigurationMetadataTest {
           CacheConstants.MAX_VALUE_SIZE,
           CacheConstants.REDIS_RETRY_INTERVAL,
           CacheConstants.ALLOWED_PACKAGES,
-          CacheConstants.PREFIX + ".caches");
+          CacheConstants.CACHES);
 
   @Test
   @DisplayName("every property is listed with a description")

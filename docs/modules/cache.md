@@ -6,8 +6,8 @@ with the service's name, hits and misses are counted, Redis commands have short 
 clearing a cache never blocks Redis. Cached calls keep working when Redis is down, with the method
 run at most once, skip Redis for a few seconds after it fails, the number of caches is capped, and
 keys and values have size limits, also per cache, and values are stored as plain JSON, read only as
-allowed types ([Stored values](cache-values.md)). Per-cache time to live and timeouts and Caffeine
-are **planned** ([below](#planned)).
+allowed types ([Stored values](cache-values.md)). Each cache can have its own time to live and
+command timeout ([per cache](cache-per-cache.md)). Caffeine is **planned** ([below](#planned)).
 
 [← Documentation home](../README.md) · Property prefix: `stratum.cache`
 
@@ -106,6 +106,9 @@ The beans the starter adds, with their types:
 | `stratumRejectWhileDisconnected` | `LettuceClientOptionsBuilderCustomizer` | Lettuce is on the class path; it makes Lettuce refuse commands while disconnected |
 | `stratumRedisAvailabilityMetric` | `MeterBinder` | Micrometer and a Redis connection are present; it registers the gauge `stratum.cache.redis.available` |
 | `stratumCacheJsonValues`, `stratumRedisCacheJsonValues`, `typedCacheValues`, `stratumRedisCacheJacksonRequired` | See [Stored values](cache-values.md#when-json-values-apply) | Spring Boot builds its Redis cache manager and the service has no `CachingConfigurer` or `RedisCacheConfiguration` bean |
+| `stratumCacheTimeToLive` | `RedisCacheManagerBuilderCustomizer` | A Redis connection is present; it sets each cache's own [time to live](cache-per-cache.md) |
+| `stratumCacheCommandTimeouts` | `CacheCommandTimeouts` | Lettuce is on the class path; it sets each cache's own [command timeout](cache-per-cache.md#command-timeout) |
+| `stratumCacheCommandTimeoutsCheck` | `SmartInitializingSingleton` | A Redis connection is present; it warns when caches set a command timeout but the client is not Lettuce |
 
 Spring Boot's cache auto-configuration sets up a cache manager only once caching is switched on, so
 Stratum's `@EnableCaching` is ordered before it. That is the one reason this module is ordered
@@ -124,8 +127,10 @@ before a Spring Boot auto-configuration.
 | `stratum.cache.serialization.allowed-packages` | list of package names | none | Packages, beside the service's own and `java`, whose types Redis cache values may be read as ([Stored values](cache-values.md)). |
 | `stratum.cache.caches.<name>.max-key-size` | data size, above 0 | `max-key-size` | The key limit of the cache `<name>`. |
 | `stratum.cache.caches.<name>.max-value-size` | data size, above 0 | `max-value-size` | The value limit of the cache `<name>`, such as `5MB` for a cache of large reports. |
+| `stratum.cache.caches.<name>.time-to-live` | duration, above 0 | `spring.cache.redis.time-to-live` | How long an entry of the cache `<name>` lives in Redis ([per cache](cache-per-cache.md)). |
+| `stratum.cache.caches.<name>.command-timeout` | duration, above 0, at most the larger of `10s` and `spring.data.redis.timeout` | `spring.data.redis.timeout` | How long a Redis command of the cache `<name>` waits, higher or lower than the global value. The largest one also bounds every connect ([per cache](cache-per-cache.md#command-timeout)). |
 
-A value out of range stops startup with `SX-CORE-1003`, which names the key. A size of 0 or less, in any of the four size keys and for any cache, is reported as `stratum.cache.sizes-positive` instead.
+A value out of range stops startup with `SX-CORE-1003`, which names the key. A size of 0 or less, in any of the four size keys and for any cache, is reported as `stratum.cache.sizes-positive` instead, and a time to live or command timeout of 0 or less as `stratum.cache.durations-positive`.
 
 Spring Boot properties this module gives a default (your values win):
 
@@ -415,8 +420,8 @@ the same as `true`.
 
 `stratum.cache.enabled=false` turns off Stratum's `@EnableCaching` and its cache and Redis
 defaults: time to live, key prefix, statistics, timeouts, clearing with SCAN, the size limits, the
-fail-open layer, the cap on caches, skipping Redis while it fails and Lettuce's refusal while
-disconnected. A service with its
+fail-open layer, the cap on caches, skipping Redis while it fails, Lettuce's refusal while
+disconnected, and the time to live and command timeout of single caches. A service with its
 own `@EnableCaching` keeps caching, with Spring Boot's defaults; without one, `@Cacheable` methods
 then always run.
 
@@ -461,8 +466,7 @@ live. Caches other than Redis have no size limits.
 
 ### Planned
 
-These are planned for later releases of this module: a time to live and command timeout for each
-cache;
+These are planned for later releases of this module:
 the cache name on Redis spans; Caffeine with a bounded size; and reactive return types.
 
 Not planned for this release: a two-level cache, several regions, keys per tenant, other cache
@@ -480,7 +484,7 @@ jittered time to live per instance.
 | Stale data after an update | Add `@CacheEvict` or `@CachePut` to the method that changes the data, or lower the time to live. |
 | Hit ratio near zero | The key includes a value that changes on every call (for example a timestamp). Set `key` explicitly. |
 | `cache.gets` is missing for a cache | The cache is reached by a path that skips Stratum's layer, or its name is over `stratum.cache.max-caches`. List it in `spring.cache.cache-names` ([Metrics](#metrics)). |
-| Redis calls time out after 1 second | A command takes longer than Stratum's `spring.data.redis.timeout`. Raise it for the whole service. |
+| Redis calls time out after 1 second | A command takes longer than Stratum's `spring.data.redis.timeout`. Raise it for the whole service, or for one cache with its own `command-timeout` ([per cache](cache-per-cache.md)). |
 | `SX-CACHE-1002` in the log | A cache call failed, usually because Redis is down; the method still ran. Check Redis ([When Redis is down](cache-redis-down.md)). |
 | The method always runs for one key, and `stratum.cache.skips` counts `value-too-large` | Its result is larger than `stratum.cache.max-value-size`. Return less, or raise the limit for that cache ([Size limits](#size-limits)). |
 | `SX-CACHE-1006` in the log, or `stratum.cache.redis.available` at 0 | Redis could not be reached or answered too slowly, so Redis caches skip it for a few seconds at a time. Check Redis and the network ([When Redis is down](cache-redis-down.md)). |

@@ -17,6 +17,7 @@ import com.exepex.stratum.cache.testsupport.RecordingCacheCounters;
 import com.exepex.stratum.cache.testsupport.RedisFailureTestData;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -50,12 +51,16 @@ class RedisGatedCacheTest {
 
   private final RedisRetryGate gate =
       new RedisRetryGate(
-          RETRY_INTERVAL, clock, new WarningThrottle(Duration.ofMinutes(1), clock, 1), counters);
+          RETRY_INTERVAL,
+          clock,
+          new WarningThrottle(Duration.ofMinutes(1), clock, 1),
+          counters,
+          Set.of());
 
   /** The Redis cache behind the gate. */
   private final Cache redis = mock(Cache.class);
 
-  private final RedisGatedCache cache = new RedisGatedCache(redis, gate);
+  private final RedisGatedCache cache = new RedisGatedCache(redis, gate, true);
 
   /** Gives the Redis cache its name, as every cache has one. */
   @BeforeEach
@@ -110,13 +115,82 @@ class RedisGatedCacheTest {
   }
 
   @Nested
+  @DisplayName("for a cache whose own command timeout is below the global one")
+  class ShortTimeout {
+
+    /** The same Redis cache, whose timeouts never make the other caches skip Redis. */
+    private final RedisGatedCache shortCache = new RedisGatedCache(redis, gate, false);
+
+    /** Makes the calls skip Redis until the next trial is due, then lets the wait pass. */
+    private void awaitTrial() {
+      gate.admits();
+      gate.failed(RedisFailureTestData.CONNECT_FAILED, true);
+      clock.advance(RETRY_INTERVAL);
+    }
+
+    /** Asserts that the trial ended without putting Redis back, and the next call tries again. */
+    private void assertTrialEnded() {
+      assertThat(gate.isAvailable()).isFalse();
+      assertThat(gate.admits()).isTrue();
+    }
+
+    @Test
+    @DisplayName("its timeout on a trial ends the trial without putting Redis back")
+    void timeoutEndsTrial() {
+      awaitTrial();
+      when(redis.get(KEY)).thenThrow(RedisFailureTestData.TIMED_OUT);
+
+      assertThatExceptionOfType(DataAccessException.class).isThrownBy(() -> shortCache.get(KEY));
+
+      assertTrialEnded();
+    }
+
+    @Test
+    @DisplayName("its background timeout on a trial ends the trial without putting Redis back")
+    void backgroundTimeoutEndsTrial() {
+      awaitTrial();
+      when(redis.retrieve(KEY))
+          .thenReturn(
+              CompletableFuture.failedFuture(
+                  new CompletionException(RedisFailureTestData.TIMED_OUT)));
+
+      shortCache.retrieve(KEY);
+
+      assertTrialEnded();
+    }
+
+    @Test
+    @DisplayName("its timeout before a background read starts ends the trial the same way")
+    void timeoutBeforeBackgroundReadEndsTrial() {
+      awaitTrial();
+      when(redis.retrieve(KEY)).thenThrow(RedisFailureTestData.TIMED_OUT);
+
+      assertThatExceptionOfType(DataAccessException.class)
+          .isThrownBy(() -> shortCache.retrieve(KEY));
+
+      assertTrialEnded();
+    }
+
+    @Test
+    @DisplayName("while Redis is in use, its timeout leaves every cache using Redis")
+    void timeoutKeepsRedis() {
+      shortCache.get(KEY);
+      when(redis.get(KEY)).thenThrow(RedisFailureTestData.TIMED_OUT);
+
+      assertThatExceptionOfType(DataAccessException.class).isThrownBy(() -> shortCache.get(KEY));
+
+      assertThat(gate.usesRedis()).isTrue();
+    }
+  }
+
+  @Nested
   @DisplayName("while Redis is skipped")
   class SkippingRedis {
 
     /** Makes the calls skip Redis, as after a failed connect. */
     private void skipRedis() {
       gate.admits();
-      gate.failed(RedisFailureTestData.CONNECT_FAILED);
+      gate.failed(RedisFailureTestData.CONNECT_FAILED, true);
     }
 
     @Test
@@ -297,7 +371,7 @@ class RedisGatedCacheTest {
       when(writer.retrieve(any(), any(), any()))
           .thenReturn(CompletableFuture.completedFuture(null));
       return new RedisGatedCache(
-          RedisCacheManager.builder(writer).build().getCache("products"), gate);
+          RedisCacheManager.builder(writer).build().getCache("products"), gate, true);
     }
 
     @Test

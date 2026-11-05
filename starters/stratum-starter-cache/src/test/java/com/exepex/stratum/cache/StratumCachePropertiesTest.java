@@ -2,6 +2,7 @@ package com.exepex.stratum.cache;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.assertj.core.api.Assertions.entry;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import com.exepex.stratum.cache.testsupport.ThreeCachesSettings;
@@ -54,6 +55,12 @@ class StratumCachePropertiesTest {
   /** The value limit both test files set for {@value #REPORTS}, 5 MiB. */
   private static final long REPORTS_VALUE_BYTES_IN_FILES = 5 * DEFAULT_VALUE_BYTES;
 
+  /** The time to live both test files set for {@value #REPORTS}. */
+  private static final Duration REPORTS_TIME_TO_LIVE_IN_FILES = Duration.ofHours(1);
+
+  /** The command timeout both test files set for {@value #REPORTS}. */
+  private static final Duration REPORTS_COMMAND_TIMEOUT_IN_FILES = Duration.ofSeconds(3);
+
   /** The default time Redis caches skip Redis after a failure. */
   private static final Duration DEFAULT_REDIS_RETRY_INTERVAL = Duration.ofSeconds(5);
 
@@ -67,6 +74,9 @@ class StratumCachePropertiesTest {
   @Nested
   @DisplayName("bound from the environment")
   class Binding {
+
+    /** The rule a time to live or command timeout of 0 or below breaks. */
+    private static final String DURATIONS_POSITIVE = "durations-positive breaks @AssertTrue";
 
     /** The rule a size limit of 0 or below breaks. */
     private static final String SIZES_POSITIVE = "sizes-positive breaks @AssertTrue";
@@ -90,6 +100,9 @@ class StratumCachePropertiesTest {
             arguments("max-value-size", "0B", SIZES_POSITIVE),
             arguments("caches.reports.max-value-size", "0B", SIZES_POSITIVE),
             arguments("caches.reports.max-key-size", "-1B", SIZES_POSITIVE),
+            arguments("caches.reports.time-to-live", "0s", DURATIONS_POSITIVE),
+            arguments("caches.reports.command-timeout", "0ms", DURATIONS_POSITIVE),
+            arguments("caches.reports.command-timeout", "-1s", DURATIONS_POSITIVE),
             arguments(
                 "redis-retry-interval",
                 "999ms",
@@ -116,6 +129,8 @@ class StratumCachePropertiesTest {
       assertThat(properties.maxValueBytesFor(REPORTS)).isEqualTo(DEFAULT_VALUE_BYTES);
       assertThat(properties.redisRetryInterval()).isEqualTo(DEFAULT_REDIS_RETRY_INTERVAL);
       assertThat(properties.serialization().allowedPackages()).isEmpty();
+      assertThat(properties.timesToLive()).isEmpty();
+      assertThat(properties.commandTimeouts()).isEmpty();
     }
 
     @ParameterizedTest(name = "{0}")
@@ -137,6 +152,10 @@ class StratumCachePropertiesTest {
       assertThat(properties.redisRetryInterval()).isEqualTo(REDIS_RETRY_INTERVAL_IN_FILES);
       assertThat(properties.serialization().allowedPackages())
           .containsExactlyElementsOf(ALLOWED_PACKAGES_IN_FILES);
+      assertThat(properties.timesToLive())
+          .containsExactly(entry(REPORTS, REPORTS_TIME_TO_LIVE_IN_FILES));
+      assertThat(properties.commandTimeouts())
+          .containsExactly(entry(REPORTS, REPORTS_COMMAND_TIMEOUT_IN_FILES));
     }
 
     @ParameterizedTest(name = "{0}={1}")
