@@ -37,10 +37,11 @@ public final class RedisCacheParts {
       @Nullable RedisRetryGate gate,
       @Nullable CacheValueTyping typing,
       @Nullable RedisCacheNames spanNames) {
-    return new RedisCacheParts(
-        gate == null ? UnaryOperator.identity() : gate::gated,
-        typing == null ? CacheValueTyping.none() : typing,
-        spanNames == null ? RedisCacheNames.none() : spanNames);
+    return builder()
+        .gate(gate == null ? UnaryOperator.identity() : gate::gated)
+        .typing(typing == null ? CacheValueTyping.none() : typing)
+        .spanNames(spanNames == null ? RedisCacheNames.none() : spanNames)
+        .build();
   }
 
   /**
