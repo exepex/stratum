@@ -187,11 +187,12 @@ public class TypedCache implements Cache {
         .orElseGet(() -> valueLoader.get().thenApply(value -> stored(key, value)));
   }
 
-  /** Stores a value loaded in place of an unreadable one, unless it is null, and returns it. */
+  /**
+   * Stores a value loaded in place of an unreadable one and returns it. A null is stored where the
+   * cache keeps nulls; otherwise the cache removes the unreadable entry.
+   */
   private <T> T stored(Object key, T value) {
-    if (value != null) {
-      delegate.put(key, value);
-    }
+    delegate.put(key, value);
     return value;
   }
 

@@ -207,6 +207,17 @@ class TypedCacheTest {
     }
 
     @Test
+    @DisplayName("a loading read of an unreadable value that loads null stores the null")
+    void storesLoadedNull() {
+      store.put(KEY, CHANGED);
+
+      var value = orders.retrieve(KEY, () -> CompletableFuture.completedFuture(null)).join();
+
+      assertThat(value).isNull();
+      assertThat(store.get(KEY)).isNotNull().extracting(Cache.ValueWrapper::get).isNull();
+    }
+
+    @Test
     @DisplayName("a loading read of a stored value returns it typed without a load")
     void readsStoredValue() {
       store.put(KEY, json.read(json.write(ORDER)));
