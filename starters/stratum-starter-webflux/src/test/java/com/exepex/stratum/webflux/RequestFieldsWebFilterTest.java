@@ -3,7 +3,7 @@ package com.exepex.stratum.webflux;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.logging.LoggingContextConstants;
-import com.exepex.stratum.test.StarterTestSupport;
+import com.exepex.stratum.test.WebTestSupport;
 import com.exepex.stratum.web.RequestFieldValues;
 import com.exepex.stratum.web.RequestFieldsReader;
 import com.exepex.stratum.web.WebConstants;
@@ -22,7 +22,7 @@ import reactor.core.publisher.Mono;
 class RequestFieldsWebFilterTest {
 
   /** The address of the mock request's client. */
-  private static final String CLIENT_ADDRESS = StarterTestSupport.ipAddress(198, 51, 100, 20);
+  private static final String CLIENT_ADDRESS = WebTestSupport.ipAddress(198, 51, 100, 20);
 
   /** The port of the mock request's client. */
   private static final int CLIENT_PORT = 50_000;

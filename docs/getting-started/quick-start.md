@@ -279,17 +279,16 @@ in this request.
 ```java
 package com.acme.orders;
 
-@StratumIntegrationTest
-@StubHttpClient("inventory")              // replaces inventory with a local HTTP stub
+@SpringBootTest
+@AutoConfigureMockMvc
 class OrderApiIntegrationTest {
 
   @Autowired MockMvcTester mvc;
-  @Autowired HttpStub inventory;
+  @MockitoBean InventoryClient inventory;   // stands in for the inventory service
 
   @Test
   void acceptsAnOrderWhenStockIsAvailable() {
-    inventory.stubGet("/stock/A-1", """
-        {"sku":"A-1","available":5}""");
+    when(inventory.stockFor("A-1")).thenReturn(new InventoryClient.Stock("A-1", 5));
 
     assertThat(mvc.post().uri("/orders").contentType(APPLICATION_JSON)
             .content("{\"sku\":\"A-1\",\"quantity\":2}"))
@@ -298,8 +297,7 @@ class OrderApiIntegrationTest {
 
   @Test
   void rejectsAnOrderWhenStockIsShort() {
-    inventory.stubGet("/stock/A-1", """
-        {"sku":"A-1","available":1}""");
+    when(inventory.stockFor("A-1")).thenReturn(new InventoryClient.Stock("A-1", 1));
 
     assertThat(mvc.post().uri("/orders").contentType(APPLICATION_JSON)
             .content("{\"sku\":\"A-1\",\"quantity\":2}"))

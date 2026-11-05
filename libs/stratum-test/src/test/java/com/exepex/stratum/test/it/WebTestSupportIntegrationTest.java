@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.test.BackwardCompatibleErrorChecks;
-import com.exepex.stratum.test.StarterTestSupport;
+import com.exepex.stratum.test.WebTestSupport;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
@@ -21,8 +21,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.FieldSource;
 
-@DisplayName("StarterTestSupport's calls to a running service")
-class StarterTestSupportIntegrationTest {
+@DisplayName("WebTestSupport and BackwardCompatibleErrorChecks call a running service")
+class WebTestSupportIntegrationTest {
 
   /** The size of the bodies sent. */
   private static final int BODY_BYTES = 2048;
@@ -112,7 +112,7 @@ class StarterTestSupportIntegrationTest {
     @Test
     @DisplayName("sends a GET request with the headers and returns the body")
     void sendsRequestWithHeaders() throws IOException, InterruptedException {
-      var response = StarterTestSupport.getFromService(port(), "/echo", "X-Order", "42");
+      var response = WebTestSupport.getFromService(port(), "/echo", "X-Order", "42");
 
       assertThat(response.body()).isEqualTo("42");
     }
@@ -131,7 +131,7 @@ class StarterTestSupportIntegrationTest {
     @FieldSource("DECLARED_AND_STREAMED")
     @DisplayName("sends the whole body, declared or streamed")
     void sendsWholeBody(boolean declareLength) throws IOException, InterruptedException {
-      StarterTestSupport.checkBodyAccepted(port(), "/accepted", BODY_BYTES, declareLength);
+      WebTestSupport.checkBodyAccepted(port(), "/accepted", BODY_BYTES, declareLength);
     }
   }
 
@@ -142,7 +142,7 @@ class StarterTestSupportIntegrationTest {
     @Test
     @DisplayName("accepts a 413 with the code")
     void readsRefusal() throws IOException, InterruptedException {
-      StarterTestSupport.checkBodyRefused(
+      WebTestSupport.checkBodyRefused(
           port(), "/refused", "text/plain", BODY_BYTES, true, TOO_LARGE_CODE);
     }
   }

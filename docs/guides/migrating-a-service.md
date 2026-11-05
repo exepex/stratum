@@ -189,7 +189,7 @@ the tool's first run:
 
 ## Step 8: tests
 
-Replace your own Testcontainers setup and JWT helpers with `stratum-test`. Rename integration
+Replace your own PostgreSQL and Redis Testcontainers setup with `stratum-test`. Rename integration
 tests to `*IntegrationTest.java` so they run in `mvn verify`.
 
 ## What a migrated service usually removes
@@ -201,5 +201,5 @@ tests to `*IntegrationTest.java` so they run in `mvn verify`.
 | `SecurityFilterChain`, `JwtDecoder`, converters | `stratum-starter-security` |
 | `RestTemplate` beans, interceptors, timeout config | `stratum-starter-http-client` |
 | Retry loops, circuit breaker config | `stratum-starter-resilience` |
-| Test containers and JWT helpers | `stratum-test` |
+| PostgreSQL and Redis test containers | `stratum-test` |
 | Dozens of `<version>` tags | `stratum-parent` or `stratum-bom` |

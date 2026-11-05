@@ -81,7 +81,7 @@ many ways of doing the same thing. That freedom costs every team time:
 | **Configuration is hard to remember** | Bean definitions, property names and auto-configuration rules are easy to get wrong. Developers search the web or ask an AI assistant, and still miss a timeout or a security setting. |
 | **Services drift apart** | Each team wires logging, trace headers, error responses and client timeouts its own way. Operating, debugging and securing the platform gets harder with every service. |
 | **Upgrades are repeated everywhere** | Every service researches and performs the same Spring Boot and library upgrades on its own. |
-| **Test setup is rebuilt in each repo** | Each team re-creates database containers, HTTP stubs and security test helpers. |
+| **Test setup is rebuilt in each repo** | Each team re-creates its database and Redis containers and pins their images itself. |
 
 Stratum answers these questions **once**, centrally. Business teams extend Stratum and spend their
 time on the business problem.
@@ -130,7 +130,7 @@ beans, auto-configuration, properties and profiles from the beginning.
 | Resilience | Retry loops written by hand | Named retry, circuit breaker and bulkhead policies |
 | Data and cache | Pool and cache settings guessed | A connection pool that fails fast, schema checks, time-limited transactions, caches with TTLs |
 | Messaging | Custom error handling per consumer | Kafka with retries, dead-letter topics and trace propagation |
-| Testing | Containers and stubs rebuilt per repo | Shared Testcontainers, HTTP stubs and security test helpers |
+| Testing | Containers rebuilt per repo | Shared PostgreSQL and Redis containers with pinned images |
 | Upgrades | Every service upgrades alone | One Stratum version bump upgrades the whole stack |
 
 ## Quick start
@@ -277,7 +277,7 @@ Every starter's module is on when the starter is on the classpath. A service tur
 
 | Module | In one sentence |
 | --- | --- |
-| [`stratum-test`](docs/modules/test.md) | Partly built: PostgreSQL and Redis containers for integration tests. Planned: JUnit 5, AssertJ, Mockito, more containers, HTTP stubs and JWT helpers. |
+| [`stratum-test`](docs/modules/test.md) | PostgreSQL and Redis containers for integration tests, with pinned images. |
 
 ## Configuration: YAML or properties
 
@@ -369,26 +369,23 @@ The decision behind it: [ADR 0001](docs/adr/0001-coexistence-with-company-framew
 
 ## Testing your service
 
-**Partly built.** Today `stratum-test` gives your integration tests a PostgreSQL database and a
-Redis server in Docker ([Containers](docs/modules/test.md#containers)); add Spring Boot's
-`spring-boot-starter-test` with `<scope>test</scope>` next to it. Once complete, `stratum-test` is
-planned to give you everything you need for unit, mock and integration tests in one test dependency:
-
-- **Unit tests** (`*Test.java`) with JUnit 5, AssertJ and Mockito.
-- **Integration tests** (`*IntegrationTest.java`) that start a real PostgreSQL, Kafka or Redis in Docker with
-  Testcontainers. Image versions are pinned centrally, so every service tests against the same ones.
-- **HTTP stubs** for the services you call, so tests never depend on a real downstream service.
-- **Security helpers** to call secured endpoints with a test JWT.
+`stratum-test` gives your integration tests a PostgreSQL database and a Redis server in Docker,
+with images pinned once for every service ([Containers](docs/modules/test.md#containers)). Add Spring
+Boot's `spring-boot-starter-test` with `<scope>test</scope>` next to it for JUnit 5, AssertJ and
+Mockito.
 
 ```java
-@StratumIntegrationTest
-class OrderApiIntegrationTest {
+@SpringBootTest
+@Import(PostgresContainerConfiguration.class)
+class OrderRepositoryIntegrationTest {
+
+  @Autowired OrderRepository repository;
 
   @Test
-  void createsAnOrder(@Autowired MockMvcTester mvc) {
-    assertThat(mvc.post().uri("/orders").with(stratumJwt("orders:write"))
-            .contentType(APPLICATION_JSON).content("{\"sku\":\"A-1\",\"quantity\":2}"))
-        .hasStatus(HttpStatus.CREATED);
+  void storesTheOrder() {
+    repository.save(new Order("A-1", 2));
+
+    assertThat(repository.count()).isEqualTo(1);
   }
 }
 ```
