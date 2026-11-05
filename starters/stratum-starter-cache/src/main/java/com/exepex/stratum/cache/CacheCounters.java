@@ -4,10 +4,10 @@ import com.exepex.stratum.core.api.StratumInternal;
 import org.springframework.cache.Cache;
 
 /**
- * Records the cache layer's metrics: it counts failures and skips (refused cache names, hashed keys
- * and values too large to store), and has Spring Boot measure each cache made on its first use. The
- * decorator, the handler and the resolver never name a Micrometer type, so they stay loadable
- * without {@code micrometer-core}.
+ * Records the cache layer's metrics: it counts failures, skips (refused cache names, hashed keys
+ * and values too large to store) and Redis connect failures, and has Spring Boot measure each cache
+ * made on its first use. The decorator, the handler and the resolver never name a Micrometer type,
+ * so they stay loadable without {@code micrometer-core}.
  */
 @StratumInternal
 public interface CacheCounters {
@@ -27,6 +27,9 @@ public interface CacheCounters {
    * @param reason why, such as {@code cache-limit}, {@code key-hashed} or {@code value-too-large}
    */
   void skip(String cache, String reason);
+
+  /** Counts one time Redis could not be reached and the Redis caches started skipping it. */
+  void redisConnectFailure();
 
   /**
    * Has Spring Boot's cache metrics, such as {@code cache.gets}, measure a cache the layer has just
@@ -66,6 +69,11 @@ public interface CacheCounters {
     @Override
     public void bindCacheMetrics(Cache cache, String cacheManagerName) {
       // Measures nothing.
+    }
+
+    @Override
+    public void redisConnectFailure() {
+      // Counts nothing.
     }
   }
 }

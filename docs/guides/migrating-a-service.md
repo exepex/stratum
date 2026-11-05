@@ -143,7 +143,7 @@ gives Spring Boot's Redis keys these defaults, in both modes, because no caller 
 - startup stops with `SX-CACHE-1001` when the service has no `spring.application.name`;
 - during a Redis outage a cached method now runs and returns its result, about 1 to 2 seconds a
   call and more under load, where the call used to fail
-  ([Cache → When Redis is down](../modules/cache.md#when-redis-is-down)).
+  ([Cache → When Redis is down](../modules/cache-redis-down.md)).
 
 Once the new version runs, delete the old keys, which start with the cache name under Spring Boot's
 default, with SCAN by pattern, never with `FLUSHDB` on a Redis shared with other data. For the cache

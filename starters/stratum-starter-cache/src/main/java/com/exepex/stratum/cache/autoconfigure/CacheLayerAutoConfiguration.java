@@ -3,6 +3,7 @@ package com.exepex.stratum.cache.autoconfigure;
 import com.exepex.stratum.cache.CacheConstants;
 import com.exepex.stratum.cache.CacheCounters;
 import com.exepex.stratum.cache.MicrometerCacheCounters;
+import com.exepex.stratum.cache.RedisRetryGate;
 import com.exepex.stratum.cache.StratumCacheLayerHook;
 import com.exepex.stratum.cache.StratumCacheProperties;
 import com.exepex.stratum.core.api.StratumInternal;
@@ -58,6 +59,7 @@ public final class CacheLayerAutoConfiguration {
    * @param environment the service's environment, from which the settings are resolved
    * @param counters count the layer's failures and refused names, and measure its caches
    * @param beanFactory the service's beans, which name the cache manager for the metrics
+   * @param redisRetryGate the gate in front of Redis caches, when the service has Spring Data Redis
    * @return the hook
    */
   @Bean
@@ -68,13 +70,15 @@ public final class CacheLayerAutoConfiguration {
       ObjectProvider<CacheManager> cacheManager,
       Environment environment,
       CacheCounters counters,
-      ListableBeanFactory beanFactory) {
+      ListableBeanFactory beanFactory,
+      ObjectProvider<RedisRetryGate> redisRetryGate) {
     return new StratumCacheLayerHook(
         cacheInterceptor,
         cacheManager,
         StratumCacheProperties.resolve(environment),
         counters,
-        beanFactory);
+        beanFactory,
+        redisRetryGate);
   }
 
   /**

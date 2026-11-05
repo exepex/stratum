@@ -67,6 +67,7 @@ Each module page follows the same layout so you always know where to look:
 | Resilience | [resilience.md](modules/resilience.md) |
 | Data (JPA, connection pool, transactions) | [data-jpa.md](modules/data-jpa.md) |
 | Cache | [cache.md](modules/cache.md) |
+| Cache when Redis is down | [cache-redis-down.md](modules/cache-redis-down.md) |
 | Kafka | [kafka.md](modules/kafka.md) |
 | Cloud connectors | [cloud.md](modules/cloud.md) |
 | Testing (`stratum-test`) | [test.md](modules/test.md) |

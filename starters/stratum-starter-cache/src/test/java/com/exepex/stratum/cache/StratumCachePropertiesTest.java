@@ -54,6 +54,12 @@ class StratumCachePropertiesTest {
   /** The value limit both test files set for {@value #REPORTS}, 5 MiB. */
   private static final long REPORTS_VALUE_BYTES_IN_FILES = 5 * DEFAULT_VALUE_BYTES;
 
+  /** The default time Redis caches skip Redis after a failure. */
+  private static final Duration DEFAULT_REDIS_RETRY_INTERVAL = Duration.ofSeconds(5);
+
+  /** The retry interval both test files set. */
+  private static final Duration REDIS_RETRY_INTERVAL_IN_FILES = Duration.ofSeconds(2);
+
   @Nested
   @DisplayName("bound from the environment")
   class Binding {
@@ -79,12 +85,18 @@ class StratumCachePropertiesTest {
             arguments("max-key-size", "0B", SIZES_POSITIVE),
             arguments("max-value-size", "0B", SIZES_POSITIVE),
             arguments("caches.reports.max-value-size", "0B", SIZES_POSITIVE),
-            arguments("caches.reports.max-key-size", "-1B", SIZES_POSITIVE));
+            arguments("caches.reports.max-key-size", "-1B", SIZES_POSITIVE),
+            arguments(
+                "redis-retry-interval",
+                "999ms",
+                "redis-retry-interval-in-range breaks @AssertTrue"),
+            arguments(
+                "redis-retry-interval", "6m", "redis-retry-interval-in-range breaks @AssertTrue"));
 
     @Test
     @DisplayName(
-        "unset, the cap is 100 caches, warnings repeat at most once a minute, and every cache"
-            + " stores keys up to 1 KiB and values up to 1 MiB")
+        "unset, the cap is 100 caches, warnings repeat at most once a minute, every cache stores"
+            + " keys up to 1 KiB and values up to 1 MiB, and Redis is retried after 5 seconds")
     void defaultsAreSafe() {
       var properties = StratumCacheProperties.resolve(new MockEnvironment());
 
@@ -93,6 +105,7 @@ class StratumCachePropertiesTest {
       assertThat(properties.caches()).isEmpty();
       assertThat(properties.maxKeyBytesFor(REPORTS)).isEqualTo(DEFAULT_KEY_BYTES);
       assertThat(properties.maxValueBytesFor(REPORTS)).isEqualTo(DEFAULT_VALUE_BYTES);
+      assertThat(properties.redisRetryInterval()).isEqualTo(DEFAULT_REDIS_RETRY_INTERVAL);
     }
 
     @ParameterizedTest(name = "{0}")
@@ -111,6 +124,7 @@ class StratumCachePropertiesTest {
       assertThat(properties.maxValueBytesFor(REPORTS)).isEqualTo(REPORTS_VALUE_BYTES_IN_FILES);
       assertThat(properties.maxValueBytesFor("products")).isEqualTo(VALUE_BYTES_IN_FILES);
       assertThat(properties.maxKeyBytesFor(REPORTS)).isEqualTo(DEFAULT_KEY_BYTES);
+      assertThat(properties.redisRetryInterval()).isEqualTo(REDIS_RETRY_INTERVAL_IN_FILES);
     }
 
     @ParameterizedTest(name = "{0}={1}")
@@ -143,6 +157,8 @@ class StratumCachePropertiesTest {
               () -> StratumCacheProperties.resolve(files));
 
       assertThat(properties.maxCaches()).isEqualTo(ThreeCachesSettings.MAX_CACHES);
+      assertThat(properties.redisRetryInterval())
+          .isEqualTo(ThreeCachesSettings.REDIS_RETRY_INTERVAL);
     }
   }
 }

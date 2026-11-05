@@ -28,6 +28,8 @@ import org.springframework.util.unit.DataSize;
  *     stored under its SHA-256 hash, so it still hits. Above 0. Defaults to 1KB.
  * @param maxValueSize The largest value stored in a Redis cache. A larger value is not stored: the
  *     method's result is returned as usual. Above 0. Defaults to 1MB.
+ * @param redisRetryInterval How long every Redis cache skips Redis after Redis could not be reached
+ *     or a command timed out; then one call tries again. From 1s to 5m. Defaults to 5s.
  * @param caches Settings for one cache, by its name, which win over the settings for every cache.
  */
 @Builder(toBuilder = true)
@@ -37,6 +39,7 @@ public record StratumCacheProperties(
     @DefaultValue("1m") Duration warningInterval,
     @DefaultValue("1KB") DataSize maxKeySize,
     @DefaultValue("1MB") DataSize maxValueSize,
+    @DefaultValue("5s") Duration redisRetryInterval,
     Map<String, CacheSettings> caches) {
 
   /** The shortest allowed {@code warning-interval}. */
@@ -44,6 +47,12 @@ public record StratumCacheProperties(
 
   /** The longest allowed {@code warning-interval}. */
   private static final Duration MAX_WARNING_INTERVAL = Duration.ofHours(1);
+
+  /** The shortest allowed {@code redis-retry-interval}. */
+  private static final Duration MIN_REDIS_RETRY_INTERVAL = Duration.ofSeconds(1);
+
+  /** The longest allowed {@code redis-retry-interval}. */
+  private static final Duration MAX_REDIS_RETRY_INTERVAL = Duration.ofMinutes(5);
 
   /** Keeps the settings for single caches a fixed map, empty when none are set. */
   public StratumCacheProperties {
@@ -116,6 +125,18 @@ public record StratumCacheProperties(
             caches.values().stream()
                 .flatMap(settings -> Stream.of(settings.maxKeySize(), settings.maxValueSize())))
         .allMatch(size -> size == null || size.toBytes() > 0);
+  }
+
+  /**
+   * Returns whether {@code redis-retry-interval} is from 1s to 5m. Validation reports a value out
+   * of that range as {@code stratum.cache.redis-retry-interval-in-range breaks @AssertTrue}.
+   *
+   * @return whether the interval is in range
+   */
+  @AssertTrue
+  public boolean isRedisRetryIntervalInRange() {
+    return redisRetryInterval.compareTo(MIN_REDIS_RETRY_INTERVAL) >= 0
+        && redisRetryInterval.compareTo(MAX_REDIS_RETRY_INTERVAL) <= 0;
   }
 
   /** Returns a cache's own size limit in bytes, or the one for every cache. */

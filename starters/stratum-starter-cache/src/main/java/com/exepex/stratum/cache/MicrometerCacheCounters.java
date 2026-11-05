@@ -11,11 +11,12 @@ import org.springframework.util.StringUtils;
 
 /**
  * Counts the cache layer's failures and skips in the service's {@link MeterRegistry}: {@code
- * stratum.cache.failures} with the tags {@code cache} and {@code operation}, and {@code
- * stratum.cache.skips} with {@code cache} and {@code reason}. The registry keeps one meter per tag
- * set, so counting adds no allocation after the first call. It also has Spring Boot's {@link
- * CacheMetricsRegistrar} measure each cache made on its first use, with the same {@code
- * cache.manager} tag as Spring Boot's own, when the service has that registrar.
+ * stratum.cache.failures} with the tags {@code cache} and {@code operation}, {@code
+ * stratum.cache.skips} with {@code cache} and {@code reason}, and {@code
+ * stratum.cache.redis.connect-failures}. The registry keeps one meter per tag set, so counting adds
+ * no allocation after the first call. It also has Spring Boot's {@link CacheMetricsRegistrar}
+ * measure each cache made on its first use, with the same {@code cache.manager} tag as Spring
+ * Boot's own, when the service has that registrar.
  */
 @StratumInternal
 @RequiredArgsConstructor
@@ -49,6 +50,11 @@ public class MicrometerCacheCounters implements CacheCounters {
             CacheConstants.TAG_REASON,
             reason)
         .increment();
+  }
+
+  @Override
+  public void redisConnectFailure() {
+    registry.counter(CacheConstants.METRIC_REDIS_CONNECT_FAILURES).increment();
   }
 
   @Override

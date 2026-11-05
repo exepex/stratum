@@ -33,6 +33,30 @@ public class CacheConstants {
   /** The largest value a Redis cache stores. */
   public static final String MAX_VALUE_SIZE = PREFIX + ".max-value-size";
 
+  /** How long Redis caches skip Redis after Redis could not be reached. */
+  public static final String REDIS_RETRY_INTERVAL = PREFIX + ".redis-retry-interval";
+
+  /** The gauge that reads 1 while Redis caches use Redis and 0 while they skip it. */
+  public static final String METRIC_REDIS_AVAILABLE = "stratum.cache.redis.available";
+
+  /** The counter of times Redis could not be reached and the caches started skipping it. */
+  public static final String METRIC_REDIS_CONNECT_FAILURES = "stratum.cache.redis.connect-failures";
+
+  /** The throttle slot of the warning that Redis could not be reached. */
+  public static final String REDIS_WARNING_SLOT = "_redis";
+
+  /** Lettuce's text for a command rejected while the connection is down. */
+  public static final String LETTUCE_REJECTED = "Currently not connected";
+
+  /** Lettuce's text for a command that was in flight when the connection dropped. */
+  public static final String LETTUCE_DISCONNECTED = "Connection disconnected";
+
+  /** The name of the bean that makes Lettuce reject commands while disconnected. */
+  public static final String REJECT_WHILE_DISCONNECTED = "stratumRejectWhileDisconnected";
+
+  /** The name of the bean that reports whether Redis caches use Redis. */
+  public static final String REDIS_AVAILABILITY_METRIC = "stratumRedisAvailabilityMetric";
+
   /** The counter of cache calls that failed and were handled fail-open. */
   public static final String METRIC_FAILURES = "stratum.cache.failures";
 

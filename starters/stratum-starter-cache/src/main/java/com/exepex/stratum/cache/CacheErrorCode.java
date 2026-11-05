@@ -8,8 +8,8 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * The codes of the cache module, each listed with its fix in {@code docs/guides/error-codes.md}.
- * Every error here stops the application at startup, apart from the warnings {@code SX-CACHE-1002}
- * and {@code SX-CACHE-1003}, which are logged while the calls carry on.
+ * Every error here stops the application at startup, apart from the warnings {@code SX-CACHE-1002},
+ * {@code SX-CACHE-1003} and {@code SX-CACHE-1006}, which are logged while the calls carry on.
  */
 @StratumInternal
 @Getter
@@ -44,6 +44,15 @@ public enum CacheErrorCode implements ErrorCode {
       "A cache name was refused, over the limit of "
           + CacheConstants.MAX_CACHES
           + "; its calls run without a cache",
+      ""),
+
+  /** Redis could not be reached or timed out, so Redis caches skip Redis for a while. */
+  REDIS_UNREACHABLE(
+      "SX-CACHE-1006",
+      Severity.WARNING,
+      "Redis could not be reached or did not answer in time; Redis caches skip it for "
+          + CacheConstants.REDIS_RETRY_INTERVAL
+          + ", then one call tries again",
       "");
 
   /** The code, such as {@code SX-CACHE-1001}. */
