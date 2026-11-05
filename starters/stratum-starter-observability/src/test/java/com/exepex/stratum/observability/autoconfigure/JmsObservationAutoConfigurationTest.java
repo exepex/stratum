@@ -12,6 +12,7 @@ import java.util.Collection;
 import java.util.List;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -37,85 +38,105 @@ class JmsObservationAutoConfigurationTest {
                   ValidationAutoConfiguration.class, ObservabilityAutoConfiguration.class))
           .withUserConfiguration(ApplicationRegistry.class);
 
-  @Test
-  @DisplayName("with the module on, the service's own JmsTemplate bean gets the registry")
-  void serviceTemplateGetsRegistry() {
-    contextRunner
-        .withUserConfiguration(ServiceSender.class)
-        .run(
-            context -> {
+  @Nested
+  @DisplayName("with the module on")
+  class ModuleOn {
+
+    @Test
+    @DisplayName("the service's own JmsTemplate bean gets the registry")
+    void serviceTemplateGetsRegistry() {
+      contextRunner
+          .withUserConfiguration(ServiceSender.class)
+          .run(context -> assertServiceTemplateObserved(context));
+    }
+
+    @Test
+    @DisplayName(
+        "a @JmsListener container gets the registry before it starts, even when its phase is"
+            + " early")
+    void listenerContainerHasRegistryWhenItStarts() {
+      contextRunner
+          .withBean(EarlyListenerRegistry.class)
+          .run(
+              context ->
+                  assertThat(context.getBean(EarlyListenerRegistry.class).container.registryAtStart)
+                      .isSameAs(context.getBean(ObservationRegistry.class)));
+    }
+
+    @Test
+    @DisplayName("without JMS listeners set up, the application still starts")
+    void noListenerRegistryStillStarts() {
+      contextRunner.run(
+          context ->
               assertThat(context)
-                  .hasSingleBean(JmsBeanObserver.class)
-                  .hasSingleBean(JmsListenerContainerObserver.class);
-              assertThat(context.getBean(JmsTemplate.class).getObservationRegistry())
-                  .isSameAs(context.getBean(ObservationRegistry.class));
-            });
+                  .hasNotFailed()
+                  .doesNotHaveBean(JmsListenerEndpointRegistry.class)
+                  .getBean(JmsListenerContainerObserver.class)
+                  .extracting(JmsListenerContainerObserver::isRunning)
+                  .isEqualTo(true));
+    }
   }
 
-  @Test
-  @DisplayName(
-      "a @JmsListener container gets the registry before it starts, even when its phase is early")
-  void listenerContainerHasRegistryWhenItStarts() {
-    contextRunner
-        .withBean(EarlyListenerRegistry.class)
-        .run(
-            context ->
-                assertThat(context.getBean(EarlyListenerRegistry.class).container.registryAtStart)
-                    .isSameAs(context.getBean(ObservationRegistry.class)));
+  @Nested
+  @DisplayName("with the module off or JMS missing")
+  class Off {
+
+    @Test
+    @DisplayName("with the module off, no JMS bean is observed")
+    void moduleOffObservesNothing() {
+      contextRunner
+          .withPropertyValues(ObservabilityConstants.ENABLED + "=false")
+          .withUserConfiguration(ServiceSender.class)
+          .run(context -> assertServiceTemplateNotObserved(context));
+    }
+
+    @Test
+    @DisplayName("without JMS on the classpath, neither observer is created")
+    void withoutJmsCreatesNoObservers() {
+      contextRunner
+          .withClassLoader(new FilteredClassLoader(JmsTemplate.class))
+          .run(context -> assertNoJmsObservers(context));
+    }
   }
 
-  @Test
-  @DisplayName("without JMS listeners set up, the application still starts")
-  void noListenerRegistryStillStarts() {
-    contextRunner.run(
-        context ->
-            assertThat(context)
-                .hasNotFailed()
-                .doesNotHaveBean(JmsListenerEndpointRegistry.class)
-                .getBean(JmsListenerContainerObserver.class)
-                .extracting(JmsListenerContainerObserver::isRunning)
-                .isEqualTo(true));
+  @Nested
+  @DisplayName("when the service or a company framework has its own observers")
+  class OwnObservers {
+
+    @Test
+    @DisplayName("the service's own observers replace Stratum's")
+    void serviceObserversWin() {
+      contextRunner
+          .withUserConfiguration(ServiceObservers.class)
+          .run(context -> assertUsesServiceObservers(context));
+    }
+
+    @Test
+    @DisplayName("a company framework's auto-configuration with no order wins over Stratum's")
+    void companyObserversWin() {
+      new ApplicationContextRunner()
+          .withConfiguration(
+              AutoConfigurations.of(
+                  ValidationAutoConfiguration.class,
+                  ObservabilityAutoConfiguration.class,
+                  CompanyObserversAutoConfiguration.class))
+          .run(context -> assertUsesServiceObservers(context));
+    }
   }
 
-  @Test
-  @DisplayName("with the module off, no JMS bean is observed")
-  void moduleOffObservesNothing() {
-    contextRunner
-        .withPropertyValues(ObservabilityConstants.ENABLED + "=false")
-        .withUserConfiguration(ServiceSender.class)
-        .run(
-            context -> {
-              assertNoJmsObservers(context);
-              assertThat(context.getBean(JmsTemplate.class).getObservationRegistry()).isNull();
-            });
+  /** Checks that both observers exist and the service's sender has the application's registry. */
+  private void assertServiceTemplateObserved(AssertableApplicationContext context) {
+    assertThat(context)
+        .hasSingleBean(JmsBeanObserver.class)
+        .hasSingleBean(JmsListenerContainerObserver.class);
+    assertThat(context.getBean(JmsTemplate.class).getObservationRegistry())
+        .isSameAs(context.getBean(ObservationRegistry.class));
   }
 
-  @Test
-  @DisplayName("without JMS on the classpath, neither observer is created")
-  void withoutJmsCreatesNoObservers() {
-    contextRunner
-        .withClassLoader(new FilteredClassLoader(JmsTemplate.class))
-        .run(context -> assertNoJmsObservers(context));
-  }
-
-  @Test
-  @DisplayName("the service's own observers replace Stratum's")
-  void serviceObserversWin() {
-    contextRunner
-        .withUserConfiguration(ServiceObservers.class)
-        .run(context -> assertUsesServiceObservers(context));
-  }
-
-  @Test
-  @DisplayName("a company framework's auto-configuration with no order wins over Stratum's")
-  void companyObserversWin() {
-    new ApplicationContextRunner()
-        .withConfiguration(
-            AutoConfigurations.of(
-                ValidationAutoConfiguration.class,
-                ObservabilityAutoConfiguration.class,
-                CompanyObserversAutoConfiguration.class))
-        .run(context -> assertUsesServiceObservers(context));
+  /** Checks that neither observer exists and the service's sender has no registry. */
+  private void assertServiceTemplateNotObserved(AssertableApplicationContext context) {
+    assertNoJmsObservers(context);
+    assertThat(context.getBean(JmsTemplate.class).getObservationRegistry()).isNull();
   }
 
   /** Checks that the context holds neither of Stratum's JMS observers. */

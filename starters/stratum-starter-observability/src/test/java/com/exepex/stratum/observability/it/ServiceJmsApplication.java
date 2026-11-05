@@ -6,7 +6,6 @@ import jakarta.jms.MessageListener;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.context.annotation.Bean;
-import org.springframework.jms.annotation.JmsListener;
 import org.springframework.jms.config.DefaultJmsListenerContainerFactory;
 import org.springframework.jms.core.JmsTemplate;
 import org.springframework.jms.listener.DefaultMessageListenerContainer;
@@ -27,7 +26,7 @@ public class ServiceJmsApplication {
   static final String FACTORY_QUEUE = "invoices-by-factory";
 
   /** The name of its own listener factory. */
-  private static final String INVOICE_LISTENER_FACTORY = "invoiceListenerFactory";
+  static final String INVOICE_LISTENER_FACTORY = "invoiceListenerFactory";
 
   /** The logging context of each received invoice. */
   private final ReceivedLoggingContexts receivedInvoices = new ReceivedLoggingContexts();
@@ -40,6 +39,16 @@ public class ServiceJmsApplication {
   @Bean
   ReceivedLoggingContexts receivedLoggingContexts() {
     return receivedInvoices;
+  }
+
+  /**
+   * Handles invoices from the factory's queue.
+   *
+   * @return the receiver
+   */
+  @Bean
+  InvoiceReceiver invoiceReceiver() {
+    return new InvoiceReceiver(receivedInvoices);
   }
 
   /**
@@ -69,27 +78,15 @@ public class ServiceJmsApplication {
   }
 
   /**
-   * Builds the listener containers of {@link #receiveInvoice}, without Spring Boot's configurer.
-   * Static, so this class's own listener can use it while this class is being created.
+   * Builds the listener containers of {@link InvoiceReceiver}, without Spring Boot's configurer.
    *
    * @param connectionFactory the broker's connection factory
    * @return the listener factory
    */
   @Bean(INVOICE_LISTENER_FACTORY)
-  static DefaultJmsListenerContainerFactory invoiceListenerFactory(
-      ConnectionFactory connectionFactory) {
+  DefaultJmsListenerContainerFactory invoiceListenerFactory(ConnectionFactory connectionFactory) {
     var factory = new DefaultJmsListenerContainerFactory();
     factory.setConnectionFactory(connectionFactory);
     return factory;
-  }
-
-  /**
-   * Handles an invoice from the factory's queue.
-   *
-   * @param invoice the invoice
-   */
-  @JmsListener(destination = FACTORY_QUEUE, containerFactory = INVOICE_LISTENER_FACTORY)
-  void receiveInvoice(String invoice) {
-    receivedInvoices.keepCurrent();
   }
 }
