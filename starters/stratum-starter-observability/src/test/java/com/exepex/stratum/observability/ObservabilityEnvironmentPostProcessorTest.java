@@ -52,6 +52,20 @@ class ObservabilityEnvironmentPostProcessorTest {
 
   private static final String SERVICE_EXPOSURE = "health,loggers";
 
+  /** Spring Boot's span limit keys, spelled out here so a misspelt key in the module fails. */
+  private static final String MAX_ATTRIBUTE_VALUE_LENGTH =
+      "management.opentelemetry.tracing.limits.max-attribute-value-length";
+
+  private static final String MAX_ATTRIBUTES =
+      "management.opentelemetry.tracing.limits.max-attributes";
+
+  private static final String MAX_EVENTS = "management.opentelemetry.tracing.limits.max-events";
+
+  /** A span limit a service may raise for its own needs. */
+  private static final String SERVICE_MAX_ATTRIBUTES = "100";
+
+  private static final String SERVICE_MAX_ATTRIBUTE_VALUE_LENGTH = "4096";
+
   /** A sampler a service behind a trusted gateway may choose, to follow its caller's decision. */
   private static final String SERVICE_SAMPLER = "parent-based-trace-id-ratio";
 
@@ -88,6 +102,7 @@ class ObservabilityEnvironmentPostProcessorTest {
       assertThat(off.getProperty(ObservabilityConstants.TRACING_EXPORT_ENABLED)).isEqualTo(OFF);
       assertThat(off.getProperty(ObservabilityConstants.WEB_EXPOSURE)).isNull();
       assertThat(off.getProperty(ObservabilityConstants.TRACING_SAMPLER)).isNull();
+      assertThat(off.getProperty(MAX_ATTRIBUTES)).isNull();
       assertThat(off.getProperty(PROPAGATE_TASK_CONTEXT)).isNull();
       assertThat(
               ObservabilityConstants.MESSAGING_OBSERVATION_SWITCHES.stream().map(off::getProperty))
@@ -188,6 +203,16 @@ class ObservabilityEnvironmentPostProcessorTest {
     }
 
     @Test
+    @DisplayName("each span has a size bound: 1,024 characters per value, 64 attributes, 16 events")
+    void boundsSpanSize() {
+      var environment = runPostProcessor(new MockEnvironment());
+
+      assertThat(environment.getProperty(MAX_ATTRIBUTE_VALUE_LENGTH)).isEqualTo("1024");
+      assertThat(environment.getProperty(MAX_ATTRIBUTES)).isEqualTo("64");
+      assertThat(environment.getProperty(MAX_EVENTS)).isEqualTo("16");
+    }
+
+    @Test
     @DisplayName("Kafka and RabbitMQ messages are traced and timed, unless the service says no")
     void observesMessaging() {
       var environment =
@@ -206,7 +231,8 @@ class ObservabilityEnvironmentPostProcessorTest {
                   .withProperty(ObservabilityConstants.WEB_EXPOSURE, SERVICE_EXPOSURE)
                   .withProperty(ObservabilityConstants.HISTOGRAM_FOR_EVERY_TIMING, OFF)
                   .withProperty(ObservabilityConstants.TRACING_SAMPLER, SERVICE_SAMPLER)
-                  .withProperty(PROPAGATE_TASK_CONTEXT, OFF));
+                  .withProperty(PROPAGATE_TASK_CONTEXT, OFF)
+                  .withProperty(MAX_ATTRIBUTES, SERVICE_MAX_ATTRIBUTES));
 
       assertThat(environment.getProperty(ObservabilityConstants.WEB_EXPOSURE))
           .isEqualTo(SERVICE_EXPOSURE);
@@ -215,6 +241,7 @@ class ObservabilityEnvironmentPostProcessorTest {
       assertThat(environment.getProperty(ObservabilityConstants.TRACING_SAMPLER))
           .isEqualTo(SERVICE_SAMPLER);
       assertThat(environment.getProperty(PROPAGATE_TASK_CONTEXT)).isEqualTo(OFF);
+      assertThat(environment.getProperty(MAX_ATTRIBUTES)).isEqualTo(SERVICE_MAX_ATTRIBUTES);
     }
 
     @Test
@@ -230,7 +257,7 @@ class ObservabilityEnvironmentPostProcessorTest {
     }
 
     @Test
-    @DisplayName("an exposure and a sampler the service sets in Java win over Stratum's")
+    @DisplayName("an exposure, a sampler and a span limit the service sets in Java win")
     void serviceJavaSettingsWin() {
       var environment = new MockEnvironment();
       environment
@@ -239,8 +266,12 @@ class ObservabilityEnvironmentPostProcessorTest {
               new MapPropertySource(
                   DefaultPropertiesPropertySource.NAME,
                   Map.of(
-                      ObservabilityConstants.WEB_EXPOSURE, SERVICE_EXPOSURE,
-                      ObservabilityConstants.TRACING_SAMPLER, SERVICE_SAMPLER)));
+                      ObservabilityConstants.WEB_EXPOSURE,
+                      SERVICE_EXPOSURE,
+                      ObservabilityConstants.TRACING_SAMPLER,
+                      SERVICE_SAMPLER,
+                      MAX_ATTRIBUTE_VALUE_LENGTH,
+                      SERVICE_MAX_ATTRIBUTE_VALUE_LENGTH)));
 
       runPostProcessor(environment);
       // Spring Boot moves the default properties last once every post-processor has run.
@@ -250,6 +281,8 @@ class ObservabilityEnvironmentPostProcessorTest {
           .isEqualTo(SERVICE_EXPOSURE);
       assertThat(environment.getProperty(ObservabilityConstants.TRACING_SAMPLER))
           .isEqualTo(SERVICE_SAMPLER);
+      assertThat(environment.getProperty(MAX_ATTRIBUTE_VALUE_LENGTH))
+          .isEqualTo(SERVICE_MAX_ATTRIBUTE_VALUE_LENGTH);
       assertThat(environment.getProperty(KAFKA_LISTENER_SWITCH)).isEqualTo(ON);
     }
   }
