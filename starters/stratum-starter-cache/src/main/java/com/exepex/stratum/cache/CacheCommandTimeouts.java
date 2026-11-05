@@ -59,20 +59,7 @@ public class CacheCommandTimeouts extends TimeoutSource
   public CacheCommandTimeouts(
       Duration global, Map<String, Duration> cacheTimeouts, CacheKeyMatcher matcher) {
     var cap = global.compareTo(MAX_CACHE_TIMEOUT) > 0 ? global : MAX_CACHE_TIMEOUT;
-    cacheTimeouts.forEach(
-        (name, timeout) -> {
-          if (timeout.compareTo(cap) > 0) {
-            throw new StratumException(
-                CoreErrorCode.INVALID_SETTINGS,
-                CacheConstants.CACHES
-                    + "."
-                    + name
-                    + ".command-timeout is above "
-                    + cap
-                    + ", the larger of 10s and "
-                    + CacheConstants.REDIS_TIMEOUT);
-          }
-        });
+    cacheTimeouts.forEach((name, timeout) -> rejectAboveCap(name, timeout, cap));
     this.globalMillis = global.toMillis();
     this.millisByCache =
         Collections.unmodifiableMap(
@@ -86,6 +73,21 @@ public class CacheCommandTimeouts extends TimeoutSource
             .filter(t -> t.compareTo(global) > 0)
             .max(Duration::compareTo)
             .orElse(global);
+  }
+
+  /** Stops startup when a cache's own timeout is above the cap, naming its key. */
+  private void rejectAboveCap(String name, Duration timeout, Duration cap) {
+    if (timeout.compareTo(cap) > 0) {
+      throw new StratumException(
+          CoreErrorCode.INVALID_SETTINGS,
+          CacheConstants.CACHES
+              + "."
+              + name
+              + ".command-timeout is above "
+              + cap
+              + ", the larger of 10s and "
+              + CacheConstants.REDIS_TIMEOUT);
+    }
   }
 
   /**

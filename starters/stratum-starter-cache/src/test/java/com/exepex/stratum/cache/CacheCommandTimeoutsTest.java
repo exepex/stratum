@@ -53,13 +53,13 @@ class CacheCommandTimeoutsTest {
   private final CacheCommandTimeouts timeouts = timeoutsFor(CACHE_TIMEOUTS);
 
   /** Returns the timeouts for the given caches, with the global value and the prefix above. */
-  private static CacheCommandTimeouts timeoutsFor(Map<String, Duration> cacheTimeouts) {
+  private CacheCommandTimeouts timeoutsFor(Map<String, Duration> cacheTimeouts) {
     return new CacheCommandTimeouts(
         GLOBAL, cacheTimeouts, new CacheKeyMatcher(PREFIX, cacheTimeouts.keySet()));
   }
 
   /** Returns a GET of the key, as Spring Data sends it. */
-  private static Command<byte[], byte[], String> get(String key) {
+  private Command<byte[], byte[], String> get(String key) {
     return new Command<>(
         CommandType.GET,
         new StatusOutput<>(ByteArrayCodec.INSTANCE),

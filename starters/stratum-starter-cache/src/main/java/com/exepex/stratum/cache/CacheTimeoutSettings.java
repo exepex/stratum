@@ -5,6 +5,8 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import lombok.AccessLevel;
+import lombok.Builder;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.core.env.Environment;
@@ -20,6 +22,7 @@ import org.springframework.core.env.Environment;
  *     empty when unset, or {@code null} with {@code spring.cache.redis.use-key-prefix=false}
  */
 @StratumInternal
+@Builder(access = AccessLevel.PRIVATE)
 public record CacheTimeoutSettings(
     Duration global, Map<String, Duration> cacheTimeouts, @Nullable String keyPrefix) {
 
@@ -36,15 +39,19 @@ public record CacheTimeoutSettings(
    */
   public static CacheTimeoutSettings resolve(Environment environment) {
     var binder = Binder.get(environment);
-    return new CacheTimeoutSettings(
-        binder
-            .bind(CacheConstants.REDIS_TIMEOUT, Duration.class)
-            .orElse(CacheConstants.LETTUCE_DEFAULT_TIMEOUT),
-        StratumCacheProperties.resolve(environment).commandTimeouts(),
+    return CacheTimeoutSettings.builder()
+        .global(
+            binder
+                .bind(CacheConstants.REDIS_TIMEOUT, Duration.class)
+                .orElse(CacheConstants.LETTUCE_DEFAULT_TIMEOUT))
+        .cacheTimeouts(StratumCacheProperties.resolve(environment).commandTimeouts())
         // Spring's Boolean return is nullable for SpotBugs, so the comparison avoids unboxing it.
-        Boolean.TRUE.equals(binder.bind(CacheConstants.USE_KEY_PREFIX, Boolean.class).orElse(true))
-            ? binder.bind(CacheConstants.KEY_PREFIX, String.class).orElse("")
-            : null);
+        .keyPrefix(
+            Boolean.TRUE.equals(
+                    binder.bind(CacheConstants.USE_KEY_PREFIX, Boolean.class).orElse(true))
+                ? binder.bind(CacheConstants.KEY_PREFIX, String.class).orElse("")
+                : null)
+        .build();
   }
 
   /**

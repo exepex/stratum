@@ -27,7 +27,7 @@ class CacheKeyMatcherTest {
   private final CacheKeyMatcher matcher = new CacheKeyMatcher(PREFIX, Set.of("order", ORDERS));
 
   /** Returns the key's bytes in a buffer, as Lettuce gives them. */
-  private static ByteBuffer key(String text) {
+  private ByteBuffer key(String text) {
     return ByteBuffer.wrap(text.getBytes(StandardCharsets.UTF_8));
   }
 
@@ -45,6 +45,7 @@ class CacheKeyMatcherTest {
             arguments("orders:orders:42", null),
             arguments("orders:ordersandmore::42", null),
             arguments("billing:orders::42", null),
+            arguments("stocks:orders::42", null),
             arguments("orders:", null),
             arguments("orders:orders::", ORDERS),
             arguments("orders:::", null),

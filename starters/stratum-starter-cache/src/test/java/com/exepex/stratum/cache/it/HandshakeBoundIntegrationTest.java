@@ -45,7 +45,7 @@ class HandshakeBoundIntegrationTest {
                   DataRedisAutoConfiguration.class, RedisCacheWriterAutoConfiguration.class));
 
   /** Returns how long a first connect took to fail. */
-  private static Duration failedConnect(RedisConnectionFactory connectionFactory) {
+  private Duration failedConnect(RedisConnectionFactory connectionFactory) {
     var start = System.nanoTime();
     assertThatException().isThrownBy(() -> connectionFactory.getConnection().ping());
     return Duration.ofNanos(System.nanoTime() - start);

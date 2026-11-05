@@ -67,7 +67,7 @@ public final class CacheKeyMatcher {
   }
 
   /** Returns whether the key starts with the prefix. */
-  private static boolean startsWith(ByteBuffer key, byte[] prefix) {
+  private boolean startsWith(ByteBuffer key, byte[] prefix) {
     var start = key.position();
     if (key.limit() - start < prefix.length) {
       return false;

@@ -7,13 +7,12 @@ import static org.awaitility.Awaitility.await;
 import com.exepex.stratum.cache.CacheConstants;
 import com.exepex.stratum.cache.RedisRetryGate;
 import com.exepex.stratum.cache.it.products.ProductsApplication;
+import com.exepex.stratum.cache.testsupport.PausedRedisSteps;
 import com.exepex.stratum.cache.testsupport.ProductCatalog;
 import com.exepex.stratum.test.RedisContainerConfiguration;
-import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.io.IOException;
 import java.time.Duration;
-import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -86,19 +85,7 @@ class PerCacheSettingsIntegrationTest {
   /** Waits until the caches use Redis again, then empties it. */
   @BeforeEach
   void startFromEmptyRedis() {
-    await()
-        .atMost(WAIT)
-        .until(
-            () -> {
-              catalog.priceOf("warm-up");
-              return gate.isAvailable();
-            });
-    redis.execute(
-        connection -> {
-          connection.serverCommands().flushDb();
-          return true;
-        },
-        true);
+    PausedRedisSteps.startFromEmptyRedis(catalog, gate, redis);
   }
 
   @Test
@@ -132,9 +119,9 @@ class PerCacheSettingsIntegrationTest {
     final var reportLookupFailures = failures(ProductCatalog.REPORTS);
 
     pauseRedis();
-    var quote = durationOf(() -> catalog.quoteOf(SKU), "quote-of-" + SKU);
+    var quote = PausedRedisSteps.durationOf(() -> catalog.quoteOf(SKU), "quote-of-" + SKU);
     var gateOpenAfterQuote = !gate.isAvailable();
-    var report = durationOf(() -> catalog.reportOf(SKU), "report-of-" + SKU);
+    var report = PausedRedisSteps.durationOf(() -> catalog.reportOf(SKU), "report-of-" + SKU);
 
     assertThat(quote).isLessThan(SHORT_TIMEOUT_MAX);
     assertThat(gateOpenAfterQuote).as("the quotes timeout made every cache skip Redis").isFalse();
@@ -152,35 +139,19 @@ class PerCacheSettingsIntegrationTest {
     var start = System.nanoTime();
     assertThatExceptionOfType(QueryTimeoutException.class).isThrownBy(() -> redis.hasKey(SKU));
     var template = Duration.ofNanos(System.nanoTime() - start);
-    var product = durationOf(() -> catalog.priceOf(SKU), "price-of-" + SKU);
+    var product = PausedRedisSteps.durationOf(() -> catalog.priceOf(SKU), "price-of-" + SKU);
 
     assertThat(template).isBetween(GLOBAL_TIMEOUT_MIN, GLOBAL_TIMEOUT_MAX);
     assertThat(product).isBetween(GLOBAL_TIMEOUT_MIN, GLOBAL_TIMEOUT_MAX);
   }
 
-  /** Makes one call, checks it returns the method's real value and returns how long it took. */
-  private Duration durationOf(Supplier<String> call, String expectedValue) {
-    var start = System.nanoTime();
-    assertThat(call.get()).isEqualTo(expectedValue);
-    return Duration.ofNanos(System.nanoTime() - start);
+  /** Pauses every Redis command; the pause lifts itself, so no test leaves Redis paused. */
+  private void pauseRedis() throws IOException, InterruptedException {
+    PausedRedisSteps.pauseRedis(redisContainer, PAUSE_MILLIS);
   }
 
   /** Returns how many failed reads of one cache were counted, zero when none. */
   private double failures(String cache) {
-    Counter counter =
-        meterRegistry
-            .find(CacheConstants.METRIC_FAILURES)
-            .tags(
-                CacheConstants.TAG_CACHE,
-                cache,
-                CacheConstants.TAG_OPERATION,
-                CacheConstants.OPERATION_GET)
-            .counter();
-    return counter == null ? 0 : counter.count();
-  }
-
-  /** Pauses every Redis command; the pause lifts itself, so no test leaves Redis paused. */
-  private void pauseRedis() throws IOException, InterruptedException {
-    redisContainer.execInContainer("redis-cli", "CLIENT", "PAUSE", String.valueOf(PAUSE_MILLIS));
+    return PausedRedisSteps.failuresSoFar(meterRegistry, cache, CacheConstants.OPERATION_GET);
   }
 }

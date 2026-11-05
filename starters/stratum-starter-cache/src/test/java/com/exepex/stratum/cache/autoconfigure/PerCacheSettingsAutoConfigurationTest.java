@@ -62,14 +62,13 @@ class PerCacheSettingsAutoConfigurationTest {
                   RedisCacheWriterAutoConfiguration.class));
 
   /** Returns the configuration Spring Data gave the cache {@value #REPORTS}. */
-  private static RedisCacheConfiguration reportsConfiguration(
-      AssertableApplicationContext context) {
+  private RedisCacheConfiguration reportsConfiguration(AssertableApplicationContext context) {
     var cache = (RedisCache) context.getBean(CacheManager.class).getCache(REPORTS);
     return cache.getCacheConfiguration();
   }
 
   /** Returns the command timeout Lettuce and Spring Data wait for. */
-  private static Duration sharedTimeout(AssertableApplicationContext context) {
+  private Duration sharedTimeout(AssertableApplicationContext context) {
     return context
         .getBean(LettuceConnectionFactory.class)
         .getClientConfiguration()
@@ -85,13 +84,7 @@ class PerCacheSettingsAutoConfigurationTest {
     void setsOwnTimeToLive() {
       contextRunner
           .withPropertyValues(REPORTS_TIME_TO_LIVE_KEY)
-          .run(
-              context -> {
-                var configuration = reportsConfiguration(context);
-                assertThat(configuration.getTtlFunction().getTimeToLive("sku-1", "report"))
-                    .isEqualTo(REPORTS_TIME_TO_LIVE);
-                assertThat(configuration.getKeyPrefixFor(REPORTS)).isEqualTo("orders:reports::");
-              });
+          .run(context -> assertReportsCache(context, "orders:reports::"));
     }
 
     @Test
@@ -106,13 +99,15 @@ class PerCacheSettingsAutoConfigurationTest {
       contextRunner
           .withPropertyValues(REPORTS_TIME_TO_LIVE_KEY)
           .withBean(RedisCacheManagerBuilderCustomizer.class, () -> serviceDefaults)
-          .run(
-              context -> {
-                var configuration = reportsConfiguration(context);
-                assertThat(configuration.getKeyPrefixFor(REPORTS)).isEqualTo("billing:reports::");
-                assertThat(configuration.getTtlFunction().getTimeToLive("sku-1", "report"))
-                    .isEqualTo(REPORTS_TIME_TO_LIVE);
-              });
+          .run(context -> assertReportsCache(context, "billing:reports::"));
+    }
+
+    /** Checks the reports cache keeps the key prefix and has its own time to live. */
+    private void assertReportsCache(AssertableApplicationContext context, String keyPrefix) {
+      var configuration = reportsConfiguration(context);
+      assertThat(configuration.getKeyPrefixFor(REPORTS)).isEqualTo(keyPrefix);
+      assertThat(configuration.getTtlFunction().getTimeToLive("sku-1", "report"))
+          .isEqualTo(REPORTS_TIME_TO_LIVE);
     }
 
     @Test
@@ -142,19 +137,21 @@ class PerCacheSettingsAutoConfigurationTest {
     void raisesSharedTimeout() {
       contextRunner
           .withPropertyValues(REPORTS_COMMAND_TIMEOUT_KEY)
-          .run(
-              context -> {
-                assertThat(sharedTimeout(context)).isEqualTo(REPORTS_COMMAND_TIMEOUT);
-                assertThat(
-                        context
-                            .getBean(LettuceConnectionFactory.class)
-                            .getClientConfiguration()
-                            .getClientOptions()
-                            .orElseThrow()
-                            .getTimeoutOptions()
-                            .getSource())
-                    .isInstanceOf(CacheCommandTimeouts.class);
-              });
+          .run(context -> assertRaisedTimeout(context));
+    }
+
+    /** Checks Lettuce waits for the reports cache's value and asks Stratum per command. */
+    private void assertRaisedTimeout(AssertableApplicationContext context) {
+      assertThat(sharedTimeout(context)).isEqualTo(REPORTS_COMMAND_TIMEOUT);
+      assertThat(
+              context
+                  .getBean(LettuceConnectionFactory.class)
+                  .getClientConfiguration()
+                  .getClientOptions()
+                  .orElseThrow()
+                  .getTimeoutOptions()
+                  .getSource())
+          .isInstanceOf(CacheCommandTimeouts.class);
     }
 
     @Test
@@ -213,13 +210,15 @@ class PerCacheSettingsAutoConfigurationTest {
     void warnsIgnoredTimeouts() {
       otherClient()
           .withPropertyValues(REPORTS_COMMAND_TIMEOUT_KEY)
-          .run(
-              context -> {
-                assertThat(context).hasNotFailed().doesNotHaveBean(CacheCommandTimeouts.class);
-                assertThat(warnings.onlyLine().getFormattedMessage())
-                    .contains("[reports]")
-                    .contains("Lettuce");
-              });
+          .run(context -> assertWarnedIgnored(context));
+    }
+
+    /** Checks the context started without Stratum's timeouts and warned once, naming the cache. */
+    private void assertWarnedIgnored(AssertableApplicationContext context) {
+      assertThat(context).hasNotFailed().doesNotHaveBean(CacheCommandTimeouts.class);
+      assertThat(warnings.onlyLine().getFormattedMessage())
+          .contains("[reports]")
+          .contains("Lettuce");
     }
 
     @Test
@@ -232,13 +231,16 @@ class PerCacheSettingsAutoConfigurationTest {
               CacheConstants.CACHE_COMMAND_TIMEOUTS_CHECK,
               SmartInitializingSingleton.class,
               () -> serviceCheck)
-          .run(
-              context -> {
-                assertThat(context)
-                    .getBean(CacheConstants.CACHE_COMMAND_TIMEOUTS_CHECK)
-                    .isSameAs(serviceCheck);
-                assertThat(warnings.lines()).isEmpty();
-              });
+          .run(context -> assertServiceCheckWins(context, serviceCheck));
+    }
+
+    /** Checks the service's check replaced Stratum's, so nothing was warned. */
+    private void assertServiceCheckWins(
+        AssertableApplicationContext context, SmartInitializingSingleton serviceCheck) {
+      assertThat(context)
+          .getBean(CacheConstants.CACHE_COMMAND_TIMEOUTS_CHECK)
+          .isSameAs(serviceCheck);
+      assertThat(warnings.lines()).isEmpty();
     }
 
     @Test
