@@ -9,14 +9,18 @@ With the module on, sending and handling a message are observed like an HTTP cal
   sender's trace ID and [correlation ID](observability-traces.md#correlation-id).
 - **Timings.** Each send and each handled message is timed, as a [histogram](../../starters/stratum-starter-observability/README.md#timings) like every
   other timing.
-- **Errors.** A Kafka or RabbitMQ listener that throws records its timing with the `error` tag set
-  to an exception's class name: on Kafka the listener's own exception, such as
-  `IllegalStateException`; on RabbitMQ Spring's wrapper, `ListenerExecutionFailedException`. Every
-  redelivery is counted, Kafka's error handler retries included. With Spring Boot's RabbitMQ
-  listener retry on (the `spring.rabbitmq.listener.simple.retry.*` keys), the attempts inside one
-  delivery are timed once. A message handled without error has `error=none`. JMS timers do not show
-  failures: a `@JmsListener` that throws is still recorded with `error=none`, so count JMS failures
-  from your logs.
+- **Errors.** A Kafka, RabbitMQ or JMS listener that throws records its timing with the `error` tag
+  set to an exception's class name: on Kafka the listener's own exception, such as
+  `IllegalStateException`; on RabbitMQ and for a `@JmsListener` Spring's wrapper,
+  `ListenerExecutionFailedException`; for a JMS listener container with a plain `MessageListener`
+  the listener's own exception. Every redelivery is counted, Kafka's error handler retries included.
+  With Spring Boot's RabbitMQ listener retry on (the `spring.rabbitmq.listener.simple.retry.*`
+  keys), the attempts inside one delivery are timed once. A message handled without error has
+  `error=none`. Spring records a JMS failure only when the container's error handler rethrows it,
+  so Stratum gives each JMS listener container that has no error handler one that records the
+  failure and logs the same warning, under the same logger, as Spring does. A container on which
+  your service set its own error handler keeps it, and its failures are recorded only if that
+  handler rethrows them.
 - **Kafka batch listeners.** Spring Kafka observes listeners that take one record at a time. A
   `@KafkaListener` with `batch = "true"` does not join the sender's trace and has no correlation ID,
   and its `spring.kafka.listener` timer carries Spring Kafka's older tags, `name`, `result` and
