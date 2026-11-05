@@ -119,6 +119,37 @@ class TypedCacheTest {
   }
 
   @Nested
+  @DisplayName("with a stored null, in a cache that keeps nulls")
+  class StoredNulls {
+
+    @Test
+    @DisplayName("a plain read is a hit that holds null")
+    void plainReadHits() {
+      store.put(KEY, null);
+
+      assertThat(orders.get(KEY)).isNotNull().extracting(Cache.ValueWrapper::get).isNull();
+    }
+
+    @Test
+    @DisplayName("a loading read returns null without a load")
+    void loadingReadHits() {
+      store.put(KEY, null);
+
+      assertThat(orders.get(KEY, TypedCacheTest.this::load)).isNull();
+      assertThat(loads).hasValue(0);
+    }
+
+    @Test
+    @DisplayName("a background loading read returns null without a load")
+    void backgroundReadHits() {
+      store.put(KEY, null);
+
+      assertThat(orders.retrieve(KEY, TypedCacheTest.this::loadLater).join()).isNull();
+      assertThat(loads).hasValue(0);
+    }
+  }
+
+  @Nested
   @DisplayName("with a plain read")
   class PlainRead {
 

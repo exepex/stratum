@@ -31,6 +31,8 @@ stores `{"id":"order-1","quantity":3}` under `order-service:orders::order-1`, an
   [`SX-CACHE-1005`](../guides/error-codes.md#stratum-starter-cache), once per cache per
   `stratum.cache.warning-interval`. With `sync = true`, the old entry is deleted at once and the
   method loads it again; if that read fails too, the method runs without the cache.
+- **Stored nulls.** With `spring.cache.redis.cache-null-values=true`, a stored null is a hit, as
+  in Spring Boot; Redis keeps it in its own marker, not as JSON.
 - One INFO line at startup names the allowed packages.
 
 ## Which types are allowed

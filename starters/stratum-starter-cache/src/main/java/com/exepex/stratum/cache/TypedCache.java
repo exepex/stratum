@@ -56,9 +56,9 @@ public class TypedCache implements Cache {
   }
 
   /**
-   * Returns the cached value as the method's type, or loads it. An unreadable value is removed at
-   * once and the value is loaded once more; if that read cannot be read either, the method runs
-   * without the cache.
+   * Returns the cached value as the method's type, or loads it. A stored null, which a cache that
+   * keeps nulls returns, is a hit. An unreadable value is removed at once and the value is loaded
+   * once more; if that read cannot be read either, the method runs without the cache.
    *
    * @param key the key
    * @param valueLoader loads the value on a miss
@@ -72,6 +72,10 @@ public class TypedCache implements Cache {
     if (loader.hasRun()) {
       return loader.value();
     }
+    if (cached == null) {
+      // A stored null of a cache that keeps nulls: a hit.
+      return cached;
+    }
     var read = values.read(getName(), cached, type);
     if (read.isPresent()) {
       return (T) read.get();
@@ -81,6 +85,9 @@ public class TypedCache implements Cache {
     var reloaded = delegate.get(key, loader);
     if (loader.hasRun()) {
       return loader.value();
+    }
+    if (reloaded == null) {
+      return reloaded;
     }
     return (T) values.read(getName(), reloaded, type).orElseGet(() -> loadUncached(key, loader));
   }
@@ -140,8 +147,14 @@ public class TypedCache implements Cache {
     return delegate.invalidate();
   }
 
-  /** Returns the wrapped value as the method's type, or {@code null} when it cannot be read. */
+  /**
+   * Returns the wrapped value as the method's type, or {@code null} when it cannot be read. A
+   * wrapped null is a stored null, a hit, and is returned as it is.
+   */
   private @Nullable ValueWrapper typed(ValueWrapper cached) {
+    if (cached.get() == null) {
+      return cached;
+    }
     return values.read(getName(), cached.get(), type).map(SimpleValueWrapper::new).orElse(null);
   }
 
@@ -160,12 +173,12 @@ public class TypedCache implements Cache {
   }
 
   /**
-   * Returns a loaded value as it is, and a cached one as the method's type; an unreadable one is
-   * loaded again and stored.
+   * Returns a loaded value or a stored null as it is, and a cached one as the method's type; an
+   * unreadable one is loaded again and stored.
    */
   private <T> CompletableFuture<T> afterRetrieve(
       Object key, T cached, AtomicBoolean loaded, Supplier<CompletableFuture<T>> valueLoader) {
-    if (loaded.get()) {
+    if (loaded.get() || cached == null) {
       return CompletableFuture.completedFuture(cached);
     }
     return values
