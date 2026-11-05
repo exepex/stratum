@@ -1,5 +1,9 @@
 package com.exepex.stratum.observability.linkedwork;
 
+import static com.exepex.stratum.observability.testsupport.ObservabilityTestData.CORRELATION_ID;
+import static com.exepex.stratum.observability.testsupport.ObservabilityTestData.SPAN_ID;
+import static com.exepex.stratum.observability.testsupport.ObservabilityTestData.STORED_ORIGIN;
+import static com.exepex.stratum.observability.testsupport.ObservabilityTestData.TRACE_ID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
@@ -12,23 +16,13 @@ import org.junit.jupiter.params.provider.FieldSource;
 @DisplayName("WorkOrigin is stored as text and read back unchanged, and refuses any other form")
 class WorkOriginTest {
 
-  /** A trace ID in W3C form. */
-  private static final String TRACE_ID = "4bf92f3577b34da6a3ce929d0e0e4736";
-
-  /** A span ID in W3C form. */
-  private static final String SPAN_ID = "00f067aa0ba902b7";
-
-  /** A correlation ID. */
-  private static final String CORRELATION_ID = "order-42";
-
   @Test
   @DisplayName("an origin stored with toText is read back equal by fromText, sampled or not")
   void readsBackWhatItStores() {
     var sampled = sampledOrigin().build();
     var notSampled = sampledOrigin().sampled(false).build();
 
-    assertThat(sampled.toText())
-        .isEqualTo("00-" + TRACE_ID + "-" + SPAN_ID + "-01 " + CORRELATION_ID);
+    assertThat(sampled.toText()).isEqualTo(STORED_ORIGIN);
     assertThat(WorkOrigin.fromText(sampled.toText())).isEqualTo(sampled);
     assertThat(WorkOrigin.fromText(notSampled.toText())).isEqualTo(notSampled);
   }

@@ -3,6 +3,7 @@ package com.exepex.stratum.observability;
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import java.util.List;
+import java.util.Set;
 import lombok.experimental.UtilityClass;
 
 /** The property keys, tag names and span attributes the observability module uses (ST-ENG-45). */
@@ -70,9 +71,18 @@ public class ObservabilityConstants {
    */
   public static final String EXPONENTIAL_HISTOGRAM = "base2-exponential-bucket-histogram";
 
+  /** Spring Boot's choice of OpenTelemetry sampler, which decides which traces are kept. */
+  public static final String TRACING_SAMPLER = "management.opentelemetry.tracing.sampler";
+
+  /**
+   * The sampler that keeps a trace only by its trace ID, so a caller's sampled flag cannot make
+   * this service keep more than the configured probability of traces.
+   */
+  public static final String TRACE_ID_RATIO_SAMPLER = "trace-id-ratio";
+
   /**
    * Spring Boot's switches that trace and time Kafka and RabbitMQ messages, which it leaves off.
-   * JMS needs none: Spring Boot observes it whenever metrics or tracing are set up.
+   * JMS has none: Spring Boot observes its own JMS beans, and Stratum the ones a service declares.
    */
   public static final List<String> MESSAGING_OBSERVATION_SWITCHES =
       List.of(
@@ -130,6 +140,19 @@ public class ObservabilityConstants {
    */
   public static final String URI_COMPONENTS_BUILDER =
       "org.springframework.web.util.UriComponentsBuilder";
+
+  /** The span event that holds an exception's type, message and stack trace. */
+  public static final String EXCEPTION_EVENT = "exception";
+
+  /**
+   * The span attributes that hold an exception's type: Spring's {@code exception} (the same name as
+   * the event) and, with its OpenTelemetry conventions, {@code error.type}. Spans never carry them;
+   * metrics keep them.
+   */
+  public static final Set<String> EXCEPTION_ATTRIBUTES = Set.of(EXCEPTION_EVENT, "error.type");
+
+  /** The bean that keeps exception data out of spans; a bean of this name replaces it. */
+  public static final String EXCEPTION_FREE_SPANS = "stratumExceptionFreeSpans";
 
   /** The name of the timer and span of every run of linked work. */
   public static final String LINKED_WORK_OBSERVATION = "stratum.linked.work";

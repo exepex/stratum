@@ -20,7 +20,8 @@ public class BaggageTestData {
   public static final String BAGGAGE_HEADER = "baggage";
 
   /** The correlation ID a caller sends in baggage. */
-  public static final String CORRELATION_ID_ENTRY = "correlationId=order-42-c7d1";
+  public static final String CORRELATION_ID_ENTRY =
+      "correlationId=" + MessageTraceChecks.ORDER_CORRELATION_ID;
 
   /**
    * A caller's baggage: the correlation ID, a made-up secret and the correlation ID's name in

@@ -63,6 +63,13 @@
       <artifactId>testcontainers-postgresql</artifactId>
       <optional>true</optional>
     </dependency>
+    <!-- PostgresJdbcContainerConfiguration names Spring Boot's JdbcConnectionDetails. Optional for
+         the same reason: a module that tests against PostgreSQL already has it. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-jdbc</artifactId>
+      <optional>true</optional>
+    </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
@@ -95,4 +102,25 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+
+  <build>
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+        <excludes>
+          <exclude>META-INF/stratum/**</exclude>
+        </excludes>
+      </resource>
+      <!-- Writes the test container images, properties of the root pom.xml, into the jar, so each
+           image is written in one place (ST-ENG-60). ContainerImagesTest fails if a value is
+           left unfilled. -->
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>true</filtering>
+        <includes>
+          <include>META-INF/stratum/**</include>
+        </includes>
+      </resource>
+    </resources>
+  </build>
 </project>

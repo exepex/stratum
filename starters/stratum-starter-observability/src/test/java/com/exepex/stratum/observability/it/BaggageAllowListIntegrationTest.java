@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.observability.testsupport.BaggageTestData;
+import com.exepex.stratum.observability.testsupport.MessageTraceChecks;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.tracing.Tracer;
@@ -185,7 +186,7 @@ class BaggageAllowListIntegrationTest {
      */
     private void callBothClientsWithBaggage() {
       try (var _ =
-              tracer.createBaggageInScope(LoggingContextConstants.CORRELATION_ID, "order-42-c7d1");
+              tracer.createBaggageInScope(LoggingContextConstants.CORRELATION_ID, MessageTraceChecks.ORDER_CORRELATION_ID);
           var _ = tracer.createBaggageInScope(BaggageTestData.REMOTE_FIELD, "t-1");
           var _ = tracer.createBaggageInScope("evil", "SECRET");
           var _ = tracer.createBaggageInScope("CORRELATIONID", "leak")) {

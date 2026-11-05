@@ -96,8 +96,8 @@ Check: calls carry `traceparent` and `X-Correlation-Id`; timeouts are what you e
 
 ## Step 7: data, cache, Kafka
 
-Add the matching starters. Compare your current `spring.datasource.hikari.*`, `spring.jpa.*` and
-`spring.kafka.*` settings with Stratum's defaults (listed on each module page) and delete those that
+Add the matching starters. Compare your current `spring.datasource.hikari.*`, `spring.jpa.*`,
+`spring.cache.redis.*`, `spring.data.redis.*` and `spring.kafka.*` settings with Stratum's defaults (listed on each module page) and delete those that
 match. Keep any value that is deliberately different, and write down why in a comment.
 
 `stratum-starter-data-jpa` sets these defaults even with `stratum.backward-compatible=true`,
@@ -129,6 +129,63 @@ column; see [Data → Schema check](../modules/data-jpa.md#schema-check).
 > `spring.jpa.open-in-view=false`. Code that loads lazy relations after the service method has
 > returned will then fail with `LazyInitializationException`. Run your integration tests before
 > turning the mode off.
+
+`stratum-starter-cache` switches Spring's caching on. With `spring-boot-starter-data-redis`, it also
+gives Spring Boot's Redis keys these defaults, in both modes, because no caller sees them
+([Cache → An existing service](../modules/cache.md#an-existing-service)):
+
+- the 1 s command timeout and 2 s connect timeout (`spring.data.redis.timeout` and
+  `spring.data.redis.connect-timeout`) reach every Redis call of the service, `RedisTemplate`
+  included;
+- entries expire after 10 minutes by default (`spring.cache.redis.time-to-live`);
+- keys start with the service's name (`spring.cache.redis.key-prefix`), so the old keys are left
+  unread;
+- startup stops with `SX-CACHE-1001` when the service has no `spring.application.name`;
+- during a Redis outage a cached method now runs and returns its result, where the call used to
+  fail: after 3 failures in a row (`stratum.cache.redis-failure-threshold`) every Redis cache
+  skips Redis for 5 seconds, then one call tries again, so that load goes to your database or
+  downstream service
+  ([Cache → When Redis is down](../modules/cache-redis-down.md));
+- values are stored as plain JSON, read only as allowed types, so Jackson must be on the class
+  path and old Java-serialized entries are read once as a miss
+  ([Cache → Stored values](../modules/cache-values.md)).
+
+Once the new version runs, delete the old keys, which start with the cache name under Spring Boot's
+default, with SCAN by pattern, never with `FLUSHDB` on a Redis shared with other data. For the cache
+`products`:
+
+```bash
+redis-cli --scan --pattern 'products::*' | xargs -r redis-cli unlink
+```
+
+### A database that already has a schema
+
+Stratum sets no Flyway or Liquibase default for a database that already has tables. When you add
+a migration tool to such a database, mark the existing schema as the starting point once, before
+the tool's first run:
+
+- **Flyway** refuses to migrate a non-empty schema that has no history table. Let it record the
+  existing schema as version `1` and run only the scripts above it, in `application.properties`:
+
+  ```properties
+  spring.flyway.baseline-on-migrate=true
+  spring.flyway.baseline-version=1
+  ```
+
+  or in `application.yml`:
+
+  ```yaml
+  spring:
+    flyway:
+      baseline-on-migrate: true
+      baseline-version: 1
+  ```
+
+  Name your first script for the existing schema `V1__...` and new changes `V2__...` onwards.
+  Remove `baseline-on-migrate` once every environment has its history table, so that a wrong
+  database URL fails instead of being baselined.
+- **Liquibase** has no Spring Boot key for this. Run Liquibase's `changelogSync` command once
+  against each existing database: it records every change set as applied without running it.
 
 ## Step 8: tests
 

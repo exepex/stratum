@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.observability.testsupport.BaggageTestData;
+import com.exepex.stratum.observability.testsupport.MessageTraceChecks;
 import io.opentelemetry.api.baggage.Baggage;
 import io.opentelemetry.api.baggage.propagation.W3CBaggagePropagator;
 import io.opentelemetry.context.Context;
@@ -63,7 +64,7 @@ class AllowedBaggagePropagatorTest {
     void sendsOnlyAllowedNames() {
       var baggage =
           Baggage.builder()
-              .put(LoggingContextConstants.CORRELATION_ID, "order-42-c7d1")
+              .put(LoggingContextConstants.CORRELATION_ID, MessageTraceChecks.ORDER_CORRELATION_ID)
               .put("evil", "SECRET")
               .put("CORRELATIONID", "leak")
               .build();

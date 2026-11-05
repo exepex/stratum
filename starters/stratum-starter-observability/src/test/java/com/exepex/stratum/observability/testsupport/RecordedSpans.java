@@ -41,6 +41,17 @@ public class RecordedSpans implements SpanProcessor {
         .orElseThrow();
   }
 
+  /**
+   * Returns the spans that have ended so far in one trace, without waiting, so a test can check
+   * that a trace was not kept at all.
+   *
+   * @param traceId the trace ID, 32 hex digits
+   * @return the trace's ended spans, oldest first; empty if none ended
+   */
+  public List<SpanData> endedWithTraceId(String traceId) {
+    return endedSpans.stream().filter(span -> span.getTraceId().equals(traceId)).toList();
+  }
+
   /** Forgets every span kept so far, so that a test sees only the spans it ends itself. */
   public void clear() {
     endedSpans.clear();

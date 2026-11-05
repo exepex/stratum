@@ -92,16 +92,17 @@ and installs the OpenTelemetry appender itself.
 
 | Feature | Behaviour |
 | --- | --- |
-| Metrics | Spring Boot's metrics (HTTP server and client, JVM, connection pools, caches, `@Scheduled` jobs, Spring Batch jobs), pushed over OTLP every minute |
+| Metrics | Spring Boot's metrics (HTTP server and client, JVM, connection pools, caches, including those made on their first use ([Cache → Metrics](../../docs/modules/cache.md#metrics)), `@Scheduled` jobs, Spring Batch jobs), pushed over OTLP every minute |
 | Tags on every metric | `application` from `spring.application.name`, `environment` from [`stratum.environment`](../../docs/configuration/reference.md#shared-properties), and `host` from the `HOSTNAME` environment variable, which in Kubernetes is the pod's name. Each is left out when its value is not set |
 | Timings as histograms | Every timer, such as HTTP server and client calls, `@Scheduled` jobs and Spring Batch steps, is sent as a base-2 exponential histogram ([below](#timings)) |
 | Tag guard | A metric with a tag named like an ID, such as `userId`, is dropped with one warning; the RabbitMQ routing key is removed from send timers ([below](#tag-guard)) |
 | Correlation ID | In the logging context of every traced operation, so log lines and error reports carry it ([traces](../../docs/modules/observability-traces.md#correlation-id)) |
 | Other threads | `@Async` methods and Spring Boot's executors keep the caller's trace and correlation ID ([below](#threads-and-reactive-code)). `@Scheduled` jobs start clean, and `LinkedWork` links work that a request saves for a later job back to that request ([guide](../../docs/guides/linking-later-work.md)) |
 | Messages | Kafka, JMS (IBM MQ, ActiveMQ) and RabbitMQ: sending and handling a message are timed and traced, and the consumer joins the sender's trace and correlation ID ([below](#messages)) |
-| Traces | OpenTelemetry traces. A request joins the caller's trace from its W3C `traceparent`, B3 `b3` or B3 multi `X-B3-*` header; calls made with Spring's HTTP clients send W3C `traceparent` only. To send B3 as well, set Spring Boot's `management.tracing.propagation.produce` ([examples](#examples)). Spring Boot keeps 10% of new traces, and always follows the caller's decision, so a trace is never half kept |
+| Traces | OpenTelemetry traces. A request joins the caller's trace from its W3C `traceparent`, B3 `b3` or B3 multi `X-B3-*` header; calls made with Spring's HTTP clients send W3C `traceparent` only. To send B3 as well, set Spring Boot's `management.tracing.propagation.produce` ([examples](#examples)). Spring Boot keeps 10% of traces. Stratum makes each service choose by trace ID, so a caller's sampled flag cannot make it keep more, and services with the same probability keep the same traces ([sampling](../../docs/modules/observability-traces.md#sampling)). With the cache starter, Redis cache command spans carry `cache.name` ([Cache → Traces](../../docs/modules/cache-traces.md)) |
 | Trace and metric resource | `service.name` from `spring.application.name` (set by Spring Boot), `deployment.environment.name` from `stratum.environment`, and `service.instance.id`, the [instance ID](../../docs/configuration/reference.md#instance-id) of this running copy, which its log lines carry too |
 | Baggage | Only `correlationId` and Spring Boot's remote fields are read from callers and sent on; other entries are dropped ([baggage](../../docs/modules/observability-traces.md#baggage)) |
+| Errors on spans | A failed span keeps its `ERROR` status but carries no exception type, message or stack trace, which belong in the logs; metrics keep their `exception` tag ([traces](../../docs/modules/observability-traces.md#errors-on-spans)) |
 | URLs on spans | The full URL of each HTTP client call, query string included, is kept on its span; only the user info is removed. Metrics never carry the query ([traces](../../docs/modules/observability-traces.md#urls-on-spans-and-metrics)) |
 | Health | `/actuator/health`, with Spring Boot's Kubernetes `liveness` and `readiness` groups |
 | Safe exposure | Only `health` and `info` are reachable over HTTP |
@@ -274,6 +275,7 @@ value you set wins, from any file, the environment, the command line or Java def
 | `management.opentelemetry.resource-attributes[service.instance.id]` | string | `service.instance.id` from `OTEL_RESOURCE_ATTRIBUTES`, else a random [instance ID](../../docs/configuration/reference.md#instance-id) | none, so no instance ID | The running copy on every span and metric. |
 | `management.metrics.distribution.percentiles-histogram.all` | boolean | `true` | none, so no histogram | Every timing is a [histogram](#timings). `false` keeps only count, sum and max. |
 | `management.otlp.metrics.export.histogram-flavor` | `explicit-bucket-histogram` or `base2-exponential-bucket-histogram` | `base2-exponential-bucket-histogram` | `explicit-bucket-histogram` | How histograms are sent. |
+| `management.opentelemetry.tracing.sampler` | `always-on`, `always-off`, `trace-id-ratio`, `parent-based-always-on`, `parent-based-always-off` or `parent-based-trace-id-ratio` | `trace-id-ratio` | `parent-based-trace-id-ratio` | How each service chooses the traces it keeps: by trace ID, so a caller cannot ask for more ([sampling](../../docs/modules/observability-traces.md#sampling)). |
 | `spring.task.execution.propagate-context` | boolean | `true` | `false` | Whether `@Async` methods and Spring Boot's executors keep the trace ([threads](#threads-and-reactive-code)). |
 | `spring.reactor.context-propagation` | `limited` or `auto` | `auto` | `limited` | Whether every Reactor operator keeps the trace, not only `handle` and `tap` ([threads](#threads-and-reactive-code)). |
 | `spring.kafka.template.observation-enabled`, `spring.kafka.listener.observation-enabled` | boolean | `true` | `false` | Whether Kafka sends and listeners are traced and timed ([messages](#messages)). |
@@ -417,6 +419,11 @@ The switch and the Spring Boot properties above are set in Java through
 - **Your own tag rule:** declare a `MetricTagGuard` bean; Stratum's then backs off.
 - **Your own correlation ID handling:** declare a `CorrelationIdRecorder` bean; Stratum's then
   backs off.
+- **Exception data on spans:** a bean named `stratumExceptionFreeSpans` replaces the
+  post-processor that keeps exception data off your spans
+  ([errors on spans](../../docs/modules/observability-traces.md#errors-on-spans)); declare it
+  `static`, as any `BeanPostProcessor`. Your spans then carry the exception's message, which can
+  hold personal data.
 - **Not replaceable:** the Spring Boot defaults and the export address check run before any bean
   exists, so no bean of yours replaces them. `stratum.observability.enabled` turns them all off;
   turning an export off also satisfies the check for that export ([startup check](#startup-check)).
@@ -452,6 +459,7 @@ sent, and Spring Boot's own actuator defaults apply.
 | Startup stops with `SX-OBSERVABILITY-1001` | Set the property the message names to your Collector's address, turn that export off, or turn the module off with `stratum.observability.enabled=false`. |
 | No metrics or traces arrive | `stratum.observability.enabled` is not `true`, or the Collector is not reachable at the configured address. Look for export errors in the log. |
 | Traces break between two services | The caller does not use Spring's `RestClient`, `WebClient` or `RestTemplate` from Spring Boot's builder, so no `traceparent` header is sent. |
+| A trace has spans from only some services | The services have different `management.tracing.sampling.probability` values, so each keeps a different set of traces. Give every service in the chain the same probability ([sampling](../../docs/modules/observability-traces.md#sampling)). |
 | A message's trace ends at the sender | The consumer service does not have this module on, or sets its listener's `observation-enabled` switch to `false` ([messages](#messages)). |
 | No `host` tag | `HOSTNAME` is not set in the service's environment. |
 | A metric is missing and the log shows `SX-OBSERVABILITY-1002` | One of its tags is named like an ID. Remove the tag, or rename it if it holds only a few fixed values. |

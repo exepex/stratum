@@ -60,13 +60,20 @@ Each module page follows the same layout so you always know where to look:
 | Logging rate limits and sampling (each logger's lines per second, kept DEBUG and INFO lines) | [logging-volume.md](modules/logging-volume.md) |
 | Observability (metrics, tracing, health) | [stratum-starter-observability/README.md](../starters/stratum-starter-observability/README.md) |
 | Observability of Kafka, RabbitMQ and JMS messages | [observability-messages.md](modules/observability-messages.md) |
-| Observability traces (correlation ID, baggage, URLs on spans) | [observability-traces.md](modules/observability-traces.md) |
+| Observability traces (correlation ID, baggage, URLs on spans, errors on spans, sampling and tail sampling) | [observability-traces.md](modules/observability-traces.md) |
 | Security (resource server, JWT) | [security.md](modules/security.md) |
 | OAuth2 client (service-to-service tokens) | [oauth2-client.md](modules/oauth2-client.md) |
 | HTTP client | [http-client.md](modules/http-client.md) |
 | Resilience | [resilience.md](modules/resilience.md) |
 | Data (JPA, connection pool, transactions) | [data-jpa.md](modules/data-jpa.md) |
 | Cache | [cache.md](modules/cache.md) |
+| Cache when Redis is down | [cache-redis-down.md](modules/cache-redis-down.md) |
+| Cache stored values | [cache-values.md](modules/cache-values.md) |
+| Cache time to live and timeout per cache | [cache-per-cache.md](modules/cache-per-cache.md) |
+| Cache name on Redis spans | [cache-traces.md](modules/cache-traces.md) |
+| Cache null results | [cache-null-results.md](modules/cache-null-results.md) |
+| Cache in Caffeine | [cache-caffeine.md](modules/cache-caffeine.md) |
+| Cache reactive and async methods | [cache-reactive.md](modules/cache-reactive.md) |
 | Kafka | [kafka.md](modules/kafka.md) |
 | Cloud connectors | [cloud.md](modules/cloud.md) |
 | Testing (`stratum-test`) | [test.md](modules/test.md) |

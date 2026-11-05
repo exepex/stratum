@@ -10,10 +10,7 @@ import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.tracing.Tracer;
 import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -23,6 +20,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AutoClose;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -156,35 +154,22 @@ class ReactiveAndBlockingCodeIntegrationTest {
     @Qualifier("applicationTaskExecutor")
     private AsyncTaskExecutor applicationTaskExecutor;
 
-    /** Sends requests to the reactive service, as its caller. */
-    private final HttpClient caller = HttpClient.newHttpClient();
+    /** Sends requests to the reactive service, as its caller; made once the port is known. */
+    private ReactiveOrdersCaller caller;
 
-    /** Builds a request to the reactive handler for an order, without trace headers. */
-    private HttpRequest.Builder reactiveHandlerRequest(String orderNumber) {
-      return HttpRequest.newBuilder(
-          URI.create(
-              "http://localhost:"
-                  + port
-                  + ReactiveOrdersApplication.PLACE_ORDER_PATH
-                  + "?"
-                  + ReactiveOrdersApplication.ORDER_NUMBER_PARAMETER
-                  + "="
-                  + orderNumber));
+    /** Points the caller at the port the service listens on. */
+    @BeforeEach
+    void callTheService() {
+      caller = new ReactiveOrdersCaller(port);
     }
 
     /** Builds a request to the reactive handler for an order, with the caller's trace headers. */
     private HttpRequest requestWithCallerTrace(String orderNumber, CallerTrace callerTrace) {
-      return reactiveHandlerRequest(orderNumber)
+      return caller
+          .orderRequest(orderNumber)
           .header(CollectorStub.TRACEPARENT_HEADER, callerTrace.traceparent())
           .header(CollectorStub.BAGGAGE_HEADER, callerTrace.baggage())
           .build();
-    }
-
-    /** Sends one request and checks that the handler answered with the order number. */
-    private void send(HttpRequest request, String orderNumber)
-        throws IOException, InterruptedException {
-      var response = caller.send(request, HttpResponse.BodyHandlers.ofString());
-      assertThat(response.body()).isEqualTo(orderNumber);
     }
 
     /**
@@ -210,7 +195,8 @@ class ReactiveAndBlockingCodeIntegrationTest {
         "a WebFlux handler, a map after a thread change, blocking work on Spring's executor and the"
             + " WebClient call keep the caller's trace and correlation ID")
     void reactiveHandlerKeepsCallerTrace() throws IOException, InterruptedException {
-      send(requestWithCallerTrace(ORDER_WITH_CALLER_TRACE, CALLER_TRACE), ORDER_WITH_CALLER_TRACE);
+      caller.send(
+          requestWithCallerTrace(ORDER_WITH_CALLER_TRACE, CALLER_TRACE), ORDER_WITH_CALLER_TRACE);
 
       assertOrderKeptCallerTrace(ORDER_WITH_CALLER_TRACE, CALLER_TRACE);
     }
@@ -234,8 +220,7 @@ class ReactiveAndBlockingCodeIntegrationTest {
                   .map(
                       order ->
                           caller.sendAsync(
-                              requestWithCallerTrace(order.getKey(), order.getValue()),
-                              HttpResponse.BodyHandlers.ofString()))
+                              requestWithCallerTrace(order.getKey(), order.getValue())))
                   .toArray(CompletableFuture[]::new))
           .get();
 
@@ -284,8 +269,10 @@ class ReactiveAndBlockingCodeIntegrationTest {
     @DisplayName(
         "a request without a caller's trace gets its own IDs, never the previous request's")
     void nextRequestDoesNotSeePreviousRequestIds() throws IOException, InterruptedException {
-      send(requestWithCallerTrace(ORDER_WITH_CALLER_TRACE, CALLER_TRACE), ORDER_WITH_CALLER_TRACE);
-      send(reactiveHandlerRequest(ORDER_WITHOUT_CALLER_TRACE).build(), ORDER_WITHOUT_CALLER_TRACE);
+      caller.send(
+          requestWithCallerTrace(ORDER_WITH_CALLER_TRACE, CALLER_TRACE), ORDER_WITH_CALLER_TRACE);
+      caller.send(
+          caller.orderRequest(ORDER_WITHOUT_CALLER_TRACE).build(), ORDER_WITHOUT_CALLER_TRACE);
 
       assertThat(List.of(PlaceInReactiveCode.values()))
           .map(place -> controller.loggingContextAt(ORDER_WITHOUT_CALLER_TRACE, place))
