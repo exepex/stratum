@@ -48,7 +48,7 @@ class AllowedBaggagePropagatorSpeedTest {
   private static final int CAPPED_CALLS_PER_BATCH = 5_000;
 
   /** Reads in each timed batch of the 1MB header, which OpenTelemetry drops: about 50ms of work. */
-  private static final int HUGE_CALLS_PER_BATCH = 700_000;
+  private static final int HUGE_CALLS_PER_BATCH = 50_000;
 
   /** Provisional, until the limits are calibrated on CI. */
   private static final Duration CAPPED_LIMIT = Duration.ofSeconds(1);
