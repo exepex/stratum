@@ -18,6 +18,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -83,6 +85,21 @@ class RedisGatedCacheTest {
       assertThatExceptionOfType(DataAccessException.class)
           .isThrownBy(() -> cache.get(KEY))
           .isSameAs(RedisFailureTestData.CONNECT_FAILED);
+      assertThat(gate.usesRedis()).isFalse();
+      assertThat(counters.redisConnectFailures()).isOne();
+    }
+
+    @Test
+    @DisplayName("a background read that fails in Redis makes the next calls skip Redis")
+    void backgroundFailureSkips() {
+      cache.get(KEY);
+      when(redis.retrieve(KEY))
+          .thenReturn(
+              CompletableFuture.failedFuture(
+                  new CompletionException(RedisFailureTestData.CONNECT_FAILED)));
+
+      cache.retrieve(KEY);
+
       assertThat(gate.usesRedis()).isFalse();
       assertThat(counters.redisConnectFailures()).isOne();
     }
@@ -231,6 +248,33 @@ class RedisGatedCacheTest {
       verify(redis).evictIfPresent(KEY);
       verify(redis).put(KEY, VALUE);
       assertThat(gate.usesRedis()).isTrue();
+    }
+
+    @Test
+    @DisplayName("a first background read tries Redis and puts it in use once Redis answers")
+    void firstBackgroundReadReachesRedis() {
+      var answer = new CompletableFuture<Object>();
+      when(redis.retrieve(KEY)).thenAnswer(invocation -> answer);
+
+      cache.retrieve(KEY);
+      assertThat(gate.usesRedis()).isFalse();
+      answer.complete(null);
+
+      assertThat(gate.usesRedis()).isTrue();
+    }
+
+    @Test
+    @DisplayName("a background loader's error releases the trial, so the next call tries at once")
+    void backgroundLoaderErrorReleasesTrial() {
+      Supplier<CompletableFuture<String>> loader = () -> CompletableFuture.completedFuture(VALUE);
+      when(redis.retrieve(KEY, loader))
+          .thenReturn(
+              CompletableFuture.failedFuture(new CompletionException(new IllegalStateException())));
+
+      cache.retrieve(KEY, loader);
+
+      assertThat(gate.usesRedis()).isFalse();
+      assertThat(gate.admits()).isTrue();
     }
   }
 }

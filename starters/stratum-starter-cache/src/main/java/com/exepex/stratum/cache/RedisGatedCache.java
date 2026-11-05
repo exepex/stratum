@@ -3,6 +3,7 @@ package com.exepex.stratum.cache;
 import com.exepex.stratum.core.api.StratumInternal;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
@@ -60,19 +61,20 @@ public class RedisGatedCache implements Cache {
   }
 
   /**
-   * Returns the cached value in the background; while Redis is skipped, a miss known at once.
+   * Returns the cached value in the background; while Redis is skipped, a miss known at once. Like
+   * a read, it may take a trial, which ends when Redis answers.
    *
    * @param key the key
    * @return the future value, or {@code null} for a miss
    */
   @Override
   public @Nullable CompletableFuture<?> retrieve(Object key) {
-    return gate.usesRedis() ? delegate.retrieve(key) : null;
+    return gate.admits() ? answered(() -> delegate.retrieve(key)) : null;
   }
 
   @Override
   public <T> CompletableFuture<T> retrieve(Object key, Supplier<CompletableFuture<T>> valueLoader) {
-    return gate.usesRedis() ? delegate.retrieve(key, valueLoader) : valueLoader.get();
+    return gate.admits() ? answered(() -> delegate.retrieve(key, valueLoader)) : valueLoader.get();
   }
 
   /**
@@ -160,6 +162,42 @@ public class RedisGatedCache implements Cache {
       if (!settled) {
         gate.released();
       }
+    }
+  }
+
+  /**
+   * Calls Redis in the background and tells the gate how it went once Redis answers. An error
+   * thrown before the call is sent is told at once, as for {@link #tried}.
+   */
+  private <F extends @Nullable CompletableFuture<?>> F answered(Supplier<F> redisCall) {
+    var settled = false;
+    try {
+      var future = redisCall.get();
+      if (future != null) {
+        settled = true;
+        future.whenComplete((value, error) -> settle(error));
+      }
+      return future;
+    } catch (DataAccessException failure) {
+      settled = true;
+      gate.failed(failure);
+      throw failure;
+    } finally {
+      if (!settled) {
+        gate.released();
+      }
+    }
+  }
+
+  /** Tells the gate how a background call ended: answered, failed in Redis, or failed otherwise. */
+  private void settle(@Nullable Throwable error) {
+    var cause = error instanceof CompletionException completion ? completion.getCause() : error;
+    if (cause == null) {
+      gate.reached();
+    } else if (cause instanceof DataAccessException failure) {
+      gate.failed(failure);
+    } else {
+      gate.released();
     }
   }
 
