@@ -1,7 +1,5 @@
 package com.exepex.stratum.observability;
 
-import static com.exepex.stratum.observability.testsupport.ObservabilityTestData.CORRELATION_ID;
-import static com.exepex.stratum.observability.testsupport.ObservabilityTestData.HOSTILE_INPUT_LENGTH;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.logging.LoggingContextConstants;
@@ -20,7 +18,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.DisplayName;
@@ -35,12 +32,6 @@ import org.junit.jupiter.params.provider.FieldSource;
  */
 @DisplayName("Reading hostile baggage stays inside its CPU time limit")
 class AllowedBaggagePropagatorSpeedTest {
-
-  /** OpenTelemetry's cap on a baggage header: 64 entries in 8,192 bytes. */
-  private static final int CAPPED_ENTRIES = 64;
-
-  /** The bytes of each entry in the capped header, so 64 of them fill 8,192 bytes. */
-  private static final int CAPPED_ENTRY_LENGTH = 8_192 / CAPPED_ENTRIES;
 
   // A read of the capped baggage takes about 10 to 18 microseconds; 5,000 a batch is about 50 to
   // 90ms of CPU time, which averages out scheduler and JIT noise.
@@ -81,7 +72,7 @@ class AllowedBaggagePropagatorSpeedTest {
               Arguments.of(
                   "64 entries in 8,192 bytes",
                   new AllowedBaggagePropagator(
-                      new FixedBaggagePropagator(cappedBaggage()), ALLOWED),
+                      new FixedBaggagePropagator(BaggageTestData.cappedBaggage()), ALLOWED),
                   BaggageTestData.CORRELATION_ID_ENTRY,
                   ALLOWED,
                   CAPPED_CALLS_PER_BATCH,
@@ -89,7 +80,7 @@ class AllowedBaggagePropagatorSpeedTest {
               Arguments.of(
                   "a 1MB header",
                   new AllowedBaggagePropagator(W3CBaggagePropagator.getInstance(), ALLOWED),
-                  hugeHeader(),
+                  BaggageTestData.hugeHeader(),
                   Set.of(),
                   HUGE_CALLS_PER_BATCH,
                   HUGE_LIMIT));
@@ -113,26 +104,6 @@ class AllowedBaggagePropagatorSpeedTest {
             baggageName,
             limit,
             () -> propagator.extract(Context.root(), headers, BaggageTestData.HEADERS));
-  }
-
-  /**
-   * Returns 64 entries in 8,192 bytes, the correlation ID first: each other entry, with its {@code
-   * =} and {@code ,}, takes 128 bytes.
-   */
-  private static Baggage cappedBaggage() {
-    var builder = Baggage.builder().put(LoggingContextConstants.CORRELATION_ID, CORRELATION_ID);
-    IntStream.range(1, CAPPED_ENTRIES)
-        .mapToObj(entry -> "e" + entry)
-        .forEach(name -> builder.put(name, "v".repeat(CAPPED_ENTRY_LENGTH - name.length() - 2)));
-    return builder.build();
-  }
-
-  /** Returns a 1MB baggage header of short entries, the correlation ID first. */
-  private static String hugeHeader() {
-    var header = new StringBuilder(BaggageTestData.CORRELATION_ID_ENTRY);
-    IntStream.iterate(0, entry -> header.length() < HOSTILE_INPUT_LENGTH, entry -> entry + 1)
-        .forEach(entry -> header.append(",e").append(entry).append("=v"));
-    return header.toString();
   }
 
   /**

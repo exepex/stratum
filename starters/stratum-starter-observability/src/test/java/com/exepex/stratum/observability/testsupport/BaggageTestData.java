@@ -1,5 +1,9 @@
 package com.exepex.stratum.observability.testsupport;
 
+import static com.exepex.stratum.observability.testsupport.ObservabilityTestData.CORRELATION_ID;
+import static com.exepex.stratum.observability.testsupport.ObservabilityTestData.HOSTILE_INPUT_LENGTH;
+
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import io.opentelemetry.api.baggage.Baggage;
 import io.opentelemetry.api.baggage.propagation.W3CBaggagePropagator;
 import io.opentelemetry.context.Context;
@@ -8,6 +12,7 @@ import io.opentelemetry.context.propagation.TextMapGetter;
 import io.opentelemetry.context.propagation.TextMapPropagator;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.IntStream;
 import lombok.experimental.UtilityClass;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.config.BeanPostProcessor;
@@ -74,5 +79,37 @@ public class BaggageTestData {
             allowList.postProcessAfterInitialization(
                 ContextPropagators.create(W3CBaggagePropagator.getInstance()), "propagators");
     return namesRead(wrapped.getTextMapPropagator(), baggageHeader);
+  }
+
+  /** OpenTelemetry's cap on a baggage header: 64 entries in 8,192 bytes. */
+  private static final int CAPPED_ENTRIES = 64;
+
+  /** The bytes of each entry in the capped header, so 64 of them fill 8,192 bytes. */
+  private static final int CAPPED_ENTRY_LENGTH = 8_192 / CAPPED_ENTRIES;
+
+  /**
+   * Returns 64 entries in 8,192 bytes, the correlation ID first: each other entry, with its {@code
+   * =} and {@code ,}, takes 128 bytes.
+   *
+   * @return the baggage at OpenTelemetry's cap
+   */
+  public static Baggage cappedBaggage() {
+    var builder = Baggage.builder().put(LoggingContextConstants.CORRELATION_ID, CORRELATION_ID);
+    IntStream.range(1, CAPPED_ENTRIES)
+        .mapToObj(entry -> "e" + entry)
+        .forEach(name -> builder.put(name, "v".repeat(CAPPED_ENTRY_LENGTH - name.length() - 2)));
+    return builder.build();
+  }
+
+  /**
+   * Returns a 1MB baggage header of short entries, the correlation ID first.
+   *
+   * @return the header
+   */
+  public static String hugeHeader() {
+    var header = new StringBuilder(CORRELATION_ID_ENTRY);
+    IntStream.iterate(0, entry -> header.length() < HOSTILE_INPUT_LENGTH, entry -> entry + 1)
+        .forEach(entry -> header.append(",e").append(entry).append("=v"));
+    return header.toString();
   }
 }
