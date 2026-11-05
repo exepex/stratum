@@ -115,13 +115,18 @@ public class RedisRetryGate {
 
   /**
    * Records a call that reached Redis: a trial in progress puts Redis back in use, and failures
-   * counted while every call uses Redis start again from 0.
+   * counted while every call uses Redis start again from 0. A call while nothing is counted only
+   * reads the state, so the usual success costs one read.
    */
   void reached() {
-    var current = state.get();
-    if (current.phase() == Phase.TRYING || current.failures() > 0) {
-      state.compareAndSet(current, USING);
+    if (endsOnSuccess(state.get())) {
+      state.updateAndGet(current -> endsOnSuccess(current) ? USING : current);
     }
+  }
+
+  /** Returns whether a call that reached Redis changes this state: a trial, or counted failures. */
+  private boolean endsOnSuccess(GateState current) {
+    return current.phase() == Phase.TRYING || current.failures() > 0;
   }
 
   /**
