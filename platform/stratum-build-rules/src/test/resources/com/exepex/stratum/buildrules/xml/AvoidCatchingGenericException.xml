@@ -158,6 +158,77 @@ public class StratumCache {
   </test-code>
 
   <test-code>
+    <description>the web MVC starter's ResponseTimeoutFilter may catch RuntimeException in doFilterInternal</description>
+    <expected-problems>0</expected-problems>
+    <code><![CDATA[
+package com.exepex.stratum.webmvc;
+public class ResponseTimeoutFilter {
+  protected void doFilterInternal(Runnable filterChain) {
+    try {
+      filterChain.run();
+    } catch (RuntimeException e) {
+      return;
+    }
+  }
+}
+]]></code>
+  </test-code>
+
+  <test-code>
+    <description>another method of ResponseTimeoutFilter is reported</description>
+    <expected-problems>1</expected-problems>
+    <expected-linenumbers>6</expected-linenumbers>
+    <code><![CDATA[
+package com.exepex.stratum.webmvc;
+public class ResponseTimeoutFilter {
+  private void interruptUnlessStarted(Runnable interrupt) {
+    try {
+      interrupt.run();
+    } catch (RuntimeException e) {
+      return;
+    }
+  }
+}
+]]></code>
+  </test-code>
+
+  <test-code>
+    <description>the doFilterInternal of another filter in the same package is reported</description>
+    <expected-problems>1</expected-problems>
+    <expected-linenumbers>6</expected-linenumbers>
+    <code><![CDATA[
+package com.exepex.stratum.webmvc;
+public class RequestLogFilter {
+  protected void doFilterInternal(Runnable filterChain) {
+    try {
+      filterChain.run();
+    } catch (RuntimeException e) {
+      return;
+    }
+  }
+}
+]]></code>
+  </test-code>
+
+  <test-code>
+    <description>a class named ResponseTimeoutFilter in another package, such as a service's, is reported</description>
+    <expected-problems>1</expected-problems>
+    <expected-linenumbers>6</expected-linenumbers>
+    <code><![CDATA[
+package com.acme.orders;
+public class ResponseTimeoutFilter {
+  protected void doFilterInternal(Runnable filterChain) {
+    try {
+      filterChain.run();
+    } catch (RuntimeException e) {
+      return;
+    }
+  }
+}
+]]></code>
+  </test-code>
+
+  <test-code>
     <description>a catch of NullPointerException is reported too</description>
     <expected-problems>1</expected-problems>
     <expected-linenumbers>6</expected-linenumbers>

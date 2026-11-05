@@ -135,9 +135,9 @@ When the time is up, Stratum interrupts the request's thread, as Tomcat's stuck 
   that. Socket reads on ordinary platform threads ignore interrupts, so a database query waiting
   on its socket usually runs on. Give every remote call its own timeout, shorter than the
   request's, such as a query timeout on the database and a read timeout on the HTTP client.
-- Whatever your code answers after the time is up, from the handler or from your own
-  `@ExceptionHandler`, the caller gets `503`, as on WebFlux. Only a response that started in time
-  is sent as it is.
+- Whatever your code answers or throws after the time is up, from the handler, from your own
+  `@ExceptionHandler` or from a filter such as Spring Security's or your own, the caller gets `503`,
+  as on WebFlux. Only a response that started in time is sent as it is.
 - For a handler that returns a `Callable`, a `DeferredResult` or an `SseEmitter`, the limit ends
   when the handler method returns. Spring's `spring.mvc.async.request-timeout` limits the rest.
 
