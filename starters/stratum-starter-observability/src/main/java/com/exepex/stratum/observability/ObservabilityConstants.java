@@ -138,14 +138,15 @@ public class ObservabilityConstants {
   public static final String URI_COMPONENTS_BUILDER =
       "org.springframework.web.util.UriComponentsBuilder";
 
-  /**
-   * The span attributes that hold an exception's type: Spring's {@code exception} and, with its
-   * OpenTelemetry conventions, {@code error.type}. Spans never carry them; metrics keep them.
-   */
-  public static final Set<String> EXCEPTION_ATTRIBUTES = Set.of("exception", "error.type");
-
   /** The span event that holds an exception's type, message and stack trace. */
   public static final String EXCEPTION_EVENT = "exception";
+
+  /**
+   * The span attributes that hold an exception's type: Spring's {@code exception} (the same name as
+   * the event) and, with its OpenTelemetry conventions, {@code error.type}. Spans never carry them;
+   * metrics keep them.
+   */
+  public static final Set<String> EXCEPTION_ATTRIBUTES = Set.of(EXCEPTION_EVENT, "error.type");
 
   /** The bean that keeps exception data out of spans; a bean of this name replaces it. */
   public static final String EXCEPTION_FREE_SPANS = "stratumExceptionFreeSpans";

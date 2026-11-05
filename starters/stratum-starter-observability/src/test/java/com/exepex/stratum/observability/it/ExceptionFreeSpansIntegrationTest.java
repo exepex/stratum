@@ -80,8 +80,9 @@ class ExceptionFreeSpansIntegrationTest {
 
     tracerProvider.forceFlush();
     var exportedSpans = awaitExportedSpans();
-    assertThat(exportedSpans).contains(ReactiveOrdersApplication.FAILING_ORDER_PATH);
-    assertThat(exportedSpans).doesNotContain(EXCEPTION_DATA);
+    assertThat(exportedSpans)
+        .contains(ReactiveOrdersApplication.FAILING_ORDER_PATH)
+        .doesNotContain(EXCEPTION_DATA);
     assertThat(
             meterRegistry
                 .get(SERVER_REQUESTS_TIMER)
