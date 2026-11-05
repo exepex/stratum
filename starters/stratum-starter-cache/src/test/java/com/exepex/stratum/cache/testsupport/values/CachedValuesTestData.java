@@ -6,7 +6,6 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.experimental.UtilityClass;
 
 /** The values, packages and stored JSON that the JSON value tests share. */
@@ -18,9 +17,6 @@ public class CachedValuesTestData {
 
   /** The gadget class of the package that is not allowed. */
   public static final String GADGET_CLASS = ALLOWED_PACKAGE + "evil.Gadget";
-
-  /** Set when the gadget class of the package that is not allowed is loaded. */
-  public static final AtomicBoolean GADGET_LOADED = new AtomicBoolean();
 
   /** The identifier of every test order. */
   public static final String ORDER_ID = "order-1";

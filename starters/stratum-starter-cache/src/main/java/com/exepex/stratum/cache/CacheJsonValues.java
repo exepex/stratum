@@ -151,10 +151,10 @@ public class CacheJsonValues implements RedisElementReader<Object>, RedisElement
   /**
    * Allows a class named inside the JSON only from the allowed packages, never {@code java}. The
    * name is checked before the class is loaded, the loaded class again, and the base types Jackson
-   * finds unsafe stay denied.
+   * finds unsafe stay denied. Package-private so a test can check the name check on its own.
    */
   @RequiredArgsConstructor
-  private static final class AllowedPackagesValidator extends DefaultBaseTypeLimitingValidator {
+  static final class AllowedPackagesValidator extends DefaultBaseTypeLimitingValidator {
 
     private static final long serialVersionUID = 1L;
 
