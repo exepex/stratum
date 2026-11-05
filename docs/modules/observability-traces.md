@@ -130,6 +130,37 @@ Not bounded by these keys:
   each).
 - A `SpanLimits` bean or an `SdkTracerProvider` of your own, which ignore these keys.
 
+## Dropped spans
+
+When spans are made faster than they can be sent, the queue fills (2,048 spans by default) and
+OpenTelemetry drops each new span until there is room. Stratum counts them in the counter
+`stratum.observability.spans.dropped` (in Prometheus, `stratum_observability_spans_dropped_total`),
+with the `application` and `host` tags of every metric. Set an alert on it, for example:
+
+```promql
+sum by (application, host) (increase(stratum_observability_spans_dropped_total[5m])) > 0
+```
+
+with `for: 10m` and a warning severity. When it fires, check that the Collector can be reached,
+then raise `management.opentelemetry.tracing.export.max-queue-size` or lower
+`management.tracing.sampling.probability`.
+
+The count comes from OpenTelemetry's own span processor, and Spring Boot gives that processor
+the service's OpenTelemetry `MeterProvider` bean. If your service declares its own
+`MeterProvider`, it replaces Stratum's, and the counter is not registered. To turn the counter
+off, set Spring Boot's key:
+
+```properties
+management.metrics.enable.stratum.observability.spans.dropped=false
+```
+
+```yaml
+management:
+  metrics:
+    enable:
+      "[stratum.observability.spans.dropped]": false
+```
+
 ## Sampling
 
 A trace is the record of one request across every service it reaches. Keeping every trace costs

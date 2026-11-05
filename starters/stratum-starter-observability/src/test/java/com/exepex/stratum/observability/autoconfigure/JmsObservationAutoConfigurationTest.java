@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import com.exepex.stratum.observability.JmsBeanObserver;
 import com.exepex.stratum.observability.JmsListenerContainerObserver;
 import com.exepex.stratum.observability.ObservabilityConstants;
+import com.exepex.stratum.observability.testsupport.ObservabilityTestData;
 import io.micrometer.observation.ObservationRegistry;
 import jakarta.jms.ConnectionFactory;
 import java.util.Collection;
@@ -32,11 +33,7 @@ import org.springframework.jms.listener.MessageListenerContainer;
 class JmsObservationAutoConfigurationTest {
 
   private final ApplicationContextRunner contextRunner =
-      new ApplicationContextRunner()
-          .withConfiguration(
-              AutoConfigurations.of(
-                  ValidationAutoConfiguration.class, ObservabilityAutoConfiguration.class))
-          .withUserConfiguration(ApplicationRegistry.class);
+      ObservabilityTestData.contextRunner().withUserConfiguration(ApplicationRegistry.class);
 
   @Nested
   @DisplayName("with the module on")

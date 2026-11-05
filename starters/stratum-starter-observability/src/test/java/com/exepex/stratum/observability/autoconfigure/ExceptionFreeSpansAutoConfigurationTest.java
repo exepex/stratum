@@ -6,6 +6,7 @@ import com.exepex.stratum.observability.ExceptionFreeSpanExporter;
 import com.exepex.stratum.observability.ExceptionFreeSpans;
 import com.exepex.stratum.observability.ObservabilityConstants;
 import com.exepex.stratum.observability.testsupport.ExportedSpans;
+import com.exepex.stratum.observability.testsupport.ObservabilityTestData;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.config.BeanPostProcessor;
@@ -22,10 +23,7 @@ import org.springframework.context.annotation.Configuration;
 class ExceptionFreeSpansAutoConfigurationTest {
 
   private final ApplicationContextRunner contextRunner =
-      new ApplicationContextRunner()
-          .withConfiguration(
-              AutoConfigurations.of(
-                  ValidationAutoConfiguration.class, ObservabilityAutoConfiguration.class))
+      ObservabilityTestData.contextRunner()
           .withBean(SpanExporters.class, () -> SpanExporters.of(new ExportedSpans()));
 
   @Test
