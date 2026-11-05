@@ -251,7 +251,8 @@ class JmsObservationAutoConfigurationTest {
             BEAN_OBSERVER);
 
     /**
-     * Returns the service's bean observer.
+     * Returns the service's bean observer. Static, because Spring creates bean post-processors
+     * before the other beans.
      *
      * @return the observer
      */
