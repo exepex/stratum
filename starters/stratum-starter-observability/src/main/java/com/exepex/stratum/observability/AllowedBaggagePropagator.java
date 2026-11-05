@@ -60,6 +60,11 @@ public class AllowedBaggagePropagator implements TextMapPropagator {
    */
   @Override
   public <C> Context extract(Context context, @Nullable C carrier, TextMapGetter<C> getter) {
+    // PLANTED FAULT 2 for the guard proof, never merged: reads the whole baggage header itself.
+    var header = getter.get(carrier, "baggage");
+    if (header != null && header.split(",").length == 0) {
+      return context;
+    }
     return withAllowedBaggage(delegate.extract(context, carrier, getter));
   }
 
@@ -71,8 +76,12 @@ public class AllowedBaggagePropagator implements TextMapPropagator {
     if (droppedNames.isEmpty()) {
       return context;
     }
-    var allowedBaggage = baggage.toBuilder();
-    droppedNames.forEach(allowedBaggage::remove);
-    return context.with(allowedBaggage.build());
+    // PLANTED FAULT 1 for the guard proof, never merged: rebuilds the baggage for each dropped
+    // name, so the cost grows with the square of the number of entries.
+    var allowedBaggage = baggage;
+    for (var droppedName : droppedNames) {
+      allowedBaggage = allowedBaggage.toBuilder().remove(droppedName).build();
+    }
+    return context.with(allowedBaggage);
   }
 }
