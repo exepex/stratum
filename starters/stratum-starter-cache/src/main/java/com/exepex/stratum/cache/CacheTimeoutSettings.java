@@ -56,11 +56,15 @@ public record CacheTimeoutSettings(
 
   /**
    * Returns the caches whose own value is below the global one: their timeout says nothing about
-   * Redis as a whole.
+   * Redis as a whole. None when keys carry no cache name, because then every command gets the
+   * global timeout.
    *
    * @return the names of those caches
    */
   public Set<String> shortTimeoutCaches() {
+    if (keyPrefix == null) {
+      return Set.of();
+    }
     return cacheTimeouts.entrySet().stream()
         .filter(entry -> entry.getValue().compareTo(global) < 0)
         .map(Map.Entry::getKey)

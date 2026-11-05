@@ -87,5 +87,19 @@ class CacheTimeoutSettingsTest {
 
       assertThat(settings.shortTimeoutCaches()).containsExactly("quotes");
     }
+
+    @Test
+    @DisplayName(
+        "with use-key-prefix=false no cache is short, because its own value never applies, so its"
+            + " timeouts make every cache skip Redis")
+    void noneWithoutKeyPrefix() {
+      var settings =
+          CacheTimeoutSettings.resolve(
+              environment()
+                  .withProperty(CacheConstants.CACHES + ".quotes.command-timeout", "200ms")
+                  .withProperty(CacheConstants.USE_KEY_PREFIX, "false"));
+
+      assertThat(settings.shortTimeoutCaches()).isEmpty();
+    }
   }
 }

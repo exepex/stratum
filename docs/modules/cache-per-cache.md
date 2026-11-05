@@ -81,7 +81,8 @@ service, and a cache without its own value, still times out at the global value.
 - **A short timeout never makes the other caches skip Redis.** When a command of a cache whose own
   value is below the global one times out, it counts as a failure of that cache
   (`stratum.cache.failures`), and the method runs. Unlike a timeout at the global value, it does not
-  make every Redis cache skip Redis ([When Redis is down](cache-redis-down.md)).
+  make every Redis cache skip Redis ([When Redis is down](cache-redis-down.md)). The one exception is
+  `use-key-prefix=false` ([Limits](#limits)), where the short value never applies.
 
 ## Customize
 
@@ -101,5 +102,7 @@ service, and a cache without its own value, still times out at the global value.
 - **Your own key prefix.** The timeouts find a command's cache from its key, which must start with
   `spring.cache.redis.key-prefix` followed by `<cache>::`. A `RedisCacheConfiguration` bean or a
   `CacheKeyPrefix` of your own that writes keys another way, or `spring.cache.redis.use-key-prefix=false`,
-  gives every command the global timeout. A cache name that contains `::` never matches.
+  gives every command the global timeout. With `use-key-prefix=false`, a timeout of a cache whose own
+  value is lower also counts like any other, so it makes every cache skip Redis. A cache name that
+  contains `::` never matches.
 - Caches other than Redis are not affected.

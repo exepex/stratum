@@ -34,7 +34,10 @@ public class CacheCommandTimeouts extends TimeoutSource
   /** The cap on a cache's own timeout while the global timeout is lower. */
   static final Duration MAX_CACHE_TIMEOUT = Duration.ofSeconds(10);
 
-  /** The timeout of every command that belongs to no cache with its own value, in ms. */
+  /**
+   * The timeout of every command that belongs to no cache with its own value, in whole ms and at
+   * least 1.
+   */
   private final long globalMillis;
 
   /**
@@ -60,7 +63,7 @@ public class CacheCommandTimeouts extends TimeoutSource
       Duration global, Map<String, Duration> cacheTimeouts, CacheKeyMatcher matcher) {
     var cap = global.compareTo(MAX_CACHE_TIMEOUT) > 0 ? global : MAX_CACHE_TIMEOUT;
     cacheTimeouts.forEach((name, timeout) -> rejectAboveCap(name, timeout, cap));
-    this.globalMillis = global.toMillis();
+    this.globalMillis = Math.max(1, global.toMillis());
     this.millisByCache =
         Collections.unmodifiableMap(
             cacheTimeouts.entrySet().stream()

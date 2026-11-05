@@ -87,6 +87,18 @@ class CacheCommandTimeoutsTest {
     }
 
     @Test
+    @DisplayName("a global timeout below 1 ms gets 1 ms for every other command, never 0")
+    void globalBelowOneMillisecondGetsOne() {
+      var subMillisecondGlobal =
+          new CacheCommandTimeouts(
+              Duration.ofNanos(SUB_MILLISECOND_NANOS),
+              CACHE_TIMEOUTS,
+              new CacheKeyMatcher(PREFIX, CACHE_TIMEOUTS.keySet()));
+
+      assertThat(subMillisecondGlobal.getTimeout(get("session-42"))).isOne();
+    }
+
+    @Test
     @DisplayName(
         "any other command gets the global timeout, never 0 or -1, which would wait forever")
     void otherCommandsGetGlobal() {
