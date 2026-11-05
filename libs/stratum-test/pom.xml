@@ -43,6 +43,13 @@
       <groupId>com.jayway.jsonpath</groupId>
       <artifactId>json-path</artifactId>
     </dependency>
+    <!-- Counts the server's request timers in WebTestSupport.getAndAwaitTimer. Optional: a module
+         that calls it already has Micrometer through the observability or actuator starter. -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-core</artifactId>
+      <optional>true</optional>
+    </dependency>
     <!-- PostgresContainerConfiguration and RedisContainerConfiguration. Optional, so a module or
          service that uses stratum-test gets none of them unless it tests against a container: it
          then adds spring-boot-testcontainers itself, which brings Testcontainers' GenericContainer
