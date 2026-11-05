@@ -28,7 +28,7 @@ class RedisRetryGateConcurrencyTest {
   private static final int FAILURE_THRESHOLD = 3;
 
   /** How many times the race test lets a success and a failure end together. */
-  private static final int RACE_ROUNDS = 10_000;
+  private static final int RACE_ROUNDS = 100_000;
 
   /** How long one side of a race waits for the other, in seconds. */
   private static final long BARRIER_WAIT_SECONDS = 5;
