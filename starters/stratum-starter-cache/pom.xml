@@ -35,6 +35,13 @@
       <artifactId>spring-boot-data-redis</artifactId>
       <optional>true</optional>
     </dependency>
+    <!-- Jackson, which stores Redis cache values as plain JSON. Optional: only Redis caches need it,
+         and a service on Redis without it stops at startup with SX-CACHE-1007. -->
+    <dependency>
+      <groupId>tools.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <optional>true</optional>
+    </dependency>
     <!-- Micrometer's registry, for the counters of failed cache calls and refused cache names.
          Optional: without it the counters are no-ops and the rest of the layer works unchanged. -->
     <dependency>

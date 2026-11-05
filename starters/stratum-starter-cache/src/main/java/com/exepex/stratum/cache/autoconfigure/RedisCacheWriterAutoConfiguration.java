@@ -2,9 +2,13 @@ package com.exepex.stratum.cache.autoconfigure;
 
 import com.exepex.stratum.cache.CacheConstants;
 import com.exepex.stratum.cache.CacheCounters;
+import com.exepex.stratum.cache.CacheJsonValues;
+import com.exepex.stratum.cache.JacksonRequiredCustomizer;
+import com.exepex.stratum.cache.JsonValuesCustomizer;
 import com.exepex.stratum.cache.RedisCacheWriterCustomizer;
 import com.exepex.stratum.cache.RedisRetryGate;
 import com.exepex.stratum.cache.StratumCacheProperties;
+import com.exepex.stratum.cache.TypedCacheValues;
 import com.exepex.stratum.cache.WarningThrottle;
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
@@ -13,30 +17,39 @@ import io.lettuce.core.ClientOptions;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.binder.MeterBinder;
 import java.time.Clock;
+import java.util.List;
+import java.util.stream.Stream;
+import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.AutoConfigurationPackages;
 import org.springframework.boot.autoconfigure.AutoConfigureOrder;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingClass;
 import org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration;
 import org.springframework.boot.data.redis.autoconfigure.LettuceClientOptionsBuilderCustomizer;
+import org.springframework.cache.annotation.CachingConfigurer;
+import org.springframework.cache.interceptor.CacheInterceptor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Fallback;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
+import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 
 /**
  * Sets up Redis caches when the service has Spring Data Redis, unless {@code
  * stratum.cache.enabled=false}: Spring Boot's Redis caches get Stratum's writer, which clears with
  * SCAN and bounds the size of each key and value; they skip Redis for a while after it could not be
- * reached; and, with Lettuce, their commands are refused at once while the connection is down.
+ * reached; with Lettuce, their commands are refused at once while the connection is down; and,
+ * where Stratum's cache layer reads them, their values are stored as plain JSON.
  */
 @StratumInternal
-@AutoConfiguration(after = DataRedisAutoConfiguration.class)
+@AutoConfiguration(after = {DataRedisAutoConfiguration.class, StratumCacheAutoConfiguration.class})
 @AutoConfigureOrder(StratumModuleConstants.AUTO_CONFIGURATION_ORDER)
 @ConditionalOnStratumModule(CacheConstants.MODULE)
 @ConditionalOnClass(RedisConnectionFactory.class)
@@ -144,6 +157,108 @@ public final class RedisCacheWriterAutoConfiguration {
                   redisRetryGate,
                   gate -> gate.isAvailable() ? 1 : 0)
               .register(registry);
+    }
+  }
+
+  /**
+   * Stores Redis cache values as plain JSON and reads them as each cached method's type, when
+   * Jackson is present and Stratum's cache layer reads the caches: Spring's interceptor is in use
+   * and the service declares no {@code CachingConfigurer} and no Spring Data {@code
+   * RedisCacheConfiguration}, which keeps its own serializer. A nested class, so Jackson's types
+   * are only loaded when present.
+   */
+  @StratumInternal
+  @Configuration(proxyBeanMethods = false)
+  @ConditionalOnStratumModule(CacheConstants.MODULE)
+  @ConditionalOnClass(name = CacheConstants.JSON_MAPPER)
+  @ConditionalOnBean({RedisConnectionFactory.class, CacheInterceptor.class})
+  @ConditionalOnMissingBean({CachingConfigurer.class, RedisCacheConfiguration.class})
+  public static class JsonValuesConfiguration {
+
+    /**
+     * Creates the JSON values, allowing the service's own packages, those of its {@code
+     * SpringBootApplication}, and {@code stratum.cache.serialization.allowed-packages}.
+     *
+     * @param environment the service's environment, from which the settings are resolved
+     * @param beanFactory the service's beans, which hold its own packages
+     * @return the JSON values
+     */
+    @Bean(CacheConstants.CACHE_JSON_VALUES)
+    @Fallback
+    @ConditionalOnMissingBean
+    public CacheJsonValues stratumCacheJsonValues(
+        Environment environment, BeanFactory beanFactory) {
+      var ownPackages =
+          AutoConfigurationPackages.has(beanFactory)
+              ? AutoConfigurationPackages.get(beanFactory)
+              : List.<String>of();
+      var allowed = StratumCacheProperties.resolve(environment).serialization().allowedPackages();
+      return new CacheJsonValues(Stream.concat(ownPackages.stream(), allowed.stream()).toList());
+    }
+
+    /**
+     * Creates the customizer that sets the JSON values on Spring Boot's Redis caches. It runs
+     * before the service's own customizers, so theirs win; a service replaces it with a bean of the
+     * same name.
+     *
+     * @param json the JSON values
+     * @return the customizer
+     */
+    @Bean(CacheConstants.REDIS_JSON_VALUES)
+    @Fallback
+    @ConditionalOnMissingBean(name = CacheConstants.REDIS_JSON_VALUES)
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    public JsonValuesCustomizer stratumRedisCacheJsonValues(CacheJsonValues json) {
+      return new JsonValuesCustomizer(json);
+    }
+
+    /**
+     * Creates the typing that reads each cached method's values as its return type.
+     *
+     * @param json the JSON values
+     * @param environment the service's environment, from which the settings are resolved
+     * @param counters count the refused types and unreadable values; no-ops without Micrometer
+     * @return the typing
+     */
+    @Bean
+    @Fallback
+    @ConditionalOnMissingBean
+    public TypedCacheValues typedCacheValues(
+        CacheJsonValues json, Environment environment, ObjectProvider<CacheCounters> counters) {
+      var properties = StratumCacheProperties.resolve(environment);
+      var clock = Clock.systemUTC();
+      return new TypedCacheValues(
+          json,
+          properties,
+          new WarningThrottle(properties.warningInterval(), clock, properties.maxCaches()),
+          new WarningThrottle(properties.warningInterval(), clock, properties.maxCaches()),
+          counters.getIfAvailable(CacheCounters::noop));
+    }
+  }
+
+  /**
+   * Stops startup with {@code SX-CACHE-1007} when Spring Boot builds its Redis cache manager under
+   * the same conditions, but Jackson is missing.
+   */
+  @StratumInternal
+  @Configuration(proxyBeanMethods = false)
+  @ConditionalOnStratumModule(CacheConstants.MODULE)
+  @ConditionalOnMissingClass(CacheConstants.JSON_MAPPER)
+  @ConditionalOnBean({RedisConnectionFactory.class, CacheInterceptor.class})
+  @ConditionalOnMissingBean({CachingConfigurer.class, RedisCacheConfiguration.class})
+  public static class JacksonRequiredConfiguration {
+
+    /**
+     * Creates the customizer that stops startup; Spring Boot calls it only when it builds its Redis
+     * cache manager.
+     *
+     * @return the customizer
+     */
+    @Bean(CacheConstants.REDIS_JACKSON_REQUIRED)
+    @Fallback
+    @ConditionalOnMissingBean(name = CacheConstants.REDIS_JACKSON_REQUIRED)
+    public JacksonRequiredCustomizer stratumRedisCacheJacksonRequired() {
+      return new JacksonRequiredCustomizer();
     }
   }
 }

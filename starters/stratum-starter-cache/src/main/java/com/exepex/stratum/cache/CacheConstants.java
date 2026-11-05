@@ -36,6 +36,36 @@ public class CacheConstants {
   /** How long Redis caches skip Redis after Redis could not be reached. */
   public static final String REDIS_RETRY_INTERVAL = PREFIX + ".redis-retry-interval";
 
+  /** The packages, beyond the service's own and {@code java}, whose types Redis caches read. */
+  public static final String ALLOWED_PACKAGES = PREFIX + ".serialization.allowed-packages";
+
+  /** The package prefix of the JDK's types, which a cached method may declare as its type. */
+  public static final String JAVA_PACKAGE = "java.";
+
+  /** Jackson's mapper class, whose presence means Redis cache values can be stored as JSON. */
+  public static final String JSON_MAPPER = "tools.jackson.databind.json.JsonMapper";
+
+  /** The dependency a service adds to bring Jackson. */
+  public static final String JSON_STARTER = "org.springframework.boot:spring-boot-starter-json";
+
+  /** The name of the bean that stores Redis cache values as JSON and reads them back. */
+  public static final String CACHE_JSON_VALUES = "stratumCacheJsonValues";
+
+  /** The name of the customizer that sets the JSON values on Spring Boot's Redis caches. */
+  public static final String REDIS_JSON_VALUES = "stratumRedisCacheJsonValues";
+
+  /** The name of the customizer that stops startup when Redis caches would need missing Jackson. */
+  public static final String REDIS_JACKSON_REQUIRED = "stratumRedisCacheJacksonRequired";
+
+  /** The reason counted when a cached method's type is outside the allowed packages. */
+  public static final String REASON_TYPE_NOT_ALLOWED = "type-not-allowed";
+
+  /** The reason counted when a cached method's type is {@code Object}, an interface or abstract. */
+  public static final String REASON_TYPE_NOT_CONCRETE = "type-not-concrete";
+
+  /** The reason counted when a stored value cannot be read as the method's type. */
+  public static final String REASON_UNREADABLE = "unreadable";
+
   /** The gauge that reads 1 while Redis caches use Redis and 0 while they skip it. */
   public static final String METRIC_REDIS_AVAILABLE = "stratum.cache.redis.available";
 

@@ -1,9 +1,12 @@
 package com.exepex.stratum.cache;
 
 import com.exepex.stratum.core.properties.StratumCustomizers;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -30,6 +33,7 @@ import org.springframework.util.unit.DataSize;
  *     method's result is returned as usual. Above 0. Defaults to 1MB.
  * @param redisRetryInterval How long every Redis cache skips Redis after Redis could not be reached
  *     or a command timed out; then one call tries again. From 1s to 5m. Defaults to 5s.
+ * @param serialization How Redis cache values are stored and which types are read back.
  * @param caches Settings for one cache, by its name, which win over the settings for every cache.
  */
 @Builder(toBuilder = true)
@@ -40,6 +44,7 @@ public record StratumCacheProperties(
     @DefaultValue("1KB") DataSize maxKeySize,
     @DefaultValue("1MB") DataSize maxValueSize,
     @DefaultValue("5s") Duration redisRetryInterval,
+    @DefaultValue @Valid Serialization serialization,
     Map<String, CacheSettings> caches) {
 
   /** The shortest allowed {@code warning-interval}. */
@@ -56,6 +61,7 @@ public record StratumCacheProperties(
 
   /** Keeps the settings for single caches a fixed map, empty when none are set. */
   public StratumCacheProperties {
+    serialization = serialization == null ? new Serialization(List.of()) : serialization;
     caches = caches == null ? Map.of() : Map.copyOf(caches);
   }
 
@@ -143,6 +149,22 @@ public record StratumCacheProperties(
   private long sizeFor(
       String cacheName, Function<CacheSettings, @Nullable DataSize> limit, DataSize everyCache) {
     return Optional.ofNullable(caches.get(cacheName)).map(limit).orElse(everyCache).toBytes();
+  }
+
+  /**
+   * How Redis cache values are stored, under {@code stratum.cache.serialization.*}: as plain JSON,
+   * read back as the cached method's return type.
+   *
+   * @param allowedPackages Packages whose types Redis caches read, beside the service's own
+   *     packages and java, such as com.acme.shared for shared types. Each one covers its
+   *     subpackages. Empty by default.
+   */
+  public record Serialization(List<@NotBlank String> allowedPackages) {
+
+    /** Keeps the packages a fixed list, empty when none are set. */
+    public Serialization {
+      allowedPackages = allowedPackages == null ? List.of() : List.copyOf(allowedPackages);
+    }
   }
 
   /**
