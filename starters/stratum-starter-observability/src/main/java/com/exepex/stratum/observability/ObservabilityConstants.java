@@ -81,7 +81,7 @@ public class ObservabilityConstants {
 
   /**
    * Spring Boot's switches that trace and time Kafka and RabbitMQ messages, which it leaves off.
-   * JMS needs none: Spring Boot observes it whenever metrics or tracing are set up.
+   * JMS has none: Spring Boot observes its own JMS beans, and Stratum the ones a service declares.
    */
   public static final List<String> MESSAGING_OBSERVATION_SWITCHES =
       List.of(
