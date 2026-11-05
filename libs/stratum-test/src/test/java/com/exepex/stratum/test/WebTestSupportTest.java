@@ -66,19 +66,20 @@ class WebTestSupportTest {
     @Test
     @DisplayName("fails a logging context with another path or a parsed device field")
     void failsOtherFields() {
+      var fields = bodyOnly(FIELDS_BODY);
+      var fieldsWithDevice =
+          bodyOnly(FIELDS_BODY.replaceFirst("\\}$", ",\"deviceClass\":\"Phone\"}"));
+
       assertThatExceptionOfType(AssertionError.class)
           .isThrownBy(
               () ->
                   WebTestSupport.checkRequestFields(
-                      bodyOnly(FIELDS_BODY), ROUTE, "/orders/7/fields?expand=lines", USER_AGENT));
+                      fields, ROUTE, "/orders/7/fields?expand=lines", USER_AGENT));
       assertThatExceptionOfType(AssertionError.class)
           .isThrownBy(
               () ->
                   WebTestSupport.checkRequestFields(
-                      bodyOnly(FIELDS_BODY.replaceFirst("\\}$", ",\"deviceClass\":\"Phone\"}")),
-                      ROUTE,
-                      PATH_AND_QUERY,
-                      USER_AGENT));
+                      fieldsWithDevice, ROUTE, PATH_AND_QUERY, USER_AGENT));
     }
 
     /** Returns a response with only the body. */
@@ -111,18 +112,15 @@ class WebTestSupportTest {
     @Test
     @DisplayName("fails an answer with another media type or another code")
     void failsOtherAnswers() {
+      var jsonAnswer = answer("application/json", NOT_FOUND_BODY);
+      var problemAnswer = answer("application/problem+json", NOT_FOUND_BODY);
+
       assertThatExceptionOfType(AssertionError.class)
           .isThrownBy(
-              () ->
-                  WebTestSupport.checkProblemDetails(
-                      answer("application/json", NOT_FOUND_BODY), NOT_FOUND, "SX-WEB-1003"));
+              () -> WebTestSupport.checkProblemDetails(jsonAnswer, NOT_FOUND, "SX-WEB-1003"));
       assertThatExceptionOfType(AssertionError.class)
           .isThrownBy(
-              () ->
-                  WebTestSupport.checkProblemDetails(
-                      answer("application/problem+json", NOT_FOUND_BODY),
-                      NOT_FOUND,
-                      "SX-WEB-1005"));
+              () -> WebTestSupport.checkProblemDetails(problemAnswer, NOT_FOUND, "SX-WEB-1005"));
     }
 
     /** Returns an answer with status 404, the media type and the body. */

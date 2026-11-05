@@ -165,8 +165,10 @@ class WebTestSupportIntegrationTest {
     @Test
     @DisplayName("rejects a body that holds a Stratum code where Spring Boot's is expected")
     void rejectsStratumCode() {
+      var serverPort = port();
+
       assertThatExceptionOfType(AssertionError.class)
-          .isThrownBy(() -> BackwardCompatibleErrorChecks.checkBootBody(port(), "/coded"));
+          .isThrownBy(() -> BackwardCompatibleErrorChecks.checkBootBody(serverPort, "/coded"));
     }
   }
 
