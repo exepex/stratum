@@ -117,7 +117,9 @@ In Java, set the `stratum.cache.*` keys with a `StratumCachePropertiesCustomizer
 | `stratumCaffeineCacheSettings` | `CaffeineCacheSettingsCustomizer` | Caffeine is on the class path; it runs after your own customizers |
 | `stratumCaffeineFutures` | `CaffeineFutures` | Caffeine is on the class path; it lets Caffeine caches answer reactive and async methods |
 
-Replace any of them with a bean of the same name.
+Replace any of them with a bean of the same name, except `stratumCaffeineFutures`: its type is
+internal to Stratum. To have Caffeine answer those methods itself, turn on its async mode
+([Reactive and async methods](cache-reactive.md#caffeine)).
 
 ## Not covered
 
