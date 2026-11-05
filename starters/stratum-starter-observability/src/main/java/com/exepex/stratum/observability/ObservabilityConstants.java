@@ -167,4 +167,16 @@ public class ObservabilityConstants {
 
   /** The tag, on the timer and span of linked work, that holds the work's fixed name. */
   public static final String LINKED_WORK_TAG = "work";
+
+  /** The counter of spans lost because OpenTelemetry's export queue was full. */
+  public static final String DROPPED_SPANS_METRIC = "stratum.observability.spans.dropped";
+
+  /** The OpenTelemetry meter that the SDK's batch span processor records its counts in. */
+  public static final String SPAN_PROCESSOR_METER = "io.opentelemetry.sdk.trace";
+
+  /** The SDK's counter of spans its batch span processor sent or dropped. */
+  public static final String PROCESSED_SPANS_INSTRUMENT = "processedSpans";
+
+  /** The attribute of {@link #PROCESSED_SPANS_INSTRUMENT} that is true for dropped spans. */
+  public static final String DROPPED_ATTRIBUTE = "dropped";
 }

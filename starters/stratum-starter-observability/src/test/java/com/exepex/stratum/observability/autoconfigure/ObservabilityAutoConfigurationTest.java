@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.exepex.stratum.core.error.CoreErrorCode;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.observability.CorrelationIdRecorder;
+import com.exepex.stratum.observability.DroppedSpanMeterProvider;
 import com.exepex.stratum.observability.MetricTagGuard;
 import com.exepex.stratum.observability.ObservabilityConstants;
 import com.exepex.stratum.observability.ObservabilityPropertiesCustomizer;
@@ -24,14 +25,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.autoconfigure.task.TaskExecutionAutoConfiguration;
 import org.springframework.boot.autoconfigure.task.TaskSchedulingAutoConfiguration;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
-import org.springframework.boot.validation.autoconfigure.ValidationAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.AsyncConfigurer;
@@ -58,11 +57,7 @@ class ObservabilityAutoConfigurationTest {
   /** The tag name the service sets in Java. */
   private static final String REGION_TAG = RegionTagObservabilitySettings.REGION_TAG;
 
-  private final ApplicationContextRunner contextRunner =
-      new ApplicationContextRunner()
-          .withConfiguration(
-              AutoConfigurations.of(
-                  ValidationAutoConfiguration.class, ObservabilityAutoConfiguration.class));
+  private final ApplicationContextRunner contextRunner = ObservabilityTestData.contextRunner();
 
   /** Returns what the context's guard answers for a metric with one tag. */
   private MeterFilterReply guardReplyForTag(AssertableApplicationContext context, String tagName) {
@@ -83,7 +78,8 @@ class ObservabilityAutoConfigurationTest {
               assertThat(context)
                   .hasSingleBean(TelemetryUrlFilter.class)
                   .hasSingleBean(MetricTagGuard.class)
-                  .hasSingleBean(CorrelationIdRecorder.class));
+                  .hasSingleBean(CorrelationIdRecorder.class)
+                  .hasSingleBean(DroppedSpanMeterProvider.class));
     }
 
     @Test
@@ -96,56 +92,8 @@ class ObservabilityAutoConfigurationTest {
                   assertThat(context)
                       .doesNotHaveBean(TelemetryUrlFilter.class)
                       .doesNotHaveBean(MetricTagGuard.class)
-                      .doesNotHaveBean(CorrelationIdRecorder.class));
-    }
-  }
-
-  @Nested
-  @DisplayName("when the service or a company framework has its own beans")
-  class BackingOff {
-
-    @Test
-    @DisplayName("the service's own beans replace Stratum's")
-    void serviceBeansWin() {
-      var serviceFilter = new TelemetryUrlFilter();
-      var serviceGuard = new MetricTagGuard(List.of(), List.of());
-      // The recorder is a span processor, which is closeable; the context closes it too.
-      try (var serviceRecorder = new CorrelationIdRecorder()) {
-        contextRunner
-            .withBean(TelemetryUrlFilter.class, () -> serviceFilter)
-            .withBean(MetricTagGuard.class, () -> serviceGuard)
-            .withBean(CorrelationIdRecorder.class, () -> serviceRecorder)
-            .run(context -> assertUsesBeans(context, serviceFilter, serviceGuard, serviceRecorder));
-      }
-    }
-
-    @Test
-    @DisplayName("a company framework's auto-configuration with no order wins over Stratum's")
-    void companyBeansWin() {
-      new ApplicationContextRunner()
-          .withConfiguration(
-              AutoConfigurations.of(
-                  ValidationAutoConfiguration.class,
-                  ObservabilityAutoConfiguration.class,
-                  CompanyBeansAutoConfiguration.class))
-          .run(
-              context ->
-                  assertUsesBeans(
-                      context,
-                      CompanyBeansAutoConfiguration.FILTER,
-                      CompanyBeansAutoConfiguration.GUARD,
-                      CompanyBeansAutoConfiguration.RECORDER));
-    }
-
-    /** Checks that the context holds the given filter, guard and recorder instead of Stratum's. */
-    private void assertUsesBeans(
-        AssertableApplicationContext context,
-        TelemetryUrlFilter filter,
-        MetricTagGuard guard,
-        CorrelationIdRecorder recorder) {
-      assertThat(context.getBean(TelemetryUrlFilter.class)).isSameAs(filter);
-      assertThat(context.getBean(MetricTagGuard.class)).isSameAs(guard);
-      assertThat(context.getBean(CorrelationIdRecorder.class)).isSameAs(recorder);
+                      .doesNotHaveBean(CorrelationIdRecorder.class)
+                      .doesNotHaveBean(DroppedSpanMeterProvider.class));
     }
   }
 
@@ -301,50 +249,6 @@ class ObservabilityAutoConfigurationTest {
           .withPropertyValues(REACTOR_CONTEXT_PROPAGATION + "=auto")
           .run(_ -> assertThat(Hooks.isAutomaticContextPropagationEnabled()).isTrue());
       Hooks.disableAutomaticContextPropagation();
-    }
-  }
-
-  /** A company framework's auto-configuration that declares no order. */
-  @AutoConfiguration
-  static class CompanyBeansAutoConfiguration {
-
-    /** The company's URL filter. */
-    static final TelemetryUrlFilter FILTER = new TelemetryUrlFilter();
-
-    /** The company's tag guard. */
-    static final MetricTagGuard GUARD = new MetricTagGuard(List.of(), List.of());
-
-    /** The company's correlation ID recorder. */
-    static final CorrelationIdRecorder RECORDER = new CorrelationIdRecorder();
-
-    /**
-     * Returns the company's URL filter.
-     *
-     * @return the filter
-     */
-    @Bean
-    TelemetryUrlFilter companyTelemetryUrlFilter() {
-      return FILTER;
-    }
-
-    /**
-     * Returns the company's tag guard.
-     *
-     * @return the guard
-     */
-    @Bean
-    MetricTagGuard companyMetricTagGuard() {
-      return GUARD;
-    }
-
-    /**
-     * Returns the company's correlation ID recorder.
-     *
-     * @return the recorder
-     */
-    @Bean
-    CorrelationIdRecorder companyCorrelationIdRecorder() {
-      return RECORDER;
     }
   }
 
