@@ -19,6 +19,9 @@ public class ThreeCachesSettings implements StratumCachePropertiesCustomizer {
   /** How long the customizer has Redis caches skip Redis after a failure. */
   public static final Duration REDIS_RETRY_INTERVAL = Duration.ofSeconds(1);
 
+  /** How many failures in a row the customizer lets make Redis caches skip Redis. */
+  public static final int REDIS_FAILURE_THRESHOLD = 2;
+
   /** The package the customizer allows. */
   public static final String ALLOWED_PACKAGE = "com.acme.shared";
 
@@ -30,6 +33,7 @@ public class ThreeCachesSettings implements StratumCachePropertiesCustomizer {
     return properties.toBuilder()
         .maxCaches(MAX_CACHES)
         .redisRetryInterval(REDIS_RETRY_INTERVAL)
+        .redisFailureThreshold(REDIS_FAILURE_THRESHOLD)
         .serialization(new StratumCacheProperties.Serialization(List.of(ALLOWED_PACKAGE)))
         .caffeine(new StratumCacheProperties.CaffeineSettings(true))
         .caches(

@@ -104,7 +104,7 @@ The beans the starter adds, with their types:
 | `stratumRedisCacheWriter` | `RedisCacheManagerBuilderCustomizer` | Spring Data Redis and a Redis connection are present; it sets a writer that clears with SCAN and applies the [size limits](#size-limits) |
 | `stratumCacheLayerHook` | `StratumCacheLayerHook` | Always; it installs the layer on Spring's `cacheInterceptor` unless your own caching set-up says otherwise ([below](cache-redis-down.md)) |
 | `cacheCounters` or `micrometerCacheCounters` | `CacheCounters` | Always; the Micrometer one when a `MeterRegistry` bean is present |
-| `redisRetryGate` | `RedisRetryGate` | A Redis connection is present; it makes every Redis cache skip Redis for a while after a failure ([When Redis is down](cache-redis-down.md)) |
+| `redisRetryGate` | `RedisRetryGate` | A Redis connection is present; it makes every Redis cache skip Redis for a while after failures in a row ([When Redis is down](cache-redis-down.md)) |
 | `stratumRejectWhileDisconnected` | `LettuceClientOptionsBuilderCustomizer` | Lettuce is on the class path; it makes Lettuce refuse commands while disconnected |
 | `stratumRedisAvailabilityMetric` | `MeterBinder` | Micrometer and a Redis connection are present; it registers the gauge `stratum.cache.redis.available` |
 | `stratumCacheJsonValues`, `stratumRedisCacheJsonValues`, `typedCacheValues`, `stratumRedisCacheJacksonRequired` | See [Stored values](cache-values.md#when-json-values-apply) | Spring Boot builds its Redis cache manager and the service has no `CachingConfigurer` or `RedisCacheConfiguration` bean |
@@ -127,6 +127,7 @@ before a Spring Boot auto-configuration.
 | `stratum.cache.max-key-size` | data size, above 0 | `1KB` | The longest Redis key, prefix included, stored as it is. A longer key is stored under its SHA-256 hash ([Size limits](#size-limits)). |
 | `stratum.cache.max-value-size` | data size, above 0 | `1MB` | The largest value a Redis cache stores. A larger one is not stored ([Size limits](#size-limits)). |
 | `stratum.cache.redis-retry-interval` | duration, from `1s` to `5m` | `5s` | How long every Redis cache skips Redis after Redis could not be reached or a command timed out; then one call tries again ([When Redis is down](cache-redis-down.md)). |
+| `stratum.cache.redis-failure-threshold` | integer, from 1 to 10 | `3` | How many Redis calls in a row that could not reach Redis or timed out make every Redis cache skip Redis. A call that reaches Redis starts the count again; `1` skips at the first failure ([When Redis is down](cache-redis-down.md)). |
 | `stratum.cache.serialization.allowed-packages` | list of package names | none | Packages, beside the service's own and `java`, whose types Redis cache values may be read as ([Stored values](cache-values.md)). |
 | `stratum.cache.caches.<name>.max-key-size` | data size, above 0 | `max-key-size` | The key limit of the cache `<name>`. |
 | `stratum.cache.caches.<name>.max-value-size` | data size, above 0 | `max-value-size` | The value limit of the cache `<name>`, such as `5MB` for a cache of large reports. |
@@ -159,6 +160,7 @@ Set your own values in `application.properties`:
 stratum.cache.max-caches=200
 stratum.cache.warning-interval=5m
 stratum.cache.redis-retry-interval=2s
+stratum.cache.redis-failure-threshold=5
 stratum.cache.caches.reports.max-value-size=5MB
 stratum.cache.serialization.allowed-packages=com.acme.shared
 spring.cache.redis.time-to-live=1h
@@ -173,6 +175,7 @@ stratum:
     max-caches: 200
     warning-interval: 5m
     redis-retry-interval: 2s
+    redis-failure-threshold: 5
     caches:
       reports:
         max-value-size: 5MB
@@ -296,7 +299,7 @@ Stratum adds three counters of its own:
 | `stratum.cache.skips` | `cache`, `reason` (`type-not-concrete`, `type-not-allowed`, `unreadable`) | Calls of a method whose type cannot be read, and stored values read as a miss ([Stored values](cache-values.md)) |
 | `stratum.cache.redis.connect-failures` | none | Times Redis could not be reached and the caches started skipping it ([When Redis is down](cache-redis-down.md)) |
 
-and one gauge: `stratum.cache.redis.available`, 1 while Redis caches use Redis and 0 from a failure
+and one gauge: `stratum.cache.redis.available`, 1 while Redis caches use Redis and 0 while they skip it
 until Redis answers again. It reads 1 before the first cache call. Alert when it stays at 0.
 Redis command spans carry the name of their cache ([Traces](cache-traces.md)).
 
@@ -319,7 +322,7 @@ Adding the starter to a service that already caches in Redis changes this:
 
 The timeouts, expiry and key prefix can be set back with the Spring Boot property in the
 [table above](#properties). The last two come with the module: `stratum.cache.redis-retry-interval`
-sets how long Redis is skipped, and your own `LettuceClientOptionsBuilderCustomizer` changes
+sets how long Redis is skipped, `stratum.cache.redis-failure-threshold` after how many failures, and your own `LettuceClientOptionsBuilderCustomizer` changes
 Lettuce's refusal ([When Redis is down](cache-redis-down.md)).
 
 ## Configure in Java
@@ -379,7 +382,8 @@ application.run(args);
 - A bean named `stratumRedisAvailabilityMetric` replaces Stratum's gauge. It backs off by its name,
   because your own `MeterBinder` beans measure other things.
 - `redisRetryGate` backs off to any `RedisRetryGate` bean, but that type is internal to Stratum. To
-  change how long Redis is skipped, set `stratum.cache.redis-retry-interval` instead.
+  change how long Redis is skipped, set `stratum.cache.redis-retry-interval` instead, and to change
+  after how many failures in a row, `stratum.cache.redis-failure-threshold`.
 - Your own Spring Data `RedisCacheConfiguration` bean replaces Spring Boot's cache settings, and so
   Stratum's time to live, key prefix, [null setting](cache-null-results.md) and JSON values: Spring Data's
   `defaultCacheConfig()` stores nulls. The SCAN writer and the size limits still apply. A
@@ -468,7 +472,7 @@ jittered time to live per instance.
 | Redis calls time out after 1 second | A command takes longer than Stratum's `spring.data.redis.timeout`. Raise it for the whole service, or for one cache with its own `command-timeout` ([per cache](cache-per-cache.md)). |
 | `SX-CACHE-1002` in the log | A cache call failed, usually because Redis is down; the method still ran. Check Redis ([When Redis is down](cache-redis-down.md)). |
 | The method always runs for one key, and `stratum.cache.skips` counts `value-too-large` | Its result is larger than `stratum.cache.max-value-size`. Return less, or raise the limit for that cache ([Size limits](#size-limits)). |
-| `SX-CACHE-1006` in the log, or `stratum.cache.redis.available` at 0 | Redis could not be reached or answered too slowly, so Redis caches skip it for a few seconds at a time. Check Redis and the network ([When Redis is down](cache-redis-down.md)). |
+| `SX-CACHE-1006` in the log, or `stratum.cache.redis.available` at 0 | Redis could not be reached or answered too slowly several times in a row, so Redis caches skip it for a few seconds at a time. Check Redis and the network ([When Redis is down](cache-redis-down.md)). |
 | Redis commands fail at once during a short reconnect | Stratum makes Lettuce refuse commands while disconnected. Declare your own `LettuceClientOptionsBuilderCustomizer` to change it ([When Redis is down](cache-redis-down.md)). |
 | `SX-CACHE-1004` in the log, and the method always runs | Its return type is `Object`, an interface, an abstract class, or from a package not allowed. Return a concrete type or allow its package ([Stored values](cache-values.md)). |
 | `SX-CACHE-1005` in the log | A stored value no longer fits its class, often after a release. It was a miss and is replaced; to avoid a burst, rename the cache ([Stored values](cache-values.md#moving-from-java-serialized-values)). |

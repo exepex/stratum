@@ -87,7 +87,8 @@ public final class RedisCacheWriterAutoConfiguration {
 
   /**
    * Creates the gate that makes Redis caches skip Redis for {@code
-   * stratum.cache.redis-retry-interval} after it could not be reached or timed out.
+   * stratum.cache.redis-retry-interval} after {@code stratum.cache.redis-failure-threshold} calls
+   * in a row could not reach it or timed out.
    *
    * @param environment the service's environment, from which the settings are resolved
    * @param counters count the times Redis could not be reached; no-ops without Micrometer
@@ -103,6 +104,7 @@ public final class RedisCacheWriterAutoConfiguration {
     var clock = Clock.systemUTC();
     return new RedisRetryGate(
         properties.redisRetryInterval(),
+        properties.redisFailureThreshold(),
         clock,
         new WarningThrottle(properties.warningInterval(), clock, 1),
         counters.getIfAvailable(CacheCounters::noop),
@@ -203,7 +205,7 @@ public final class RedisCacheWriterAutoConfiguration {
 
     /**
      * Creates the gauge {@code stratum.cache.redis.available}: 1 while Redis caches use Redis, 0
-     * from a failure until Redis is reached again.
+     * while they skip it, until Redis is reached again.
      *
      * @param redisRetryGate the gate in front of Redis caches
      * @return the binder that registers the gauge

@@ -18,12 +18,13 @@ import org.springframework.data.redis.RedisSystemException;
 import org.springframework.data.redis.cache.RedisCache;
 
 /**
- * Decides whether Redis caches may call Redis. After Redis could not be reached, or a command timed
- * out, every Redis cache of the application skips Redis for {@code
- * stratum.cache.redis-retry-interval}; then one call tries again while the others keep skipping,
- * and a success puts Redis back in use for all calls. Until the first call has reached Redis, only
- * that call tries, so the others never queue behind the first connect. Each time the calls start
- * skipping is warned with {@code SX-CACHE-1006}, at most once per {@code
+ * Decides whether Redis caches may call Redis. After {@code stratum.cache.redis-failure-threshold}
+ * calls in a row could not reach Redis or timed out, every Redis cache of the application skips
+ * Redis for {@code stratum.cache.redis-retry-interval}; a call that reaches Redis starts the count
+ * again. Then one call tries again while the others keep skipping: a success puts Redis back in use
+ * for all calls, and a failure skips Redis again at once. Until the first call has reached Redis,
+ * only that call tries, so the others never queue behind the first connect. Each time the calls
+ * start skipping is warned with {@code SX-CACHE-1006}, at most once per {@code
  * stratum.cache.warning-interval}, and counted when Redis could not be reached.
  */
 @StratumInternal
@@ -41,6 +42,9 @@ public class RedisRetryGate {
 
   /** How long Redis is skipped after a failure, and how long one trial may take. */
   private final Duration retryInterval;
+
+  /** How many failures in a row, while every call uses Redis, make the calls skip Redis. */
+  private final int failureThreshold;
 
   /** Tells the current time; a test sets it. */
   private final Clock clock;
@@ -100,7 +104,7 @@ public class RedisRetryGate {
   }
 
   /**
-   * Returns whether Redis caches use Redis, for the gauge: false from the first failure until a
+   * Returns whether Redis caches use Redis, for the gauge: false once the calls skip Redis, until a
    * trial succeeds.
    *
    * @return whether Redis is available
@@ -109,10 +113,13 @@ public class RedisRetryGate {
     return !state.get().down();
   }
 
-  /** Records a call that reached Redis: a trial in progress puts Redis back in use. */
+  /**
+   * Records a call that reached Redis: a trial in progress puts Redis back in use, and failures
+   * counted while every call uses Redis start again from 0.
+   */
   void reached() {
     var current = state.get();
-    if (current.phase() == Phase.TRYING) {
+    if (current.phase() == Phase.TRYING || current.failures() > 0) {
       state.compareAndSet(current, USING);
     }
   }
@@ -132,10 +139,11 @@ public class RedisRetryGate {
 
   /**
    * Records a failed Redis call. A connect failure, a command refused because the connection is
-   * down, or a timed-out command makes every call skip Redis, unless they already do, so a late
-   * failure neither extends the wait nor counts twice. A timeout of a cache whose own timeout is
-   * below the global one releases a trial instead, as it says nothing about Redis as a whole. Any
-   * other failure means Redis answered.
+   * down, or a timed-out command counts while every call uses Redis, and the one that reaches the
+   * threshold makes every call skip Redis; a failed trial does so at once. While the calls already
+   * skip Redis, a late failure neither extends the wait nor counts twice. A timeout of a cache
+   * whose own timeout is below the global one releases a trial instead, as it says nothing about
+   * Redis as a whole. Any other failure means Redis answered.
    *
    * @param failure the failure, as Spring Data translated it
    * @param timeoutOpensGate whether a timeout of the failed call's cache makes every call skip
@@ -153,6 +161,10 @@ public class RedisRetryGate {
       return;
     }
     var current = state.get();
+    if (current.phase() == Phase.USING_REDIS && current.failures() + 1 < failureThreshold) {
+      state.compareAndSet(current, current.toBuilder().failures(current.failures() + 1).build());
+      return;
+    }
     var skipping =
         GateState.builder()
             .phase(Phase.SKIPPING)
@@ -207,10 +219,11 @@ public class RedisRetryGate {
    *
    * @param phase where the gate is
    * @param until when skipping ends, or when a lost trial may be replaced
-   * @param down whether a failure was seen since Redis was last reached
+   * @param down whether the calls skipped Redis since it was last reached
+   * @param failures the failures in a row while every call uses Redis
    */
   @Builder(toBuilder = true)
-  record GateState(Phase phase, Instant until, boolean down) {
+  record GateState(Phase phase, Instant until, boolean down, int failures) {
 
     /**
      * Returns this state as a trial, keeping whether a failure was seen.

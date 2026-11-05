@@ -23,6 +23,9 @@ public class GatedCacheTestBase {
   /** How long Redis is skipped. */
   protected static final Duration RETRY_INTERVAL = Duration.ofSeconds(5);
 
+  /** Skips Redis at the first failure, so each test opens the gate with one failure. */
+  protected static final int FAILURE_THRESHOLD = 1;
+
   /** The clock of the gate. */
   protected final AdjustableClock clock =
       new AdjustableClock(Instant.parse("2026-11-04T08:00:00Z"));
@@ -34,6 +37,7 @@ public class GatedCacheTestBase {
   protected final RedisRetryGate gate =
       new RedisRetryGate(
           RETRY_INTERVAL,
+          FAILURE_THRESHOLD,
           clock,
           new WarningThrottle(Duration.ofMinutes(1), clock, 1),
           counters,

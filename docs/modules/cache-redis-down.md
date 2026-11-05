@@ -10,19 +10,22 @@ A cached method keeps working while Redis is down or slow. A failed cache read c
 the method runs; a failed write is dropped; and the call returns the method's real result. The
 method's own exception reaches the caller unchanged, as without caching.
 
-- **Redis is skipped for a while.** When Redis cannot be reached, a command is refused because the
-  connection is down, or a command waits longer than `spring.data.redis.timeout`, every Redis cache
-  of the service skips Redis (a cache whose own [command timeout](cache-per-cache.md#command-timeout)
+- **Redis is skipped for a while.** When `stratum.cache.redis-failure-threshold` calls in a row (3
+  by default) cannot reach Redis, are refused because the connection is down, or wait longer than
+  `spring.data.redis.timeout`, every Redis cache of the service skips Redis (a cache whose own [command timeout](cache-per-cache.md#command-timeout)
   is lower does not cause it, apart from the [exception](cache-per-cache.md#limits) of
-  `use-key-prefix=false`) for `stratum.cache.redis-retry-interval` (5 seconds by default). Reads
+  `use-key-prefix=false`) for `stratum.cache.redis-retry-interval` (5 seconds by default). A call
+  that reaches Redis starts the count again, so one slow command alone does not cause it. Reads
   then miss at once and writes and evictions are dropped, without a call to Redis. Then one call
   tries Redis again while the others keep skipping it; when it gets an answer, every call uses Redis
-  again. A write or evict that tries first deletes its key at once, since a write in the background
+  again, and when it fails, Redis is skipped again at once. A write or evict that tries first deletes its key at once, since a write in the background
   cannot tell whether Redis answered. Other caches, such as an in-memory one, never skip.
-- **Cost.** Only the calls already waiting on Redis when it fails wait for its 1 s timeout; after
-  that, one call per instance per 5 seconds does. The price: one slow command also makes every
-  Redis cache miss for 5 seconds, so that load goes to your database or downstream service. Lower
-  `stratum.cache.redis-retry-interval` if it cannot take that.
+- **Cost.** Only the calls already waiting on Redis when it fails, and at most 3 calls in a row,
+  wait for its 1 s timeout; after that, one call per instance per 5 seconds does. While Redis is
+  skipped, every Redis cache misses, so that load goes to your database or downstream service.
+  Lower `stratum.cache.redis-retry-interval` if it cannot take that. A Redis that times out on some
+  calls but answers others stays in use, and each timed-out call waits the full timeout. Set
+  `stratum.cache.redis-failure-threshold=1` to skip Redis at the first failure.
 - **At startup**, until the first call has reached Redis, only that call tries it, so the others
   do not queue behind the first connect; they miss the cache for that short time.
 - **Lettuce refuses commands while disconnected.** Stratum sets Lettuce's `REJECT_COMMANDS`, so any

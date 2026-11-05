@@ -13,6 +13,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -30,6 +31,9 @@ class RedisRetryGateTest {
   /** How long Redis is skipped. */
   private static final Duration RETRY_INTERVAL = Duration.ofSeconds(5);
 
+  /** How many failures in a row make the calls skip Redis: the default. */
+  private static final int FAILURE_THRESHOLD = 3;
+
   /** How often the warning repeats at most. */
   private static final Duration WARNING_INTERVAL = Duration.ofMinutes(1);
 
@@ -43,6 +47,7 @@ class RedisRetryGateTest {
   private final RedisRetryGate gate =
       new RedisRetryGate(
           RETRY_INTERVAL,
+          FAILURE_THRESHOLD,
           clock,
           new WarningThrottle(WARNING_INTERVAL, clock, 1),
           counters,
@@ -66,6 +71,17 @@ class RedisRetryGateTest {
   private void reachRedis() {
     assertThat(gate.admits()).isTrue();
     gate.reached();
+  }
+
+  /** Reports the same failure a number of times in a row, each time opening the gate if it may. */
+  private void failTimes(int times, RuntimeException failure) {
+    IntStream.range(0, times).forEach(attempt -> gate.failed(failure, true));
+  }
+
+  /** Lets Redis be reached, then fails as often as it takes to make every call skip Redis. */
+  private void skipRedisAfter(RuntimeException failure) {
+    reachRedis();
+    failTimes(FAILURE_THRESHOLD, failure);
   }
 
   @Nested
@@ -96,6 +112,64 @@ class RedisRetryGateTest {
       assertThat(gate.admits()).isTrue();
       assertThat(gate.admits()).isFalse();
     }
+
+    @Test
+    @DisplayName("a failed first call skips Redis at once, without waiting for the threshold")
+    void failedFirstCallSkips() {
+      assertThat(gate.admits()).isTrue();
+
+      gate.failed(RedisFailureTestData.CONNECT_FAILED, true);
+
+      assertThat(gate.admits()).isFalse();
+      assertThat(gate.isAvailable()).isFalse();
+    }
+  }
+
+  @Nested
+  @DisplayName("while fewer failures in a row than the threshold were seen")
+  class BelowThreshold {
+
+    @Test
+    @DisplayName("calls keep using Redis, the gauge reads 1, nothing is counted or warned")
+    void callsKeepUsingRedis() {
+      reachRedis();
+
+      gate.failed(RedisFailureTestData.TIMED_OUT, true);
+      failTimes(FAILURE_THRESHOLD - 2, RedisFailureTestData.CONNECT_FAILED);
+      gate.failed(RedisFailureTestData.DISCONNECTED, true);
+
+      assertThat(gate.usesRedis()).isTrue();
+      assertThat(gate.isAvailable()).isTrue();
+      assertThat(counters.redisConnectFailures()).isZero();
+      assertThat(warnings.lines()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a call that reaches Redis starts the count again")
+    void successStartsCountAgain() {
+      reachRedis();
+      failTimes(FAILURE_THRESHOLD - 1, RedisFailureTestData.TIMED_OUT);
+
+      gate.reached();
+      failTimes(FAILURE_THRESHOLD - 1, RedisFailureTestData.TIMED_OUT);
+
+      assertThat(gate.usesRedis()).isTrue();
+      gate.failed(RedisFailureTestData.TIMED_OUT, true);
+      assertThat(gate.usesRedis()).isFalse();
+    }
+
+    @Test
+    @DisplayName("an error that is not Redis's own neither counts nor starts the count again")
+    void loaderErrorChangesNothing() {
+      reachRedis();
+      failTimes(FAILURE_THRESHOLD - 1, RedisFailureTestData.TIMED_OUT);
+
+      gate.released();
+
+      assertThat(gate.usesRedis()).isTrue();
+      gate.failed(RedisFailureTestData.TIMED_OUT, true);
+      assertThat(gate.usesRedis()).isFalse();
+    }
   }
 
   @Nested
@@ -113,9 +187,7 @@ class RedisRetryGateTest {
     @FieldSource("UNREACHABLE_FAILURES")
     @DisplayName("calls skip Redis, the gauge reads 0, it is counted and warned with SX-CACHE-1006")
     void callsSkipRedis(RuntimeException failure) {
-      reachRedis();
-
-      gate.failed(failure, true);
+      skipRedisAfter(failure);
 
       assertThat(gate.admits()).isFalse();
       assertThat(gate.usesRedis()).isFalse();
@@ -129,8 +201,7 @@ class RedisRetryGateTest {
     @Test
     @DisplayName("after the retry interval one call tries again, and a success puts Redis back")
     void oneCallRetries() {
-      reachRedis();
-      gate.failed(RedisFailureTestData.CONNECT_FAILED, true);
+      skipRedisAfter(RedisFailureTestData.CONNECT_FAILED);
 
       clock.advance(RETRY_INTERVAL.minusMillis(1));
       assertThat(gate.admits()).isFalse();
@@ -147,8 +218,7 @@ class RedisRetryGateTest {
     @Test
     @DisplayName("a failed retry skips Redis again and counts, but warns only once per interval")
     void failedRetryCountsAgain() {
-      reachRedis();
-      gate.failed(RedisFailureTestData.CONNECT_FAILED, true);
+      skipRedisAfter(RedisFailureTestData.CONNECT_FAILED);
       clock.advance(RETRY_INTERVAL);
       assertThat(gate.admits()).isTrue();
 
@@ -162,8 +232,7 @@ class RedisRetryGateTest {
     @Test
     @DisplayName("a late failure while calls skip Redis neither extends the wait nor counts")
     void lateFailureChangesNothing() {
-      reachRedis();
-      gate.failed(RedisFailureTestData.CONNECT_FAILED, true);
+      skipRedisAfter(RedisFailureTestData.CONNECT_FAILED);
       clock.advance(RETRY_INTERVAL.minusSeconds(1));
 
       gate.failed(RedisFailureTestData.DISCONNECTED, true);
@@ -181,9 +250,7 @@ class RedisRetryGateTest {
     @Test
     @DisplayName("calls skip Redis and it is warned, but not counted as a connect failure")
     void callsSkipWithoutConnectFailure() {
-      reachRedis();
-
-      gate.failed(RedisFailureTestData.TIMED_OUT, true);
+      skipRedisAfter(RedisFailureTestData.TIMED_OUT);
 
       assertThat(gate.admits()).isFalse();
       assertThat(gate.isAvailable()).isFalse();
@@ -197,7 +264,8 @@ class RedisRetryGateTest {
     void shortTimeoutKeepsRedis() {
       reachRedis();
 
-      gate.failed(RedisFailureTestData.TIMED_OUT, false);
+      IntStream.range(0, FAILURE_THRESHOLD)
+          .forEach(attempt -> gate.failed(RedisFailureTestData.TIMED_OUT, false));
 
       assertThat(gate.usesRedis()).isTrue();
       assertThat(gate.isAvailable()).isTrue();
@@ -208,8 +276,7 @@ class RedisRetryGateTest {
     @DisplayName(
         "a trial ended by such a timeout neither puts Redis back nor waits: the next call tries")
     void shortTimeoutEndsTrial() {
-      reachRedis();
-      gate.failed(RedisFailureTestData.CONNECT_FAILED, true);
+      skipRedisAfter(RedisFailureTestData.CONNECT_FAILED);
       clock.advance(RETRY_INTERVAL);
       assertThat(gate.admits()).isTrue();
 
@@ -232,7 +299,7 @@ class RedisRetryGateTest {
       gate.failed(RedisFailureTestData.ANSWERED, true);
       assertThat(gate.usesRedis()).isTrue();
 
-      gate.failed(RedisFailureTestData.CONNECT_FAILED, true);
+      failTimes(FAILURE_THRESHOLD, RedisFailureTestData.CONNECT_FAILED);
       clock.advance(RETRY_INTERVAL);
       assertThat(gate.admits()).isTrue();
       gate.failed(RedisFailureTestData.ANSWERED, true);
@@ -262,6 +329,7 @@ class RedisRetryGateTest {
       var shortTimeoutGate =
           new RedisRetryGate(
               RETRY_INTERVAL,
+              1,
               clock,
               new WarningThrottle(WARNING_INTERVAL, clock, 1),
               counters,
