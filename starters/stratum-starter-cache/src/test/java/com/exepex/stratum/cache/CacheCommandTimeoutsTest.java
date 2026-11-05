@@ -212,14 +212,16 @@ class CacheCommandTimeoutsTest {
     private static final Duration ABOVE_CAP = Duration.ofSeconds(20);
 
     @Test
-    @DisplayName("a value above 10 seconds stops startup with SX-CORE-1003, naming the key")
+    @DisplayName(
+        "a value above 10 seconds stops startup with SX-CORE-1003, naming the key but not the cache")
     void rejectsAboveCap() {
       var tooLong = Map.of(REPORTS, CAP.plusMillis(1));
 
       assertThatExceptionOfType(StratumException.class)
           .isThrownBy(() -> timeoutsFor(tooLong))
           .withMessageStartingWith("SX-CORE-1003")
-          .withMessageContaining("stratum.cache.caches.reports.command-timeout");
+          .withMessageContaining("stratum.cache.caches[*].command-timeout")
+          .withMessageNotContaining(REPORTS);
     }
 
     @Test

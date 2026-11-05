@@ -205,7 +205,7 @@ class PerCacheSettingsAutoConfigurationTest {
     @Test
     @DisplayName(
         "a value above 10 seconds with a 1 second global one stops startup with SX-CORE-1003,"
-            + " naming the key")
+            + " naming the key but not the cache")
     void rejectsAboveCap() {
       contextRunner
           .withPropertyValues(CacheConstants.CACHES + ".reports.command-timeout=11s")
@@ -215,7 +215,8 @@ class PerCacheSettingsAutoConfigurationTest {
                       .getFailure()
                       .rootCause()
                       .hasMessageStartingWith("SX-CORE-1003")
-                      .hasMessageContaining("stratum.cache.caches.reports.command-timeout"));
+                      .hasMessageContaining("stratum.cache.caches[*].command-timeout")
+                      .hasMessageNotContaining("reports"));
     }
   }
 

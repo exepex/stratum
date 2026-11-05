@@ -57,12 +57,21 @@ public class CacheCommandTimeouts extends TimeoutSource
    * @param global {@code spring.data.redis.timeout}
    * @param cacheTimeouts the caches that set their own timeout, each with its value
    * @param matcher finds the cache of a key; it knows the names of {@code cacheTimeouts}
-   * @throws StratumException {@code SX-CORE-1003} if a value is above the cap, naming its key
+   * @throws StratumException {@code SX-CORE-1003} if a value is above the cap; the message names
+   *     the key without the cache name, which may be secret
    */
   public CacheCommandTimeouts(
       Duration global, Map<String, Duration> cacheTimeouts, CacheKeyMatcher matcher) {
     var cap = global.compareTo(MAX_CACHE_TIMEOUT) > 0 ? global : MAX_CACHE_TIMEOUT;
-    cacheTimeouts.forEach((name, timeout) -> rejectAboveCap(name, timeout, cap));
+    if (cacheTimeouts.values().stream().anyMatch(timeout -> timeout.compareTo(cap) > 0)) {
+      throw new StratumException(
+          CoreErrorCode.INVALID_SETTINGS,
+          CacheConstants.CACHES
+              + "[*].command-timeout is above "
+              + cap
+              + ", the larger of 10s and "
+              + CacheConstants.REDIS_TIMEOUT);
+    }
     this.globalMillis = global.isPositive() ? Math.max(1, global.toMillis()) : 0;
     this.millisByCache =
         Collections.unmodifiableMap(
@@ -76,21 +85,6 @@ public class CacheCommandTimeouts extends TimeoutSource
             .filter(t -> t.compareTo(global) > 0)
             .max(Duration::compareTo)
             .orElse(global);
-  }
-
-  /** Stops startup when a cache's own timeout is above the cap, naming its key. */
-  private void rejectAboveCap(String name, Duration timeout, Duration cap) {
-    if (timeout.compareTo(cap) > 0) {
-      throw new StratumException(
-          CoreErrorCode.INVALID_SETTINGS,
-          CacheConstants.CACHES
-              + "."
-              + name
-              + ".command-timeout is above "
-              + cap
-              + ", the larger of 10s and "
-              + CacheConstants.REDIS_TIMEOUT);
-    }
   }
 
   /**

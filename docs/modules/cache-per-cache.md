@@ -69,7 +69,8 @@ service, and a cache without its own value, still times out at the global value.
   accepts the connection but does not answer, as during a restart, waits up to 3 s instead of 1 s.
   One line at startup says so: `Redis command timeout raised to PT3S for caches with a longer
   command-timeout; this also bounds every Redis connect handshake`. That is why a cache's value is
-  at most 10 seconds; a higher one stops startup with `SX-CORE-1003`, naming the key. Raising
+  at most 10 seconds; a higher one stops startup with `SX-CORE-1003`, naming the key as
+  `stratum.cache.caches[*].command-timeout`, without the cache name. Raising
   `spring.data.redis.timeout` above 10 seconds lifts this limit to its own value.
 - **Values count in whole milliseconds.** Lettuce counts in milliseconds, so `1500us` waits 1 ms,
   and a value below 1 ms waits 1 ms, never 0, which Lettuce reads as no timeout. With
@@ -106,5 +107,6 @@ service, and a cache without its own value, still times out at the global value.
   `CacheKeyPrefix` of your own that writes keys another way, or `spring.cache.redis.use-key-prefix=false`,
   gives every command the global timeout. With `use-key-prefix=false`, a timeout of a cache whose own
   value is lower also counts like any other, so it makes every cache skip Redis. A cache name that
-  contains `::` never matches.
+  contains `::` never matches, and one that ends in `:`, such as `reports:`, cannot be told apart
+  from `reports`, so it gets the global timeout or that cache's.
 - Caches other than Redis are not affected.
