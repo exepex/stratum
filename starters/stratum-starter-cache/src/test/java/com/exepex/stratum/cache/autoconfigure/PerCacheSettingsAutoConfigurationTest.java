@@ -8,6 +8,7 @@ import com.exepex.stratum.cache.CacheCommandTimeoutsCheck;
 import com.exepex.stratum.cache.CacheConstants;
 import com.exepex.stratum.test.LogLineCapture;
 import io.lettuce.core.ClientOptions;
+import io.lettuce.core.TimeoutOptions;
 import java.time.Duration;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,6 +20,8 @@ import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.cache.autoconfigure.CacheAutoConfiguration;
 import org.springframework.boot.cache.autoconfigure.RedisCacheManagerBuilderCustomizer;
 import org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration;
+import org.springframework.boot.data.redis.autoconfigure.LettuceClientConfigurationBuilderCustomizer;
+import org.springframework.boot.data.redis.autoconfigure.LettuceClientOptionsBuilderCustomizer;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -48,6 +51,9 @@ class PerCacheSettingsAutoConfigurationTest {
   private static final String REPORTS_COMMAND_TIMEOUT_KEY =
       CacheConstants.CACHES + ".reports.command-timeout=3s";
 
+  /** A command timeout a service sets in its own Lettuce customizer. */
+  private static final Duration SERVICE_COMMAND_TIMEOUT = Duration.ofSeconds(5);
+
   /** Spring Boot's Redis and cache set-up with Stratum's; nothing connects to Redis. */
   private final ApplicationContextRunner contextRunner =
       new ApplicationContextRunner()
@@ -65,6 +71,17 @@ class PerCacheSettingsAutoConfigurationTest {
   private RedisCacheConfiguration reportsConfiguration(AssertableApplicationContext context) {
     var cache = (RedisCache) context.getBean(CacheManager.class).getCache(REPORTS);
     return cache.getCacheConfiguration();
+  }
+
+  /** Returns the source Lettuce asks for each command's timeout. */
+  private TimeoutOptions.TimeoutSource timeoutSource(AssertableApplicationContext context) {
+    return context
+        .getBean(LettuceConnectionFactory.class)
+        .getClientConfiguration()
+        .getClientOptions()
+        .orElseThrow()
+        .getTimeoutOptions()
+        .getSource();
   }
 
   /** Returns the command timeout Lettuce and Spring Data wait for. */
@@ -143,15 +160,39 @@ class PerCacheSettingsAutoConfigurationTest {
     /** Checks Lettuce waits for the reports cache's value and asks Stratum per command. */
     private void assertRaisedTimeout(AssertableApplicationContext context) {
       assertThat(sharedTimeout(context)).isEqualTo(REPORTS_COMMAND_TIMEOUT);
-      assertThat(
-              context
-                  .getBean(LettuceConnectionFactory.class)
-                  .getClientConfiguration()
-                  .getClientOptions()
-                  .orElseThrow()
-                  .getTimeoutOptions()
-                  .getSource())
-          .isInstanceOf(CacheCommandTimeouts.class);
+      assertThat(timeoutSource(context)).isInstanceOf(CacheCommandTimeouts.class);
+    }
+
+    @Test
+    @DisplayName("a service's own command timeout runs after Stratum's, so it wins")
+    void serviceCommandTimeoutWins() {
+      LettuceClientConfigurationBuilderCustomizer serviceTimeout =
+          builder -> builder.commandTimeout(SERVICE_COMMAND_TIMEOUT);
+      contextRunner
+          .withPropertyValues(REPORTS_COMMAND_TIMEOUT_KEY)
+          .withBean(LettuceClientConfigurationBuilderCustomizer.class, () -> serviceTimeout)
+          .run(context -> assertThat(sharedTimeout(context)).isEqualTo(SERVICE_COMMAND_TIMEOUT));
+    }
+
+    @Test
+    @DisplayName("a service's own timeout options run after Stratum's, so they win")
+    void serviceTimeoutOptionsWin() {
+      var serviceOptions = TimeoutOptions.enabled(SERVICE_COMMAND_TIMEOUT);
+      LettuceClientOptionsBuilderCustomizer serviceChoice =
+          builder -> builder.timeoutOptions(serviceOptions);
+      contextRunner
+          .withPropertyValues(REPORTS_COMMAND_TIMEOUT_KEY)
+          .withBean(LettuceClientOptionsBuilderCustomizer.class, () -> serviceChoice)
+          .run(
+              context ->
+                  assertThat(
+                          context
+                              .getBean(LettuceConnectionFactory.class)
+                              .getClientConfiguration()
+                              .getClientOptions()
+                              .orElseThrow()
+                              .getTimeoutOptions())
+                      .isSameAs(serviceOptions));
     }
 
     @Test
