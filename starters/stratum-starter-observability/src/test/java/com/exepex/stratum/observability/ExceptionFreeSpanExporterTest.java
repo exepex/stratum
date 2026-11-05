@@ -88,6 +88,14 @@ class ExceptionFreeSpanExporterTest {
     }
 
     @Test
+    @DisplayName("the exception event is dropped when it is the span's only exception data")
+    void dropsOnlyExceptionEvent() {
+      var exported =
+          export(span -> span.recordException(new IllegalStateException(MESSAGE))).exported();
+      assertThat(exported.getEvents()).isEmpty();
+    }
+
+    @Test
     @DisplayName("other events are kept with their attributes")
     void keepsOtherEvents() {
       var exported = export(span -> recordFailureAndSave(span)).exported();
@@ -143,6 +151,13 @@ class ExceptionFreeSpanExporterTest {
     @DisplayName("a failed span stays ERROR, without the exception message")
     void keepsErrorWithoutMessage() {
       assertThat(export(span -> recordFailure(span)).exported().getStatus())
+          .isEqualTo(StatusData.error());
+    }
+
+    @Test
+    @DisplayName("the message is dropped when it is the span's only exception data")
+    void dropsOnlyMessage() {
+      assertThat(export(span -> span.setStatus(StatusCode.ERROR, MESSAGE)).exported().getStatus())
           .isEqualTo(StatusData.error());
     }
 

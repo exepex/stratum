@@ -7,7 +7,6 @@ import io.opentelemetry.sdk.trace.data.DelegatingSpanData;
 import io.opentelemetry.sdk.trace.data.EventData;
 import io.opentelemetry.sdk.trace.data.SpanData;
 import io.opentelemetry.sdk.trace.data.StatusData;
-import java.util.Collections;
 import java.util.List;
 import java.util.function.Predicate;
 import lombok.Getter;
@@ -23,7 +22,7 @@ final class ExceptionFreeSpanData extends DelegatingSpanData {
   @Getter private final Attributes attributes;
 
   /** The span's events, without the exception events. */
-  private final List<EventData> events;
+  @Getter private final List<EventData> events;
 
   /** Builds the view once, so each exporter reads the same filtered values. */
   private ExceptionFreeSpanData(SpanData span) {
@@ -71,16 +70,6 @@ final class ExceptionFreeSpanData extends DelegatingSpanData {
   @Override
   public int getTotalAttributeCount() {
     return super.getTotalAttributeCount() - (super.getAttributes().size() - attributes.size());
-  }
-
-  /**
-   * Returns the span's events without its {@code exception} events.
-   *
-   * @return the events
-   */
-  @Override
-  public List<EventData> getEvents() {
-    return Collections.unmodifiableList(events);
   }
 
   /**
