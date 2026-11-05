@@ -15,6 +15,11 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.FieldSource;
 
+/**
+ * Catches a blow-up in cleaning a 1MB URL, such as a cost that grows with the square of its length.
+ * It does not catch a constant-factor slowdown: CI runners differ about 2.3 times in speed, so with
+ * limits of 5 times the slowest CI run, even a URL parsed 10 times can pass on a fast runner.
+ */
 @DisplayName("Cleaning a 1MB URL stays inside its CPU time limit")
 class TelemetryUrlFilterSpeedTest {
 
