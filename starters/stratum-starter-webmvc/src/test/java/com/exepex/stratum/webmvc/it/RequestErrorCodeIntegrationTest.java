@@ -28,7 +28,7 @@ import org.springframework.test.context.TestPropertySource;
 class RequestErrorCodeIntegrationTest {
 
   /** What each request records, the same on both web stacks. */
-  static final List<Recorded> CASES = ServerRequestTelemetry.ORDERS_CASES;
+  private static final List<Recorded> CASES = ServerRequestTelemetry.ORDERS_CASES;
 
   @LocalServerPort private int port;
 
