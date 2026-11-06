@@ -49,16 +49,16 @@ class RequestErrorCodeIntegrationTest {
   @DisplayName("in backward-compatible mode")
   class BackwardCompatible {
 
-    @LocalServerPort private int port;
+    @LocalServerPort private int compatiblePort;
 
-    @Autowired private ServerRequestTelemetry telemetry;
+    @Autowired private ServerRequestTelemetry compatibleTelemetry;
 
     @Test
     @DisplayName("a StratumException still gets its code, as metrics and spans are internal")
     void recordsErrorCode() throws Exception {
-      WebTestSupport.getFromService(port, ServerRequestTelemetry.DUPLICATE_ORDER.path());
+      WebTestSupport.getFromService(compatiblePort, ServerRequestTelemetry.DUPLICATE_ORDER.path());
 
-      telemetry.check(ServerRequestTelemetry.DUPLICATE_ORDER);
+      compatibleTelemetry.check(ServerRequestTelemetry.DUPLICATE_ORDER);
     }
   }
 }

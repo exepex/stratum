@@ -55,7 +55,7 @@ class RequestFailureRecorderTest {
   private void recordWhileCurrent(Observation observation) {
     observation.start();
     try (var _ = observation.openScope()) {
-      RequestFailureRecorder.record(registryProvider(), request, FAILURE);
+      RequestFailureRecorder.recordFailure(registryProvider(), request, FAILURE);
     } finally {
       observation.stop();
     }
@@ -86,7 +86,7 @@ class RequestFailureRecorderTest {
   @Test
   @DisplayName("does nothing without an observation registry")
   void withoutRegistryDoesNothing() {
-    RequestFailureRecorder.record(
+    RequestFailureRecorder.recordFailure(
         new StaticListableBeanFactory().getBeanProvider(ObservationRegistry.class),
         request,
         FAILURE);

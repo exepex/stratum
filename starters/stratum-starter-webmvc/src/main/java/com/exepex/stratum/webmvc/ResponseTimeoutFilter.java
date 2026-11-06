@@ -74,7 +74,7 @@ public class ResponseTimeoutFilter extends OncePerRequestFilter {
       }
       var timedOut = responseTimeouts.timedOut(deadline);
       request.setAttribute(TIMED_OUT_ATTRIBUTE, timedOut);
-      RequestFailureRecorder.record(observationRegistry, request, timedOut);
+      RequestFailureRecorder.recordFailure(observationRegistry, request, timedOut);
       response.resetBuffer();
       response.sendError(timedOut.getStatusCode().value());
     } finally {

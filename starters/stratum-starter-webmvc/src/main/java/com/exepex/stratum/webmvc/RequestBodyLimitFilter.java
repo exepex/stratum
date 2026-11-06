@@ -68,7 +68,7 @@ public class RequestBodyLimitFilter extends OncePerRequestFilter {
         throw tooLarge;
       }
       request.setAttribute(TOO_LARGE_ATTRIBUTE, tooLarge);
-      RequestFailureRecorder.record(observationRegistry, request, tooLarge);
+      RequestFailureRecorder.recordFailure(observationRegistry, request, tooLarge);
       response.sendError(tooLarge.getStatusCode().value());
     } finally {
       // The error page dispatch that answers a body that was too large must not be checked again.

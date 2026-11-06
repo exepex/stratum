@@ -74,7 +74,7 @@ public class FailureWithErrorCodeResolver implements HandlerExceptionResolver, W
       HttpServletResponse response,
       @Nullable Object handler,
       Exception failure) {
-    RequestFailureRecorder.record(observationRegistry, request, failure);
+    RequestFailureRecorder.recordFailure(observationRegistry, request, failure);
     return failure instanceof FailureWithErrorCode
         ? resolveFailureOrCause(request, response, failure)
         : null;

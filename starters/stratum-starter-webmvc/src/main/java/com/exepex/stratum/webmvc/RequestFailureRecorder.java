@@ -26,7 +26,7 @@ public class RequestFailureRecorder {
    * @param request the request that failed
    * @param failure what it failed with
    */
-  public static void record(
+  public static void recordFailure(
       ObjectProvider<ObservationRegistry> observationRegistry,
       HttpServletRequest request,
       Throwable failure) {
