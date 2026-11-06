@@ -42,6 +42,15 @@ public class ServerRequestTelemetry implements SpanExporter {
           .failed(true)
           .build();
 
+  /** An order whose body is over the default limit, which both stacks refuse with a 413. */
+  public static final Recorded TOO_LARGE_ORDER =
+      Recorded.builder()
+          .path("/orders")
+          .exception("RequestBodyTooLargeException")
+          .code(Recorded.NONE)
+          .failed(true)
+          .build();
+
   /** What a request with each tested outcome records, on both web stacks' orders applications. */
   public static final List<Recorded> ORDERS_CASES =
       List.of(
@@ -198,7 +207,7 @@ public class ServerRequestTelemetry implements SpanExporter {
    * @param failed whether the span has the {@code ERROR} status
    */
   @StratumInternal
-  @Builder
+  @Builder(toBuilder = true)
   public record Recorded(String path, String uri, String exception, String code, boolean failed) {
 
     /** The tag value for no failure and no code. */
@@ -218,6 +227,22 @@ public class ServerRequestTelemetry implements SpanExporter {
      */
     public Recorded {
       uri = Objects.requireNonNullElse(uri, path);
+    }
+
+    /**
+     * Makes the expectation for a request that ran out of time, which both stacks answer with a
+     * 503.
+     *
+     * @param path the path the request was sent to
+     * @return the expectation
+     */
+    public static Recorded timedOut(String path) {
+      return builder()
+          .path(path)
+          .exception("RequestTimedOutException")
+          .code(NONE)
+          .failed(true)
+          .build();
     }
 
     /** Builds the expectation; Lombok writes its methods, the label keeps it internal. */

@@ -1,7 +1,6 @@
 package com.exepex.stratum.webmvc.it;
 
 import com.exepex.stratum.test.ServerRequestTelemetry;
-import com.exepex.stratum.test.ServerRequestTelemetry.Recorded;
 import com.exepex.stratum.test.WebTestSupport;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebErrorCode;
@@ -72,13 +71,7 @@ class RequestBodyLimitIntegrationTest {
     WebTestSupport.checkBodyRefused(
         port, "/orders", MediaType.TEXT_PLAIN_VALUE, OVER_DEFAULT_LIMIT, declareLength, TOO_LARGE);
 
-    telemetry.check(
-        Recorded.builder()
-            .path("/orders")
-            .exception("RequestBodyTooLargeException")
-            .code(Recorded.NONE)
-            .failed(true)
-            .build());
+    telemetry.check(ServerRequestTelemetry.TOO_LARGE_ORDER);
   }
 
   @ParameterizedTest(name = "with Content-Length: {0}")
@@ -130,12 +123,6 @@ class RequestBodyLimitIntegrationTest {
       WebTestSupport.checkProblemDetails(response, HttpStatus.CONTENT_TOO_LARGE.value(), TOO_LARGE);
     }
     telemetry.check(
-        Recorded.builder()
-            .path("/forms")
-            .uri("UNKNOWN")
-            .exception("RequestBodyTooLargeException")
-            .code(Recorded.NONE)
-            .failed(true)
-            .build());
+        ServerRequestTelemetry.TOO_LARGE_ORDER.toBuilder().path("/forms").uri("UNKNOWN").build());
   }
 }

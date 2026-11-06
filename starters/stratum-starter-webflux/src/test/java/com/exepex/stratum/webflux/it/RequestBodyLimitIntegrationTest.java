@@ -1,7 +1,6 @@
 package com.exepex.stratum.webflux.it;
 
 import com.exepex.stratum.test.ServerRequestTelemetry;
-import com.exepex.stratum.test.ServerRequestTelemetry.Recorded;
 import com.exepex.stratum.test.WebTestSupport;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebErrorCode;
@@ -86,13 +85,7 @@ class RequestBodyLimitIntegrationTest {
     WebTestSupport.checkBodyRefused(
         port, "/orders", MediaType.TEXT_PLAIN_VALUE, OVER_DEFAULT_LIMIT, declareLength, TOO_LARGE);
 
-    telemetry.check(
-        Recorded.builder()
-            .path("/orders")
-            .exception("RequestBodyTooLargeException")
-            .code(Recorded.NONE)
-            .failed(true)
-            .build());
+    telemetry.check(ServerRequestTelemetry.TOO_LARGE_ORDER);
   }
 
   @ParameterizedTest(name = "with Content-Length: {0}")

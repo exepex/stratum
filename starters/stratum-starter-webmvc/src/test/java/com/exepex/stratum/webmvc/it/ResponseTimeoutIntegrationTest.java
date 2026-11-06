@@ -136,12 +136,6 @@ class ResponseTimeoutIntegrationTest {
   void recordsTimeout(String path) throws Exception {
     WebTestSupport.getFromService(port, path);
 
-    telemetry.check(
-        Recorded.builder()
-            .path(path)
-            .exception("RequestTimedOutException")
-            .code(Recorded.NONE)
-            .failed(true)
-            .build());
+    telemetry.check(Recorded.timedOut(path));
   }
 }
