@@ -1,5 +1,6 @@
 package com.exepex.stratum.webmvc.it;
 
+import com.exepex.stratum.test.ServerRequestTelemetry;
 import com.exepex.stratum.test.WebTestSupport;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebErrorCode;
@@ -12,8 +13,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.FieldSource;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -25,9 +28,10 @@ import org.springframework.http.MediaType;
       WebConstants.BODY_LIMIT_DEFAULT_LIMIT + "=1KB",
       WebConstants.BODY_LIMIT_ROUTES + "[/uploads/**]=4KB",
       "management.tracing.sampling.probability=1.0",
-      "management.tracing.export.enabled=false",
+      "management.tracing.export.otlp.enabled=false",
       "management.otlp.metrics.export.enabled=false"
     })
+@Import(ServerRequestTelemetry.class)
 @DisplayName("A Spring MVC request whose body is larger than its limit is answered with 413")
 class RequestBodyLimitIntegrationTest {
 
@@ -56,12 +60,18 @@ class RequestBodyLimitIntegrationTest {
 
   @LocalServerPort private int port;
 
+  @Autowired private ServerRequestTelemetry telemetry;
+
   @ParameterizedTest(name = "with Content-Length: {0}")
   @FieldSource("DECLARED_AND_STREAMED")
-  @DisplayName("a body over the default limit gets SX-WEB-1008, declared or streamed")
+  @DisplayName(
+      "a body over the default limit gets SX-WEB-1008, declared or streamed, and records"
+          + " RequestBodyTooLargeException as on both stacks")
   void defaultLimit(boolean declareLength) throws Exception {
     WebTestSupport.checkBodyRefused(
         port, "/orders", MediaType.TEXT_PLAIN_VALUE, OVER_DEFAULT_LIMIT, declareLength, TOO_LARGE);
+
+    telemetry.check(ServerRequestTelemetry.TOO_LARGE_ORDER);
   }
 
   @ParameterizedTest(name = "with Content-Length: {0}")
@@ -112,5 +122,7 @@ class RequestBodyLimitIntegrationTest {
 
       WebTestSupport.checkProblemDetails(response, HttpStatus.CONTENT_TOO_LARGE.value(), TOO_LARGE);
     }
+    telemetry.check(
+        ServerRequestTelemetry.TOO_LARGE_ORDER.toBuilder().path("/forms").uri("UNKNOWN").build());
   }
 }

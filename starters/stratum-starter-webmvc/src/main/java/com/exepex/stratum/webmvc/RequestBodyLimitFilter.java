@@ -3,12 +3,14 @@ package com.exepex.stratum.webmvc;
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.web.RequestBodyLimits;
 import com.exepex.stratum.web.RequestBodyTooLargeException;
+import io.micrometer.observation.ObservationRegistry;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.Ordered;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -37,6 +39,9 @@ public class RequestBodyLimitFilter extends OncePerRequestFilter {
   /** Decides each request's limit. */
   private final RequestBodyLimits requestBodyLimits;
 
+  /** Where failures are recorded: the service's observation registry, if it has one. */
+  private final ObjectProvider<ObservationRegistry> observationRegistry;
+
   /**
    * Runs the rest of the chain with the request's body counted.
    *
@@ -63,6 +68,7 @@ public class RequestBodyLimitFilter extends OncePerRequestFilter {
         throw tooLarge;
       }
       request.setAttribute(TOO_LARGE_ATTRIBUTE, tooLarge);
+      RequestFailureRecorder.recordFailure(observationRegistry, request, tooLarge);
       response.sendError(tooLarge.getStatusCode().value());
     } finally {
       // The error page dispatch that answers a body that was too large must not be checked again.

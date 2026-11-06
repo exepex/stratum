@@ -155,6 +155,19 @@ public class ObservabilityConstants {
   /** Spring Boot's default name of the HTTP client meters. */
   public static final String DEFAULT_CLIENT_REQUESTS_NAME = "http.client.requests";
 
+  /** Spring Boot's name of the HTTP server meters and observations. */
+  public static final String SERVER_REQUESTS_NAME =
+      "management.observations.http.server.requests.name";
+
+  /** Spring Boot's default name of the HTTP server meters and observations. */
+  public static final String DEFAULT_SERVER_REQUESTS_NAME = "http.server.requests";
+
+  /** The tag, on a request's timer and span, that holds the error code it failed with. */
+  public static final String ERROR_CODE_TAG = "error.code";
+
+  /** The value of {@link #ERROR_CODE_TAG} for a request that failed with no code, or succeeded. */
+  public static final String NO_ERROR_CODE = "none";
+
   /** The tag, on spans and metrics, in which Spring puts the URI template of an HTTP call. */
   public static final String URI = "uri";
 

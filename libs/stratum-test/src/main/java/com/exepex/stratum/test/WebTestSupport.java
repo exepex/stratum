@@ -46,8 +46,11 @@ public class WebTestSupport {
   /** The number of bytes in an IPv4 address. */
   private static final int IPV4_BYTES = 4;
 
-  /** The timer Spring Boot records for each request a service answers. */
-  private static final String SERVER_REQUESTS_TIMER = "http.server.requests";
+  /**
+   * The timer Spring Boot records for each request a service answers; {@link
+   * ServerRequestTelemetry} reads it too.
+   */
+  static final String SERVER_REQUESTS_TIMER = "http.server.requests";
 
   /** How long a test waits for a service to time a request. */
   private static final Duration TIMER_WAIT = Duration.ofSeconds(5);

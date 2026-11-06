@@ -43,8 +43,9 @@
       <groupId>com.jayway.jsonpath</groupId>
       <artifactId>json-path</artifactId>
     </dependency>
-    <!-- Counts the server's request timers in WebTestSupport.getAndAwaitTimer. Optional: a module
-         that calls it already has Micrometer through the observability or actuator starter. -->
+    <!-- Counts the server's request timers in WebTestSupport.getAndAwaitTimer and
+         ServerRequestTelemetry. Optional: a module that calls them already has Micrometer through
+         the observability or actuator starter. -->
     <dependency>
       <groupId>io.micrometer</groupId>
       <artifactId>micrometer-core</artifactId>
@@ -75,6 +76,13 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-jdbc</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <!-- ServerRequestTelemetry reads a web service's spans. Optional: the web modules' tests
+         already have it through the observability starter. -->
+    <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-sdk-trace</artifactId>
       <optional>true</optional>
     </dependency>
     <dependency>

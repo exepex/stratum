@@ -32,6 +32,7 @@ class ObservabilityArchTest {
           ObservabilityProperties.Tracing.class,
           ObservabilityProperties.Tracing.TracingBuilder.class,
           ObservabilityPropertiesCustomizer.class,
+          RequestErrorCodeFilter.class,
           TelemetryUrlFilter.class,
           LinkedWork.class,
           LinkedWorkContext.class,

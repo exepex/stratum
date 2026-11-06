@@ -32,6 +32,13 @@ class ExceptionFreeSpanExporterTest {
   /** The route the sample spans carry. */
   private static final String ROUTE_VALUE = "/orders";
 
+  /** The attribute that holds the request's error code. */
+  private static final AttributeKey<String> ERROR_CODE =
+      AttributeKey.stringKey(ObservabilityConstants.ERROR_CODE_TAG);
+
+  /** An error code a failed request carries. */
+  private static final String ORDER_CODE = "ORD-0001";
+
   /** An event that has nothing to do with the exception. */
   private static final String SAVED_EVENT = "order.saved";
 
@@ -134,6 +141,32 @@ class ExceptionFreeSpanExporterTest {
           .containsEntry(ROUTE, ROUTE_VALUE);
       assertThat(exported.getTotalAttributeCount()).isOne();
     }
+
+    @Test
+    @DisplayName("error.code=none is dropped, even when it is the span's only attribute to drop")
+    void dropsNoErrorCode() {
+      var exported = export(span -> recordErrorCode(span, ObservabilityConstants.NO_ERROR_CODE));
+
+      assertThat(exported.exported()).isNotSameAs(exported.ended());
+      assertThat(exported.exported().getAttributes().asMap())
+          .containsOnlyKeys(ROUTE)
+          .containsEntry(ROUTE, ROUTE_VALUE);
+      assertThat(exported.exported().getTotalAttributeCount()).isOne();
+    }
+
+    @Test
+    @DisplayName("an error code is kept")
+    void keepsErrorCode() {
+      var exported = export(span -> recordErrorCode(span, ORDER_CODE)).exported();
+
+      assertThat(exported.getAttributes().get(ERROR_CODE)).isEqualTo(ORDER_CODE);
+    }
+  }
+
+  /** Records a route and an error code. */
+  private void recordErrorCode(Span span, String code) {
+    span.setAttribute(ROUTE, ROUTE_VALUE);
+    span.setAttribute(ERROR_CODE, code);
   }
 
   /** Records a route and both of Spring's exception attributes with the given value. */

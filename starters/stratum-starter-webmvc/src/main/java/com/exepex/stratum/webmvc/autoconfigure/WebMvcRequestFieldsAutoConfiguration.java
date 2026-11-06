@@ -22,6 +22,7 @@ import com.exepex.stratum.webmvc.ResponseTimeoutFilter;
 import com.exepex.stratum.webmvc.ResponseTimeoutInterceptor;
 import com.exepex.stratum.webmvc.ServletRequestMdcCleanupFilter;
 import com.exepex.stratum.webmvc.ServletRequestMdcCleanupListener;
+import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.tracing.Tracer;
 import jakarta.servlet.DispatcherType;
 import org.springframework.beans.factory.ObjectProvider;
@@ -123,14 +124,17 @@ public final class WebMvcRequestFieldsAutoConfiguration {
    * Answers a request that ran out of time with the timeout status.
    *
    * @param responseTimeouts decides each request's limit
+   * @param observationRegistry where the timeout is recorded, if the service has one
    * @return the filter's registration, just inside the request log filter, for the first dispatch
    */
   @Bean
   @Fallback
   @ConditionalOnMissingBean(name = "stratumResponseTimeoutFilter")
   public FilterRegistrationBean<ResponseTimeoutFilter> stratumResponseTimeoutFilter(
-      ResponseTimeouts responseTimeouts) {
-    var registration = new FilterRegistrationBean<>(new ResponseTimeoutFilter(responseTimeouts));
+      ResponseTimeouts responseTimeouts, ObjectProvider<ObservationRegistry> observationRegistry) {
+    var registration =
+        new FilterRegistrationBean<>(
+            new ResponseTimeoutFilter(responseTimeouts, observationRegistry));
     registration.setOrder(ResponseTimeoutFilter.ORDER);
     return registration;
   }
@@ -152,14 +156,19 @@ public final class WebMvcRequestFieldsAutoConfiguration {
    * Answers a request whose body is larger than its limit with {@code 413}.
    *
    * @param requestBodyLimits decides each request's limit
+   * @param observationRegistry where a refusal the filter answers is recorded, if the service has
+   *     one
    * @return the filter's registration, just inside the response timeout filter
    */
   @Bean
   @Fallback
   @ConditionalOnMissingBean(name = "stratumRequestBodyLimitFilter")
   public FilterRegistrationBean<RequestBodyLimitFilter> stratumRequestBodyLimitFilter(
-      RequestBodyLimits requestBodyLimits) {
-    var registration = new FilterRegistrationBean<>(new RequestBodyLimitFilter(requestBodyLimits));
+      RequestBodyLimits requestBodyLimits,
+      ObjectProvider<ObservationRegistry> observationRegistry) {
+    var registration =
+        new FilterRegistrationBean<>(
+            new RequestBodyLimitFilter(requestBodyLimits, observationRegistry));
     registration.setOrder(RequestBodyLimitFilter.ORDER);
     return registration;
   }

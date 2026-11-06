@@ -10,15 +10,17 @@ import io.opentelemetry.sdk.trace.data.StatusData;
 import java.util.List;
 import java.util.function.Predicate;
 import lombok.Getter;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A finished span without exception data: no {@code exception} event, no {@code exception} or
  * {@code error.type} attribute, and an {@code ERROR} status without its description, which is the
- * exception's message. Everything else is the span's own.
+ * exception's message. It also drops {@code error.code=none}, so a span carries the error code only
+ * when there is one. Everything else is the span's own.
  */
 final class ExceptionFreeSpanData extends DelegatingSpanData {
 
-  /** The span's attributes, without {@code exception} and {@code error.type}. */
+  /** The span's attributes, without {@code exception}, {@code error.type} and no error code. */
   @Getter private final Attributes attributes;
 
   /** The span's events, without the exception events. */
@@ -29,7 +31,7 @@ final class ExceptionFreeSpanData extends DelegatingSpanData {
     super(span);
     attributes =
         span.getAttributes().toBuilder()
-            .removeIf(ExceptionFreeSpanData::isExceptionAttribute)
+            .removeIf(key -> isRemovedAttribute(key, span.getAttributes().get(key)))
             .build();
     events =
         span.getEvents().stream()
@@ -48,17 +50,25 @@ final class ExceptionFreeSpanData extends DelegatingSpanData {
     return holdsExceptionData(span) ? new ExceptionFreeSpanData(span) : span;
   }
 
-  /** Returns {@code true} if the span holds exception data that this view removes. */
+  /**
+   * Returns {@code true} if the span holds exception data or {@code error.code=none}, which this
+   * view removes.
+   */
   private static boolean holdsExceptionData(SpanData span) {
     return !span.getStatus().getDescription().isEmpty()
-        || span.getAttributes().asMap().keySet().stream()
-            .anyMatch(ExceptionFreeSpanData::isExceptionAttribute)
+        || span.getAttributes().asMap().entrySet().stream()
+            .anyMatch(attribute -> isRemovedAttribute(attribute.getKey(), attribute.getValue()))
         || span.getEvents().stream().anyMatch(ExceptionFreeSpanData::isExceptionEvent);
   }
 
-  /** Returns {@code true} for an attribute that holds the exception's type. */
-  private static boolean isExceptionAttribute(AttributeKey<?> key) {
-    return ObservabilityConstants.EXCEPTION_ATTRIBUTES.contains(key.getKey());
+  /**
+   * Returns {@code true} for an attribute that holds the exception's type, or for {@code
+   * error.code=none}.
+   */
+  private static boolean isRemovedAttribute(AttributeKey<?> key, @Nullable Object value) {
+    return ObservabilityConstants.EXCEPTION_ATTRIBUTES.contains(key.getKey())
+        || ObservabilityConstants.ERROR_CODE_TAG.equals(key.getKey())
+            && ObservabilityConstants.NO_ERROR_CODE.equals(value);
   }
 
   /**

@@ -17,6 +17,7 @@ import com.exepex.stratum.webmvc.FailureWithErrorCodeResolver;
 import com.exepex.stratum.webmvc.ReferenceErrorPage;
 import com.exepex.stratum.webmvc.RequestIdsFilter;
 import com.exepex.stratum.webmvc.StratumErrorAttributes;
+import io.micrometer.observation.ObservationRegistry;
 import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -82,14 +83,17 @@ public final class WebMvcErrorResponsesAutoConfiguration {
    *
    * @param errorResponseFactory makes the error body
    * @param jsonMapper writes the error body
+   * @param observationRegistry where each failure is recorded, if the service has one
    * @return the resolver
    */
   @Bean
   @Fallback
   @ConditionalOnMissingBean
   public FailureWithErrorCodeResolver failureWithErrorCodeResolver(
-      ErrorResponseFactory errorResponseFactory, JsonMapper jsonMapper) {
-    return new FailureWithErrorCodeResolver(errorResponseFactory, jsonMapper);
+      ErrorResponseFactory errorResponseFactory,
+      JsonMapper jsonMapper,
+      ObjectProvider<ObservationRegistry> observationRegistry) {
+    return new FailureWithErrorCodeResolver(errorResponseFactory, jsonMapper, observationRegistry);
   }
 
   /**

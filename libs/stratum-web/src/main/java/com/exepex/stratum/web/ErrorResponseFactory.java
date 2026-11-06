@@ -2,19 +2,17 @@ package com.exepex.stratum.web;
 
 import com.exepex.stratum.core.error.ErrorReport;
 import com.exepex.stratum.core.error.ExternalError;
+import com.exepex.stratum.core.error.FailureCauses;
 import com.exepex.stratum.core.error.FailureWithErrorCode;
 import com.exepex.stratum.core.error.Severity;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.core.logging.LoggingContextConstants;
 import java.net.URI;
-import java.util.Collections;
-import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
@@ -89,7 +87,7 @@ public class ErrorResponseFactory {
   public boolean answersWithStandardBody(@Nullable Throwable failure, List<String> acceptHeaders) {
     return !backwardCompatible
         || failure instanceof FailureWithErrorCode
-        || causesOf(failure)
+        || FailureCauses.causesOf(failure)
             .anyMatch(
                 cause ->
                     cause instanceof RequestTimedOutException
@@ -110,7 +108,7 @@ public class ErrorResponseFactory {
    * @return the body, which holds the status; empty if the failure carries no error code
    */
   public Optional<ProblemDetail> forFailureWithErrorCode(Throwable failure) {
-    return findFailureWithErrorCode(failure)
+    return FailureCauses.findFailureWithErrorCode(failure)
         .map(codedFailure -> answerAndLog(failure, codedFailure.getReport()));
   }
 
@@ -138,14 +136,6 @@ public class ErrorResponseFactory {
       return bodyOf(report.getExternal(), status);
     }
     return bodyOf(ErrorReport.of(codeFor(status)).getExternal(), status);
-  }
-
-  /** Returns the failure itself or its first cause that implements {@link FailureWithErrorCode}. */
-  private Optional<FailureWithErrorCode> findFailureWithErrorCode(Throwable failure) {
-    return causesOf(failure)
-        .filter(FailureWithErrorCode.class::isInstance)
-        .map(FailureWithErrorCode.class::cast)
-        .findFirst();
   }
 
   /**
@@ -201,13 +191,7 @@ public class ErrorResponseFactory {
    * @return whether {@link #forFailureWithErrorCode} would answer it
    */
   public boolean carriesErrorCode(Throwable failure) {
-    return findFailureWithErrorCode(failure).isPresent();
-  }
-
-  /** Returns the failure and its causes, following a chain that loops back on itself once. */
-  private Stream<Throwable> causesOf(@Nullable Throwable failure) {
-    var seen = Collections.newSetFromMap(new IdentityHashMap<Throwable, Boolean>());
-    return Stream.iterate(failure, cause -> cause != null && seen.add(cause), Throwable::getCause);
+    return FailureCauses.findFailureWithErrorCode(failure).isPresent();
   }
 
   /**

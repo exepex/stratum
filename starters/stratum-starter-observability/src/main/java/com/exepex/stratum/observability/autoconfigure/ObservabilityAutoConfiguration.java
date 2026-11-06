@@ -19,6 +19,7 @@ import com.exepex.stratum.observability.MetricTagGuard;
 import com.exepex.stratum.observability.ObservabilityConstants;
 import com.exepex.stratum.observability.ObservabilityProperties;
 import com.exepex.stratum.observability.ObservabilityPropertiesCustomizer;
+import com.exepex.stratum.observability.RequestErrorCodeFilter;
 import com.exepex.stratum.observability.TelemetryUrlFilter;
 import com.exepex.stratum.observability.linkedwork.LinkedWork;
 import com.exepex.stratum.observability.linkedwork.LinkedWorkTracingHandler;
@@ -82,6 +83,24 @@ public final class ObservabilityAutoConfiguration {
   @ConditionalOnClass(name = ObservabilityConstants.URI_COMPONENTS_BUILDER)
   public TelemetryUrlFilter telemetryUrlFilter() {
     return new TelemetryUrlFilter();
+  }
+
+  /**
+   * Adds the error code a request failed with to its timer and span. Spring Boot applies every
+   * {@code ObservationFilter} bean to its observations. The observation name is Spring Boot's
+   * {@code management.observations.http.server.requests.name}.
+   *
+   * @param environment the application's environment
+   * @return the filter
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean
+  public RequestErrorCodeFilter requestErrorCodeFilter(Environment environment) {
+    return new RequestErrorCodeFilter(
+        environment.getProperty(
+            ObservabilityConstants.SERVER_REQUESTS_NAME,
+            ObservabilityConstants.DEFAULT_SERVER_REQUESTS_NAME));
   }
 
   /**
