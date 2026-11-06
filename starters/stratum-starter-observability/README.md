@@ -96,6 +96,7 @@ and installs the OpenTelemetry appender itself.
 | Tags on every metric | `application` from `spring.application.name`, `environment` from [`stratum.environment`](../../docs/configuration/reference.md#shared-properties), and `host` from the `HOSTNAME` environment variable, which in Kubernetes is the pod's name. Each is left out when its value is not set |
 | Timings as histograms | Every timer, such as HTTP server and client calls, `@Scheduled` jobs and Spring Batch steps, is sent as a base-2 exponential histogram ([below](#timings)) |
 | Tag guard | A metric with a tag named like an ID, such as `userId`, is dropped with one warning; the RabbitMQ routing key is removed from send timers ([below](#tag-guard)) |
+| Meter caps | At most 10,000 meters and 100 HTTP client hosts; past a cap, new meters are dropped with one warning ([meter caps](../../docs/modules/observability-metrics.md)) |
 | Correlation ID | In the logging context of every traced operation, so log lines and error reports carry it ([traces](../../docs/modules/observability-traces.md#correlation-id)) |
 | Other threads | `@Async` methods and Spring Boot's executors keep the caller's trace and correlation ID ([below](#threads-and-reactive-code)). `@Scheduled` jobs start clean, and `LinkedWork` links work that a request saves for a later job back to that request ([guide](../../docs/guides/linking-later-work.md)) |
 | Messages | Kafka, JMS (IBM MQ, ActiveMQ) and RabbitMQ: sending and handling a message are timed and traced, and the consumer joins the sender's trace and correlation ID ([below](#messages)) |
@@ -267,6 +268,8 @@ value you set wins, from any file, the environment, the command line or Java def
 | `stratum.observability.tags.extra-forbidden` | list of strings | empty | no such key | More tag names the [tag guard](#tag-guard) refuses, added to the built-in ones. Case, `_`, `-` and `.` are ignored. A blank name stops startup with `SX-CORE-1003`. |
 | `stratum.observability.tags.allowed` | list of strings | empty | no such key | Tag names the [tag guard](#tag-guard) keeps even though they are refused by default, such as `customerId`. Compared like `extra-forbidden`. A blank name stops startup with `SX-CORE-1003`. |
 | `stratum.observability.baggage.allowed` | list of strings | `correlationId` | no such key | The [baggage](../../docs/modules/observability-traces.md#baggage) names read from callers and sent on calls and messages; every other entry is dropped. Spring Boot's `management.tracing.baggage.remote-fields` are always kept too. Names match exactly, case included. A list you set replaces the default, so keep `correlationId` in it. A blank name stops startup with `SX-CORE-1003`. |
+| `stratum.observability.metrics.max-meters` | integer | `10000` | no such key | The most meters each metrics registry holds; past it, new meters are dropped with one `SX-OBSERVABILITY-1003` warning ([meter caps](../../docs/modules/observability-metrics.md)). Zero or less stops startup with `SX-CORE-1003`. |
+| `stratum.observability.metrics.max-client-names` | integer | `100` | no such key | The most hosts the HTTP client metrics keep in their `client.name` tag; past it, calls to new hosts are not timed, with one `SX-OBSERVABILITY-1003` warning ([meter caps](../../docs/modules/observability-metrics.md)). Zero or less stops startup with `SX-CORE-1003`. |
 | `stratum.observability.tracing.health-probes` | boolean | `false` | no such key | Whether health probe requests, such as Kubernetes liveness and readiness checks, get spans. With `false`, probes keep their timers but make no spans ([traces](../../docs/modules/observability-traces.md#health-probes)). |
 | `management.otlp.metrics.export.enabled` | boolean | `false` while the module is off | `true` | Whether metrics are sent. |
 | `management.tracing.export.enabled` | boolean | `false` while the module is off | `true` | Whether spans are sent. |
@@ -470,6 +473,7 @@ sent, and Spring Boot's own actuator defaults apply.
 | A message's trace ends at the sender | The consumer service does not have this module on, or sets its listener's `observation-enabled` switch to `false` ([messages](#messages)). |
 | No `host` tag | `HOSTNAME` is not set in the service's environment. |
 | A metric is missing and the log shows `SX-OBSERVABILITY-1002` | One of its tags is named like an ID. Remove the tag, or rename it if it holds only a few fixed values. |
+| A metric is missing and the log shows `SX-OBSERVABILITY-1003` | A meter cap is reached, usually because a tag holds unbounded values ([meter caps](../../docs/modules/observability-metrics.md)). |
 | No percentiles in the metrics backend | It does not accept OTLP exponential histograms; see [Timings](#timings). |
 | `/actuator/prometheus` returns 404 | Prometheus is not set up; see the [example](#examples). |
 | Readiness stays `DOWN` | Open `/actuator/health/readiness` as an authorised caller to see which component fails. |

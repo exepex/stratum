@@ -253,13 +253,14 @@ other invalid setting. The message names the rule `stratum.logging.max-field-len
 ## stratum-starter-observability
 
 These apply only while the module is on, which it is unless `stratum.observability.enabled=false`. `SX-OBSERVABILITY-1001` is an error that
-stops the application at startup; `SX-OBSERVABILITY-1002` is a warning. See the
+stops the application at startup; `SX-OBSERVABILITY-1002` and `SX-OBSERVABILITY-1003` are warnings. See the
 [observability module](../../starters/stratum-starter-observability/README.md).
 
 | Code | Meaning | Fix |
 | --- | --- | --- |
 | `SX-OBSERVABILITY-1001` | With the module on, in any profile, metrics or traces are sent over OTLP but their address is not set, so they would be lost. The message names each missing property: `management.otlp.metrics.export.url`, `management.opentelemetry.tracing.export.otlp.endpoint` or both. | Set the named property to your OpenTelemetry Collector, such as `http://otel-collector:4318/v1/metrics`, or turn that export off with `management.otlp.metrics.export.enabled=false` or `management.tracing.export.enabled=false`, or turn the module off with `stratum.observability.enabled=false`. On a laptop without a Collector, use `http://localhost:4318/...`; the data is then dropped without a failed-send log. |
 | `SX-OBSERVABILITY-1002` | Warning, logged once per metric: a metric was dropped because one of its tags is named like an ID, such as `userId`, `trace_id`, `user.id` or a name in `stratum.observability.tags.extra-forbidden`. Each ID value would create a new time series. The message names the metric and the tag, never a value. | Remove the tag from the metric and put the ID in a log line or a span attribute instead. If the tag really holds a small, known set of values, list its name in `stratum.observability.tags.allowed`. |
+| `SX-OBSERVABILITY-1003` | Warning, logged once per cap: a new meter was dropped because the registry already holds `stratum.observability.metrics.max-meters` meters, or the HTTP client meters already have `stratum.observability.metrics.max-client-names` hosts in their `client.name` tag. A tag probably holds unbounded values. The message names the meter and the key, never a value. | Find the tag with unbounded values, such as an ID, a raw path or a host per customer, and remove it or bound it. Raise the named key only after checking that the metrics backend can store that many series ([meter caps](../modules/observability-metrics.md)). |
 
 ## stratum-starter-data-jpa
 

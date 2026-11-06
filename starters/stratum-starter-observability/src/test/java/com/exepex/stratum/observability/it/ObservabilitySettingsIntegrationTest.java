@@ -4,9 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.observability.BaggageAllowList;
+import com.exepex.stratum.observability.MeterCountGuard;
 import com.exepex.stratum.observability.MetricTagGuard;
 import com.exepex.stratum.observability.ObservabilityProperties;
 import com.exepex.stratum.observability.testsupport.BaggageTestData;
+import com.exepex.stratum.observability.testsupport.MeterCountTestData;
 import com.exepex.stratum.observability.testsupport.ObservabilityTestData;
 import io.micrometer.core.instrument.config.MeterFilterReply;
 import io.opentelemetry.api.common.AttributeKey;
@@ -26,10 +28,23 @@ class ObservabilitySettingsIntegrationTest {
   private static final String TENANT_BAGGAGE =
       BaggageTestData.CALLER_BAGGAGE + "," + BaggageTestData.REMOTE_FIELD + "=t-1";
 
+  /** The client host cap both files set. */
+  private static final int MAX_CLIENT_NAMES_IN_FILES = 3;
+
+  /** More hosts than the files allow. */
+  private static final int MANY_HOSTS = 10;
+
+  /** The total cap both files set, twice the default. */
+  private static final int MAX_METERS_IN_FILES = 20_000;
+
+  /** Stratum's default total cap, which the files raise. */
+  private static final int DEFAULT_MAX_METERS = 10_000;
+
   /** Checks the settings that both files set the same way. */
   private void assertSettingsApplied(
       MetricTagGuard guard,
       BaggageAllowList allowList,
+      MeterCountGuard meterCountGuard,
       Environment environment,
       Resource resource) {
     assertThat(guard.accept(ObservabilityTestData.counterTaggedWith("tenantId")))
@@ -39,6 +54,12 @@ class ObservabilitySettingsIntegrationTest {
     assertThat(BaggageTestData.namesKeptBy(allowList, TENANT_BAGGAGE))
         .containsExactlyInAnyOrder(
             LoggingContextConstants.CORRELATION_ID, BaggageTestData.REMOTE_FIELD);
+    var registry = MeterCountTestData.registryGuardedBy(meterCountGuard);
+    MeterCountTestData.registerClientTimers(registry, MANY_HOSTS);
+    assertThat(MeterCountTestData.clientNamesIn(registry)).hasSize(MAX_CLIENT_NAMES_IN_FILES);
+    // The application's own meters share the guard's slots, so the registry holds a little less.
+    MeterCountTestData.registerOrderCounters(registry, MAX_METERS_IN_FILES + 1);
+    assertThat(registry.getMeters()).hasSizeBetween(DEFAULT_MAX_METERS + 1, MAX_METERS_IN_FILES);
     assertThat(environment.getProperty("management.endpoints.web.exposure.include"))
         .isEqualTo("health,info");
     assertThat(environment.getProperty("management.metrics.tags.environment")).isEqualTo("staging");
@@ -67,6 +88,9 @@ class ObservabilitySettingsIntegrationTest {
     /** The baggage allow-list the settings configure. */
     @Autowired private BaggageAllowList allowList;
 
+    /** The meter caps the settings configure. */
+    @Autowired private MeterCountGuard meterCountGuard;
+
     /** The application's settings. */
     @Autowired private Environment environment;
 
@@ -75,10 +99,10 @@ class ObservabilitySettingsIntegrationTest {
 
     @Test
     @DisplayName(
-        "the forbidden and allowed tags, allowed baggage, endpoints, environment tag, instance ID"
-            + " and probe tracing are applied")
+        "the forbidden and allowed tags, allowed baggage, meter caps, endpoints, environment tag,"
+            + " instance ID and probe tracing are applied")
     void settingsApplied() {
-      assertSettingsApplied(guard, allowList, environment, resource);
+      assertSettingsApplied(guard, allowList, meterCountGuard, environment, resource);
     }
   }
 
@@ -102,6 +126,9 @@ class ObservabilitySettingsIntegrationTest {
     /** The baggage allow-list the settings configure. */
     @Autowired private BaggageAllowList allowList;
 
+    /** The meter caps the settings configure. */
+    @Autowired private MeterCountGuard meterCountGuard;
+
     /** The application's settings. */
     @Autowired private Environment environment;
 
@@ -110,10 +137,10 @@ class ObservabilitySettingsIntegrationTest {
 
     @Test
     @DisplayName(
-        "the forbidden and allowed tags, allowed baggage, endpoints, environment tag, instance ID"
-            + " and probe tracing are applied")
+        "the forbidden and allowed tags, allowed baggage, meter caps, endpoints, environment tag,"
+            + " instance ID and probe tracing are applied")
     void settingsApplied() {
-      assertSettingsApplied(guard, allowList, environment, resource);
+      assertSettingsApplied(guard, allowList, meterCountGuard, environment, resource);
     }
   }
 }

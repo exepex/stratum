@@ -145,6 +145,16 @@ public class ObservabilityConstants {
    */
   public static final String HTTP_URL = "http.url";
 
+  /** The tag in which Spring puts the host of an outgoing HTTP call on its metrics. */
+  public static final String CLIENT_NAME_TAG = "client.name";
+
+  /** Spring Boot's name of the HTTP client meters. */
+  public static final String CLIENT_REQUESTS_NAME =
+      "management.observations.http.client.requests.name";
+
+  /** Spring Boot's default name of the HTTP client meters. */
+  public static final String DEFAULT_CLIENT_REQUESTS_NAME = "http.client.requests";
+
   /** The tag, on spans and metrics, in which Spring puts the URI template of an HTTP call. */
   public static final String URI = "uri";
 

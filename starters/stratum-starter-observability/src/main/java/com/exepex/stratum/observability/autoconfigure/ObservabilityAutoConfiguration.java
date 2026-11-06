@@ -14,6 +14,7 @@ import com.exepex.stratum.observability.HealthProbePaths;
 import com.exepex.stratum.observability.HealthProbeTracingHandler;
 import com.exepex.stratum.observability.JmsBeanObserver;
 import com.exepex.stratum.observability.JmsListenerContainerObserver;
+import com.exepex.stratum.observability.MeterCountGuard;
 import com.exepex.stratum.observability.MetricTagGuard;
 import com.exepex.stratum.observability.ObservabilityConstants;
 import com.exepex.stratum.observability.ObservabilityProperties;
@@ -97,6 +98,30 @@ public final class ObservabilityAutoConfiguration {
   public MetricTagGuard metricTagGuard(Environment environment) {
     var tags = ObservabilityProperties.resolve(environment).tags();
     return new MetricTagGuard(tags.extraForbidden(), tags.allowed());
+  }
+
+  /**
+   * Caps the number of meters and of HTTP client hosts. Spring Boot applies the bean to every
+   * registry, as a {@code MeterFilter} and as a {@code MeterRegistryCustomizer}. The caps come from
+   * {@link ObservabilityProperties#resolve}, so the service's customizers win.
+   *
+   * @param environment the application's environment
+   * @return the guard
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean
+  // Last, so a meter another filter drops takes no slot; declared after metricTagGuard because
+  // filters of the same order keep the order in which they are declared.
+  @Order(Ordered.LOWEST_PRECEDENCE)
+  public MeterCountGuard meterCountGuard(Environment environment) {
+    var metrics = ObservabilityProperties.resolve(environment).metrics();
+    return new MeterCountGuard(
+        metrics.maxMeters(),
+        metrics.maxClientNames(),
+        environment.getProperty(
+            ObservabilityConstants.CLIENT_REQUESTS_NAME,
+            ObservabilityConstants.DEFAULT_CLIENT_REQUESTS_NAME));
   }
 
   /**

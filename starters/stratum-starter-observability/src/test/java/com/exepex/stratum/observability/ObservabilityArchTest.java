@@ -20,12 +20,15 @@ class ObservabilityArchTest {
   private static final Set<Class<?>> API_TYPES =
       Set.of(
           CorrelationIdRecorder.class,
+          MeterCountGuard.class,
           MetricTagGuard.class,
           ObservabilityProperties.class,
           ObservabilityProperties.ObservabilityPropertiesBuilder.class,
           ObservabilityProperties.Baggage.class,
           ObservabilityProperties.Tags.class,
           ObservabilityProperties.Tags.TagsBuilder.class,
+          ObservabilityProperties.Metrics.class,
+          ObservabilityProperties.Metrics.MetricsBuilder.class,
           ObservabilityProperties.Tracing.class,
           ObservabilityProperties.Tracing.TracingBuilder.class,
           ObservabilityPropertiesCustomizer.class,

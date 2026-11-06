@@ -25,6 +25,8 @@ class ConfigurationMetadataTest {
           ObservabilityConstants.PREFIX + ".tags.extra-forbidden",
           ObservabilityConstants.PREFIX + ".tags.allowed",
           ObservabilityConstants.PREFIX + ".baggage.allowed",
+          ObservabilityConstants.PREFIX + ".metrics.max-meters",
+          ObservabilityConstants.PREFIX + ".metrics.max-client-names",
           ObservabilityConstants.PREFIX + ".tracing.health-probes");
 
   @Test
