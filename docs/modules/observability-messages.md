@@ -92,3 +92,11 @@ These stay unobserved, because Stratum cannot reach them:
   `JmsTemplate` bean and pass it in instead;
 - a `@JmsListener` registered after the application has started;
 - every JMS object, when the application has more than one `ObservationRegistry` bean.
+
+## Not covered yet
+
+- **JMS connection pools.** Stratum adds no metrics for a JMS connection pool, such as the one
+  `spring.jms.cache.*` or `spring.artemis.pool.*` turns on, so its size and waiting callers are
+  not visible ([#226](https://github.com/exepex/stratum/issues/226)).
+- **TIBCO EMS.** The JMS observation above is Spring's and works with any JMS broker, but Stratum
+  tests it only with ActiveMQ Artemis. A check with TIBCO EMS is planned in the same issue.
