@@ -86,8 +86,9 @@ and the server's address and port.
 | `cache.gets` (hits and misses), `cache.puts`, `cache.removals`, per cache | Spring Boot; Redis caches count hits and misses because the cache starter turns their statistics on ([cache metrics](cache.md#metrics)) |
 | `stratum.cache.redis.available`, `stratum.cache.failures`, `stratum.cache.skips`, `stratum.cache.redis.connect-failures` | The cache starter ([cache metrics](cache.md#metrics)) |
 
-The Redis health check `redis` is in `/actuator/health`. The cache metrics follow
-`management.metrics.enable.cache`, like any Spring Boot metric.
+The Redis health check `redis` is in `/actuator/health`. Spring Boot's `cache.*` metrics follow
+`management.metrics.enable.cache`, and the cache starter's `stratum.cache.*` metrics follow
+`management.metrics.enable.stratum.cache`, like any meter name prefix.
 
 ## JMS
 
