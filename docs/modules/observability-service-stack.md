@@ -116,13 +116,10 @@ A user ID never goes on a metric: each user would make a new series, and the
 
 ```java
 @Component
+@RequiredArgsConstructor
 class OrderUsage {
 
   private final MeterRegistry meterRegistry;
-
-  OrderUsage(MeterRegistry meterRegistry) {
-    this.meterRegistry = meterRegistry;
-  }
 
   void orderPlaced(Jwt token) {
     String client = Objects.requireNonNullElse(token.getClaimAsString("azp"), "unknown");
@@ -132,4 +129,5 @@ class OrderUsage {
 ```
 
 The `azp` claim names the client application, such as `checkout-web`, so the tag has as many values
-as you have clients, plus `unknown` for a token without it. Never tag with the subject or an email address.
+as you have clients, plus `unknown` for a token without it. Never tag with the subject or an email
+address.
