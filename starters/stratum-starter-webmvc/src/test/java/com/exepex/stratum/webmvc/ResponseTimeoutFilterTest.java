@@ -7,6 +7,7 @@ import com.exepex.stratum.web.RequestTimedOutException;
 import com.exepex.stratum.web.ResponseTimeouts;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebProperties;
+import io.micrometer.observation.ObservationRegistry;
 import jakarta.servlet.ServletException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.env.MockEnvironment;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -38,7 +40,9 @@ class ResponseTimeoutFilterTest {
           false);
 
   /** The filter. */
-  private final ResponseTimeoutFilter filter = new ResponseTimeoutFilter(timeouts);
+  private final ResponseTimeoutFilter filter =
+      new ResponseTimeoutFilter(
+          timeouts, new StaticListableBeanFactory().getBeanProvider(ObservationRegistry.class));
 
   /** The request. */
   private final MockHttpServletRequest request = new MockHttpServletRequest("GET", "/orders/42");

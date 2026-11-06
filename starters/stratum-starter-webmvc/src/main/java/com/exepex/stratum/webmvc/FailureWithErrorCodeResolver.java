@@ -5,6 +5,7 @@ import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.web.ErrorResponseFactory;
 import com.exepex.stratum.web.RequestDeadline;
+import io.micrometer.observation.ObservationRegistry;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -13,6 +14,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.MDC;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.HttpMediaTypeNotAcceptableException;
@@ -32,7 +34,9 @@ import tools.jackson.databind.json.JsonMapper;
  * code's status wins over an {@code @ResponseStatus} on the exception, as on WebFlux. A failure
  * whose code is only in one of its causes is answered last, after Spring MVC's resolvers, so that a
  * wrapper with a status of its own, such as a {@code ResponseStatusException} or unreadable JSON,
- * keeps Spring's answer, and a plain wrapper gets the code's status instead of 500.
+ * keeps Spring's answer, and a plain wrapper gets the code's status instead of 500. It also records
+ * every failure it sees on the request's observation, as WebFlux does, so a failure the service's
+ * own handlers answer is not recorded on either stack.
  */
 @RequiredArgsConstructor
 public class FailureWithErrorCodeResolver implements HandlerExceptionResolver, WebMvcConfigurer {
@@ -47,11 +51,15 @@ public class FailureWithErrorCodeResolver implements HandlerExceptionResolver, W
   /** Writes the error body as JSON, as Spring MVC writes every other body. */
   private final JsonMapper jsonMapper;
 
+  /** Where failures are recorded: the service's observation registry, if it has one. */
+  private final ObjectProvider<ObservationRegistry> observationRegistry;
+
   /**
-   * Answers a failure that has an error code itself, and leaves any other failure to the next
-   * resolver. A caller that asks for HTML, such as a browser, is sent to the error page, with the
-   * same status. The body holds no {@code instance}, because the request path can hold personal
-   * data.
+   * Records the failure on the request's observation; for a request that ran out of time, {@link
+   * ResponseTimeoutFilter} then records the timeout in its place. Then answers a failure that has
+   * an error code itself, and leaves any other failure to the next resolver. A caller that asks for
+   * HTML, such as a browser, is sent to the error page, with the same status. The body holds no
+   * {@code instance}, because the request path can hold personal data.
    *
    * @param request the request
    * @param response the response
@@ -66,6 +74,7 @@ public class FailureWithErrorCodeResolver implements HandlerExceptionResolver, W
       HttpServletResponse response,
       @Nullable Object handler,
       Exception failure) {
+    RequestFailureRecorder.record(observationRegistry, request, failure);
     return failure instanceof FailureWithErrorCode
         ? resolveFailureOrCause(request, response, failure)
         : null;

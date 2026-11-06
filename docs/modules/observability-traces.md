@@ -163,6 +163,34 @@ API directly. Until then, a span waiting in the queue still holds its exception.
 see spans before Stratum removes the data, or without it: a Micrometer `SpanReporter` bean, and a
 `SpanProcessor` bean of your own that sends spans through an exporter it holds itself.
 
+## Error codes on requests
+
+With a web starter, every incoming request's `http.server.requests` timer has an `error.code` tag:
+the code of the exception the request failed with, such as `ORD-0001`, or of its first cause that
+has one, else `none`. It follows the same rule as the `error.code` log field, so a timer, a span
+and a log line of the same failure carry the same code. The request's server span carries the
+code only when there is one; `error.code=none` is removed when the span is sent. You write no code
+and set no property; the tag goes on the timers that Spring Boot's
+`management.observations.http.server.requests.name` names.
+
+On Spring MVC and WebFlux alike, a failure that Stratum answers is recorded on the request: its
+timer gets the `error` and `exception` tags and its span the `ERROR` status. That covers a
+`StratumException`, an exception that implements `FailureWithErrorCode`, any other exception from
+a controller, a request that runs out of time (`RequestTimedOutException`) and a body over its
+limit (`RequestBodyTooLargeException`). A code that only Stratum's error body holds, such as
+`SX-WEB-1003` for an unknown path, is not a code the request failed with, so the tag is `none`.
+
+A failure that your own `@ExceptionHandler` answers is not recorded, on either stack, as Spring
+does not record it. To count it, record it yourself in the handler: on Spring MVC with
+`ServerHttpObservationFilter.findObservationContext(request).ifPresent(context ->
+context.setError(exception))`, and on WebFlux with
+`ServerRequestObservationContext.findCurrent(exchange.getAttributes())` in the same way. That
+tags the timer; the span keeps its status. With `stratum.web.enabled=false`, Spring MVC records
+none of the failures its own resolvers answer, as without Stratum, while WebFlux still does.
+
+Each distinct code adds one timer per route and status, within the
+[meter caps](observability-metrics.md).
+
 ## Span size
 
 Each span waits in a queue of up to 2,048 spans until it is sent. So that a span cannot hold

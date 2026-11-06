@@ -138,6 +138,9 @@ log.error(exception.getMessage(), exception);
 
 With the logging module on, the line then also has the code in its own `error.code` field, which
 you can search and count by ([logging module](../../starters/stratum-starter-logging/README.md#what-you-get)).
+With the observability module and a web starter, a request that fails with it has the same code in
+the `error.code` tag of its timer and on its span
+([traces](../modules/observability-traces.md#error-codes-on-requests)).
 
 To add field details, build the report first:
 

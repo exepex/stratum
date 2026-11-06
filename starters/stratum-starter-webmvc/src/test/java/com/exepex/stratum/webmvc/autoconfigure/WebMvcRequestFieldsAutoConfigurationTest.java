@@ -21,6 +21,7 @@ import com.exepex.stratum.webmvc.ResponseTimeoutInterceptor;
 import com.exepex.stratum.webmvc.ServletRequestMdcCleanupFilter;
 import com.exepex.stratum.webmvc.ServletRequestMdcCleanupListener;
 import com.exepex.stratum.webmvc.testsupport.WebMvcRequestFieldsRunners;
+import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.tracing.Tracer;
 import jakarta.servlet.DispatcherType;
 import java.io.IOException;
@@ -28,6 +29,8 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.FilteredClassLoader;
@@ -68,6 +71,10 @@ class WebMvcRequestFieldsAutoConfigurationTest {
 
   /** The name of the registration of the listener that cleans it after a failed request. */
   private static final String MDC_CLEANUP_LISTENER = "stratumMdcCleanupListener";
+
+  /** No observation registry: these tests record no failure. */
+  private static final ObjectProvider<ObservationRegistry> NO_REGISTRY =
+      new StaticListableBeanFactory().getBeanProvider(ObservationRegistry.class);
 
   /** A trusted proxy range whose prefix is longer than its address. */
   private static final String TOO_LONG_RANGE = "10.0.0.0/33";
@@ -207,7 +214,8 @@ class WebMvcRequestFieldsAutoConfigurationTest {
     void serviceBodyLimitBeansWin() {
       var serviceLimits =
           new RequestBodyLimits(WebProperties.resolve(new MockEnvironment()), false);
-      var serviceFilter = new FilterRegistrationBean<>(new RequestBodyLimitFilter(serviceLimits));
+      var serviceFilter =
+          new FilterRegistrationBean<>(new RequestBodyLimitFilter(serviceLimits, NO_REGISTRY));
       contextRunner
           .withBean(RequestBodyLimits.class, () -> serviceLimits)
           .withBean(BODY_LIMIT_FILTER, FilterRegistrationBean.class, () -> serviceFilter)
@@ -226,7 +234,7 @@ class WebMvcRequestFieldsAutoConfigurationTest {
       try (var serviceTimeouts =
           new ResponseTimeouts(WebProperties.resolve(new MockEnvironment()), false)) {
         var serviceFilter =
-            new FilterRegistrationBean<>(new ResponseTimeoutFilter(serviceTimeouts));
+            new FilterRegistrationBean<>(new ResponseTimeoutFilter(serviceTimeouts, NO_REGISTRY));
         contextRunner
             .withBean(ResponseTimeouts.class, () -> serviceTimeouts)
             .withBean(TIMEOUT_FILTER, FilterRegistrationBean.class, () -> serviceFilter)

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.exepex.stratum.observability.CorrelationIdRecorder;
 import com.exepex.stratum.observability.DroppedSpanMeterProvider;
 import com.exepex.stratum.observability.MetricTagGuard;
+import com.exepex.stratum.observability.RequestErrorCodeFilter;
 import com.exepex.stratum.observability.TelemetryUrlFilter;
 import com.exepex.stratum.observability.testsupport.ObservabilityTestData;
 import io.opentelemetry.api.metrics.MeterProvider;
@@ -37,6 +38,17 @@ class ObservabilityAutoConfigurationBackOffTest {
                   assertUsesBeans(
                       context, serviceFilter, serviceGuard, serviceRecorder, serviceMeterProvider));
     }
+  }
+
+  @Test
+  @DisplayName("the service's own error code filter replaces Stratum's")
+  void serviceErrorCodeFilterWins() {
+    var serviceFilter = new RequestErrorCodeFilter("orders.requests");
+    ObservabilityTestData.contextRunner()
+        .withBean(RequestErrorCodeFilter.class, () -> serviceFilter)
+        .run(
+            context ->
+                assertThat(context.getBean(RequestErrorCodeFilter.class)).isSameAs(serviceFilter));
   }
 
   @Test

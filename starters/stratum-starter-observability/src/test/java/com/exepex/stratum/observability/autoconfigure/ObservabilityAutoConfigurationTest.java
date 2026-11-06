@@ -9,12 +9,14 @@ import com.exepex.stratum.observability.DroppedSpanMeterProvider;
 import com.exepex.stratum.observability.MetricTagGuard;
 import com.exepex.stratum.observability.ObservabilityConstants;
 import com.exepex.stratum.observability.ObservabilityPropertiesCustomizer;
+import com.exepex.stratum.observability.RequestErrorCodeFilter;
 import com.exepex.stratum.observability.TelemetryUrlFilter;
 import com.exepex.stratum.observability.testsupport.ObservabilityTestData;
 import com.exepex.stratum.observability.testsupport.RegionTagObservabilitySettings;
 import com.exepex.stratum.test.StarterTestSupport;
 import io.micrometer.context.ContextExecutorService;
 import io.micrometer.core.instrument.config.MeterFilterReply;
+import io.micrometer.observation.Observation;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -31,6 +33,7 @@ import org.springframework.boot.autoconfigure.task.TaskSchedulingAutoConfigurati
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.AsyncConfigurer;
@@ -57,6 +60,9 @@ class ObservabilityAutoConfigurationTest {
   /** The tag name the service sets in Java. */
   private static final String REGION_TAG = RegionTagObservabilitySettings.REGION_TAG;
 
+  /** A name a service gives its request observations through Spring Boot's key. */
+  private static final String RENAMED_REQUESTS = "orders.requests";
+
   private final ApplicationContextRunner contextRunner = ObservabilityTestData.contextRunner();
 
   /** Returns what the context's guard answers for a metric with one tag. */
@@ -77,6 +83,7 @@ class ObservabilityAutoConfigurationTest {
           context ->
               assertThat(context)
                   .hasSingleBean(TelemetryUrlFilter.class)
+                  .hasSingleBean(RequestErrorCodeFilter.class)
                   .hasSingleBean(MetricTagGuard.class)
                   .hasSingleBean(CorrelationIdRecorder.class)
                   .hasSingleBean(DroppedSpanMeterProvider.class));
@@ -91,6 +98,7 @@ class ObservabilityAutoConfigurationTest {
               context ->
                   assertThat(context)
                       .doesNotHaveBean(TelemetryUrlFilter.class)
+                      .doesNotHaveBean(RequestErrorCodeFilter.class)
                       .doesNotHaveBean(MetricTagGuard.class)
                       .doesNotHaveBean(CorrelationIdRecorder.class)
                       .doesNotHaveBean(DroppedSpanMeterProvider.class));
@@ -114,6 +122,25 @@ class ObservabilityAutoConfigurationTest {
   @Nested
   @DisplayName("with tag settings from properties and Java")
   class Settings {
+
+    @Test
+    @DisplayName("the error code goes on the request observations Spring Boot's key names")
+    void errorCodeFollowsRenamedRequests() {
+      contextRunner
+          .withPropertyValues(ObservabilityConstants.SERVER_REQUESTS_NAME + "=" + RENAMED_REQUESTS)
+          .run(context -> assertThat(errorCodeAddedTo(context, RENAMED_REQUESTS)).isTrue());
+    }
+
+    /** Returns whether the context's filter adds the error code to an observation of the name. */
+    private boolean errorCodeAddedTo(ApplicationContext context, String observationName) {
+      var observation = new Observation.Context();
+      observation.setName(observationName);
+      return context
+              .getBean(RequestErrorCodeFilter.class)
+              .map(observation)
+              .getLowCardinalityKeyValue(ObservabilityConstants.ERROR_CODE_TAG)
+          != null;
+    }
 
     @Test
     @DisplayName("the guard refuses and keeps the tag names set in properties")

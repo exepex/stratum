@@ -319,7 +319,8 @@ can work out any percentile. The timer has these tags:
 | `uri` | The route template, never the real path | `/orders/{orderId}` |
 | `status` | The response status | `503` |
 | `outcome` | The status class, such as `SUCCESS`, `CLIENT_ERROR` or `SERVER_ERROR` | `SERVER_ERROR` |
-| `exception` | The simple class name of an exception that escaped the handler, or `none` | `TimeoutException` |
+| `exception` | The simple class name of the exception the request failed with, unless your own handler answered it, or `none` | `TimeoutException` |
+| `error.code` | The [error code](../guides/error-codes.md) it failed with, or its first cause's, else `none`; its span carries it too ([traces](observability-traces.md#error-codes-on-requests)) | `ORD-0001` |
 | `application`, `environment`, `host` | The service, its environment and the pod, added by the observability starter | `orders`, `prod`, `orders-7d9f-x2k` |
 
 Any dashboard tool builds the usual SLA panels from it:
