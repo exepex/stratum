@@ -28,7 +28,10 @@ slow or fast. Dashboards and alerts decide that.
 **OTLP** is OpenTelemetry's protocol for sending metrics and traces. An **OpenTelemetry
 Collector** is a small service, usually run once per cluster or next to each pod, that receives OTLP
 and forwards it to the backends your company uses. Changing backend then means changing the
-Collector's configuration, not your service.
+Collector's configuration, not your service. Which backends and transports Stratum tests, and every
+known gap of this module, are on [known gaps and backends](../../docs/modules/observability-known-gaps.md);
+what a service with JWTs, PostgreSQL, Redis and JMS sees is on
+[observing your service's stack](../../docs/modules/observability-service-stack.md).
 
 ## Add it
 
@@ -119,7 +122,9 @@ Spring Boot sends the last metrics and traces when the application stops.
 
 Every metric carries the `host` tag, so a dashboard can show one pod alone or all pods together. If
 one pod out of ten is slow, filter on `host` to see it. Outside Kubernetes, set `HOSTNAME` in the
-service's environment to get the tag.
+service's environment to get the tag. A new pod has a new `host` and a new `service.instance.id`, so
+each rollout starts new series for every metric. This is by design: sum by `application` to see one
+line across rollouts.
 
 ### Timings
 
@@ -196,7 +201,8 @@ Reactor's context propagation, even without WebFlux or WebClient. Every line in 
 any operator carries the request's trace and correlation ID, never another request's, and `WebClient`
 sends `baggage` like `RestClient`. Setting `spring.reactor.context-propagation=limited` keeps
 Spring Boot's own mode, where only `handle` and `tap` lines carry them. The same setting carries the logging
-starter's [workflow fields](../../docs/modules/logging-workflows.md#async-and-reactive-work).
+starter's [workflow fields](../../docs/modules/logging-workflows.md#async-and-reactive-work). What
+`auto` costs per operator is not measured yet ([#131](https://github.com/exepex/stratum/issues/131)).
 
 ### Startup check
 
@@ -255,7 +261,16 @@ With the gRPC transport, the second logger is `io.opentelemetry.exporter.interna
 Any other address, such as `http://otel-collector:4318`, keeps both: a warning with a stack trace at
 every metrics push, every minute by default, and an error with a stack trace for each batch of
 spans that cannot be sent, so a broken Collector in a shared environment is noticed. The service
-keeps running.
+keeps running. When it stops, it sends the spans still queued and waits for the Collector up to
+Spring Boot's `management.opentelemetry.tracing.export.timeout`, 30 s by default, so a Collector that
+never answers can slow shutdown by that much ([#227](https://github.com/exepex/stratum/issues/227)).
+
+A batch of spans whose connection fails or times out, or that the Collector refuses with HTTP 429,
+502, 503 or 504, or over gRPC with `UNAVAILABLE`, `RESOURCE_EXHAUSTED` or another retryable status,
+is sent again: up to 5 attempts, waiting about 1 s, then up to 5 s, between them. This is
+OpenTelemetry's default retry, which Spring Boot keeps; Stratum does not test it. Metrics are not
+sent again: a push that fails is lost, and the next push, a minute later, sends every meter's
+current value.
 
 ## Properties
 

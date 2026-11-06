@@ -62,6 +62,8 @@ Each module page follows the same layout so you always know where to look:
 | Observability meter caps (total meters, HTTP client hosts, the `uri` tag) | [observability-metrics.md](modules/observability-metrics.md) |
 | Observability of Kafka, RabbitMQ and JMS messages | [observability-messages.md](modules/observability-messages.md) |
 | Observability traces (correlation ID, baggage, URLs on spans, errors on spans, span size, dropped spans, health probes, sampling and tail sampling) | [observability-traces.md](modules/observability-traces.md) |
+| Observing a service's stack: JWT access tokens, PostgreSQL, Redis, JMS, and counting active users | [observability-service-stack.md](modules/observability-service-stack.md) |
+| Observability known gaps, and which backends (OTLP HTTP and gRPC, Prometheus, Zipkin) are tested | [observability-known-gaps.md](modules/observability-known-gaps.md) |
 | Security (resource server, JWT) | [security.md](modules/security.md) |
 | OAuth2 client (service-to-service tokens) | [oauth2-client.md](modules/oauth2-client.md) |
 | HTTP client | [http-client.md](modules/http-client.md) |
