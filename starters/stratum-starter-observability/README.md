@@ -265,6 +265,12 @@ keeps running. When it stops, it sends the spans still queued and waits for the 
 Spring Boot's `management.opentelemetry.tracing.export.timeout`, 30 s by default, so a Collector that
 never answers can slow shutdown by that much ([#227](https://github.com/exepex/stratum/issues/227)).
 
+A batch of spans the Collector refuses with HTTP 429, 502, 503 or 504, or over gRPC with
+`UNAVAILABLE`, `RESOURCE_EXHAUSTED` or another retryable status, is sent again: up to 5 attempts,
+waiting 1 s, then up to 5 s, between them. This is OpenTelemetry's default retry, which Spring Boot
+keeps; Stratum does not test it. Metrics are not sent again: a push that fails is lost, and the next
+push, a minute later, sends every meter's current value.
+
 ## Properties
 
 Every key this starter reads or gives a default. Stratum's own keys come first. For a Spring Boot
