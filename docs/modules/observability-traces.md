@@ -245,11 +245,11 @@ then raise `management.opentelemetry.tracing.export.max-queue-size` or lower
 `management.tracing.sampling.probability`.
 
 Spring Boot sends up to 512 spans in one batch
-(`management.opentelemetry.tracing.export.max-batch-size`). Stratum has not checked a full batch of large spans, at the [span size limits](#span-size), against
-the Collector's receive limit, which is 4 MiB per message over gRPC unless the Collector raises it.
-A batch the Collector refuses loses its spans: it is logged as an error, like any batch that
-cannot be sent, but not counted by the counter above
-([#228](https://github.com/exepex/stratum/issues/228)).
+(`management.opentelemetry.tracing.export.max-batch-size`). Stratum has not checked a full batch of
+large spans, at the [span size limits](#span-size), against the Collector's receive limit, which is
+4 MiB per message over gRPC unless the Collector raises it. A batch the Collector refuses loses its
+spans: it is logged as an error, like any batch that cannot be sent, but not counted by the counter
+above ([#228](https://github.com/exepex/stratum/issues/228)).
 
 The count comes from OpenTelemetry's own span processor, and Spring Boot gives that processor
 the service's OpenTelemetry `MeterProvider` bean. If your service declares its own
