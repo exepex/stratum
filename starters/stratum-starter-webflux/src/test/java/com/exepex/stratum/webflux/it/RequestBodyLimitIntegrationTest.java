@@ -86,7 +86,13 @@ class RequestBodyLimitIntegrationTest {
     WebTestSupport.checkBodyRefused(
         port, "/orders", MediaType.TEXT_PLAIN_VALUE, OVER_DEFAULT_LIMIT, declareLength, TOO_LARGE);
 
-    telemetry.check(new Recorded("/orders", "RequestBodyTooLargeException", Recorded.NONE, true));
+    telemetry.check(
+        Recorded.builder()
+            .path("/orders")
+            .exception("RequestBodyTooLargeException")
+            .code(Recorded.NONE)
+            .failed(true)
+            .build());
   }
 
   @ParameterizedTest(name = "with Content-Length: {0}")

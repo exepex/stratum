@@ -8,13 +8,14 @@ import com.exepex.stratum.test.ServerRequestTelemetry.Recorded;
 import com.exepex.stratum.test.WebTestSupport;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebErrorCode;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -38,6 +39,13 @@ import org.springframework.http.HttpStatus;
 @DisplayName(
     "A Spring MVC request that runs out of time is interrupted and answered with the status")
 class ResponseTimeoutIntegrationTest {
+
+  /**
+   * Paths that run out of time: a handler blocked past the limit, and on Spring MVC one that
+   * ignores the interrupt.
+   */
+  private static final List<String> TIMED_OUT_PATHS =
+      List.of("/slow/blocked", "/slow/ignores-interrupt");
 
   /** The request log lines. */
   private final LogLineCapture lines = new LogLineCapture(WebConstants.REQUEST_LOG_LOGGER);
@@ -122,12 +130,18 @@ class ResponseTimeoutIntegrationTest {
   }
 
   @ParameterizedTest(name = "{0}")
-  @ValueSource(strings = {"/slow/blocked", "/slow/ignores-interrupt"})
+  @FieldSource("TIMED_OUT_PATHS")
   @DisplayName(
       "a request that runs out of time records RequestTimedOutException, as on both stacks")
   void recordsTimeout(String path) throws Exception {
     WebTestSupport.getFromService(port, path);
 
-    telemetry.check(new Recorded(path, "RequestTimedOutException", Recorded.NONE, true));
+    telemetry.check(
+        Recorded.builder()
+            .path(path)
+            .exception("RequestTimedOutException")
+            .code(Recorded.NONE)
+            .failed(true)
+            .build());
   }
 }

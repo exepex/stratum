@@ -103,12 +103,13 @@ class ServerRequestTelemetryTest {
     recordRequest(StatusCode.ERROR, DUPLICATE.code());
 
     var otherRoute =
-        new Recorded(
-            DUPLICATE.path(),
-            "/other",
-            DUPLICATE.exception(),
-            DUPLICATE.code(),
-            DUPLICATE.failed());
+        Recorded.builder()
+            .path(DUPLICATE.path())
+            .uri("/other")
+            .exception(DUPLICATE.exception())
+            .code(DUPLICATE.code())
+            .failed(DUPLICATE.failed())
+            .build();
 
     assertThatThrownBy(() -> telemetry.check(otherRoute)).isInstanceOf(AssertionError.class);
   }

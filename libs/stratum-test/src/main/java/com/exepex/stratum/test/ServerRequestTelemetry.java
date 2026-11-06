@@ -15,9 +15,11 @@ import io.opentelemetry.sdk.trace.export.SpanExporter;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import lombok.Builder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
 
@@ -33,26 +35,62 @@ public class ServerRequestTelemetry implements SpanExporter {
 
   /** What a request that fails with a {@code StratumException} records. */
   public static final Recorded DUPLICATE_ORDER =
-      new Recorded("/orders/duplicate", "StratumException", Recorded.ORDER_CODE, true);
+      Recorded.builder()
+          .path("/orders/duplicate")
+          .exception("StratumException")
+          .code(Recorded.ORDER_CODE)
+          .failed(true)
+          .build();
 
   /** What a request with each tested outcome records, on both web stacks' orders applications. */
   public static final List<Recorded> ORDERS_CASES =
       List.of(
-          new Recorded("/orders/42", "/orders/{orderId}", Recorded.NONE, Recorded.NONE, false),
+          Recorded.builder()
+              .path("/orders/42")
+              .uri("/orders/{orderId}")
+              .exception(Recorded.NONE)
+              .code(Recorded.NONE)
+              .failed(false)
+              .build(),
           DUPLICATE_ORDER,
-          new Recorded(
-              "/orders/duplicate-existing", "ExistingOrderException", Recorded.ORDER_CODE, true),
-          new Recorded(
-              "/orders/duplicate-wrapped", "IllegalStateException", Recorded.ORDER_CODE, true),
-          new Recorded(
-              "/orders/duplicate-with-status/418",
-              "/orders/duplicate-with-status/{status}",
-              "ResponseStatusException",
-              Recorded.ORDER_CODE,
-              true),
-          new Recorded("/orders/broken", "IllegalStateException", Recorded.NONE, true),
-          new Recorded("/no-such-path", "/**", "NoResourceFoundException", Recorded.NONE, true),
-          new Recorded("/orders/refund", Recorded.NONE, Recorded.NONE, false));
+          Recorded.builder()
+              .path("/orders/duplicate-existing")
+              .exception("ExistingOrderException")
+              .code(Recorded.ORDER_CODE)
+              .failed(true)
+              .build(),
+          Recorded.builder()
+              .path("/orders/duplicate-wrapped")
+              .exception("IllegalStateException")
+              .code(Recorded.ORDER_CODE)
+              .failed(true)
+              .build(),
+          Recorded.builder()
+              .path("/orders/duplicate-with-status/418")
+              .uri("/orders/duplicate-with-status/{status}")
+              .exception("ResponseStatusException")
+              .code(Recorded.ORDER_CODE)
+              .failed(true)
+              .build(),
+          Recorded.builder()
+              .path("/orders/broken")
+              .exception("IllegalStateException")
+              .code(Recorded.NONE)
+              .failed(true)
+              .build(),
+          Recorded.builder()
+              .path("/no-such-path")
+              .uri("/**")
+              .exception("NoResourceFoundException")
+              .code(Recorded.NONE)
+              .failed(true)
+              .build(),
+          Recorded.builder()
+              .path("/orders/refund")
+              .exception(Recorded.NONE)
+              .code(Recorded.NONE)
+              .failed(false)
+              .build());
 
   /** Spring's timer of every request the service answers. */
   private static final String SERVER_REQUESTS = "http.server.requests";
@@ -157,12 +195,13 @@ public class ServerRequestTelemetry implements SpanExporter {
    * What a request recorded on its timer and span.
    *
    * @param path the path the request was sent to
-   * @param uri the timer's {@code uri} tag: the route's pattern
+   * @param uri the timer's {@code uri} tag: the route's pattern, or the path when not given
    * @param exception the simple name of the recorded failure's class, or {@code none}
    * @param code the error code on the timer, or {@code none}, which the span leaves out
    * @param failed whether the span has the {@code ERROR} status
    */
   @StratumInternal
+  @Builder
   public record Recorded(String path, String uri, String exception, String code, boolean failed) {
 
     /** The tag value for no failure and no code. */
@@ -172,15 +211,20 @@ public class ServerRequestTelemetry implements SpanExporter {
     public static final String ORDER_CODE = OrderErrorCode.DUPLICATE_ORDER.getCode();
 
     /**
-     * What a request to a route without path variables recorded.
+     * Makes the expectation; a route without path variables has its path as its pattern.
      *
-     * @param path the path, which is also the route's pattern
+     * @param path the path the request was sent to
+     * @param uri the route's pattern; the path when not given
      * @param exception the simple name of the recorded failure's class, or {@code none}
      * @param code the error code on the timer, or {@code none}
      * @param failed whether the span has the {@code ERROR} status
      */
-    public Recorded(String path, String exception, String code, boolean failed) {
-      this(path, path, exception, code, failed);
+    public Recorded {
+      uri = Objects.requireNonNullElse(uri, path);
     }
+
+    /** Builds the expectation; Lombok writes its methods, the label keeps it internal. */
+    @StratumInternal
+    public static class RecordedBuilder {}
   }
 }
