@@ -1,5 +1,7 @@
 package com.exepex.stratum.observability.testsupport;
 
+import com.exepex.stratum.observability.HealthProbePaths;
+import com.exepex.stratum.observability.HealthProbeTracingHandler;
 import com.exepex.stratum.observability.autoconfigure.ObservabilityAutoConfiguration;
 import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.Tags;
@@ -13,6 +15,7 @@ import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.logging.LoggingSystem;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.validation.autoconfigure.ValidationAutoConfiguration;
+import org.springframework.mock.env.MockEnvironment;
 import org.springframework.util.ClassUtils;
 
 /**
@@ -76,6 +79,16 @@ public class ObservabilityTestData {
   public static void resetExportLogLevels() {
     var loggingSystem = LoggingSystem.get(ClassUtils.getDefaultClassLoader());
     EXPORT_LOGGERS.forEach(logger -> loggingSystem.setLogLevel(logger, null));
+  }
+
+  /**
+   * Returns a health-probe handler with Spring Boot's default paths, as a service or a company
+   * would declare its own.
+   *
+   * @return the handler
+   */
+  public static HealthProbeTracingHandler probeHandler() {
+    return new HealthProbeTracingHandler(new HealthProbePaths(new MockEnvironment()));
   }
 
   /**

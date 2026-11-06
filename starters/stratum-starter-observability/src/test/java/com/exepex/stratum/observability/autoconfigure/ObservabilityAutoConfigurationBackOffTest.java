@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.observability.CorrelationIdRecorder;
 import com.exepex.stratum.observability.DroppedSpanMeterProvider;
+import com.exepex.stratum.observability.HealthProbeTracingHandler;
 import com.exepex.stratum.observability.MetricTagGuard;
 import com.exepex.stratum.observability.RequestErrorCodeFilter;
 import com.exepex.stratum.observability.TelemetryUrlFilter;
@@ -26,6 +27,7 @@ class ObservabilityAutoConfigurationBackOffTest {
     var serviceFilter = new TelemetryUrlFilter();
     var serviceGuard = new MetricTagGuard(List.of(), List.of());
     MeterProvider serviceMeterProvider = MeterProvider.noop()::meterBuilder;
+    var serviceProbeHandler = ObservabilityTestData.probeHandler();
     // The recorder is a span processor, which is closeable; the context closes it too.
     try (var serviceRecorder = new CorrelationIdRecorder()) {
       ObservabilityTestData.contextRunner()
@@ -33,10 +35,16 @@ class ObservabilityAutoConfigurationBackOffTest {
           .withBean(MetricTagGuard.class, () -> serviceGuard)
           .withBean(CorrelationIdRecorder.class, () -> serviceRecorder)
           .withBean(MeterProvider.class, () -> serviceMeterProvider)
+          .withBean(HealthProbeTracingHandler.class, () -> serviceProbeHandler)
           .run(
               context ->
                   assertUsesBeans(
-                      context, serviceFilter, serviceGuard, serviceRecorder, serviceMeterProvider));
+                      context,
+                      serviceFilter,
+                      serviceGuard,
+                      serviceRecorder,
+                      serviceMeterProvider,
+                      serviceProbeHandler));
     }
   }
 
@@ -63,18 +71,24 @@ class ObservabilityAutoConfigurationBackOffTest {
                     CompanyBeansAutoConfiguration.FILTER,
                     CompanyBeansAutoConfiguration.GUARD,
                     CompanyBeansAutoConfiguration.RECORDER,
-                    CompanyBeansAutoConfiguration.METER_PROVIDER));
+                    CompanyBeansAutoConfiguration.METER_PROVIDER,
+                    CompanyBeansAutoConfiguration.PROBE_HANDLER));
   }
 
   @Test
-  @DisplayName("a company bean made after Stratum's is the one Spring Boot injects")
-  void laterCompanyMeterProviderWins() {
+  @DisplayName("company beans made after Stratum's are the ones Spring Boot injects")
+  void laterCompanyBeansWin() {
     ObservabilityTestData.contextRunner()
         .withConfiguration(AutoConfigurations.of(LaterCompanyAutoConfiguration.class))
         .run(
             context ->
-                assertThat(context.getBean(MeterProvider.class))
-                    .isSameAs(LaterCompanyAutoConfiguration.METER_PROVIDER));
+                assertThat(
+                        List.of(
+                            context.getBean(MeterProvider.class),
+                            context.getBean(HealthProbeTracingHandler.class)))
+                    .containsExactly(
+                        LaterCompanyAutoConfiguration.METER_PROVIDER,
+                        LaterCompanyAutoConfiguration.PROBE_HANDLER));
   }
 
   /** Checks that the context holds the given beans instead of Stratum's. */
@@ -83,11 +97,13 @@ class ObservabilityAutoConfigurationBackOffTest {
       TelemetryUrlFilter filter,
       MetricTagGuard guard,
       CorrelationIdRecorder recorder,
-      MeterProvider meterProvider) {
+      MeterProvider meterProvider,
+      HealthProbeTracingHandler probeHandler) {
     assertThat(context.getBean(TelemetryUrlFilter.class)).isSameAs(filter);
     assertThat(context.getBean(MetricTagGuard.class)).isSameAs(guard);
     assertThat(context.getBean(CorrelationIdRecorder.class)).isSameAs(recorder);
     assertThat(context.getBean(MeterProvider.class)).isSameAs(meterProvider);
+    assertThat(context.getBean(HealthProbeTracingHandler.class)).isSameAs(probeHandler);
     // The provider is also the binder of the dropped-span counter: without it, no counter.
     assertThat(context).doesNotHaveBean(DroppedSpanMeterProvider.class);
   }
@@ -107,6 +123,9 @@ class ObservabilityAutoConfigurationBackOffTest {
 
     /** The company's OpenTelemetry meter provider. */
     static final MeterProvider METER_PROVIDER = MeterProvider.noop()::meterBuilder;
+
+    /** The company's health-probe handler. */
+    static final HealthProbeTracingHandler PROBE_HANDLER = ObservabilityTestData.probeHandler();
 
     /**
      * Returns the company's URL filter.
@@ -147,6 +166,16 @@ class ObservabilityAutoConfigurationBackOffTest {
     MeterProvider companyMeterProvider() {
       return METER_PROVIDER;
     }
+
+    /**
+     * Returns the company's health-probe handler.
+     *
+     * @return the handler
+     */
+    @Bean
+    HealthProbeTracingHandler companyProbeHandler() {
+      return PROBE_HANDLER;
+    }
   }
 
   /** A company framework's auto-configuration ordered after Stratum's, so both beans exist. */
@@ -156,6 +185,9 @@ class ObservabilityAutoConfigurationBackOffTest {
     /** The company's OpenTelemetry meter provider. */
     static final MeterProvider METER_PROVIDER = MeterProvider.noop()::meterBuilder;
 
+    /** The company's health-probe handler. */
+    static final HealthProbeTracingHandler PROBE_HANDLER = ObservabilityTestData.probeHandler();
+
     /**
      * Returns the company's OpenTelemetry meter provider.
      *
@@ -164,6 +196,16 @@ class ObservabilityAutoConfigurationBackOffTest {
     @Bean
     MeterProvider laterCompanyMeterProvider() {
       return METER_PROVIDER;
+    }
+
+    /**
+     * Returns the company's health-probe handler.
+     *
+     * @return the handler
+     */
+    @Bean
+    HealthProbeTracingHandler laterCompanyProbeHandler() {
+      return PROBE_HANDLER;
     }
   }
 }

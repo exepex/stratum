@@ -107,7 +107,7 @@ and installs the OpenTelemetry appender itself.
 | Error codes | With a web starter, each request's timer has an `error.code` tag, the code it failed with or `none`, and its span carries the code when there is one ([traces](../../docs/modules/observability-traces.md#error-codes-on-requests)) |
 | URLs on spans | The full URL of each HTTP client call, query string included, is kept on its span up to 1,024 characters ([span size](../../docs/modules/observability-traces.md#span-size)); only the user info is removed. Metrics never carry the query ([traces](../../docs/modules/observability-traces.md#urls-on-spans-and-metrics)) |
 | Dropped spans | Spans lost because the export queue was full are counted in `stratum.observability.spans.dropped`, with the alert to set ([traces](../../docs/modules/observability-traces.md#dropped-spans)) |
-| Health | `/actuator/health`, with Spring Boot's Kubernetes `liveness` and `readiness` groups |
+| Health | `/actuator/health`, with Spring Boot's Kubernetes `liveness` and `readiness` groups; probes are timed but not traced ([traces](../../docs/modules/observability-traces.md#health-probes)) |
 | Safe exposure | Only `health` and `info` are reachable over HTTP |
 | Startup check | With the module on, startup stops if an export address is missing, in every profile ([below](#startup-check)) |
 | No Collector on your laptop | With an address on `localhost`, metrics and spans that cannot be sent are dropped without a failed-send log; a full span queue still logs a warning ([below](#running-without-a-collector)) |
@@ -271,6 +271,7 @@ value you set wins, from any file, the environment, the command line or Java def
 | `stratum.observability.baggage.allowed` | list of strings | `correlationId` | no such key | The [baggage](../../docs/modules/observability-traces.md#baggage) names read from callers and sent on calls and messages; every other entry is dropped. Spring Boot's `management.tracing.baggage.remote-fields` are always kept too. Names match exactly, case included. A list you set replaces the default, so keep `correlationId` in it. A blank name stops startup with `SX-CORE-1003`. |
 | `stratum.observability.metrics.max-meters` | integer | `10000` | no such key | The most meters each metrics registry holds; past it, new meters are dropped with one `SX-OBSERVABILITY-1003` warning ([meter caps](../../docs/modules/observability-metrics.md)). Zero or less stops startup with `SX-CORE-1003`. |
 | `stratum.observability.metrics.max-client-names` | integer | `100` | no such key | The most hosts the HTTP client metrics keep in their `client.name` tag; past it, calls to new hosts are not timed, with one `SX-OBSERVABILITY-1003` warning ([meter caps](../../docs/modules/observability-metrics.md)). Zero or less stops startup with `SX-CORE-1003`. |
+| `stratum.observability.tracing.health-probes` | boolean | `false` | no such key | Whether health probe requests, such as Kubernetes liveness and readiness checks, get spans. With `false`, probes keep their timers but make no spans ([traces](../../docs/modules/observability-traces.md#health-probes)). |
 | `management.otlp.metrics.export.enabled` | boolean | `false` while the module is off | `true` | Whether metrics are sent. |
 | `management.tracing.export.enabled` | boolean | `false` while the module is off | `true` | Whether spans are sent. |
 | `management.endpoints.web.exposure.include` | list of endpoint IDs | `health,info` | `health` | The actuator endpoints served over HTTP. Add other endpoints only behind authentication. |
@@ -401,7 +402,8 @@ public class OrdersObservabilitySettings implements ObservabilityPropertiesCusto
   @Override
   public ObservabilityProperties customize(ObservabilityProperties properties) {
     var tags = properties.tags().toBuilder().extraForbidden(List.of("tenantId")).build();
-    return properties.toBuilder().tags(tags).build();
+    var tracing = properties.tracing().toBuilder().healthProbes(true).build();
+    return properties.toBuilder().tags(tags).tracing(tracing).build();
   }
 }
 ```

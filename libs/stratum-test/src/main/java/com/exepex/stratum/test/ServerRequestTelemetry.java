@@ -92,9 +92,6 @@ public class ServerRequestTelemetry implements SpanExporter {
               .failed(false)
               .build());
 
-  /** Spring's timer of every request the service answers. */
-  private static final String SERVER_REQUESTS = "http.server.requests";
-
   /** The span attribute that holds the request's path. */
   private static final AttributeKey<String> URL = AttributeKey.stringKey("http.url");
 
@@ -136,7 +133,7 @@ public class ServerRequestTelemetry implements SpanExporter {
     assertThat(
             meterRegistry
                 .getObject()
-                .find(SERVER_REQUESTS)
+                .find(WebTestSupport.SERVER_REQUESTS_TIMER)
                 .tags(
                     "uri",
                     expected.uri(),

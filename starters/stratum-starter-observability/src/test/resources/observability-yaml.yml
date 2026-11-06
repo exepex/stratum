@@ -12,6 +12,8 @@ stratum:
     metrics:
       max-meters: 20000
       max-client-names: 3
+    tracing:
+      health-probes: true
 management:
   opentelemetry:
     resource-attributes:

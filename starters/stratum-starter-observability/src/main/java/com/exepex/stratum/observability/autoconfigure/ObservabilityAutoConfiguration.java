@@ -10,6 +10,8 @@ import com.exepex.stratum.observability.BaggageAllowList;
 import com.exepex.stratum.observability.CorrelationIdRecorder;
 import com.exepex.stratum.observability.DroppedSpanMeterProvider;
 import com.exepex.stratum.observability.ExceptionFreeSpans;
+import com.exepex.stratum.observability.HealthProbePaths;
+import com.exepex.stratum.observability.HealthProbeTracingHandler;
 import com.exepex.stratum.observability.JmsBeanObserver;
 import com.exepex.stratum.observability.JmsListenerContainerObserver;
 import com.exepex.stratum.observability.MeterCountGuard;
@@ -197,6 +199,22 @@ public final class ObservabilityAutoConfiguration {
   @ConditionalOnMissingBean(MeterProvider.class)
   public DroppedSpanMeterProvider droppedSpanMeterProvider() {
     return new DroppedSpanMeterProvider();
+  }
+
+  /**
+   * Makes no span for health probe requests, which keep their timers. Ordered before Spring Boot's
+   * tracing handlers, which would otherwise trace them. Reads only the environment, so a service
+   * health check that needs the observation registry closes no bean cycle.
+   *
+   * @param environment the service's environment
+   * @return the handler
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean
+  @Order(Ordered.HIGHEST_PRECEDENCE)
+  public HealthProbeTracingHandler healthProbeTracingHandler(Environment environment) {
+    return new HealthProbeTracingHandler(new HealthProbePaths(environment));
   }
 
   /**

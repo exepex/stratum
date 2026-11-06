@@ -6,13 +6,16 @@ import com.exepex.stratum.core.error.CoreErrorCode;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.observability.CorrelationIdRecorder;
 import com.exepex.stratum.observability.DroppedSpanMeterProvider;
+import com.exepex.stratum.observability.HealthProbeTracingHandler;
 import com.exepex.stratum.observability.MetricTagGuard;
 import com.exepex.stratum.observability.ObservabilityConstants;
+import com.exepex.stratum.observability.ObservabilityProperties;
 import com.exepex.stratum.observability.ObservabilityPropertiesCustomizer;
 import com.exepex.stratum.observability.RequestErrorCodeFilter;
 import com.exepex.stratum.observability.TelemetryUrlFilter;
 import com.exepex.stratum.observability.testsupport.ObservabilityTestData;
 import com.exepex.stratum.observability.testsupport.RegionTagObservabilitySettings;
+import com.exepex.stratum.observability.testsupport.TracedProbesObservabilitySettings;
 import com.exepex.stratum.test.StarterTestSupport;
 import io.micrometer.context.ContextExecutorService;
 import io.micrometer.core.instrument.config.MeterFilterReply;
@@ -86,7 +89,8 @@ class ObservabilityAutoConfigurationTest {
                   .hasSingleBean(RequestErrorCodeFilter.class)
                   .hasSingleBean(MetricTagGuard.class)
                   .hasSingleBean(CorrelationIdRecorder.class)
-                  .hasSingleBean(DroppedSpanMeterProvider.class));
+                  .hasSingleBean(DroppedSpanMeterProvider.class)
+                  .hasSingleBean(HealthProbeTracingHandler.class));
     }
 
     @Test
@@ -101,7 +105,8 @@ class ObservabilityAutoConfigurationTest {
                       .doesNotHaveBean(RequestErrorCodeFilter.class)
                       .doesNotHaveBean(MetricTagGuard.class)
                       .doesNotHaveBean(CorrelationIdRecorder.class)
-                      .doesNotHaveBean(DroppedSpanMeterProvider.class));
+                      .doesNotHaveBean(DroppedSpanMeterProvider.class)
+                      .doesNotHaveBean(HealthProbeTracingHandler.class));
     }
   }
 
@@ -164,6 +169,20 @@ class ObservabilityAutoConfigurationTest {
     }
 
     @Test
+    @DisplayName(
+        "probe tracing set in a customizer listed in spring.factories wins over properties")
+    void javaProbeTracingWins(@TempDir Path folder) throws IOException {
+      var probesTraced =
+          StarterTestSupport.withCustomizers(
+              folder,
+              ObservabilityPropertiesCustomizer.class,
+              List.of(TracedProbesObservabilitySettings.class),
+              this::probesTracedWithPropertiesOff);
+
+      assertThat(probesTraced).isTrue();
+    }
+
+    @Test
     @DisplayName("a customizer declared as a bean stops startup with SX-CORE-1004")
     void customizerBeanStopsStartup() {
       contextRunner
@@ -202,6 +221,20 @@ class ObservabilityAutoConfigurationTest {
     private void assertGuardRefusesTenantAndKeepsOrder(AssertableApplicationContext context) {
       assertThat(guardReplyForTag(context, TENANT_TAG)).isEqualTo(MeterFilterReply.DENY);
       assertThat(guardReplyForTag(context, ORDER_TAG)).isEqualTo(MeterFilterReply.NEUTRAL);
+    }
+
+    /** Starts with probe tracing off in properties and returns whether probes are traced. */
+    private boolean probesTracedWithPropertiesOff() {
+      var probesTraced = new ArrayList<Boolean>();
+      contextRunner
+          .withPropertyValues(ObservabilityConstants.PREFIX + ".tracing.health-probes=false")
+          .run(
+              context ->
+                  probesTraced.add(
+                      ObservabilityProperties.resolve(context.getEnvironment())
+                          .tracing()
+                          .healthProbes()));
+      return probesTraced.getFirst();
     }
 
     /**
