@@ -54,9 +54,10 @@ show where database time goes:
 | `hikaricp.connections.timeout` | Callers that gave up waiting, after `spring.datasource.hikari.connection-timeout` ([data](data-jpa.md)) |
 | `spring.data.repository.invocations` | Each Spring Data repository call, tagged with the repository, the method, its state and exception |
 
-Spring Boot also binds Hibernate's `hibernate.*` metrics, but Hibernate records nothing for them
-unless the service sets `spring.jpa.properties.hibernate.generate_statistics=true`, which Stratum
-does not set. The database health check `db` is in `/actuator/health`. To turn the metrics off:
+Hibernate's `hibernate.*` metrics appear only when the service adds
+`org.hibernate.orm:hibernate-micrometer` (Spring Boot manages its version) and sets
+`spring.jpa.properties.hibernate.generate_statistics=true`; Stratum does neither. The database
+health check `db` is in `/actuator/health`. To turn the metrics off:
 
 ```properties
 management.metrics.enable.hikaricp=false
