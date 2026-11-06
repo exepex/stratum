@@ -19,10 +19,11 @@ and keep secrets off spans.
 | Spring Security spans: `security filterchain before`, `security filterchain after`, `authenticate bearertoken`, `authorize request` and `secured request` | Spring Security, whenever it is on the class path |
 
 These were checked with Spring MVC, an OAuth2 resource server and a stub token issuer, not with
-Okta itself. No span carried the token, the token's subject, a cookie or a query value. The
-authentication span carries the authorities granted, such as `FACTOR_BEARER`, never the token's
-claims. A request refused with `401` before it reaches a controller has `uri=UNKNOWN`, so every
-refused request shares one series.
+Okta itself; a check with Okta is planned ([#233](https://github.com/exepex/stratum/issues/233)).
+No span carried the token, the token's subject, a cookie or a query value. The authentication span
+carries the authorities granted, such as `FACTOR_BEARER`, never the token's claims. A request
+refused with `401` before it reaches a controller has `uri=UNKNOWN`, so every refused request shares
+one series.
 
 To log who called, turn on the request log's [token claims](web.md#token-claims), which are off by
 default. To turn the Spring Security spans off, use Spring Boot's switch for every observation
