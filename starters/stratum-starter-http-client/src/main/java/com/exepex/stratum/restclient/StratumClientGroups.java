@@ -2,10 +2,8 @@ package com.exepex.stratum.restclient;
 
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.httpclient.ClientSettings;
-import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientProperties;
 import com.exepex.stratum.httpclient.StratumClient;
-import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -13,7 +11,6 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.support.RestClientHttpServiceGroupConfigurer;
 import org.springframework.web.service.invoker.HttpExchangeAdapter;
-import org.springframework.web.service.invoker.HttpRequestValues;
 import org.springframework.web.service.invoker.HttpServiceProxyFactory;
 import org.springframework.web.service.registry.HttpServiceGroup;
 
@@ -67,19 +64,14 @@ public class StratumClientGroups implements RestClientHttpServiceGroupConfigurer
   }
 
   /**
-   * Puts every decorator around the calls of one client's group, and marks each call whose method
-   * returns {@code Optional}, which a 404 answers with an empty one.
+   * Puts every decorator around the calls of one client's group, and lets each prepare every call
+   * before it is sent.
    */
   private void decorateCalls(HttpServiceGroup group, HttpServiceProxyFactory.Builder factory) {
     factory.exchangeAdapterDecorator(exchange -> decorate(group.name(), exchange));
-    factory.httpRequestValuesProcessor((method, _, _, values) -> markOptional(method, values));
-  }
-
-  /** Marks a call whose method returns {@code Optional}. */
-  private void markOptional(Method method, HttpRequestValues.Builder values) {
-    if (method.getReturnType() == Optional.class) {
-      values.addAttribute(HttpClientConstants.OPTIONAL_ANSWER, Boolean.TRUE);
-    }
+    factory.httpRequestValuesProcessor(
+        (method, _, _, values) ->
+            decorators.orderedStream().forEach(decorator -> decorator.prepare(method, values)));
   }
 
   /**

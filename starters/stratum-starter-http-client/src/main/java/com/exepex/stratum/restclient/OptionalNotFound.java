@@ -2,6 +2,8 @@ package com.exepex.stratum.restclient;
 
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.httpclient.HttpClientConstants;
+import java.lang.reflect.Method;
+import java.util.Optional;
 import java.util.function.Supplier;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
@@ -10,9 +12,10 @@ import org.springframework.web.service.invoker.HttpExchangeAdapter;
 import org.springframework.web.service.invoker.HttpRequestValues;
 
 /**
- * Answers a 404 of a call whose method returns {@code Optional} with nothing, which Spring wraps as
- * an empty {@code Optional}. It sits inside the error translation, so no customizer's {@code
- * mapError} is asked about that 404, and outside the retries and breaker, which never count a 404.
+ * Marks each call whose method returns {@code Optional}, and answers a 404 of such a call with
+ * nothing, which Spring wraps as an empty {@code Optional}. It sits inside the error translation,
+ * so no customizer's {@code mapError} is asked about that 404, and outside the retries and breaker,
+ * which never count a 404.
  */
 @StratumInternal
 public class OptionalNotFound implements ClientExchangeDecorator {
@@ -27,6 +30,20 @@ public class OptionalNotFound implements ClientExchangeDecorator {
   @Override
   public HttpExchangeAdapter decorate(String client, HttpExchangeAdapter exchange) {
     return new NotFoundAsEmpty(exchange);
+  }
+
+  /**
+   * Marks a call whose method returns {@code Optional}, since the calls themselves only see the
+   * type inside it.
+   *
+   * @param method the method of the client's interface that was called
+   * @param values the call being built
+   */
+  @Override
+  public void prepare(Method method, HttpRequestValues.Builder values) {
+    if (method.getReturnType() == Optional.class) {
+      values.addAttribute(HttpClientConstants.OPTIONAL_ANSWER, Boolean.TRUE);
+    }
   }
 
   /**
