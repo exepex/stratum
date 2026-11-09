@@ -1,5 +1,6 @@
 package com.exepex.stratum.restclient.it;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.restclient.DownstreamException;
@@ -50,10 +51,17 @@ class ErrorMapperIntegrationTest {
   }
 
   @Test
-  @DisplayName("an answer no customizer replaces stays a DownstreamException")
+  @DisplayName("a 404 of a method that returns Optional is empty: no customizer is asked")
+  void optionalNotFoundNotMapped() {
+    assertThat(orders.findMissing()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("an answer no customizer replaces stays a DownstreamException, Optional or not")
   void unmappedAnswerKept() {
     assertThatExceptionOfType(DownstreamException.class)
         .isThrownBy(() -> orders.order("o-1", "c-1"));
+    assertThatExceptionOfType(DownstreamException.class).isThrownBy(() -> orders.findOrder("o-1"));
   }
 
   /** The team's exception for an order the orders service does not have. */

@@ -1,8 +1,10 @@
 package com.exepex.stratum.restclient;
 
 import com.exepex.stratum.core.api.StratumInternal;
+import java.lang.reflect.Method;
 import org.springframework.core.Ordered;
 import org.springframework.web.service.invoker.HttpExchangeAdapter;
+import org.springframework.web.service.invoker.HttpRequestValues;
 
 /**
  * Adds behaviour around every call of a Stratum client's interface, such as retries, as a bean.
@@ -20,4 +22,15 @@ public interface ClientExchangeDecorator extends Ordered {
    * @return the calls with this behaviour around them
    */
   HttpExchangeAdapter decorate(String client, HttpExchangeAdapter exchange);
+
+  /**
+   * Adds what this behaviour needs to know about a call before it is sent, such as what its method
+   * returns, which the calls themselves no longer show. Most decorators need nothing.
+   *
+   * @param method the method of the client's interface that was called
+   * @param values the call being built
+   */
+  default void prepare(Method method, HttpRequestValues.Builder values) {
+    // Nothing to add unless a decorator needs it.
+  }
 }

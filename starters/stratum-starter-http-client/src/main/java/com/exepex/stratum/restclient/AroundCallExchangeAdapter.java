@@ -1,6 +1,7 @@
 package com.exepex.stratum.restclient;
 
 import com.exepex.stratum.core.api.StratumInternal;
+import com.exepex.stratum.httpclient.HttpClientConstants;
 import java.io.InputStream;
 import java.util.Objects;
 import java.util.function.Supplier;
@@ -59,7 +60,7 @@ public abstract class AroundCallExchangeAdapter extends HttpExchangeAdapterDecor
    */
   @Override
   public HttpHeaders exchangeForHeaders(HttpRequestValues values) {
-    return Objects.requireNonNull(around(values, false, () -> super.exchangeForHeaders(values)));
+    return answerOf(values, around(values, false, () -> super.exchangeForHeaders(values)));
   }
 
   /**
@@ -84,8 +85,7 @@ public abstract class AroundCallExchangeAdapter extends HttpExchangeAdapterDecor
    */
   @Override
   public ResponseEntity<Void> exchangeForBodilessEntity(HttpRequestValues values) {
-    return Objects.requireNonNull(
-        around(values, false, () -> super.exchangeForBodilessEntity(values)));
+    return answerOf(values, around(values, false, () -> super.exchangeForBodilessEntity(values)));
   }
 
   /**
@@ -99,8 +99,29 @@ public abstract class AroundCallExchangeAdapter extends HttpExchangeAdapterDecor
   @Override
   public <T> ResponseEntity<T> exchangeForEntity(
       HttpRequestValues values, ParameterizedTypeReference<T> bodyType) {
-    return Objects.requireNonNull(
+    return answerOf(
+        values,
         around(values, isStream(bodyType), () -> super.exchangeForEntity(values, bodyType)));
+  }
+
+  /**
+   * Returns whether a call's method returns {@code Optional}, so that a 404 answers it with an
+   * empty one.
+   *
+   * @param values the call
+   * @return whether the call is marked
+   */
+  protected boolean isOptionalAnswer(HttpRequestValues values) {
+    return values.getAttributes().containsKey(HttpClientConstants.OPTIONAL_ANSWER);
+  }
+
+  /**
+   * Returns a call's answer, which only a call whose method returns {@code Optional} may lack:
+   * Spring then wraps the missing answer as an empty {@code Optional}. Any other missing answer
+   * fails fast.
+   */
+  private <T> T answerOf(HttpRequestValues values, @Nullable T answer) {
+    return isOptionalAnswer(values) ? answer : Objects.requireNonNull(answer);
   }
 
   /** Sends a call that returns nothing, as a call that returns no value. */
