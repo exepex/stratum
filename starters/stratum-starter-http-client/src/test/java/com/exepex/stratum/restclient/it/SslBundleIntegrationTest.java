@@ -17,6 +17,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.security.GeneralSecurityException;
 import java.security.cert.CertificateException;
+import java.util.List;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AutoClose;
@@ -86,7 +87,7 @@ class SslBundleIntegrationTest {
 
   /**
    * Makes the servers' and both clients' keys, has the banks trust both client certificates and the
-   * clients trust the banks, and starts the banks.
+   * clients trust the banks, starts the banks, and copies the first client key to the bundle files.
    *
    * @throws IOException if keytool fails
    * @throws GeneralSecurityException if a store is not valid
@@ -104,6 +105,9 @@ class SslBundleIntegrationTest {
     certificates.trust("renewed.p12", RENEWED_CLIENT, BANK_TRUST);
     bank = new TlsDownstream(certificates, "bank.p12", BANK_TRUST);
     misnamedBank = new TlsDownstream(certificates, "misnamed-bank.p12", BANK_TRUST);
+    for (var bundleFile : List.of("bank-bundle.p12", "reloaded.p12")) {
+      Files.copy(certificates.store("client.p12"), certificates.store(bundleFile));
+    }
   }
 
   /** Stops the banks. */
@@ -114,8 +118,8 @@ class SslBundleIntegrationTest {
   }
 
   /**
-   * Points the clients at the bank and at pricing, and sets the bundle from a copy of the first
-   * client key.
+   * Points the clients at the bank and at pricing, and sets the bundle from its own copy of the
+   * first client key.
    *
    * @param registry the test's properties
    */
@@ -123,7 +127,8 @@ class SslBundleIntegrationTest {
   static void banksAndBundle(DynamicPropertyRegistry registry) {
     registry.add(RestClientTestData.INVENTORY_URL, () -> bank.url());
     registry.add(RestClientTestData.PRICING_URL, PRICING::url);
-    registry.add(BUNDLE + ".keystore.location", () -> copyOfFirstKey("bank-bundle.p12"));
+    registry.add(
+        BUNDLE + ".keystore.location", () -> certificates.store("bank-bundle.p12").toUri());
     registry.add(BUNDLE + ".keystore.password", () -> certificates.password());
     registry.add(BUNDLE + ".keystore.type", () -> "PKCS12");
     registry.add(
@@ -131,19 +136,6 @@ class SslBundleIntegrationTest {
     registry.add(BUNDLE + ".truststore.password", () -> certificates.password());
     registry.add(BUNDLE + ".truststore.type", () -> "PKCS12");
     registry.add(BUNDLE + ".reload-on-update", () -> "true");
-  }
-
-  /** Copies the first client key to a bundle file of its own and returns the file's address. */
-  private static String copyOfFirstKey(String bundleFile) {
-    try {
-      Files.copy(
-          certificates.store("client.p12"),
-          certificates.store(bundleFile),
-          StandardCopyOption.REPLACE_EXISTING);
-    } catch (IOException copyFailed) {
-      throw new IllegalStateException(copyFailed);
-    }
-    return certificates.store(bundleFile).toUri().toString();
   }
 
   @Test
@@ -171,7 +163,7 @@ class SslBundleIntegrationTest {
      */
     @DynamicPropertySource
     static void ownBundleFile(DynamicPropertyRegistry registry) {
-      registry.add(BUNDLE + ".keystore.location", () -> copyOfFirstKey("reloaded.p12"));
+      registry.add(BUNDLE + ".keystore.location", () -> certificates.store("reloaded.p12").toUri());
     }
 
     @Test

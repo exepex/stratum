@@ -56,14 +56,14 @@ class StaticCredentialIntegrationTest {
   }
 
   /** Calls the inventory client twice, then the pricing client once. */
-  private static void callBothClients(InventoryClient inventory, PricingClient pricing) {
+  private void callBothClients(InventoryClient inventory, PricingClient pricing) {
     inventory.stock();
     inventory.stock();
     pricing.price();
   }
 
   /** Returns one header's value in each of the last test's calls, in order. */
-  private static List<String> sent(String header) {
+  private List<String> sent(String header) {
     var values = DOWNSTREAM.headerValues(header);
     return values.subList(values.size() - CALLS, values.size());
   }
