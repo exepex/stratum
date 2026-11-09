@@ -153,7 +153,7 @@ public final class StreamingDownstream implements AutoCloseable {
   private boolean pause(Duration time) {
     try {
       return !closed.await(time.toMillis(), TimeUnit.MILLISECONDS);
-    } catch (InterruptedException e) {
+    } catch (InterruptedException _) {
       Thread.currentThread().interrupt();
       return false;
     }
