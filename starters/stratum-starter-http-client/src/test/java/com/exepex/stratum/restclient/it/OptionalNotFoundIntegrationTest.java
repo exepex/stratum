@@ -88,6 +88,14 @@ class OptionalNotFoundIntegrationTest {
   }
 
   @Test
+  @DisplayName("another client error on a method with Optional still throws")
+  void otherClientErrorStillThrows() {
+    assertThatExceptionOfType(DownstreamException.class)
+        .isThrownBy(orders::findForbidden)
+        .satisfies(failure -> assertThat(failure.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN));
+  }
+
+  @Test
   @DisplayName("404s read as empty never open the breaker")
   void notFoundNeverOpensBreaker() {
     IntStream.range(0, NOT_FOUND_CALLS).forEach(call -> assertThat(orders.findMissing()).isEmpty());

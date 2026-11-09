@@ -124,6 +124,14 @@ public interface OrdersClient {
   Optional<String> findOrder(@PathVariable String id);
 
   /**
+   * Finds an order the service may not read, which fails with a 403.
+   *
+   * @return never, as the answer is a 403
+   */
+  @GetExchange(ErrorDownstream.FORBIDDEN)
+  Optional<String> findForbidden();
+
+  /**
    * Finds an answer that succeeds with a body far over 64 KB.
    *
    * @return the body

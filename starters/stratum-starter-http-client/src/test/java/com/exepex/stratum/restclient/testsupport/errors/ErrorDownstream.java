@@ -24,6 +24,7 @@ import java.util.zip.GZIPOutputStream;
  * <ul>
  *   <li>{@link #PROBLEM}: 404, a problem detail with the code {@link #DOWNSTREAM_CODE};
  *   <li>{@link #BROKEN_PROBLEM}: 404, typed as a problem detail but not JSON;
+ *   <li>{@link #FORBIDDEN}: 403, with no body;
  *   <li>{@link #FAILED}: 500, a text body that holds {@link RestClientTestData#SECRET};
  *   <li>{@link #LARGE_ERROR}: 500, {@link #LARGE_SIZE} bytes;
  *   <li>{@link #LARGE_GZIP_ERROR}: 500, {@link #LARGE_SIZE} bytes once gzip is undone;
@@ -38,6 +39,9 @@ public final class ErrorDownstream implements AutoCloseable {
 
   /** The path of a 404 typed as a problem detail that is not JSON. */
   public static final String BROKEN_PROBLEM = "/broken-problem";
+
+  /** The path of a 403. */
+  public static final String FORBIDDEN = "/forbidden";
 
   /** The start of the path of a 500 whose body holds a secret. */
   public static final String FAILED = "/failed";
@@ -89,6 +93,8 @@ public final class ErrorDownstream implements AutoCloseable {
         BROKEN_PROBLEM,
         exchange ->
             send(exchange, HttpURLConnection.HTTP_NOT_FOUND, PROBLEM_JSON, bytes("{not json")));
+    server.createContext(
+        FORBIDDEN, exchange -> send(exchange, HttpURLConnection.HTTP_FORBIDDEN, TEXT, new byte[0]));
     server.createContext(
         FAILED,
         exchange ->
