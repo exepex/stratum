@@ -47,7 +47,9 @@ public class HttpClientConstants {
   /** Stratum's default time allowed to open a connection. */
   public static final Duration DEFAULT_CONNECT_TIMEOUT = Duration.ofSeconds(2);
 
-  /** Stratum's default time allowed for the answer to one call. */
+  /**
+   * Stratum's default longest wait for the first byte of an answer and between two of its bytes.
+   */
   public static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(5);
 
   /** Stratum's default size of each client's connection pool. */
