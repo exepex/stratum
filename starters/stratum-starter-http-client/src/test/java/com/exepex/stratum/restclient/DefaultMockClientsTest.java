@@ -10,6 +10,7 @@ import com.exepex.stratum.restclient.testsupport.clients.InventoryClient;
 import com.exepex.stratum.test.LogLineCapture;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import tools.jackson.databind.json.JsonMapper;
@@ -31,28 +32,38 @@ class DefaultMockClientsTest {
               .build(),
           new MockAnswers(new StaticListableBeanFactory().getBeanProvider(JsonMapper.class)));
 
-  @Test
-  @DisplayName("each startup warns once per mocked client, naming it")
-  void warnsPerMockedClient() {
-    var log = new LogLineCapture(DefaultMockClients.class.getName());
-    log.start();
-    try {
-      mockClients.afterSingletonsInstantiated();
-    } finally {
-      log.stop();
-    }
+  @Nested
+  @DisplayName("At startup")
+  class Startup {
 
-    assertThat(log.onlyLine().getFormattedMessage())
-        .isEqualTo(
-            "HTTP client payments answers from mocks and never calls its service (mock: true)");
+    @Test
+    @DisplayName("each startup warns once per mocked client, naming it")
+    void warnsPerMockedClient() {
+      var log = new LogLineCapture(DefaultMockClients.class.getName());
+      log.start();
+      try {
+        mockClients.afterSingletonsInstantiated();
+      } finally {
+        log.stop();
+      }
+
+      assertThat(log.onlyLine().getFormattedMessage())
+          .isEqualTo(
+              "HTTP client payments answers from mocks and never calls its service (mock: true)");
+    }
   }
 
-  @Test
-  @DisplayName("asking for an interface whose client is not mocked stops the test clearly")
-  void refusesClientNotMocked() {
-    assertThatIllegalArgumentException()
-        .isThrownBy(() -> mockClients.of(InventoryClient.class))
-        .withMessageContaining(InventoryClient.class.getName())
-        .withMessageContaining("mock=true");
+  @Nested
+  @DisplayName("Asking for a client")
+  class ClientLookup {
+
+    @Test
+    @DisplayName("asking for an interface whose client is not mocked stops the test clearly")
+    void refusesClientNotMocked() {
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> mockClients.of(InventoryClient.class))
+          .withMessageContaining(InventoryClient.class.getName())
+          .withMessageContaining("mock=true");
+    }
   }
 }

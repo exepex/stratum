@@ -45,9 +45,10 @@ class MockRequestFactoryTest {
   @DisplayName("any other call fails once the time total-timeout leaves is spent")
   void otherCallEndsByTotalTimeout() {
     scriptDelayedAnswer();
+    var deadline = deadline();
 
     assertThatExceptionOfType(UncheckedIOException.class)
-        .isThrownBy(() -> AttemptTimeLeft.runWithin(deadline(), false, this::call))
+        .isThrownBy(() -> AttemptTimeLeft.runWithin(deadline, false, this::call))
         .withCauseInstanceOf(SocketTimeoutException.class);
   }
 

@@ -1,6 +1,7 @@
 package com.exepex.stratum.restclient;
 
 import java.time.Duration;
+import lombok.Builder;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -14,6 +15,7 @@ import org.springframework.http.MediaType;
  * @param body the body, empty for none
  * @param delay how long the answer takes
  */
+@Builder(toBuilder = true)
 record MockAnswer(
     HttpStatusCode status, @Nullable MediaType contentType, String body, Duration delay) {
 
@@ -25,8 +27,12 @@ record MockAnswer(
    * @return the answer, with no delay
    */
   static MockAnswer json(HttpStatusCode status, String body) {
-    return new MockAnswer(
-        status, body.isEmpty() ? null : MediaType.APPLICATION_JSON, body, Duration.ZERO);
+    return builder()
+        .status(status)
+        .contentType(body.isEmpty() ? null : MediaType.APPLICATION_JSON)
+        .body(body)
+        .delay(Duration.ZERO)
+        .build();
   }
 
   /**
@@ -37,7 +43,12 @@ record MockAnswer(
    * @return the answer, with no delay
    */
   static MockAnswer text(HttpStatusCode status, String body) {
-    return new MockAnswer(status, MediaType.TEXT_PLAIN, body, Duration.ZERO);
+    return builder()
+        .status(status)
+        .contentType(MediaType.TEXT_PLAIN)
+        .body(body)
+        .delay(Duration.ZERO)
+        .build();
   }
 
   /**
@@ -46,7 +57,7 @@ record MockAnswer(
    * @return the answer
    */
   static MockAnswer empty() {
-    return new MockAnswer(HttpStatus.OK, null, "", Duration.ZERO);
+    return builder().status(HttpStatus.OK).body("").delay(Duration.ZERO).build();
   }
 
   /**
@@ -56,6 +67,6 @@ record MockAnswer(
    * @return the answer
    */
   MockAnswer withDelay(Duration time) {
-    return new MockAnswer(status, contentType, body, time);
+    return toBuilder().delay(time).build();
   }
 }
