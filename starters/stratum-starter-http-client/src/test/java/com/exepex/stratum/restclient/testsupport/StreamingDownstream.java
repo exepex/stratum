@@ -108,7 +108,9 @@ public final class StreamingDownstream implements AutoCloseable {
     exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, 0);
     try (var body = exchange.getResponseBody()) {
       for (var oneByte : SLOW_BODY.getBytes(StandardCharsets.US_ASCII)) {
-        pause(GAP);
+        if (!pause(GAP)) {
+          return;
+        }
         sendByte(body, oneByte);
       }
     }
@@ -143,12 +145,17 @@ public final class StreamingDownstream implements AutoCloseable {
     body.flush();
   }
 
-  /** Waits the given time, or until the server closes, keeping the thread's interrupt. */
-  private void pause(Duration time) {
+  /**
+   * Waits the given time, or until the server closes, keeping the thread's interrupt.
+   *
+   * @return whether the whole time passed with the server open, so that the answer goes on
+   */
+  private boolean pause(Duration time) {
     try {
-      closed.await(time.toMillis(), TimeUnit.MILLISECONDS);
+      return !closed.await(time.toMillis(), TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
+      return false;
     }
   }
 
