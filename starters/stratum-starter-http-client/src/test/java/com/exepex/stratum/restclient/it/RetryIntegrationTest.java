@@ -4,8 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.httpclient.HttpClientConstants;
+import com.exepex.stratum.httpclient.HttpClientErrorCode;
 import com.exepex.stratum.restclient.ClientExchangeDecorator;
 import com.exepex.stratum.restclient.StratumClientCustomizer;
+import com.exepex.stratum.restclient.testsupport.CallChecks;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import com.exepex.stratum.restclient.testsupport.ScriptedDownstream;
 import com.exepex.stratum.restclient.testsupport.clients.ClientsApplication;
@@ -36,7 +38,6 @@ import org.springframework.http.client.ClientHttpRequestExecution;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.service.invoker.HttpExchangeAdapter;
@@ -158,18 +159,18 @@ class RetryIntegrationTest {
     @Test
     @DisplayName("a GET is sent again after a dropped connection; a POST is sent once")
     void droppedConnection() {
-      assertThatExceptionOfType(ResourceAccessException.class).isThrownBy(inventory::getDropped);
+      CallChecks.assertEndsWith(inventory::getDropped, HttpClientErrorCode.DOWNSTREAM_UNAVAILABLE);
       assertThat(requests()).hasSize(ALL_ATTEMPTS);
 
       requestsBefore = INVENTORY.paths().size();
-      assertThatExceptionOfType(ResourceAccessException.class).isThrownBy(inventory::postDropped);
+      CallChecks.assertEndsWith(inventory::postDropped, HttpClientErrorCode.DOWNSTREAM_UNAVAILABLE);
       assertThat(requests()).hasSize(1);
     }
 
     @Test
     @DisplayName("a POST is sent again when the connection is refused, as nothing was sent")
     void refusedConnectionRetriedForPost() {
-      assertThatExceptionOfType(ResourceAccessException.class).isThrownBy(pricing::order);
+      CallChecks.assertEndsWith(pricing::order, HttpClientErrorCode.DOWNSTREAM_UNAVAILABLE);
       assertThat(PRICING_ATTEMPTS).hasValue(ALL_ATTEMPTS);
     }
   }

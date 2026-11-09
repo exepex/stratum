@@ -112,7 +112,8 @@ time or body size limit. A new service leaves it unset, at `false`. See
   Stratum only adds `traceId` and `correlationId` to it.
 - **`StratumException` with your own code:** you map each code to an HTTP status in
   `stratum.web.error.statuses`. A code with no status is answered with `500` and logged, so a
-  missing mapping shows up in testing. Your existing exceptions can implement
+  missing mapping shows up in testing. A Stratum starter can give its own codes a default status
+  there, such as the HTTP client's `SX-HTTPC-0001: 504`; your value wins. Your existing exceptions can implement
   [`FailureWithErrorCode`](../guides/error-codes.md#existing-exceptions-a-migration-path) to be
   answered the same way while you move them to `StratumException`. That changes what their
   consumers get, even in backward-compatible mode; see

@@ -293,11 +293,16 @@ while the module is on, which it is unless `stratum.cache.enabled=false`. See th
 
 ## stratum-starter-http-client
 
-Each of these is an error that stops the application at startup, and only while the module is on,
-which it is unless `stratum.http-client.enabled=false`. See the [HTTP client module](../modules/http-client.md).
+The codes from `SX-HTTPC-0001` end a call of a `@StratumClient` interface, and your caller gets the status shown,
+a default in `stratum.web.error.statuses` that you can change. The codes from `SX-HTTPC-1001` stop the application at
+startup. Each is used only while the module is on, which it is unless `stratum.http-client.enabled=false`. See
+[HTTP client: errors](../modules/http-client-errors.md).
 
 | Code | Meaning | Fix |
 | --- | --- | --- |
+| `SX-HTTPC-0001` | `504`. A call got no answer in time: the answer, or a byte of it, took longer than the client's `timeout`, after the retries. The body names no other service; the logged cause carries its address. | Look at why the other service is slow. If its answers are slow by design, raise the client's `timeout` and `total-timeout`. |
+| `SX-HTTPC-0002` | `503`. A call got no answer, after the retries: the connection was refused or timed out, the host is unknown, the client's pool stayed full for `max-wait`, or the connection dropped. Or the client's own token for the other service cannot be fetched (with `auth.client-credentials`): the identity provider timed out, failed or refused the client, and the call is not sent. | Check that the other service and the identity provider are up and reachable, and that the client's registration, such as its client secret, is current. When the pool was full, look at slow calls or raise `max-connections`. |
+| `SX-HTTPC-0003` | `503`. A call was not sent, as the client's circuit breaker is open: most recent calls to the other service failed. The breaker's change of state is logged once at `WARN` with the client's name. | Look at why the other service fails. The breaker tries again by itself after 60 seconds. |
 | `SX-HTTPC-1001` | A Spring Boot setting under `spring.http.serviceclient.<name>`, such as `base-url` or `read-timeout`, is set for the name of a Stratum client. A Stratum client does not read it, so the setting would do nothing. The message names the client, never the value. | Move the setting to `stratum.http-client.clients.<name>`, such as `url` instead of `base-url` and `timeout` instead of `read-timeout`. See [HTTP client → Properties](../modules/http-client.md#properties). |
 | `SX-HTTPC-1002` | A method of a `@StratumClient` interface returns `Mono` or `Flux`, which the blocking HTTP client starter cannot send. The message names the interface and the method. | Return the value itself, such as `Stock` instead of `Mono<Stock>`; the reactive HTTP client starter is planned. |
 | `SX-HTTPC-1003` | A `@StratumClient` name is not lowercase letters, digits and hyphens starting with a letter, so it cannot be a part of `stratum.http-client.clients.<name>`. The message names the interface. | Rename the client, such as `inventory` or `payments-v2`, and its settings with it. |

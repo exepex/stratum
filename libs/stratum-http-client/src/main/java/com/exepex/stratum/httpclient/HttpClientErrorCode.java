@@ -8,12 +8,32 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * The codes of the HTTP client module, each listed with its fix in {@code
- * docs/guides/error-codes.md}. Every one here stops the application at startup.
+ * docs/guides/error-codes.md}. A code from {@code SX-HTTPC-1001} stops the application at startup;
+ * one below {@code SX-HTTPC-1000} ends a call to another service, and its HTTP status is a default
+ * of {@value HttpClientConstants#WEB_ERROR_STATUSES}.
  */
 @StratumInternal
 @Getter
 @RequiredArgsConstructor
 public enum HttpClientErrorCode implements ErrorCode {
+
+  /** The other service did not answer in time; the caller gets 504. */
+  DOWNSTREAM_TIMEOUT(
+      "SX-HTTPC-0001", Severity.ERROR, "The other service did not answer in time", ""),
+
+  /** The other service cannot be reached, or the client's own token for it cannot be fetched. */
+  DOWNSTREAM_UNAVAILABLE(
+      "SX-HTTPC-0002",
+      Severity.ERROR,
+      "The other service cannot be reached, or the client's token for it cannot be fetched",
+      ""),
+
+  /** The client's circuit breaker is open, so the call was not sent; the caller gets 503. */
+  BREAKER_OPEN(
+      "SX-HTTPC-0003",
+      Severity.ERROR,
+      "The other service is failing, so the call was not sent while its circuit breaker is open",
+      ""),
 
   /**
    * A Spring Boot setting of an HTTP service group is set for a Stratum client, which ignores it.

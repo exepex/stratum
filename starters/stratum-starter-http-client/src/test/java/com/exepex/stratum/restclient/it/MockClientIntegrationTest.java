@@ -3,11 +3,14 @@ package com.exepex.stratum.restclient.it;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
+import com.exepex.stratum.httpclient.HttpClientErrorCode;
 import com.exepex.stratum.restclient.ClientResilience;
+import com.exepex.stratum.restclient.DownstreamException;
 import com.exepex.stratum.restclient.MockClient;
 import com.exepex.stratum.restclient.MockClients;
 import com.exepex.stratum.restclient.RecordedCall;
 import com.exepex.stratum.restclient.StratumHttpClients;
+import com.exepex.stratum.restclient.testsupport.CallChecks;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import com.exepex.stratum.restclient.testsupport.payments.Payment;
 import com.exepex.stratum.restclient.testsupport.payments.PaymentClient;
@@ -35,7 +38,6 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.web.client.HttpServerErrorException;
-import org.springframework.web.client.ResourceAccessException;
 
 @SpringBootTest(
     classes = PaymentsApplication.class,
@@ -157,7 +159,7 @@ class MockClientIntegrationTest {
     @Test
     @DisplayName("that is missing fails the call with 501, naming the file to add")
     void missingAnswerIs501() {
-      assertThatExceptionOfType(HttpServerErrorException.class)
+      assertThatExceptionOfType(DownstreamException.class)
           .isThrownBy(() -> payments.payment(PAYMENT_ID))
           .satisfies(
               failure ->
@@ -207,7 +209,7 @@ class MockClientIntegrationTest {
       var retriedBefore = retry.getNumberOfFailedCallsWithRetryAttempt();
       paymentsMock.on(PAYMENT).fail(HttpStatus.SERVICE_UNAVAILABLE);
 
-      assertThatExceptionOfType(HttpServerErrorException.class)
+      assertThatExceptionOfType(DownstreamException.class)
           .isThrownBy(() -> payments.payment(PAYMENT_ID));
       assertThat(retry.getNumberOfFailedCallsWithRetryAttempt()).isEqualTo(retriedBefore + 1);
       assertThat(paymentsMock.calls(PAYMENT)).hasSize(1);
@@ -239,13 +241,13 @@ class MockClientIntegrationTest {
   class DelayBeyondLimits {
 
     @Test
-    @DisplayName("fails the call as a read timeout, ended by total-timeout")
+    @DisplayName("fails the call with SX-HTTPC-0001, as a read timeout, ended by total-timeout")
     void endsByTotalTimeout() {
       paymentsMock.on(PAYMENT).delay(RestClientTestData.WAIT).respond(SCRIPTED_PAYMENT);
       var startedAt = System.nanoTime();
 
-      assertThatExceptionOfType(ResourceAccessException.class)
-          .isThrownBy(() -> payments.payment(PAYMENT_ID));
+      CallChecks.assertEndsWith(
+          () -> payments.payment(PAYMENT_ID), HttpClientErrorCode.DOWNSTREAM_TIMEOUT);
       assertThat(Duration.ofNanos(System.nanoTime() - startedAt))
           .isLessThan(RestClientTestData.FAILS_WITHIN);
     }

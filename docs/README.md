@@ -66,7 +66,7 @@ Each module page follows the same layout so you always know where to look:
 | Observability known gaps, and which backends (OTLP HTTP and gRPC, Prometheus, Zipkin) are tested | [observability-known-gaps.md](modules/observability-known-gaps.md) |
 | Security (resource server, JWT) | [security.md](modules/security.md) |
 | OAuth2 client (service-to-service tokens) | [oauth2-client.md](modules/oauth2-client.md) |
-| HTTP client | [http-client.md](modules/http-client.md), [auth and mTLS](modules/http-client-auth.md), [mocked clients](modules/http-client-mocks.md) |
+| HTTP client | [http-client.md](modules/http-client.md), [auth and mTLS](modules/http-client-auth.md), [errors](modules/http-client-errors.md), [mocked clients](modules/http-client-mocks.md) |
 | Resilience | [resilience.md](modules/resilience.md) |
 | Data (JPA, connection pool, transactions) | [data-jpa.md](modules/data-jpa.md) |
 | Cache | [cache.md](modules/cache.md) |

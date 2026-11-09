@@ -48,6 +48,9 @@ public class ClientConnectionPools implements DisposableBean {
   /** The key of the shared pool, which no client name can be, as a name starts with a letter. */
   private static final String SHARED_POOL = "";
 
+  /** The limit on an error answer's body, first in each client's chain, before gzip is undone. */
+  private static final ErrorBodyLimit ERROR_BODY_LIMIT = new ErrorBodyLimit();
+
   /** The settings of the shared pool: the shared defaults under {@code defaults}. */
   private final ClientSettings sharedPoolSettings;
 
@@ -84,6 +87,7 @@ public class ClientConnectionPools implements DisposableBean {
             .useSystemProperties()
             .setConnectionManager(poolFor(client, settings))
             .setConnectionManagerShared(true)
+            .addExecInterceptorFirst(ErrorBodyLimit.NAME, ERROR_BODY_LIMIT)
             .disableAutomaticRetries()
             .disableRedirectHandling()
             .setDefaultRequestConfig(requestConfig)

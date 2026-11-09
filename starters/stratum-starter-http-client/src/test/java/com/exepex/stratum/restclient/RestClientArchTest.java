@@ -18,6 +18,7 @@ class RestClientArchTest {
           MockClients.class,
           MockScript.class,
           RecordedCall.class,
+          DownstreamException.class,
           StratumClientCustomizer.class,
           StratumHttpClients.class);
 

@@ -52,6 +52,12 @@
       <artifactId>spring-test</artifactId>
       <optional>true</optional>
     </dependency>
+    <!-- The web starter's error answers, to check the statuses this starter gives its codes. -->
+    <dependency>
+      <groupId>com.exepex.stratum</groupId>
+      <artifactId>stratum-web</artifactId>
+      <scope>test</scope>
+    </dependency>
     <!-- The checks and set-up that every starter's tests share. -->
     <dependency>
       <groupId>com.exepex.stratum</groupId>

@@ -1,23 +1,17 @@
 package com.exepex.stratum.restclient;
 
 import com.exepex.stratum.core.api.StratumInternal;
-import java.io.InputStream;
-import java.util.Objects;
 import java.util.function.Supplier;
 import org.jspecify.annotations.Nullable;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.service.invoker.HttpExchangeAdapter;
-import org.springframework.web.service.invoker.HttpExchangeAdapterDecorator;
 import org.springframework.web.service.invoker.HttpRequestValues;
 
 /**
  * Runs every call of one client's interface through the client's retries and circuit breaker
- * ({@link ClientResilience}). A call that returns an {@code InputStream} is a streamed download.
+ * ({@link ClientResilience}).
  */
 @StratumInternal
-public class ResilientExchangeAdapter extends HttpExchangeAdapterDecorator {
+public class ResilientExchangeAdapter extends AroundCallExchangeAdapter {
 
   /** The client's name. */
   private final String client;
@@ -40,86 +34,22 @@ public class ResilientExchangeAdapter extends HttpExchangeAdapterDecorator {
   }
 
   /**
-   * Sends a call that returns nothing.
+   * Runs one call of the client through its retries and breaker.
    *
    * @param values the call
+   * @param streamedDownload whether the answer's body is read as a stream
+   * @param call the call itself
+   * @param <T> what the call returns
+   * @return what the last attempt returned
    */
   @Override
-  public void exchange(HttpRequestValues values) {
-    run(values, false, () -> sendWithoutAnswer(values));
-  }
-
-  /**
-   * Sends a call that returns the answer's headers.
-   *
-   * @param values the call
-   * @return the headers
-   */
-  @Override
-  public HttpHeaders exchangeForHeaders(HttpRequestValues values) {
-    return Objects.requireNonNull(run(values, false, () -> super.exchangeForHeaders(values)));
-  }
-
-  /**
-   * Sends a call that returns the answer's body.
-   *
-   * @param values the call
-   * @param bodyType the body's type
-   * @param <T> the body's type
-   * @return the body
-   */
-  @Override
-  public <T> @Nullable T exchangeForBody(
-      HttpRequestValues values, ParameterizedTypeReference<T> bodyType) {
-    return run(values, isStream(bodyType), () -> super.exchangeForBody(values, bodyType));
-  }
-
-  /**
-   * Sends a call that returns the answer without a body.
-   *
-   * @param values the call
-   * @return the answer
-   */
-  @Override
-  public ResponseEntity<Void> exchangeForBodilessEntity(HttpRequestValues values) {
-    return Objects.requireNonNull(
-        run(values, false, () -> super.exchangeForBodilessEntity(values)));
-  }
-
-  /**
-   * Sends a call that returns the whole answer.
-   *
-   * @param values the call
-   * @param bodyType the body's type
-   * @param <T> the body's type
-   * @return the answer
-   */
-  @Override
-  public <T> ResponseEntity<T> exchangeForEntity(
-      HttpRequestValues values, ParameterizedTypeReference<T> bodyType) {
-    return Objects.requireNonNull(
-        run(values, isStream(bodyType), () -> super.exchangeForEntity(values, bodyType)));
-  }
-
-  /** Runs one call of the client through its retries and breaker. */
-  private <T> @Nullable T run(
-      HttpRequestValues values, boolean streamedDownload, Supplier<@Nullable T> exchange) {
+  protected <T> @Nullable T around(
+      HttpRequestValues values, boolean streamedDownload, Supplier<@Nullable T> call) {
     return resilience.call(
         client,
         values.getHttpMethod(),
         StreamedBody.isStreamed(values.getBodyValue()),
         streamedDownload,
-        exchange);
-  }
-
-  /** Sends a call that returns nothing, as one attempt that returns no value. */
-  private @Nullable Void sendWithoutAnswer(HttpRequestValues values) {
-    super.exchange(values);
-    return null;
-  }
-
-  /** Returns whether the answer's body is read as a stream, a streamed download. */
-  private boolean isStream(ParameterizedTypeReference<?> bodyType) {
-    return bodyType.getType() == InputStream.class;
+        call);
   }
 }

@@ -4,8 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.httpclient.HttpClientConstants;
+import com.exepex.stratum.httpclient.HttpClientErrorCode;
 import com.exepex.stratum.restclient.ClientAttempt;
 import com.exepex.stratum.restclient.StratumClientCustomizer;
+import com.exepex.stratum.restclient.testsupport.CallChecks;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import com.exepex.stratum.restclient.testsupport.ScriptedDownstream;
 import com.exepex.stratum.restclient.testsupport.clients.ClientsApplication;
@@ -30,7 +32,6 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
@@ -97,8 +98,7 @@ class TotalTimeoutIntegrationTest {
       var heldBefore = DOWNSTREAM.heldRequests();
       var startedAt = System.nanoTime();
 
-      assertThatExceptionOfType(ResourceAccessException.class)
-          .isThrownBy(inventory::getHeld)
+      CallChecks.assertEndsWith(inventory::getHeld, HttpClientErrorCode.DOWNSTREAM_TIMEOUT)
           .withRootCauseInstanceOf(SocketTimeoutException.class);
       assertThat(Duration.ofNanos(System.nanoTime() - startedAt))
           .isGreaterThanOrEqualTo(INVENTORY_TOTAL.minus(SLACK))
@@ -112,8 +112,7 @@ class TotalTimeoutIntegrationTest {
     void answerAfterTotalTimeoutFails() {
       releaseLater();
 
-      assertThatExceptionOfType(ResourceAccessException.class)
-          .isThrownBy(pricing::held)
+      CallChecks.assertEndsWith(pricing::held, HttpClientErrorCode.DOWNSTREAM_TIMEOUT)
           .withRootCauseInstanceOf(SocketTimeoutException.class);
     }
 
@@ -155,8 +154,7 @@ class TotalTimeoutIntegrationTest {
     void postNotResentAfterTimeout() {
       var heldBefore = DOWNSTREAM.heldRequests();
 
-      assertThatExceptionOfType(ResourceAccessException.class)
-          .isThrownBy(inventory::postHeld)
+      CallChecks.assertEndsWith(inventory::postHeld, HttpClientErrorCode.DOWNSTREAM_TIMEOUT)
           .withRootCauseInstanceOf(SocketTimeoutException.class);
       assertThat(DOWNSTREAM.heldRequests() - heldBefore).isEqualTo(1);
     }

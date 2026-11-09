@@ -2,8 +2,8 @@
 
 **Status: Partly built.** Calls to other services through Java interfaces marked `@StratumClient`. Each client
 gets its own address, timeouts and bounded connection pool from one settings block, and Apache HttpClient 5 sends
-its calls, with retries, a time limit for the whole call and a circuit breaker. Tokens, headers, error mapping, the
-call log and pool metrics are planned ([Planned](#planned)).
+its calls, with retries, a time limit for the whole call, a circuit breaker and one exception per failure
+([errors](http-client-errors.md)). Tokens, headers, the call log and pool metrics are planned ([Planned](#planned)).
 
 [← Documentation home](../README.md) · Property prefix: `stratum.http-client` ·
 Design: [ADR 0011](../adr/0011-http-client-starters.md), [ADR 0012](../adr/0012-http-client-changes-found-while-building.md)
@@ -113,6 +113,7 @@ in proxy and server logs that Stratum does not control. Send it in the request b
 | Safe retries | A call is sent again only when that is safe ([Retries and the circuit breaker](#retries-and-the-circuit-breaker)). Apache HttpClient 5's own retries are off. |
 | A time limit per call | The whole call, retries and waits included, ends within `total-timeout` (8s). |
 | A circuit breaker | When most recent calls fail, the client stops calling the service for a while and fails at once. |
+| Clear errors | A timeout ends with `SX-HTTPC-0001` (`504`), no answer with `SX-HTTPC-0002` (`503`), an open breaker with `SX-HTTPC-0003` (`503`), and an error answer with a `DownstreamException` holding at most 64 KB of its body ([errors](http-client-errors.md)). |
 | No redirects | A `3xx` answer is returned as it is and never followed. |
 | Gzip | Answers compressed with gzip are accepted and unpacked. |
 | Fresh connections | A connection unused for `idle-timeout` (30s) is closed. One unused for more than about 2 seconds is checked before it is used again, so one the server or a load balancer closed meanwhile is replaced. A server's `Keep-Alive: timeout` is honoured. A connection older than `connection-lifetime` (5m) is not used again, so calls follow a change of the service's address. |
@@ -249,7 +250,7 @@ bounded only by `timeout` between bytes.
 The circuit breaker counts an attempt with no answer, a full pool included, an answer whose body was cut off, and an
 answer of `5xx` or `429`. Other `4xx` answers mean the service is up, so they never count. With Resilience4j's defaults, it opens once at least 100
 calls were seen and half of the last 100 failed. Then for 60 seconds every call fails at once, without being sent, with
-Resilience4j's `CallNotPermittedException`; the planned error mapping turns it into a `503`. After that, 10 trial
+`SX-HTTPC-0003`, which answers `503` ([errors](http-client-errors.md)). After that, 10 trial
 calls decide whether it closes. Each change of its state is logged once at `WARN`, such as `The circuit breaker of
 HTTP client inventory went from CLOSED to OPEN`.
 
@@ -453,18 +454,10 @@ sets up groups only when their registry exists, and Stratum's registration of th
 Spring Boot first gives every group its own request factory; Stratum's set-up then replaces it, for Stratum's groups
 only, with the client's Apache HttpClient 5 pool.
 
-## Startup errors
+## Errors
 
-| Code | When |
-| --- | --- |
-| `SX-HTTPC-1001` | A `spring.http.serviceclient.<name>.*` key is set for a Stratum client. |
-| `SX-HTTPC-1002` | A client method returns `Mono` or `Flux`. |
-| `SX-HTTPC-1003` | A client name is not lowercase letters, digits and hyphens starting with a letter. |
-| `SX-HTTPC-1004` | A client has no `url`. |
-| `SX-HTTPC-1007` | A client's `interfaces` names a type that is not an interface on the classpath. |
-| `SX-HTTPC-1008` | An interface marked `@StratumClient` for one client is named in another client's `interfaces`. |
-
-Each one, with its fix, is in [Error codes](../guides/error-codes.md#stratum-starter-http-client).
+What a failed call throws, `DownstreamException`, mapping an error answer to your own exception, the 64 KB read of an
+error body and the startup errors are on [HTTP client: errors](http-client-errors.md).
 
 ## Planned
 
@@ -472,7 +465,7 @@ These parts of [ADR 0011](../adr/0011-http-client-starters.md) are not built yet
 
 - tokens: `auth.client-credentials` and `auth.token-relay`;
 - `headers` and `copy-headers`;
-- error mapping to `DownstreamException` and the `SX-HTTPC-0001` to `0004` codes;
+- a `404` read as an empty `Optional`;
 - one log line per call and the pool metrics;
 - `urls`;
 - `stratumHttpClients.resilience(name)`, the retry and circuit breaker for a call through a client Stratum did not
@@ -488,5 +481,5 @@ These parts of [ADR 0011](../adr/0011-http-client-starters.md) are not built yet
 | No bean of your client interface | The interface is outside your application's packages, or `stratum.http-client.enabled=false`. |
 | Calls fail after exactly 5 s | The default `timeout`, for a call that is not sent again, such as a `POST`. Raise it for that client if the other service is slow for a reason. |
 | `GET` calls fail after about 8 s | The default `timeout` of 5 s ran out, and the retry ran out of `total-timeout`. Raise both for that client if the other service is slow for a reason. |
-| Calls fail at once with `CallNotPermittedException` | The client's circuit breaker is open: most recent calls to the service failed. Look at the service, and at the `WARN` line that names the client. |
+| Calls fail at once with `SX-HTTPC-0003` | The client's circuit breaker is open: most recent calls to the service failed. Look at the service, and at the `WARN` line that names the client. |
 | Calls fail after 2 s with a connection request timeout | The client's pool is full: raise `max-connections`, or find what holds its connections. |

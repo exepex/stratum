@@ -3,6 +3,7 @@ package com.exepex.stratum.restclient.it;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
+import com.exepex.stratum.restclient.DownstreamException;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import com.exepex.stratum.restclient.testsupport.ScriptedDownstream;
 import com.exepex.stratum.restclient.testsupport.clients.ClientsApplication;
@@ -13,9 +14,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpStatus;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.web.client.HttpServerErrorException;
 
 @SpringBootTest(classes = ClientsApplication.class, properties = RestClientTestData.NO_RETRIES)
 @Timeout(30)
@@ -40,8 +41,11 @@ class ApacheRetryIntegrationTest {
   @Test
   @DisplayName("a 503 answer fails the call after one request; Apache's resend after 503 is off")
   void sentOnceOn503() {
-    assertThatExceptionOfType(HttpServerErrorException.ServiceUnavailable.class)
-        .isThrownBy(inventoryClient::unavailable);
+    assertThatExceptionOfType(DownstreamException.class)
+        .isThrownBy(inventoryClient::unavailable)
+        .satisfies(
+            failure ->
+                assertThat(failure.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE));
     assertThat(INVENTORY.paths()).containsOnlyOnce(ScriptedDownstream.UNAVAILABLE);
   }
 }
