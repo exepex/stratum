@@ -48,7 +48,7 @@ final class MockCallProcessor implements HttpRequestValues.Processor {
    * Returns whether a method's return type reads no body: {@code void}, {@code HttpHeaders} or
    * {@code ResponseEntity<Void>}.
    */
-  private static boolean readsNoBody(Method method) {
+  private boolean readsNoBody(Method method) {
     var type = ResolvableType.forMethodReturnType(method);
     var returned = type.resolve(Object.class);
     if (returned == ResponseEntity.class) {
