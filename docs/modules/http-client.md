@@ -272,8 +272,10 @@ try (InputStream report = documents.report("2026-q3")) {
 documents.archive(out -> Files.copy(path, out));
 ```
 
-Close every download, as `try-with-resources` does above. An open download holds one of the client's connections
-until it is closed; when all of them are held, the next call fails after `max-wait`.
+Close every download, as `try-with-resources` does above. An open download holds one of the client's connections until
+it is closed; when all of them are held, the next call fails after `max-wait`. Closing a download before its end reads
+the rest of it first, so that the connection can be used again: the thread and the connection stay busy until the
+download ends, and a pause in it longer than `timeout` ends the close with `SocketTimeoutException`.
 
 `timeout` is the longest wait for the next byte, not for the whole download, so a large file that keeps arriving is
 read in full. A download that stops for longer than `timeout` fails with `SocketTimeoutException` as you read it.
