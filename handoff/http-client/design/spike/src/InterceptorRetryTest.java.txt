@@ -1,0 +1,82 @@
+package spike;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.io.IOException;
+import java.time.Duration;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.protocol.HttpClientContext;
+import org.apache.hc.core5.util.Timeout;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.client.ClientHttpRequestInterceptor;
+import org.springframework.http.client.ClientHttpResponse;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+import org.springframework.web.client.RestClient;
+
+/** Item 6 + rule A8: an outer retry interceptor re-runs inner interceptors; per-attempt timeout. */
+class InterceptorRetryTest {
+
+  @Test
+  void retryInterceptorReRunsAuthAndSignerOnEveryAttempt() throws Exception {
+    try (Downstream downstream = new Downstream()) {
+      downstream.status = 503;
+      AtomicInteger signerRuns = new AtomicInteger();
+      ClientHttpRequestInterceptor retry = (request, body, execution) -> {
+        ClientHttpResponse response = null;
+        for (int attempt = 1; attempt <= 3; attempt++) {
+          if (response != null) response.close();
+          response = execution.execute(request, body);
+          if (response.getStatusCode().value() != 503) break;
+        }
+        return response;
+      };
+      ClientHttpRequestInterceptor signer = (request, body, execution) -> {
+        request.getHeaders().set("Authorization", "Bearer attempt-" + signerRuns.incrementAndGet());
+        return execution.execute(request, body);
+      };
+      RestClient client = RestClient.builder().baseUrl(downstream.url())
+          .requestFactory(new HttpComponentsClientHttpRequestFactory(
+              HttpClients.custom().disableAutomaticRetries().build()))
+          .requestInterceptor(retry).requestInterceptor(signer)
+          .defaultStatusHandler(status -> true, (req, res) -> {}).build();
+      client.get().uri("/orders/1").retrieve().toBodilessEntity();
+      System.out.println("SPIKE interceptor: server calls=" + downstream.calls()
+          + " signerRuns=" + signerRuns.get() + " auth=" + downstream.authHeaders);
+      assertThat(downstream.calls()).isEqualTo(3);
+      assertThat(signerRuns.get()).isEqualTo(3);
+    }
+  }
+
+  static final ThreadLocal<Duration> ATTEMPT_TIMEOUT = new ThreadLocal<>();
+
+  @Test
+  void perAttemptResponseTimeoutCanBeSetPerCall() throws Exception {
+    try (Downstream downstream = new Downstream()) {
+      downstream.before = exchange -> Downstream.sleep(1500);
+      HttpComponentsClientHttpRequestFactory factory =
+          new HttpComponentsClientHttpRequestFactory(HttpClients.createDefault());
+      factory.setReadTimeout(Duration.ofSeconds(5));
+      factory.setHttpContextFactory((method, uri) -> {
+        Duration left = ATTEMPT_TIMEOUT.get();
+        if (left == null) return null;
+        HttpClientContext context = HttpClientContext.create();
+        context.setRequestConfig(RequestConfig.custom()
+            .setResponseTimeout(Timeout.of(left)).build());
+        return context;
+      });
+      RestClient client = RestClient.builder().baseUrl(downstream.url()).requestFactory(factory).build();
+      ATTEMPT_TIMEOUT.set(Duration.ofMillis(300));
+      long start = System.nanoTime();
+      Throwable failure = null;
+      try { client.get().uri("/slow").retrieve().toBodilessEntity(); } catch (RuntimeException e) { failure = e; }
+      long tookMs = (System.nanoTime() - start) / 1_000_000;
+      ATTEMPT_TIMEOUT.remove();
+      System.out.println("SPIKE per-attempt timeout: took=" + tookMs + "ms failure="
+          + (failure == null ? null : failure.getClass().getSimpleName() + "/" + failure.getCause()));
+      assertThat(failure).isNotNull();
+      assertThat(tookMs).isLessThan(1200);
+    }
+  }
+}

@@ -1,0 +1,54 @@
+package spike;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.atomic.AtomicInteger;
+
+/** Socket-level server: answers each request with keep-alive, then closes the connection after closeAfterMs idle. */
+final class RawServer implements AutoCloseable {
+  final ServerSocket socket;
+  final AtomicInteger connections = new AtomicInteger();
+  final AtomicInteger requests = new AtomicInteger();
+  final long closeAfterMs;
+  final String extraHeaders;
+
+  RawServer(long closeAfterMs, String extraHeaders) throws Exception {
+    this.closeAfterMs = closeAfterMs;
+    this.extraHeaders = extraHeaders;
+    socket = new ServerSocket(0);
+    Thread.ofVirtual().start(() -> {
+      while (!socket.isClosed()) {
+        try {
+          Socket connection = socket.accept();
+          connections.incrementAndGet();
+          Thread.ofVirtual().start(() -> serve(connection));
+        } catch (Exception e) { return; }
+      }
+    });
+  }
+
+  private void serve(Socket connection) {
+    try (connection) {
+      connection.setSoTimeout((int) closeAfterMs);
+      BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream(), StandardCharsets.US_ASCII));
+      OutputStream out = connection.getOutputStream();
+      while (true) {
+        String line = in.readLine();
+        if (line == null) return;
+        while (!(line = in.readLine()).isEmpty()) { }
+        requests.incrementAndGet();
+        out.write(("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: keep-alive\r\n" + extraHeaders + "\r\nok")
+            .getBytes(StandardCharsets.US_ASCII));
+        out.flush();
+      }
+    } catch (Exception e) { /* idle close (SocketTimeoutException) ends the connection */ }
+  }
+
+  String url() { return "http://127.0.0.1:" + socket.getLocalPort(); }
+
+  @Override public void close() throws Exception { socket.close(); }
+}

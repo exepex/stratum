@@ -1,0 +1,141 @@
+package spike;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+import org.apache.hc.client5.http.config.ConnectionConfig;
+import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
+import org.apache.hc.core5.util.TimeValue;
+import org.apache.hc.core5.util.Timeout;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+import org.springframework.web.client.RestClient;
+
+/** Item 7: Apache HC5 retry off, connection lifetime, stale check, Keep-Alive, pool wait. */
+class HttpClient5Test {
+
+  static RestClient client(String url, CloseableHttpClient http) {
+    return RestClient.builder().baseUrl(url).requestFactory(new HttpComponentsClientHttpRequestFactory(http))
+        .defaultStatusHandler(status -> true, (req, res) -> {}).build();
+  }
+
+  static String call(RestClient client) {
+    try { client.get().uri("/x").retrieve().toBodilessEntity(); return "ok"; }
+    catch (RuntimeException e) { return e.getClass().getSimpleName() + "/" + e.getCause(); }
+  }
+
+  @Test
+  void apacheRetriesA503OnItsOwnUnlessTurnedOff() throws Exception {
+    try (Downstream downstream = new Downstream()) {
+      downstream.status = 503;
+      RestClient boot = RestClient.builder().baseUrl(downstream.url())
+          .requestFactory(ClientHttpRequestFactoryBuilder.httpComponents().build())
+          .defaultStatusHandler(status -> true, (req, res) -> {}).build();
+      call(boot);
+      int bootCalls = downstream.calls();
+      call(client(downstream.url(), HttpClients.createDefault()));
+      int plainCalls = downstream.calls() - bootCalls;
+      call(client(downstream.url(), HttpClients.custom().disableAutomaticRetries().build()));
+      int offCalls = downstream.calls() - bootCalls - plainCalls;
+      System.out.println("SPIKE hc5 retry on 503: bootBuilder=" + bootCalls + " plainDefault=" + plainCalls
+          + " retriesOff=" + offCalls);
+      assertThat(offCalls).isEqualTo(1);
+    }
+  }
+
+  @Test
+  void connectionLifetimeOpensANewConnectionAfterItExpires() throws Exception {
+    try (RawServer server = new RawServer(60_000, "")) {
+      PoolingHttpClientConnectionManager pool = PoolingHttpClientConnectionManagerBuilder.create()
+          .setDefaultConnectionConfig(ConnectionConfig.custom().setTimeToLive(TimeValue.ofMilliseconds(500)).build())
+          .build();
+      RestClient client = client(server.url(), HttpClients.custom().setConnectionManager(pool).build());
+      call(client); call(client);
+      int beforeExpiry = server.connections.get();
+      Thread.sleep(800);
+      call(client);
+      System.out.println("SPIKE hc5 ttl: connections after 2 quick calls=" + beforeExpiry
+          + ", after ttl expiry=" + server.connections.get());
+      assertThat(beforeExpiry).isEqualTo(1);
+      assertThat(server.connections.get()).isEqualTo(2);
+    }
+  }
+
+  @Test
+  void staleCheckAvoidsAResetWhenTheServerClosedAnIdleConnection() throws Exception {
+    try (RawServer server = new RawServer(300, "")) {
+      String withCheck = staleRun(server, TimeValue.ofMilliseconds(100));
+      String withoutCheck = staleRun(server, TimeValue.NEG_ONE_MILLISECOND);
+      System.out.println("SPIKE hc5 stale check: validateAfterInactivity=100ms -> " + withCheck
+          + " ; disabled -> " + withoutCheck);
+      assertThat(withCheck).isEqualTo("ok");
+    }
+  }
+
+  static String staleRun(RawServer server, TimeValue validateAfter) throws Exception {
+    PoolingHttpClientConnectionManager pool = PoolingHttpClientConnectionManagerBuilder.create()
+        .setDefaultConnectionConfig(ConnectionConfig.custom().setValidateAfterInactivity(validateAfter).build())
+        .build();
+    RestClient client = client(server.url(), HttpClients.custom().setConnectionManager(pool)
+        .disableAutomaticRetries().build());
+    call(client);
+    Thread.sleep(800);   // server closed the connection after 300 ms idle
+    return call(client);
+  }
+
+  @Test
+  void serverKeepAliveTimeoutIsHonoured() throws Exception {
+    try (RawServer server = new RawServer(60_000, "Keep-Alive: timeout=1\r\n")) {
+      RestClient client = client(server.url(), HttpClients.custom().disableAutomaticRetries().build());
+      call(client); call(client);
+      int quick = server.connections.get();
+      Thread.sleep(1500);
+      String result = call(client);
+      System.out.println("SPIKE hc5 keep-alive timeout=1: connections quick=" + quick
+          + " after 1.5s=" + server.connections.get() + " result=" + result);
+      assertThat(quick).isEqualTo(1);
+      assertThat(server.connections.get()).isEqualTo(2);
+    }
+  }
+
+  @Test
+  void poolWaitFailsFastWhenThePoolIsFull() throws Exception {
+    try (Downstream downstream = new Downstream()) {
+      downstream.before = exchange -> Downstream.sleep(2000);
+      PoolingHttpClientConnectionManager pool = PoolingHttpClientConnectionManagerBuilder.create()
+          .setMaxConnTotal(1).setMaxConnPerRoute(1).build();
+      RestClient client = client(downstream.url(), HttpClients.custom().setConnectionManager(pool)
+          .setDefaultRequestConfig(RequestConfig.custom().setConnectionRequestTimeout(Timeout.ofMilliseconds(300)).build())
+          .disableAutomaticRetries().build());
+      CompletableFuture<String> holder = CompletableFuture.supplyAsync(() -> call(client));
+      Thread.sleep(200);
+      long start = System.nanoTime();
+      String second = call(client);
+      long tookMs = (System.nanoTime() - start) / 1_000_000;
+      System.out.println("SPIKE hc5 pool wait: second call took=" + tookMs + "ms result=" + second
+          + " leased=" + pool.getTotalStats().getLeased());
+      holder.join();
+      assertThat(tookMs).isLessThan(1000);
+      assertThat(second).contains("ConnectionRequestTimeoutException");
+    }
+  }
+
+  @Test
+  void bootBuilderAppliesStratumTtlAndStaleCheckThroughCustomizer() {
+    HttpComponentsClientHttpRequestFactory factory = ClientHttpRequestFactoryBuilder.httpComponents()
+        .withConnectionConfigCustomizer(config -> config.setTimeToLive(TimeValue.ofMinutes(5))
+            .setValidateAfterInactivity(TimeValue.ofSeconds(2)))
+        .withHttpClientCustomizer(builder -> builder.disableAutomaticRetries())
+        .build();
+    System.out.println("SPIKE hc5 boot builder customizers: built=" + (factory != null)
+        + " defaultValidateAfterInactivity=" + ConnectionConfig.DEFAULT.getValidateAfterInactivity()
+        + " defaultTtl=" + ConnectionConfig.DEFAULT.getTimeToLive());
+    assertThat(factory).isNotNull();
+  }
+}

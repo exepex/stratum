@@ -1,0 +1,176 @@
+package com.exepex.stratum.restclient.it;
+
+import com.exepex.stratum.httpclient.StratumClient;
+import com.exepex.stratum.restclient.StratumClientCustomizer;
+import com.sun.net.httpserver.HttpServer;
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.SpringBootConfiguration;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.context.annotation.Bean;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.StreamingHttpOutputMessage;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.service.annotation.GetExchange;
+import org.springframework.web.service.annotation.PostExchange;
+
+class ProbeStreamingIntegrationTest {
+
+  static final AtomicReference<String> LAST = new AtomicReference<>();
+
+  @StratumClient("files")
+  public interface FilesClient {
+    @GetExchange("/slow")
+    InputStream slow();
+
+    @GetExchange("/stall")
+    InputStream stall();
+
+    @GetExchange("/slow")
+    ResponseEntity<InputStream> slowEntity();
+
+    @PostExchange("/upload")
+    String uploadBody(@RequestBody StreamingHttpOutputMessage.Body body);
+
+    @PostExchange("/upload")
+    String uploadResource(@RequestBody InputStreamResource body);
+  }
+
+  @SpringBootConfiguration
+  @EnableAutoConfiguration
+  static class App {}
+
+  @SpringBootConfiguration
+  @EnableAutoConfiguration
+  static class AppWithInterceptor {
+    @Bean
+    StratumClientCustomizer addInterceptor() {
+      return (client, builder) ->
+          builder.requestInterceptor((request, body, execution) -> execution.execute(request, body));
+    }
+  }
+
+  static HttpServer server() throws Exception {
+    var server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
+    server.createContext(
+        "/slow",
+        exchange -> {
+          exchange.sendResponseHeaders(200, 0);
+          try (var out = exchange.getResponseBody()) {
+            for (int i = 0; i < 8; i++) {
+              out.write(new byte[] {'x'});
+              out.flush();
+              Thread.sleep(200);
+            }
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          }
+        });
+    server.createContext(
+        "/stall",
+        exchange -> {
+          exchange.sendResponseHeaders(200, 0);
+          try (var out = exchange.getResponseBody()) {
+            out.write('x');
+            out.flush();
+            Thread.sleep(3000);
+            out.write('y');
+          } catch (Exception e) {
+            // client gone
+          }
+        });
+    server.createContext(
+        "/upload",
+        exchange -> {
+          var headers = exchange.getRequestHeaders();
+          var bytes = exchange.getRequestBody().readAllBytes();
+          LAST.set(
+              "te="
+                  + headers.getFirst("Transfer-Encoding")
+                  + " cl="
+                  + headers.getFirst("Content-Length")
+                  + " size="
+                  + bytes.length);
+          var answer = "ok".getBytes();
+          exchange.sendResponseHeaders(200, answer.length);
+          exchange.getResponseBody().write(answer);
+          exchange.close();
+        });
+    server.setExecutor(java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor());
+    server.start();
+    return server;
+  }
+
+  void run(Class<?> app) throws Exception {
+    var server = server();
+    var url = "http://127.0.0.1:" + server.getAddress().getPort();
+    try (var context =
+        new SpringApplicationBuilder(app)
+            .web(org.springframework.boot.WebApplicationType.NONE)
+            .properties(
+                "stratum.http-client.clients.files.url=" + url,
+                "stratum.http-client.clients.files.timeout=500ms",
+                "stratum.http-client.clients.files.max-connections=1",
+                "stratum.http-client.clients.files.max-wait=300ms")
+            .run()) {
+      var client = context.getBean(FilesClient.class);
+      long start = System.nanoTime();
+      try (var in = client.slow()) {
+        System.out.println("PROBE slow returned after ms " + (System.nanoTime() - start) / 1_000_000);
+        // pool has 1 connection; while open, a second call must wait and fail after max-wait
+        try {
+          client.slow().close();
+          System.out.println("PROBE second call while stream open: SUCCEEDED");
+        } catch (Exception e) {
+          System.out.println("PROBE second call while stream open: " + e);
+        }
+        var bytes = in.readAllBytes();
+        System.out.println(
+            "PROBE slow read " + bytes.length + " bytes in ms " + (System.nanoTime() - start) / 1_000_000);
+      }
+      try (var in = client.slow()) {
+        System.out.println("PROBE call after close: OK " + in.readAllBytes().length);
+      }
+      try (var in = client.stall()) {
+        in.readAllBytes();
+        System.out.println("PROBE stall: read all");
+      } catch (Exception e) {
+        System.out.println("PROBE stall: " + e);
+      }
+      try (var in = client.slowEntity().getBody()) {
+        System.out.println("PROBE entity read " + in.readAllBytes().length);
+      }
+      var big = new byte[5_000_000];
+      System.out.println(
+          "PROBE upload Body: "
+              + client.uploadBody(out -> new ByteArrayInputStream(big).transferTo(out))
+              + " "
+              + LAST.get());
+      System.out.println(
+          "PROBE upload Resource: "
+              + client.uploadResource(new InputStreamResource(new ByteArrayInputStream(big)))
+              + " "
+              + LAST.get());
+    } finally {
+      server.stop(0);
+    }
+  }
+
+  @Test
+  void plain() throws Exception {
+    System.out.println("PROBE ===== no interceptor");
+    run(App.class);
+  }
+
+  @Test
+  void withInterceptor() throws Exception {
+    System.out.println("PROBE ===== with a ClientHttpRequestInterceptor");
+    run(AppWithInterceptor.class);
+  }
+}

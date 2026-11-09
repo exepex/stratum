@@ -1,0 +1,49 @@
+package spike;
+
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpServer;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executors;
+import java.util.function.Consumer;
+
+/** Tiny downstream server: records each request's remote port and Authorization header. */
+final class Downstream implements AutoCloseable {
+  final HttpServer server;
+  final List<Integer> remotePorts = new CopyOnWriteArrayList<>();
+  final List<String> authHeaders = new CopyOnWriteArrayList<>();
+  final List<String> paths = new CopyOnWriteArrayList<>();
+  volatile Consumer<HttpExchange> before = exchange -> {};
+  volatile int status = 200;
+  volatile String body = "{\"ok\":true}";
+
+  Downstream() throws IOException {
+    server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+    server.setExecutor(Executors.newCachedThreadPool());
+    server.createContext("/", exchange -> {
+      remotePorts.add(exchange.getRemoteAddress().getPort());
+      authHeaders.add(String.valueOf(exchange.getRequestHeaders().getFirst("Authorization")));
+      paths.add(exchange.getRequestURI().toString());
+      exchange.getRequestBody().readAllBytes();
+      before.accept(exchange);
+      byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+      exchange.getResponseHeaders().add("Content-Type", "application/json");
+      exchange.sendResponseHeaders(status, bytes.length);
+      exchange.getResponseBody().write(bytes);
+      exchange.close();
+    });
+    server.start();
+  }
+
+  String url() { return "http://127.0.0.1:" + server.getAddress().getPort(); }
+  int calls() { return remotePorts.size(); }
+
+  static void sleep(long millis) {
+    try { Thread.sleep(millis); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+  }
+
+  @Override public void close() { server.stop(0); }
+}

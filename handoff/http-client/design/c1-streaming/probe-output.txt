@@ -1,0 +1,24 @@
+Probe run 2026-11-09 ~13:35Z, JDK 25, Boot 4.1.2, spring-web 7.0.10, H1 code at aabdae8.
+Client settings: timeout=500ms, max-connections=1, max-wait=300ms.
+
+PROBE ===== no interceptor
+PROBE slow returned after ms 70
+PROBE second call while stream open: ResourceAccessException: I/O error on GET ... Timeout deadline: 300 MILLISECONDS
+PROBE slow read 8 bytes in ms 1671
+PROBE call after close: OK 8
+PROBE stall: java.net.SocketTimeoutException: Read timed out
+PROBE entity read 8                      (ResponseEntity<InputStream>)
+PROBE upload Body: ok te=chunked cl=null size=5000000
+PROBE upload Resource: ok te=chunked cl=null size=5000000
+PROBE ===== with a ClientHttpRequestInterceptor
+PROBE slow returned after ms 6
+PROBE second call while stream open: ResourceAccessException ... Timeout deadline: 300 MILLISECONDS
+PROBE slow read 8 bytes in ms 1610
+PROBE call after close: OK 8
+PROBE stall: java.net.SocketTimeoutException: Read timed out
+PROBE entity read 8
+PROBE upload Body: ok te=null cl=5000000 size=5000000
+PROBE upload Resource: ok te=null cl=5000000 size=5000000
+
+Earlier run: ResponseEntity<InputStreamResource> failed with
+HttpMessageNotReadableException: Unsupported resource class: class org.springframework.core.io.InputStreamResource

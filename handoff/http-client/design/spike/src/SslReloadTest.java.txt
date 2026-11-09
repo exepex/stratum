@@ -1,0 +1,74 @@
+package spike;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.SpringBootConfiguration;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.ssl.SslBundle;
+import org.springframework.boot.ssl.SslBundles;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+
+/** Item 8: a PEM SSL bundle reloads when its files change; Stratum gets a callback to rebuild the client. */
+@SpringBootTest(classes = SslReloadTest.App.class, webEnvironment = SpringBootTest.WebEnvironment.NONE)
+class SslReloadTest {
+
+  static final Path DIR = certs();
+
+  static Path certs() {
+    try {
+      Path dir = Files.createTempDirectory("spike-certs");
+      generate(dir, "one");
+      return dir;
+    } catch (Exception e) { throw new IllegalStateException(e); }
+  }
+
+  static void generate(Path dir, String cn) throws Exception {
+    Process process = new ProcessBuilder("openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
+        "-subj", "/CN=" + cn, "-keyout", dir.resolve("client.key.tmp").toString(),
+        "-out", dir.resolve("client.crt.tmp").toString()).redirectErrorStream(true).start();
+    process.getInputStream().readAllBytes();
+    assertThat(process.waitFor()).isZero();
+    Files.move(dir.resolve("client.key.tmp"), dir.resolve("client.key"), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+    Files.move(dir.resolve("client.crt.tmp"), dir.resolve("client.crt"), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+  }
+
+  @DynamicPropertySource
+  static void props(DynamicPropertyRegistry registry) {
+    registry.add("spring.ssl.bundle.pem.bank.keystore.certificate", () -> "file:" + DIR.resolve("client.crt"));
+    registry.add("spring.ssl.bundle.pem.bank.keystore.private-key", () -> "file:" + DIR.resolve("client.key"));
+    registry.add("spring.ssl.bundle.pem.bank.reload-on-update", () -> "true");
+    registry.add("spring.ssl.bundle.watch.file.quiet-period", () -> "200ms");
+  }
+
+  @SpringBootConfiguration
+  @EnableAutoConfiguration
+  static class App {}
+
+  @Autowired SslBundles bundles;
+
+  @Test
+  void bundleUpdateHandlerFiresWhenCertificateFilesChange() throws Exception {
+    CountDownLatch reloaded = new CountDownLatch(1);
+    AtomicReference<SslBundle> latest = new AtomicReference<>();
+    SslBundle before = bundles.getBundle("bank");
+    bundles.addBundleUpdateHandler("bank", bundle -> { latest.set(bundle); reloaded.countDown(); });
+    generate(DIR, "two");
+    long start = System.nanoTime();
+    boolean fired = reloaded.await(15, TimeUnit.SECONDS);
+    long tookMs = (System.nanoTime() - start) / 1_000_000;
+    String subject = fired ? ((java.security.cert.X509Certificate) latest.get().getStores().getKeyStore()
+        .getCertificate(latest.get().getStores().getKeyStore().aliases().nextElement())).getSubjectX500Principal().getName() : "-";
+    System.out.println("SPIKE ssl reload: handlerFired=" + fired + " after=" + tookMs + "ms newSubject=" + subject
+        + " sameObjectAsBefore=" + (latest.get() == before));
+    assertThat(fired).isTrue();
+  }
+}
