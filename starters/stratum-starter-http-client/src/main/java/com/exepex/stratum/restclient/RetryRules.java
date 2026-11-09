@@ -4,6 +4,7 @@ import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.error.FailureCauses;
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import io.github.resilience4j.core.IntervalFunction;
+import java.io.IOException;
 import java.net.ConnectException;
 import java.net.NoRouteToHostException;
 import java.net.UnknownHostException;
@@ -22,6 +23,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
 /**
@@ -80,7 +82,8 @@ public class RetryRules {
   /**
    * Returns whether the rules allow the call to be sent again after this attempt, whatever the time
    * left: never a streamed body, never a success; an error answer of 502, 503, 504 or 429 for an
-   * idempotent method; and a failure with no answer as {@link #isRetryableWithoutAnswer} says.
+   * idempotent method; a failure with no answer as {@link #isRetryableWithoutAnswer} says; and an
+   * answer whose body was cut off, for an idempotent method.
    *
    * @param attempt the attempt that ended
    * @return whether the rules allow another attempt
@@ -95,6 +98,8 @@ public class RetryRules {
               && RETRIED_STATUSES.contains(answer.getStatusCode().value());
       case ResourceAccessException noAnswer ->
           isRetryableWithoutAnswer(attempt.getMethod(), noAnswer);
+      case RestClientException failed when isBodyCutOff(failed) ->
+          IDEMPOTENT.contains(attempt.getMethod());
       case null, default -> false;
     };
   }
@@ -136,7 +141,8 @@ public class RetryRules {
 
   /**
    * Returns whether the circuit breaker counts a failed attempt: no answer, such as a timeout or a
-   * dropped connection, or an answer of 5xx or 429. Other 4xx answers are never counted.
+   * dropped connection, an answer whose body was cut off, or an answer of 5xx or 429. Other 4xx
+   * answers and a body that is not valid are never counted.
    *
    * @param failure the attempt's failure
    * @return whether it counts as a failure
@@ -147,6 +153,7 @@ public class RetryRules {
       case RestClientResponseException answer ->
           answer.getStatusCode().is5xxServerError()
               || answer.getStatusCode().value() == HttpStatus.TOO_MANY_REQUESTS.value();
+      case RestClientException failed when isBodyCutOff(failed) -> true;
       default -> false;
     };
   }
@@ -203,6 +210,15 @@ public class RetryRules {
     }
     return FailureCauses.causesOf(failure).anyMatch(RetryRules::isConnectFailure)
         || IDEMPOTENT.contains(method);
+  }
+
+  /**
+   * Returns whether an answer's body was cut off while it was read, such as by a read timeout or a
+   * dropped connection: Spring then wraps the I/O failure in a plain {@link RestClientException}. A
+   * body that is not valid, such as bad JSON, has another cause and is not cut off.
+   */
+  private static boolean isBodyCutOff(RestClientException failure) {
+    return failure.getCause() instanceof IOException;
   }
 
   /** Returns whether a cause is a failure to connect, after which nothing was sent. */

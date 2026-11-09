@@ -4,11 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.httpclient.HttpClientConstants;
+import com.exepex.stratum.restclient.ClientAttempt;
+import com.exepex.stratum.restclient.StratumClientCustomizer;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import com.exepex.stratum.restclient.testsupport.ScriptedDownstream;
 import com.exepex.stratum.restclient.testsupport.clients.ClientsApplication;
 import com.exepex.stratum.restclient.testsupport.clients.FlakyInventory;
 import com.exepex.stratum.restclient.testsupport.clients.PricingOutage;
+import io.github.resilience4j.retry.RetryConfig;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
@@ -23,12 +26,16 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 @SpringBootTest(
-    classes = ClientsApplication.class,
+    classes = {ClientsApplication.class, TotalTimeoutIntegrationTest.LongPricingWait.class},
     properties = {
       HttpClientConstants.DEFAULTS + ".retry-delay=10ms",
       RestClientTestData.INVENTORY_SETTINGS + ".timeout=1s",
@@ -37,7 +44,8 @@ import org.springframework.web.client.ResourceAccessException;
       RestClientTestData.PRICING_SETTINGS + ".total-timeout=500ms"
     })
 @Timeout(30)
-@DisplayName("total-timeout bounds a whole call, retries included, except a streamed download")
+@DisplayName(
+    "total-timeout bounds a whole call, retries and waits included, except a streamed download")
 class TotalTimeoutIntegrationTest {
 
   /** The inventory client's total-timeout. */
@@ -45,6 +53,9 @@ class TotalTimeoutIntegrationTest {
 
   /** When the downstream lets a held pricing answer go: after pricing's total-timeout. */
   private static final Duration PRICING_ANSWERS_AFTER = Duration.ofMillis(800);
+
+  /** The wait the service's customizer sets between pricing's attempts. */
+  private static final Duration PRICING_WAIT = Duration.ofSeconds(30);
 
   /** How far past its total-timeout a call may end: the last attempt's own ending. */
   private static final Duration SLACK = Duration.ofMillis(400);
@@ -119,6 +130,23 @@ class TotalTimeoutIntegrationTest {
   }
 
   @Nested
+  @DisplayName("a wait set by the service")
+  class ServiceWait {
+
+    @Test
+    @DisplayName("a 30s wait from the customizer counts against total-timeout: a 503 is sent once")
+    void customWaitCheckedAgainstTotalTimeout() {
+      var requestsBefore = DOWNSTREAM.paths().size();
+      var startedAt = System.nanoTime();
+
+      assertThatExceptionOfType(RestClientResponseException.class).isThrownBy(pricing::unavailable);
+      assertThat(DOWNSTREAM.paths()).hasSize(requestsBefore + 1);
+      assertThat(Duration.ofNanos(System.nanoTime() - startedAt))
+          .isLessThan(RestClientTestData.FAILS_WITHIN);
+    }
+  }
+
+  @Nested
   @DisplayName("a write whose answer timed out")
   class TimedOutWrite {
 
@@ -131,6 +159,33 @@ class TotalTimeoutIntegrationTest {
           .isThrownBy(inventory::postHeld)
           .withRootCauseInstanceOf(SocketTimeoutException.class);
       assertThat(DOWNSTREAM.heldRequests() - heldBefore).isEqualTo(1);
+    }
+  }
+
+  /** The service's customizer: a wait between pricing's attempts longer than its total-timeout. */
+  @TestConfiguration(proxyBeanMethods = false)
+  static class LongPricingWait {
+
+    /**
+     * Sets pricing's wait between attempts to {@link #PRICING_WAIT}.
+     *
+     * @return the customizer
+     */
+    @Bean
+    StratumClientCustomizer longPricingWait() {
+      return new StratumClientCustomizer() {
+        @Override
+        public void customize(String client, RestClient.Builder builder) {
+          // The client stays as Stratum sets it.
+        }
+
+        @Override
+        public void customizeRetry(String client, RetryConfig.Builder<ClientAttempt> retry) {
+          if (RestClientTestData.PRICING.equals(client)) {
+            retry.waitDuration(PRICING_WAIT);
+          }
+        }
+      };
     }
   }
 

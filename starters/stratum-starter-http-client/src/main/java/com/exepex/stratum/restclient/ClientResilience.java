@@ -8,6 +8,7 @@ import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.event.CircuitBreakerOnStateTransitionEvent;
+import io.github.resilience4j.core.IntervalBiFunction;
 import io.github.resilience4j.core.IntervalFunction;
 import io.github.resilience4j.core.functions.Either;
 import io.github.resilience4j.retry.Retry;
@@ -162,11 +163,14 @@ public class ClientResilience implements ClientExchangeDecorator {
     } catch (RestClientException | CallNotPermittedException attemptFailure) {
       failure = attemptFailure;
     }
-    return template.toBuilder()
-        .result(result)
-        .failure(failure)
-        .timeLeft(Duration.ofNanos(Math.max(0, deadlineNanos - System.nanoTime())))
-        .nextWait(RetryRules.nextWait(failure, attemptNumber, guards.backOff(), clock.instant()))
+    var ended =
+        template.toBuilder()
+            .result(result)
+            .failure(failure)
+            .timeLeft(Duration.ofNanos(Math.max(0, deadlineNanos - System.nanoTime())))
+            .build();
+    return ended.toBuilder()
+        .nextWait(Duration.ofMillis(guards.waits().apply(attemptNumber, Either.right(ended))))
         .build();
   }
 
@@ -198,19 +202,26 @@ public class ClientResilience implements ClientExchangeDecorator {
   private ClientGuards newGuards(String client) {
     var settings = properties.clientSettings(client);
     var backOff = RetryRules.backOff(Objects.requireNonNull(settings.retryDelay()));
-    var retryConfig =
+    var rules =
         RetryConfig.<ClientAttempt>custom()
             .maxAttempts(Objects.requireNonNull(settings.retries()) + 1)
             .retryOnResult(RetryRules::shouldRetry)
             .retryOnException(failure -> false)
-            .intervalBiFunction((attempts, outcome) -> waitMillis(attempts, outcome, backOff));
-    customizers
-        .orderedStream()
-        .forEach(customizer -> customizer.customizeRetry(client, retryConfig));
+            .intervalBiFunction(
+                (attempts, outcome) -> stratumWaitMillis(attempts, outcome, backOff));
+    customizers.orderedStream().forEach(customizer -> customizer.customizeRetry(client, rules));
+    var chosenRules = rules.build();
+    // The wait is worked out once per attempt, so that the time-left check and the sleep agree,
+    // with the service's wait when its customizer set one.
+    IntervalBiFunction<ClientAttempt> waits = chosenRules.getIntervalBiFunction();
+    var retryConfig =
+        RetryConfig.<ClientAttempt>from(chosenRules)
+            .intervalBiFunction((attempts, outcome) -> carriedWaitMillis(attempts, outcome, waits))
+            .build();
     return ClientGuards.builder()
-        .retry(Retry.of(client, retryConfig.build()))
+        .retry(Retry.of(client, retryConfig))
         .breaker(newBreaker(client, settings))
-        .backOff(backOff)
+        .waits(waits)
         .totalTimeout(Objects.requireNonNull(settings.totalTimeout()))
         .build();
   }
@@ -231,12 +242,30 @@ public class ClientResilience implements ClientExchangeDecorator {
   }
 
   /**
-   * Returns the wait before the next attempt: the one the last attempt carries, or the back-off's
-   * when a service's own rules retry after an exception.
+   * Returns Stratum's wait before the next attempt: the {@code Retry-After} of a 503 or 429, or
+   * else the back-off's wait, which is also the wait when a service's own rules retry after an
+   * exception.
    */
-  private long waitMillis(
+  private long stratumWaitMillis(
       int attempts, Either<Throwable, ClientAttempt> outcome, IntervalFunction backOff) {
-    return outcome.isRight() ? outcome.get().getNextWait().toMillis() : backOff.apply(attempts);
+    return outcome.isRight()
+        ? RetryRules.nextWait(
+                outcome.get().getFailure().orElse(null), attempts, backOff, clock.instant())
+            .toMillis()
+        : backOff.apply(attempts);
+  }
+
+  /**
+   * Returns the wait the last attempt carries, worked out when it ended, or the client's wait when
+   * a service's own rules retry after an exception.
+   */
+  private long carriedWaitMillis(
+      int attempts,
+      Either<Throwable, ClientAttempt> outcome,
+      IntervalBiFunction<ClientAttempt> waits) {
+    return outcome.isRight()
+        ? outcome.get().getNextWait().toMillis()
+        : waits.apply(attempts, outcome);
   }
 
   /** Logs a change of a breaker's state once, such as from closed to open. */
@@ -256,18 +285,18 @@ public class ClientResilience implements ClientExchangeDecorator {
   }
 
   /**
-   * The retry, breaker, back-off and total time of one client.
+   * The retry, breaker, waits and total time of one client.
    *
    * @param retry the client's retry
    * @param breaker the client's breaker, or {@code null} when it has none
-   * @param backOff the client's back-off
+   * @param waits the client's wait before each next attempt, Stratum's or the service's
    * @param totalTimeout the time allowed for a whole call
    */
   @Builder
   private record ClientGuards(
       Retry retry,
       @Nullable CircuitBreaker breaker,
-      IntervalFunction backOff,
+      IntervalBiFunction<ClientAttempt> waits,
       Duration totalTimeout) {
 
     /**

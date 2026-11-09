@@ -230,23 +230,23 @@ The rules are fixed, and safe for any service:
 | --- | --- |
 | The connection could not be opened (refused, connect timeout, unknown host) | Yes, for every method: nothing was sent. |
 | A `502`, `503`, `504` or `429` answer | Only a `GET`, `HEAD`, `OPTIONS`, `PUT` or `DELETE`. |
-| No answer: a read timeout or a dropped connection | Only a `GET`, `HEAD`, `OPTIONS`, `PUT` or `DELETE`. |
+| No answer, or a body cut off: a read timeout or a dropped connection | Only a `GET`, `HEAD`, `OPTIONS`, `PUT` or `DELETE`. |
 | The client's pool is full | Never: more calls would add to the load. |
 | A request body streamed from a `Resource`, also as a multipart part | Never: it cannot be sent twice. |
 | Any other answer, such as `500` or `404` | Never. |
 
 `POST`, `PATCH` and any other method are sent again only when the connection could not be opened.
 
-A `503` or `429` with a `Retry-After` of whole seconds or an HTTP date waits that long instead of the back-off. A
-call is sent again only while the wait still leaves at least 100ms before `total-timeout`; otherwise the last answer
+A `503` or `429` with a `Retry-After` of whole seconds or an HTTP date waits that long instead of the back-off. A wait
+set in `customizeRetry` replaces both and is checked against `total-timeout` the same way. A call is sent again only while the wait still leaves at least 100ms before `total-timeout`; otherwise the last answer
 or failure is the call's result. Each attempt's connection wait, connect timeout and `timeout` are cut to the time
 left. A method that returns an `InputStream`, a streamed download, is the exception: no new attempt starts after
 `total-timeout`, but each attempt keeps its full `timeout`, the longest gap between bytes, so a long download is
 never cut off. Its headers may therefore arrive up to `timeout` after `total-timeout`, and reading the stream is
 bounded only by `timeout` between bytes.
 
-The circuit breaker counts an attempt with no answer, a full pool included, and an answer of `5xx` or `429`. Other
-`4xx` answers mean the service is up, so they never count. With Resilience4j's defaults, it opens once at least 100
+The circuit breaker counts an attempt with no answer, a full pool included, an answer whose body was cut off, and an
+answer of `5xx` or `429`. Other `4xx` answers mean the service is up, so they never count. With Resilience4j's defaults, it opens once at least 100
 calls were seen and half of the last 100 failed. Then for 60 seconds every call fails at once, without being sent, with
 Resilience4j's `CallNotPermittedException`; the planned error mapping turns it into a `503`. After that, 10 trial
 calls decide whether it closes. Each change of its state is logged once at `WARN`, such as `The circuit breaker of

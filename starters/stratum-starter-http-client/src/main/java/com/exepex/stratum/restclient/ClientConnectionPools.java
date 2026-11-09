@@ -114,20 +114,16 @@ public class ClientConnectionPools implements DisposableBean {
   }
 
   /**
-   * Returns a context whose pool wait, connect timeout and answer timeout are each the smaller of
-   * the client's and the time left; a streamed download keeps its answer timeout, the longest gap
-   * between bytes.
+   * Returns a context whose pool wait and answer timeout are each the smaller of the client's and
+   * the time left; a streamed download keeps its answer timeout, the longest gap between bytes. The
+   * pool cuts the connect timeout, in {@link #connectionConfig}.
    */
-  // RequestConfig's connect timeout is deprecated in favour of the pool's, which is fixed per pool
-  // and so cannot follow the time left of one call; Apache still applies it when it is set.
-  @SuppressWarnings("deprecation")
   private HttpContext contextWithin(
       RequestConfig requestConfig, ClientSettings settings, Duration timeLeft) {
     var attemptConfig =
         RequestConfig.copy(requestConfig)
             .setConnectionRequestTimeout(
-                within(Objects.requireNonNull(settings.maxWait()), timeLeft))
-            .setConnectTimeout(within(Objects.requireNonNull(settings.connectTimeout()), timeLeft));
+                within(Objects.requireNonNull(settings.maxWait()), timeLeft));
     if (!AttemptTimeLeft.keepsAnswerTimeout()) {
       attemptConfig.setResponseTimeout(
           within(Objects.requireNonNull(settings.timeout()), timeLeft));
@@ -167,6 +163,12 @@ public class ClientConnectionPools implements DisposableBean {
    */
   private PoolingHttpClientConnectionManager newPool(ClientSettings settings) {
     var maxConnections = Objects.requireNonNull(settings.maxConnections());
+    var poolConfig =
+        ConnectionConfig.custom()
+            .setConnectTimeout(Timeout.of(Objects.requireNonNull(settings.connectTimeout())))
+            .setValidateAfterInactivity(TimeValue.of(HttpClientConstants.STALE_CHECK_AFTER))
+            .setTimeToLive(TimeValue.of(Objects.requireNonNull(settings.connectionLifetime())))
+            .build();
     var builder = PoolingHttpClientConnectionManagerBuilder.create();
     Optional.ofNullable(settings.sslBundle())
         .map(bundle -> new SslBundleTlsStrategy(sslBundles.getObject(), bundle))
@@ -176,20 +178,28 @@ public class ClientConnectionPools implements DisposableBean {
             .useSystemProperties()
             .setMaxConnTotal(maxConnections)
             .setMaxConnPerRoute(maxConnections)
-            .setDefaultConnectionConfig(
-                ConnectionConfig.custom()
-                    .setConnectTimeout(
-                        Timeout.of(Objects.requireNonNull(settings.connectTimeout())))
-                    .setValidateAfterInactivity(TimeValue.of(HttpClientConstants.STALE_CHECK_AFTER))
-                    .setTimeToLive(
-                        TimeValue.of(Objects.requireNonNull(settings.connectionLifetime())))
-                    .build())
+            .setConnectionConfigResolver(route -> connectionConfig(poolConfig))
             .build();
     var idleTimeout = Objects.requireNonNull(settings.idleTimeout());
     var period = Math.max(1, idleTimeout.toMillis() / 2);
     connectionCloser.scheduleAtFixedRate(
         () -> closeUnusedConnections(pool, idleTimeout), period, period, TimeUnit.MILLISECONDS);
     return pool;
+  }
+
+  /**
+   * Returns the pool's connection settings for a new connection, with the connect timeout cut to
+   * the time left of the call, as the pool connects on the caller's thread during one attempt.
+   */
+  private ConnectionConfig connectionConfig(ConnectionConfig poolConfig) {
+    return AttemptTimeLeft.timeLeft()
+        .map(
+            timeLeft ->
+                ConnectionConfig.copy(poolConfig)
+                    .setConnectTimeout(
+                        within(poolConfig.getConnectTimeout().toDuration(), timeLeft))
+                    .build())
+        .orElse(poolConfig);
   }
 
   /** Closes the pool's connections that are past their lifetime or unused for idle-timeout. */

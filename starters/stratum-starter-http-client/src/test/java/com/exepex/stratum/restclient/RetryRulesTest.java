@@ -29,10 +29,13 @@ import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.mock.http.MockHttpInputMessage;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClientException;
 
 @DisplayName("Stratum sends a call again only when that is safe and there is time left")
 class RetryRulesTest {
@@ -51,6 +54,9 @@ class RetryRulesTest {
 
   /** An attempt far past the back-off's growth, whose wait is the longest. */
   private static final int LATE_ATTEMPT = 10;
+
+  /** The message of a dropped connection. */
+  private static final String RESET = "reset";
 
   /** A back-off that always waits {@link #WAIT}, so that a wait can be told from it. */
   private static final IntervalFunction FIXED_BACK_OFF = IntervalFunction.of(WAIT);
@@ -120,7 +126,7 @@ class RetryRulesTest {
 
     /** The failures after a request may have reached the service. */
     private static final List<IOException> FAILURES_AFTER_SENDING =
-        List.of(new SocketTimeoutException("read timed out"), new SocketException("reset"));
+        List.of(new SocketTimeoutException("read timed out"), new SocketException(RESET));
 
     @ParameterizedTest
     @FieldSource("CONNECT_FAILURES")
@@ -135,6 +141,20 @@ class RetryRulesTest {
     void failureAfterSendingRetriedOnlyWhenIdempotent(IOException cause) {
       assertThat(RetryRules.isRetryable(attempt(HttpMethod.GET, noAnswer(cause)))).isTrue();
       assertThat(RetryRules.isRetryable(attempt(HttpMethod.POST, noAnswer(cause)))).isFalse();
+    }
+
+    @ParameterizedTest
+    @FieldSource("FAILURES_AFTER_SENDING")
+    @DisplayName("a body cut off after the headers resends a GET but never a POST")
+    void bodyCutOffRetriedOnlyWhenIdempotent(IOException cause) {
+      assertThat(RetryRules.isRetryable(attempt(HttpMethod.GET, bodyCutOff(cause)))).isTrue();
+      assertThat(RetryRules.isRetryable(attempt(HttpMethod.POST, bodyCutOff(cause)))).isFalse();
+    }
+
+    @Test
+    @DisplayName("a body that is not valid is never sent again: the service answered")
+    void invalidBodyNotRetried() {
+      assertThat(RetryRules.isRetryable(attempt(HttpMethod.GET, invalidBody()))).isFalse();
     }
 
     @Test
@@ -225,7 +245,7 @@ class RetryRulesTest {
     @Test
     @DisplayName("without a Retry-After, the back-off sets the wait")
     void backOffWithoutRetryAfter() {
-      var failure = noAnswer(new SocketException("reset"));
+      var failure = noAnswer(new SocketException(RESET));
 
       assertThat(RetryRules.nextWait(failure, 1, FIXED_BACK_OFF, NOW)).isEqualTo(WAIT);
     }
@@ -303,10 +323,13 @@ class RetryRulesTest {
   class BreakerFailures {
 
     @Test
-    @DisplayName("no answer, a 5xx and a 429 count; other 4xx do not")
+    @DisplayName(
+        "no answer, a cut-off body, a 5xx and a 429 count; other 4xx and bad bodies do not")
     void counted() {
-      assertThat(RetryRules.countsAsBreakerFailure(noAnswer(new SocketException("reset"))))
+      assertThat(RetryRules.countsAsBreakerFailure(noAnswer(new SocketException(RESET)))).isTrue();
+      assertThat(RetryRules.countsAsBreakerFailure(bodyCutOff(new SocketException(RESET))))
           .isTrue();
+      assertThat(RetryRules.countsAsBreakerFailure(invalidBody())).isFalse();
       assertThat(RetryRules.countsAsBreakerFailure(answer(HttpStatus.INTERNAL_SERVER_ERROR)))
           .isTrue();
       assertThat(RetryRules.countsAsBreakerFailure(answer(HttpStatus.TOO_MANY_REQUESTS))).isTrue();
@@ -349,6 +372,18 @@ class RetryRulesTest {
             status, status.getReasonPhrase(), headers, new byte[0], null)
         : HttpClientErrorException.create(
             status, status.getReasonPhrase(), headers, new byte[0], null);
+  }
+
+  /** Returns a failure to read an answer's body, cut off by the given cause, as Spring wraps it. */
+  private RestClientException bodyCutOff(IOException cause) {
+    return new RestClientException("Error while extracting response", cause);
+  }
+
+  /** Returns a failure to read an answer's body that is not valid, as Spring wraps it. */
+  private RestClientException invalidBody() {
+    return new RestClientException(
+        "Error while extracting response",
+        new HttpMessageNotReadableException("bad JSON", new MockHttpInputMessage(new byte[0])));
   }
 
   /** Returns a failure with no answer, caused by the given one. */
