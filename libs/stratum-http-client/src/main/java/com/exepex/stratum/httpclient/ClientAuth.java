@@ -16,13 +16,20 @@ import org.springframework.boot.context.properties.NestedConfigurationProperty;
  * @param bearer A fixed token sent as Authorization: Bearer on every call, such as
  *     ${PARTNER_TOKEN}.
  * @param basic A user name and password sent with HTTP Basic authentication on every call.
+ * @param clientCredentials The registration under spring.security.oauth2.client.registration whose
+ *     client-credentials token the service sends as itself, such as invoices. Needs
+ *     stratum-starter-oauth2-client.
+ * @param tokenRelay Whether to send the caller's access token, as Spring Security's resource server
+ *     verified it. A call with no such token stops before it is sent.
  */
 @Builder(toBuilder = true)
 public record ClientAuth(
     @Nullable String apiKey,
     @Nullable String apiKeyHeader,
     @Nullable String bearer,
-    @NestedConfigurationProperty @Nullable BasicCredentials basic) {
+    @NestedConfigurationProperty @Nullable BasicCredentials basic,
+    @Nullable String clientCredentials,
+    @Nullable Boolean tokenRelay) {
 
   /** Fills the API key's header with Stratum's default when an API key is set without one. */
   public ClientAuth {
@@ -37,7 +44,24 @@ public record ClientAuth(
    * @return whether one kind is set
    */
   boolean hasOneKind() {
-    return Stream.of(apiKey, bearer, basic).filter(Objects::nonNull).count() == 1;
+    return Stream.of(apiKey, bearer, basic, clientCredentials, relayed())
+            .filter(Objects::nonNull)
+            .count()
+        == 1;
+  }
+
+  /**
+   * Returns whether the caller's token is relayed.
+   *
+   * @return whether {@code token-relay} is true
+   */
+  public boolean isTokenRelay() {
+    return Boolean.TRUE.equals(tokenRelay);
+  }
+
+  /** Returns the relay switch when it is on, or {@code null}, so that false counts as no kind. */
+  private @Nullable Boolean relayed() {
+    return isTokenRelay() ? Boolean.TRUE : null;
   }
 
   /**
@@ -71,6 +95,10 @@ public record ClientAuth(
         + (bearer != null)
         + ", basic="
         + (basic != null)
+        + ", clientCredentials="
+        + clientCredentials
+        + ", tokenRelay="
+        + isTokenRelay()
         + "]";
   }
 }

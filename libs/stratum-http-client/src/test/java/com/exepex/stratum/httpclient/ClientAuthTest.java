@@ -43,4 +43,26 @@ class ClientAuthTest {
       assertThat(auth.toString()).doesNotContain(HttpClientTestData.SECRET);
     }
   }
+
+  @Nested
+  @DisplayName("a Spring Security token")
+  class Token {
+
+    @Test
+    @DisplayName("from client-credentials and token-relay together is two kinds")
+    void serviceAndCallerTokenAreTwoKinds() {
+      var auth = ClientAuth.builder().clientCredentials("invoices").tokenRelay(true).build();
+
+      assertThat(auth.hasOneKind()).isFalse();
+    }
+
+    @Test
+    @DisplayName("token-relay set to false is no kind, so another kind may be set")
+    void relayOffIsNoKind() {
+      var auth = ClientAuth.builder().tokenRelay(false).bearer(HttpClientTestData.SECRET).build();
+
+      assertThat(auth.hasOneKind()).isTrue();
+      assertThat(auth.isTokenRelay()).isFalse();
+    }
+  }
 }

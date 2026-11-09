@@ -1,11 +1,14 @@
 package com.exepex.stratum.restclient;
 
 import com.exepex.stratum.core.api.StratumInternal;
+import com.exepex.stratum.httpclient.ClientAuth;
+import com.exepex.stratum.httpclient.ClientSettings;
 import com.exepex.stratum.httpclient.HttpClientProperties;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.env.Environment;
+import org.springframework.http.client.ClientHttpRequestInitializer;
 import org.springframework.web.client.RestClient;
 
 /**
@@ -29,6 +32,9 @@ public class StratumClientBuilders {
   /** The service's changes to the clients' builders. */
   private final ObjectProvider<StratumClientCustomizer> customizers;
 
+  /** The senders of Spring Security's tokens, one per kind whose library is present. */
+  private final ObjectProvider<TokenInitializers> tokenInitializers;
+
   /**
    * Sets one client's address, pool and credential, after the checks, then applies the customizers.
    *
@@ -44,8 +50,30 @@ public class StratumClientBuilders {
         .baseUrl(StratumClientChecks.requireUrl(client, settings))
         .requestFactory(pools.requestFactory(client, settings));
     Optional.ofNullable(settings.auth())
-        .flatMap(ClientAuthInitializers::initializerFor)
+        .flatMap(auth -> authInitializer(client, settings, auth))
         .ifPresent(builder::requestInitializer);
     customizers.orderedStream().forEach(customizer -> customizer.customize(client, builder));
+  }
+
+  /**
+   * Returns the initializer of a client's credential: a Spring Security token, or a fixed one.
+   *
+   * @throws com.exepex.stratum.core.error.StratumException {@code SX-HTTPC-1006} for a token kind
+   *     whose library is missing
+   */
+  private Optional<ClientHttpRequestInitializer> authInitializer(
+      String client, ClientSettings settings, ClientAuth auth) {
+    if (auth.clientCredentials() == null && !auth.isTokenRelay()) {
+      return ClientAuthInitializers.initializerFor(auth);
+    }
+    var tokenInitializer =
+        tokenInitializers
+            .orderedStream()
+            .flatMap(kind -> kind.initializerFor(client, settings).stream())
+            .findFirst();
+    if (tokenInitializer.isEmpty()) {
+      throw StratumClientChecks.authLibraryMissing(client);
+    }
+    return tokenInitializer;
   }
 }
