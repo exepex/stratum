@@ -12,7 +12,8 @@ service then gets. Part of the [HTTP client](http-client.md) page.
 | Got no answer in time: the answer, or a byte of it, took longer than `timeout` | `StratumException` with `SX-HTTPC-0001` | `504` |
 | Got no answer for another reason: the connection was refused or timed out, the host is unknown, the pool stayed full for `max-wait`, or the connection dropped | `StratumException` with `SX-HTTPC-0002` | `503` |
 | Was not sent, as the client's circuit breaker is open | `StratumException` with `SX-HTTPC-0003` | `503` |
-| Got an error answer, `4xx` or `5xx` | `DownstreamException`, or your own exception from `mapError` | `500` |
+| Got a `404`, and its method returns `Optional` | Nothing: the method returns an empty `Optional` | no error |
+| Got any other error answer, `4xx` or `5xx` | `DownstreamException`, or your own exception from `mapError` | `500` |
 | Got an answer whose body cannot be read, such as JSON that does not match | Spring's `RestClientException`, as without Stratum | `500` |
 
 The three codes say only what went wrong, such as "The other service did not answer in time". The body your caller
@@ -61,19 +62,47 @@ It extends Spring's `RestClientResponseException`, so `getStatusCode()`, `getRes
 Its message is `inventory answered 404 to GET /stock/{sku}`. It never holds the body or a path or query value, so
 logging it leaks no data. Uncaught, your caller gets `500` and Stratum's body, never the other service's body.
 
-A client you move to Stratum no longer throws Spring's subtypes, such as `HttpClientErrorException.NotFound`. Catch
-`DownstreamException` and check the status instead:
+A client you move to Stratum no longer throws Spring's subtypes, such as `HttpClientErrorException.NotFound`. For a
+`404`, return `Optional` from the method ([below](#a-404-read-as-an-empty-optional)). For another status, catch
+`DownstreamException` and check the status:
 
 ```java
 try {
-  return inventory.stock(sku);
+  return orders.reserve(order);
 } catch (DownstreamException failure) {
-  if (failure.getStatusCode().value() == 404) {
-    return Stock.none(sku);
+  if (failure.getStatusCode().value() == 409) {
+    return Reservation.alreadyTaken(order);
   }
   throw failure;
 }
 ```
+
+## A 404 read as an empty `Optional`
+
+A method of a client's interface that returns `Optional` returns an empty one when the other service answers `404`.
+That holds for each shape Spring wraps in `Optional`: `Optional<T>`, `Optional<ResponseEntity<T>>`,
+`Optional<ResponseEntity<Void>>` and `Optional<HttpHeaders>`. `mapError` is not asked, and the `404` never counts for
+the circuit breaker. Any other status still throws, and a method that does not return `Optional` still throws
+`DownstreamException` for a `404`.
+
+```java
+@StratumClient("inventory")
+public interface InventoryClient {
+
+  @GetExchange("/stock/{sku}")
+  Optional<Stock> stock(@PathVariable String sku);
+
+  @GetExchange("/stock/{sku}")
+  Optional<ResponseEntity<Stock>> stockWithTag(@PathVariable String sku);
+}
+```
+
+```java
+return inventory.stock(sku).orElseGet(() -> Stock.none(sku));
+```
+
+Only a client's interfaces do this. A call through `stratumHttpClients.restClient("<name>")`, or through an
+`HttpServiceProxyFactory` you build on it, keeps Spring's `HttpClientErrorException.NotFound`.
 
 ## Your own exception for an error answer
 

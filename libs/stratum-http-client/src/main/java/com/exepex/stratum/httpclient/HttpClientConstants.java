@@ -92,16 +92,28 @@ public class HttpClientConstants {
   public static final int RESILIENCE_ORDER = 0;
 
   /**
+   * The order of the reading of a 404 as an empty {@code Optional}, outside the retries and breaker
+   * and inside the error translation, so that no customizer's {@code mapError} sees that 404.
+   */
+  public static final int OPTIONAL_NOT_FOUND_ORDER = RESILIENCE_ORDER - 1;
+
+  /**
    * The order of the error translation around each call of a client, the outermost of Stratum's
    * decorators, so that the retries and breaker see Spring's own exceptions.
    */
-  public static final int ERROR_TRANSLATION_ORDER = RESILIENCE_ORDER - 1;
+  public static final int ERROR_TRANSLATION_ORDER = OPTIONAL_NOT_FOUND_ORDER - 1;
 
   /**
    * The most of an error answer's body that is read, 64 KB; the rest is never held. Fixed, with no
    * key (ADR 0011, decision 6.2).
    */
   public static final int ERROR_BODY_LIMIT = 64 * 1024;
+
+  /**
+   * The attribute that marks a call of a client's interface whose method returns {@code Optional},
+   * so that a 404 answers it with an empty {@code Optional}.
+   */
+  public static final String OPTIONAL_ANSWER = PREFIX + ".optional-answer";
 
   /** The web starter's key that maps an error code to the HTTP status its caller gets. */
   public static final String WEB_ERROR_STATUSES = "stratum.web.error.statuses";

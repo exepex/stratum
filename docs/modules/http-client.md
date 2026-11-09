@@ -455,8 +455,9 @@ only, with the client's Apache HttpClient 5 pool.
 
 ## Errors
 
-What a failed call throws, `DownstreamException`, mapping an error answer to your own exception, the 64 KB read of an
-error body and the startup errors are on [HTTP client: errors](http-client-errors.md).
+What a failed call throws, `DownstreamException`, a `404` read as an empty `Optional`, mapping an error answer to your
+own exception, the 64 KB read of an error body and the startup errors are on
+[HTTP client: errors](http-client-errors.md).
 
 ## Planned
 
@@ -464,7 +465,6 @@ These parts of [ADR 0011](../adr/0011-http-client-starters.md) are not built yet
 
 - tokens: `auth.client-credentials` and `auth.token-relay`;
 - `headers` and `copy-headers`;
-- a `404` read as an empty `Optional`;
 - one log line per call and the pool metrics;
 - `mock: true` and `urls`;
 - `stratumHttpClients.resilience(name)`, the retry and circuit breaker for a call through a client Stratum did not

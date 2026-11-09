@@ -63,17 +63,24 @@ public class StratumClientGroups implements RestClientHttpServiceGroupConfigurer
     return ORDER;
   }
 
-  /** Puts every decorator around the calls of one client's group. */
+  /**
+   * Puts every decorator around the calls of one client's group, and lets each prepare every call
+   * before it is sent. The decorators are read and ordered once, here, not on each call.
+   */
   private void decorateCalls(HttpServiceGroup group, HttpServiceProxyFactory.Builder factory) {
-    factory.exchangeAdapterDecorator(exchange -> decorate(group.name(), exchange));
+    var ordered = decorators.orderedStream().toList();
+    factory.exchangeAdapterDecorator(exchange -> decorate(ordered, group.name(), exchange));
+    factory.httpRequestValuesProcessor(
+        (method, _, _, values) -> ordered.forEach(decorator -> decorator.prepare(method, values)));
   }
 
   /**
    * Returns a client's calls with every decorator around them: the one of highest order innermost,
    * so the lowest order runs first on each call.
    */
-  private HttpExchangeAdapter decorate(String client, HttpExchangeAdapter exchange) {
-    return decorators.orderedStream().toList().reversed().stream()
+  private HttpExchangeAdapter decorate(
+      List<ClientExchangeDecorator> ordered, String client, HttpExchangeAdapter exchange) {
+    return ordered.reversed().stream()
         .reduce(
             exchange,
             (decorated, decorator) -> decorator.decorate(client, decorated),
