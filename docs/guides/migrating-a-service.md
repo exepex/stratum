@@ -87,10 +87,11 @@ Check: your security tests pass, and health probes still answer without a token.
 Add `stratum-starter-http-client` (and `stratum-starter-oauth2-client` if you need it); it brings its
 own retries and circuit breaker. For each downstream service:
 
-1. Turn the hand-written client class into an interface with `@GetExchange`, `@PostExchange`, ...
-2. Register it with `@ImportHttpServices(group = "<name>", ...)`.
-3. Move its URL and timeouts to `stratum.http-client.clients.<name>.*`.
-4. Delete the old `RestTemplate` or `RestClient` bean and its interceptors.
+1. Turn the hand-written client class into an interface with `@StratumClient("<name>")` and
+   Spring's `@GetExchange`, `@PostExchange`, ... Stratum finds it by scanning
+   ([ADR 0011](../adr/0011-http-client-starters.md)); remove any `@ImportHttpServices` for it.
+2. Move its URL and timeouts to `stratum.http-client.clients.<name>.*`.
+3. Delete the old `RestTemplate` or `RestClient` bean and its interceptors.
 
 Check: calls carry `traceparent` and `X-Correlation-Id`; timeouts are what you expect.
 
