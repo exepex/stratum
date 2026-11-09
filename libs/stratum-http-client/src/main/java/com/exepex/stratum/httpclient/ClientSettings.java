@@ -58,15 +58,16 @@ public record ClientSettings(
    * @return the merged settings
    */
   public ClientSettings orElse(ClientSettings fallback) {
-    return new ClientSettings(
-        either(url, fallback.url),
-        either(connectTimeout, fallback.connectTimeout),
-        either(timeout, fallback.timeout),
-        either(maxConnections, fallback.maxConnections),
-        either(maxWait, fallback.maxWait),
-        either(idleTimeout, fallback.idleTimeout),
-        either(connectionLifetime, fallback.connectionLifetime),
-        either(sharedPool, fallback.sharedPool));
+    return ClientSettings.builder()
+        .url(either(url, fallback.url))
+        .connectTimeout(either(connectTimeout, fallback.connectTimeout))
+        .timeout(either(timeout, fallback.timeout))
+        .maxConnections(either(maxConnections, fallback.maxConnections))
+        .maxWait(either(maxWait, fallback.maxWait))
+        .idleTimeout(either(idleTimeout, fallback.idleTimeout))
+        .connectionLifetime(either(connectionLifetime, fallback.connectionLifetime))
+        .sharedPool(either(sharedPool, fallback.sharedPool))
+        .build();
   }
 
   /** Returns the first value when it is set, or else the second, which may be unset too. */

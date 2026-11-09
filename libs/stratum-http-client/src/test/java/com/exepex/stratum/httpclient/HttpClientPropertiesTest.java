@@ -32,15 +32,15 @@ class HttpClientPropertiesTest {
 
       assertThat(settings)
           .isEqualTo(
-              new ClientSettings(
-                  null,
-                  HttpClientConstants.DEFAULT_CONNECT_TIMEOUT,
-                  HttpClientConstants.DEFAULT_TIMEOUT,
-                  HttpClientConstants.DEFAULT_MAX_CONNECTIONS,
-                  HttpClientConstants.DEFAULT_MAX_WAIT,
-                  HttpClientConstants.DEFAULT_IDLE_TIMEOUT,
-                  HttpClientConstants.DEFAULT_CONNECTION_LIFETIME,
-                  false));
+              ClientSettings.builder()
+                  .connectTimeout(HttpClientConstants.DEFAULT_CONNECT_TIMEOUT)
+                  .timeout(HttpClientConstants.DEFAULT_TIMEOUT)
+                  .maxConnections(HttpClientConstants.DEFAULT_MAX_CONNECTIONS)
+                  .maxWait(HttpClientConstants.DEFAULT_MAX_WAIT)
+                  .idleTimeout(HttpClientConstants.DEFAULT_IDLE_TIMEOUT)
+                  .connectionLifetime(HttpClientConstants.DEFAULT_CONNECTION_LIFETIME)
+                  .sharedPool(false)
+                  .build());
     }
   }
 
