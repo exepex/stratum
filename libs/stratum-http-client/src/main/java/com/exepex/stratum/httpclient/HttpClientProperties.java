@@ -120,6 +120,18 @@ public record HttpClientProperties(
     return defaults.url() == null;
   }
 
+  /**
+   * Returns whether the shared defaults leave {@code interfaces} unset, since each generated
+   * interface calls one client's service. Validation reports one that is set as {@code
+   * stratum.http-client.defaults-without-interfaces breaks @AssertTrue}.
+   *
+   * @return whether the defaults name no interface
+   */
+  @AssertTrue
+  public boolean isDefaultsWithoutInterfaces() {
+    return defaults.interfaces().isEmpty();
+  }
+
   /** Returns the shared defaults and the settings of each client. */
   private Stream<ClientSettings> allSettings() {
     return Stream.concat(Stream.of(defaults), clients.values().stream());

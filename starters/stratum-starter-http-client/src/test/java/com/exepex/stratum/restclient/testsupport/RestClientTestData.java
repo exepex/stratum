@@ -26,6 +26,18 @@ public class RestClientTestData {
   /** A second client. */
   public static final String PRICING = "pricing";
 
+  /** A client made only of a generated interface that its settings name. */
+  public static final String PARTNER = "partner";
+
+  /** The prefix of the partner client's own settings. */
+  public static final String PARTNER_SETTINGS = HttpClientConstants.CLIENTS + "." + PARTNER;
+
+  /** The key of the partner client's address. */
+  public static final String PARTNER_URL = PARTNER_SETTINGS + ".url";
+
+  /** The key of the first generated interface of the partner client. */
+  public static final String PARTNER_INTERFACE = PARTNER_SETTINGS + ".interfaces[0]";
+
   /** The prefix of the inventory client's own settings. */
   public static final String INVENTORY_SETTINGS = HttpClientConstants.CLIENTS + "." + INVENTORY;
 

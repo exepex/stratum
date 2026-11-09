@@ -28,7 +28,8 @@ class ConfigurationMetadataTest {
           "max-wait",
           "idle-timeout",
           "connection-lifetime",
-          "shared-pool");
+          "shared-pool",
+          "interfaces");
 
   @Test
   @DisplayName("every property is listed with a description")

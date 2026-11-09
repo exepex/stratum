@@ -9,8 +9,9 @@ import org.junit.jupiter.api.Test;
 @DisplayName("The blocking HTTP client starter follows Stratum's architecture rules")
 class RestClientArchTest {
 
-  /** The starter's one type services use; every other one carries the label. */
-  private static final Set<Class<?>> API_TYPES = Set.of(StratumClientCustomizer.class);
+  /** The starter's types services use; every other one carries the label. */
+  private static final Set<Class<?>> API_TYPES =
+      Set.of(StratumClientCustomizer.class, StratumHttpClients.class);
 
   @Test
   @DisplayName(
