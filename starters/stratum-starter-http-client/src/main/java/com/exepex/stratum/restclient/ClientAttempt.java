@@ -5,13 +5,15 @@ import java.util.Optional;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.ToString;
 import lombok.Value;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpMethod;
 
 /**
  * One attempt of a call by a Stratum client, as its retry rules see it. A service's {@link
- * StratumClientCustomizer#customizeRetry} can decide on it with its own rules.
+ * StratumClientCustomizer#customizeRetry} can decide on it with its own rules. Its text leaves out
+ * the result and the failure, which can hold the other service's data.
  */
 @Value
 @Builder(toBuilder = true)
@@ -21,10 +23,11 @@ public class ClientAttempt {
   HttpMethod method;
 
   /** What the attempt returned, or {@code null} when it failed or returns nothing. */
-  @Nullable Object result;
+  @ToString.Exclude @Nullable Object result;
 
   /** Why the attempt failed, or {@code null} when it did not; read through {@link #getFailure}. */
   @Getter(AccessLevel.NONE)
+  @ToString.Exclude
   @Nullable RuntimeException failure;
 
   /** Whether the request's body is streamed, which is never sent twice. */
