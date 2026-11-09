@@ -19,7 +19,7 @@ import org.springframework.test.context.DynamicPropertySource;
 @SpringBootTest(
     classes = ClientsApplication.class,
     properties = {
-      HttpClientConstants.DEFAULTS + ".retries=1",
+      HttpClientConstants.DEFAULTS + ".retry.max-retries=1",
       RestClientTestData.PRICING_SETTINGS + ".connect-timeout=10s",
       RestClientTestData.PRICING_SETTINGS + ".total-timeout=300ms"
     })

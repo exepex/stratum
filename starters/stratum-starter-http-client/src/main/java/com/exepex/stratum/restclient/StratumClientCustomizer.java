@@ -34,9 +34,10 @@ public interface StratumClientCustomizer {
   void customize(String client, RestClient.Builder builder);
 
   /**
-   * Changes one client's retry rules, such as the wait between attempts or which attempt is sent
-   * again. It is called once per client, on its first call, after Stratum has set its rules; the
-   * builder's result type is {@link ClientAttempt}. By default it changes nothing.
+   * Changes one client's retry rules, such as a custom wait or which attempt is sent again. It is
+   * called once per client, on its first call, after Stratum has set its rules and its {@code
+   * retry} keys, and wins over them; the builder's result type is {@link ClientAttempt}. By default
+   * it changes nothing.
    *
    * @param client the client's name
    * @param retry the client's Resilience4j retry rules
@@ -46,9 +47,10 @@ public interface StratumClientCustomizer {
   }
 
   /**
-   * Changes one client's circuit breaker rules, such as how many calls it judges or how long it
-   * stays open. It is called once per client, on its first call, after Stratum has set its rules,
-   * and only when the client's {@code circuit-breaker} is on. By default it changes nothing.
+   * Changes one client's circuit breaker rules, such as a time-based window. It is called once per
+   * client, on its first call, after Stratum has set its rules and its {@code circuit-breaker}
+   * keys, and wins over them, and only when the client's {@code circuit-breaker.enabled} is true.
+   * By default it changes nothing.
    *
    * @param client the client's name
    * @param breaker the client's Resilience4j circuit breaker rules

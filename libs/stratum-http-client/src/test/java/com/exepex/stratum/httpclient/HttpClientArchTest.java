@@ -10,8 +10,8 @@ class HttpClientArchTest {
 
   /**
    * The library's types that services may use: the annotation of a client, and the settings record,
-   * its builder and its customizer, as every module's, with the auth settings a customizer builds.
-   * Every other type carries the label.
+   * its builder and its customizer, as every module's, with the auth, retry and circuit breaker
+   * settings a customizer builds. Every other type carries the label.
    */
   private static final Set<Class<?>> API_TYPES =
       Set.of(
@@ -23,6 +23,11 @@ class HttpClientArchTest {
           ClientAuth.class,
           ClientAuth.ClientAuthBuilder.class,
           BasicCredentials.class,
+          ClientRetry.class,
+          ClientRetry.ClientRetryBuilder.class,
+          BackoffPolicy.class,
+          ClientCircuitBreaker.class,
+          ClientCircuitBreaker.ClientCircuitBreakerBuilder.class,
           HttpClientPropertiesCustomizer.class);
 
   @Test

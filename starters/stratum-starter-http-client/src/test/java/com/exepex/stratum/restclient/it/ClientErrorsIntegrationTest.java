@@ -32,7 +32,7 @@ import org.springframework.test.context.DynamicPropertySource;
     classes = ErrorsApplication.class,
     properties = {
       HttpClientConstants.CLIENTS + "." + RestClientTestData.ORDERS + ".timeout=300ms",
-      HttpClientConstants.DEFAULTS + ".retry-delay=10ms"
+      HttpClientConstants.DEFAULTS + ".retry.delay=10ms"
     })
 @Timeout(30)
 @DisplayName("A client's error answer is a DownstreamException, read at most 64 KB")

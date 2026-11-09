@@ -1,12 +1,10 @@
 package com.exepex.stratum.httpclient;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
-import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.httpclient.testsupport.HttpClientTestData;
+import com.exepex.stratum.httpclient.testsupport.SettingsChecks;
 import java.io.IOException;
-import java.util.Arrays;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -14,9 +12,6 @@ import org.springframework.mock.env.MockEnvironment;
 
 @DisplayName("HttpClientProperties come from properties, changed by Java configuration, which wins")
 class HttpClientPropertiesTest {
-
-  /** The end of the retries key, for a client or the shared defaults. */
-  private static final String RETRIES = ".retries";
 
   @Nested
   @DisplayName("with nothing set")
@@ -39,10 +34,9 @@ class HttpClientPropertiesTest {
                   .idleTimeout(HttpClientConstants.DEFAULT_IDLE_TIMEOUT)
                   .connectionLifetime(HttpClientConstants.DEFAULT_CONNECTION_LIFETIME)
                   .sharedPool(false)
-                  .retries(HttpClientConstants.DEFAULT_RETRIES)
-                  .retryDelay(HttpClientConstants.DEFAULT_RETRY_DELAY)
+                  .retry(HttpClientTestData.STRATUM_RETRY)
                   .totalTimeout(HttpClientConstants.DEFAULT_TOTAL_TIMEOUT)
-                  .circuitBreaker(true)
+                  .circuitBreaker(HttpClientTestData.STRATUM_CIRCUIT_BREAKER)
                   .mock(false)
                   .build());
     }
@@ -64,9 +58,9 @@ class HttpClientPropertiesTest {
               .withProperty(
                   HttpClientTestData.INVENTORY_SETTINGS + ".url", HttpClientTestData.INVENTORY_URL)
               .withProperty(HttpClientTestData.INVENTORY_SETTINGS + ".timeout", "20s")
-              .withProperty(HttpClientConstants.DEFAULTS + RETRIES, "5")
-              .withProperty(HttpClientTestData.INVENTORY_SETTINGS + RETRIES, "0")
-              .withProperty(HttpClientTestData.INVENTORY_SETTINGS + ".circuit-breaker", "false");
+              .withProperty(HttpClientTestData.DEFAULTS_RETRY + ".max-retries", "5")
+              .withProperty(HttpClientTestData.INVENTORY_RETRY + ".max-retries", "0")
+              .withProperty(HttpClientTestData.INVENTORY_BREAKER + ".enabled", "false");
 
       var settings =
           HttpClientProperties.resolve(environment).clientSettings(HttpClientTestData.INVENTORY);
@@ -75,8 +69,8 @@ class HttpClientPropertiesTest {
       assertThat(settings.timeout()).isEqualTo(HttpClientTestData.REPORT_TIMEOUT);
       assertThat(settings.maxConnections()).isEqualTo(HttpClientTestData.SHARED_MAX_CONNECTIONS);
       assertThat(settings.connectTimeout()).isEqualTo(HttpClientConstants.DEFAULT_CONNECT_TIMEOUT);
-      assertThat(settings.retries()).isZero();
-      assertThat(settings.circuitBreaker()).isFalse();
+      assertThat(settings.retry().maxRetries()).isZero();
+      assertThat(settings.circuitBreaker().enabled()).isFalse();
       assertThat(settings.totalTimeout()).isEqualTo(HttpClientConstants.DEFAULT_TOTAL_TIMEOUT);
     }
 
@@ -92,13 +86,8 @@ class HttpClientPropertiesTest {
           .isEqualTo(HttpClientTestData.INVENTORY_URL);
       assertThat(properties.clientSettings(HttpClientTestData.INVENTORY).interfaces())
           .isEqualTo(HttpClientTestData.PARTNER_INTERFACES);
-      assertThat(properties.defaults().retryDelay()).isEqualTo(HttpClientTestData.SLOW_RETRY_DELAY);
       assertThat(properties.clientSettings(HttpClientTestData.INVENTORY).totalTimeout())
           .isEqualTo(HttpClientTestData.REPORT_TOTAL_TIMEOUT);
-      assertThat(properties.clientSettings(HttpClientTestData.INVENTORY).retries())
-          .isEqualTo(HttpClientTestData.FLAKY_RETRIES);
-      assertThat(properties.clientSettings(HttpClientTestData.INVENTORY).circuitBreaker())
-          .isFalse();
       assertThat(properties.clientSettings(HttpClientTestData.INVENTORY).mock()).isTrue();
     }
 
@@ -190,24 +179,6 @@ class HttpClientPropertiesTest {
     }
 
     @Test
-    @DisplayName("a retry delay of 0")
-    void zeroRetryDelay() {
-      assertInvalid(HttpClientConstants.DEFAULTS + ".retry-delay", "0s", "durations-positive");
-    }
-
-    @Test
-    @DisplayName("more than 9 retries")
-    void tooManyRetries() {
-      assertInvalid(HttpClientTestData.INVENTORY_SETTINGS + RETRIES, "10", "retries-in-range");
-    }
-
-    @Test
-    @DisplayName("fewer than 0 retries")
-    void negativeRetries() {
-      assertInvalid(HttpClientConstants.DEFAULTS + RETRIES, "-1", "retries-in-range");
-    }
-
-    @Test
     @DisplayName("a pool above 10000 connections")
     void poolTooLarge() {
       assertInvalid(
@@ -255,7 +226,7 @@ class HttpClientPropertiesTest {
     @Test
     @DisplayName("an SSL bundle on a client that uses the shared pool")
     void sslBundleOnSharedPool() {
-      assertSettingsInvalid(
+      SettingsChecks.assertSettingsInvalid(
           "shared-pool-without-ssl-bundle",
           HttpClientTestData.INVENTORY_SETTINGS + ".shared-pool=true",
           HttpClientTestData.INVENTORY_SETTINGS + ".ssl-bundle=bank");
@@ -264,7 +235,7 @@ class HttpClientPropertiesTest {
     @Test
     @DisplayName("an SSL bundle on a client that takes the shared pool from defaults")
     void sslBundleOnSharedPoolFromDefaults() {
-      assertSettingsInvalid(
+      SettingsChecks.assertSettingsInvalid(
           "shared-pool-without-ssl-bundle",
           HttpClientConstants.DEFAULTS + ".shared-pool=true",
           HttpClientTestData.INVENTORY_SETTINGS + ".ssl-bundle=bank");
@@ -282,7 +253,7 @@ class HttpClientPropertiesTest {
     @Test
     @DisplayName("two kinds of auth on one client, without showing either secret")
     void twoKinds() {
-      assertSettingsInvalid(
+      SettingsChecks.assertSettingsInvalid(
           "auth-one-kind",
           HttpClientTestData.INVENTORY_AUTH + ".bearer=" + HttpClientTestData.SECRET,
           HttpClientTestData.INVENTORY_AUTH + ".api-key=" + HttpClientTestData.SECRET);
@@ -291,42 +262,22 @@ class HttpClientPropertiesTest {
     @Test
     @DisplayName("Basic credentials without a password")
     void basicWithoutPassword() {
-      assertSettingsInvalid(
+      SettingsChecks.assertSettingsInvalid(
           "basic-complete", HttpClientTestData.INVENTORY_AUTH + ".basic.username=orders");
     }
 
     @Test
     @DisplayName("a header for an API key with another kind of auth")
     void apiKeyHeaderWithoutKey() {
-      assertSettingsInvalid(
+      SettingsChecks.assertSettingsInvalid(
           "api-key-header-with-api-key",
           HttpClientTestData.INVENTORY_AUTH + ".bearer=" + HttpClientTestData.SECRET,
           HttpClientTestData.INVENTORY_AUTH + ".api-key-header=X-Key");
     }
+  }
 
-    /** Checks that one setting stops startup with a message that names only the broken rule. */
-    private void assertInvalid(String key, String value, String rule) {
-      assertSettingsInvalid(rule, key + "=" + value);
-    }
-
-    /**
-     * Checks that settings, each {@code key=value}, stop startup with a message that names only the
-     * broken rule, never a value.
-     */
-    private void assertSettingsInvalid(String rule, String... settings) {
-      var environment = new MockEnvironment();
-      Arrays.stream(settings)
-          .map(setting -> setting.split("=", 2))
-          .forEach(keyAndValue -> environment.setProperty(keyAndValue[0], keyAndValue[1]));
-
-      assertThatExceptionOfType(StratumException.class)
-          .isThrownBy(() -> HttpClientProperties.resolve(environment))
-          .withMessage(
-              HttpClientTestData.INVALID_SETTINGS
-                  + HttpClientConstants.PREFIX
-                  + "."
-                  + rule
-                  + " breaks @AssertTrue");
-    }
+  /** Checks that one setting stops startup with a message that names only the broken rule. */
+  private void assertInvalid(String key, String value, String rule) {
+    SettingsChecks.assertSettingsInvalid(rule, key + "=" + value);
   }
 }

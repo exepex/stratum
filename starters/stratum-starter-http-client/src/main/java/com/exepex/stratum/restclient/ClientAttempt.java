@@ -38,7 +38,7 @@ public class ClientAttempt {
 
   /**
    * The wait before the next attempt, if there is one: the answer's {@code Retry-After}, or else
-   * the growing back-off from {@code retry-delay}.
+   * the client's back-off from {@code retry.delay}.
    */
   Duration nextWait;
 

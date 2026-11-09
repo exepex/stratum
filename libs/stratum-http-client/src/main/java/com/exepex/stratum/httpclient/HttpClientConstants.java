@@ -76,8 +76,47 @@ public class HttpClientConstants {
   /** Stratum's default wait before the first retry. */
   public static final Duration DEFAULT_RETRY_DELAY = Duration.ofMillis(200);
 
-  /** The longest wait between two attempts, after doubling and random spread (ADR 0011, 2.4). */
+  /**
+   * Stratum's default longest wait between two attempts, after growth and random spread, used when
+   * {@code max-delay} is unset and {@code delay} is shorter (ADR 0011, 2.4).
+   */
   public static final Duration MAX_RETRY_DELAY = Duration.ofSeconds(2);
+
+  /** Stratum's default growth of each wait before a retry: it doubles. */
+  public static final double DEFAULT_MULTIPLIER = 2.0;
+
+  /** The least growth of each wait before a retry: it stays the same. */
+  public static final double MIN_MULTIPLIER = 1.0;
+
+  /** The most growth of each wait before a retry. */
+  public static final double MAX_MULTIPLIER = 10.0;
+
+  /** Stratum's default share of failed attempts, in percent, that opens a circuit breaker. */
+  public static final float DEFAULT_FAILURE_RATE_THRESHOLD = 50;
+
+  /** The lowest share, in percent, a breaker's failure or slow-call rate may be set to. */
+  public static final float MIN_RATE_THRESHOLD = 1;
+
+  /** The highest share, in percent, a breaker's failure or slow-call rate may be set to. */
+  public static final float MAX_RATE_THRESHOLD = 100;
+
+  /** Stratum's default number of latest attempts a breaker's failure rate is taken over. */
+  public static final int DEFAULT_SLIDING_WINDOW_SIZE = 100;
+
+  /** Stratum's default number of attempts a breaker must see before it may open. */
+  public static final int DEFAULT_MINIMUM_NUMBER_OF_CALLS = 100;
+
+  /** The most attempts a breaker's window or minimum may hold, which bounds its memory. */
+  public static final int MAX_BREAKER_CALLS = 10_000;
+
+  /** Stratum's default time an open breaker fails every call before it lets trial calls through. */
+  public static final Duration DEFAULT_WAIT_IN_OPEN_STATE = Duration.ofSeconds(60);
+
+  /** Stratum's default number of trial calls a breaker lets through after its open state. */
+  public static final int DEFAULT_HALF_OPEN_CALLS = 10;
+
+  /** The most trial calls a breaker may let through after its open state. */
+  public static final int MAX_HALF_OPEN_CALLS = 1000;
 
   /** Stratum's default time allowed for a whole call, below the web starter's 10s answer limit. */
   public static final Duration DEFAULT_TOTAL_TIMEOUT = Duration.ofSeconds(8);

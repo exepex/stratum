@@ -2,7 +2,10 @@ package com.exepex.stratum.restclient;
 
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.error.FailureCauses;
+import com.exepex.stratum.httpclient.ClientCircuitBreaker;
+import com.exepex.stratum.httpclient.ClientRetry;
 import com.exepex.stratum.httpclient.HttpClientConstants;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.core.IntervalFunction;
 import java.io.IOException;
 import java.net.ConnectException;
@@ -13,6 +16,7 @@ import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import lombok.experimental.UtilityClass;
@@ -27,8 +31,9 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
 /**
- * The fixed retry and circuit breaker rules of Stratum's clients (ADR 0011, decisions 4.2 to 4.5):
- * which failed attempt is sent again, how long to wait first, and which failure the breaker counts.
+ * The retry and circuit breaker rules of Stratum's clients (ADR 0011, decisions 4.2 to 4.5): which
+ * failed attempt is sent again, how long to wait first, which failure the breaker counts, and the
+ * back-off and breaker rules a client's settings give.
  */
 @StratumInternal
 @UtilityClass
@@ -56,9 +61,6 @@ public class RetryRules {
 
   /** The most digits of a {@code Retry-After} in seconds, so that it cannot overflow. */
   private static final int MAX_RETRY_AFTER_DIGITS = 9;
-
-  /** How much each wait grows: it doubles. */
-  private static final double BACK_OFF_MULTIPLIER = 2;
 
   /** How far each wait is spread at random: up to half of it either way. */
   private static final double BACK_OFF_SPREAD = 0.5;
@@ -124,19 +126,61 @@ public class RetryRules {
   }
 
   /**
-   * Returns the back-off of a client: {@code retry-delay} first, doubled each time, spread at
-   * random by up to half, and at most 2s, or {@code retry-delay} when that is longer.
+   * Returns the back-off of a client's {@code retry} settings, merged with the defaults. With
+   * {@code exponential}, the waits start at {@code delay} and grow by {@code multiplier} up to
+   * {@code max-delay}, or 2s, or {@code delay} when that is longer; with {@code fixed}, every wait
+   * is {@code delay}. Each wait is spread at random by up to half.
    *
-   * @param retryDelay the wait before the first retry
+   * @param retry the client's merged retry settings
    * @return the back-off
    */
-  public static IntervalFunction backOff(Duration retryDelay) {
-    var longest =
-        retryDelay.compareTo(HttpClientConstants.MAX_RETRY_DELAY) > 0
-            ? retryDelay
-            : HttpClientConstants.MAX_RETRY_DELAY;
-    return IntervalFunction.ofExponentialRandomBackoff(
-        retryDelay, BACK_OFF_MULTIPLIER, BACK_OFF_SPREAD, longest);
+  public static IntervalFunction backOff(ClientRetry retry) {
+    var delay = Objects.requireNonNull(retry.delay());
+    return switch (Objects.requireNonNull(retry.backoffPolicy())) {
+      case FIXED -> IntervalFunction.ofRandomized(delay, BACK_OFF_SPREAD);
+      case EXPONENTIAL ->
+          IntervalFunction.ofExponentialRandomBackoff(
+              delay,
+              Objects.requireNonNull(retry.multiplier()),
+              BACK_OFF_SPREAD,
+              longestWait(delay, retry.maxDelay()));
+    };
+  }
+
+  /**
+   * Returns the circuit breaker rules of a client's {@code circuit-breaker} settings, merged with
+   * the defaults, with Stratum's choice of the failures it counts. Each slow-call key is passed
+   * only when it is set, and startup checks that the rate comes with the duration, so that without
+   * them the slow-call rule is Resilience4j's own, which a whole call's {@code total-timeout} never
+   * reaches.
+   *
+   * @param breaker the client's merged circuit breaker settings
+   * @return the rules, which a service's customizer may still change
+   */
+  public static CircuitBreakerConfig.Builder breakerConfig(ClientCircuitBreaker breaker) {
+    var config =
+        CircuitBreakerConfig.custom()
+            .recordException(RetryRules::countsAsBreakerFailure)
+            .failureRateThreshold(Objects.requireNonNull(breaker.failureRateThreshold()))
+            .slidingWindowSize(Objects.requireNonNull(breaker.slidingWindowSize()))
+            .minimumNumberOfCalls(Objects.requireNonNull(breaker.minimumNumberOfCalls()))
+            .waitDurationInOpenState(Objects.requireNonNull(breaker.waitDurationInOpenState()))
+            .permittedNumberOfCallsInHalfOpenState(
+                Objects.requireNonNull(breaker.permittedNumberOfCallsInHalfOpenState()));
+    Optional.ofNullable(breaker.slowCallDurationThreshold())
+        .ifPresent(config::slowCallDurationThreshold);
+    Optional.ofNullable(breaker.slowCallRateThreshold()).ifPresent(config::slowCallRateThreshold);
+    return config;
+  }
+
+  /** Returns the longest wait: {@code max-delay} when set, or else 2s, or delay when longer. */
+  private static Duration longestWait(Duration delay, @Nullable Duration maxDelay) {
+    if (maxDelay != null) {
+      return maxDelay;
+    }
+    return delay.compareTo(HttpClientConstants.MAX_RETRY_DELAY) > 0
+        ? delay
+        : HttpClientConstants.MAX_RETRY_DELAY;
   }
 
   /**

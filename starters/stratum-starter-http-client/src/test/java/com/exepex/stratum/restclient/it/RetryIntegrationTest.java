@@ -47,8 +47,9 @@ import org.springframework.web.service.invoker.HttpRequestValues;
 @SpringBootTest(
     classes = {ClientsApplication.class, RetryIntegrationTest.AttemptCounters.class},
     properties = {
-      HttpClientConstants.DEFAULTS + ".retries=" + RetryIntegrationTest.RETRIES,
-      HttpClientConstants.DEFAULTS + ".retry-delay=10ms",
+      HttpClientConstants.DEFAULTS + ".retry.max-retries=" + RetryIntegrationTest.RETRIES,
+      HttpClientConstants.DEFAULTS + ".retry.delay=10ms",
+      RestClientTestData.PRICING_SETTINGS + ".retry.backoff-policy=fixed",
       RestClientTestData.INVENTORY_SETTINGS + ".max-connections=1",
       RestClientTestData.INVENTORY_SETTINGS + ".max-wait=300ms"
     })
@@ -168,8 +169,10 @@ class RetryIntegrationTest {
     }
 
     @Test
-    @DisplayName("a POST is sent again when the connection is refused, as nothing was sent")
-    void refusedConnectionRetriedForPost() {
+    @DisplayName(
+        "a POST is sent again when the connection is refused, as nothing was sent, here max-retries"
+            + " times with a fixed back-off")
+    void fixedPolicyRetries() {
       CallChecks.assertEndsWith(pricing::order, HttpClientErrorCode.DOWNSTREAM_UNAVAILABLE);
       assertThat(PRICING_ATTEMPTS).hasValue(ALL_ATTEMPTS);
     }

@@ -3,6 +3,7 @@ package com.exepex.stratum.httpclient;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import lombok.Builder;
 import org.jspecify.annotations.Nullable;
@@ -35,15 +36,10 @@ import org.springframework.boot.context.properties.NestedConfigurationProperty;
  * @param sslBundle The name of a spring.ssl.bundle bundle whose certificate the client presents and
  *     whose trust material it checks the other service with (mutual TLS), such as bank. Not allowed
  *     under defaults, nor with shared-pool.
- * @param retries How many times a failed call is sent again, from 0 to 9, so 3 means at most 4
- *     attempts. Only calls that are safe to repeat are retried, and a POST or PATCH only when its
- *     connection failed. Defaults to 3.
- * @param retryDelay The wait before the first retry, such as 200ms; each next wait doubles, with
- *     random spread, up to 2s. Defaults to 200ms.
+ * @param retry When a failed call is sent again, and how long the client waits first.
  * @param totalTimeout The time allowed for a whole call, retries and waits included, such as 8s.
  *     Defaults to 8s.
- * @param circuitBreaker Whether calls stop for a while, failing at once, after many of them fail.
- *     Defaults to true.
+ * @param circuitBreaker When calls stop for a while, failing at once, after many of them fail.
  * @param mock Whether the client answers from files under stratum-mocks and from test scripts
  *     instead of calling the other service, for a service that is not deployed yet and for tests.
  *     Logs a warning at every startup. Defaults to false.
@@ -63,10 +59,9 @@ public record ClientSettings(
     @Nullable Boolean sharedPool,
     @NestedConfigurationProperty @Nullable ClientAuth auth,
     @Nullable String sslBundle,
-    @Nullable Integer retries,
-    @Nullable Duration retryDelay,
+    @NestedConfigurationProperty @Nullable ClientRetry retry,
     @Nullable Duration totalTimeout,
-    @Nullable Boolean circuitBreaker,
+    @NestedConfigurationProperty @Nullable ClientCircuitBreaker circuitBreaker,
     @Nullable Boolean mock,
     List<String> interfaces) {
 
@@ -84,10 +79,24 @@ public record ClientSettings(
           .maxWait(HttpClientConstants.DEFAULT_MAX_WAIT)
           .idleTimeout(HttpClientConstants.DEFAULT_IDLE_TIMEOUT)
           .connectionLifetime(HttpClientConstants.DEFAULT_CONNECTION_LIFETIME)
-          .retries(HttpClientConstants.DEFAULT_RETRIES)
-          .retryDelay(HttpClientConstants.DEFAULT_RETRY_DELAY)
+          .retry(
+              ClientRetry.builder()
+                  .maxRetries(HttpClientConstants.DEFAULT_RETRIES)
+                  .backoffPolicy(BackoffPolicy.EXPONENTIAL)
+                  .delay(HttpClientConstants.DEFAULT_RETRY_DELAY)
+                  .multiplier(HttpClientConstants.DEFAULT_MULTIPLIER)
+                  .build())
           .totalTimeout(HttpClientConstants.DEFAULT_TOTAL_TIMEOUT)
-          .circuitBreaker(true)
+          .circuitBreaker(
+              ClientCircuitBreaker.builder()
+                  .enabled(true)
+                  .failureRateThreshold(HttpClientConstants.DEFAULT_FAILURE_RATE_THRESHOLD)
+                  .slidingWindowSize(HttpClientConstants.DEFAULT_SLIDING_WINDOW_SIZE)
+                  .minimumNumberOfCalls(HttpClientConstants.DEFAULT_MINIMUM_NUMBER_OF_CALLS)
+                  .waitDurationInOpenState(HttpClientConstants.DEFAULT_WAIT_IN_OPEN_STATE)
+                  .permittedNumberOfCallsInHalfOpenState(
+                      HttpClientConstants.DEFAULT_HALF_OPEN_CALLS)
+                  .build())
           .sharedPool(false)
           .mock(false)
           .build();
@@ -110,10 +119,12 @@ public record ClientSettings(
         .sharedPool(either(sharedPool, fallback.sharedPool))
         .auth(either(auth, fallback.auth))
         .sslBundle(either(sslBundle, fallback.sslBundle))
-        .retries(either(retries, fallback.retries))
-        .retryDelay(either(retryDelay, fallback.retryDelay))
+        .retry(retry == null ? fallback.retry : retry.orElse(fallback.retry))
         .totalTimeout(either(totalTimeout, fallback.totalTimeout))
-        .circuitBreaker(either(circuitBreaker, fallback.circuitBreaker))
+        .circuitBreaker(
+            circuitBreaker == null
+                ? fallback.circuitBreaker
+                : circuitBreaker.orElse(fallback.circuitBreaker))
         .mock(either(mock, fallback.mock))
         .interfaces(interfaces.isEmpty() ? fallback.interfaces : interfaces)
         .build();
@@ -125,19 +136,18 @@ public record ClientSettings(
   }
 
   /**
-   * Returns the durations that are set.
+   * Returns the durations that are set, those of {@code retry} and {@code circuit-breaker}
+   * included.
    *
    * @return the set durations
    */
   Stream<Duration> durations() {
     return Stream.of(
-            connectTimeout,
-            timeout,
-            maxWait,
-            idleTimeout,
-            connectionLifetime,
-            retryDelay,
-            totalTimeout)
+            Stream.of(
+                connectTimeout, timeout, maxWait, idleTimeout, connectionLifetime, totalTimeout),
+            Stream.ofNullable(retry).flatMap(ClientRetry::durations),
+            Stream.ofNullable(circuitBreaker).flatMap(ClientCircuitBreaker::durations))
+        .flatMap(Function.identity())
         .filter(Objects::nonNull);
   }
 }
