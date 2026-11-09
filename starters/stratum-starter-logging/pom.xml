@@ -21,26 +21,10 @@
       <groupId>com.exepex.stratum</groupId>
       <artifactId>stratum-core</artifactId>
     </dependency>
-    <!-- Confirms that a card number, IBAN or email address found by its shape is real (Luhn and IBAN
-         checksums), so that other numbers are not masked. Its XML-validation dependencies are not
-         used by the checks the starter calls, so they are left out. -->
+    <!-- The rules that mask secrets and personal data, which the observability starter shares. -->
     <dependency>
-      <groupId>commons-validator</groupId>
-      <artifactId>commons-validator</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>commons-beanutils</groupId>
-          <artifactId>commons-beanutils</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>commons-collections</groupId>
-          <artifactId>commons-collections</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>commons-digester</groupId>
-          <artifactId>commons-digester</artifactId>
-        </exclusion>
-      </exclusions>
+      <groupId>com.exepex.stratum</groupId>
+      <artifactId>stratum-redaction</artifactId>
     </dependency>
     <!-- Carries the workflow fields into the threads that Spring's executors and Reactor move work
          to, through Spring Boot's spring.task.execution.propagate-context and Reactor's context. -->

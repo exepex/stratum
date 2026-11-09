@@ -49,6 +49,26 @@ class TelemetryUrlFilterSpeedTest {
    */
   private static final Duration USER_INFO_LIMIT = Duration.of(72_497_174, ChronoUnit.NANOS);
 
+  /** A short key-value pair, repeated to make a 1MB query. */
+  private static final String SHORT_PAIR = "a=b&";
+
+  /**
+   * CPU time cleaning a URL whose 1MB query is one long run of digits, scanned for card numbers.
+   */
+  private static final Duration DIGIT_QUERY_LIMIT = Duration.of(1, ChronoUnit.SECONDS);
+
+  /** CPU time cleaning a URL whose 1MB query is a chain of short key-value pairs. */
+  private static final Duration PAIR_CHAIN_QUERY_LIMIT = Duration.of(1, ChronoUnit.SECONDS);
+
+  /** CPU time cleaning a URL whose 1MB query is full of {@code @}, scanned for email addresses. */
+  private static final Duration AT_SIGN_QUERY_LIMIT = Duration.of(1, ChronoUnit.SECONDS);
+
+  /** CPU time cleaning a URL whose 1MB query is a sensitive value with an opening quote only. */
+  private static final Duration UNCLOSED_QUOTE_QUERY_LIMIT = Duration.of(1, ChronoUnit.SECONDS);
+
+  /** CPU time cleaning a URL whose 1MB query starts like a JSON Web Token. */
+  private static final Duration TOKEN_QUERY_LIMIT = Duration.of(1, ChronoUnit.SECONDS);
+
   /**
    * URLs with a 1MB path, query or user info, each with its URI template and the CPU time cleaning
    * both may take, built only when the test runs.
@@ -71,7 +91,33 @@ class TelemetryUrlFilterSpeedTest {
                   "a 1MB user info",
                   "https://user:" + "a".repeat(HOSTILE_INPUT_LENGTH) + "@partner.com/rates",
                   "/rates",
-                  USER_INFO_LIMIT));
+                  USER_INFO_LIMIT),
+              Arguments.of(
+                  "a 1MB run of digits in the query",
+                  "https://partner.com/rates?ref=" + "1".repeat(HOSTILE_INPUT_LENGTH),
+                  "/rates?ref=" + "1".repeat(HOSTILE_INPUT_LENGTH),
+                  DIGIT_QUERY_LIMIT),
+              Arguments.of(
+                  "a 1MB chain of key-value pairs in the query",
+                  "https://partner.com/rates?"
+                      + SHORT_PAIR.repeat(HOSTILE_INPUT_LENGTH / SHORT_PAIR.length()),
+                  "/rates?" + SHORT_PAIR.repeat(HOSTILE_INPUT_LENGTH / SHORT_PAIR.length()),
+                  PAIR_CHAIN_QUERY_LIMIT),
+              Arguments.of(
+                  "a 1MB query full of @",
+                  "https://partner.com/rates?to=" + "a@".repeat(HOSTILE_INPUT_LENGTH / 2),
+                  "/rates?to=" + "a@".repeat(HOSTILE_INPUT_LENGTH / 2),
+                  AT_SIGN_QUERY_LIMIT),
+              Arguments.of(
+                  "a 1MB sensitive value with no closing quote",
+                  "https://partner.com/rates?token='" + "a".repeat(HOSTILE_INPUT_LENGTH),
+                  "/rates?token='" + "a".repeat(HOSTILE_INPUT_LENGTH),
+                  UNCLOSED_QUOTE_QUERY_LIMIT),
+              Arguments.of(
+                  "a 1MB query that starts like a token",
+                  "https://partner.com/rates?q=eyJ" + "a".repeat(HOSTILE_INPUT_LENGTH),
+                  "/rates?q=eyJ" + "a".repeat(HOSTILE_INPUT_LENGTH),
+                  TOKEN_QUERY_LIMIT));
 
   private final TelemetryUrlFilter filter = new TelemetryUrlFilter();
 

@@ -1,6 +1,6 @@
-package com.exepex.stratum.logging.redaction;
+package com.exepex.stratum.redaction;
 
-import com.exepex.stratum.logging.redaction.MaskedText.Replacement;
+import com.exepex.stratum.redaction.MaskedText.Replacement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;

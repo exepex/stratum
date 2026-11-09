@@ -70,19 +70,23 @@ public final class ObservabilityAutoConfiguration {
   }
 
   /**
-   * Removes user info from span URLs and the query from the uri tag of spans and metrics. Spring
-   * Boot applies every {@code ObservationFilter} bean to its observations and every {@code
-   * MeterFilter} bean to its meters. Without Spring's web classes the service makes no HTTP client
-   * spans or metrics, so the filter is not needed.
+   * Removes user info from span URLs and masks their query, and removes the query from the uri tag
+   * of spans and metrics. Spring Boot applies every {@code ObservationFilter} bean to its
+   * observations and every {@code MeterFilter} bean to its meters. Without Spring's web classes the
+   * service makes no HTTP client spans or metrics, so the filter is not needed. It masks only as
+   * much of a URL as a span keeps, Spring Boot's {@code max-attribute-value-length}.
    *
+   * @param environment the application's environment
    * @return the filter
    */
   @Bean
   @Fallback
   @ConditionalOnMissingBean
   @ConditionalOnClass(name = ObservabilityConstants.URI_COMPONENTS_BUILDER)
-  public TelemetryUrlFilter telemetryUrlFilter() {
-    return new TelemetryUrlFilter();
+  public TelemetryUrlFilter telemetryUrlFilter(Environment environment) {
+    return new TelemetryUrlFilter(
+        environment.getProperty(
+            ObservabilityConstants.MAX_ATTRIBUTE_VALUE_LENGTH, Integer.class, Integer.MAX_VALUE));
   }
 
   /**

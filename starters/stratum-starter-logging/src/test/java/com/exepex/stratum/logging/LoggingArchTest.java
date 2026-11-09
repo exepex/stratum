@@ -5,6 +5,7 @@ import com.exepex.stratum.logging.workflow.ReactiveWorkflows;
 import com.exepex.stratum.logging.workflow.Workflow;
 import com.exepex.stratum.logging.workflow.WorkflowAspect;
 import com.exepex.stratum.logging.workflow.Workflows;
+import com.exepex.stratum.redaction.MaskedText;
 import com.exepex.stratum.test.StarterTestSupport;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
@@ -37,6 +38,7 @@ class LoggingArchTest {
   @DisplayName(
       "its autoconfigure package only declares beans, it uses no other starter and has no cycles")
   void followsStarterArchitecture() {
-    StarterTestSupport.checkStarterArchitecture(LoggingConstants.class, API_TYPES);
+    StarterTestSupport.checkStarterArchitecture(
+        LoggingConstants.class, API_TYPES, MaskedText.class.getPackageName());
   }
 }

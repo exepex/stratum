@@ -37,4 +37,4 @@ the service sends the same OTLP whatever the backend.
 | A pool that Stratum wraps to carry log fields has no pool metrics | [Log fields across threads](../guides/context-across-threads.md#blocking-code) | none: stated, with the way to get them |
 | Redis caches count hits and misses only because the cache starter turns statistics on; Spring Boot leaves them off | [Cache](cache.md#metrics) | none: done by the cache starter |
 | Active users are counted in the log backend, never in metrics, because each user would make a series | [Counting active users](observability-service-stack.md#counting-active-users) | none: by design |
-| The query string stays on the URL of an outgoing call's span | [URLs on spans and metrics](observability-traces.md#urls-on-spans-and-metrics) | none: accepted, with the warning there |
+| A service's own `extra-keys` and `extra-patterns` do not mask the query on an outgoing call's span; the built-in rules do | [URLs on spans and metrics](observability-traces.md#urls-on-spans-and-metrics) | [#254](https://github.com/exepex/stratum/issues/254) |
