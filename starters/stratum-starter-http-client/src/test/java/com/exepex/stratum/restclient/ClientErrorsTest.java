@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientErrorCode;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.ConnectException;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
@@ -39,6 +40,9 @@ class ClientErrorsTest {
           new NoHttpResponseException("dropped"),
           new SocketException("reset"));
 
+  /** The message of a read timeout. */
+  private static final String READ_TIMEOUT = "read timed out";
+
   /** The translation. */
   private final ClientErrors errors = new ClientErrors(noCustomizers());
 
@@ -49,7 +53,8 @@ class ClientErrorsTest {
     @Test
     @DisplayName("ends with SX-HTTPC-0001 after a read timeout, its cause kept")
     void readTimeoutIsTimeout() {
-      var failure = new ResourceAccessException("read", new SocketTimeoutException("read"));
+      var failure =
+          new ResourceAccessException(READ_TIMEOUT, new SocketTimeoutException(READ_TIMEOUT));
 
       assertCode(failure).isEqualTo(HttpClientErrorCode.DOWNSTREAM_TIMEOUT);
       assertThat(errors.noAnswer(failure).orElseThrow()).hasCause(failure);
@@ -67,7 +72,22 @@ class ClientErrorsTest {
     @Test
     @DisplayName("a body cut off by a timeout also ends with SX-HTTPC-0001")
     void bodyCutOffByTimeout() {
-      var failure = new RestClientException("cut off", new SocketTimeoutException("read"));
+      var failure = new RestClientException("cut off", new SocketTimeoutException(READ_TIMEOUT));
+
+      assertCode(failure).isEqualTo(HttpClientErrorCode.DOWNSTREAM_TIMEOUT);
+    }
+
+    @Test
+    @DisplayName(
+        "a JSON body cut off by a timeout, three causes deep, also ends with SX-HTTPC-0001")
+    void jsonBodyCutOffByTimeout() {
+      var failure =
+          new RestClientException(
+              "cut off",
+              new HttpMessageNotReadableException(
+                  "cut off",
+                  new UncheckedIOException(new SocketTimeoutException(READ_TIMEOUT)),
+                  new MockHttpInputMessage(new byte[0])));
 
       assertCode(failure).isEqualTo(HttpClientErrorCode.DOWNSTREAM_TIMEOUT);
     }

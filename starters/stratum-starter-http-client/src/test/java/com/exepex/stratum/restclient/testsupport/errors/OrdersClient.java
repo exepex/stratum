@@ -3,6 +3,7 @@ package com.exepex.stratum.restclient.testsupport.errors;
 import com.exepex.stratum.httpclient.StratumClient;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import java.net.URI;
+import java.util.Map;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.service.annotation.GetExchange;
@@ -61,6 +62,14 @@ public interface OrdersClient {
    */
   @GetExchange(ErrorDownstream.LARGE_GZIP_ERROR)
   String largeGzipError();
+
+  /**
+   * Reads an order whose JSON body stops after its first bytes.
+   *
+   * @return never, as the body is cut off by the timeout
+   */
+  @GetExchange(ErrorDownstream.CUT_JSON)
+  Map<String, Object> cutJson();
 
   /**
    * Reads an answer that succeeds with a body far over 64 KB.

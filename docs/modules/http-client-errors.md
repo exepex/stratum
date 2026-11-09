@@ -34,6 +34,15 @@ stratum:
 stratum.web.error.statuses.SX-HTTPC-0002=502
 ```
 
+In Java, set it in a `WebPropertiesCustomizer` ([Configure in Java](web.md#configure-in-java)). Start from the
+statuses already set, so that the other defaults stay:
+
+```java
+var statuses = new HashMap<>(properties.error().statuses());
+statuses.put("SX-HTTPC-0002", 502);
+return properties.toBuilder().error(properties.error().toBuilder().statuses(statuses).build()).build();
+```
+
 Even in [backward-compatible mode](web-compatible-mode.md), a call that ends with a code is answered with Stratum's
 error body, as every `StratumException` is.
 

@@ -213,12 +213,25 @@ public class RetryRules {
   }
 
   /**
-   * Returns whether an answer's body was cut off while it was read, such as by a read timeout or a
-   * dropped connection: Spring then wraps the I/O failure in a plain {@link RestClientException}. A
-   * body that is not valid, such as bad JSON, has another cause and is not cut off.
+   * Returns the I/O failure that ended a call, found anywhere in its causes: a call that got no
+   * answer, or a body cut off while it was read, such as by a read timeout or a dropped connection.
+   * Spring wraps a cut-off body in a plain {@link RestClientException}, through the converter's own
+   * exceptions when the body is JSON. A body that is not valid, such as bad JSON, has no I/O
+   * failure among its causes.
+   *
+   * @param failure the failure that ended the call
+   * @return its I/O failure, or empty when it has none
    */
+  public static Optional<IOException> ioFailureOf(RestClientException failure) {
+    return FailureCauses.causesOf(failure)
+        .filter(IOException.class::isInstance)
+        .map(IOException.class::cast)
+        .findFirst();
+  }
+
+  /** Returns whether an answer's body was cut off while it was read, as {@link #ioFailureOf}. */
   private static boolean isBodyCutOff(RestClientException failure) {
-    return failure.getCause() instanceof IOException;
+    return ioFailureOf(failure).isPresent();
   }
 
   /** Returns whether a cause is a failure to connect, after which nothing was sent. */

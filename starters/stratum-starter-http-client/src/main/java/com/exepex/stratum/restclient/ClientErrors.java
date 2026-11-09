@@ -79,9 +79,8 @@ public class ClientErrors implements ClientExchangeDecorator {
    *     not valid
    */
   public Optional<StratumException> noAnswer(RestClientException failure) {
-    return failure.getCause() instanceof IOException cause
-        ? Optional.of(new StratumException(codeFor(cause), "", failure))
-        : Optional.empty();
+    return RetryRules.ioFailureOf(failure)
+        .map(cause -> new StratumException(codeFor(cause), "", failure));
   }
 
   /**

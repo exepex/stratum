@@ -5,11 +5,14 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.httpclient.HttpClientConstants;
+import com.exepex.stratum.httpclient.HttpClientErrorCode;
 import com.exepex.stratum.restclient.DownstreamException;
+import com.exepex.stratum.restclient.testsupport.CallChecks;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import com.exepex.stratum.restclient.testsupport.errors.ErrorDownstream;
 import com.exepex.stratum.restclient.testsupport.errors.ErrorsApplication;
 import com.exepex.stratum.restclient.testsupport.errors.OrdersClient;
+import java.net.SocketTimeoutException;
 import java.net.URI;
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.DisplayName;
@@ -25,7 +28,12 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
-@SpringBootTest(classes = ErrorsApplication.class)
+@SpringBootTest(
+    classes = ErrorsApplication.class,
+    properties = {
+      HttpClientConstants.CLIENTS + "." + RestClientTestData.ORDERS + ".timeout=300ms",
+      HttpClientConstants.DEFAULTS + ".retry-delay=10ms"
+    })
 @Timeout(30)
 @DisplayName("A client's error answer is a DownstreamException, read at most 64 KB")
 class ClientErrorsIntegrationTest {
@@ -140,6 +148,13 @@ class ClientErrorsIntegrationTest {
           .isThrownBy(() -> orders.order(ORDER_ID, CUSTOMER))
           .satisfies(failure -> assertThat(failure.getDownstreamCode()).isEmpty());
     }
+  }
+
+  @Test
+  @DisplayName("a JSON body cut off by the timeout ends with SX-HTTPC-0001, its causes walked")
+  void cutOffJsonIsTimeout() {
+    CallChecks.assertEndsWith(orders::cutJson, HttpClientErrorCode.DOWNSTREAM_TIMEOUT)
+        .withRootCauseInstanceOf(SocketTimeoutException.class);
   }
 
   @Nested

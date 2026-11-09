@@ -26,8 +26,7 @@ public enum HttpClientErrorCode implements ErrorCode {
       "SX-HTTPC-0002",
       Severity.ERROR,
       "The other service cannot be reached, or the client's token for it cannot be fetched",
-      "Check that the other service and the identity provider are up and reachable, and that the"
-          + " client's registration, such as its client secret, is current."),
+      ""),
 
   /** The client's circuit breaker is open, so the call was not sent; the caller gets 503. */
   BREAKER_OPEN(

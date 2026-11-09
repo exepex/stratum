@@ -13,7 +13,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPOutputStream;
 
 /**
@@ -25,7 +27,8 @@ import java.util.zip.GZIPOutputStream;
  *   <li>{@link #FAILED}: 500, a text body that holds {@link RestClientTestData#SECRET};
  *   <li>{@link #LARGE_ERROR}: 500, {@link #LARGE_SIZE} bytes;
  *   <li>{@link #LARGE_GZIP_ERROR}: 500, {@link #LARGE_SIZE} bytes once gzip is undone;
- *   <li>{@link #LARGE_ANSWER}: 200, {@link #LARGE_SIZE} bytes.
+ *   <li>{@link #LARGE_ANSWER}: 200, {@link #LARGE_SIZE} bytes;
+ *   <li>{@link #CUT_JSON}: 200, the start of a JSON body, then nothing until the server closes.
  * </ul>
  */
 public final class ErrorDownstream implements AutoCloseable {
@@ -48,11 +51,17 @@ public final class ErrorDownstream implements AutoCloseable {
   /** The path of a large body that succeeds. */
   public static final String LARGE_ANSWER = "/large-answer";
 
+  /** The path of a JSON answer whose body stops after its first bytes. */
+  public static final String CUT_JSON = "/cut-json";
+
   /** The code in the {@link #PROBLEM} body. */
   public static final String DOWNSTREAM_CODE = "ORD-0001";
 
   /** The size of each large body, 1 MB, far over the 64 KB read of an error body. */
   public static final int LARGE_SIZE = 1024 * 1024;
+
+  /** The length a {@link #CUT_JSON} answer promises, far more than it sends. */
+  private static final int CUT_JSON_LENGTH = 1000;
 
   /** The content type of a text body. */
   private static final String TEXT = "text/plain";
@@ -62,6 +71,9 @@ public final class ErrorDownstream implements AutoCloseable {
 
   /** The server. */
   private final HttpServer server;
+
+  /** Opened by {@link #close()}, so that a {@link #CUT_JSON} answer ends at once. */
+  private final CountDownLatch closed = new CountDownLatch(1);
 
   /** The client port of each connection, one per connection opened. */
   private final Set<Integer> clientPorts = ConcurrentHashMap.newKeySet();
@@ -89,6 +101,7 @@ public final class ErrorDownstream implements AutoCloseable {
         LARGE_ERROR,
         exchange -> send(exchange, HttpURLConnection.HTTP_INTERNAL_ERROR, TEXT, large()));
     server.createContext(LARGE_GZIP_ERROR, this::sendLargeGzip);
+    server.createContext(CUT_JSON, this::sendCutJson);
     server.createContext(
         LARGE_ANSWER, exchange -> send(exchange, HttpURLConnection.HTTP_OK, TEXT, large()));
     server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
@@ -103,8 +116,8 @@ public final class ErrorDownstream implements AutoCloseable {
   public static ErrorDownstream start() {
     try {
       return new ErrorDownstream();
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
+    } catch (IOException startFailure) {
+      throw new UncheckedIOException(startFailure);
     }
   }
 
@@ -128,6 +141,7 @@ public final class ErrorDownstream implements AutoCloseable {
 
   @Override
   public void close() {
+    closed.countDown();
     server.stop(0);
   }
 
@@ -150,6 +164,29 @@ public final class ErrorDownstream implements AutoCloseable {
     }
     exchange.getResponseHeaders().add("Content-Encoding", "gzip");
     send(exchange, HttpURLConnection.HTTP_INTERNAL_ERROR, TEXT, compressed.toByteArray());
+  }
+
+  /**
+   * Sends a 200 that promises a JSON body, sends its first bytes and then nothing more until the
+   * server closes, far longer than the client's timeout.
+   */
+  private void sendCutJson(HttpExchange exchange) throws IOException {
+    exchange.getResponseHeaders().add("Content-Type", "application/json");
+    exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, CUT_JSON_LENGTH);
+    try (var out = exchange.getResponseBody()) {
+      out.write(bytes("{\"id\":\"o-1\","));
+      out.flush();
+      awaitClose();
+    }
+  }
+
+  /** Waits until the server closes, at most {@link RestClientTestData#WAIT}. */
+  private void awaitClose() {
+    try {
+      closed.await(RestClientTestData.WAIT.toMillis(), TimeUnit.MILLISECONDS);
+    } catch (InterruptedException interrupted) {
+      Thread.currentThread().interrupt();
+    }
   }
 
   /** Returns a text as bytes. */
