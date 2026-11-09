@@ -118,5 +118,15 @@
         </includes>
       </resource>
     </resources>
+    <plugins>
+      <!-- Lets SilentPort, and only it, open plain test sockets (spotbugs-exclude.xml). -->
+      <plugin>
+        <groupId>com.github.spotbugs</groupId>
+        <artifactId>spotbugs-maven-plugin</artifactId>
+        <configuration>
+          <excludeFilterFile>${project.basedir}/spotbugs-exclude.xml</excludeFilterFile>
+        </configuration>
+      </plugin>
+    </plugins>
   </build>
 </project>

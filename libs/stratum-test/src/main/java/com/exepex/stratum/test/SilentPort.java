@@ -1,5 +1,6 @@
-package com.exepex.stratum.cache.testsupport;
+package com.exepex.stratum.test;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.InetAddress;
@@ -10,10 +11,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A local port that takes no new connection, so each connect to it times out, as with a Redis host
- * that never answers. It listens without accepting and fills its one-place backlog, after which the
- * system drops every new connect.
+ * A local port that takes no new connection, so each connect to it times out, as with a host that
+ * is down. It listens without accepting and fills its one-place backlog, after which the system
+ * drops every new connect. Used to prove that a client's connect timeout works.
  */
+@StratumInternal
 public final class SilentPort implements AutoCloseable {
 
   /** How long a filling connect may take before the backlog counts as full, in milliseconds. */
