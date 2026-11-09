@@ -24,6 +24,9 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 @UtilityClass
 public class RestClientTestData {
 
+  /** The end of the key of a client's address. */
+  private static final String URL = ".url";
+
   /** The client most tests configure. */
   public static final String INVENTORY = "inventory";
 
@@ -37,7 +40,7 @@ public class RestClientTestData {
   public static final String PARTNER_SETTINGS = HttpClientConstants.CLIENTS + "." + PARTNER;
 
   /** The key of the partner client's address. */
-  public static final String PARTNER_URL = PARTNER_SETTINGS + ".url";
+  public static final String PARTNER_URL = PARTNER_SETTINGS + URL;
 
   /** The key of the first generated interface of the partner client. */
   public static final String PARTNER_INTERFACE = PARTNER_SETTINGS + ".interfaces[0]";
@@ -48,6 +51,12 @@ public class RestClientTestData {
   /** The prefix of the files client's own settings. */
   public static final String FILES_SETTINGS = HttpClientConstants.CLIENTS + "." + FILES;
 
+  /** A client whose downstream answers with error bodies, for the error tests. */
+  public static final String ORDERS = "orders";
+
+  /** The key of the orders client's address. */
+  public static final String ORDERS_URL = HttpClientConstants.CLIENTS + "." + ORDERS + URL;
+
   /** The prefix of the inventory client's own settings. */
   public static final String INVENTORY_SETTINGS = HttpClientConstants.CLIENTS + "." + INVENTORY;
 
@@ -55,10 +64,10 @@ public class RestClientTestData {
   public static final String PRICING_SETTINGS = HttpClientConstants.CLIENTS + "." + PRICING;
 
   /** The key of the inventory client's address. */
-  public static final String INVENTORY_URL = INVENTORY_SETTINGS + ".url";
+  public static final String INVENTORY_URL = INVENTORY_SETTINGS + URL;
 
   /** The key of the pricing client's address. */
-  public static final String PRICING_URL = PRICING_SETTINGS + ".url";
+  public static final String PRICING_URL = PRICING_SETTINGS + URL;
 
   /**
    * A stand-in for a secret: not a real credential, as tests only check that it is passed on or

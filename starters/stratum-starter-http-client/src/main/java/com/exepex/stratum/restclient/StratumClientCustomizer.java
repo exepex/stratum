@@ -6,9 +6,10 @@ import org.springframework.web.client.RestClient;
 
 /**
  * Changes the builder of Stratum's clients, for what has no setting, such as a request interceptor
- * or a message converter, and their retry and circuit breaker rules. Declare it as a bean; every
- * one is called for each client, in their order, after Stratum has set the client's address and
- * connection pool. It runs once per client at startup, never per call.
+ * or a message converter, their retry and circuit breaker rules, and the exception an error answer
+ * becomes. Declare it as a bean; every one is called for each client, in their order, after Stratum
+ * has set the client's address and connection pool. The builder and the rules are changed once per
+ * client; only {@link #mapError} runs per call, on a call that ends with an error answer.
  *
  * <pre>{@code
  * @Bean
@@ -54,5 +55,28 @@ public interface StratumClientCustomizer {
    */
   default void customizeCircuitBreaker(String client, CircuitBreakerConfig.Builder breaker) {
     // Stratum's rules stay as they are.
+  }
+
+  /**
+   * Lets a call of one client that ends with an error answer, after its retries, throw the team's
+   * own exception, such as {@code StockNotFoundException} for a 404: throw it here, and return to
+   * keep the {@link DownstreamException}. The customizers are asked in their order, so the first
+   * that throws wins. The codes of a call that got no answer, such as {@code SX-HTTPC-0001}, are
+   * never passed here. By default it keeps the exception.
+   *
+   * <pre>{@code
+   * @Override
+   * public void mapError(String client, DownstreamException failure) {
+   *   if (client.equals("inventory") && failure.getStatusCode().value() == 404) {
+   *     throw new StockNotFoundException(failure);
+   *   }
+   * }
+   * }</pre>
+   *
+   * @param client the client's name
+   * @param failure the error answer, with its status, headers and body
+   */
+  default void mapError(String client, DownstreamException failure) {
+    // The DownstreamException is kept.
   }
 }
