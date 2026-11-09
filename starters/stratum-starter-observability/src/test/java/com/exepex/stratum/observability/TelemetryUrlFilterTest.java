@@ -146,7 +146,15 @@ class TelemetryUrlFilterTest {
                 "https://partner.com/users?to=****.com"),
             Arguments.of(
                 "https://user:secret@partner.com/rates#password=abc123",
-                "https://partner.com/rates#password=****"));
+                "https://partner.com/rates#password=****"),
+            Arguments.of(
+                "https://partner.com/rates?password=left,right&page=2",
+                "https://partner.com/rates?password=****&page=2"),
+            Arguments.of(
+                "https://partner.com/rates?token=a;b)c]d", "https://partner.com/rates?token=****"),
+            Arguments.of(
+                "https://partner.com/users?email=jane.doe@example.com",
+                "https://partner.com/users?email=****.com"));
 
     /** URLs whose host or path holds a sensitive-looking word, each kept as it is. */
     private static final List<String> URLS_KEPT_AS_THEY_ARE =

@@ -1,15 +1,11 @@
 package com.exepex.stratum.observability;
 
-import com.exepex.stratum.redaction.ContentMaskingRules;
-import com.exepex.stratum.redaction.SensitiveFieldNames;
 import io.micrometer.common.KeyValue;
 import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.Tags;
 import io.micrometer.core.instrument.config.MeterFilter;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationFilter;
-import java.util.List;
-import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
@@ -37,9 +33,8 @@ public class TelemetryUrlFilter implements ObservationFilter, MeterFilter {
   /** The start of a query string or fragment, compiled once because it runs on every call. */
   private static final Pattern QUERY_OR_FRAGMENT = Pattern.compile("[?#]");
 
-  /** The built-in masking rules, built once because they run on every call. */
-  private final UnaryOperator<String> maskingRules =
-      ContentMaskingRules.builtInRules(new SensitiveFieldNames(List.of()));
+  /** Masks the query's values, built once because it runs on every call. */
+  private final QueryValueMasker queryValueMasker = new QueryValueMasker();
 
   /**
    * The longest a span keeps the URL, Spring Boot's {@code max-attribute-value-length}; the query
@@ -110,7 +105,7 @@ public class TelemetryUrlFilter implements ObservationFilter, MeterFilter {
    */
   private String withMaskedQuery(String url) {
     var queryStart = queryStart(url);
-    return url.substring(0, queryStart) + maskingRules.apply(keptQuery(url, queryStart));
+    return url.substring(0, queryStart) + queryValueMasker.mask(keptQuery(url, queryStart));
   }
 
   /**
