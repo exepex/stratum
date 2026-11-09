@@ -7,6 +7,7 @@ import com.exepex.stratum.core.properties.StratumCustomizers;
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientProperties;
 import com.exepex.stratum.restclient.ClientConnectionPools;
+import com.exepex.stratum.restclient.ClientErrors;
 import com.exepex.stratum.restclient.ClientExchangeDecorator;
 import com.exepex.stratum.restclient.ClientResilience;
 import com.exepex.stratum.restclient.DefaultStratumHttpClients;
@@ -120,6 +121,20 @@ public final class RestClientAutoConfiguration {
       Environment environment, ObjectProvider<StratumClientCustomizer> customizers) {
     return new ClientResilience(
         HttpClientProperties.resolve(environment), customizers, Clock.systemUTC());
+  }
+
+  /**
+   * Creates the translation of the failure that ends a call of a Stratum client's interface into a
+   * {@code DownstreamException} or a code.
+   *
+   * @param customizers the service's changes to the clients, which may map an error answer
+   * @return the translation
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean
+  public ClientErrors stratumClientErrors(ObjectProvider<StratumClientCustomizer> customizers) {
+    return new ClientErrors(customizers);
   }
 
   /**

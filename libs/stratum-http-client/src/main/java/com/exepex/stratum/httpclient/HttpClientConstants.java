@@ -86,10 +86,25 @@ public class HttpClientConstants {
   public static final Duration MIN_ATTEMPT_TIME = Duration.ofMillis(100);
 
   /**
-   * The order of the retries and circuit breaker around each call of a client, the outermost of
-   * Stratum's decorators; a later one, such as the resend after a 401, runs inside them.
+   * The order of the retries and circuit breaker around each call of a client; a later one, such as
+   * the resend after a 401, runs inside them.
    */
   public static final int RESILIENCE_ORDER = 0;
+
+  /**
+   * The order of the error translation around each call of a client, the outermost of Stratum's
+   * decorators, so that the retries and breaker see Spring's own exceptions.
+   */
+  public static final int ERROR_TRANSLATION_ORDER = RESILIENCE_ORDER - 1;
+
+  /**
+   * The most of an error answer's body that is read, 64 KB; the rest is never held. Fixed, with no
+   * key (ADR 0011, decision 6.2).
+   */
+  public static final int ERROR_BODY_LIMIT = 64 * 1024;
+
+  /** The web starter's key that maps an error code to the HTTP status its caller gets. */
+  public static final String WEB_ERROR_STATUSES = "stratum.web.error.statuses";
 
   /**
    * How long a connection may sit unused before it is checked before its next use, so that one the
@@ -99,4 +114,15 @@ public class HttpClientConstants {
 
   /** The header that carries a client's API key when it names none. */
   public static final String DEFAULT_API_KEY_HEADER = "X-Api-Key";
+
+  /**
+   * Returns the key that gives one code its HTTP status in the web starter's map, with the code in
+   * brackets so that it is kept as written.
+   *
+   * @param code the code, such as {@code SX-HTTPC-0001}
+   * @return the key, such as {@code stratum.web.error.statuses[SX-HTTPC-0001]}
+   */
+  public static String errorStatus(String code) {
+    return WEB_ERROR_STATUSES + "[" + code + "]";
+  }
 }

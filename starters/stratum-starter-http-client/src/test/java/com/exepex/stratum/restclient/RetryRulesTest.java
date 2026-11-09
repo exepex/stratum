@@ -7,6 +7,7 @@ import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.core.IntervalFunction;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.ConnectException;
 import java.net.NoRouteToHostException;
 import java.net.SocketException;
@@ -374,9 +375,15 @@ class RetryRulesTest {
             status, status.getReasonPhrase(), headers, new byte[0], null);
   }
 
-  /** Returns a failure to read an answer's body, cut off by the given cause, as Spring wraps it. */
+  /**
+   * Returns a failure to read a JSON body, cut off by the given cause, as Spring wraps it: three
+   * causes deep, through the converter's own exceptions.
+   */
   private RestClientException bodyCutOff(IOException cause) {
-    return new RestClientException("Error while extracting response", cause);
+    return new RestClientException(
+        "Error while extracting response",
+        new HttpMessageNotReadableException(
+            "cut off", new UncheckedIOException(cause), new MockHttpInputMessage(new byte[0])));
   }
 
   /** Returns a failure to read an answer's body that is not valid, as Spring wraps it. */

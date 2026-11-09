@@ -1,8 +1,10 @@
 package com.exepex.stratum.restclient;
 
 import com.exepex.stratum.core.api.StratumInternal;
+import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.httpclient.ClientSettings;
 import com.exepex.stratum.httpclient.HttpClientConstants;
+import com.exepex.stratum.httpclient.HttpClientErrorCode;
 import com.exepex.stratum.httpclient.HttpClientProperties;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
@@ -68,7 +70,8 @@ public class ClientResilience implements ClientExchangeDecorator {
   }
 
   /**
-   * Returns the order of the retries and breaker, the outermost of Stratum's decorators.
+   * Returns the order of the retries and breaker, inside the error translation and outside the
+   * resend after a 401.
    *
    * @return the order
    */
@@ -110,7 +113,8 @@ public class ClientResilience implements ClientExchangeDecorator {
    * @param <T> what the call returns
    * @return what the last attempt returned
    * @throws RestClientException the last attempt's failure, such as an error answer
-   * @throws CallNotPermittedException when the client's breaker is open
+   * @throws StratumException {@code SX-HTTPC-0003} when the client's breaker is open, so the call
+   *     was not sent
    */
   public <T> @Nullable T call(
       String client,
@@ -176,11 +180,12 @@ public class ClientResilience implements ClientExchangeDecorator {
 
   /**
    * Throws the last attempt's failure as the call's own: one of the two that {@link #attempt}
-   * catches.
+   * catches, a refusal of the open breaker as {@code SX-HTTPC-0003}.
    */
   private void rethrow(RuntimeException failure) {
     switch (failure) {
-      case CallNotPermittedException refused -> throw refused;
+      case CallNotPermittedException refused ->
+          throw new StratumException(HttpClientErrorCode.BREAKER_OPEN, "", refused);
       case RestClientException failed -> throw failed;
       default -> throw new IllegalStateException("An attempt failed in an unexpected way", failure);
     }

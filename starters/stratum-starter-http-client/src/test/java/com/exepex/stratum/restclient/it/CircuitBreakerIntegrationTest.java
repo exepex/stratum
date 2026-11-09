@@ -4,14 +4,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.httpclient.HttpClientConstants;
+import com.exepex.stratum.httpclient.HttpClientErrorCode;
 import com.exepex.stratum.restclient.ClientResilience;
 import com.exepex.stratum.restclient.StratumClientCustomizer;
+import com.exepex.stratum.restclient.testsupport.CallChecks;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import com.exepex.stratum.restclient.testsupport.ScriptedDownstream;
 import com.exepex.stratum.restclient.testsupport.clients.ClientsApplication;
 import com.exepex.stratum.restclient.testsupport.clients.FlakyInventory;
 import com.exepex.stratum.test.LogLineCapture;
-import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import java.util.List;
@@ -29,7 +30,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
@@ -97,16 +97,15 @@ class CircuitBreakerIntegrationTest {
 
       assertThat(breaker().getState()).isEqualTo(CircuitBreaker.State.OPEN);
       var code = HttpStatus.OK.value();
-      assertThatExceptionOfType(CallNotPermittedException.class)
-          .isThrownBy(() -> inventory.get(code));
+      CallChecks.assertEndsWith(() -> inventory.get(code), HttpClientErrorCode.BREAKER_OPEN);
       assertThat(requests()).hasSize(WINDOW);
     }
 
     @Test
     @DisplayName("dropped connections open it")
     void opensOnNoAnswer() {
-      assertThatExceptionOfType(ResourceAccessException.class).isThrownBy(inventory::postDropped);
-      assertThatExceptionOfType(ResourceAccessException.class).isThrownBy(inventory::postDropped);
+      CallChecks.assertEndsWith(inventory::postDropped, HttpClientErrorCode.DOWNSTREAM_UNAVAILABLE);
+      CallChecks.assertEndsWith(inventory::postDropped, HttpClientErrorCode.DOWNSTREAM_UNAVAILABLE);
 
       assertThat(breaker().getState()).isEqualTo(CircuitBreaker.State.OPEN);
     }
@@ -129,8 +128,7 @@ class CircuitBreakerIntegrationTest {
     @DisplayName("an open breaker stops the retries of a 429: the third attempt is never sent")
     void openBreakerStopsRetries() {
       var code = HttpStatus.TOO_MANY_REQUESTS.value();
-      assertThatExceptionOfType(CallNotPermittedException.class)
-          .isThrownBy(() -> inventory.get(code));
+      CallChecks.assertEndsWith(() -> inventory.get(code), HttpClientErrorCode.BREAKER_OPEN);
       assertThat(requests()).hasSize(WINDOW);
     }
 
@@ -139,8 +137,7 @@ class CircuitBreakerIntegrationTest {
     void stateChangeLoggedOnce() {
       failTwice(HttpStatus.INTERNAL_SERVER_ERROR);
       var code = HttpStatus.OK.value();
-      assertThatExceptionOfType(CallNotPermittedException.class)
-          .isThrownBy(() -> inventory.get(code));
+      CallChecks.assertEndsWith(() -> inventory.get(code), HttpClientErrorCode.BREAKER_OPEN);
 
       assertThat(breakerLog.onlyLine().getFormattedMessage())
           .isEqualTo("The circuit breaker of HTTP client inventory went from CLOSED to OPEN");
