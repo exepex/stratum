@@ -32,7 +32,7 @@ final class MockCallProcessor implements HttpRequestValues.Processor {
       HttpRequestValues.Builder values) {
     values.addAttribute(
         MockAnswers.METHOD_ATTRIBUTE, new MockCall(method.getName(), readsNoBody(method)));
-    answers.record(client, method.getName(), Objects.requireNonNullElse(arguments, new Object[0]));
+    answers.addCall(client, method.getName(), Objects.requireNonNullElse(arguments, new Object[0]));
   }
 
   /**

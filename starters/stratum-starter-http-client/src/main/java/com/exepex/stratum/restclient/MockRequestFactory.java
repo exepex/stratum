@@ -43,21 +43,6 @@ final class MockRequestFactory implements ClientHttpRequestFactory {
     return new MockRequest(uri, method);
   }
 
-  /** Waits an answer's delay, or the call's time limit and fails when the delay is longer. */
-  private void await(Duration delay) throws IOException {
-    var limit =
-        AttemptTimeLeft.timeLeft()
-            .filter(timeLeft -> timeLeft.compareTo(timeout) < 0)
-            .orElse(timeout);
-    if (delay.compareTo(limit) <= 0) {
-      answers.pause(delay);
-      return;
-    }
-    answers.pause(limit);
-    throw new SocketTimeoutException(
-        "The mocked answer of client " + client + " takes longer than the call's time limit");
-  }
-
   /** A request that answers from the mocks. */
   @RequiredArgsConstructor
   private final class MockRequest extends AbstractClientHttpRequest {
@@ -67,6 +52,21 @@ final class MockRequestFactory implements ClientHttpRequestFactory {
 
     /** The call's HTTP method. */
     @Getter private final HttpMethod method;
+
+    /** Waits an answer's delay, or the call's time limit and fails when the delay is longer. */
+    private void await(Duration delay) throws IOException {
+      var limit =
+          AttemptTimeLeft.timeLeft()
+              .filter(timeLeft -> timeLeft.compareTo(timeout) < 0)
+              .orElse(timeout);
+      if (delay.compareTo(limit) <= 0) {
+        answers.pause(delay);
+        return;
+      }
+      answers.pause(limit);
+      throw new SocketTimeoutException(
+          "The mocked answer of client " + client + " takes longer than the call's time limit");
+    }
 
     @Override
     public URI getURI() {

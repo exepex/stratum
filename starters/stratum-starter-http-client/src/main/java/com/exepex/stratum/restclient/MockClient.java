@@ -7,11 +7,9 @@ import lombok.RequiredArgsConstructor;
 /**
  * The mock of one client set to {@code mock: true}, from {@link MockClients#of}. A scripted answer
  * wins over the file {@code stratum-mocks/<client>/<method>.json}.
- *
- * @param <T> the interface the mock was asked for
  */
 @RequiredArgsConstructor(access = AccessLevel.PACKAGE)
-public final class MockClient<T> {
+public final class MockClient {
 
   /** The client's name. */
   private final String client;

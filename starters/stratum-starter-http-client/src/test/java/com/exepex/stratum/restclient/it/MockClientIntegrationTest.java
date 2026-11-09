@@ -53,6 +53,9 @@ class MockClientIntegrationTest {
   /** The payment a test sends. */
   private static final Payment NEW_PAYMENT = new Payment("p-1", "NEW");
 
+  /** The id of the payment a test reads. */
+  private static final String PAYMENT_ID = NEW_PAYMENT.id();
+
   /** The payment the file createPayment.json holds. */
   private static final Payment FILE_PAYMENT = new Payment("p-file", "PENDING");
 
@@ -82,7 +85,7 @@ class MockClientIntegrationTest {
   @Autowired private ClientResilience clientResilience;
 
   /** The mock of the payments client, asked for before each test. */
-  private MockClient<PaymentClient> paymentsMock;
+  private MockClient paymentsMock;
 
   /**
    * Points the payments client at the silent port.
@@ -155,7 +158,7 @@ class MockClientIntegrationTest {
     @DisplayName("that is missing fails the call with 501, naming the file to add")
     void missingAnswerIs501() {
       assertThatExceptionOfType(HttpServerErrorException.class)
-          .isThrownBy(() -> payments.payment(NEW_PAYMENT.id()))
+          .isThrownBy(() -> payments.payment(PAYMENT_ID))
           .satisfies(
               failure ->
                   assertThat(failure.getResponseBodyAsString())
@@ -168,10 +171,15 @@ class MockClientIntegrationTest {
     @Test
     @DisplayName("through stratumHttpClients.restClient is a 501 naming the client")
     void restClientOfClientIs501() {
-      var restClient = stratumHttpClients.restClient(RestClientTestData.PAYMENTS);
+      var call =
+          stratumHttpClients
+              .restClient(RestClientTestData.PAYMENTS)
+              .get()
+              .uri("/payments")
+              .retrieve();
 
       assertThatExceptionOfType(HttpServerErrorException.class)
-          .isThrownBy(() -> restClient.get().uri("/payments").retrieve().body(String.class))
+          .isThrownBy(() -> call.body(String.class))
           .satisfies(
               failure ->
                   assertThat(failure.getResponseBodyAsString())
@@ -189,7 +197,7 @@ class MockClientIntegrationTest {
       paymentsMock.on(PAYMENT).fail(HttpStatus.NOT_FOUND);
 
       assertThatExceptionOfType(PaymentMissingException.class)
-          .isThrownBy(() -> payments.payment(NEW_PAYMENT.id()));
+          .isThrownBy(() -> payments.payment(PAYMENT_ID));
     }
 
     @Test
@@ -200,7 +208,7 @@ class MockClientIntegrationTest {
       paymentsMock.on(PAYMENT).fail(HttpStatus.SERVICE_UNAVAILABLE);
 
       assertThatExceptionOfType(HttpServerErrorException.class)
-          .isThrownBy(() -> payments.payment(NEW_PAYMENT.id()));
+          .isThrownBy(() -> payments.payment(PAYMENT_ID));
       assertThat(retry.getNumberOfFailedCallsWithRetryAttempt()).isEqualTo(retriedBefore + 1);
       assertThat(paymentsMock.calls(PAYMENT)).hasSize(1);
     }
@@ -216,7 +224,7 @@ class MockClientIntegrationTest {
       paymentsMock.on(PAYMENT).delay(DELAY).respond(SCRIPTED_PAYMENT);
       var startedAt = System.nanoTime();
 
-      assertThat(payments.payment(NEW_PAYMENT.id())).isEqualTo(SCRIPTED_PAYMENT);
+      assertThat(payments.payment(PAYMENT_ID)).isEqualTo(SCRIPTED_PAYMENT);
       assertThat(Duration.ofNanos(System.nanoTime() - startedAt)).isGreaterThanOrEqualTo(DELAY);
     }
   }
@@ -237,7 +245,7 @@ class MockClientIntegrationTest {
       var startedAt = System.nanoTime();
 
       assertThatExceptionOfType(ResourceAccessException.class)
-          .isThrownBy(() -> payments.payment(NEW_PAYMENT.id()));
+          .isThrownBy(() -> payments.payment(PAYMENT_ID));
       assertThat(Duration.ofNanos(System.nanoTime() - startedAt))
           .isLessThan(RestClientTestData.FAILS_WITHIN);
     }

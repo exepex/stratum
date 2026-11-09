@@ -22,7 +22,7 @@ class MockAnswersTest {
   @Test
   @DisplayName("records nothing before a test asks for the client, as a demo app never does")
   void nothingRecordedBeforeAsked() {
-    answers.record(RestClientTestData.PAYMENTS, METHOD, new Object[] {"p-1"});
+    answers.addCall(RestClientTestData.PAYMENTS, METHOD, "p-1");
 
     assertThat(answers.calls(RestClientTestData.PAYMENTS, METHOD)).isEmpty();
   }
@@ -31,7 +31,7 @@ class MockAnswersTest {
   @DisplayName("records each call once a test asked for the client")
   void recordedAfterAsked() {
     answers.startRecording(RestClientTestData.PAYMENTS);
-    answers.record(RestClientTestData.PAYMENTS, METHOD, new Object[] {"p-1"});
+    answers.addCall(RestClientTestData.PAYMENTS, METHOD, "p-1");
 
     assertThat(answers.calls(RestClientTestData.PAYMENTS, METHOD))
         .containsExactly(new RecordedCall(METHOD, List.of("p-1")));

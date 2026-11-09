@@ -37,8 +37,8 @@ public class MockAnswers {
   /** The request attribute that carries the {@link MockCall} of a mocked interface's call. */
   static final String METHOD_ATTRIBUTE = "stratum.mock.method";
 
-  /** The folder on the classpath that holds the answer files. */
-  private static final String FOLDER = "stratum-mocks/";
+  /** The classpath path of a client method's answer file, from the client's and method's names. */
+  private static final String ANSWER_FILE = "stratum-mocks/%s/%s.json";
 
   /** The application's JSON mapper, which writes scripted values. */
   private final ObjectProvider<JsonMapper> jsonMappers;
@@ -95,7 +95,7 @@ public class MockAnswers {
    * @param method the method's name
    * @param arguments the call's arguments
    */
-  void record(String client, String method, @Nullable Object... arguments) {
+  void addCall(String client, String method, @Nullable Object... arguments) {
     Optional.ofNullable(records.get(client))
         .ifPresent(calls -> calls.add(new RecordedCall(method, Arrays.asList(arguments))));
   }
@@ -157,7 +157,7 @@ public class MockAnswers {
               + ": only the methods of its interfaces are mocked, not calls through"
               + " stratumHttpClients.restClient");
     }
-    var path = FOLDER + client + "/" + call.method() + ".json";
+    var path = ANSWER_FILE.formatted(client, call.method());
     return Optional.ofNullable(scripts.getOrDefault(client, Map.of()).get(call.method()))
         .or(() -> file(path).map(body -> MockAnswer.json(HttpStatus.OK, body)))
         .orElseGet(() -> call.bodyless() ? MockAnswer.empty() : missing(client, call, path));

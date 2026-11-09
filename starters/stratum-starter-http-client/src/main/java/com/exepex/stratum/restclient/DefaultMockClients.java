@@ -22,7 +22,7 @@ public class DefaultMockClients implements MockClients, SmartInitializingSinglet
   private final MockAnswers answers;
 
   @Override
-  public <T> MockClient<T> of(Class<T> type) {
+  public MockClient of(Class<?> type) {
     var client =
         answers
             .clientOf(type)
@@ -33,7 +33,7 @@ public class DefaultMockClients implements MockClients, SmartInitializingSinglet
                             + " is not an interface of a client with mock: true; set"
                             + " stratum.http-client.clients.<name>.mock=true for its client"));
     answers.startRecording(client);
-    return new MockClient<>(client, answers);
+    return new MockClient(client, answers);
   }
 
   @Override
