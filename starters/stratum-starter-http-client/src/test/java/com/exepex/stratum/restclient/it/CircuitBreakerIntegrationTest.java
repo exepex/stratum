@@ -96,8 +96,9 @@ class CircuitBreakerIntegrationTest {
       failTwice(HttpStatus.INTERNAL_SERVER_ERROR);
 
       assertThat(breaker().getState()).isEqualTo(CircuitBreaker.State.OPEN);
+      var code = HttpStatus.OK.value();
       assertThatExceptionOfType(CallNotPermittedException.class)
-          .isThrownBy(() -> inventory.get(HttpStatus.OK.value()));
+          .isThrownBy(() -> inventory.get(code));
       assertThat(requests()).hasSize(WINDOW);
     }
 
@@ -127,8 +128,9 @@ class CircuitBreakerIntegrationTest {
     @Test
     @DisplayName("an open breaker stops the retries of a 429: the third attempt is never sent")
     void openBreakerStopsRetries() {
+      var code = HttpStatus.TOO_MANY_REQUESTS.value();
       assertThatExceptionOfType(CallNotPermittedException.class)
-          .isThrownBy(() -> inventory.get(HttpStatus.TOO_MANY_REQUESTS.value()));
+          .isThrownBy(() -> inventory.get(code));
       assertThat(requests()).hasSize(WINDOW);
     }
 
@@ -136,8 +138,9 @@ class CircuitBreakerIntegrationTest {
     @DisplayName("each change of state is logged once, with the client's name")
     void stateChangeLoggedOnce() {
       failTwice(HttpStatus.INTERNAL_SERVER_ERROR);
+      var code = HttpStatus.OK.value();
       assertThatExceptionOfType(CallNotPermittedException.class)
-          .isThrownBy(() -> inventory.get(HttpStatus.OK.value()));
+          .isThrownBy(() -> inventory.get(code));
 
       assertThat(breakerLog.onlyLine().getFormattedMessage())
           .isEqualTo("The circuit breaker of HTTP client inventory went from CLOSED to OPEN");
@@ -169,8 +172,9 @@ class CircuitBreakerIntegrationTest {
   /** Fails two calls with the status, which is never retried. */
   private void failTwice(HttpStatus status) {
     for (var call = 0; call < WINDOW; call++) {
+      var code = status.value();
       assertThatExceptionOfType(RestClientResponseException.class)
-          .isThrownBy(() -> inventory.post(status.value()));
+          .isThrownBy(() -> inventory.post(code));
     }
   }
 

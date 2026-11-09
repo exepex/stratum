@@ -232,7 +232,7 @@ The rules are fixed, and safe for any service:
 | A `502`, `503`, `504` or `429` answer | Only a `GET`, `HEAD`, `OPTIONS`, `PUT` or `DELETE`. |
 | No answer: a read timeout or a dropped connection | Only a `GET`, `HEAD`, `OPTIONS`, `PUT` or `DELETE`. |
 | The client's pool is full | Never: more calls would add to the load. |
-| A request body streamed from a `Resource` | Never: it cannot be sent twice. |
+| A request body streamed from a `Resource`, also as a multipart part | Never: it cannot be sent twice. |
 | Any other answer, such as `500` or `404` | Never. |
 
 `POST`, `PATCH` and any other method are sent again only when the connection could not be opened.

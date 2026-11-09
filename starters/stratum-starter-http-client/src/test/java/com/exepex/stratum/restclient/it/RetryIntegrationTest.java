@@ -143,8 +143,9 @@ class RetryIntegrationTest {
     @DisplayName(
         "each failed answer gives its connection back, so a pool of one serves every retry")
     void retriedAnswerReleasesConnection() {
+      var code = HttpStatus.BAD_GATEWAY.value();
       assertThatExceptionOfType(RestClientResponseException.class)
-          .isThrownBy(() -> inventory.get(HttpStatus.BAD_GATEWAY.value()));
+          .isThrownBy(() -> inventory.get(code));
       assertThat(requests()).hasSize(ALL_ATTEMPTS);
       assertThat(inventory.get(HttpStatus.OK.value()).getStatusCode()).isEqualTo(HttpStatus.OK);
     }
@@ -219,8 +220,9 @@ class RetryIntegrationTest {
     @Test
     @DisplayName("a decorator inside the retries sees every attempt")
     void innerDecoratorRunsOnEveryAttempt() {
+      var code = HttpStatus.SERVICE_UNAVAILABLE.value();
       assertThatExceptionOfType(RestClientResponseException.class)
-          .isThrownBy(() -> inventory.get(HttpStatus.SERVICE_UNAVAILABLE.value()));
+          .isThrownBy(() -> inventory.get(code));
       assertThat(DECORATED_ATTEMPTS).hasValue(ALL_ATTEMPTS);
     }
   }
