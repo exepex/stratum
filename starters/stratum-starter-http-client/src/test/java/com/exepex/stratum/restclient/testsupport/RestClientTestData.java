@@ -48,6 +48,12 @@ public class RestClientTestData {
   /** The prefix of the files client's own settings. */
   public static final String FILES_SETTINGS = HttpClientConstants.CLIENTS + "." + FILES;
 
+  /** A client set to mock: true, for the mock tests. */
+  public static final String PAYMENTS = "payments";
+
+  /** The prefix of the payments client's own settings. */
+  public static final String PAYMENTS_SETTINGS = HttpClientConstants.CLIENTS + "." + PAYMENTS;
+
   /** The prefix of the inventory client's own settings. */
   public static final String INVENTORY_SETTINGS = HttpClientConstants.CLIENTS + "." + INVENTORY;
 

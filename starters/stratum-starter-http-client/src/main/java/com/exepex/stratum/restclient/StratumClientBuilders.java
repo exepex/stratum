@@ -2,6 +2,7 @@ package com.exepex.stratum.restclient;
 
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.httpclient.HttpClientProperties;
+import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
@@ -10,8 +11,10 @@ import org.springframework.web.client.RestClient;
 
 /**
  * Sets up the builder of one Stratum client: its address, connection pool and credential from
- * {@code stratum.http-client.*}, then the service's {@link StratumClientCustomizer} beans. The one
- * place both the client interfaces and {@link StratumHttpClients#restClient} get their set-up from.
+ * {@code stratum.http-client.*}, then the service's {@link StratumClientCustomizer} beans. A client
+ * set to {@code mock: true} answers from {@link MockAnswers} instead of a pool, and sends no
+ * credential. The one place both the client interfaces and {@link StratumHttpClients#restClient}
+ * get their set-up from.
  */
 @StratumInternal
 @RequiredArgsConstructor
@@ -29,6 +32,9 @@ public class StratumClientBuilders {
   /** The service's changes to the clients' builders. */
   private final ObjectProvider<StratumClientCustomizer> customizers;
 
+  /** The answers of the clients set to {@code mock: true}. */
+  private final MockAnswers mockAnswers;
+
   /**
    * Sets one client's address, pool and credential, after the checks, then applies the customizers.
    *
@@ -40,12 +46,16 @@ public class StratumClientBuilders {
   public void configure(String client, RestClient.Builder builder) {
     StratumClientChecks.checkNoBootSettings(environment, client);
     var settings = properties.clientSettings(client);
-    builder
-        .baseUrl(StratumClientChecks.requireUrl(client, settings))
-        .requestFactory(pools.requestFactory(client, settings));
-    Optional.ofNullable(settings.auth())
-        .flatMap(ClientAuthInitializers::initializerFor)
-        .ifPresent(builder::requestInitializer);
+    builder.baseUrl(StratumClientChecks.requireUrl(client, settings));
+    if (Boolean.TRUE.equals(settings.mock())) {
+      builder.requestFactory(
+          new MockRequestFactory(client, Objects.requireNonNull(settings.timeout()), mockAnswers));
+    } else {
+      builder.requestFactory(pools.requestFactory(client, settings));
+      Optional.ofNullable(settings.auth())
+          .flatMap(ClientAuthInitializers::initializerFor)
+          .ifPresent(builder::requestInitializer);
+    }
     customizers.orderedStream().forEach(customizer -> customizer.customize(client, builder));
   }
 }
