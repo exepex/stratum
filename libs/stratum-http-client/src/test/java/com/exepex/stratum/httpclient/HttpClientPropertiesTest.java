@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.httpclient.testsupport.HttpClientTestData;
+import com.exepex.stratum.httpclient.testsupport.MockedInventorySettings;
 import com.exepex.stratum.httpclient.testsupport.SlowInventorySettings;
 import com.exepex.stratum.httpclient.testsupport.VendorKeySettings;
 import com.exepex.stratum.test.StarterTestSupport;
@@ -49,6 +50,7 @@ class HttpClientPropertiesTest {
                   .retryDelay(HttpClientConstants.DEFAULT_RETRY_DELAY)
                   .totalTimeout(HttpClientConstants.DEFAULT_TOTAL_TIMEOUT)
                   .circuitBreaker(true)
+                  .mock(false)
                   .build());
     }
   }
@@ -104,6 +106,7 @@ class HttpClientPropertiesTest {
           .isEqualTo(HttpClientTestData.FLAKY_RETRIES);
       assertThat(properties.clientSettings(HttpClientTestData.INVENTORY).circuitBreaker())
           .isFalse();
+      assertThat(properties.clientSettings(HttpClientTestData.INVENTORY).mock()).isTrue();
     }
 
     @Test
@@ -204,6 +207,23 @@ class HttpClientPropertiesTest {
       var settings = properties.clientSettings(HttpClientTestData.INVENTORY);
       assertThat(settings.auth()).isEqualTo(VendorKeySettings.AUTH);
       assertThat(settings.sslBundle()).isEqualTo(VendorKeySettings.SSL_BUNDLE);
+    }
+
+    @Test
+    @DisplayName("a customizer turns a client's mock on, and wins over the files")
+    void javaSetsMock(@TempDir Path folder) throws IOException {
+      var environment =
+          new MockEnvironment()
+              .withProperty(HttpClientTestData.INVENTORY_SETTINGS + ".mock", "false");
+
+      var properties =
+          StarterTestSupport.withCustomizers(
+              folder,
+              HttpClientPropertiesCustomizer.class,
+              List.of(MockedInventorySettings.class),
+              () -> HttpClientProperties.resolve(environment));
+
+      assertThat(properties.clientSettings(HttpClientTestData.INVENTORY).mock()).isTrue();
     }
   }
 

@@ -33,6 +33,7 @@ class ConfigurationMetadataTest {
           "retry-delay",
           "total-timeout",
           "circuit-breaker",
+          "mock",
           "interfaces",
           "ssl-bundle",
           "auth.api-key",

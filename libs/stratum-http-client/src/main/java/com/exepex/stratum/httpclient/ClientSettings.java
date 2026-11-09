@@ -44,6 +44,9 @@ import org.springframework.boot.context.properties.NestedConfigurationProperty;
  *     Defaults to 8s.
  * @param circuitBreaker Whether calls stop for a while, failing at once, after many of them fail.
  *     Defaults to true.
+ * @param mock Whether the client answers from files under stratum-mocks and from test scripts
+ *     instead of calling the other service, for a service that is not deployed yet and for tests.
+ *     Logs a warning at every startup. Defaults to false.
  * @param interfaces The full names of generated interfaces, such as com.partner.OrdersApi, that
  *     call this client's service with all of its settings, as an interface marked @StratumClient
  *     does. Only for a client; not allowed under defaults. Defaults to none.
@@ -64,6 +67,7 @@ public record ClientSettings(
     @Nullable Duration retryDelay,
     @Nullable Duration totalTimeout,
     @Nullable Boolean circuitBreaker,
+    @Nullable Boolean mock,
     List<String> interfaces) {
 
   /** Keeps the interfaces a fixed list, empty when none is named. */
@@ -85,6 +89,7 @@ public record ClientSettings(
           .totalTimeout(HttpClientConstants.DEFAULT_TOTAL_TIMEOUT)
           .circuitBreaker(true)
           .sharedPool(false)
+          .mock(false)
           .build();
 
   /**
@@ -109,6 +114,7 @@ public record ClientSettings(
         .retryDelay(either(retryDelay, fallback.retryDelay))
         .totalTimeout(either(totalTimeout, fallback.totalTimeout))
         .circuitBreaker(either(circuitBreaker, fallback.circuitBreaker))
+        .mock(either(mock, fallback.mock))
         .interfaces(interfaces.isEmpty() ? fallback.interfaces : interfaces)
         .build();
   }
