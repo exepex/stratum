@@ -17,6 +17,7 @@ import com.exepex.stratum.observability.testsupport.ObservabilityTestData;
 import com.exepex.stratum.observability.testsupport.RegionTagObservabilitySettings;
 import com.exepex.stratum.observability.testsupport.TracedProbesObservabilitySettings;
 import com.exepex.stratum.test.StarterTestSupport;
+import io.micrometer.common.KeyValue;
 import io.micrometer.context.ContextExecutorService;
 import io.micrometer.core.instrument.config.MeterFilterReply;
 import io.micrometer.observation.Observation;
@@ -145,6 +146,28 @@ class ObservabilityAutoConfigurationTest {
               .map(observation)
               .getLowCardinalityKeyValue(ObservabilityConstants.ERROR_CODE_TAG)
           != null;
+    }
+
+    @Test
+    @DisplayName("the URL filter masks only as much of a URL as Spring Boot's span limit keeps")
+    void urlFilterFollowsSpanLimit() {
+      contextRunner
+          .withPropertyValues(ObservabilityConstants.MAX_ATTRIBUTE_VALUE_LENGTH + "=42")
+          .run(
+              context ->
+                  assertThat(keptUrl(context, "https://partner.com/rates?currency=EUR&pg=1"))
+                      .isEqualTo("https://partner.com/rates?currency=EUR"));
+    }
+
+    /** Returns the URL that the context's filter keeps on a span. */
+    private String keptUrl(ApplicationContext context, String url) {
+      var observation = new Observation.Context();
+      observation.addHighCardinalityKeyValue(KeyValue.of(ObservabilityConstants.HTTP_URL, url));
+      return context
+          .getBean(TelemetryUrlFilter.class)
+          .map(observation)
+          .getHighCardinalityKeyValue(ObservabilityConstants.HTTP_URL)
+          .getValue();
     }
 
     @Test

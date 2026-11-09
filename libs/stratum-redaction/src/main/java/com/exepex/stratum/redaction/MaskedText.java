@@ -1,5 +1,6 @@
-package com.exepex.stratum.logging.redaction;
+package com.exepex.stratum.redaction;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -9,11 +10,12 @@ import lombok.Builder;
 import lombok.experimental.UtilityClass;
 
 /** The mask, and the text editing that every redaction rule shares. */
+@StratumInternal
 @UtilityClass
-class MaskedText {
+public class MaskedText {
 
   /** Replaces a masked value, or the part of it that is hidden. */
-  static final String MASK = "****";
+  public static final String MASK = "****";
 
   /** How many characters an identifier such as a card number keeps visible at its end. */
   private static final int VISIBLE_END_LENGTH = 4;
@@ -95,7 +97,7 @@ class MaskedText {
    * @param test the test each counted character passes
    * @return the number of characters
    */
-  static int countTrailing(String text, int from, int end, IntPredicate test) {
+  public static int countTrailing(String text, int from, int end, IntPredicate test) {
     return (int)
         IntStream.iterate(
                 end - 1,

@@ -1,10 +1,10 @@
-package com.exepex.stratum.logging.redaction;
+package com.exepex.stratum.redaction;
 
-import static com.exepex.stratum.logging.testsupport.LoggingTestData.DEFAULT_REDACTOR;
-import static com.exepex.stratum.logging.testsupport.LoggingTestData.EMAIL;
-import static com.exepex.stratum.logging.testsupport.LoggingTestData.IBAN;
-import static com.exepex.stratum.logging.testsupport.LoggingTestData.PHONE;
-import static com.exepex.stratum.logging.testsupport.LoggingTestData.redactUnnamedText;
+import static com.exepex.stratum.redaction.testsupport.RedactionTestData.EMAIL;
+import static com.exepex.stratum.redaction.testsupport.RedactionTestData.IBAN;
+import static com.exepex.stratum.redaction.testsupport.RedactionTestData.PHONE;
+import static com.exepex.stratum.redaction.testsupport.RedactionTestData.maskByName;
+import static com.exepex.stratum.redaction.testsupport.RedactionTestData.maskUnnamedText;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
@@ -46,14 +46,14 @@ class PersonalDataRedactionTest {
     @FieldSource("PERSONAL_DATA_FIELD_NAMES")
     @DisplayName("a name, birth date or address field is masked in full")
     void personalFieldIsMaskedInFull(String name) {
-      assertThat(DEFAULT_REDACTOR.redact(name, "Jane")).isEqualTo(MaskedText.MASK);
+      assertThat(maskByName(name, "Jane")).isEqualTo(MaskedText.MASK);
     }
 
     @ParameterizedTest(name = "{0}")
     @FieldSource("PERSONAL_IDENTIFIER_FIELD_NAMES")
     @DisplayName("an email, phone or IBAN field keeps only its last four characters")
     void identifierFieldKeepsLastFour(String name) {
-      assertThat(DEFAULT_REDACTOR.redact(name, "anything.com")).isEqualTo("****.com");
+      assertThat(maskByName(name, "anything.com")).isEqualTo("****.com");
     }
   }
 
@@ -64,23 +64,23 @@ class PersonalDataRedactionTest {
     @Test
     @DisplayName("an email address keeps only its last four characters")
     void emailIsMasked() {
-      assertThat(redactUnnamedText("sent to " + EMAIL)).isEqualTo("sent to ****.com");
+      assertThat(maskUnnamedText("sent to " + EMAIL)).isEqualTo("sent to ****.com");
     }
 
     @Test
     @DisplayName("a phone number is masked after its key, and kept with no key")
     void phoneIsMaskedOnlyByKey() {
-      assertThat(redactUnnamedText("phone=" + PHONE)).isEqualTo("phone=****0958");
-      assertThat(redactUnnamedText("call " + PHONE + " now")).isEqualTo("call " + PHONE + " now");
-      assertThat(redactUnnamedText("retry 2079460958")).isEqualTo("retry 2079460958");
+      assertThat(maskUnnamedText("phone=" + PHONE)).isEqualTo("phone=****0958");
+      assertThat(maskUnnamedText("call " + PHONE + " now")).isEqualTo("call " + PHONE + " now");
+      assertThat(maskUnnamedText("retry 2079460958")).isEqualTo("retry 2079460958");
     }
 
     @Test
     @DisplayName("a valid IBAN keeps only its last four characters, and the next words stay")
     void ibanIsMasked() {
-      assertThat(redactUnnamedText("refund GB82 WEST 1234 5698 7654 32 done"))
+      assertThat(maskUnnamedText("refund GB82 WEST 1234 5698 7654 32 done"))
           .isEqualTo("refund ****5432 done");
-      assertThat(redactUnnamedText("iban " + IBAN)).isEqualTo("iban ****5432");
+      assertThat(maskUnnamedText("iban " + IBAN)).isEqualTo("iban ****5432");
     }
 
     @Test
@@ -88,32 +88,31 @@ class PersonalDataRedactionTest {
     void adjacentIbansAreMasked() {
       var grouped = "GB82 WEST 1234 5698 7654 32";
 
-      assertThat(redactUnnamedText("refund " + grouped + " " + grouped))
+      assertThat(maskUnnamedText("refund " + grouped + " " + grouped))
           .isEqualTo("refund ****5432 ****5432");
     }
 
     @Test
     @DisplayName("an IBAN right after an IBAN-shaped word is masked")
     void ibanAfterIbanShapedWordIsMasked() {
-      assertThat(redactUnnamedText("ref DE12 DE89370400440532013000"))
-          .isEqualTo("ref DE12 ****3000");
-      assertThat(redactUnnamedText("AB12CD DE89 3704 0044 0532 0130 00"))
+      assertThat(maskUnnamedText("ref DE12 DE89370400440532013000")).isEqualTo("ref DE12 ****3000");
+      assertThat(maskUnnamedText("AB12CD DE89 3704 0044 0532 0130 00"))
           .isEqualTo("AB12CD ****3000");
-      assertThat(redactUnnamedText("ref US12 GB82 WEST 1234 5698 7654 32 done"))
+      assertThat(maskUnnamedText("ref US12 GB82 WEST 1234 5698 7654 32 done"))
           .isEqualTo("ref US12 ****5432 done");
     }
 
     @Test
     @DisplayName("an IBAN-shaped code that fails its checksum is kept")
     void invalidIbanIsKept() {
-      assertThat(redactUnnamedText("code GB00WEST12345698765432"))
+      assertThat(maskUnnamedText("code GB00WEST12345698765432"))
           .isEqualTo("code GB00WEST12345698765432");
     }
 
     @Test
     @DisplayName("a full name in a Lombok toString is masked, up to the next key")
     void lombokToStringNameIsMasked() {
-      assertThat(redactUnnamedText("Customer(id=7, fullName=Jane Q Doe, tier=GOLD)"))
+      assertThat(maskUnnamedText("Customer(id=7, fullName=Jane Q Doe, tier=GOLD)"))
           .isEqualTo("Customer(id=7, fullName=****, tier=GOLD)");
     }
 
@@ -121,7 +120,7 @@ class PersonalDataRedactionTest {
     @DisplayName("an ordinary message and an ID are kept")
     void ordinaryTextIsKept() {
       var message = "order 8f14e45f-ceea-467f-a0f9-8e6b0a5e2c4d placed at 10:15, total=42";
-      assertThat(redactUnnamedText(message)).isEqualTo(message);
+      assertThat(maskUnnamedText(message)).isEqualTo(message);
     }
   }
 }

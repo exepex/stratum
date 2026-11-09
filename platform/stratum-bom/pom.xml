@@ -41,6 +41,11 @@
       </dependency>
       <dependency>
         <groupId>com.exepex.stratum</groupId>
+        <artifactId>stratum-redaction</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.exepex.stratum</groupId>
         <artifactId>stratum-starter-batch</artifactId>
         <version>${project.version}</version>
       </dependency>

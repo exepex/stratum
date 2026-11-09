@@ -1,7 +1,7 @@
-package com.exepex.stratum.logging.redaction;
+package com.exepex.stratum.redaction;
 
-import static com.exepex.stratum.logging.testsupport.LoggingTestData.PASSWORD;
-import static com.exepex.stratum.logging.testsupport.LoggingTestData.redactUnnamedText;
+import static com.exepex.stratum.redaction.testsupport.RedactionTestData.PASSWORD;
+import static com.exepex.stratum.redaction.testsupport.RedactionTestData.maskUnnamedText;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
@@ -39,21 +39,21 @@ class UrlCredentialRedactionTest {
   @Test
   @DisplayName("a user name and password in a URL are masked")
   void urlCredentialsAreMasked() {
-    assertThat(redactUnnamedText("connecting to postgres://app:" + PASSWORD + "@db:5432/orders"))
+    assertThat(maskUnnamedText("connecting to postgres://app:" + PASSWORD + "@db:5432/orders"))
         .isEqualTo("connecting to postgres://****@db:5432/orders");
   }
 
   @Test
   @DisplayName("a password in a URL with no user name is masked")
   void urlPasswordWithoutUserIsMasked() {
-    assertThat(redactUnnamedText("connecting to redis://:" + PASSWORD + "@cache:6379/0"))
+    assertThat(maskUnnamedText("connecting to redis://:" + PASSWORD + "@cache:6379/0"))
         .isEqualTo("connecting to redis://****@cache:6379/0");
   }
 
   @Test
   @DisplayName("a URL password that holds a raw @ is masked up to the last @ before the host")
   void urlPasswordWithRawAtSignIsMasked() {
-    assertThat(redactUnnamedText("connecting to https://bob:p@ss@word@api.example.com/v1"))
+    assertThat(maskUnnamedText("connecting to https://bob:p@ss@word@api.example.com/v1"))
         .isEqualTo("connecting to https://****@api.example.com/v1");
   }
 
@@ -61,41 +61,41 @@ class UrlCredentialRedactionTest {
   @FieldSource("URLS_BEFORE_ANOTHER_SECRET")
   @DisplayName("an @ in a secret after the URL is not read as the end of the URL's password")
   void atSignAfterUrlIsKept(String line, String redactedLine) {
-    assertThat(redactUnnamedText(line)).isEqualTo(redactedLine);
+    assertThat(maskUnnamedText(line)).isEqualTo(redactedLine);
   }
 
   @ParameterizedTest
   @FieldSource("CHARACTERS_THAT_END_A_URL")
   @DisplayName("an @ after a character that ends the URL is not read as the end of its password")
   void atSignAfterEndOfUrlIsKept(String endOfUrl) {
-    assertThat(redactUnnamedText("https://u:p@host" + endOfUrl + "next@x"))
+    assertThat(maskUnnamedText("https://u:p@host" + endOfUrl + "next@x"))
         .isEqualTo("https://****@host" + endOfUrl + "next@x");
   }
 
   @Test
   @DisplayName("a URL password that holds a raw @ and = is masked with the rest of the line")
   void urlPasswordWithAtSignAndEqualsIsMasked() {
-    assertThat(redactUnnamedText("postgres://app:before@after=tail@db:5432/orders"))
+    assertThat(maskUnnamedText("postgres://app:before@after=tail@db:5432/orders"))
         .isEqualTo("postgres://****");
   }
 
   @Test
   @DisplayName("an @ in a URL's query is not read as the end of a password")
   void atSignInUrlQueryIsKept() {
-    assertThat(redactUnnamedText("https://alice:example@host?password=before@after"))
+    assertThat(maskUnnamedText("https://alice:example@host?password=before@after"))
         .isEqualTo("https://****@host?password=****");
   }
 
   @Test
   @DisplayName("an @ in a URL's fragment is not read as the end of a password")
   void atSignInUrlFragmentIsKept() {
-    assertThat(redactUnnamedText("https://u:p@ss@host#f@x")).isEqualTo("https://****@host#f@x");
+    assertThat(maskUnnamedText("https://u:p@ss@host#f@x")).isEqualTo("https://****@host#f@x");
   }
 
   @Test
   @DisplayName("an @ in a URL's path is not read as the end of a password")
   void atSignInUrlPathIsKept() {
-    assertThat(redactUnnamedText("see https://social.example:8443/@bob and https://a:x@h/@c"))
+    assertThat(maskUnnamedText("see https://social.example:8443/@bob and https://a:x@h/@c"))
         .isEqualTo("see https://social.example:8443/@bob and https://****@h/@c");
   }
 }

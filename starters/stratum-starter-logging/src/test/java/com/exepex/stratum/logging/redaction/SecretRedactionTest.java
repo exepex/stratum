@@ -8,6 +8,7 @@ import static com.exepex.stratum.logging.testsupport.LoggingTestData.redactUnnam
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.logging.testsupport.LoggingTestData;
+import com.exepex.stratum.redaction.MaskedText;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;

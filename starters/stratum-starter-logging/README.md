@@ -166,6 +166,10 @@ if anything in it is masked, it is written as a JSON string. It cannot be switch
 | IBANs in text | A valid IBAN (checksum checked) | `****5432` |
 | Your own keys and patterns | [`extra-keys` and `extra-patterns`](#properties) | `****` |
 
+The observability starter masks the query of each outgoing HTTP call's URL on its span with the
+same rules, except your own keys and patterns
+([URLs on spans](../../docs/modules/observability-traces.md#urls-on-spans-and-metrics)).
+
 A name is split into words at capitals, digits, `_`, `-` and `.`, and matches when one word, or a
 few words written together, is a listed word: `password`, `spring.datasource.password`,
 `PASSWORD`, `userPin` and `X-Api-Key` all match, while `shipping` and `passenger` do not. A name

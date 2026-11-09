@@ -114,16 +114,24 @@ The list applies to the propagators that Spring Boot's tracing and OpenTelemetry
 ## URLs on spans and metrics
 
 Spring records the full URL of every outgoing HTTP call on its span, and the URI template in the
-`uri` tag of the span and of the `http.client.requests` metrics. Stratum keeps the query string on
-the span, up to 1,024 characters ([span size](#span-size)), so you can see which values were sent,
-and changes two things:
+`uri` tag of the span and of the `http.client.requests` metrics. Stratum keeps the host, the path
+and the query string on the span, up to 1,024 characters ([span size](#span-size)), so you can see
+which values were sent, and changes three things:
 
 | Recorded by Spring | Kept on the span | Kept in the `uri` tag |
 | --- | --- | --- |
 | `https://partner.com/rates?currency=EUR&page=2` | `https://partner.com/rates?currency=EUR&page=2` | `/rates` |
+| `https://partner.com/rates?currency=EUR&api_key=abc123` | `https://partner.com/rates?currency=EUR&api_key=****` | `/rates` |
 | `https://user:secret@partner.com:8443/rates` | `https://partner.com:8443/rates` | `/rates` |
 
 - **User info is removed** from the span's URL, because it is a password.
+- **Query values are masked** with the same built-in rules as log lines
+  ([logging redaction](../../starters/stratum-starter-logging/README.md#redaction)): a value is masked
+  by its key, such as `api_key` or `email`, or by its shape, such as a card number or an email
+  address. The host and the path are never masked. Your own `extra-keys` and `extra-patterns` mask
+  logs only, not span URLs ([#254](https://github.com/exepex/stratum/issues/254)). A URL longer than
+  the span keeps (`management.opentelemetry.tracing.limits.max-attribute-value-length`) keeps the
+  query's whole parameters that fit, and leaves out the rest, so no part of a value is kept unmasked.
 - **The `uri` tag loses its query**, on spans and metrics, because each distinct value would create
   a new time series and can overload the metrics backend.
 
@@ -134,8 +142,8 @@ way Spring makes HTTP client spans and metrics.
 
 > [!WARNING]
 > Never put a secret or personal data, such as a token, an IBAN or a card number, in a URL's path
-> or query string. Trace backends store the URL as it is, and so do proxies and access logs on the
-> way. Send such values in a header or the request body. When a call fails, Spring's error message
+> or query string. Masking on spans is a safety net: it finds only the names and shapes it knows,
+> never looks at the path, and proxies and access logs on the way store the URL as it is. Send such values in a header or the request body. When a call fails, Spring's error message
 > also names the URL with its user info, such as
 > `I/O error on GET request for "https://user:secret@partner.com/rates"`. Exported spans do not carry that
 > message ([errors on spans](#errors-on-spans)), but your logs do if your code logs the exception.

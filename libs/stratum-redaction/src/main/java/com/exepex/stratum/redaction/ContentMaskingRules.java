@@ -1,6 +1,7 @@
-package com.exepex.stratum.logging.redaction;
+package com.exepex.stratum.redaction;
 
-import com.exepex.stratum.logging.redaction.MaskedText.Replacement;
+import com.exepex.stratum.core.api.StratumInternal;
+import com.exepex.stratum.redaction.MaskedText.Replacement;
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -18,8 +19,9 @@ import org.springframework.util.StringUtils;
  * be confirmed are masked: a secret after its label or in its own shape, and a card number, IBAN or
  * email address that passes its check, so that ordinary numbers stay readable.
  */
+@StratumInternal
 @UtilityClass
-class ContentMaskingRules {
+public class ContentMaskingRules {
 
   // The patterns that can match long runs start a run, through a lookbehind, and match
   // possessively, so that matching stays linear on long hostile text.
@@ -73,7 +75,7 @@ class ContentMaskingRules {
    * @param fieldNames the names whose values a key-value pair masks
    * @return a function that applies every built-in rule in turn
    */
-  static UnaryOperator<String> builtInRules(SensitiveFieldNames fieldNames) {
+  public static UnaryOperator<String> builtInRules(SensitiveFieldNames fieldNames) {
     var keyValuePairMasker = new KeyValuePairMasker(fieldNames);
     return Stream.of(
             guardedRule(
@@ -96,11 +98,11 @@ class ContentMaskingRules {
   /**
    * Returns the service's own patterns as one rule, each match masked in full.
    *
-   * @param extraPatterns the service's patterns from {@code
-   *     stratum.logging.redaction.extra-patterns}
+   * @param extraPatterns the service's own patterns, such as the logging starter's {@code
+   *     extra-patterns}
    * @return a function that applies every pattern in turn
    */
-  static UnaryOperator<String> serviceRules(List<Pattern> extraPatterns) {
+  public static UnaryOperator<String> serviceRules(List<Pattern> extraPatterns) {
     return extraPatterns.stream()
         .map(pattern -> maskingMatches(pattern, match -> MaskedText.MASK))
         .reduce(UnaryOperator.identity(), ContentMaskingRules::earlierThenLater);

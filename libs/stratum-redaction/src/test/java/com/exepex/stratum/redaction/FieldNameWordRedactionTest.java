@@ -1,10 +1,9 @@
-package com.exepex.stratum.logging.redaction;
+package com.exepex.stratum.redaction;
 
-import static com.exepex.stratum.logging.testsupport.LoggingTestData.DEFAULT_REDACTOR;
-import static com.exepex.stratum.logging.testsupport.LoggingTestData.redactUnnamedText;
+import static com.exepex.stratum.redaction.testsupport.RedactionTestData.maskByName;
+import static com.exepex.stratum.redaction.testsupport.RedactionTestData.maskUnnamedText;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.exepex.stratum.logging.testsupport.LoggingTestData;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -75,41 +74,41 @@ class FieldNameWordRedactionTest {
     @FieldSource("MASKED_IN_FULL_NAMES")
     @DisplayName("is masked in full")
     void wordIsMaskedInFull(String name) {
-      assertThat(DEFAULT_REDACTOR.redact(name, VALUE)).isEqualTo(MaskedText.MASK);
+      assertThat(maskByName(name, VALUE)).isEqualTo(MaskedText.MASK);
     }
 
     @ParameterizedTest
     @FieldSource("KEEPING_LAST_FOUR_NAMES")
     @DisplayName("keeps its last four characters")
     void wordKeepsLastFour(String name) {
-      assertThat(DEFAULT_REDACTOR.redact(name, VALUE)).isEqualTo("****7890");
+      assertThat(maskByName(name, VALUE)).isEqualTo("****7890");
     }
 
     @ParameterizedTest
     @FieldSource("ORDINARY_NAMES")
     @DisplayName("is not found in a word that only contains its letters")
     void ordinaryNameIsKept(String name) {
-      assertThat(DEFAULT_REDACTOR.redact(name, VALUE)).isEqualTo(VALUE);
+      assertThat(maskByName(name, VALUE)).isEqualTo(VALUE);
     }
 
     @Test
     @DisplayName("a word masked in full wins over one that keeps its last four")
     void maskedInFullWins() {
-      assertThat(DEFAULT_REDACTOR.redact("cardSecret", VALUE)).isEqualTo(MaskedText.MASK);
-      assertThat(DEFAULT_REDACTOR.redact("emailToken", VALUE)).isEqualTo(MaskedText.MASK);
+      assertThat(maskByName("cardSecret", VALUE)).isEqualTo(MaskedText.MASK);
+      assertThat(maskByName("emailToken", VALUE)).isEqualTo(MaskedText.MASK);
     }
 
     @Test
     @DisplayName("a long secret word is still found inside a word")
     void longSecretWordIsFoundInsideWord() {
-      assertThat(DEFAULT_REDACTOR.redact("dbpassword", VALUE)).isEqualTo(MaskedText.MASK);
-      assertThat(DEFAULT_REDACTOR.redact("JSESSIONID", VALUE)).isEqualTo(MaskedText.MASK);
+      assertThat(maskByName("dbpassword", VALUE)).isEqualTo(MaskedText.MASK);
+      assertThat(maskByName("JSESSIONID", VALUE)).isEqualTo(MaskedText.MASK);
     }
 
     @Test
     @DisplayName("a key in text is matched by its words too")
     void keyInTextIsMatchedByWords() {
-      assertThat(redactUnnamedText("login dbPwd=abc userPin=1234 shipping=fast"))
+      assertThat(maskUnnamedText("login dbPwd=abc userPin=1234 shipping=fast"))
           .isEqualTo("login dbPwd=**** userPin=**** shipping=fast");
     }
   }
@@ -121,19 +120,19 @@ class FieldNameWordRedactionTest {
     @Test
     @DisplayName("a list header in any case keeps every value masked to the end of the line")
     void listHeaderInAnyCaseIsMaskedToLineEnd() {
-      assertThat(redactUnnamedText("cOoKiE: a=alpha; b=bravo")).isEqualTo("cOoKiE: ****");
-      assertThat(redactUnnamedText("sEt-cOoKiE: a=alpha; b=bravo")).isEqualTo("sEt-cOoKiE: ****");
-      assertThat(redactUnnamedText("setcookie: a=alpha; b=bravo")).isEqualTo("setcookie: ****");
-      assertThat(redactUnnamedText("proxyauthorization: Basic a; b"))
+      assertThat(maskUnnamedText("cOoKiE: a=alpha; b=bravo")).isEqualTo("cOoKiE: ****");
+      assertThat(maskUnnamedText("sEt-cOoKiE: a=alpha; b=bravo")).isEqualTo("sEt-cOoKiE: ****");
+      assertThat(maskUnnamedText("setcookie: a=alpha; b=bravo")).isEqualTo("setcookie: ****");
+      assertThat(maskUnnamedText("proxyauthorization: Basic a; b"))
           .isEqualTo("proxyauthorization: ****");
     }
 
     @Test
     @DisplayName("a sensitive name in mixed case is still masked")
     void nameInMixedCaseIsMasked() {
-      assertThat(DEFAULT_REDACTOR.redact("dAtEoFbIrTh", VALUE)).isEqualTo(MaskedText.MASK);
-      assertThat(DEFAULT_REDACTOR.redact("cVv", VALUE)).isEqualTo(MaskedText.MASK);
-      assertThat(redactUnnamedText("dAtEoFbIrTh=1990-01-01")).isEqualTo("dAtEoFbIrTh=****");
+      assertThat(maskByName("dAtEoFbIrTh", VALUE)).isEqualTo(MaskedText.MASK);
+      assertThat(maskByName("cVv", VALUE)).isEqualTo(MaskedText.MASK);
+      assertThat(maskUnnamedText("dAtEoFbIrTh=1990-01-01")).isEqualTo("dAtEoFbIrTh=****");
     }
   }
 
@@ -159,13 +158,13 @@ class FieldNameWordRedactionTest {
     @FieldSource("ABOUT_NAMES")
     @DisplayName("is not masked")
     void aboutNameIsKept(String name) {
-      assertThat(DEFAULT_REDACTOR.redact(name, VALUE)).isEqualTo(VALUE);
+      assertThat(maskByName(name, VALUE)).isEqualTo(VALUE);
     }
 
     @Test
     @DisplayName("is still masked when the describing word is not the last")
     void aboutWordInsideIsMasked() {
-      assertThat(DEFAULT_REDACTOR.redact("tokenCountSecret", VALUE)).isEqualTo(MaskedText.MASK);
+      assertThat(maskByName("tokenCountSecret", VALUE)).isEqualTo(MaskedText.MASK);
     }
   }
 
@@ -173,24 +172,24 @@ class FieldNameWordRedactionTest {
   @DisplayName("the service's own extra keys")
   class ExtraKeys {
 
-    private final Redactor redactor =
-        Redactor.from(LoggingTestData.withRedaction(List.of("lockerCode"), List.of()).build());
+    /** Names with the service's own {@code lockerCode}. */
+    private final SensitiveFieldNames withLockerCode =
+        new SensitiveFieldNames(List.of("lockerCode"));
 
     @Test
     @DisplayName("match the whole name only, without case, _ or -")
     void extraKeyMatchesWholeName() {
-      assertThat(redactor.redact("locker_code", VALUE)).isEqualTo(MaskedText.MASK);
-      assertThat(redactor.redact("LOCKER-CODE", VALUE)).isEqualTo(MaskedText.MASK);
-      assertThat(redactor.redact("myLockerCode", VALUE)).isEqualTo(VALUE);
+      assertThat(maskByName(withLockerCode, "locker_code", VALUE)).isEqualTo(MaskedText.MASK);
+      assertThat(maskByName(withLockerCode, "LOCKER-CODE", VALUE)).isEqualTo(MaskedText.MASK);
+      assertThat(maskByName(withLockerCode, "myLockerCode", VALUE)).isEqualTo(VALUE);
     }
 
     @Test
     @DisplayName("are masked even when their last word describes the value")
     void extraKeyIgnoresAboutWords() {
-      var countRedactor =
-          Redactor.from(LoggingTestData.withRedaction(List.of("visitCount"), List.of()).build());
+      var withVisitCount = new SensitiveFieldNames(List.of("visitCount"));
 
-      assertThat(countRedactor.redact("visitCount", VALUE)).isEqualTo(MaskedText.MASK);
+      assertThat(maskByName(withVisitCount, "visitCount", VALUE)).isEqualTo(MaskedText.MASK);
     }
   }
 }
