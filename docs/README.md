@@ -66,7 +66,7 @@ Each module page follows the same layout so you always know where to look:
 | Observability known gaps, and which backends (OTLP HTTP and gRPC, Prometheus, Zipkin) are tested | [observability-known-gaps.md](modules/observability-known-gaps.md) |
 | Security (resource server, JWT) | [security.md](modules/security.md) |
 | OAuth2 client (the service's own tokens for the HTTP client) | [oauth2-client.md](modules/oauth2-client.md) |
-| HTTP client | [http-client.md](modules/http-client.md), [auth and mTLS](modules/http-client-auth.md), [errors](modules/http-client-errors.md), [mocked clients](modules/http-client-mocks.md) |
+| HTTP client | [http-client.md](modules/http-client.md), [auth and mTLS](modules/http-client-auth.md), [errors](modules/http-client-errors.md), [mocked clients](modules/http-client-mocks.md), [retries and the circuit breaker](modules/http-client-resilience.md) |
 | Resilience | [resilience.md](modules/resilience.md) |
 | Data (JPA, connection pool, transactions) | [data-jpa.md](modules/data-jpa.md) |
 | Cache | [cache.md](modules/cache.md) |
@@ -111,6 +111,7 @@ Each module page follows the same layout so you always know where to look:
 | [ADR 0010: Modules on when present, and one compatibility switch](adr/0010-modules-on-when-present-and-one-compatibility-switch.md) | Replaces parts of ADR 0003, 0006 and 0008, and brings back a step of ADR 0001: every module is on when its starter is on the classpath, a service turns one off with `stratum.<module>.enabled=false`, and one `stratum.backward-compatible` switch in `stratum-core`, `false` by default, protects only external contracts. Both decisions are built: decision 1 in item 2a, decision 2 in item 2b. |
 | [ADR 0011: HTTP client starters on Spring HTTP interfaces, with one Stratum block per client](adr/0011-http-client-starters.md) | Each client is a `@StratumClient` interface with its own `stratum.http-client.clients.<name>` block and its own pool; Resilience4j is the only retry layer, with fixed retry and breaker rules; safe defaults (8s total, 2s pool wait, 5-minute connection lifetime); token relay fails closed. Changes ST-ENG-34, ST-SEC-03 and ST-ENG-51. The blocking starter's base is built; the rest is planned. |
 | [ADR 0012: Changes to the HTTP client starters found while building them](adr/0012-http-client-changes-found-while-building.md) | Replaces three parts of ADR 0011: the key is `interfaces`, a list; `MockClient` lives in the HTTP client starter; and `stratumHttpClients.restClient(name)` sends each call once, with retry from a `resilience(name)` wrapper. |
+| [ADR 0013: Retry and circuit breaker keys for the HTTP client starters](adr/0013-http-client-retry-and-circuit-breaker-keys.md) | Replaces the `retries`, `retry-delay` and `circuit-breaker` keys of ADR 0011 with the `retry` and `circuit-breaker` groups, named as in Spring and Resilience4j, under `defaults` and each client; what is retried and counted stays fixed. |
 
 ## Contributing
 

@@ -79,6 +79,18 @@ class ClientResilienceTest {
           .slowCallRateThreshold(SLOW_CALL_RATE)
           .build();
 
+  /** Today's first wait before a retry, written out so that a changed default fails. */
+  private static final Duration TODAYS_DELAY = Duration.ofMillis(200);
+
+  /** Today's growth of each wait: it doubles. */
+  private static final double TODAYS_MULTIPLIER = 2.0;
+
+  /** Today's longest wait. */
+  private static final Duration TODAYS_LONGEST_WAIT = Duration.ofSeconds(2);
+
+  /** Today's attempts of a call: the first and 3 retries. */
+  private static final int TODAYS_ATTEMPTS = 4;
+
   /** A window of two attempts, below the least number of calls Stratum asks for. */
   private static final int SMALL_WINDOW = 2;
 
@@ -100,13 +112,9 @@ class ClientResilienceTest {
 
       assertBreakerRules(
           breakerOf(resilience).getCircuitBreakerConfig(), CircuitBreakerConfig.ofDefaults());
-      assertThat(retryConfigOf(resilience).getMaxAttempts())
-          .isEqualTo(HttpClientConstants.DEFAULT_RETRIES + 1);
+      assertThat(retryConfigOf(resilience).getMaxAttempts()).isEqualTo(TODAYS_ATTEMPTS);
       BackOffChecks.assertExponentialWaits(
-          backOffOf(resilience),
-          HttpClientConstants.DEFAULT_RETRY_DELAY,
-          HttpClientConstants.DEFAULT_MULTIPLIER,
-          HttpClientConstants.MAX_RETRY_DELAY);
+          backOffOf(resilience), TODAYS_DELAY, TODAYS_MULTIPLIER, TODAYS_LONGEST_WAIT);
     }
   }
 

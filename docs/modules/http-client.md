@@ -7,7 +7,8 @@ one exception per failure ([errors](http-client-errors.md)). Headers, the call l
 planned ([Planned](#planned)).
 
 [← Documentation home](../README.md) · Property prefix: `stratum.http-client` ·
-Design: [ADR 0011](../adr/0011-http-client-starters.md), [ADR 0012](../adr/0012-http-client-changes-found-while-building.md)
+Design: [ADR 0011](../adr/0011-http-client-starters.md), [ADR 0012](../adr/0012-http-client-changes-found-while-building.md),
+[ADR 0013](../adr/0013-http-client-retry-and-circuit-breaker-keys.md)
 
 ## What it does
 
@@ -111,7 +112,7 @@ in proxy and server logs that Stratum does not control. Send it in the request b
 | --- | --- |
 | Timeouts | A connection must open within `connect-timeout` (2s). The first byte of an answer, and each byte after it, must come within `timeout` (5s). A slow answer whose bytes keep coming is not cut off; a limit on the whole call comes with the planned `total-timeout`. |
 | A pool per client | At most `max-connections` (50) connections. A call that finds them all busy waits at most `max-wait` (2s), then fails. A slow service fills only its own client's pool. |
-| Safe retries | A call is sent again only when that is safe ([Retries and the circuit breaker](#retries-and-the-circuit-breaker)). Apache HttpClient 5's own retries are off. |
+| Safe retries | A call is sent again only when that is safe ([retries and the circuit breaker](http-client-resilience.md)). Apache HttpClient 5's own retries are off. |
 | A time limit per call | The whole call, retries and waits included, ends within `total-timeout` (8s). |
 | A circuit breaker | When most recent calls fail, the client stops calling the service for a while and fails at once. |
 | Clear errors | A timeout ends with `SX-HTTPC-0001` (`504`), no answer with `SX-HTTPC-0002` (`503`), an open breaker with `SX-HTTPC-0003` (`503`), and an error answer with a `DownstreamException` holding at most 64 KB of its body ([errors](http-client-errors.md)). |
@@ -139,10 +140,20 @@ the shared default, which wins over Stratum's.
 | `max-wait` | duration | `2s` | no such key | How long a call waits for a free connection before it fails. |
 | `idle-timeout` | duration | `30s` | no such key | How long a connection may stay unused before it is closed. |
 | `connection-lifetime` | duration | `5m` | no such key | How old a connection may get before it is closed instead of used again. |
-| `retries` | int | `3` | no such key | How many times a failed call may be sent again, from 0 to 9. `0` sends each call once. |
-| `retry-delay` | duration | `200ms` | no such key | The wait before the first retry. Each later wait doubles, spread at random by up to half, and is at most 2s, or `retry-delay` when that is longer. |
+| `retry.max-retries` | int | `3` | no such key | How many times a failed call may be sent again, from 0 to 9. `0` sends each call once ([retries and the circuit breaker](http-client-resilience.md)). |
+| `retry.backoff-policy` | `exponential` or `fixed` | `exponential` | no such key | `exponential`: each wait is `multiplier` times the last. `fixed`: every wait is `delay`. Each wait is spread at random by up to half. |
+| `retry.delay` | duration | `200ms` | no such key | The wait before the first retry. |
+| `retry.multiplier` | number | `2.0` | no such key | How much each wait grows, from 1.0 to 10.0. Only with `exponential`. |
+| `retry.max-delay` | duration | `2s`, or `delay` when longer | no such key | The longest single wait, at least `delay`. Only with `exponential`. |
 | `total-timeout` | duration | `8s` | no such key | The time allowed for a whole call: every attempt, its wait for a connection and the waits between attempts. |
-| `circuit-breaker` | boolean | `true` | no such key | Whether the client has a circuit breaker. |
+| `circuit-breaker.enabled` | boolean | `true` | no such key | Whether the client has a circuit breaker. |
+| `circuit-breaker.failure-rate-threshold` | percent | `50` | no such key | The share of counted attempts, from 1 to 100, that must fail for the breaker to open. |
+| `circuit-breaker.sliding-window-size` | int | `100` | no such key | How many of the latest attempts the failure rate is taken over, from 1 to 10000. |
+| `circuit-breaker.minimum-number-of-calls` | int | `100` | no such key | How many attempts the breaker must see before it may open, from 1 to 10000. |
+| `circuit-breaker.wait-duration-in-open-state` | duration | `60s` | no such key | How long every call fails at once, without being sent, while the breaker is open. |
+| `circuit-breaker.permitted-number-of-calls-in-half-open-state` | int | `10` | no such key | How many trial calls go through after the open state, from 1 to 1000. |
+| `circuit-breaker.slow-call-duration-threshold` | duration | unset | no such key | How long an attempt may take before it counts as slow. Setting it turns the slow-call rule on. |
+| `circuit-breaker.slow-call-rate-threshold` | percent | unset; `100` with the duration | no such key | The share of slow attempts, from 1 to 100, that opens the breaker. Only with `slow-call-duration-threshold`. |
 | `shared-pool` | boolean | `false` | no such key | With `true`, the client uses one pool shared by every client that sets it, instead of its own. That pool takes its size, connect timeout, idle timeout and lifetime from `defaults`; the client keeps its own `timeout` and `max-wait`. |
 | `interfaces` | list of interface names | none | no such key | Generated interfaces, by full name such as `com.partner.OrdersApi`, that call this client's service with all its settings, as a `@StratumClient` interface does ([Clients Stratum did not build](#clients-stratum-did-not-build)). Not allowed under `defaults`. |
 | `mock` | boolean | `false` | no such key | Whether the client answers from files under `stratum-mocks` and from test scripts instead of calling its service, for a service not deployed yet and for tests. Logs a `WARN` at every startup ([Mocked clients](http-client-mocks.md)). |
@@ -156,7 +167,8 @@ the shared default, which wins over Stratum's.
 | `spring.http.clients.imperative.factory` | `http-components`, `jetty`, `reactor`, `jdk` or `simple` | `jdk` | unset: detects the engine, Apache HttpClient 5 first | The engine of the RestClients Stratum did not build. Stratum's own clients always use Apache HttpClient 5 ([Clients Stratum did not build](#clients-stratum-did-not-build)). |
 
 Every duration must be above 0, and `auth` holds exactly one kind. A setting that breaks a rule stops startup with
-`SX-CORE-1003`, naming the rule, never the value.
+`SX-CORE-1003`, naming the rule, never the value; the rules of `retry` and `circuit-breaker` are listed on
+[retries and the circuit breaker](http-client-resilience.md#startup-errors).
 
 Spring Boot's own settings of an HTTP service group, `spring.http.serviceclient.<name>.*`, do not apply to a Stratum
 client: Stratum builds its client. Setting one for a Stratum client's name stops startup with `SX-HTTPC-1001`, naming
@@ -193,8 +205,8 @@ A payments service whose calls must never be sent twice, with a breaker of its o
 reports service's whole call:
 
 ```properties
-stratum.http-client.clients.payments.retries=0
-stratum.http-client.clients.payments.circuit-breaker=false
+stratum.http-client.clients.payments.retry.max-retries=0
+stratum.http-client.clients.payments.circuit-breaker.enabled=false
 stratum.http-client.clients.reports.total-timeout=30s
 ```
 
@@ -203,8 +215,10 @@ stratum:
   http-client:
     clients:
       payments:
-        retries: 0
-        circuit-breaker: false
+        retry:
+          max-retries: 0
+        circuit-breaker:
+          enabled: false
       reports:
         total-timeout: 30s
 ```
@@ -229,65 +243,8 @@ stratum:
 ## Retries and the circuit breaker
 
 Every call of a client's interface runs through the client's retries, and each attempt through its circuit breaker.
-The rules are fixed, and safe for any service:
-
-| A failed attempt | Sent again? |
-| --- | --- |
-| The connection could not be opened (refused, connect timeout, unknown host) | Yes, for every method: nothing was sent. |
-| A `502`, `503`, `504` or `429` answer | Only a `GET`, `HEAD`, `OPTIONS`, `PUT` or `DELETE`. |
-| No answer, or a body cut off: a read timeout or a dropped connection | Only a `GET`, `HEAD`, `OPTIONS`, `PUT` or `DELETE`. |
-| The client's pool is full | Never: more calls would add to the load. |
-| A request body streamed from a `Resource`, also as a multipart part | Never: it cannot be sent twice. |
-| Any other answer, such as `500` or `404` | Never. |
-
-`POST`, `PATCH` and any other method are sent again only when the connection could not be opened.
-
-A `503` or `429` with a `Retry-After` of whole seconds or an HTTP date waits that long instead of the back-off. A wait
-set in `customizeRetry` replaces both and is checked against `total-timeout` the same way. A call is sent again only while the wait still leaves at least 100ms before `total-timeout`; otherwise the last answer
-or failure is the call's result. Each attempt's connection wait, connect timeout and `timeout` are cut to the time
-left. A method that returns an `InputStream`, a streamed download, is the exception: no new attempt starts after
-`total-timeout`, but each attempt keeps its full `timeout`, the longest gap between bytes, so a long download is
-never cut off. Its headers may therefore arrive up to `timeout` after `total-timeout`, and reading the stream is
-bounded only by `timeout` between bytes.
-
-The circuit breaker counts an attempt with no answer, a full pool included, an answer whose body was cut off, and an
-answer of `5xx` or `429`. Other `4xx` answers mean the service is up, so they never count. With Resilience4j's defaults, it opens once at least 100
-calls were seen and half of the last 100 failed. Then for 60 seconds every call fails at once, without being sent, with
-`SX-HTTPC-0003`, which answers `503` ([errors](http-client-errors.md)). After that, 10 trial
-calls decide whether it closes. Each change of its state is logged once at `WARN`, such as `The circuit breaker of
-HTTP client inventory went from CLOSED to OPEN`.
-
-A service with stricter needs changes the rules of one client in its `StratumClientCustomizer`, through Resilience4j's
-builders. Stratum's rules are already set on them:
-
-```java
-@Bean
-StratumClientCustomizer paymentsResilience() {
-  return new StratumClientCustomizer() {
-    @Override
-    public void customize(String client, RestClient.Builder builder) {
-      // The client itself stays as Stratum sets it.
-    }
-
-    @Override
-    public void customizeRetry(String client, RetryConfig.Builder<ClientAttempt> retry) {
-      if ("payments".equals(client)) {
-        retry.maxAttempts(1);
-      }
-    }
-
-    @Override
-    public void customizeCircuitBreaker(String client, CircuitBreakerConfig.Builder breaker) {
-      if ("payments".equals(client)) {
-        breaker.slidingWindowSize(20).minimumNumberOfCalls(20);
-      }
-    }
-  };
-}
-```
-
-A rule given to `retry.retryOnResult` decides on each `ClientAttempt`: its method, its failure, the time left and
-the next wait.
+Which calls are retried, what the breaker counts, both groups of keys with full examples in YAML, properties and Java,
+and the rules the keys cannot express are on [HTTP client: retries and the circuit breaker](http-client-resilience.md).
 
 ## Configure in Java
 

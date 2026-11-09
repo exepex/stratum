@@ -30,6 +30,9 @@ class ResilienceSettingsTest {
   /** The end of a setting that turns the slow-call rule on at 2s, after a breaker's prefix. */
   private static final String SLOW_CALL_OF_2S = ".slow-call-duration-threshold=2s";
 
+  /** The end of a setting of a slow-call rate of 50%, after a breaker's prefix. */
+  private static final String SLOW_CALL_RATE_OF_50 = ".slow-call-rate-threshold=50";
+
   /** The rule every duration breaks when it is 0 or less. */
   private static final String DURATIONS_POSITIVE = "durations-positive";
 
@@ -55,7 +58,7 @@ class ResilienceSettingsTest {
               HttpClientTestData.INVENTORY_BREAKER
                   + ".permitted-number-of-calls-in-half-open-state=3",
               HttpClientTestData.INVENTORY_BREAKER + SLOW_CALL_OF_2S,
-              HttpClientTestData.INVENTORY_BREAKER + ".slow-call-rate-threshold=50");
+              HttpClientTestData.INVENTORY_BREAKER + SLOW_CALL_RATE_OF_50);
 
       var settings =
           HttpClientProperties.resolve(environment).clientSettings(HttpClientTestData.INVENTORY);
@@ -96,6 +99,21 @@ class ResilienceSettingsTest {
           .isThrownBy(() -> HttpClientProperties.resolve(environment))
           .withMessageContaining("'" + key + "'")
           .withMessageNotContaining("linear");
+    }
+
+    @Test
+    @DisplayName("the old retries and retry-delay are ignored, as any unknown key is")
+    void oldRetryKeysIgnored() {
+      var environment =
+          SettingsChecks.environmentOf(
+              HttpClientTestData.INVENTORY_SETTINGS + ".retries=0",
+              HttpClientTestData.INVENTORY_SETTINGS + ".retry-delay=5s");
+
+      assertThat(
+              HttpClientProperties.resolve(environment)
+                  .clientSettings(HttpClientTestData.INVENTORY)
+                  .retry())
+          .isEqualTo(HttpClientTestData.STRATUM_RETRY);
     }
 
     @Test
@@ -265,12 +283,12 @@ class ResilienceSettingsTest {
             argumentSet(
                 "a slow-call rate without its duration",
                 "slow-call-rate-with-duration",
-                List.of(HttpClientTestData.INVENTORY_BREAKER + ".slow-call-rate-threshold=50")),
+                List.of(HttpClientTestData.INVENTORY_BREAKER + SLOW_CALL_RATE_OF_50)),
             argumentSet(
                 "a shared slow-call rate, with the duration only in one client",
                 "slow-call-rate-with-duration",
                 List.of(
-                    HttpClientTestData.DEFAULTS_BREAKER + ".slow-call-rate-threshold=50",
+                    HttpClientTestData.DEFAULTS_BREAKER + SLOW_CALL_RATE_OF_50,
                     HttpClientTestData.INVENTORY_BREAKER + SLOW_CALL_OF_2S)));
 
     @ParameterizedTest
@@ -321,6 +339,11 @@ class ResilienceSettingsTest {
                     HttpClientTestData.DEFAULTS_RETRY + MAX_DELAY_OF_1S,
                     HttpClientTestData.INVENTORY_RETRY + ".backoff-policy=fixed",
                     HttpClientTestData.INVENTORY_RETRY + ".delay=2s")),
+            argumentSet(
+                "a client's slow-call rate with the shared duration",
+                List.of(
+                    HttpClientTestData.DEFAULTS_BREAKER + SLOW_CALL_OF_2S,
+                    HttpClientTestData.INVENTORY_BREAKER + SLOW_CALL_RATE_OF_50)),
             argumentSet(
                 "minimum-number-of-calls above sliding-window-size",
                 List.of(
