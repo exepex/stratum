@@ -185,11 +185,14 @@ public class MockAnswers {
     }
   }
 
-  /** Clears every script and recorded call, and ends the delays waiting now. */
+  /**
+   * Clears every script and recorded call, and ends the delays waiting now. A client a test asked
+   * for keeps recording, so a mock held across a reset still sees the next calls.
+   */
   void reset() {
     resetSignal.getAndSet(new CountDownLatch(1)).countDown();
     scripts.clear();
-    records.clear();
+    records.values().forEach(List::clear);
   }
 
   /** Returns the 501 of a call with no script and no file, naming the file to add. */

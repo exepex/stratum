@@ -15,6 +15,9 @@ class MockAnswersTest {
   /** The method recorded. */
   private static final String METHOD = "payment";
 
+  /** The argument of each recorded call. */
+  private static final String PAYMENT_ID = "p-1";
+
   /** The answers under test, with no JSON mapper bean. */
   private final MockAnswers answers =
       new MockAnswers(new StaticListableBeanFactory().getBeanProvider(JsonMapper.class));
@@ -22,7 +25,7 @@ class MockAnswersTest {
   @Test
   @DisplayName("records nothing before a test asks for the client, as a demo app never does")
   void nothingRecordedBeforeAsked() {
-    answers.addCall(RestClientTestData.PAYMENTS, METHOD, "p-1");
+    answers.addCall(RestClientTestData.PAYMENTS, METHOD, PAYMENT_ID);
 
     assertThat(answers.calls(RestClientTestData.PAYMENTS, METHOD)).isEmpty();
   }
@@ -31,9 +34,29 @@ class MockAnswersTest {
   @DisplayName("records each call once a test asked for the client")
   void recordedAfterAsked() {
     answers.startRecording(RestClientTestData.PAYMENTS);
-    answers.addCall(RestClientTestData.PAYMENTS, METHOD, "p-1");
+    answers.addCall(RestClientTestData.PAYMENTS, METHOD, PAYMENT_ID);
 
     assertThat(answers.calls(RestClientTestData.PAYMENTS, METHOD))
-        .containsExactly(new RecordedCall(METHOD, List.of("p-1")));
+        .containsExactly(new RecordedCall(METHOD, List.of(PAYMENT_ID)));
+  }
+
+  @Test
+  @DisplayName("a reset clears the calls, and a client a test asked for keeps recording")
+  void keepsRecordingAfterReset() {
+    answers.startRecording(RestClientTestData.PAYMENTS);
+    answers.addCall(RestClientTestData.PAYMENTS, METHOD, PAYMENT_ID);
+
+    answers.reset();
+    answers.addCall(RestClientTestData.PAYMENTS, METHOD, "p-2");
+
+    assertThat(answers.calls(RestClientTestData.PAYMENTS, METHOD))
+        .containsExactly(new RecordedCall(METHOD, List.of("p-2")));
+  }
+
+  @Test
+  @DisplayName("a recorded call's text never shows its arguments, which may hold personal data")
+  void textHidesArguments() {
+    assertThat(new RecordedCall(METHOD, List.of("person@example.invalid")))
+        .hasToString("RecordedCall[method=payment, 1 arguments hidden]");
   }
 }
