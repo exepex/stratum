@@ -153,6 +153,18 @@ class TelemetryUrlFilterTest {
             Arguments.of(
                 "https://partner.com/rates?token=a;b)c]d", "https://partner.com/rates?token=****"),
             Arguments.of(
+                "https://partner.com/rates?password=left?right&page=2",
+                "https://partner.com/rates?password=****&page=2"),
+            Arguments.of(
+                "https://partner.com/users?to=jane.doe%40example.com",
+                "https://partner.com/users?to=****.com"),
+            Arguments.of(
+                "https://partner.com/rates?%70assword=left",
+                "https://partner.com/rates?%70assword=****"),
+            Arguments.of(
+                "https://partner.com/find?q=caf%C3%A9%20au%20lait&rate=100%zz",
+                "https://partner.com/find?q=caf%C3%A9%20au%20lait&rate=100%zz"),
+            Arguments.of(
                 "https://partner.com/users?email=jane.doe@example.com",
                 "https://partner.com/users?email=****.com"));
 
