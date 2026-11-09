@@ -140,7 +140,7 @@ public class ClientResilience implements ClientExchangeDecorator {
                         deadlineNanos,
                         streamedDownload,
                         () -> remember(lastResult, guards.protect(exchange))));
-    lastAttempt.failure().ifPresent(this::rethrow);
+    lastAttempt.getFailure().ifPresent(this::rethrow);
     return lastResult.get();
   }
 
@@ -164,7 +164,7 @@ public class ClientResilience implements ClientExchangeDecorator {
     }
     return template.toBuilder()
         .result(result)
-        .failure(Optional.ofNullable(failure))
+        .failure(failure)
         .timeLeft(Duration.ofNanos(Math.max(0, deadlineNanos - System.nanoTime())))
         .nextWait(RetryRules.nextWait(failure, attemptNumber, guards.backOff(), clock.instant()))
         .build();
@@ -236,7 +236,7 @@ public class ClientResilience implements ClientExchangeDecorator {
    */
   private long waitMillis(
       int attempts, Either<Throwable, ClientAttempt> outcome, IntervalFunction backOff) {
-    return outcome.isRight() ? outcome.get().nextWait().toMillis() : backOff.apply(attempts);
+    return outcome.isRight() ? outcome.get().getNextWait().toMillis() : backOff.apply(attempts);
   }
 
   /** Logs a change of a breaker's state once, such as from closed to open. */

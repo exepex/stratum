@@ -15,6 +15,7 @@ import com.exepex.stratum.restclient.testsupport.clients.PricingClient;
 import io.github.resilience4j.retry.RetryConfig;
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -56,36 +57,47 @@ class ClientCustomizerIntegrationTest {
     RestClientTestData.pointClientsAt(registry, DOWNSTREAM);
   }
 
-  @Test
-  @DisplayName("a customizer that moves the inventory client under /reports leaves pricing as set")
-  void onlyNamedClientChanged() {
-    inventoryClient.stock();
-    pricingClient.price();
+  @Nested
+  @DisplayName("customize: the client's RestClient")
+  class RestClientChanges {
 
-    assertThat(DOWNSTREAM.paths())
-        .endsWith(REPORTS + ScriptedDownstream.STOCK, ScriptedDownstream.STOCK);
+    @Test
+    @DisplayName(
+        "a customizer that moves the inventory client under /reports leaves pricing as set")
+    void onlyNamedClientChanged() {
+      inventoryClient.stock();
+      pricingClient.price();
+
+      assertThat(DOWNSTREAM.paths())
+          .endsWith(REPORTS + ScriptedDownstream.STOCK, ScriptedDownstream.STOCK);
+    }
+
+    @Test
+    @DisplayName("the customizer also changes the client's RestClient from stratumHttpClients")
+    void restClientOfClientCustomized() {
+      stratumHttpClients
+          .restClient(RestClientTestData.INVENTORY)
+          .get()
+          .uri(ScriptedDownstream.STOCK)
+          .retrieve()
+          .toBodilessEntity();
+
+      assertThat(DOWNSTREAM.paths()).endsWith(REPORTS + ScriptedDownstream.STOCK);
+    }
   }
 
-  @Test
-  @DisplayName("the customizer also changes the client's RestClient from stratumHttpClients")
-  void restClientOfClientCustomized() {
-    stratumHttpClients
-        .restClient(RestClientTestData.INVENTORY)
-        .get()
-        .uri(ScriptedDownstream.STOCK)
-        .retrieve()
-        .toBodilessEntity();
+  @Nested
+  @DisplayName("customizeRetry: the client's retry rules")
+  class RetryChanges {
 
-    assertThat(DOWNSTREAM.paths()).endsWith(REPORTS + ScriptedDownstream.STOCK);
-  }
-
-  @Test
-  @DisplayName("a customizer that stops pricing's retries leaves inventory's as set")
-  void retryRulesOfNamedClientChanged() {
-    assertThat(resilience.retry(RestClientTestData.PRICING).getRetryConfig().getMaxAttempts())
-        .isEqualTo(1);
-    assertThat(resilience.retry(RestClientTestData.INVENTORY).getRetryConfig().getMaxAttempts())
-        .isEqualTo(HttpClientConstants.DEFAULT_RETRIES + 1);
+    @Test
+    @DisplayName("a customizer that stops pricing's retries leaves inventory's as set")
+    void retryRulesOfNamedClientChanged() {
+      assertThat(resilience.retry(RestClientTestData.PRICING).getRetryConfig().getMaxAttempts())
+          .isEqualTo(1);
+      assertThat(resilience.retry(RestClientTestData.INVENTORY).getRetryConfig().getMaxAttempts())
+          .isEqualTo(HttpClientConstants.DEFAULT_RETRIES + 1);
+    }
   }
 
   /** The service's customizer: it moves only the inventory client and stops pricing's retries. */

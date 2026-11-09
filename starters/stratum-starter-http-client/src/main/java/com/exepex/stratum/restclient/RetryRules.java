@@ -71,9 +71,9 @@ public class RetryRules {
   public static boolean shouldRetry(ClientAttempt attempt) {
     return isRetryable(attempt)
         && attempt
-                .nextWait()
+                .getNextWait()
                 .plus(HttpClientConstants.MIN_ATTEMPT_TIME)
-                .compareTo(attempt.timeLeft())
+                .compareTo(attempt.getTimeLeft())
             <= 0;
   }
 
@@ -86,14 +86,15 @@ public class RetryRules {
    * @return whether the rules allow another attempt
    */
   static boolean isRetryable(ClientAttempt attempt) {
-    if (attempt.streamedBody()) {
+    if (attempt.isStreamedBody()) {
       return false;
     }
-    return switch (attempt.failure().orElse(null)) {
+    return switch (attempt.getFailure().orElse(null)) {
       case RestClientResponseException answer ->
-          IDEMPOTENT.contains(attempt.method())
+          IDEMPOTENT.contains(attempt.getMethod())
               && RETRIED_STATUSES.contains(answer.getStatusCode().value());
-      case ResourceAccessException noAnswer -> isRetryableWithoutAnswer(attempt.method(), noAnswer);
+      case ResourceAccessException noAnswer ->
+          isRetryableWithoutAnswer(attempt.getMethod(), noAnswer);
       case null, default -> false;
     };
   }

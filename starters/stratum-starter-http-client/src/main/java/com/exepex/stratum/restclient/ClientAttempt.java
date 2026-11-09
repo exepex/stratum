@@ -1,46 +1,52 @@
 package com.exepex.stratum.restclient;
 
 import java.time.Duration;
-import java.util.Objects;
 import java.util.Optional;
+import lombok.AccessLevel;
 import lombok.Builder;
+import lombok.Getter;
+import lombok.Value;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpMethod;
 
 /**
  * One attempt of a call by a Stratum client, as its retry rules see it. A service's {@link
  * StratumClientCustomizer#customizeRetry} can decide on it with its own rules.
- *
- * @param method the call's HTTP method
- * @param result what the attempt returned, or {@code null} when it failed or returns nothing
- * @param failure why the attempt failed, or empty when it did not: Spring's {@code
- *     RestClientResponseException} for an error answer, such as a 503, or {@code
- *     ResourceAccessException} when no answer came, such as after a timeout
- * @param streamedBody whether the request's body is streamed, which is never sent twice
- * @param timeLeft the time left before the call's {@code total-timeout} when the attempt ended
- * @param nextWait the wait before the next attempt, if there is one: the answer's {@code
- *     Retry-After}, or else the growing back-off from {@code retry-delay}
  */
+@Value
 @Builder(toBuilder = true)
-public record ClientAttempt(
-    HttpMethod method,
-    @Nullable Object result,
-    Optional<RuntimeException> failure,
-    boolean streamedBody,
-    Duration timeLeft,
-    Duration nextWait) {
+public class ClientAttempt {
+
+  /** The call's HTTP method. */
+  HttpMethod method;
+
+  /** What the attempt returned, or {@code null} when it failed or returns nothing. */
+  @Nullable Object result;
+
+  /** Why the attempt failed, or {@code null} when it did not; read through {@link #getFailure}. */
+  @Getter(AccessLevel.NONE)
+  @Nullable RuntimeException failure;
+
+  /** Whether the request's body is streamed, which is never sent twice. */
+  boolean streamedBody;
+
+  /** The time left before the call's {@code total-timeout} when the attempt ended. */
+  Duration timeLeft;
 
   /**
-   * Makes the attempt, with no failure when none is given.
-   *
-   * @param method the call's HTTP method
-   * @param result what the attempt returned
-   * @param failure why the attempt failed
-   * @param streamedBody whether the request's body is streamed
-   * @param timeLeft the time left before the call's {@code total-timeout}
-   * @param nextWait the wait before the next attempt
+   * The wait before the next attempt, if there is one: the answer's {@code Retry-After}, or else
+   * the growing back-off from {@code retry-delay}.
    */
-  public ClientAttempt {
-    failure = Objects.requireNonNullElse(failure, Optional.empty());
+  Duration nextWait;
+
+  /**
+   * Returns why the attempt failed: Spring's {@code RestClientResponseException} for an error
+   * answer, such as a 503, or {@code ResourceAccessException} when no answer came, such as after a
+   * timeout.
+   *
+   * @return the failure, or empty when the attempt did not fail
+   */
+  public Optional<RuntimeException> getFailure() {
+    return Optional.ofNullable(failure);
   }
 }

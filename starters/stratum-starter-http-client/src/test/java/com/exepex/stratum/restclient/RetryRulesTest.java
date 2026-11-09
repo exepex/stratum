@@ -18,7 +18,6 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import org.apache.hc.client5.http.ConnectTimeoutException;
 import org.apache.hc.core5.http.ConnectionRequestTimeoutException;
 import org.jspecify.annotations.Nullable;
@@ -328,7 +327,7 @@ class RetryRulesTest {
   private ClientAttempt attempt(HttpMethod method, @Nullable RuntimeException failure) {
     return ClientAttempt.builder()
         .method(method)
-        .failure(Optional.ofNullable(failure))
+        .failure(failure)
         .timeLeft(PLENTY)
         .nextWait(Duration.ZERO)
         .build();
