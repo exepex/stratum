@@ -69,4 +69,22 @@ record MockAnswer(
   MockAnswer withDelay(Duration time) {
     return toBuilder().delay(time).build();
   }
+
+  /**
+   * Returns the answer's text without its body, which may hold personal data (ST-SEC-03).
+   *
+   * @return the text
+   */
+  @Override
+  public String toString() {
+    return "MockAnswer[status="
+        + status
+        + ", contentType="
+        + contentType
+        + ", "
+        + body.length()
+        + " body characters hidden, delay="
+        + delay
+        + "]";
+  }
 }
