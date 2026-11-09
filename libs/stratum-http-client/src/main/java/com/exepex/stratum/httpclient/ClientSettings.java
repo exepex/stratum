@@ -16,8 +16,9 @@ import org.springframework.boot.context.properties.NestedConfigurationProperty;
  * @param url The address of the other service, such as http://inventory:8080. Required for each
  *     client; not allowed under defaults.
  * @param connectTimeout The time allowed to open a connection, such as 2s. Defaults to 2s.
- * @param timeout The time allowed for the answer to one call, such as 5s or 20s for a slow report.
- *     Defaults to 5s.
+ * @param timeout The longest wait for the first byte of an answer and between two of its bytes,
+ *     such as 5s or 20s for a slow report. A slow answer whose bytes keep coming takes as long as
+ *     it needs. Defaults to 5s.
  * @param maxConnections The most connections the client keeps open at once, from 1 to 10000. A call
  *     that finds them all busy waits for one. Defaults to 50.
  * @param maxWait How long a call waits for a free connection before it fails, such as 2s or 500ms.

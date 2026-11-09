@@ -108,7 +108,7 @@ in proxy and server logs that Stratum does not control. Send it in the request b
 
 | What | Behaviour |
 | --- | --- |
-| Timeouts | A connection must open within `connect-timeout` (2s) and the answer to each call must come within `timeout` (5s). |
+| Timeouts | A connection must open within `connect-timeout` (2s). The first byte of an answer, and each byte after it, must come within `timeout` (5s). A slow answer whose bytes keep coming is not cut off; a limit on the whole call comes with the planned `total-timeout`. |
 | A pool per client | At most `max-connections` (50) connections. A call that finds them all busy waits at most `max-wait` (2s), then fails. A slow service fills only its own client's pool. |
 | No silent resends | Apache HttpClient 5's own retries are off, so a call is never sent twice behind your back. Retries come with the planned resilience settings. |
 | No redirects | A `3xx` answer is returned as it is and never followed. |
@@ -130,7 +130,7 @@ the shared default, which wins over Stratum's.
 | `stratum.http-client.enabled` | boolean | `true` | no such key | Whether the starter is on. With `false`, it sets up nothing. |
 | `url` | URL | **required** per client | no such key | The address of the other service, such as `http://inventory:8080`. Not allowed under `defaults`, since each client calls its own service. |
 | `connect-timeout` | duration | `2s` | no such key | The time allowed to open a connection. |
-| `timeout` | duration | `5s` | no such key | The time allowed for the answer to one call. |
+| `timeout` | duration | `5s` | no such key | The longest wait for the first byte of an answer and between two of its bytes. It does not limit the whole call. |
 | `max-connections` | int | `50` | no such key | The most connections the client keeps open at once, from 1 to 10000. |
 | `max-wait` | duration | `2s` | no such key | How long a call waits for a free connection before it fails. |
 | `idle-timeout` | duration | `30s` | no such key | How long a connection may stay unused before it is closed. |
@@ -250,6 +250,41 @@ To change how Stratum builds a client, declare a `StratumClientCustomizer`, as a
 your own replaces Stratum's ([Clients Stratum did not build](#clients-stratum-did-not-build)). Stratum's other beans
 for the clients are internal: their types may change in any release, so they are not a way to customize.
 
+## Streaming
+
+A client streams a download when its method returns `InputStream` or `ResponseEntity<InputStream>`. The method
+returns once the answer's headers arrive, and the body comes in as you read it. Every other return type, `byte[]` and
+`Resource` included, reads the whole body into memory first. `ResponseEntity<InputStreamResource>` is not supported
+by Spring as a return type.
+
+A client streams an upload when its `@RequestBody` is a `StreamingHttpOutputMessage.Body` or an `InputStreamResource`.
+The body is sent in chunks as it is written, never held in memory.
+
+```java
+@StratumClient("documents")
+public interface DocumentsClient {
+
+  @GetExchange("/reports/{id}")
+  InputStream report(@PathVariable String id);
+
+  @PostExchange("/archive")
+  void archive(@RequestBody StreamingHttpOutputMessage.Body document);
+}
+
+try (InputStream report = documents.report("2026-q3")) {
+  report.transferTo(file);
+}
+documents.archive(out -> Files.copy(path, out));
+```
+
+Close every download, as `try-with-resources` does above. An open download holds one of the client's connections until
+it is closed; when all of them are held, the next call fails after `max-wait`. Closing a download before its end reads
+the rest of it first, so that the connection can be used again: the thread and the connection stay busy until the
+download ends, and a pause in it longer than `timeout` ends the close with `SocketTimeoutException`.
+
+`timeout` is the longest wait for the next byte, not for the whole download, so a large file that keeps arriving is
+read in full. A download that stops for longer than `timeout` fails with `SocketTimeoutException` as you read it.
+
 ## Clients Stratum did not build
 
 Stratum never changes a client it did not build. A `RestClient` you build from Spring Boot's `RestClient.Builder`,
@@ -350,7 +385,7 @@ These parts of [ADR 0011](../adr/0011-http-client-starters.md) are not built yet
 - `headers` and `copy-headers`;
 - error mapping to `DownstreamException` and the `SX-HTTPC-0001` to `0004` codes;
 - one log line per call and the pool metrics;
-- streaming uploads and downloads, `mock: true` and `urls`;
+- `mock: true` and `urls`;
 - `stratumHttpClients.resilience(name)`, the retry and circuit breaker for a call through a client Stratum did not
   build;
 - `ClientInterceptor` and `GlobalClientInterceptor`;

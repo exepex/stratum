@@ -42,6 +42,12 @@ public class RestClientTestData {
   /** The key of the first generated interface of the partner client. */
   public static final String PARTNER_INTERFACE = PARTNER_SETTINGS + ".interfaces[0]";
 
+  /** A client that moves files, for the streaming tests. */
+  public static final String FILES = "files";
+
+  /** The prefix of the files client's own settings. */
+  public static final String FILES_SETTINGS = HttpClientConstants.CLIENTS + "." + FILES;
+
   /** The prefix of the inventory client's own settings. */
   public static final String INVENTORY_SETTINGS = HttpClientConstants.CLIENTS + "." + INVENTORY;
 
