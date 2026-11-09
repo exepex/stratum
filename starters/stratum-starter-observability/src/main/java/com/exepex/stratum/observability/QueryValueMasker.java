@@ -81,7 +81,7 @@ final class QueryValueMasker {
     }
     try {
       return UriUtils.decode(text, StandardCharsets.UTF_8);
-    } catch (IllegalArgumentException brokenEscape) {
+    } catch (IllegalArgumentException _) {
       return text;
     }
   }

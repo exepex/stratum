@@ -53,21 +53,43 @@ class TelemetryUrlFilterSpeedTest {
   private static final String SHORT_PAIR = "a=b&";
 
   /**
-   * CPU time cleaning a URL whose 1MB query is one long run of digits, scanned for card numbers.
+   * CPU time cleaning a URL whose 1MB query is one long run of digits, scanned for card numbers: 5
+   * times M, where M = 10539.600 µs is the largest best value of 3 CI runs with coverage on
+   * (10539.600 µs, 6568.018 µs, 8800.230 µs), CI runs 42651017565, 42652376396 and 42654113844 on
+   * JDK 25, 2026-11-09.
    */
-  private static final Duration DIGIT_QUERY_LIMIT = Duration.of(1, ChronoUnit.SECONDS);
+  private static final Duration DIGIT_QUERY_LIMIT = Duration.of(52_698_000, ChronoUnit.NANOS);
 
-  /** CPU time cleaning a URL whose 1MB query is a chain of short key-value pairs. */
-  private static final Duration PAIR_CHAIN_QUERY_LIMIT = Duration.of(1, ChronoUnit.SECONDS);
+  /**
+   * CPU time cleaning a URL whose 1MB query is a chain of short key-value pairs: 5 times M, where M
+   * = 36640.779 µs is the largest best value of 3 CI runs with coverage on (27978.306 µs, 27392.549
+   * µs, 36640.779 µs), CI runs 42651017565, 42652376396 and 42654113844 on JDK 25, 2026-11-09.
+   */
+  private static final Duration PAIR_CHAIN_QUERY_LIMIT = Duration.of(183_203_894, ChronoUnit.NANOS);
 
-  /** CPU time cleaning a URL whose 1MB query is full of {@code @}, scanned for email addresses. */
-  private static final Duration AT_SIGN_QUERY_LIMIT = Duration.of(1, ChronoUnit.SECONDS);
+  /**
+   * CPU time cleaning a URL whose 1MB query is full of {@code @}, scanned for email addresses: 5
+   * times M, where M = 8822.231 µs is the largest best value of 3 CI runs with coverage on
+   * (6685.276 µs, 6595.251 µs, 8822.231 µs), CI runs 42651017565, 42652376396 and 42654113844 on
+   * JDK 25, 2026-11-09.
+   */
+  private static final Duration AT_SIGN_QUERY_LIMIT = Duration.of(44_111_158, ChronoUnit.NANOS);
 
-  /** CPU time cleaning a URL whose 1MB query is a sensitive value with an opening quote only. */
-  private static final Duration UNCLOSED_QUOTE_QUERY_LIMIT = Duration.of(1, ChronoUnit.SECONDS);
+  /**
+   * CPU time cleaning a URL whose 1MB query is a sensitive value with an opening quote only: 5
+   * times M, where M = 9175.352 µs is the largest best value of 3 CI runs with coverage on
+   * (6791.263 µs, 6629.146 µs, 9175.352 µs), CI runs 42651017565, 42652376396 and 42654113844 on
+   * JDK 25, 2026-11-09.
+   */
+  private static final Duration UNCLOSED_QUOTE_QUERY_LIMIT =
+      Duration.of(45_876_761, ChronoUnit.NANOS);
 
-  /** CPU time cleaning a URL whose 1MB query starts like a JSON Web Token. */
-  private static final Duration TOKEN_QUERY_LIMIT = Duration.of(1, ChronoUnit.SECONDS);
+  /**
+   * CPU time cleaning a URL whose 1MB query starts like a JSON Web Token: 5 times M, where M =
+   * 14656.899 µs is the largest best value of 3 CI runs with coverage on (6620.153 µs, 6539.756 µs,
+   * 14656.899 µs), CI runs 42651017565, 42652376396 and 42654113844 on JDK 25, 2026-11-09.
+   */
+  private static final Duration TOKEN_QUERY_LIMIT = Duration.of(73_284_497, ChronoUnit.NANOS);
 
   /**
    * URLs with a 1MB path, query or user info, each with its URI template and the CPU time cleaning
