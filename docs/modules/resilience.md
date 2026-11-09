@@ -14,8 +14,9 @@ failing dependency slows one feature down instead of taking the whole service wi
 | **Bulkhead** | One slow dependency uses up all threads | Limit how many calls to it can run at once |
 | **Time limit** | An operation takes far too long | Give up after a fixed time |
 
-You define these as **policies** with a name in configuration and apply a policy by name: to an HTTP
-client in properties, or to any method with an annotation. The implementation uses
+You define these as **policies** with a name in configuration and apply a policy by name to any
+method with an annotation. HTTP clients have their own retries and circuit breaker
+([ADR 0011](../adr/0011-http-client-starters.md)). The implementation uses
 [Resilience4j](https://resilience4j.readme.io/), with Stratum's defaults and metrics.
 
 ```mermaid

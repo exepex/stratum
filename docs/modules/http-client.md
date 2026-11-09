@@ -94,7 +94,7 @@ Inject `InventoryClient` anywhere and call its methods like any Java object.
 | Tokens | Client credentials or token relay, per client (see [OAuth2 client](oauth2-client.md)) |
 | Error mapping | `4xx` and `5xx` answers become typed exceptions; timeouts and connection failures become `DownstreamUnavailableException`, which the web starter turns into `503`/`504` |
 | Logging | One `DEBUG` line per call (method, URL without query, status, duration); bodies never logged unless you ask |
-| Resilience | Retry and circuit breaker per client when `stratum-starter-resilience` is present |
+| Resilience | Retry and circuit breaker per client, built into this starter ([ADR 0011](../adr/0011-http-client-starters.md)) |
 | Connection pooling | Pooled, bounded connections per client |
 
 ### Errors your code can catch

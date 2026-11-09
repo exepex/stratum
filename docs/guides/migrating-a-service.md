@@ -84,8 +84,8 @@ Check: your security tests pass, and health probes still answer without a token.
 
 ## Step 6: HTTP clients
 
-Add `stratum-starter-http-client` (and `stratum-starter-oauth2-client`, `stratum-starter-resilience`
-if you need them). For each downstream service:
+Add `stratum-starter-http-client` (and `stratum-starter-oauth2-client` if you need it); it brings its
+own retries and circuit breaker. For each downstream service:
 
 1. Turn the hand-written client class into an interface with `@GetExchange`, `@PostExchange`, ...
 2. Register it with `@ImportHttpServices(group = "<name>", ...)`.

@@ -170,20 +170,16 @@ stratum:
     resource-server:
       issuer-uri: https://idp.acme.com/realms/acme
       audiences: [order-service]
-  http-client:
+  http-client:                   # planned keys (ADR 0011)
     clients:
       inventory:
-        base-url: http://inventory-service
-        token-relay: true
+        url: http://inventory-service
+        auth:
+          token-relay: true
       payments:
-        base-url: http://payments-service
-        read-timeout: 10s
-        resilience-policy: payments
-  resilience:
-    policies:
-      payments:
-        retry:
-          enabled: false
+        url: http://payments-service
+        timeout: 10s
+        retries: 0
 ```
 
 ```properties
@@ -199,10 +195,10 @@ management.opentelemetry.tracing.export.otlp.endpoint=http://otel-collector:4318
 stratum.environment=prod
 stratum.security.resource-server.issuer-uri=https://idp.acme.com/realms/acme
 stratum.security.resource-server.audiences=order-service
-stratum.http-client.clients.inventory.base-url=http://inventory-service
-stratum.http-client.clients.inventory.token-relay=true
-stratum.http-client.clients.payments.base-url=http://payments-service
-stratum.http-client.clients.payments.read-timeout=10s
-stratum.http-client.clients.payments.resilience-policy=payments
-stratum.resilience.policies.payments.retry.enabled=false
+# Planned HTTP client keys (ADR 0011)
+stratum.http-client.clients.inventory.url=http://inventory-service
+stratum.http-client.clients.inventory.auth.token-relay=true
+stratum.http-client.clients.payments.url=http://payments-service
+stratum.http-client.clients.payments.timeout=10s
+stratum.http-client.clients.payments.retries=0
 ```
