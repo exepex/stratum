@@ -1,7 +1,9 @@
 package com.exepex.stratum.restclient;
 
 import java.lang.reflect.Method;
+import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.springframework.core.MethodParameter;
@@ -24,22 +26,29 @@ final class MockCallProcessor implements HttpRequestValues.Processor {
   /** The answers and calls of every mocked client. */
   private final MockAnswers answers;
 
+  /** Each method's call mark, worked out once, so a call does no reflection (ST-ENG-54). */
+  private final Map<Method, MockCall> calls = new ConcurrentHashMap<>();
+
   @Override
   public void process(
       Method method,
       MethodParameter[] parameters,
       @Nullable Object[] arguments,
       HttpRequestValues.Builder values) {
-    values.addAttribute(
-        MockAnswers.METHOD_ATTRIBUTE, new MockCall(method.getName(), readsNoBody(method)));
+    values.addAttribute(MockAnswers.METHOD_ATTRIBUTE, calls.computeIfAbsent(method, this::markOf));
     answers.addCall(client, method.getName(), Objects.requireNonNullElse(arguments, new Object[0]));
+  }
+
+  /** Returns the call mark of a method: its name, and whether it reads no body. */
+  private MockCall markOf(Method method) {
+    return new MockCall(method.getName(), readsNoBody(method));
   }
 
   /**
    * Returns whether a method's return type reads no body: {@code void}, {@code HttpHeaders} or
    * {@code ResponseEntity<Void>}.
    */
-  private boolean readsNoBody(Method method) {
+  private static boolean readsNoBody(Method method) {
     var type = ResolvableType.forMethodReturnType(method);
     var returned = type.resolve(Object.class);
     if (returned == ResponseEntity.class) {
