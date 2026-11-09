@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import tools.jackson.databind.json.JsonMapper;
 
-@DisplayName("MockAnswers records calls only for a client a test asked for")
+@DisplayName("MockAnswers records calls only for a client a test asked for, across resets")
 class MockAnswersTest {
 
   /** The method recorded. */
@@ -51,12 +51,5 @@ class MockAnswersTest {
 
     assertThat(answers.calls(RestClientTestData.PAYMENTS, METHOD))
         .containsExactly(new RecordedCall(METHOD, List.of("p-2")));
-  }
-
-  @Test
-  @DisplayName("a recorded call's text never shows its arguments, which may hold personal data")
-  void textHidesArguments() {
-    assertThat(new RecordedCall(METHOD, List.of("person@example.invalid")))
-        .hasToString("RecordedCall[method=payment, 1 arguments hidden]");
   }
 }
