@@ -78,7 +78,7 @@ When a property is renamed, the old name keeps working for at least one minor re
 Stratum logs:
 
 ```text
-WARN  Property 'stratum.http-client.timeout' is deprecated; use 'stratum.http-client.defaults.read-timeout' instead.
+WARN  Property 'stratum.http-client.read-timeout' is deprecated; use 'stratum.http-client.defaults.timeout' instead.
 ```
 
 Your IDE also marks deprecated keys in `application.yml` and `application.properties`, using the

@@ -29,7 +29,7 @@ Every default is a property. Find it on the module page or in the
 stratum:
   http-client:
     defaults:
-      read-timeout: 10s
+      timeout: 10s
   logging:
     redaction:
       extra-keys:
@@ -38,7 +38,7 @@ stratum:
 ```
 
 ```properties
-stratum.http-client.defaults.read-timeout=10s
+stratum.http-client.defaults.timeout=10s
 stratum.logging.redaction.extra-keys=iban,date-of-birth
 ```
 

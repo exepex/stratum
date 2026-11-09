@@ -119,16 +119,16 @@ stratum:
   http-client:
     clients:
       inventory:
-        base-url: http://localhost:8081
-        read-timeout: 2s
+        url: http://localhost:8081
+        timeout: 2s
 ```
 
 The same in `src/main/resources/application.properties` (use one file, not both):
 
 ```properties
 spring.application.name=order-service
-stratum.http-client.clients.inventory.base-url=http://localhost:8081
-stratum.http-client.clients.inventory.read-timeout=2s
+stratum.http-client.clients.inventory.url=http://localhost:8081
+stratum.http-client.clients.inventory.timeout=2s
 ```
 
 The observability module also needs your OpenTelemetry Collector's addresses, in
@@ -238,7 +238,7 @@ class OutOfStockException extends RuntimeException {
 | `OutOfStockException` returns `409` as Problem Details JSON | `stratum-starter-webmvc` error handling |
 | Every log line written inside a traced operation carries `traceId`, `spanId` and `correlationId` | `stratum-starter-observability`, written as JSON by `stratum-starter-logging` |
 | The call to inventory carries the trace and correlation headers | `stratum-starter-http-client` |
-| The call to inventory times out after 2 s instead of hanging | Your `read-timeout` plus Stratum's connect timeout |
+| The call to inventory times out after 2 s instead of hanging | Your `timeout` plus Stratum's connect timeout |
 | `http.server.requests` and `http.client.requests` metrics | `stratum-starter-observability` |
 
 ## Step 6: run it
