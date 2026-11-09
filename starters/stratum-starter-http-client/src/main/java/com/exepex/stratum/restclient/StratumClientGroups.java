@@ -7,14 +7,18 @@ import com.exepex.stratum.httpclient.StratumClient;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.support.RestClientHttpServiceGroupConfigurer;
+import org.springframework.web.service.invoker.HttpExchangeAdapter;
+import org.springframework.web.service.invoker.HttpServiceProxyFactory;
 import org.springframework.web.service.registry.HttpServiceGroup;
 
 /**
- * Sets up the HTTP service group of each Stratum client through {@link StratumClientBuilders}.
- * Groups that are not a Stratum client's, such as a service's own, are left as Spring Boot set them
- * up. Runs at startup, when Spring builds the clients.
+ * Sets up the HTTP service group of each Stratum client through {@link StratumClientBuilders}, and
+ * puts every {@link ClientExchangeDecorator} around its calls, such as the retries. Groups that are
+ * not a Stratum client's, such as a service's own, are left as Spring Boot set them up. Runs at
+ * startup, when Spring builds the clients.
  */
 @StratumInternal
 @RequiredArgsConstructor
@@ -32,6 +36,9 @@ public class StratumClientGroups implements RestClientHttpServiceGroupConfigurer
   /** Stratum's set-up of a client's builder. */
   private final StratumClientBuilders builders;
 
+  /** What Stratum puts around each client's calls, the lowest order outermost. */
+  private final ObjectProvider<ClientExchangeDecorator> decorators;
+
   /**
    * Sets up each Stratum client's group.
    *
@@ -39,9 +46,11 @@ public class StratumClientGroups implements RestClientHttpServiceGroupConfigurer
    */
   @Override
   public void configureGroups(Groups<RestClient.Builder> groups) {
+    // Spring drops a filter after each forEach call, so each call gets its own filter.
     groups
         .filter(this::isStratumClient)
         .forEachClient((group, builder) -> builders.configure(group.name(), builder));
+    groups.filter(this::isStratumClient).forEachProxyFactory(this::decorateCalls);
   }
 
   /**
@@ -52,6 +61,23 @@ public class StratumClientGroups implements RestClientHttpServiceGroupConfigurer
   @Override
   public int getOrder() {
     return ORDER;
+  }
+
+  /** Puts every decorator around the calls of one client's group. */
+  private void decorateCalls(HttpServiceGroup group, HttpServiceProxyFactory.Builder factory) {
+    factory.exchangeAdapterDecorator(exchange -> decorate(group.name(), exchange));
+  }
+
+  /**
+   * Returns a client's calls with every decorator around them: the one of highest order innermost,
+   * so the lowest order runs first on each call.
+   */
+  private HttpExchangeAdapter decorate(String client, HttpExchangeAdapter exchange) {
+    return decorators.orderedStream().toList().reversed().stream()
+        .reduce(
+            exchange,
+            (decorated, decorator) -> decorator.decorate(client, decorated),
+            (outer, inner) -> outer);
   }
 
   /**

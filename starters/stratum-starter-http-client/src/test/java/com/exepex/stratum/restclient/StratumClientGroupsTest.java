@@ -13,6 +13,7 @@ import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.web.service.registry.HttpServiceGroup;
 
 @DisplayName("A group is a Stratum client's by a marked interface or one its settings name")
@@ -30,7 +31,8 @@ class StratumClientGroupsTest {
                           .interfaces(List.of(PartnerOrdersApi.class.getName()))
                           .build()))
               .build(),
-          Mockito.mock(StratumClientBuilders.class));
+          Mockito.mock(StratumClientBuilders.class),
+          new StaticListableBeanFactory().getBeanProvider(ClientExchangeDecorator.class));
 
   @Test
   @DisplayName("a group with a @StratumClient interface is Stratum's")

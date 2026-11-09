@@ -7,12 +7,15 @@ import com.exepex.stratum.core.properties.StratumCustomizers;
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientProperties;
 import com.exepex.stratum.restclient.ClientConnectionPools;
+import com.exepex.stratum.restclient.ClientExchangeDecorator;
+import com.exepex.stratum.restclient.ClientResilience;
 import com.exepex.stratum.restclient.DefaultStratumHttpClients;
 import com.exepex.stratum.restclient.StratumClientBuilders;
 import com.exepex.stratum.restclient.StratumClientCustomizer;
 import com.exepex.stratum.restclient.StratumClientGroups;
 import com.exepex.stratum.restclient.StratumClientRegistrar;
 import com.exepex.stratum.restclient.StratumHttpClients;
+import java.time.Clock;
 import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -90,14 +93,33 @@ public final class RestClientAutoConfiguration {
    *
    * @param environment the service's environment, from which the settings are resolved
    * @param builders Stratum's set-up of a client's builder
+   * @param decorators what Stratum puts around each client's calls, such as the retries
    * @return the set-up
    */
   @Bean
   @Fallback
   @ConditionalOnMissingBean
   public StratumClientGroups stratumClientGroups(
-      Environment environment, StratumClientBuilders builders) {
-    return new StratumClientGroups(HttpClientProperties.resolve(environment), builders);
+      Environment environment,
+      StratumClientBuilders builders,
+      ObjectProvider<ClientExchangeDecorator> decorators) {
+    return new StratumClientGroups(HttpClientProperties.resolve(environment), builders, decorators);
+  }
+
+  /**
+   * Creates the retries and circuit breaker of each Stratum client.
+   *
+   * @param environment the service's environment, from which the settings are resolved
+   * @param customizers the service's changes to the clients' retry and breaker rules
+   * @return the retries and breakers
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean
+  public ClientResilience stratumClientResilience(
+      Environment environment, ObjectProvider<StratumClientCustomizer> customizers) {
+    return new ClientResilience(
+        HttpClientProperties.resolve(environment), customizers, Clock.systemUTC());
   }
 
   /**

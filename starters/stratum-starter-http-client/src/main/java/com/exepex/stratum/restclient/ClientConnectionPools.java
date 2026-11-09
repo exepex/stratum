@@ -20,9 +20,12 @@ import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
+import org.apache.hc.client5.http.protocol.HttpClientContext;
+import org.apache.hc.core5.http.protocol.HttpContext;
 import org.apache.hc.core5.io.CloseMode;
 import org.apache.hc.core5.util.TimeValue;
 import org.apache.hc.core5.util.Timeout;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.ssl.SslBundles;
@@ -71,6 +74,11 @@ public class ClientConnectionPools implements DisposableBean {
    * @return the request factory
    */
   public ClientHttpRequestFactory requestFactory(String client, ClientSettings settings) {
+    var requestConfig =
+        RequestConfig.custom()
+            .setConnectionRequestTimeout(Timeout.of(Objects.requireNonNull(settings.maxWait())))
+            .setResponseTimeout(Timeout.of(Objects.requireNonNull(settings.timeout())))
+            .build();
     var httpClient =
         HttpClients.custom()
             .useSystemProperties()
@@ -78,15 +86,60 @@ public class ClientConnectionPools implements DisposableBean {
             .setConnectionManagerShared(true)
             .disableAutomaticRetries()
             .disableRedirectHandling()
-            .setDefaultRequestConfig(
-                RequestConfig.custom()
-                    .setConnectionRequestTimeout(
-                        Timeout.of(Objects.requireNonNull(settings.maxWait())))
-                    .setResponseTimeout(Timeout.of(Objects.requireNonNull(settings.timeout())))
-                    .build())
+            .setDefaultRequestConfig(requestConfig)
             .build();
     clients.add(httpClient);
-    return new HttpComponentsClientHttpRequestFactory(httpClient);
+    return withAttemptTimeouts(
+        new HttpComponentsClientHttpRequestFactory(httpClient), requestConfig, settings);
+  }
+
+  /** Makes each attempt of a call through the factory end by the call's {@code total-timeout}. */
+  private ClientHttpRequestFactory withAttemptTimeouts(
+      HttpComponentsClientHttpRequestFactory requestFactory,
+      RequestConfig requestConfig,
+      ClientSettings settings) {
+    requestFactory.setHttpContextFactory((method, uri) -> attemptContext(requestConfig, settings));
+    return requestFactory;
+  }
+
+  /**
+   * Returns the context of one attempt of a call, whose timeouts end by the call's {@code
+   * total-timeout}, or none outside a call of a client's interface, which keeps the client's own.
+   */
+  private @Nullable HttpContext attemptContext(
+      RequestConfig requestConfig, ClientSettings settings) {
+    return AttemptTimeLeft.timeLeft()
+        .map(timeLeft -> contextWithin(requestConfig, settings, timeLeft))
+        .orElse(null);
+  }
+
+  /**
+   * Returns a context whose pool wait and answer timeout are each the smaller of the client's and
+   * the time left; a streamed download keeps its answer timeout, the longest gap between bytes. The
+   * pool cuts the connect timeout, in {@link #connectionConfig}.
+   */
+  private HttpContext contextWithin(
+      RequestConfig requestConfig, ClientSettings settings, Duration timeLeft) {
+    var attemptConfig =
+        RequestConfig.copy(requestConfig)
+            .setConnectionRequestTimeout(
+                within(Objects.requireNonNull(settings.maxWait()), timeLeft));
+    if (!AttemptTimeLeft.keepsAnswerTimeout()) {
+      attemptConfig.setResponseTimeout(
+          within(Objects.requireNonNull(settings.timeout()), timeLeft));
+    }
+    var context = HttpClientContext.create();
+    context.setRequestConfig(attemptConfig.build());
+    return context;
+  }
+
+  /**
+   * Returns the smaller of a timeout and the time left, at least 1ms, as Apache reads 0 as no
+   * limit.
+   */
+  private Timeout within(Duration timeout, Duration timeLeft) {
+    var smaller = timeout.compareTo(timeLeft) < 0 ? timeout : timeLeft;
+    return Timeout.of(smaller.isZero() ? Duration.ofMillis(1) : smaller);
   }
 
   /** Returns the client's own pool, or the shared one, made on first use. */
@@ -110,6 +163,12 @@ public class ClientConnectionPools implements DisposableBean {
    */
   private PoolingHttpClientConnectionManager newPool(ClientSettings settings) {
     var maxConnections = Objects.requireNonNull(settings.maxConnections());
+    var poolConfig =
+        ConnectionConfig.custom()
+            .setConnectTimeout(Timeout.of(Objects.requireNonNull(settings.connectTimeout())))
+            .setValidateAfterInactivity(TimeValue.of(HttpClientConstants.STALE_CHECK_AFTER))
+            .setTimeToLive(TimeValue.of(Objects.requireNonNull(settings.connectionLifetime())))
+            .build();
     var builder = PoolingHttpClientConnectionManagerBuilder.create();
     Optional.ofNullable(settings.sslBundle())
         .map(bundle -> new SslBundleTlsStrategy(sslBundles.getObject(), bundle))
@@ -119,20 +178,28 @@ public class ClientConnectionPools implements DisposableBean {
             .useSystemProperties()
             .setMaxConnTotal(maxConnections)
             .setMaxConnPerRoute(maxConnections)
-            .setDefaultConnectionConfig(
-                ConnectionConfig.custom()
-                    .setConnectTimeout(
-                        Timeout.of(Objects.requireNonNull(settings.connectTimeout())))
-                    .setValidateAfterInactivity(TimeValue.of(HttpClientConstants.STALE_CHECK_AFTER))
-                    .setTimeToLive(
-                        TimeValue.of(Objects.requireNonNull(settings.connectionLifetime())))
-                    .build())
+            .setConnectionConfigResolver(route -> connectionConfig(poolConfig))
             .build();
     var idleTimeout = Objects.requireNonNull(settings.idleTimeout());
     var period = Math.max(1, idleTimeout.toMillis() / 2);
     connectionCloser.scheduleAtFixedRate(
         () -> closeUnusedConnections(pool, idleTimeout), period, period, TimeUnit.MILLISECONDS);
     return pool;
+  }
+
+  /**
+   * Returns the pool's connection settings for a new connection, with the connect timeout cut to
+   * the time left of the call, as the pool connects on the caller's thread during one attempt.
+   */
+  private ConnectionConfig connectionConfig(ConnectionConfig poolConfig) {
+    return AttemptTimeLeft.timeLeft()
+        .map(
+            timeLeft ->
+                ConnectionConfig.copy(poolConfig)
+                    .setConnectTimeout(
+                        within(poolConfig.getConnectTimeout().toDuration(), timeLeft))
+                    .build())
+        .orElse(poolConfig);
   }
 
   /** Closes the pool's connections that are past their lifetime or unused for idle-timeout. */

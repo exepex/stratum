@@ -17,7 +17,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.web.client.HttpServerErrorException;
 
-@SpringBootTest(classes = ClientsApplication.class)
+@SpringBootTest(classes = ClientsApplication.class, properties = RestClientTestData.NO_RETRIES)
 @Timeout(30)
 @DisplayName("Apache HttpClient 5 sends no call again on its own")
 class ApacheRetryIntegrationTest {

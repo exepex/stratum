@@ -41,6 +41,15 @@ public class HttpClientTestData {
   /** A timeout a slow report endpoint needs. */
   public static final Duration REPORT_TIMEOUT = Duration.ofSeconds(20);
 
+  /** A total timeout a slow report endpoint needs, also set in {@code http-client.yml}. */
+  public static final Duration REPORT_TOTAL_TIMEOUT = Duration.ofSeconds(25);
+
+  /** The inventory client's own retries in {@code http-client.yml}. */
+  public static final int FLAKY_RETRIES = 5;
+
+  /** The shared retry delay in {@code http-client.yml}. */
+  public static final Duration SLOW_RETRY_DELAY = Duration.ofSeconds(1);
+
   /** The shared timeout in {@code http-client.yml}. */
   public static final Duration SHARED_TIMEOUT = Duration.ofSeconds(3);
 
@@ -58,8 +67,9 @@ public class HttpClientTestData {
       "a customizer listed in spring.factories wins over the files";
 
   /**
-   * Returns an environment that holds {@code http-client.yml}: a shared timeout of 3s and the
-   * inventory client's address with its own timeout of 10s and two generated interfaces.
+   * Returns an environment that holds {@code http-client.yml}: a shared timeout of 3s and retry
+   * delay of 1s, and the inventory client's address with its own timeout of 10s, total timeout of
+   * 25s, 5 retries, no circuit breaker and two generated interfaces.
    *
    * @return the environment
    * @throws IOException if the file cannot be read

@@ -21,6 +21,9 @@ import org.springframework.mock.env.MockEnvironment;
 @DisplayName("HttpClientProperties come from properties, changed by Java configuration, which wins")
 class HttpClientPropertiesTest {
 
+  /** The end of the retries key, for a client or the shared defaults. */
+  private static final String RETRIES = ".retries";
+
   @Nested
   @DisplayName("with nothing set")
   class Defaults {
@@ -42,6 +45,10 @@ class HttpClientPropertiesTest {
                   .idleTimeout(HttpClientConstants.DEFAULT_IDLE_TIMEOUT)
                   .connectionLifetime(HttpClientConstants.DEFAULT_CONNECTION_LIFETIME)
                   .sharedPool(false)
+                  .retries(HttpClientConstants.DEFAULT_RETRIES)
+                  .retryDelay(HttpClientConstants.DEFAULT_RETRY_DELAY)
+                  .totalTimeout(HttpClientConstants.DEFAULT_TOTAL_TIMEOUT)
+                  .circuitBreaker(true)
                   .build());
     }
   }
@@ -61,7 +68,10 @@ class HttpClientPropertiesTest {
                   String.valueOf(HttpClientTestData.SHARED_MAX_CONNECTIONS))
               .withProperty(
                   HttpClientTestData.INVENTORY_SETTINGS + ".url", HttpClientTestData.INVENTORY_URL)
-              .withProperty(HttpClientTestData.INVENTORY_SETTINGS + ".timeout", "20s");
+              .withProperty(HttpClientTestData.INVENTORY_SETTINGS + ".timeout", "20s")
+              .withProperty(HttpClientConstants.DEFAULTS + RETRIES, "5")
+              .withProperty(HttpClientTestData.INVENTORY_SETTINGS + RETRIES, "0")
+              .withProperty(HttpClientTestData.INVENTORY_SETTINGS + ".circuit-breaker", "false");
 
       var settings =
           HttpClientProperties.resolve(environment).clientSettings(HttpClientTestData.INVENTORY);
@@ -70,6 +80,9 @@ class HttpClientPropertiesTest {
       assertThat(settings.timeout()).isEqualTo(HttpClientTestData.REPORT_TIMEOUT);
       assertThat(settings.maxConnections()).isEqualTo(HttpClientTestData.SHARED_MAX_CONNECTIONS);
       assertThat(settings.connectTimeout()).isEqualTo(HttpClientConstants.DEFAULT_CONNECT_TIMEOUT);
+      assertThat(settings.retries()).isZero();
+      assertThat(settings.circuitBreaker()).isFalse();
+      assertThat(settings.totalTimeout()).isEqualTo(HttpClientConstants.DEFAULT_TOTAL_TIMEOUT);
     }
 
     @Test
@@ -84,6 +97,13 @@ class HttpClientPropertiesTest {
           .isEqualTo(HttpClientTestData.INVENTORY_URL);
       assertThat(properties.clientSettings(HttpClientTestData.INVENTORY).interfaces())
           .isEqualTo(HttpClientTestData.PARTNER_INTERFACES);
+      assertThat(properties.defaults().retryDelay()).isEqualTo(HttpClientTestData.SLOW_RETRY_DELAY);
+      assertThat(properties.clientSettings(HttpClientTestData.INVENTORY).totalTimeout())
+          .isEqualTo(HttpClientTestData.REPORT_TOTAL_TIMEOUT);
+      assertThat(properties.clientSettings(HttpClientTestData.INVENTORY).retries())
+          .isEqualTo(HttpClientTestData.FLAKY_RETRIES);
+      assertThat(properties.clientSettings(HttpClientTestData.INVENTORY).circuitBreaker())
+          .isFalse();
     }
 
     @Test
@@ -162,6 +182,7 @@ class HttpClientPropertiesTest {
 
       var settings = properties.clientSettings(HttpClientTestData.INVENTORY);
       assertThat(settings.timeout()).isEqualTo(HttpClientTestData.REPORT_TIMEOUT);
+      assertThat(settings.totalTimeout()).isEqualTo(HttpClientTestData.REPORT_TOTAL_TIMEOUT);
       assertThat(settings.url()).isEqualTo(HttpClientTestData.INVENTORY_URL);
     }
 
@@ -195,6 +216,31 @@ class HttpClientPropertiesTest {
     void zeroDuration() {
       assertInvalid(
           HttpClientTestData.INVENTORY_SETTINGS + ".max-wait", "0s", "durations-positive");
+    }
+
+    @Test
+    @DisplayName("a total timeout of 0")
+    void zeroTotalTimeout() {
+      assertInvalid(
+          HttpClientTestData.INVENTORY_SETTINGS + ".total-timeout", "0s", "durations-positive");
+    }
+
+    @Test
+    @DisplayName("a retry delay of 0")
+    void zeroRetryDelay() {
+      assertInvalid(HttpClientConstants.DEFAULTS + ".retry-delay", "0s", "durations-positive");
+    }
+
+    @Test
+    @DisplayName("more than 9 retries")
+    void tooManyRetries() {
+      assertInvalid(HttpClientTestData.INVENTORY_SETTINGS + RETRIES, "10", "retries-in-range");
+    }
+
+    @Test
+    @DisplayName("fewer than 0 retries")
+    void negativeRetries() {
+      assertInvalid(HttpClientConstants.DEFAULTS + RETRIES, "-1", "retries-in-range");
     }
 
     @Test

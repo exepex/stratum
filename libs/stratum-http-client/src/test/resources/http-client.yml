@@ -2,10 +2,14 @@ stratum:
   http-client:
     defaults:
       timeout: 3s
+      retry-delay: 1s
     clients:
       inventory:
         url: http://inventory:8080
         timeout: 10s
+        total-timeout: 25s
+        retries: 5
+        circuit-breaker: false
         interfaces:
           - com.partner.OrdersApi
           - com.partner.CustomersApi

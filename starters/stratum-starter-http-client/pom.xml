@@ -33,6 +33,17 @@
       <groupId>org.apache.httpcomponents.client5</groupId>
       <artifactId>httpclient5</artifactId>
     </dependency>
+    <!-- The one retry layer and the circuit breaker of each client (ADR 0011, decision 4.1).
+         Spring Boot does not manage Resilience4j; teams with their own engine get the same
+         objects from the planned stratumHttpClients.resilience(name). -->
+    <dependency>
+      <groupId>io.github.resilience4j</groupId>
+      <artifactId>resilience4j-retry</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.github.resilience4j</groupId>
+      <artifactId>resilience4j-circuitbreaker</artifactId>
+    </dependency>
     <!-- The checks and set-up that every starter's tests share. -->
     <dependency>
       <groupId>com.exepex.stratum</groupId>
