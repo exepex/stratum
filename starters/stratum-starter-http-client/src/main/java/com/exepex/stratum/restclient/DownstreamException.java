@@ -40,7 +40,10 @@ public final class DownstreamException extends RestClientResponseException {
   /** The name of the client that made the call, such as {@code inventory}. */
   @Getter private final String client;
 
-  /** The call's method and URI template, such as {@code GET /stock/{sku}}. */
+  /**
+   * The call's method and URI template, such as {@code GET /stock/{sku}}, or its method alone for a
+   * call given a whole URI.
+   */
   @Getter private final String endpoint;
 
   /** The trace ID of the call, or null when none was being logged. */

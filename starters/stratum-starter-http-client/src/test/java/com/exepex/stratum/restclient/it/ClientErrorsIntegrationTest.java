@@ -10,6 +10,7 @@ import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import com.exepex.stratum.restclient.testsupport.errors.ErrorDownstream;
 import com.exepex.stratum.restclient.testsupport.errors.ErrorsApplication;
 import com.exepex.stratum.restclient.testsupport.errors.OrdersClient;
+import java.net.URI;
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -87,6 +88,20 @@ class ClientErrorsIntegrationTest {
                               + DownstreamException.class.getName()
                               + ": orders answered 500 to GET /failed/{id}")
                       .doesNotContain(RestClientTestData.SECRET, ORDER_ID, CUSTOMER));
+    }
+
+    @Test
+    @DisplayName("of a call given a whole URI names only its method, never the URI's values")
+    void wholeUriNamesMethodOnly() {
+      var order = URI.create(DOWNSTREAM.url() + "/failed/" + ORDER_ID + "?customer=" + CUSTOMER);
+
+      assertThatExceptionOfType(DownstreamException.class)
+          .isThrownBy(() -> orders.orderAt(order))
+          .satisfies(
+              failure -> {
+                assertThat(failure.getEndpoint()).isEqualTo("GET");
+                assertThat(failure.getMessage()).doesNotContain(ORDER_ID, CUSTOMER);
+              });
     }
 
     @Test

@@ -6,7 +6,6 @@ import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientErrorCode;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
-import java.net.URI;
 import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -96,17 +95,16 @@ public class ClientErrors implements ClientExchangeDecorator {
   }
 
   /**
-   * Returns the call's method and URI template, such as {@code GET /stock/{sku}}, or its path when
-   * it has no template; never its query, which Spring adds to the template.
+   * Returns the call's method and URI template, such as {@code GET /stock/{sku}}, or its method
+   * alone when it was given a whole URI, whose path holds values; never its query, which Spring
+   * adds to the template.
    */
   private String endpointOf(HttpRequestValues values) {
-    var target =
-        Optional.ofNullable(values.getUriTemplate())
-            .or(() -> Optional.ofNullable(values.getUri()).map(URI::getRawPath))
-            .orElse("");
-    var queryStart = target.indexOf('?');
-    return Objects.requireNonNull(values.getHttpMethod())
-        + " "
-        + (queryStart < 0 ? target : target.substring(0, queryStart));
+    var method = Objects.requireNonNull(values.getHttpMethod()).name();
+    return Optional.ofNullable(values.getUriTemplate())
+        .map(template -> template.split("\\?", 2)[0])
+        .filter(path -> !path.isEmpty())
+        .map(path -> method + " " + path)
+        .orElse(method);
   }
 }

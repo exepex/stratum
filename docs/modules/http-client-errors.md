@@ -45,7 +45,7 @@ It extends Spring's `RestClientResponseException`, so `getStatusCode()`, `getRes
 | Method | Returns |
 | --- | --- |
 | `getClient()` | The client's name, such as `inventory`. |
-| `getEndpoint()` | The method and URI template, such as `GET /stock/{sku}`, never a path or query value. |
+| `getEndpoint()` | The method and URI template, such as `GET /stock/{sku}`, or the method alone, such as `GET`, for a call given a whole `URI`; never a path or query value. |
 | `getTraceId()` | The trace ID of the call, to find its logs; empty when none was being logged. |
 | `getDownstreamCode()` | The `code` of an `application/problem+json` body, such as another Stratum service's `ORD-0001`; empty for any other body. |
 
