@@ -3,7 +3,6 @@ package com.exepex.stratum.restclient;
 import com.exepex.stratum.core.api.StratumInternal;
 import java.util.function.Supplier;
 import org.jspecify.annotations.Nullable;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.service.invoker.HttpExchangeAdapter;
@@ -36,9 +35,7 @@ public class ErrorTranslatingExchangeAdapter extends AroundCallExchangeAdapter {
   }
 
   /**
-   * Runs one call and throws its failure as the service sees it. A 404 of a call whose method
-   * returns {@code Optional} is no failure: it answers with nothing, which Spring wraps as an empty
-   * {@code Optional}, and no customizer's {@code mapError} is asked.
+   * Runs one call and throws its failure as the service sees it.
    *
    * @param values the call
    * @param streamedDownload whether the answer's body is read as a stream, which changes nothing
@@ -52,10 +49,6 @@ public class ErrorTranslatingExchangeAdapter extends AroundCallExchangeAdapter {
     try {
       return call.get();
     } catch (RestClientResponseException answer) {
-      if (answer.getStatusCode().value() == HttpStatus.NOT_FOUND.value()
-          && isOptionalAnswer(values)) {
-        return null;
-      }
       throw errors.downstream(client, values, answer);
     } catch (RestClientException failure) {
       throw errors.noAnswer(failure).orElseThrow(() -> failure);

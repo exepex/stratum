@@ -11,6 +11,7 @@ import com.exepex.stratum.restclient.ClientErrors;
 import com.exepex.stratum.restclient.ClientExchangeDecorator;
 import com.exepex.stratum.restclient.ClientResilience;
 import com.exepex.stratum.restclient.DefaultStratumHttpClients;
+import com.exepex.stratum.restclient.OptionalNotFound;
 import com.exepex.stratum.restclient.StratumClientBuilders;
 import com.exepex.stratum.restclient.StratumClientCustomizer;
 import com.exepex.stratum.restclient.StratumClientGroups;
@@ -135,6 +136,19 @@ public final class RestClientAutoConfiguration {
   @ConditionalOnMissingBean
   public ClientErrors stratumClientErrors(ObjectProvider<StratumClientCustomizer> customizers) {
     return new ClientErrors(customizers);
+  }
+
+  /**
+   * Creates the reading of a 404 as an empty {@code Optional}, for a method of a Stratum client's
+   * interface that returns {@code Optional}.
+   *
+   * @return the reading of that 404
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean
+  public OptionalNotFound stratumOptionalNotFound() {
+    return new OptionalNotFound();
   }
 
   /**
