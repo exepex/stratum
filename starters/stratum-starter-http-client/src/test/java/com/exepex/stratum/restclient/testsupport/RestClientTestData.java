@@ -2,14 +2,19 @@ package com.exepex.stratum.restclient.testsupport;
 
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.restclient.autoconfigure.RestClientAutoConfiguration;
+import com.exepex.stratum.restclient.testsupport.clients.ClientsApplication;
 import java.time.Duration;
 import lombok.experimental.UtilityClass;
+import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.http.client.autoconfigure.HttpClientAutoConfiguration;
 import org.springframework.boot.http.client.autoconfigure.imperative.ImperativeHttpClientAutoConfiguration;
 import org.springframework.boot.http.client.autoconfigure.service.HttpServiceClientPropertiesAutoConfiguration;
 import org.springframework.boot.restclient.autoconfigure.service.HttpServiceClientAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.test.context.DynamicPropertyRegistry;
 
 /** Names, values and set-up shared by the blocking HTTP client starter's tests. */
 @UtilityClass
@@ -74,5 +79,30 @@ public class RestClientTestData {
    */
   public static String setting(String key, Object value) {
     return key + "=" + value;
+  }
+
+  /**
+   * Points both clients at one server, for a test that calls only one of them.
+   *
+   * @param registry the test's properties
+   * @param downstream the server
+   */
+  public static void pointClientsAt(
+      DynamicPropertyRegistry registry, ScriptedDownstream downstream) {
+    registry.add(INVENTORY_URL, downstream::url);
+    registry.add(PRICING_URL, downstream::url);
+  }
+
+  /**
+   * Starts the test application, for a test of what happens at startup or shutdown (ST-TEST-31).
+   *
+   * @param settings the application's settings, as {@code key=value}
+   * @return the running application, which the caller closes
+   */
+  public static ConfigurableApplicationContext startApplication(String... settings) {
+    return new SpringApplicationBuilder(ClientsApplication.class)
+        .web(WebApplicationType.NONE)
+        .properties(settings)
+        .run();
   }
 }

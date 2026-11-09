@@ -34,8 +34,7 @@ class ApacheRetryIntegrationTest {
    */
   @DynamicPropertySource
   static void addresses(DynamicPropertyRegistry registry) {
-    registry.add(RestClientTestData.INVENTORY_URL, INVENTORY::url);
-    registry.add(RestClientTestData.PRICING_URL, INVENTORY::url);
+    RestClientTestData.pointClientsAt(registry, INVENTORY);
   }
 
   @Test

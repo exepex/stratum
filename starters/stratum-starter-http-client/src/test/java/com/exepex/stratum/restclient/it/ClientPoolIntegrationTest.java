@@ -9,7 +9,6 @@ import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import com.exepex.stratum.restclient.testsupport.ScriptedDownstream;
 import com.exepex.stratum.restclient.testsupport.clients.ClientsApplication;
 import com.exepex.stratum.restclient.testsupport.clients.InventoryClient;
-import com.exepex.stratum.restclient.testsupport.clients.InventoryClients;
 import com.exepex.stratum.restclient.testsupport.clients.InventoryReports;
 import com.exepex.stratum.restclient.testsupport.clients.PricingClient;
 import org.apache.hc.core5.http.ConnectionRequestTimeoutException;
@@ -98,18 +97,15 @@ class ClientPoolIntegrationTest {
   @DisplayName("the pools close their connections when the application stops")
   void poolsClosedOnShutdown() throws Exception {
     try (var downstream = ScriptedDownstream.start()) {
-      RestClientTestData.contextRunner()
-          .withUserConfiguration(InventoryClients.class)
-          .withPropertyValues(
+      try (var application =
+          RestClientTestData.startApplication(
               RestClientTestData.setting(RestClientTestData.INVENTORY_URL, downstream.url()),
               RestClientTestData.setting(
-                  RestClientTestData.PRICING_URL, RestClientTestData.UNUSED_URL))
-          .run(
-              context -> {
-                assertThat(context.getBean(InventoryClient.class).stock())
-                    .isEqualTo(ScriptedDownstream.BODY);
-                assertThat(downstream.openConnections()).isOne();
-              });
+                  RestClientTestData.PRICING_URL, RestClientTestData.UNUSED_URL))) {
+        assertThat(application.getBean(InventoryClient.class).stock())
+            .isEqualTo(ScriptedDownstream.BODY);
+        assertThat(downstream.openConnections()).isOne();
+      }
 
       await().atMost(RestClientTestData.WAIT).until(() -> downstream.openConnections() == 0);
     }
