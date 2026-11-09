@@ -162,6 +162,12 @@ class TelemetryUrlFilterTest {
                 "https://partner.com/rates?%70assword=left",
                 "https://partner.com/rates?%70assword=****"),
             Arguments.of(
+                "https://partner.com/find?q=Bearer%20abcdefghijkl",
+                "https://partner.com/find?q=Bearer%20****"),
+            Arguments.of(
+                "https://partner.com/find?q=a%26b%204111111111111111",
+                "https://partner.com/find?q=a%26b%20****1111"),
+            Arguments.of(
                 "https://partner.com/find?q=caf%C3%A9%20au%20lait&rate=100%zz",
                 "https://partner.com/find?q=caf%C3%A9%20au%20lait&rate=100%zz"),
             Arguments.of(
