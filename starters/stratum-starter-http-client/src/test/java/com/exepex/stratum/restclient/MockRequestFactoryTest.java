@@ -3,6 +3,7 @@ package com.exepex.stratum.restclient;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
+import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -10,11 +11,12 @@ import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.time.Duration;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 
-@DisplayName("A mocked answer's delay is limited as a real answer's wait is")
+@DisplayName("A mocked answer is limited as a real answer is")
 class MockRequestFactoryTest {
 
   /** The method the delayed answer is scripted for. */
@@ -30,23 +32,58 @@ class MockRequestFactoryTest {
   private final MockRequestFactory factory =
       new MockRequestFactory(RestClientTestData.PAYMENTS, RestClientTestData.WAIT, answers);
 
-  @Test
-  @DisplayName("a streamed download keeps its full timeout, past the time total-timeout leaves")
-  void streamedDownloadKeepsTimeout() {
-    scriptDelayedAnswer();
+  @Nested
+  @DisplayName("in its delay")
+  class Delay {
 
-    assertThat(AttemptTimeLeft.runWithin(deadline(), true, this::call)).isEqualTo(HttpStatus.OK);
+    @Test
+    @DisplayName("a streamed download keeps its full timeout, past the time total-timeout leaves")
+    void streamedDownloadKeepsTimeout() {
+      scriptDelayedAnswer();
+
+      assertThat(AttemptTimeLeft.runWithin(deadline(), true, MockRequestFactoryTest.this::call))
+          .isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
+    @DisplayName("any other call fails once the time total-timeout leaves is spent")
+    void otherCallEndsByTotalTimeout() {
+      scriptDelayedAnswer();
+      var deadline = deadline();
+
+      assertThatExceptionOfType(UncheckedIOException.class)
+          .isThrownBy(
+              () -> AttemptTimeLeft.runWithin(deadline, false, MockRequestFactoryTest.this::call))
+          .withCauseInstanceOf(SocketTimeoutException.class);
+    }
   }
 
-  @Test
-  @DisplayName("any other call fails once the time total-timeout leaves is spent")
-  void otherCallEndsByTotalTimeout() {
-    scriptDelayedAnswer();
-    var deadline = deadline();
+  @Nested
+  @DisplayName("in its error body")
+  class ErrorBody {
 
-    assertThatExceptionOfType(UncheckedIOException.class)
-        .isThrownBy(() -> AttemptTimeLeft.runWithin(deadline, false, this::call))
-        .withCauseInstanceOf(SocketTimeoutException.class);
+    @Test
+    @DisplayName("an error body is cut at 64 KB, as ErrorBodyLimit cuts a real one")
+    void errorBodyCut() throws IOException {
+      answers.script(
+          RestClientTestData.PAYMENTS,
+          METHOD,
+          MockAnswer.text(
+              HttpStatus.INTERNAL_SERVER_ERROR,
+              "x".repeat(HttpClientConstants.ERROR_BODY_LIMIT * 2)));
+
+      assertThat(bodyLength()).isEqualTo(HttpClientConstants.ERROR_BODY_LIMIT);
+    }
+
+    @Test
+    @DisplayName("a successful body is never cut")
+    void successfulBodyWhole() throws IOException {
+      var size = HttpClientConstants.ERROR_BODY_LIMIT * 2;
+      answers.script(
+          RestClientTestData.PAYMENTS, METHOD, MockAnswer.text(HttpStatus.OK, "x".repeat(size)));
+
+      assertThat(bodyLength()).isEqualTo(size);
+    }
   }
 
   /** Scripts a 200 that takes longer than the time left. */
@@ -72,6 +109,15 @@ class MockRequestFactoryTest {
       }
     } catch (IOException failure) {
       throw new UncheckedIOException(failure);
+    }
+  }
+
+  /** Sends one call of the method and returns the length of the body it reads. */
+  private int bodyLength() throws IOException {
+    var request = factory.createRequest(URI.create("http://payments/files"), HttpMethod.GET);
+    request.getAttributes().put(MockAnswers.METHOD_ATTRIBUTE, new MockCall(METHOD, false));
+    try (var response = request.execute()) {
+      return response.getBody().readAllBytes().length;
     }
   }
 }

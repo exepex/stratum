@@ -2,8 +2,6 @@ package com.exepex.stratum.restclient;
 
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.httpclient.HttpClientProperties;
-import java.util.Objects;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.env.Environment;
@@ -47,15 +45,7 @@ public class StratumClientBuilders {
     StratumClientChecks.checkNoBootSettings(environment, client);
     var settings = properties.clientSettings(client);
     builder.baseUrl(StratumClientChecks.requireUrl(client, settings));
-    if (Boolean.TRUE.equals(settings.mock())) {
-      builder.requestFactory(
-          new MockRequestFactory(client, Objects.requireNonNull(settings.timeout()), mockAnswers));
-    } else {
-      builder.requestFactory(pools.requestFactory(client, settings));
-      Optional.ofNullable(settings.auth())
-          .flatMap(ClientAuthInitializers::initializerFor)
-          .ifPresent(builder::requestInitializer);
-    }
+    ClientTransport.of(settings, pools, mockAnswers).setUp(client, settings, builder);
     customizers.orderedStream().forEach(customizer -> customizer.customize(client, builder));
   }
 }

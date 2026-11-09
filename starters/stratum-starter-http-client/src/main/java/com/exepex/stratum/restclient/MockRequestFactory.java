@@ -1,5 +1,6 @@
 package com.exepex.stratum.restclient;
 
+import com.exepex.stratum.httpclient.HttpClientConstants;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -124,7 +125,14 @@ final class MockRequestFactory implements ClientHttpRequestFactory {
 
     @Override
     public InputStream getBody() {
-      return new ByteArrayInputStream(answer.body().getBytes(StandardCharsets.UTF_8));
+      var bytes = answer.body().getBytes(StandardCharsets.UTF_8);
+      // An error body is cut as a real one is (ErrorBodyLimit), so a test sees what production
+      // sees.
+      var length =
+          answer.status().isError()
+              ? Math.min(bytes.length, HttpClientConstants.ERROR_BODY_LIMIT)
+              : bytes.length;
+      return new ByteArrayInputStream(bytes, 0, length);
     }
 
     @Override
