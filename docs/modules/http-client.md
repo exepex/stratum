@@ -240,9 +240,10 @@ The rules are fixed, and safe for any service:
 A `503` or `429` with a `Retry-After` of whole seconds or an HTTP date waits that long instead of the back-off. A
 call is sent again only while the wait still leaves at least 100ms before `total-timeout`; otherwise the last answer
 or failure is the call's result. Each attempt's connection wait, connect timeout and `timeout` are cut to the time
-left. A method that returns an `InputStream`, a streamed download, keeps its full `timeout`: `total-timeout` bounds
-it only until its answer's headers arrive, and reading the stream after that is bounded only by `timeout` between
-bytes.
+left. A method that returns an `InputStream`, a streamed download, is the exception: no new attempt starts after
+`total-timeout`, but each attempt keeps its full `timeout`, the longest gap between bytes, so a long download is
+never cut off. Its headers may therefore arrive up to `timeout` after `total-timeout`, and reading the stream is
+bounded only by `timeout` between bytes.
 
 The circuit breaker counts an attempt with no answer, a full pool included, and an answer of `5xx` or `429`. Other
 `4xx` answers mean the service is up, so they never count. With Resilience4j's defaults, it opens once at least 100
