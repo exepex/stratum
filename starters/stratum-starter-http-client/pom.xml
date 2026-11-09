@@ -44,6 +44,14 @@
       <groupId>io.github.resilience4j</groupId>
       <artifactId>resilience4j-circuitbreaker</artifactId>
     </dependency>
+    <!-- Spring's test framework, for the listener that clears the mocks of MockClient after each
+         test. Optional: a running service never loads the listener, and a team's tests already
+         have it through spring-boot-starter-test. -->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-test</artifactId>
+      <optional>true</optional>
+    </dependency>
     <!-- The web starter's error answers, to check the statuses this starter gives its codes. -->
     <dependency>
       <groupId>com.exepex.stratum</groupId>

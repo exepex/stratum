@@ -14,6 +14,10 @@ class RestClientArchTest {
       Set.of(
           ClientAttempt.class,
           ClientAttempt.ClientAttemptBuilder.class,
+          MockClient.class,
+          MockClients.class,
+          MockScript.class,
+          RecordedCall.class,
           DownstreamException.class,
           StratumClientCustomizer.class,
           StratumHttpClients.class);

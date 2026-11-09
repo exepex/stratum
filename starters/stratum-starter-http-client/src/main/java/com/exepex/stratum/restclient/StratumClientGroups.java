@@ -16,9 +16,10 @@ import org.springframework.web.service.registry.HttpServiceGroup;
 
 /**
  * Sets up the HTTP service group of each Stratum client through {@link StratumClientBuilders}, and
- * puts every {@link ClientExchangeDecorator} around its calls, such as the retries. Groups that are
- * not a Stratum client's, such as a service's own, are left as Spring Boot set them up. Runs at
- * startup, when Spring builds the clients.
+ * puts every {@link ClientExchangeDecorator} around its calls, such as the retries; a mocked
+ * client's calls also carry their method, for {@link MockAnswers}. Groups that are not a Stratum
+ * client's, such as a service's own, are left as Spring Boot set them up. Runs at startup, when
+ * Spring builds the clients.
  */
 @StratumInternal
 @RequiredArgsConstructor
@@ -39,6 +40,9 @@ public class StratumClientGroups implements RestClientHttpServiceGroupConfigurer
   /** What Stratum puts around each client's calls, the lowest order outermost. */
   private final ObjectProvider<ClientExchangeDecorator> decorators;
 
+  /** The answers and calls of the clients set to {@code mock: true}. */
+  private final MockAnswers mockAnswers;
+
   /**
    * Sets up each Stratum client's group.
    *
@@ -51,6 +55,7 @@ public class StratumClientGroups implements RestClientHttpServiceGroupConfigurer
         .filter(this::isStratumClient)
         .forEachClient((group, builder) -> builders.configure(group.name(), builder));
     groups.filter(this::isStratumClient).forEachProxyFactory(this::decorateCalls);
+    groups.filter(this::isMockedClient).forEachProxyFactory(this::markMockedCalls);
   }
 
   /**
@@ -72,6 +77,21 @@ public class StratumClientGroups implements RestClientHttpServiceGroupConfigurer
     factory.exchangeAdapterDecorator(exchange -> decorate(ordered, group.name(), exchange));
     factory.httpRequestValuesProcessor(
         (method, _, _, values) -> ordered.forEach(decorator -> decorator.prepare(method, values)));
+  }
+
+  /**
+   * Marks each call of a mocked client with its method, for its answer, and notes the client's
+   * interfaces for {@code MockClients}.
+   */
+  private void markMockedCalls(HttpServiceGroup group, HttpServiceProxyFactory.Builder factory) {
+    mockAnswers.mocked(group.name(), group.httpServiceTypes());
+    factory.httpRequestValuesProcessor(new MockCallProcessor(group.name(), mockAnswers));
+  }
+
+  /** Returns whether a group is a Stratum client's that is set to {@code mock: true}. */
+  private boolean isMockedClient(HttpServiceGroup group) {
+    return isStratumClient(group)
+        && Boolean.TRUE.equals(properties.clientSettings(group.name()).mock());
   }
 
   /**

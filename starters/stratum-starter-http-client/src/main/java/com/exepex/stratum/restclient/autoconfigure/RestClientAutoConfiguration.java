@@ -10,7 +10,10 @@ import com.exepex.stratum.restclient.ClientConnectionPools;
 import com.exepex.stratum.restclient.ClientErrors;
 import com.exepex.stratum.restclient.ClientExchangeDecorator;
 import com.exepex.stratum.restclient.ClientResilience;
+import com.exepex.stratum.restclient.DefaultMockClients;
 import com.exepex.stratum.restclient.DefaultStratumHttpClients;
+import com.exepex.stratum.restclient.MockAnswers;
+import com.exepex.stratum.restclient.MockClients;
 import com.exepex.stratum.restclient.OptionalNotFound;
 import com.exepex.stratum.restclient.ServiceTokenResend;
 import com.exepex.stratum.restclient.StratumClientBuilders;
@@ -34,6 +37,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Fallback;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.env.Environment;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Turns each {@code @StratumClient} interface into a client with its own connection pool, unless
@@ -94,6 +98,7 @@ public final class RestClientAutoConfiguration {
    * @param pools the connection pools
    * @param customizers the service's changes to the clients' builders
    * @param tokenInitializers the senders of Spring Security's tokens, present with their libraries
+   * @param mockAnswers the answers of the clients set to {@code mock: true}
    * @return the set-up
    */
   @Bean
@@ -103,13 +108,15 @@ public final class RestClientAutoConfiguration {
       Environment environment,
       ClientConnectionPools pools,
       ObjectProvider<StratumClientCustomizer> customizers,
-      ObjectProvider<TokenInitializers> tokenInitializers) {
+      ObjectProvider<TokenInitializers> tokenInitializers,
+      MockAnswers mockAnswers) {
     return new StratumClientBuilders(
         HttpClientProperties.resolve(environment),
         pools,
         environment,
         customizers,
-        tokenInitializers);
+        tokenInitializers,
+        mockAnswers);
   }
 
   /**
@@ -118,6 +125,7 @@ public final class RestClientAutoConfiguration {
    * @param environment the service's environment, from which the settings are resolved
    * @param builders Stratum's set-up of a client's builder
    * @param decorators what Stratum puts around each client's calls, such as the retries
+   * @param mockAnswers the answers and calls of the clients set to {@code mock: true}
    * @return the set-up
    */
   @Bean
@@ -126,8 +134,37 @@ public final class RestClientAutoConfiguration {
   public StratumClientGroups stratumClientGroups(
       Environment environment,
       StratumClientBuilders builders,
-      ObjectProvider<ClientExchangeDecorator> decorators) {
-    return new StratumClientGroups(HttpClientProperties.resolve(environment), builders, decorators);
+      ObjectProvider<ClientExchangeDecorator> decorators,
+      MockAnswers mockAnswers) {
+    return new StratumClientGroups(
+        HttpClientProperties.resolve(environment), builders, decorators, mockAnswers);
+  }
+
+  /**
+   * Creates the answers and recorded calls of the clients set to {@code mock: true}.
+   *
+   * @param jsonMappers the application's JSON mapper, which writes scripted answers
+   * @return the answers
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean
+  public MockAnswers stratumMockAnswers(ObjectProvider<JsonMapper> jsonMappers) {
+    return new MockAnswers(jsonMappers);
+  }
+
+  /**
+   * Creates the mocks tests script, and the startup warning of each mocked client.
+   *
+   * @param environment the service's environment, from which the settings are resolved
+   * @param mockAnswers the answers of the mocked clients
+   * @return the mocks
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean
+  public MockClients stratumMockClients(Environment environment, MockAnswers mockAnswers) {
+    return new DefaultMockClients(HttpClientProperties.resolve(environment), mockAnswers);
   }
 
   /**

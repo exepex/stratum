@@ -32,7 +32,8 @@ class StratumClientGroupsTest {
                           .build()))
               .build(),
           Mockito.mock(StratumClientBuilders.class),
-          new StaticListableBeanFactory().getBeanProvider(ClientExchangeDecorator.class));
+          new StaticListableBeanFactory().getBeanProvider(ClientExchangeDecorator.class),
+          Mockito.mock(MockAnswers.class));
 
   @Test
   @DisplayName("a group with a @StratumClient interface is Stratum's")

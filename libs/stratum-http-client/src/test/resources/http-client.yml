@@ -10,6 +10,7 @@ stratum:
         total-timeout: 25s
         retries: 5
         circuit-breaker: false
+        mock: true
         interfaces:
           - com.partner.OrdersApi
           - com.partner.CustomersApi

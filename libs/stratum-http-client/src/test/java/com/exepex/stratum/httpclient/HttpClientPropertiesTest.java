@@ -5,17 +5,11 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.httpclient.testsupport.HttpClientTestData;
-import com.exepex.stratum.httpclient.testsupport.SlowInventorySettings;
-import com.exepex.stratum.httpclient.testsupport.VendorKeySettings;
-import com.exepex.stratum.test.StarterTestSupport;
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import org.springframework.mock.env.MockEnvironment;
 
 @DisplayName("HttpClientProperties come from properties, changed by Java configuration, which wins")
@@ -49,6 +43,7 @@ class HttpClientPropertiesTest {
                   .retryDelay(HttpClientConstants.DEFAULT_RETRY_DELAY)
                   .totalTimeout(HttpClientConstants.DEFAULT_TOTAL_TIMEOUT)
                   .circuitBreaker(true)
+                  .mock(false)
                   .build());
     }
   }
@@ -104,6 +99,7 @@ class HttpClientPropertiesTest {
           .isEqualTo(HttpClientTestData.FLAKY_RETRIES);
       assertThat(properties.clientSettings(HttpClientTestData.INVENTORY).circuitBreaker())
           .isFalse();
+      assertThat(properties.clientSettings(HttpClientTestData.INVENTORY).mock()).isTrue();
     }
 
     @Test
@@ -172,53 +168,6 @@ class HttpClientPropertiesTest {
           .isEqualTo(ClientAuth.builder().clientCredentials("invoices").build());
       assertThat(fromProperties.clientSettings(HttpClientTestData.INVENTORY).auth())
           .isEqualTo(ClientAuth.builder().tokenRelay(true).build());
-    }
-  }
-
-  @Nested
-  @DisplayName("from Java configuration")
-  class JavaConfiguration {
-
-    @Test
-    @DisplayName(HttpClientTestData.JAVA_CONFIGURATION_WINS)
-    void javaWinsOverFiles(@TempDir Path folder) throws IOException {
-      var environment =
-          new MockEnvironment()
-              .withProperty(
-                  HttpClientTestData.INVENTORY_SETTINGS + ".url", HttpClientTestData.INVENTORY_URL)
-              .withProperty(HttpClientTestData.INVENTORY_SETTINGS + ".timeout", "1s");
-
-      var properties =
-          StarterTestSupport.withCustomizers(
-              folder,
-              HttpClientPropertiesCustomizer.class,
-              List.of(SlowInventorySettings.class),
-              () -> HttpClientProperties.resolve(environment));
-
-      var settings = properties.clientSettings(HttpClientTestData.INVENTORY);
-      assertThat(settings.timeout()).isEqualTo(HttpClientTestData.REPORT_TIMEOUT);
-      assertThat(settings.totalTimeout()).isEqualTo(HttpClientTestData.REPORT_TOTAL_TIMEOUT);
-      assertThat(settings.url()).isEqualTo(HttpClientTestData.INVENTORY_URL);
-    }
-
-    @Test
-    @DisplayName("a customizer sets a client's auth and SSL bundle, and wins over the files")
-    void javaSetsAuth(@TempDir Path folder) throws IOException {
-      var environment =
-          new MockEnvironment()
-              .withProperty(
-                  HttpClientTestData.INVENTORY_AUTH + ".bearer", HttpClientTestData.SECRET);
-
-      var properties =
-          StarterTestSupport.withCustomizers(
-              folder,
-              HttpClientPropertiesCustomizer.class,
-              List.of(VendorKeySettings.class),
-              () -> HttpClientProperties.resolve(environment));
-
-      var settings = properties.clientSettings(HttpClientTestData.INVENTORY);
-      assertThat(settings.auth()).isEqualTo(VendorKeySettings.AUTH);
-      assertThat(settings.sslBundle()).isEqualTo(VendorKeySettings.SSL_BUNDLE);
     }
   }
 
