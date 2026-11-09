@@ -137,6 +137,17 @@ public class RestClientTestData {
       DynamicPropertyRegistry registry, TokenDownstream server) {
     registry.add(INVENTORY_URL, server::url);
     registry.add(PRICING_URL, server::url);
+    pointRegistrationAtTokenServer(registry, server);
+  }
+
+  /**
+   * Gives the registration its token endpoint on an identity provider's test server.
+   *
+   * @param registry the test's properties
+   * @param server the server
+   */
+  public static void pointRegistrationAtTokenServer(
+      DynamicPropertyRegistry registry, TokenDownstream server) {
     // A loop, as each setting is split into its key and value before it is added.
     for (var keyAndValue :
         registrationSettings("client_credentials", server.url() + TokenDownstream.TOKEN)) {
