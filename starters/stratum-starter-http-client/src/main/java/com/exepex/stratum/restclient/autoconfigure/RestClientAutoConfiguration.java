@@ -20,6 +20,7 @@ import org.springframework.boot.autoconfigure.AutoConfigureOrder;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.restclient.RestClientCustomizer;
 import org.springframework.boot.restclient.autoconfigure.service.HttpServiceClientAutoConfiguration;
+import org.springframework.boot.ssl.SslBundles;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Fallback;
 import org.springframework.context.annotation.Import;
@@ -52,13 +53,16 @@ public final class RestClientAutoConfiguration {
    * Creates the connection pools of Stratum's clients, which close with the application.
    *
    * @param environment the service's environment, from which the settings are resolved
+   * @param sslBundles Spring Boot's SSL bundles, for clients that name one
    * @return the pools
    */
   @Bean
   @Fallback
   @ConditionalOnMissingBean
-  public ClientConnectionPools stratumClientConnectionPools(Environment environment) {
-    return new ClientConnectionPools(HttpClientProperties.resolve(environment).defaults());
+  public ClientConnectionPools stratumClientConnectionPools(
+      Environment environment, ObjectProvider<SslBundles> sslBundles) {
+    return new ClientConnectionPools(
+        HttpClientProperties.resolve(environment).defaults(), sslBundles);
   }
 
   /**

@@ -1,10 +1,13 @@
 package com.exepex.stratum.restclient.testsupport;
 
 import com.exepex.stratum.httpclient.HttpClientConstants;
+import com.exepex.stratum.httpclient.HttpClientProperties;
+import com.exepex.stratum.restclient.ClientConnectionPools;
 import com.exepex.stratum.restclient.autoconfigure.RestClientAutoConfiguration;
 import com.exepex.stratum.restclient.testsupport.clients.ClientsApplication;
 import java.time.Duration;
 import lombok.experimental.UtilityClass;
+import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.builder.SpringApplicationBuilder;
@@ -12,6 +15,7 @@ import org.springframework.boot.http.client.autoconfigure.HttpClientAutoConfigur
 import org.springframework.boot.http.client.autoconfigure.imperative.ImperativeHttpClientAutoConfiguration;
 import org.springframework.boot.http.client.autoconfigure.service.HttpServiceClientPropertiesAutoConfiguration;
 import org.springframework.boot.restclient.autoconfigure.service.HttpServiceClientAutoConfiguration;
+import org.springframework.boot.ssl.SslBundles;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -50,6 +54,12 @@ public class RestClientTestData {
   /** The key of the pricing client's address. */
   public static final String PRICING_URL = PRICING_SETTINGS + ".url";
 
+  /**
+   * A stand-in for a secret: not a real credential, as tests only check that it is passed on or
+   * hidden.
+   */
+  public static final String SECRET = "not-a-real-secret-4f2a";
+
   /** An address no test calls, for tests that only start the application. */
   public static final String UNUSED_URL = "http://127.0.0.1:9";
 
@@ -80,6 +90,18 @@ public class RestClientTestData {
                 HttpServiceClientPropertiesAutoConfiguration.class,
                 org.springframework.boot.restclient.autoconfigure.RestClientAutoConfiguration.class,
                 HttpServiceClientAutoConfiguration.class));
+  }
+
+  /**
+   * Returns pools of the kind a service or a company framework declares as its own bean, with
+   * Stratum's defaults and no SSL bundles.
+   *
+   * @return the pools
+   */
+  public static ClientConnectionPools ownPools() {
+    return new ClientConnectionPools(
+        HttpClientProperties.builder().build().defaults(),
+        new StaticListableBeanFactory().getBeanProvider(SslBundles.class));
   }
 
   /**

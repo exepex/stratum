@@ -9,3 +9,9 @@ stratum:
         interfaces:
           - com.partner.OrdersApi
           - com.partner.CustomersApi
+      partner:
+        url: http://partner:8080
+        auth:
+          basic:
+            username: orders
+            password: not-a-real-secret-4f2a

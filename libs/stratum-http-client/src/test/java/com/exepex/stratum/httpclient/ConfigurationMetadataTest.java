@@ -29,7 +29,13 @@ class ConfigurationMetadataTest {
           "idle-timeout",
           "connection-lifetime",
           "shared-pool",
-          "interfaces");
+          "interfaces",
+          "ssl-bundle",
+          "auth.api-key",
+          "auth.api-key-header",
+          "auth.bearer",
+          "auth.basic.username",
+          "auth.basic.password");
 
   @Test
   @DisplayName("every property is listed with a description")

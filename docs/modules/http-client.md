@@ -137,10 +137,15 @@ the shared default, which wins over Stratum's.
 | `connection-lifetime` | duration | `5m` | no such key | How old a connection may get before it is closed instead of used again. |
 | `shared-pool` | boolean | `false` | no such key | With `true`, the client uses one pool shared by every client that sets it, instead of its own. That pool takes its size, connect timeout, idle timeout and lifetime from `defaults`; the client keeps its own `timeout` and `max-wait`. |
 | `interfaces` | list of interface names | none | no such key | Generated interfaces, by full name such as `com.partner.OrdersApi`, that call this client's service with all its settings, as a `@StratumClient` interface does ([Clients Stratum did not build](#clients-stratum-did-not-build)). Not allowed under `defaults`. |
+| `auth.api-key` | text | unset | no such key | An API key sent on every call of the client, from a placeholder such as `${GEO_API_KEY}`. Not allowed under `defaults`, like every `auth` key ([Auth and mTLS](http-client-auth.md)). |
+| `auth.api-key-header` | text | `X-Api-Key` | no such key | The header that carries the API key. Only with `auth.api-key`. |
+| `auth.bearer` | text | unset | no such key | A fixed token sent as `Authorization: Bearer` on every call. |
+| `auth.basic.username`, `auth.basic.password` | text | unset | no such key | Credentials sent with HTTP Basic authentication on every call. Both are required. |
+| `ssl-bundle` | text | unset | no such key | The name of a `spring.ssl.bundle.*` bundle whose certificate the client presents (mutual TLS). Not allowed under `defaults`, nor with `shared-pool`. |
 | `spring.http.clients.imperative.factory` | `http-components`, `jetty`, `reactor`, `jdk` or `simple` | `jdk` | unset: detects the engine, Apache HttpClient 5 first | The engine of the RestClients Stratum did not build. Stratum's own clients always use Apache HttpClient 5 ([Clients Stratum did not build](#clients-stratum-did-not-build)). |
 
-Every duration must be above 0. A setting that breaks a rule stops startup with `SX-CORE-1003`, naming the rule, never
-the value.
+Every duration must be above 0, and `auth` holds exactly one kind. A setting that breaks a rule stops startup with
+`SX-CORE-1003`, naming the rule, never the value.
 
 Spring Boot's own settings of an HTTP service group, `spring.http.serviceclient.<name>.*`, do not apply to a Stratum
 client: Stratum builds its client. Setting one for a Stratum client's name stops startup with `SX-HTTPC-1001`, naming
@@ -236,7 +241,7 @@ StratumClientCustomizer inventoryTenantHeader() {
 }
 ```
 
-Do not put secrets in a header this way: tokens arrive with the planned `auth` settings.
+Do not put secrets in a header this way: use the [`auth` settings](http-client-auth.md).
 
 Spring Boot's `RestClientCustomizer` beans also apply to Stratum's clients, before Stratum's settings; a request
 factory one of them sets is replaced by Stratum's.
@@ -340,7 +345,7 @@ Each one, with its fix, is in [Error codes](../guides/error-codes.md#stratum-sta
 
 These parts of [ADR 0011](../adr/0011-http-client-starters.md) are not built yet, and none of their keys is read:
 
-- tokens: client credentials and token relay (`auth`), and `ssl-bundle` for mTLS;
+- tokens: `auth.client-credentials` and `auth.token-relay`;
 - resilience: `retries`, `retry-delay`, `total-timeout` and the circuit breaker;
 - `headers` and `copy-headers`;
 - error mapping to `DownstreamException` and the `SX-HTTPC-0001` to `0004` codes;

@@ -172,7 +172,7 @@ stratum:
     resource-server:
       issuer-uri: https://idp.acme.com/realms/acme
       audiences: [order-service]
-  http-client:                   # url, timeout built; auth, retries planned (ADR 0011)
+  http-client:                   # url, timeout built; token-relay, retries planned (ADR 0011)
     clients:
       inventory:
         url: http://inventory-service
@@ -197,7 +197,7 @@ management.opentelemetry.tracing.export.otlp.endpoint=http://otel-collector:4318
 stratum.environment=prod
 stratum.security.resource-server.issuer-uri=https://idp.acme.com/realms/acme
 stratum.security.resource-server.audiences=order-service
-# HTTP client keys (ADR 0011): url and timeout are built; auth and retries are planned
+# HTTP client keys (ADR 0011): url and timeout are built; token-relay and retries are planned
 stratum.http-client.clients.inventory.url=http://inventory-service
 stratum.http-client.clients.inventory.auth.token-relay=true
 stratum.http-client.clients.payments.url=http://payments-service

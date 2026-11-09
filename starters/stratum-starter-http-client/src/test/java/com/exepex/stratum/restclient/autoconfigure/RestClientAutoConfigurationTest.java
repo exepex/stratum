@@ -3,7 +3,6 @@ package com.exepex.stratum.restclient.autoconfigure;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.httpclient.HttpClientConstants;
-import com.exepex.stratum.httpclient.HttpClientProperties;
 import com.exepex.stratum.httpclient.HttpClientPropertiesCustomizer;
 import com.exepex.stratum.restclient.ClientConnectionPools;
 import com.exepex.stratum.restclient.StratumClientGroups;
@@ -87,8 +86,7 @@ class RestClientAutoConfigurationTest {
     @Test
     @DisplayName("the service's own pools bean wins over Stratum's")
     void servicePoolsWin() {
-      var servicePools =
-          new ClientConnectionPools(HttpClientProperties.builder().build().defaults());
+      var servicePools = RestClientTestData.ownPools();
       clients
           .withBean(ClientConnectionPools.class, () -> servicePools)
           .run(
@@ -172,7 +170,7 @@ class RestClientAutoConfigurationTest {
      */
     @Bean(POOLS)
     ClientConnectionPools companyPools() {
-      return new ClientConnectionPools(HttpClientProperties.builder().build().defaults());
+      return RestClientTestData.ownPools();
     }
   }
 }
