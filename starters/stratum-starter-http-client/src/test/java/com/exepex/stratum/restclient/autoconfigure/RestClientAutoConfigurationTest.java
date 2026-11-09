@@ -7,6 +7,7 @@ import com.exepex.stratum.httpclient.HttpClientProperties;
 import com.exepex.stratum.httpclient.HttpClientPropertiesCustomizer;
 import com.exepex.stratum.restclient.ClientConnectionPools;
 import com.exepex.stratum.restclient.StratumClientGroups;
+import com.exepex.stratum.restclient.StratumHttpClients;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import com.exepex.stratum.restclient.testsupport.clients.InventoryAdmin;
 import com.exepex.stratum.restclient.testsupport.clients.InventoryClient;
@@ -46,7 +47,8 @@ class RestClientAutoConfigurationTest {
               assertThat(context)
                   .hasSingleBean(InventoryClient.class)
                   .hasSingleBean(ClientConnectionPools.class)
-                  .hasSingleBean(StratumClientGroups.class));
+                  .hasSingleBean(StratumClientGroups.class)
+                  .hasSingleBean(StratumHttpClients.class));
     }
 
     @Test
@@ -73,7 +75,8 @@ class RestClientAutoConfigurationTest {
                       .doesNotHaveBean(InventoryClient.class)
                       .doesNotHaveBean(HttpServiceProxyRegistry.class)
                       .doesNotHaveBean(ClientConnectionPools.class)
-                      .doesNotHaveBean(StratumClientGroups.class));
+                      .doesNotHaveBean(StratumClientGroups.class)
+                      .doesNotHaveBean(StratumHttpClients.class));
     }
   }
 
@@ -108,6 +111,20 @@ class RestClientAutoConfigurationTest {
                       .hasSingleBean(StratumClientGroups.class)
                       .getBean(StratumClientGroups.class)
                       .isSameAs(serviceGroups));
+    }
+
+    @Test
+    @DisplayName("the service's own StratumHttpClients bean wins over Stratum's")
+    void serviceHttpClientsWin() {
+      var serviceHttpClients = Mockito.mock(StratumHttpClients.class);
+      clients
+          .withBean(StratumHttpClients.class, () -> serviceHttpClients)
+          .run(
+              context ->
+                  assertThat(context)
+                      .hasSingleBean(StratumHttpClients.class)
+                      .getBean(StratumHttpClients.class)
+                      .isSameAs(serviceHttpClients));
     }
 
     @Test

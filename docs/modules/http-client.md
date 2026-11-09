@@ -6,7 +6,7 @@ its calls. Tokens, retries and the circuit breaker, headers, error mapping, the 
 planned ([Planned](#planned)).
 
 [← Documentation home](../README.md) · Property prefix: `stratum.http-client` ·
-Design: [ADR 0011](../adr/0011-http-client-starters.md)
+Design: [ADR 0011](../adr/0011-http-client-starters.md), [ADR 0012](../adr/0012-http-client-changes-found-while-building.md)
 
 ## What it does
 
@@ -136,6 +136,7 @@ the shared default, which wins over Stratum's.
 | `idle-timeout` | duration | `30s` | no such key | How long a connection may stay unused before it is closed. |
 | `connection-lifetime` | duration | `5m` | no such key | How old a connection may get before it is closed instead of used again. |
 | `shared-pool` | boolean | `false` | no such key | With `true`, the client uses one pool shared by every client that sets it, instead of its own. That pool takes its size, connect timeout, idle timeout and lifetime from `defaults`; the client keeps its own `timeout` and `max-wait`. |
+| `interfaces` | list of interface names | none | no such key | Generated interfaces, by full name such as `com.partner.OrdersApi`, that call this client's service with all its settings, as a `@StratumClient` interface does ([Clients Stratum did not build](#clients-stratum-did-not-build)). Not allowed under `defaults`. |
 | `spring.http.clients.imperative.factory` | `http-components`, `jetty`, `reactor`, `jdk` or `simple` | `jdk` | unset: detects the engine, Apache HttpClient 5 first | The engine of the RestClients Stratum did not build. Stratum's own clients always use Apache HttpClient 5 ([Clients Stratum did not build](#clients-stratum-did-not-build)). |
 
 Every duration must be above 0. A setting that breaks a rule stops startup with `SX-CORE-1003`, naming the rule, never
@@ -240,8 +241,9 @@ Do not put secrets in a header this way: tokens arrive with the planned `auth` s
 Spring Boot's `RestClientCustomizer` beans also apply to Stratum's clients, before Stratum's settings; a request
 factory one of them sets is replaced by Stratum's.
 
-To change how Stratum builds a client, declare a `StratumClientCustomizer`, as above. Stratum's other beans for
-the clients are internal: their types may change in any release, so they are not a way to customize.
+To change how Stratum builds a client, declare a `StratumClientCustomizer`, as above. A `StratumHttpClients` bean of
+your own replaces Stratum's ([Clients Stratum did not build](#clients-stratum-did-not-build)). Stratum's other beans
+for the clients are internal: their types may change in any release, so they are not a way to customize.
 
 ## Clients Stratum did not build
 
@@ -265,6 +267,55 @@ spring:
         factory: http-components
 ```
 
+Teams also call other services through clients they did not write: an interface an OpenAPI generator wrote, a
+generated client that takes a `RestClient`, or a vendor's SDK with its own engine. Each can join a Stratum client's
+settings, and nothing joins unless you ask.
+
+**A generated interface** with Spring's `@GetExchange` and `@PostExchange`, but no `@StratumClient`, joins a client
+through the client's `interfaces` setting. It then gets everything a `@StratumClient` interface gets, and you inject
+it the same way:
+
+```properties
+stratum.http-client.clients.partner.url=https://orders.partner.example
+stratum.http-client.clients.partner.interfaces[0]=com.partner.OrdersApi
+stratum.http-client.clients.partner.interfaces[1]=com.partner.CustomersApi
+```
+
+```yaml
+stratum:
+  http-client:
+    clients:
+      partner:
+        url: https://orders.partner.example
+        interfaces:
+          - com.partner.OrdersApi
+          - com.partner.CustomersApi
+```
+
+A name that is not an interface on the classpath stops startup with `SX-HTTPC-1007`; an interface marked
+`@StratumClient` for another client stops it with `SX-HTTPC-1008`. A generated interface cannot carry
+`@StratumClient(interceptors = ...)`, so the planned per-client interceptors do not reach it; a
+`StratumClientCustomizer` does, by the client's name.
+
+**A generated client that takes a `RestClient`** gets the client's own one from the `StratumHttpClients` bean, with
+its address, timeouts, pool and your customizers. It shares the pool with the client's interfaces:
+
+```java
+@Bean
+PartnerOrdersClient partnerOrders(StratumHttpClients stratumHttpClients) {
+  // PartnerOrdersClient stands for the generated class; its constructor takes a RestClient.
+  return new PartnerOrdersClient(stratumHttpClients.restClient("partner"));
+}
+```
+
+That `RestClient` sends each call once. It does not retry, because retrying inside a `RestClient` would make Spring
+hold every request body in memory. Wrapping a call in the planned `stratumHttpClients.resilience("partner")` will
+give it the client's retry and circuit breaker. A name with no `url` fails at the first `restClient` call, with
+`SX-HTTPC-1004`.
+
+**A client with its own engine,** such as a vendor SDK, reads the client's settings, its own merged with
+`defaults`, from `stratumHttpClients.settings("partner")`, for example `settings.url()` and `settings.timeout()`.
+
 ## How it is wired
 
 Stratum's auto-configuration runs before Spring Boot's HTTP service client auto-configuration, because Spring Boot
@@ -280,6 +331,8 @@ only, with the client's Apache HttpClient 5 pool.
 | `SX-HTTPC-1002` | A client method returns `Mono` or `Flux`. |
 | `SX-HTTPC-1003` | A client name is not lowercase letters, digits and hyphens starting with a letter. |
 | `SX-HTTPC-1004` | A client has no `url`. |
+| `SX-HTTPC-1007` | A client's `interfaces` names a type that is not an interface on the classpath. |
+| `SX-HTTPC-1008` | An interface marked `@StratumClient` for one client is named in another client's `interfaces`. |
 
 Each one, with its fix, is in [Error codes](../guides/error-codes.md#stratum-starter-http-client).
 
@@ -292,7 +345,9 @@ These parts of [ADR 0011](../adr/0011-http-client-starters.md) are not built yet
 - `headers` and `copy-headers`;
 - error mapping to `DownstreamException` and the `SX-HTTPC-0001` to `0004` codes;
 - one log line per call and the pool metrics;
-- streaming uploads and downloads, `mock: true`, `urls`, `interface` and `stratumHttpClients`;
+- streaming uploads and downloads, `mock: true` and `urls`;
+- `stratumHttpClients.resilience(name)`, the retry and circuit breaker for a call through a client Stratum did not
+  build;
 - `ClientInterceptor` and `GlobalClientInterceptor`;
 - the reactive starter, `stratum-starter-reactive-http-client`, on `WebClient`.
 

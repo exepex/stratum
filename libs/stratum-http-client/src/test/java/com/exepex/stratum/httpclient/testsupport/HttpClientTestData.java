@@ -3,6 +3,7 @@ package com.exepex.stratum.httpclient.testsupport;
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.List;
 import lombok.experimental.UtilityClass;
 import org.springframework.boot.env.YamlPropertySourceLoader;
 import org.springframework.core.env.StandardEnvironment;
@@ -20,6 +21,10 @@ public class HttpClientTestData {
 
   /** The inventory client's address. */
   public static final String INVENTORY_URL = "http://inventory:8080";
+
+  /** Two generated interfaces of one partner, as in {@code http-client.yml}. */
+  public static final List<String> PARTNER_INTERFACES =
+      List.of("com.partner.OrdersApi", "com.partner.CustomersApi");
 
   /** A timeout a slow report endpoint needs. */
   public static final Duration REPORT_TIMEOUT = Duration.ofSeconds(20);
@@ -42,7 +47,7 @@ public class HttpClientTestData {
 
   /**
    * Returns an environment that holds {@code http-client.yml}: a shared timeout of 3s and the
-   * inventory client's address with its own timeout of 10s.
+   * inventory client's address with its own timeout of 10s and two generated interfaces.
    *
    * @return the environment
    * @throws IOException if the file cannot be read

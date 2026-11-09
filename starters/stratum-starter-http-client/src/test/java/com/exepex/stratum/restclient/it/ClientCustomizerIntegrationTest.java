@@ -3,6 +3,7 @@ package com.exepex.stratum.restclient.it;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.restclient.StratumClientCustomizer;
+import com.exepex.stratum.restclient.StratumHttpClients;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import com.exepex.stratum.restclient.testsupport.ScriptedDownstream;
 import com.exepex.stratum.restclient.testsupport.clients.ClientsApplication;
@@ -37,6 +38,8 @@ class ClientCustomizerIntegrationTest {
 
   @Autowired private PricingClient pricingClient;
 
+  @Autowired private StratumHttpClients stratumHttpClients;
+
   /**
    * Points both clients at the server.
    *
@@ -54,7 +57,20 @@ class ClientCustomizerIntegrationTest {
     pricingClient.price();
 
     assertThat(DOWNSTREAM.paths())
-        .containsExactly(REPORTS + ScriptedDownstream.STOCK, ScriptedDownstream.STOCK);
+        .endsWith(REPORTS + ScriptedDownstream.STOCK, ScriptedDownstream.STOCK);
+  }
+
+  @Test
+  @DisplayName("the customizer also changes the client's RestClient from stratumHttpClients")
+  void restClientOfClientCustomized() {
+    stratumHttpClients
+        .restClient(RestClientTestData.INVENTORY)
+        .get()
+        .uri(ScriptedDownstream.STOCK)
+        .retrieve()
+        .toBodilessEntity();
+
+    assertThat(DOWNSTREAM.paths()).endsWith(REPORTS + ScriptedDownstream.STOCK);
   }
 
   /** The service's customizer: it moves only the inventory client. */

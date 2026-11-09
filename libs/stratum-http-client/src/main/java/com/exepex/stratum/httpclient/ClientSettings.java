@@ -1,6 +1,7 @@
 package com.exepex.stratum.httpclient;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
 import lombok.Builder;
@@ -27,6 +28,9 @@ import org.jspecify.annotations.Nullable;
  * @param sharedPool Whether the client uses the one pool shared by every client that sets it,
  *     instead of its own. That pool takes its size, connect timeout, idle timeout and lifetime from
  *     defaults. Defaults to false.
+ * @param interfaces The full names of generated interfaces, such as com.partner.OrdersApi, that
+ *     call this client's service with all of its settings, as an interface marked @StratumClient
+ *     does. Only for a client; not allowed under defaults. Defaults to none.
  */
 @Builder(toBuilder = true)
 public record ClientSettings(
@@ -37,7 +41,13 @@ public record ClientSettings(
     @Nullable Duration maxWait,
     @Nullable Duration idleTimeout,
     @Nullable Duration connectionLifetime,
-    @Nullable Boolean sharedPool) {
+    @Nullable Boolean sharedPool,
+    List<String> interfaces) {
+
+  /** Keeps the interfaces a fixed list, empty when none is named. */
+  public ClientSettings {
+    interfaces = interfaces == null ? List.of() : List.copyOf(interfaces);
+  }
 
   /** Stratum's default for every setting but the address. */
   static final ClientSettings STRATUM_DEFAULTS =
@@ -67,6 +77,7 @@ public record ClientSettings(
         .idleTimeout(either(idleTimeout, fallback.idleTimeout))
         .connectionLifetime(either(connectionLifetime, fallback.connectionLifetime))
         .sharedPool(either(sharedPool, fallback.sharedPool))
+        .interfaces(interfaces.isEmpty() ? fallback.interfaces : interfaces)
         .build();
   }
 

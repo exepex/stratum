@@ -11,10 +11,12 @@ import java.util.Arrays;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import lombok.experimental.UtilityClass;
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.source.ConfigurationPropertyName;
 import org.springframework.boot.context.properties.source.ConfigurationPropertySources;
 import org.springframework.boot.context.properties.source.ConfigurationPropertyState;
 import org.springframework.core.env.Environment;
+import org.springframework.util.ClassUtils;
 
 /**
  * The startup checks of Stratum's clients. They read only the clients' interfaces and the
@@ -42,11 +44,54 @@ public class StratumClientChecks {
       throw new StratumException(
           HttpClientErrorCode.CLIENT_NAME_INVALID, "interface " + clientInterface.getName());
     }
+    checkMethods(clientInterface);
+    return name;
+  }
+
+  /**
+   * Returns an interface that a client's {@code interfaces} setting names, after checking it.
+   *
+   * @param client the client's name
+   * @param interfaceName the interface's full name, as set
+   * @param classLoader the class loader of the application's beans
+   * @return the interface
+   * @throws StratumException {@code SX-HTTPC-1007} if no interface of that name is on the
+   *     classpath, {@code SX-HTTPC-1008} if it is marked {@code @StratumClient} for another client,
+   *     or {@code SX-HTTPC-1002} if a method returns {@code Mono} or {@code Flux}
+   */
+  public static Class<?> namedInterface(
+      String client, String interfaceName, @Nullable ClassLoader classLoader) {
+    var setting = HttpClientConstants.CLIENTS + "." + client + ".interfaces";
+    if (!ClassUtils.isPresent(interfaceName, classLoader)) {
+      throw new StratumException(
+          HttpClientErrorCode.INTERFACE_NOT_FOUND, setting + " names " + interfaceName);
+    }
+    var namedInterface = ClassUtils.resolveClassName(interfaceName, classLoader);
+    if (!namedInterface.isInterface()) {
+      throw new StratumException(
+          HttpClientErrorCode.INTERFACE_NOT_FOUND, setting + " names class " + interfaceName);
+    }
+    var marked = namedInterface.getAnnotation(StratumClient.class);
+    if (marked != null && !marked.value().equals(client)) {
+      throw new StratumException(
+          HttpClientErrorCode.INTERFACE_TWO_CLIENTS,
+          "interface "
+              + interfaceName
+              + " is marked for client "
+              + marked.value()
+              + " and named in "
+              + setting);
+    }
+    checkMethods(namedInterface);
+    return namedInterface;
+  }
+
+  /** Stops startup when a method of the interface returns a Reactive Streams publisher. */
+  private static void checkMethods(Class<?> clientInterface) {
     Arrays.stream(clientInterface.getMethods())
         .filter(method -> isPublisher(method.getReturnType()))
         .findFirst()
         .ifPresent(method -> rejectReactiveMethod(clientInterface, method));
-    return name;
   }
 
   /** Stops startup for a client method that returns a Reactive Streams publisher. */

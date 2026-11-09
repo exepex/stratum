@@ -6,10 +6,14 @@ import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import com.exepex.stratum.restclient.testsupport.badname.BadNameClients;
+import com.exepex.stratum.restclient.testsupport.clients.InventoryClient;
 import com.exepex.stratum.restclient.testsupport.clients.InventoryClients;
+import com.exepex.stratum.restclient.testsupport.generated.PartnerOrdersApi;
 import com.exepex.stratum.restclient.testsupport.reactive.ReactiveClients;
+import com.exepex.stratum.restclient.testsupport.reactive.ReactiveStockClient;
 import org.assertj.core.api.AbstractThrowableAssert;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -103,6 +107,81 @@ class StartupChecksTest {
             context ->
                 assertStopped(context, "SX-HTTPC-1004")
                     .hasMessageContaining(RestClientTestData.PRICING_URL));
+  }
+
+  @Nested
+  @DisplayName("a client's interfaces setting")
+  class NamedInterfaces {
+
+    /** The runner with the partner client's address and nothing scanned. */
+    private final ApplicationContextRunner partner =
+        RestClientTestData.contextRunner()
+            .withPropertyValues(
+                RestClientTestData.setting(
+                    RestClientTestData.PARTNER_URL, RestClientTestData.UNUSED_URL));
+
+    @Test
+    @DisplayName("a generated interface without @StratumClient, named there, starts")
+    void namedInterfaceStarts() {
+      partner
+          .withPropertyValues(
+              RestClientTestData.setting(
+                  RestClientTestData.PARTNER_INTERFACE, PartnerOrdersApi.class.getName()))
+          .run(context -> assertThat(context).hasSingleBean(PartnerOrdersApi.class));
+    }
+
+    @Test
+    @DisplayName("a name that is on no class: SX-HTTPC-1007, naming the key")
+    void missingInterfaceStopsStartup() {
+      partner
+          .withPropertyValues(
+              RestClientTestData.setting(
+                  RestClientTestData.PARTNER_INTERFACE, "com.partner.MissingApi"))
+          .run(
+              context ->
+                  assertStopped(context, "SX-HTTPC-1007")
+                      .hasMessageContaining(RestClientTestData.PARTNER_SETTINGS + ".interfaces"));
+    }
+
+    @Test
+    @DisplayName("a class instead of an interface: SX-HTTPC-1007")
+    void classStopsStartup() {
+      partner
+          .withPropertyValues(
+              RestClientTestData.setting(
+                  RestClientTestData.PARTNER_INTERFACE, String.class.getName()))
+          .run(context -> assertStopped(context, "SX-HTTPC-1007").hasMessageContaining("class"));
+    }
+
+    @Test
+    @DisplayName("an interface marked for another client: SX-HTTPC-1008, naming both clients")
+    void interfaceOfTwoClientsStopsStartup() {
+      partner
+          .withPropertyValues(
+              RestClientTestData.setting(
+                  RestClientTestData.PARTNER_INTERFACE, InventoryClient.class.getName()))
+          .run(
+              context ->
+                  assertStopped(context, "SX-HTTPC-1008")
+                      .hasMessageContaining(RestClientTestData.INVENTORY)
+                      .hasMessageContaining(RestClientTestData.PARTNER_SETTINGS));
+    }
+
+    @Test
+    @DisplayName("a named interface with a Mono method: SX-HTTPC-1002, naming the method")
+    void namedReactiveInterfaceStopsStartup() {
+      RestClientTestData.contextRunner()
+          .withPropertyValues(
+              RestClientTestData.setting(
+                  RestClientTestData.INVENTORY_URL, RestClientTestData.UNUSED_URL),
+              RestClientTestData.setting(
+                  RestClientTestData.INVENTORY_SETTINGS + ".interfaces[0]",
+                  ReactiveStockClient.class.getName()))
+          .run(
+              context ->
+                  assertStopped(context, "SX-HTTPC-1002")
+                      .hasMessageContaining("ReactiveStockClient.stock"));
+    }
   }
 
   /** Checks that startup stopped with a Stratum code, and returns the check of its message. */

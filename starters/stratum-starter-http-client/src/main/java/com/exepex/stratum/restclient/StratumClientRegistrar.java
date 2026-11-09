@@ -1,10 +1,14 @@
 package com.exepex.stratum.restclient;
 
 import com.exepex.stratum.core.api.StratumInternal;
+import com.exepex.stratum.httpclient.ClientSettings;
+import com.exepex.stratum.httpclient.HttpClientProperties;
 import com.exepex.stratum.httpclient.StratumClient;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanFactory;
@@ -19,9 +23,10 @@ import org.springframework.web.service.registry.AbstractHttpServiceRegistrar;
 
 /**
  * Finds the {@code @StratumClient} interfaces in the application's packages, the ones Spring Boot
- * scans for entities and repositories, and makes each client name one HTTP service group. Two
- * interfaces with the same name join one group. Each interface is checked as it is found ({@link
- * StratumClientChecks#checkInterface}).
+ * scans for entities and repositories, and the interfaces each client's {@code interfaces} setting
+ * names, and makes each client name one HTTP service group. Two interfaces with the same name join
+ * one group. Each interface is checked as it is found ({@link StratumClientChecks#checkInterface},
+ * {@link StratumClientChecks#namedInterface}).
  */
 @StratumInternal
 public class StratumClientRegistrar extends AbstractHttpServiceRegistrar {
@@ -70,7 +75,8 @@ public class StratumClientRegistrar extends AbstractHttpServiceRegistrar {
   }
 
   /**
-   * Registers one group per client name with its interfaces.
+   * Registers one group per client name with its interfaces: the ones marked {@code @StratumClient}
+   * and the ones a client's {@code interfaces} setting names.
    *
    * @param registry Spring's registry of HTTP service groups
    * @param importingClassMetadata the auto-configuration that imports this registrar, not used
@@ -78,18 +84,50 @@ public class StratumClientRegistrar extends AbstractHttpServiceRegistrar {
   @Override
   protected void registerHttpServices(
       GroupRegistry registry, AnnotationMetadata importingClassMetadata) {
+    Stream.concat(markedInterfaces(), namedInterfaces())
+        .distinct()
+        .collect(
+            Collectors.groupingBy(
+                Map.Entry::getKey, Collectors.mapping(Map.Entry::getValue, Collectors.toList())))
+        .forEach((client, interfaces) -> register(registry, client, interfaces));
+  }
+
+  /** Returns each {@code @StratumClient} interface in the application's packages, by client. */
+  private Stream<Map.Entry<String, Class<?>>> markedInterfaces() {
     var factory = Objects.requireNonNull(beanFactory);
     if (!AutoConfigurationPackages.has(factory)) {
-      return;
+      return Stream.empty();
     }
     var scanner = new InterfaceScanner(Objects.requireNonNull(environment));
-    AutoConfigurationPackages.get(factory).stream()
+    return AutoConfigurationPackages.get(factory).stream()
         .flatMap(basePackage -> scanner.findCandidateComponents(basePackage).stream())
         .map(candidate -> Objects.requireNonNull(candidate.getBeanClassName()))
         .distinct()
         .<Class<?>>map(className -> ClassUtils.resolveClassName(className, beanClassLoader))
-        .collect(Collectors.groupingBy(StratumClientChecks::checkInterface))
-        .forEach((client, interfaces) -> register(registry, client, interfaces));
+        .map(marked -> Map.entry(StratumClientChecks.checkInterface(marked), marked));
+  }
+
+  /**
+   * Returns each interface named in a client's {@code interfaces} setting, by client. The settings
+   * come from {@link HttpClientProperties#resolve}, so a service's Java configuration counts too.
+   */
+  private Stream<Map.Entry<String, Class<?>>> namedInterfaces() {
+    return HttpClientProperties.resolve(Objects.requireNonNull(environment))
+        .clients()
+        .entrySet()
+        .stream()
+        .flatMap(this::namedInterfacesOf);
+  }
+
+  /** Returns the interfaces one client's settings name, with the client's name. */
+  private Stream<Map.Entry<String, Class<?>>> namedInterfacesOf(
+      Map.Entry<String, ClientSettings> client) {
+    return client.getValue().interfaces().stream()
+        .map(
+            name ->
+                Map.entry(
+                    client.getKey(),
+                    StratumClientChecks.namedInterface(client.getKey(), name, beanClassLoader)));
   }
 
   /** Registers the interfaces of one client in its group. */

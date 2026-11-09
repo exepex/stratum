@@ -7,14 +7,18 @@ import com.exepex.stratum.core.properties.StratumCustomizers;
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientProperties;
 import com.exepex.stratum.restclient.ClientConnectionPools;
+import com.exepex.stratum.restclient.DefaultStratumHttpClients;
+import com.exepex.stratum.restclient.StratumClientBuilders;
 import com.exepex.stratum.restclient.StratumClientCustomizer;
 import com.exepex.stratum.restclient.StratumClientGroups;
 import com.exepex.stratum.restclient.StratumClientRegistrar;
+import com.exepex.stratum.restclient.StratumHttpClients;
 import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureOrder;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.restclient.RestClientCustomizer;
 import org.springframework.boot.restclient.autoconfigure.service.HttpServiceClientAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Fallback;
@@ -58,7 +62,8 @@ public final class RestClientAutoConfiguration {
   }
 
   /**
-   * Creates the set-up of each Stratum client's group.
+   * Creates Stratum's set-up of a client's builder, shared by the client interfaces and {@link
+   * StratumHttpClients}.
    *
    * @param environment the service's environment, from which the settings are resolved
    * @param pools the connection pools
@@ -68,11 +73,45 @@ public final class RestClientAutoConfiguration {
   @Bean
   @Fallback
   @ConditionalOnMissingBean
-  public StratumClientGroups stratumClientGroups(
+  public StratumClientBuilders stratumClientBuilders(
       Environment environment,
       ClientConnectionPools pools,
       ObjectProvider<StratumClientCustomizer> customizers) {
-    return new StratumClientGroups(
+    return new StratumClientBuilders(
         HttpClientProperties.resolve(environment), pools, environment, customizers);
+  }
+
+  /**
+   * Creates the set-up of each Stratum client's group.
+   *
+   * @param environment the service's environment, from which the settings are resolved
+   * @param builders Stratum's set-up of a client's builder
+   * @return the set-up
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean
+  public StratumClientGroups stratumClientGroups(
+      Environment environment, StratumClientBuilders builders) {
+    return new StratumClientGroups(HttpClientProperties.resolve(environment), builders);
+  }
+
+  /**
+   * Creates the {@code RestClient} and settings of each client for clients Stratum did not build.
+   *
+   * @param environment the service's environment, from which the settings are resolved
+   * @param builders Stratum's set-up of a client's builder
+   * @param restClientCustomizers Spring Boot's and the service's {@code RestClient} customizers
+   * @return the clients
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean
+  public StratumHttpClients stratumHttpClients(
+      Environment environment,
+      StratumClientBuilders builders,
+      ObjectProvider<RestClientCustomizer> restClientCustomizers) {
+    return new DefaultStratumHttpClients(
+        HttpClientProperties.resolve(environment), builders, restClientCustomizers);
   }
 }

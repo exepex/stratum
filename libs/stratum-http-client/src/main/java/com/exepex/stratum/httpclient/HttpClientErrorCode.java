@@ -49,7 +49,24 @@ public enum HttpClientErrorCode implements ErrorCode {
       "SX-HTTPC-1004",
       Severity.ERROR,
       "A Stratum client has no address",
-      "Set " + HttpClientConstants.CLIENTS + ".<name>.url, such as http://inventory:8080.");
+      "Set " + HttpClientConstants.CLIENTS + ".<name>.url, such as http://inventory:8080."),
+
+  /** A client's {@code interfaces} names a type that is not an interface on the classpath. */
+  INTERFACE_NOT_FOUND(
+      "SX-HTTPC-1007",
+      Severity.ERROR,
+      "A client's interfaces setting names no interface on the classpath",
+      "Name an interface by its full name, such as com.partner.OrdersApi, and check that its jar"
+          + " is on the classpath."),
+
+  /** An interface is marked for one client and named in another client's {@code interfaces}. */
+  INTERFACE_TWO_CLIENTS(
+      "SX-HTTPC-1008",
+      Severity.ERROR,
+      "An interface is marked @StratumClient for one client and named in another client's"
+          + " interfaces setting",
+      "Keep the interface in one client: remove it from the other client's interfaces, or change"
+          + " its @StratumClient name.");
 
   /** The code, such as {@code SX-HTTPC-1001}. */
   private final String code;

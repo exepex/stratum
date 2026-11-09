@@ -80,6 +80,27 @@ class HttpClientPropertiesTest {
           .isEqualTo(HttpClientTestData.INVENTORY_TIMEOUT);
       assertThat(properties.clientSettings(HttpClientTestData.INVENTORY).url())
           .isEqualTo(HttpClientTestData.INVENTORY_URL);
+      assertThat(properties.clientSettings(HttpClientTestData.INVENTORY).interfaces())
+          .isEqualTo(HttpClientTestData.PARTNER_INTERFACES);
+    }
+
+    @Test
+    @DisplayName("a client's generated interfaces are read as a list from properties")
+    void interfacesFromProperties() {
+      var environment =
+          new MockEnvironment()
+              .withProperty(
+                  HttpClientTestData.INVENTORY_SETTINGS + ".interfaces[0]",
+                  HttpClientTestData.PARTNER_INTERFACES.get(0))
+              .withProperty(
+                  HttpClientTestData.INVENTORY_SETTINGS + ".interfaces[1]",
+                  HttpClientTestData.PARTNER_INTERFACES.get(1));
+
+      assertThat(
+              HttpClientProperties.resolve(environment)
+                  .clientSettings(HttpClientTestData.INVENTORY)
+                  .interfaces())
+          .isEqualTo(HttpClientTestData.PARTNER_INTERFACES);
     }
   }
 
@@ -147,6 +168,15 @@ class HttpClientPropertiesTest {
     @DisplayName("an address under defaults")
     void urlInDefaults() {
       assertInvalid(HttpClientConstants.DEFAULTS + ".url", "http://x", "defaults-without-url");
+    }
+
+    @Test
+    @DisplayName("generated interfaces under defaults")
+    void interfacesInDefaults() {
+      assertInvalid(
+          HttpClientConstants.DEFAULTS + ".interfaces[0]",
+          HttpClientTestData.PARTNER_INTERFACES.get(0),
+          "defaults-without-interfaces");
     }
 
     /** Checks that one setting stops startup with a message that names only the broken rule. */

@@ -1,20 +1,20 @@
 package com.exepex.stratum.restclient;
 
 import com.exepex.stratum.core.api.StratumInternal;
+import com.exepex.stratum.httpclient.ClientSettings;
 import com.exepex.stratum.httpclient.HttpClientProperties;
 import com.exepex.stratum.httpclient.StratumClient;
+import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.core.env.Environment;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.support.RestClientHttpServiceGroupConfigurer;
 import org.springframework.web.service.registry.HttpServiceGroup;
 
 /**
- * Sets up the HTTP service group of each Stratum client: its address and its connection pool from
- * {@code stratum.http-client.*}, then the service's {@link StratumClientCustomizer} beans. Groups
- * without a {@code @StratumClient} interface, such as a service's own, are left as Spring Boot set
- * them up. Runs at startup, when Spring builds the clients.
+ * Sets up the HTTP service group of each Stratum client through {@link StratumClientBuilders}.
+ * Groups that are not a Stratum client's, such as a service's own, are left as Spring Boot set them
+ * up. Runs at startup, when Spring builds the clients.
  */
 @StratumInternal
 @RequiredArgsConstructor
@@ -29,14 +29,8 @@ public class StratumClientGroups implements RestClientHttpServiceGroupConfigurer
   /** The settings of every client. */
   private final HttpClientProperties properties;
 
-  /** The pools the clients use. */
-  private final ClientConnectionPools pools;
-
-  /** The application's environment, checked for Spring Boot's group settings. */
-  private final Environment environment;
-
-  /** The service's changes to the clients' builders. */
-  private final ObjectProvider<StratumClientCustomizer> customizers;
+  /** Stratum's set-up of a client's builder. */
+  private final StratumClientBuilders builders;
 
   /**
    * Sets up each Stratum client's group.
@@ -45,7 +39,9 @@ public class StratumClientGroups implements RestClientHttpServiceGroupConfigurer
    */
   @Override
   public void configureGroups(Groups<RestClient.Builder> groups) {
-    groups.filter(this::isStratumClient).forEachClient(this::configureClient);
+    groups
+        .filter(this::isStratumClient)
+        .forEachClient((group, builder) -> builders.configure(group.name(), builder));
   }
 
   /**
@@ -58,20 +54,22 @@ public class StratumClientGroups implements RestClientHttpServiceGroupConfigurer
     return ORDER;
   }
 
-  /** Sets one client's address and pool, after the checks, then applies the customizers. */
-  private void configureClient(HttpServiceGroup group, RestClient.Builder builder) {
-    var client = group.name();
-    StratumClientChecks.checkNoBootSettings(environment, client);
-    var settings = properties.clientSettings(client);
-    builder
-        .baseUrl(StratumClientChecks.requireUrl(client, settings))
-        .requestFactory(pools.requestFactory(client, settings));
-    customizers.orderedStream().forEach(customizer -> customizer.customize(client, builder));
-  }
-
-  /** Returns whether the group is a Stratum client's. */
-  private boolean isStratumClient(HttpServiceGroup group) {
+  /**
+   * Returns whether a group is a Stratum client's: one of its interfaces is marked {@code
+   * StratumClient}, or is named in the {@code interfaces} setting of the client the group is named
+   * after. The name alone never counts, so a service's own group of the same name stays its own.
+   *
+   * @param group an HTTP service group
+   * @return whether Stratum sets the group up
+   */
+  public boolean isStratumClient(HttpServiceGroup group) {
+    var named =
+        Optional.ofNullable(properties.clients().get(group.name()))
+            .map(ClientSettings::interfaces)
+            .orElse(List.of());
     return group.httpServiceTypes().stream()
-        .anyMatch(type -> type.isAnnotationPresent(StratumClient.class));
+        .anyMatch(
+            type ->
+                type.isAnnotationPresent(StratumClient.class) || named.contains(type.getName()));
   }
 }
