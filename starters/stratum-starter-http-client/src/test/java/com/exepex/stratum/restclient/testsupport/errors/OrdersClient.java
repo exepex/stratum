@@ -4,6 +4,9 @@ import com.exepex.stratum.httpclient.StratumClient;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import java.net.URI;
 import java.util.Map;
+import java.util.Optional;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.service.annotation.GetExchange;
@@ -78,4 +81,53 @@ public interface OrdersClient {
    */
   @GetExchange(ErrorDownstream.LARGE_ANSWER)
   String largeAnswer();
+
+  /**
+   * Finds an order the service does not have, as a body.
+   *
+   * @return empty, as the answer is a 404
+   */
+  @GetExchange(ErrorDownstream.PROBLEM)
+  Optional<String> findMissing();
+
+  /**
+   * Finds an order the service does not have, as the whole answer.
+   *
+   * @return empty, as the answer is a 404
+   */
+  @GetExchange(ErrorDownstream.PROBLEM)
+  Optional<ResponseEntity<String>> findMissingAnswer();
+
+  /**
+   * Finds an order the service does not have, as an answer without its body.
+   *
+   * @return empty, as the answer is a 404
+   */
+  @GetExchange(ErrorDownstream.PROBLEM)
+  Optional<ResponseEntity<Void>> findMissingWithoutBody();
+
+  /**
+   * Finds an order the service does not have, as the answer's headers.
+   *
+   * @return empty, as the answer is a 404
+   */
+  @GetExchange(ErrorDownstream.PROBLEM)
+  Optional<HttpHeaders> findMissingHeaders();
+
+  /**
+   * Finds one order, which fails with a 500.
+   *
+   * @param id the order's ID
+   * @return never, as the answer is a 500
+   */
+  @GetExchange(ErrorDownstream.FAILED + "/{id}")
+  Optional<String> findOrder(@PathVariable String id);
+
+  /**
+   * Finds an answer that succeeds with a body far over 64 KB.
+   *
+   * @return the body
+   */
+  @GetExchange(ErrorDownstream.LARGE_ANSWER)
+  Optional<String> findLargeAnswer();
 }

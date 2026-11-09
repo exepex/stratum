@@ -87,7 +87,8 @@ Check: your security tests pass, and health probes still answer without a token.
 Add `stratum-starter-http-client` (and `stratum-starter-oauth2-client` if you need it); it gives each
 client its own timeouts, connection pool, retries and circuit breaker. A client's error answer becomes a
 `DownstreamException` instead of Spring's subtypes, such as `HttpClientErrorException.NotFound`
-([HTTP client: errors](../modules/http-client-errors.md)). For each downstream service:
+([HTTP client: errors](../modules/http-client-errors.md)). A method that returns `Optional` gets an empty one for a
+`404`, so a `catch` of `NotFound` around it can go. For each downstream service:
 
 1. Turn the hand-written client class into an interface with `@StratumClient("<name>")` and
    Spring's `@GetExchange`, `@PostExchange`, ... Stratum finds it by scanning

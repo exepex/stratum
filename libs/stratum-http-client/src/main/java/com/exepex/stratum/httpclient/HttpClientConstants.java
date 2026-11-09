@@ -103,6 +103,12 @@ public class HttpClientConstants {
    */
   public static final int ERROR_BODY_LIMIT = 64 * 1024;
 
+  /**
+   * The attribute that marks a call of a client's interface whose method returns {@code Optional},
+   * so that a 404 answers it with an empty {@code Optional}.
+   */
+  public static final String OPTIONAL_ANSWER = PREFIX + ".optional-answer";
+
   /** The web starter's key that maps an error code to the HTTP status its caller gets. */
   public static final String WEB_ERROR_STATUSES = "stratum.web.error.statuses";
 
