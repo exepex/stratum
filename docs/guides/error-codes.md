@@ -291,6 +291,18 @@ while the module is on, which it is unless `stratum.cache.enabled=false`. See th
 | `SX-CACHE-1006` | Warning, logged at most once per `stratum.cache.warning-interval`: Redis could not be reached, or a Redis command did not answer within `spring.data.redis.timeout`, `stratum.cache.redis-failure-threshold` times in a row (3 by default), so every Redis cache of the service skips Redis for `stratum.cache.redis-retry-interval` (5 seconds by default); then one call tries again. While Redis is skipped, reads miss, so the methods run, and writes and evictions are dropped. The gauge `stratum.cache.redis.available` reads 0 from then until Redis answers again, and each time Redis starts being skipped because it could not be reached is counted in `stratum.cache.redis.connect-failures`. | Check that Redis is up and reachable from the service, or why its commands are slow. Nothing fails meanwhile: the methods still run, without the cache. See [Cache → When Redis is down](../modules/cache-redis-down.md). |
 | `SX-CACHE-1007` | Spring Boot builds its Redis cache manager, and the cache module would store its values as JSON, but Jackson (`tools.jackson.core:jackson-databind`) is not on the class path. | Add `org.springframework.boot:spring-boot-starter-json`, or declare your own `RedisCacheConfiguration` bean, or turn the module off with `stratum.cache.enabled=false`. See [Cache → Stored values](../modules/cache-values.md). |
 
+## stratum-starter-http-client
+
+Each of these is an error that stops the application at startup, and only while the module is on,
+which it is unless `stratum.http-client.enabled=false`. See the [HTTP client module](../modules/http-client.md).
+
+| Code | Meaning | Fix |
+| --- | --- | --- |
+| `SX-HTTPC-1001` | A Spring Boot setting under `spring.http.serviceclient.<name>`, such as `base-url` or `read-timeout`, is set for the name of a Stratum client. A Stratum client does not read it, so the setting would do nothing. The message names the client, never the value. | Move the setting to `stratum.http-client.clients.<name>`, such as `url` instead of `base-url` and `timeout` instead of `read-timeout`. See [HTTP client → Properties](../modules/http-client.md#properties). |
+| `SX-HTTPC-1002` | A method of a `@StratumClient` interface returns `Mono` or `Flux`, which the blocking HTTP client starter cannot send. The message names the interface and the method. | Return the value itself, such as `Stock` instead of `Mono<Stock>`; the reactive HTTP client starter is planned. |
+| `SX-HTTPC-1003` | A `@StratumClient` name is not lowercase letters, digits and hyphens starting with a letter, so it cannot be a part of `stratum.http-client.clients.<name>`. The message names the interface. | Rename the client, such as `inventory` or `payments-v2`, and its settings with it. |
+| `SX-HTTPC-1004` | A `@StratumClient` has no address: `stratum.http-client.clients.<name>.url` is not set. The message names the key. | Set `stratum.http-client.clients.<name>.url`, such as `http://inventory:8080`. See [HTTP client → Use it](../modules/http-client.md#use-it). |
+
 ## stratum-starter-webmvc and stratum-starter-webflux
 
 These apply only while the module is on, which it is unless `stratum.web.enabled=false`. A caller gets all but `SX-WEB-1006` and `SX-WEB-1009` in the error

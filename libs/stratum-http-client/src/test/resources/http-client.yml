@@ -1,0 +1,8 @@
+stratum:
+  http-client:
+    defaults:
+      timeout: 3s
+    clients:
+      inventory:
+        url: http://inventory:8080
+        timeout: 10s

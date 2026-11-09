@@ -1,0 +1,10 @@
+{
+  "properties": [
+    {
+      "name": "stratum.http-client.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether the HTTP client module is on. With false, Stratum finds no @StratumClient interface and sets up nothing, and Spring Boot's clients keep Spring Boot's own defaults.",
+      "defaultValue": true
+    }
+  ]
+}

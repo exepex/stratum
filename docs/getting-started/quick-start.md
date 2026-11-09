@@ -137,9 +137,9 @@ every profile, or it stops at startup. To try it without a Collector, point both
 without a failed-send log ([Observability](../../starters/stratum-starter-observability/README.md#running-without-a-collector)).
 
 **What Stratum did:** it switched on the four modules (each is on because its starter is on the
-classpath) and set up the `inventory` client as its own HTTP service group. Everything you did not
-set (connect timeout, trace propagation, correlation header, logging) uses Stratum's defaults. See
-[HTTP client](../modules/http-client.md#properties).
+classpath) and set up the `inventory` client as its own HTTP service group, with its own connection
+pool. Everything you did not set (connect timeout, pool size, wait for a free connection) uses
+Stratum's defaults. See [HTTP client](../modules/http-client.md#properties).
 
 Every error gets Stratum's standard body and every request the standard time and body size limits,
 because `stratum.backward-compatible` is `false` by default. A new service leaves it unset, because
@@ -151,14 +151,14 @@ it has no consumers that read an older error body. A running service that adds S
 
 You describe the remote API as a Java interface with `@StratumClient("inventory")`. Spring generates
 the implementation, and Stratum finds the interface by scanning and configures it from the
-`inventory` block above ([ADR 0011](../adr/0011-http-client-starters.md); planned, so the
-annotation's package is set when the starter is built).
+`inventory` block above ([HTTP client](../modules/http-client.md#use-it)).
 
 `src/main/java/com/acme/orders/inventory/InventoryClient.java`:
 
 ```java
 package com.acme.orders.inventory;
 
+import com.exepex.stratum.httpclient.StratumClient;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.service.annotation.GetExchange;
 
@@ -234,7 +234,7 @@ class OutOfStockException extends RuntimeException {
 | Invalid input returns `400` with a list of field errors | `stratum-starter-webmvc` validation and error handling |
 | `OutOfStockException` returns `409` as Problem Details JSON | `stratum-starter-webmvc` error handling |
 | Every log line written inside a traced operation carries `traceId`, `spanId` and `correlationId` | `stratum-starter-observability`, written as JSON by `stratum-starter-logging` |
-| The call to inventory carries the trace and correlation headers | `stratum-starter-http-client` |
+| The call to inventory carries the trace and correlation headers (planned) | `stratum-starter-http-client` |
 | The call to inventory times out after 2 s instead of hanging | Your `timeout` plus Stratum's connect timeout |
 | `http.server.requests` and `http.client.requests` metrics | `stratum-starter-observability` |
 
