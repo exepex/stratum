@@ -245,7 +245,10 @@ Where Spring Boot has a key for a setting, Stratum keeps that key and only chang
 the IDE shows Spring Boot's description and default for it. Each module's README lists those keys
 with Stratum's default, and the value you set always wins, except that the logging starter's format keys
 accept only [Stratum's formats](../../starters/stratum-starter-logging/README.md#what-is-masked). Stratum adds
-no key of its own for anything Spring Boot already has a key for.
+no key of its own for anything Spring Boot already has a key for. The one exception is the planned HTTP client
+starters: each client's settings, timeouts included, live under `stratum.http-client.clients.<name>.*`, and Spring
+Boot's `spring.http.serviceclient.*` keys do not apply to them
+([ADR 0011](../adr/0011-http-client-starters.md)).
 
 Each jar carries its own file, so with several starters on the classpath, a bundle included, the
 IDE shows the keys of all of them. NetBeans needs a Spring Boot plugin that reads the same

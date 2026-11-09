@@ -50,7 +50,7 @@ wins), [ADR 0006](0006-separate-mvc-and-webflux-starters.md) (separate blocking 
 1. Every setting of a client, base URL and timeouts included, lives under `stratum.http-client.clients.<name>.*`.
    Shared values live under `stratum.http-client.defaults.*`, and the client's value wins. Two maps merge
    instead: a client's `headers` are added to `defaults.headers`, the client wins per name, and an empty value
-   drops a default; `copy-headers` lists are joined.
+   drops a default; `copy-headers` lists are joined. A `copy-headers` name with nothing to copy sends nothing.
 2. Spring Boot's `spring.http.serviceclient.<name>.*` keys do not apply to a Stratum client. Stratum builds the
    request factory, and the spike showed Boot's per-group timeout is then ignored. Startup stops when such a key is
    set for a Stratum client's name, naming the Stratum key to use instead (owner, 2026-11-09). It reads
@@ -62,7 +62,8 @@ wins), [ADR 0006](0006-separate-mvc-and-webflux-starters.md) (separate blocking 
    - `auth` (none);
    - `ssl-bundle` (none);
    - `connect-timeout` 2s, `timeout` 5s, `total-timeout` 8s;
-   - `retries` 3 (max 9), `retry-delay` 200ms;
+   - `retries` 3 (max 9), `retry-delay` 200ms (the first wait, then doubled with jitter, at most 2s, as
+     ST-ENG-51 asks);
    - `circuit-breaker` true;
    - `max-connections` 50, `max-wait` 2s, `idle-timeout` 30s, `connection-lifetime` 5m, `shared-pool` false;
    - `headers`, `copy-headers` (none), `trace-headers` true;
@@ -87,14 +88,14 @@ wins), [ADR 0006](0006-separate-mvc-and-webflux-starters.md) (separate blocking 
    With no caller token, the call stops before sending with `SX-HTTPC-0004`. `token-relay` without the security
    starter stops startup.
 3. Client credentials: on a 401, the cached token is dropped, a new one is fetched, and the call is retried once,
-   POST included. The token request uses the client's timeouts and counts toward `total-timeout`.
+   POST included. A second 401 fails the call and is logged once per client per minute. The token request uses
+   the client's timeouts and counts toward `total-timeout`. With token relay, a 401 is passed back unchanged.
 4. A user's identity travels only inside a signed token. `Authorization`, `Cookie`, `Set-Cookie`,
    `Proxy-Authorization` and the API-key header are never accepted in `headers` or `copy-headers`. Secrets come only
    from `${...}` placeholders.
-5. Stratum does not check the target host of a `URI` method parameter or an absolute ad-hoc URI. The owner
-   rejected it on 2026-11-09: the client's configuration and code belong to the team. ST-SEC-17 still binds a
-   service whose URL comes from input: that service checks it against an allow-list itself. Stratum does not
-   enforce it.
+5. Stratum does not check the target host of a `URI` method parameter or an absolute ad-hoc URI, and its
+   documentation adds nothing about it. The owner rejected both on 2026-11-09: the client's configuration and code
+   belong to the team. ST-SEC-17 is a rule for the service's own code, so it is unchanged.
 
 ### 4. Resilience: one retry layer, fixed rules
 1. Resilience4j, inside the client starters, is the only retry layer (owner, 2026-11-07). Apache HttpClient 5's
@@ -103,12 +104,14 @@ wins), [ADR 0006](0006-separate-mvc-and-webflux-starters.md) (separate blocking 
    `resilience-policy` key on a client is dropped. When the shared Resilience4j setup moves into a library,
    both use it (ADR 0010, decision 1.4).
 2. **Retried:** connect failure, a dropped connection before any answer, a read timeout (GET, PUT and DELETE
-   only), 502, 503, 504 and 429. **Never retried:** other 4xx, 500 and 501. POST and PATCH are retried only when
-   nothing was sent, so never after a read timeout.
+   only), 502, 503, 504 and 429. **Never retried:** other 4xx, 500 and 501. POST and PATCH are retried only after a
+   connect failure, where nothing was written (owner, 2026-11-09: "only if nothing sent"; ST-ENG-51). Once the
+   request was written they are not retried: not after a dropped connection or a read timeout, and not on 502,
+   503, 504 or 429.
 3. `Retry-After` on 429 or 503 is honoured within the time left. There is no retry while the breaker is open, and
    a streamed upload is never retried.
-4. Each attempt's timeout is the smaller of `timeout` and the time left under `total-timeout`. The default of 8s
-   stays below the web starter's 10s answer timeout.
+4. Each attempt's timeout is the smaller of `timeout` and the time left under `total-timeout`. No new attempt
+   starts with less than about 100ms left. The default of 8s stays below the web starter's 10s answer timeout.
 5. There is one breaker per client. **Counted as failure:** timeouts, I/O errors, 5xx and 429. **Never counted:**
    other 4xx and a 404 read as empty. When open, the call stops with `SX-HTTPC-0003` (503). A state change is
    logged once, and refused calls are counted.
@@ -145,8 +148,8 @@ is the longest gap between bytes. An interceptor sees no body for a streamed upl
 2. Metric tags and span names use only the URI template. The span's URL attribute is the observability
    starter's, unchanged by this record: the full URL with user info removed
    ([observability](../../starters/stratum-starter-observability/README.md)). The owner decided on 2026-11-09
-   that span query values are masked like the logs; that is a separate observability item. The rule change below
-   covers only the call log line.
+   that span query values are masked like the logs; that is a separate observability item (#240). The rule change
+   below covers only the call log line.
 3. Pool metrics come from Micrometer's Apache HC5 binder, tagged with the client: max, busy, idle and waiting. Wait
    time and pool-full counts are planned (#237).
 4. Body debug (a live log level per client, masked bodies, a 15-minute auto-off) ships only together with the
@@ -224,12 +227,14 @@ Approved by the owner on 2026-11-09 (ST-AG-13).
 Each is its own item, with its own track and judge.
 
 - **This ADR and the three rule changes,** in one pull request.
-- **H1 rework (PR #79):** the base, the settings block, the pool, retry off and the README.
+- **H1 rework (PR #79):** the base, the settings block, the pool, retry off and the README, which tells teams never
+  to put personal data in a URL (ST-SEC-03).
 - **Then, in order:** auth; resilience; errors; the call log and metrics; streaming; mocks and `MockClient`;
   foreign clients; body debug once the logging switch exists.
 - **Reactive starter:** the same rules on Reactor Netty.
 - **Planned issues:**
-  - filed: #236, #237, #238;
+  - filed: #236, #237, #238, and #240 (masking query values on HTTP client span URLs; owner, 2026-11-09;
+    ST-SEC-03), which the observability work owns;
   - to file: the egress proxy (an HTTPS target through a proxy), a mocked client visible in a metric or in actuator
     info, `afterReceive` in interceptors, breaker and pool state in actuator health, a graceful shutdown test,
     service discovery (Eureka, Consul, Kubernetes), and the JWT-bearer grant.
