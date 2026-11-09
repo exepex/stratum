@@ -63,51 +63,63 @@ class ClientPoolIntegrationTest {
     INVENTORY.release();
   }
 
-  @Test
-  @DisplayName("a full inventory pool refuses the next inventory call after max-wait")
-  void fullPoolFailsAfterMaxWait() {
-    var heldCall = CallChecks.holdOneConnection(inventoryClient::held, INVENTORY);
+  @Nested
+  @DisplayName("with each client's own pool")
+  class OwnPools {
 
-    CallChecks.assertFailsFast(inventoryClient::stock, ConnectionRequestTimeoutException.class);
+    @Test
+    @DisplayName("a full inventory pool refuses the next inventory call after max-wait")
+    void fullPoolFailsAfterMaxWait() {
+      var heldCall = CallChecks.holdOneConnection(inventoryClient::held, INVENTORY);
 
-    INVENTORY.release();
-    assertThat(heldCall).succeedsWithin(RestClientTestData.WAIT).isEqualTo(ScriptedDownstream.BODY);
+      CallChecks.assertFailsFast(inventoryClient::stock, ConnectionRequestTimeoutException.class);
+
+      INVENTORY.release();
+      assertThat(heldCall)
+          .succeedsWithin(RestClientTestData.WAIT)
+          .isEqualTo(ScriptedDownstream.BODY);
+    }
+
+    @Test
+    @DisplayName("a full inventory pool leaves the pricing client's pool free")
+    void eachClientHasItsOwnPool() {
+      CallChecks.holdOneConnection(inventoryClient::held, INVENTORY);
+
+      assertThat(pricingClient.price()).isEqualTo(ScriptedDownstream.BODY);
+    }
+
+    @Test
+    @DisplayName("two interfaces with one client name share its address and its pool")
+    void sameNameSharesGroup() {
+      assertThat(inventoryReports.report()).isEqualTo(ScriptedDownstream.BODY);
+      assertThat(INVENTORY.paths()).contains(ScriptedDownstream.STOCK);
+
+      CallChecks.holdOneConnection(inventoryClient::held, INVENTORY);
+
+      CallChecks.assertFailsFast(inventoryReports::report, ConnectionRequestTimeoutException.class);
+    }
   }
 
-  @Test
-  @DisplayName("a full inventory pool leaves the pricing client's pool free")
-  void eachClientHasItsOwnPool() {
-    CallChecks.holdOneConnection(inventoryClient::held, INVENTORY);
+  @Nested
+  @DisplayName("when the application stops")
+  class Shutdown {
 
-    assertThat(pricingClient.price()).isEqualTo(ScriptedDownstream.BODY);
-  }
+    @Test
+    @DisplayName("the pools close their connections when the application stops")
+    void poolsClosedOnShutdown() throws Exception {
+      try (var downstream = ScriptedDownstream.start()) {
+        try (var application =
+            RestClientTestData.startApplication(
+                RestClientTestData.setting(RestClientTestData.INVENTORY_URL, downstream.url()),
+                RestClientTestData.setting(
+                    RestClientTestData.PRICING_URL, RestClientTestData.UNUSED_URL))) {
+          assertThat(application.getBean(InventoryClient.class).stock())
+              .isEqualTo(ScriptedDownstream.BODY);
+          assertThat(downstream.openConnections()).isOne();
+        }
 
-  @Test
-  @DisplayName("two interfaces with one client name share its address and its pool")
-  void sameNameSharesGroup() {
-    assertThat(inventoryReports.report()).isEqualTo(ScriptedDownstream.BODY);
-    assertThat(INVENTORY.paths()).contains(ScriptedDownstream.STOCK);
-
-    CallChecks.holdOneConnection(inventoryClient::held, INVENTORY);
-
-    CallChecks.assertFailsFast(inventoryReports::report, ConnectionRequestTimeoutException.class);
-  }
-
-  @Test
-  @DisplayName("the pools close their connections when the application stops")
-  void poolsClosedOnShutdown() throws Exception {
-    try (var downstream = ScriptedDownstream.start()) {
-      try (var application =
-          RestClientTestData.startApplication(
-              RestClientTestData.setting(RestClientTestData.INVENTORY_URL, downstream.url()),
-              RestClientTestData.setting(
-                  RestClientTestData.PRICING_URL, RestClientTestData.UNUSED_URL))) {
-        assertThat(application.getBean(InventoryClient.class).stock())
-            .isEqualTo(ScriptedDownstream.BODY);
-        assertThat(downstream.openConnections()).isOne();
+        await().atMost(RestClientTestData.WAIT).until(() -> downstream.openConnections() == 0);
       }
-
-      await().atMost(RestClientTestData.WAIT).until(() -> downstream.openConnections() == 0);
     }
   }
 

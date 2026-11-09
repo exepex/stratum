@@ -125,17 +125,18 @@ Every setting can be set for all clients under `stratum.http-client.defaults.*`,
 `stratum.http-client.clients.<name>.*`, where `<name>` is the name in `@StratumClient`. A client's own value wins over
 the shared default, which wins over Stratum's.
 
-| Property | Type | Default | Description |
-| --- | --- | --- | --- |
-| `stratum.http-client.enabled` | boolean | `true` | Whether the starter is on. With `false`, it sets up nothing. |
-| `url` | URL | **required** per client | The address of the other service, such as `http://inventory:8080`. Not allowed under `defaults`, since each client calls its own service. |
-| `connect-timeout` | duration | `2s` | The time allowed to open a connection. |
-| `timeout` | duration | `5s` | The time allowed for the answer to one call. |
-| `max-connections` | int | `50` | The most connections the client keeps open at once, from 1 to 10000. |
-| `max-wait` | duration | `2s` | How long a call waits for a free connection before it fails. |
-| `idle-timeout` | duration | `30s` | How long a connection may stay unused before it is closed. |
-| `connection-lifetime` | duration | `5m` | How old a connection may get before it is closed instead of used again. |
-| `shared-pool` | boolean | `false` | With `true`, the client uses one pool shared by every client that sets it, instead of its own. That pool takes its size, connect timeout, idle timeout and lifetime from `defaults`; the client keeps its own `timeout` and `max-wait`. |
+| Property | Type | Stratum default | Spring Boot default | Description |
+| --- | --- | --- | --- | --- |
+| `stratum.http-client.enabled` | boolean | `true` | no such key | Whether the starter is on. With `false`, it sets up nothing. |
+| `url` | URL | **required** per client | no such key | The address of the other service, such as `http://inventory:8080`. Not allowed under `defaults`, since each client calls its own service. |
+| `connect-timeout` | duration | `2s` | no such key | The time allowed to open a connection. |
+| `timeout` | duration | `5s` | no such key | The time allowed for the answer to one call. |
+| `max-connections` | int | `50` | no such key | The most connections the client keeps open at once, from 1 to 10000. |
+| `max-wait` | duration | `2s` | no such key | How long a call waits for a free connection before it fails. |
+| `idle-timeout` | duration | `30s` | no such key | How long a connection may stay unused before it is closed. |
+| `connection-lifetime` | duration | `5m` | no such key | How old a connection may get before it is closed instead of used again. |
+| `shared-pool` | boolean | `false` | no such key | With `true`, the client uses one pool shared by every client that sets it, instead of its own. That pool takes its size, connect timeout, idle timeout and lifetime from `defaults`; the client keeps its own `timeout` and `max-wait`. |
+| `spring.http.clients.imperative.factory` | `http-components`, `jetty`, `reactor`, `jdk` or `simple` | `jdk` | unset: detects the engine, Apache HttpClient 5 first | The engine of the RestClients Stratum did not build. Stratum's own clients always use Apache HttpClient 5 ([Clients Stratum did not build](#clients-stratum-did-not-build)). |
 
 Every duration must be above 0. A setting that breaks a rule stops startup with `SX-CORE-1003`, naming the rule, never
 the value.

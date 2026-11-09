@@ -15,6 +15,7 @@ import org.apache.hc.client5.http.ConnectTimeoutException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,35 +62,50 @@ class ClientTimeoutIntegrationTest {
     INVENTORY.release();
   }
 
-  @Test
-  @DisplayName("an answer slower than the client's timeout fails the call after that timeout")
-  void readTimeout() {
-    CallChecks.assertFailsFast(inventoryClient::held, SocketTimeoutException.class);
+  @Nested
+  @DisplayName("the client's timeouts")
+  class Timeouts {
 
-    // The client dropped the connection rather than wait for the late answer on it.
-    INVENTORY.release();
-    await().atMost(RestClientTestData.WAIT).until(() -> INVENTORY.resetConnections() == 1);
+    @Test
+    @DisplayName("an answer slower than the client's timeout fails the call after that timeout")
+    void readTimeout() {
+      CallChecks.assertFailsFast(inventoryClient::held, SocketTimeoutException.class);
+
+      // The client dropped the connection rather than wait for the late answer on it.
+      INVENTORY.release();
+      await().atMost(RestClientTestData.WAIT).until(() -> INVENTORY.resetConnections() == 1);
+    }
+
+    @Test
+    @DisplayName(
+        "a service that takes no connection fails the call after the client's connect-timeout")
+    void connectTimeout() {
+      CallChecks.assertFailsFast(pricingClient::price, ConnectTimeoutException.class);
+    }
   }
 
-  @Test
-  @DisplayName(
-      "a service that takes no connection fails the call after the client's connect-timeout")
-  void connectTimeout() {
-    CallChecks.assertFailsFast(pricingClient::price, ConnectTimeoutException.class);
+  @Nested
+  @DisplayName("redirects")
+  class Redirects {
+
+    @Test
+    @DisplayName("a redirect is returned as it is, never followed")
+    void redirectNotFollowed() {
+      assertThat(inventoryClient.moved()).isNull();
+      assertThat(INVENTORY.paths())
+          .contains(ScriptedDownstream.MOVED)
+          .doesNotContain(ScriptedDownstream.STOCK);
+    }
   }
 
-  @Test
-  @DisplayName("a redirect is returned as it is, never followed")
-  void redirectNotFollowed() {
-    assertThat(inventoryClient.moved()).isNull();
-    assertThat(INVENTORY.paths())
-        .contains(ScriptedDownstream.MOVED)
-        .doesNotContain(ScriptedDownstream.STOCK);
-  }
+  @Nested
+  @DisplayName("compressed answers")
+  class Compression {
 
-  @Test
-  @DisplayName("a gzip answer is unpacked")
-  void gzipAnswerRead() {
-    assertThat(inventoryClient.gzipped()).isEqualTo(ScriptedDownstream.BODY);
+    @Test
+    @DisplayName("a gzip answer is unpacked")
+    void gzipAnswerRead() {
+      assertThat(inventoryClient.gzipped()).isEqualTo(ScriptedDownstream.BODY);
+    }
   }
 }
