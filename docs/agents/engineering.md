@@ -212,7 +212,10 @@ Every starter follows these rules:
   for a setting, Stratum uses that key and adds no `stratum.*` key that duplicates it: a module that changes the
   default sets it with `StratumDefaults`, and the module's README lists the Spring Boot key with Stratum's default.
   A `stratum.*` key is added only for what Spring Boot has no key for. Keep the number of keys low: every new key
-  has a safe default, so most services set no `stratum.*` key.
+  has a safe default, so most services set no `stratum.*` key. One exception: the HTTP client starters keep every
+  setting of a client, base URL and timeouts included, under `stratum.http-client.clients.<name>.*`, and the shared
+  values under `stratum.http-client.defaults.*` ([ADR 0011](../adr/0011-http-client-starters.md)). Spring Boot's
+  `spring.http.serviceclient.<name>.*` keys do not apply to a Stratum client.
 - **ST-ENG-35** A team's configuration always wins over Stratum's defaults, including its own lists such as the
   logging starter's `extra-keys` and `extra-patterns`. Stratum guards against mistakes, not against a team's
   deliberate choices. One exception: a service logs only through Stratum's log formats; any other format stops
@@ -268,7 +271,9 @@ Every starter follows these rules:
   timeouts. Stratum sets the defaults; a service can change them per client.
 - **ST-ENG-51 Retry only when safe.** Retry only idempotent operations, only on transient failures (timeouts, HTTP
   503, connection resets), with a limit on attempts and backoff with jitter. Retrying a non-idempotent write is a
-  bug. Use a circuit breaker for a dependency that can fail.
+  bug. A write that was never sent (a connect failure), or that the server rejected before doing any work (a 401 to
+  an expired service token, retried once), may be retried; that is not a retried write
+  ([ADR 0011](../adr/0011-http-client-starters.md)). Use a circuit breaker for a dependency that can fail.
 - **ST-ENG-52 Bound everything.** Pools, queues, caches, batch sizes, request bodies and page sizes all have limits.
   Never build an unbounded collection from external input. Bound the whole output too, such as one log line or one
   response, not only each part of it. One exception: request bodies have no default limit while

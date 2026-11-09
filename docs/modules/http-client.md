@@ -5,6 +5,10 @@ tracing, correlation IDs, tokens, logging and resilience set up for you.
 
 [← Documentation home](../README.md) · Property prefix: `stratum.http-client`
 
+> **The agreed design is [ADR 0011](../adr/0011-http-client-starters.md).** This page still shows an earlier plan
+> (`base-url`, `read-timeout`, `propagate-headers`, `log-bodies`, `resilience-policy`); it is rewritten when the
+> starter is built. Where the two differ, ADR 0011 is the design.
+
 ## What it does
 
 The most common production incident in microservices is a call that waits forever on a slow

@@ -11,13 +11,16 @@ A security flaw in Stratum is copied into every service that uses it, so the rul
 
 - **ST-SEC-01 Secrets.** No password, API key, token, private key or connection string with credentials in code,
   configuration, tests, test data or documentation. Services receive secrets from their environment or secret store.
-- **ST-SEC-02 Logging.** Never log secrets, tokens, `Authorization` headers, cookies, personal data, or whole request
-  and response bodies. The logging starter redacts known sensitive fields, and code must not bypass it.
+- **ST-SEC-02 Logging.** Never log secrets, tokens, `Authorization` headers, cookies, personal data (except as
+  ST-SEC-03 allows), or whole request and response bodies. The logging starter redacts known sensitive fields, and
+  code must not bypass it.
 - **ST-SEC-03 Personal data.** Names, email addresses, phone numbers, postal addresses, government IDs, dates of
   birth, card numbers, IP addresses and precise locations never appear in logs, `toString` output, URLs, query
   strings, metric tags or error responses. A type that holds such data excludes it from `toString`.
-  The one exception: the web module logs the client's IP address (`clientIp`) for security use, and no other
-  personal data.
+  Two exceptions: the web module logs the client's IP address (`clientIp`) for security use; and the HTTP client
+  starters log the called URL with its path and query values in the call log line, only after the logging
+  starter's redaction ([ADR 0011](../adr/0011-http-client-starters.md)). No other personal data is logged, and the
+  documentation tells teams never to put personal data in a URL.
 - **ST-SEC-04 Injection.** SQL and JPQL use bind parameters, never string concatenation of input. Input never reaches
   `ProcessBuilder`, a file path or a log line without validation; carriage returns and line feeds are removed from
   logged values.

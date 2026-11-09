@@ -16,7 +16,7 @@ service starts.
 | **Plain Spring** | Stratum uses Spring Boot's auto-configuration and Spring's extension points. No custom programming model. |
 | **Secure by default** | Secrets redacted, timeouts on every remote call, minimal Actuator exposure, validation of tokens. |
 | **Fail fast** | Missing or invalid configuration stops startup with a clear message. |
-| **Built for volume** | Bounded pools, queues and caches; no blocking on hot paths; retries only for idempotent operations. |
+| **Built for volume** | Bounded pools, queues and caches; no blocking on hot paths; retries only for idempotent operations, or for a write never sent or rejected before any work. |
 | **No business logic** | Stratum holds cross-cutting concerns only. |
 
 ## Repository layout

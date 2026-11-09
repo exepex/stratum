@@ -228,7 +228,8 @@ topic file wins.
 - **Compatibility mode.** Backward-compatible mode keeps external contracts unchanged; everything internal always
   follows Stratum's defaults (ST-ENG-25, ADR 0010).
 - Built for high volume: timeouts on every remote call; bounded pools, queues and caches; no blocking on hot paths;
-  retries only for idempotent operations on transient failures.
+  retries only for idempotent operations on transient failures, or for a write never sent or rejected before any
+  work (ST-ENG-51).
 - Use Java 25 and Spring Boot 4 as they are now. Check the Spring Boot 4 migration notes before reusing an example
   written for Spring Boot 2 or 3.
 
