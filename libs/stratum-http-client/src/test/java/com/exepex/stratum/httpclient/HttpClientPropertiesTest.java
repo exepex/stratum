@@ -19,79 +19,94 @@ import org.springframework.mock.env.MockEnvironment;
 @DisplayName("HttpClientProperties come from properties, changed by Java configuration, which wins")
 class HttpClientPropertiesTest {
 
-  @Test
-  @DisplayName("with nothing set, a client gets Stratum's defaults and no address")
-  void defaultsToStratumValues() {
-    var settings =
-        HttpClientProperties.resolve(new MockEnvironment())
-            .clientSettings(HttpClientTestData.INVENTORY);
+  @Nested
+  @DisplayName("with nothing set")
+  class Defaults {
 
-    assertThat(settings)
-        .isEqualTo(
-            new ClientSettings(
-                null,
-                HttpClientConstants.DEFAULT_CONNECT_TIMEOUT,
-                HttpClientConstants.DEFAULT_TIMEOUT,
-                HttpClientConstants.DEFAULT_MAX_CONNECTIONS,
-                HttpClientConstants.DEFAULT_MAX_WAIT,
-                HttpClientConstants.DEFAULT_IDLE_TIMEOUT,
-                HttpClientConstants.DEFAULT_CONNECTION_LIFETIME,
-                false));
+    @Test
+    @DisplayName("with nothing set, a client gets Stratum's defaults and no address")
+    void defaultsToStratumValues() {
+      var settings =
+          HttpClientProperties.resolve(new MockEnvironment())
+              .clientSettings(HttpClientTestData.INVENTORY);
+
+      assertThat(settings)
+          .isEqualTo(
+              new ClientSettings(
+                  null,
+                  HttpClientConstants.DEFAULT_CONNECT_TIMEOUT,
+                  HttpClientConstants.DEFAULT_TIMEOUT,
+                  HttpClientConstants.DEFAULT_MAX_CONNECTIONS,
+                  HttpClientConstants.DEFAULT_MAX_WAIT,
+                  HttpClientConstants.DEFAULT_IDLE_TIMEOUT,
+                  HttpClientConstants.DEFAULT_CONNECTION_LIFETIME,
+                  false));
+    }
   }
 
-  @Test
-  @DisplayName("a client's own setting wins over the shared default, which fills the rest")
-  void clientValueWins() {
-    var environment =
-        new MockEnvironment()
-            .withProperty(HttpClientConstants.DEFAULTS + ".timeout", "3s")
-            .withProperty(
-                HttpClientConstants.DEFAULTS + ".max-connections",
-                String.valueOf(HttpClientTestData.SHARED_MAX_CONNECTIONS))
-            .withProperty(
-                HttpClientTestData.INVENTORY_SETTINGS + ".url", HttpClientTestData.INVENTORY_URL)
-            .withProperty(HttpClientTestData.INVENTORY_SETTINGS + ".timeout", "20s");
+  @Nested
+  @DisplayName("from properties and YAML")
+  class Binding {
 
-    var settings =
-        HttpClientProperties.resolve(environment).clientSettings(HttpClientTestData.INVENTORY);
+    @Test
+    @DisplayName("a client's own setting wins over the shared default, which fills the rest")
+    void clientValueWins() {
+      var environment =
+          new MockEnvironment()
+              .withProperty(HttpClientConstants.DEFAULTS + ".timeout", "3s")
+              .withProperty(
+                  HttpClientConstants.DEFAULTS + ".max-connections",
+                  String.valueOf(HttpClientTestData.SHARED_MAX_CONNECTIONS))
+              .withProperty(
+                  HttpClientTestData.INVENTORY_SETTINGS + ".url", HttpClientTestData.INVENTORY_URL)
+              .withProperty(HttpClientTestData.INVENTORY_SETTINGS + ".timeout", "20s");
 
-    assertThat(settings.url()).isEqualTo(HttpClientTestData.INVENTORY_URL);
-    assertThat(settings.timeout()).isEqualTo(HttpClientTestData.REPORT_TIMEOUT);
-    assertThat(settings.maxConnections()).isEqualTo(HttpClientTestData.SHARED_MAX_CONNECTIONS);
-    assertThat(settings.connectTimeout()).isEqualTo(HttpClientConstants.DEFAULT_CONNECT_TIMEOUT);
+      var settings =
+          HttpClientProperties.resolve(environment).clientSettings(HttpClientTestData.INVENTORY);
+
+      assertThat(settings.url()).isEqualTo(HttpClientTestData.INVENTORY_URL);
+      assertThat(settings.timeout()).isEqualTo(HttpClientTestData.REPORT_TIMEOUT);
+      assertThat(settings.maxConnections()).isEqualTo(HttpClientTestData.SHARED_MAX_CONNECTIONS);
+      assertThat(settings.connectTimeout()).isEqualTo(HttpClientConstants.DEFAULT_CONNECT_TIMEOUT);
+    }
+
+    @Test
+    @DisplayName("settings are read from a .yml file")
+    void readFromYaml() throws IOException {
+      var properties = HttpClientProperties.resolve(HttpClientTestData.yamlEnvironment());
+
+      assertThat(properties.defaults().timeout()).isEqualTo(HttpClientTestData.SHARED_TIMEOUT);
+      assertThat(properties.clientSettings(HttpClientTestData.INVENTORY).timeout())
+          .isEqualTo(HttpClientTestData.INVENTORY_TIMEOUT);
+      assertThat(properties.clientSettings(HttpClientTestData.INVENTORY).url())
+          .isEqualTo(HttpClientTestData.INVENTORY_URL);
+    }
   }
 
-  @Test
-  @DisplayName("settings are read from a .yml file")
-  void readFromYaml() throws IOException {
-    var properties = HttpClientProperties.resolve(HttpClientTestData.yamlEnvironment());
+  @Nested
+  @DisplayName("from Java configuration")
+  class JavaConfiguration {
 
-    assertThat(properties.defaults().timeout()).isEqualTo(HttpClientTestData.SHARED_TIMEOUT);
-    assertThat(properties.clientSettings(HttpClientTestData.INVENTORY).timeout())
-        .isEqualTo(HttpClientTestData.INVENTORY_TIMEOUT);
-    assertThat(properties.clientSettings(HttpClientTestData.INVENTORY).url())
-        .isEqualTo(HttpClientTestData.INVENTORY_URL);
-  }
+    @Test
+    @DisplayName(HttpClientTestData.JAVA_CONFIGURATION_WINS)
+    void javaWinsOverFiles(@TempDir Path folder) throws IOException {
+      var environment =
+          new MockEnvironment()
+              .withProperty(
+                  HttpClientTestData.INVENTORY_SETTINGS + ".url", HttpClientTestData.INVENTORY_URL)
+              .withProperty(HttpClientTestData.INVENTORY_SETTINGS + ".timeout", "1s");
 
-  @Test
-  @DisplayName(HttpClientTestData.JAVA_CONFIGURATION_WINS)
-  void javaWinsOverFiles(@TempDir Path folder) throws IOException {
-    var environment =
-        new MockEnvironment()
-            .withProperty(
-                HttpClientTestData.INVENTORY_SETTINGS + ".url", HttpClientTestData.INVENTORY_URL)
-            .withProperty(HttpClientTestData.INVENTORY_SETTINGS + ".timeout", "1s");
+      var properties =
+          StarterTestSupport.withCustomizers(
+              folder,
+              HttpClientPropertiesCustomizer.class,
+              List.of(SlowInventorySettings.class),
+              () -> HttpClientProperties.resolve(environment));
 
-    var properties =
-        StarterTestSupport.withCustomizers(
-            folder,
-            HttpClientPropertiesCustomizer.class,
-            List.of(SlowInventorySettings.class),
-            () -> HttpClientProperties.resolve(environment));
-
-    var settings = properties.clientSettings(HttpClientTestData.INVENTORY);
-    assertThat(settings.timeout()).isEqualTo(HttpClientTestData.REPORT_TIMEOUT);
-    assertThat(settings.url()).isEqualTo(HttpClientTestData.INVENTORY_URL);
+      var settings = properties.clientSettings(HttpClientTestData.INVENTORY);
+      assertThat(settings.timeout()).isEqualTo(HttpClientTestData.REPORT_TIMEOUT);
+      assertThat(settings.url()).isEqualTo(HttpClientTestData.INVENTORY_URL);
+    }
   }
 
   @Nested
