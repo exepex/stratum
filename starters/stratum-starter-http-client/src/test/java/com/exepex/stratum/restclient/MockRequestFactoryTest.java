@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.client.ClientHttpResponse;
 
 @DisplayName("A mocked answer is limited as a real answer is")
 class MockRequestFactoryTest {
@@ -101,12 +102,8 @@ class MockRequestFactoryTest {
 
   /** Sends one call of the method and returns its status. */
   private HttpStatus call() {
-    try {
-      var request = factory.createRequest(URI.create("http://payments/files"), HttpMethod.GET);
-      request.getAttributes().put(MockAnswers.METHOD_ATTRIBUTE, new MockCall(METHOD, false));
-      try (var response = request.execute()) {
-        return HttpStatus.valueOf(response.getStatusCode().value());
-      }
+    try (var response = execute()) {
+      return HttpStatus.valueOf(response.getStatusCode().value());
     } catch (IOException failure) {
       throw new UncheckedIOException(failure);
     }
@@ -114,10 +111,15 @@ class MockRequestFactoryTest {
 
   /** Sends one call of the method and returns the length of the body it reads. */
   private int bodyLength() throws IOException {
-    var request = factory.createRequest(URI.create("http://payments/files"), HttpMethod.GET);
-    request.getAttributes().put(MockAnswers.METHOD_ATTRIBUTE, new MockCall(METHOD, false));
-    try (var response = request.execute()) {
+    try (var response = execute()) {
       return response.getBody().readAllBytes().length;
     }
+  }
+
+  /** Sends one call of the method and returns its answer. */
+  private ClientHttpResponse execute() throws IOException {
+    var request = factory.createRequest(URI.create("http://payments/files"), HttpMethod.GET);
+    request.getAttributes().put(MockAnswers.METHOD_ATTRIBUTE, new MockCall(METHOD, false));
+    return request.execute();
   }
 }
