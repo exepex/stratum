@@ -29,7 +29,7 @@ Every default is a property. Find it on the module page or in the
 stratum:
   http-client:
     defaults:
-      read-timeout: 10s
+      timeout: 10s
   logging:
     redaction:
       extra-keys:
@@ -38,7 +38,7 @@ stratum:
 ```
 
 ```properties
-stratum.http-client.defaults.read-timeout=10s
+stratum.http-client.defaults.timeout=10s
 stratum.logging.redaction.extra-keys=iban,date-of-birth
 ```
 
@@ -171,7 +171,7 @@ Customizers Stratum supports:
 | Customizer | Adjusts | Module | Status |
 | --- | --- | --- | --- |
 | `RestClientCustomizer` (Spring Boot) | Every HTTP client built from Spring Boot's `RestClient.Builder` | http-client | Works today: Spring Boot applies it. The http-client starter is planned |
-| `StratumHttpClientCustomizer` | One named client group | http-client | Planned |
+| `StratumClientCustomizer` | One named client's builder, for what has no key ([ADR 0011](../adr/0011-http-client-starters.md)); its keys go through `HttpClientPropertiesCustomizer` | http-client | Planned |
 | `StratumSecurityCustomizer` | The `HttpSecurity` before Stratum's chain is built | security | Planned |
 | `StratumErrorResponseCustomizer` | Extra fields on every error response | web | Planned |
 | `MeterFilter` / `ObservationFilter` (Micrometer) | Metric names, tags and observations | observability | Works today: Spring Boot applies them |

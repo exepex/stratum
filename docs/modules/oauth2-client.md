@@ -53,7 +53,7 @@ them. Stratum adds safe defaults and connects a registration to an HTTP client b
 flowchart LR
     A["spring.security.oauth2.client.registration.inventory<br/>(who am I, which scopes)"] --> T[Token manager<br/>cache + refresh]
     P["spring.security.oauth2.client.provider.acme<br/>(where to get tokens)"] --> T
-    T --> H["stratum.http-client.clients.inventory<br/>oauth2-registration: inventory"]
+    T --> H["stratum.http-client.clients.inventory<br/>auth.client-credentials: inventory"]
     H --> S[inventory-service]
 ```
 
@@ -81,8 +81,9 @@ stratum:
   http-client:
     clients:
       inventory:
-        base-url: https://inventory.internal
-        oauth2-registration: inventory
+        url: https://inventory.internal
+        auth:
+          client-credentials: inventory
 ```
 
 ```properties
@@ -93,8 +94,8 @@ spring.security.oauth2.client.registration.inventory.client-id=order-service
 spring.security.oauth2.client.registration.inventory.client-secret=${INVENTORY_CLIENT_SECRET}
 spring.security.oauth2.client.registration.inventory.scope=inventory:read
 
-stratum.http-client.clients.inventory.base-url=https://inventory.internal
-stratum.http-client.clients.inventory.oauth2-registration=inventory
+stratum.http-client.clients.inventory.url=https://inventory.internal
+stratum.http-client.clients.inventory.auth.client-credentials=inventory
 ```
 
 Every call through `InventoryClient` now carries `Authorization: Bearer <token>`. Your code does not
@@ -107,13 +108,14 @@ stratum:
   http-client:
     clients:
       profile:
-        base-url: https://profile.internal
-        token-relay: true
+        url: https://profile.internal
+        auth:
+          token-relay: true
 ```
 
 ```properties
-stratum.http-client.clients.profile.base-url=https://profile.internal
-stratum.http-client.clients.profile.token-relay=true
+stratum.http-client.clients.profile.url=https://profile.internal
+stratum.http-client.clients.profile.auth.token-relay=true
 ```
 
 ## What you get
@@ -142,8 +144,8 @@ On the HTTP client side (documented on the [HTTP client page](http-client.md#pro
 
 | Property | Meaning |
 | --- | --- |
-| `stratum.http-client.clients.<name>.oauth2-registration` | Use this registration's client credentials token |
-| `stratum.http-client.clients.<name>.token-relay` | Pass the incoming request's token on |
+| `stratum.http-client.clients.<name>.auth.client-credentials` | Use this registration's client credentials token |
+| `stratum.http-client.clients.<name>.auth.token-relay` | Pass the incoming request's token on |
 
 Set only one of the two per client. Setting both stops the startup with an error.
 
@@ -173,5 +175,5 @@ startup, so the problem is visible immediately.
 | --- | --- |
 | `401` from the downstream service | Wrong `scope`, or the token's audience does not match what the downstream expects. Decode a token (in a safe environment) and compare. |
 | `invalid_client` at the identity provider | Wrong `client-id` or `client-secret`, or the secret placeholder resolved to an empty value. |
-| Startup fails with "registration not found" | The name in `oauth2-registration` does not match any `spring.security.oauth2.client.registration.<name>`. |
+| Startup fails with "registration not found" | The name in `auth.client-credentials` does not match any `spring.security.oauth2.client.registration.<name>`. |
 | Calls slow down every few minutes | Tokens are refreshed on the request path because `refresh-before-expiry` is too small for the provider's latency. Increase it. |

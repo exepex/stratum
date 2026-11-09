@@ -14,8 +14,9 @@ failing dependency slows one feature down instead of taking the whole service wi
 | **Bulkhead** | One slow dependency uses up all threads | Limit how many calls to it can run at once |
 | **Time limit** | An operation takes far too long | Give up after a fixed time |
 
-You define these as **policies** with a name in configuration and apply a policy by name: to an HTTP
-client in properties, or to any method with an annotation. The implementation uses
+You define these as **policies** with a name in configuration and apply a policy by name to any
+method with an annotation. HTTP clients have their own retries and circuit breaker
+([ADR 0011](../adr/0011-http-client-starters.md)). The implementation uses
 [Resilience4j](https://resilience4j.readme.io/), with Stratum's defaults and metrics.
 
 ```mermaid
@@ -56,21 +57,8 @@ stratum:
 
 ## Use it
 
-**On an HTTP client** (no code): every client uses the `default` policy, or the one you name:
-
-```yaml
-stratum:
-  http-client:
-    clients:
-      payments:
-        base-url: https://payments.internal
-        resilience-policy: payments
-```
-
-```properties
-stratum.http-client.clients.payments.base-url=https://payments.internal
-stratum.http-client.clients.payments.resilience-policy=payments
-```
+**On an HTTP client:** the HTTP client starters set up their own retries and circuit breaker, with their own
+keys, and do not use this starter's policies ([ADR 0011](../adr/0011-http-client-starters.md)).
 
 **On any method**, with Resilience4j's annotations; the `name` is the policy name:
 
@@ -189,8 +177,8 @@ customizer or builder, with the same names and defaults. This section will show 
 The starter is on when it is on the classpath. Leaving `stratum.resilience.enabled` unset, or empty,
 is the same as `true`.
 
-`stratum.resilience.enabled=false` removes all policies; HTTP clients then make single attempts with
-only their timeouts. To switch off one client only, set its `resilience-policy: none`.
+`stratum.resilience.enabled=false` removes all policies. It does not change the HTTP clients, which have their
+own switches ([ADR 0011](../adr/0011-http-client-starters.md)).
 
 ## Troubleshooting
 

@@ -219,8 +219,8 @@ topic file wins.
 - Each starter owns one cross-cutting concern and is optional. Code depends on interfaces, and every external
   system sits behind one. Before writing something new, use the Stratum module that already does it.
 - A service can replace every bean Stratum defines (`@ConditionalOnMissingBean`) and change every default through a
-  typed `stratum.<module>.*` property, or Spring Boot's own key where Boot has one, set in `application.properties`,
-  in `application.yml` or in Java.
+  typed `stratum.<module>.*` property, or Spring Boot's own key where Boot has one (except the HTTP client starters,
+  ADR 0011), set in `application.properties`, in `application.yml` or in Java.
 - Names and Javadoc describe what things do for the service, in plain words. Every class, method and configuration
   property has Javadoc. Dependencies are injected through constructors only.
 - Generate boilerplate with Lombok and MapStruct. Use the JDK, Spring or an established library from Maven Central
@@ -228,7 +228,8 @@ topic file wins.
 - **Compatibility mode.** Backward-compatible mode keeps external contracts unchanged; everything internal always
   follows Stratum's defaults (ST-ENG-25, ADR 0010).
 - Built for high volume: timeouts on every remote call; bounded pools, queues and caches; no blocking on hot paths;
-  retries only for idempotent operations on transient failures.
+  retries only for idempotent operations on transient failures, or for a write never sent or rejected before any
+  work (ST-ENG-51).
 - Use Java 25 and Spring Boot 4 as they are now. Check the Spring Boot 4 migration notes before reusing an example
   written for Spring Boot 2 or 3.
 

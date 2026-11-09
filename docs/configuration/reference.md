@@ -98,7 +98,7 @@ Each module's full table, with every key it reads or gives a default:
 | `stratum.observability.*` | `stratum-starter-observability` | [Observability → Properties](../../starters/stratum-starter-observability/README.md#properties) | Collector addresses |
 | `stratum.security.*` | `stratum-starter-security` | [Security → Properties](../modules/security.md#properties) | `resource-server.issuer-uri` |
 | `stratum.oauth2-client.*` | `stratum-starter-oauth2-client` | [OAuth2 client → Properties](../modules/oauth2-client.md#properties) | a `spring.security.oauth2.client.registration.<name>` |
-| `stratum.http-client.*` | `stratum-starter-http-client` | [HTTP client → Properties](../modules/http-client.md#properties) | `clients.<name>.base-url` |
+| `stratum.http-client.*` | `stratum-starter-http-client` | [HTTP client → Properties](../modules/http-client.md#properties) | `clients.<name>.url` |
 | `stratum.resilience.*` | `stratum-starter-resilience` | [Resilience → Properties](../modules/resilience.md#properties) | none |
 | `stratum.data.*` | `stratum-starter-data-jpa` | [Data → Properties](../modules/data-jpa.md#properties) | `spring.datasource.url`, `username`, `password` |
 | `stratum.cache.*` | `stratum-starter-cache` | [Cache → Properties](../modules/cache.md#properties) | `spring.application.name` with Spring Data Redis, unless you set `spring.cache.redis.key-prefix`; `spring.data.redis.*` to reach your Redis (with `spring-boot-starter-data-redis`) |
@@ -136,7 +136,9 @@ the Spring Boot keys it sets, with both defaults:
 [Logging](../../starters/stratum-starter-logging/README.md#properties),
 [Observability](../../starters/stratum-starter-observability/README.md#properties),
 [Data](../modules/data-jpa.md#properties) and [Cache](../modules/cache.md#properties). The planned
-modules' pages list theirs.
+modules' pages list theirs. The planned HTTP client starters are the one exception: each client's settings live
+under `stratum.http-client.clients.<name>.*`, and Spring Boot's `spring.http.serviceclient.*` keys do not apply
+([ADR 0011](../adr/0011-http-client-starters.md)).
 
 ## A complete example
 
@@ -170,20 +172,16 @@ stratum:
     resource-server:
       issuer-uri: https://idp.acme.com/realms/acme
       audiences: [order-service]
-  http-client:
+  http-client:                   # planned keys (ADR 0011)
     clients:
       inventory:
-        base-url: http://inventory-service
-        token-relay: true
+        url: http://inventory-service
+        auth:
+          token-relay: true
       payments:
-        base-url: http://payments-service
-        read-timeout: 10s
-        resilience-policy: payments
-  resilience:
-    policies:
-      payments:
-        retry:
-          enabled: false
+        url: http://payments-service
+        timeout: 10s
+        retries: 0
 ```
 
 ```properties
@@ -199,10 +197,10 @@ management.opentelemetry.tracing.export.otlp.endpoint=http://otel-collector:4318
 stratum.environment=prod
 stratum.security.resource-server.issuer-uri=https://idp.acme.com/realms/acme
 stratum.security.resource-server.audiences=order-service
-stratum.http-client.clients.inventory.base-url=http://inventory-service
-stratum.http-client.clients.inventory.token-relay=true
-stratum.http-client.clients.payments.base-url=http://payments-service
-stratum.http-client.clients.payments.read-timeout=10s
-stratum.http-client.clients.payments.resilience-policy=payments
-stratum.resilience.policies.payments.retry.enabled=false
+# Planned HTTP client keys (ADR 0011)
+stratum.http-client.clients.inventory.url=http://inventory-service
+stratum.http-client.clients.inventory.auth.token-relay=true
+stratum.http-client.clients.payments.url=http://payments-service
+stratum.http-client.clients.payments.timeout=10s
+stratum.http-client.clients.payments.retries=0
 ```

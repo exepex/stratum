@@ -42,7 +42,7 @@ stratum:
   http-client:
     defaults:
       connect-timeout: 1s
-      read-timeout: 5s
+      timeout: 5s
 ```
 
 ```properties
@@ -51,7 +51,7 @@ spring.application.name=order-service
 
 stratum.logging.format=ecs
 stratum.http-client.defaults.connect-timeout=1s
-stratum.http-client.defaults.read-timeout=5s
+stratum.http-client.defaults.timeout=5s
 ```
 
 > [!TIP]
@@ -66,7 +66,7 @@ Each level of YAML indentation becomes one dot-separated part of the key:
 stratum:                    →  stratum
   http-client:              →  stratum.http-client
     defaults:               →  stratum.http-client.defaults
-      read-timeout: 5s      →  stratum.http-client.defaults.read-timeout=5s
+      timeout: 5s      →  stratum.http-client.defaults.timeout=5s
 ```
 
 ## How property names are built
@@ -75,14 +75,14 @@ Every Stratum property follows the same pattern:
 
 ```text
 stratum . <module> . <group> . <setting>
-   │         │         │          └── what you set, e.g. read-timeout
+   │         │         │          └── what you set, e.g. timeout
    │         │         └── optional sub-area, e.g. defaults, redaction, clients.inventory
    │         └── the starter, e.g. http-client, logging, security
    └── always "stratum"
 ```
 
 Examples: `stratum.logging.redaction.extra-keys`, `stratum.security.public-paths`,
-`stratum.http-client.clients.inventory.base-url`.
+`stratum.http-client.clients.inventory.url`.
 
 Names are written in **kebab-case** (lower case, words joined by `-`). Spring Boot's **relaxed
 binding** also accepts `readTimeout` or `read_timeout`, but kebab-case is the standard; use it so
@@ -112,7 +112,7 @@ or fully off.
 | Choice (enum) | One of the listed values, case-insensitive | `stratum.logging.format=ecs` |
 
 > [!WARNING]
-> Always write the unit on durations. `read-timeout=5` is read as 5 **milliseconds** for most
+> Always write the unit on durations. `timeout=5` is read as 5 **milliseconds** for most
 > Spring Boot durations, which is almost never what you mean.
 
 ## Lists and maps
@@ -148,16 +148,16 @@ stratum:
   http-client:
     clients:
       inventory:
-        base-url: https://inventory.internal
+        url: https://inventory.internal
       payments:
-        base-url: https://payments.internal
-        read-timeout: 10s
+        url: https://payments.internal
+        timeout: 10s
 ```
 
 ```properties
-stratum.http-client.clients.inventory.base-url=https://inventory.internal
-stratum.http-client.clients.payments.base-url=https://payments.internal
-stratum.http-client.clients.payments.read-timeout=10s
+stratum.http-client.clients.inventory.url=https://inventory.internal
+stratum.http-client.clients.payments.url=https://payments.internal
+stratum.http-client.clients.payments.timeout=10s
 ```
 
 Use lower-case kebab-case for the names you choose (`inventory`, `payment-gateway`). If a name
@@ -174,8 +174,8 @@ environment in containers and Kubernetes.
 | Property | Environment variable |
 | --- | --- |
 | `stratum.logging.format` | `STRATUM_LOGGING_FORMAT` |
-| `stratum.http-client.defaults.read-timeout` | `STRATUM_HTTPCLIENT_DEFAULTS_READTIMEOUT` |
-| `stratum.http-client.clients.inventory.base-url` | `STRATUM_HTTPCLIENT_CLIENTS_INVENTORY_BASEURL` |
+| `stratum.http-client.defaults.timeout` | `STRATUM_HTTPCLIENT_DEFAULTS_TIMEOUT` |
+| `stratum.http-client.clients.inventory.url` | `STRATUM_HTTPCLIENT_CLIENTS_INVENTORY_URL` |
 | `stratum.security.public-paths[0]` | `STRATUM_SECURITY_PUBLICPATHS_0` |
 
 **Command-line arguments:** prefix with `--`:
@@ -245,7 +245,10 @@ Where Spring Boot has a key for a setting, Stratum keeps that key and only chang
 the IDE shows Spring Boot's description and default for it. Each module's README lists those keys
 with Stratum's default, and the value you set always wins, except that the logging starter's format keys
 accept only [Stratum's formats](../../starters/stratum-starter-logging/README.md#what-is-masked). Stratum adds
-no key of its own for anything Spring Boot already has a key for.
+no key of its own for anything Spring Boot already has a key for. The one exception is the planned HTTP client
+starters: each client's settings, timeouts included, live under `stratum.http-client.clients.<name>.*`, and Spring
+Boot's `spring.http.serviceclient.*` keys do not apply to them
+([ADR 0011](../adr/0011-http-client-starters.md)).
 
 Each jar carries its own file, so with several starters on the classpath, a bundle included, the
 IDE shows the keys of all of them. NetBeans needs a Spring Boot plugin that reads the same

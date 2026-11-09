@@ -97,7 +97,7 @@ service does. You can add more later.
 | --- | --- |
 | Exposes a REST API | `stratum-starter-webmvc` (or `stratum-starter-webflux` if it is reactive), `stratum-starter-observability`, `stratum-starter-logging` |
 | Requires a valid token on its API | `stratum-starter-security` |
-| Calls other services over HTTP | `stratum-starter-http-client` (and `stratum-starter-resilience` for retries and circuit breakers) |
+| Calls other services over HTTP | `stratum-starter-http-client`, which brings its own retries and circuit breaker |
 | Calls secured services | `stratum-starter-oauth2-client` |
 | Uses a relational database | `stratum-starter-data-jpa` |
 | Caches results | `stratum-starter-cache` |
@@ -177,7 +177,7 @@ that module off instead:
 | `stratum-starter-logging` | `spring.application.name` |
 | `stratum-starter-observability` | `management.otlp.metrics.export.url` and `management.opentelemetry.tracing.export.otlp.endpoint`, in every profile |
 | `stratum-starter-security` | `stratum.security.resource-server.issuer-uri` |
-| `stratum-starter-http-client` | `stratum.http-client.clients.<name>.base-url` for each client |
+| `stratum-starter-http-client` | `stratum.http-client.clients.<name>.url` for each client |
 | `stratum-starter-data-jpa` | `spring.datasource.url`, `username`, `password` |
 | `stratum-starter-cache` | `spring.application.name`, with Spring Data Redis, unless you set `spring.cache.redis.key-prefix` |
 | `stratum-starter-kafka` | `spring.kafka.bootstrap-servers` |

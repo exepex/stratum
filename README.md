@@ -293,20 +293,20 @@ stratum:
   http-client:
     clients:
       inventory:
-        base-url: https://inventory.internal
-        read-timeout: 3s
+        url: https://inventory.internal
+        timeout: 3s
 ```
 
 ```properties
 # application.properties
-stratum.http-client.clients.inventory.base-url=https://inventory.internal
-stratum.http-client.clients.inventory.read-timeout=3s
+stratum.http-client.clients.inventory.url=https://inventory.internal
+stratum.http-client.clients.inventory.timeout=3s
 ```
 
 ```bash
 # Environment variables (for example in Kubernetes)
-STRATUM_HTTPCLIENT_CLIENTS_INVENTORY_BASEURL=https://inventory.internal
-STRATUM_HTTPCLIENT_CLIENTS_INVENTORY_READTIMEOUT=3s
+STRATUM_HTTPCLIENT_CLIENTS_INVENTORY_URL=https://inventory.internal
+STRATUM_HTTPCLIENT_CLIENTS_INVENTORY_TIMEOUT=3s
 ```
 
 Things worth knowing from day one:
@@ -331,7 +331,7 @@ You stay in control at three levels, from lightest to strongest:
 
 | You want to | Do this | Example |
 | --- | --- | --- |
-| Change a value | Set a property | `stratum.http-client.defaults.read-timeout=10s` |
+| Change a value | Set a property | `stratum.http-client.defaults.timeout=10s` |
 | Adjust a bean Stratum created | Declare a customizer bean | A `RestClientCustomizer` that adds a header |
 | Replace a bean entirely | Declare your own bean of the same type | Your own `SecurityFilterChain` |
 | Switch a whole module off | Set `enabled` to `false`; every module is on by default | `stratum.cache.enabled=false` |

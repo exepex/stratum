@@ -119,16 +119,16 @@ stratum:
   http-client:
     clients:
       inventory:
-        base-url: http://localhost:8081
-        read-timeout: 2s
+        url: http://localhost:8081
+        timeout: 2s
 ```
 
 The same in `src/main/resources/application.properties` (use one file, not both):
 
 ```properties
 spring.application.name=order-service
-stratum.http-client.clients.inventory.base-url=http://localhost:8081
-stratum.http-client.clients.inventory.read-timeout=2s
+stratum.http-client.clients.inventory.url=http://localhost:8081
+stratum.http-client.clients.inventory.timeout=2s
 ```
 
 The observability module also needs your OpenTelemetry Collector's addresses, in
@@ -137,7 +137,7 @@ every profile, or it stops at startup. To try it without a Collector, point both
 without a failed-send log ([Observability](../../starters/stratum-starter-observability/README.md#running-without-a-collector)).
 
 **What Stratum did:** it switched on the four modules (each is on because its starter is on the
-classpath) and registered an HTTP client group named `inventory`. Everything you did not
+classpath) and set up the `inventory` client as its own HTTP service group. Everything you did not
 set (connect timeout, trace propagation, correlation header, logging) uses Stratum's defaults. See
 [HTTP client](../modules/http-client.md#properties).
 
@@ -149,8 +149,10 @@ it has no consumers that read an older error body. A running service that adds S
 
 ## Step 4: declare the downstream client
 
-You describe the remote API as a Java interface. Spring generates the implementation, and Stratum
-configures it.
+You describe the remote API as a Java interface with `@StratumClient("inventory")`. Spring generates
+the implementation, and Stratum finds the interface by scanning and configures it from the
+`inventory` block above ([ADR 0011](../adr/0011-http-client-starters.md); planned, so the
+annotation's package is set when the starter is built).
 
 `src/main/java/com/acme/orders/inventory/InventoryClient.java`:
 
@@ -160,6 +162,7 @@ package com.acme.orders.inventory;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.service.annotation.GetExchange;
 
+@StratumClient("inventory")
 public interface InventoryClient {
 
   @GetExchange("/stock/{sku}")
@@ -169,13 +172,7 @@ public interface InventoryClient {
 }
 ```
 
-Register it under the `inventory` group, for example on the application class:
-
-```java
-@SpringBootApplication
-@ImportHttpServices(group = "inventory", types = InventoryClient.class)
-public class OrderServiceApplication { ... }
-```
+No other registration is needed.
 
 ## Step 5: business code
 
@@ -238,7 +235,7 @@ class OutOfStockException extends RuntimeException {
 | `OutOfStockException` returns `409` as Problem Details JSON | `stratum-starter-webmvc` error handling |
 | Every log line written inside a traced operation carries `traceId`, `spanId` and `correlationId` | `stratum-starter-observability`, written as JSON by `stratum-starter-logging` |
 | The call to inventory carries the trace and correlation headers | `stratum-starter-http-client` |
-| The call to inventory times out after 2 s instead of hanging | Your `read-timeout` plus Stratum's connect timeout |
+| The call to inventory times out after 2 s instead of hanging | Your `timeout` plus Stratum's connect timeout |
 | `http.server.requests` and `http.client.requests` metrics | `stratum-starter-observability` |
 
 ## Step 6: run it
