@@ -143,6 +143,7 @@ the shared default, which wins over Stratum's.
 | `circuit-breaker` | boolean | `true` | no such key | Whether the client has a circuit breaker. |
 | `shared-pool` | boolean | `false` | no such key | With `true`, the client uses one pool shared by every client that sets it, instead of its own. That pool takes its size, connect timeout, idle timeout and lifetime from `defaults`; the client keeps its own `timeout` and `max-wait`. |
 | `interfaces` | list of interface names | none | no such key | Generated interfaces, by full name such as `com.partner.OrdersApi`, that call this client's service with all its settings, as a `@StratumClient` interface does ([Clients Stratum did not build](#clients-stratum-did-not-build)). Not allowed under `defaults`. |
+| `mock` | boolean | `false` | no such key | Whether the client answers from files under `stratum-mocks` and from test scripts instead of calling its service, for a service not deployed yet and for tests. Logs a `WARN` at every startup ([Mocked clients](http-client-mocks.md)). |
 | `auth.api-key` | text | unset | no such key | An API key sent on every call of the client, from a placeholder such as `${GEO_API_KEY}`. Not allowed under `defaults`, like every `auth` key ([Auth and mTLS](http-client-auth.md)). |
 | `auth.api-key-header` | text | `X-Api-Key` | no such key | The header that carries the API key. Only with `auth.api-key`. |
 | `auth.bearer` | text | unset | no such key | A fixed token sent as `Authorization: Bearer` on every call. |
@@ -473,7 +474,7 @@ These parts of [ADR 0011](../adr/0011-http-client-starters.md) are not built yet
 - `headers` and `copy-headers`;
 - error mapping to `DownstreamException` and the `SX-HTTPC-0001` to `0004` codes;
 - one log line per call and the pool metrics;
-- `mock: true` and `urls`;
+- `urls`;
 - `stratumHttpClients.resilience(name)`, the retry and circuit breaker for a call through a client Stratum did not
   build;
 - `ClientInterceptor` and `GlobalClientInterceptor`;
