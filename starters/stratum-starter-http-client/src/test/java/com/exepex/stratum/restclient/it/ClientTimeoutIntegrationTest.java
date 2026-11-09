@@ -26,6 +26,7 @@ import org.springframework.test.context.DynamicPropertySource;
 @SpringBootTest(
     classes = ClientsApplication.class,
     properties = {
+      RestClientTestData.NO_RETRIES,
       RestClientTestData.INVENTORY_SETTINGS + ".timeout=300ms",
       RestClientTestData.PRICING_SETTINGS + ".connect-timeout=300ms"
     })

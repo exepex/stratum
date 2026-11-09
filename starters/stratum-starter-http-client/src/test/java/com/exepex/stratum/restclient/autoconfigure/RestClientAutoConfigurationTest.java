@@ -5,12 +5,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientPropertiesCustomizer;
 import com.exepex.stratum.restclient.ClientConnectionPools;
+import com.exepex.stratum.restclient.ClientResilience;
 import com.exepex.stratum.restclient.StratumClientGroups;
 import com.exepex.stratum.restclient.StratumHttpClients;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import com.exepex.stratum.restclient.testsupport.clients.InventoryAdmin;
 import com.exepex.stratum.restclient.testsupport.clients.InventoryClient;
 import com.exepex.stratum.restclient.testsupport.clients.InventoryClients;
+import java.util.ArrayList;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -19,6 +21,7 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
+import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.web.service.registry.HttpServiceProxyRegistry;
 
 @DisplayName("RestClientAutoConfiguration makes the clients, unless the module is off")
@@ -47,7 +50,25 @@ class RestClientAutoConfigurationTest {
                   .hasSingleBean(InventoryClient.class)
                   .hasSingleBean(ClientConnectionPools.class)
                   .hasSingleBean(StratumClientGroups.class)
+                  .hasSingleBean(ClientResilience.class)
                   .hasSingleBean(StratumHttpClients.class));
+    }
+
+    @Test
+    @DisplayName(
+        "Stratum adds no request interceptor, which would hold every request body in memory")
+    void noRequestInterceptor() {
+      var interceptors = new ArrayList<ClientHttpRequestInterceptor>();
+
+      clients.run(
+          context ->
+              context
+                  .getBean(StratumHttpClients.class)
+                  .restClient(RestClientTestData.INVENTORY)
+                  .mutate()
+                  .requestInterceptors(interceptors::addAll));
+
+      assertThat(interceptors).isEmpty();
     }
 
     @Test
@@ -75,6 +96,7 @@ class RestClientAutoConfigurationTest {
                       .doesNotHaveBean(HttpServiceProxyRegistry.class)
                       .doesNotHaveBean(ClientConnectionPools.class)
                       .doesNotHaveBean(StratumClientGroups.class)
+                      .doesNotHaveBean(ClientResilience.class)
                       .doesNotHaveBean(StratumHttpClients.class));
     }
   }
@@ -109,6 +131,20 @@ class RestClientAutoConfigurationTest {
                       .hasSingleBean(StratumClientGroups.class)
                       .getBean(StratumClientGroups.class)
                       .isSameAs(serviceGroups));
+    }
+
+    @Test
+    @DisplayName("the service's own retries and breakers bean wins over Stratum's")
+    void serviceResilienceWins() {
+      var serviceResilience = Mockito.mock(ClientResilience.class);
+      clients
+          .withBean(ClientResilience.class, () -> serviceResilience)
+          .run(
+              context ->
+                  assertThat(context)
+                      .hasSingleBean(ClientResilience.class)
+                      .getBean(ClientResilience.class)
+                      .isSameAs(serviceResilience));
     }
 
     @Test

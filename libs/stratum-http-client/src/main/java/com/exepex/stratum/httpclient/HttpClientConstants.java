@@ -65,6 +65,30 @@ public class HttpClientConstants {
   /** Stratum's default age after which a connection is not used again. */
   public static final Duration DEFAULT_CONNECTION_LIFETIME = Duration.ofMinutes(5);
 
+  /** Stratum's default number of times a failed call is sent again. */
+  public static final int DEFAULT_RETRIES = 3;
+
+  /** The most times a failed call may be sent again. */
+  public static final int MAX_RETRIES = 9;
+
+  /** Stratum's default wait before the first retry. */
+  public static final Duration DEFAULT_RETRY_DELAY = Duration.ofMillis(200);
+
+  /** The longest wait between two attempts, after doubling and random spread (ADR 0011, 2.4). */
+  public static final Duration MAX_RETRY_DELAY = Duration.ofSeconds(2);
+
+  /** Stratum's default time allowed for a whole call, below the web starter's 10s answer limit. */
+  public static final Duration DEFAULT_TOTAL_TIMEOUT = Duration.ofSeconds(8);
+
+  /** The least time left before a call's deadline for another attempt to start (ADR 0011, 4.4). */
+  public static final Duration MIN_ATTEMPT_TIME = Duration.ofMillis(100);
+
+  /**
+   * The order of the retries and circuit breaker around each call of a client, the outermost of
+   * Stratum's decorators; a later one, such as the resend after a 401, runs inside them.
+   */
+  public static final int RESILIENCE_ORDER = 0;
+
   /**
    * How long a connection may sit unused before it is checked before its next use, so that one the
    * server closed meanwhile is not used. Fixed, with no key (ADR 0011, decision 5.2).

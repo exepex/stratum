@@ -34,6 +34,15 @@ import org.springframework.boot.context.properties.NestedConfigurationProperty;
  * @param sslBundle The name of a spring.ssl.bundle bundle whose certificate the client presents and
  *     whose trust material it checks the other service with (mutual TLS), such as bank. Not allowed
  *     under defaults, nor with shared-pool.
+ * @param retries How many times a failed call is sent again, from 0 to 9, so 3 means at most 4
+ *     attempts. Only calls that are safe to repeat are retried, and a POST or PATCH only when its
+ *     connection failed. Defaults to 3.
+ * @param retryDelay The wait before the first retry, such as 200ms; each next wait doubles, with
+ *     random spread, up to 2s. Defaults to 200ms.
+ * @param totalTimeout The time allowed for a whole call, retries and waits included, such as 8s.
+ *     Defaults to 8s.
+ * @param circuitBreaker Whether calls stop for a while, failing at once, after many of them fail.
+ *     Defaults to true.
  * @param interfaces The full names of generated interfaces, such as com.partner.OrdersApi, that
  *     call this client's service with all of its settings, as an interface marked @StratumClient
  *     does. Only for a client; not allowed under defaults. Defaults to none.
@@ -50,6 +59,10 @@ public record ClientSettings(
     @Nullable Boolean sharedPool,
     @NestedConfigurationProperty @Nullable ClientAuth auth,
     @Nullable String sslBundle,
+    @Nullable Integer retries,
+    @Nullable Duration retryDelay,
+    @Nullable Duration totalTimeout,
+    @Nullable Boolean circuitBreaker,
     List<String> interfaces) {
 
   /** Keeps the interfaces a fixed list, empty when none is named. */
@@ -66,6 +79,10 @@ public record ClientSettings(
           .maxWait(HttpClientConstants.DEFAULT_MAX_WAIT)
           .idleTimeout(HttpClientConstants.DEFAULT_IDLE_TIMEOUT)
           .connectionLifetime(HttpClientConstants.DEFAULT_CONNECTION_LIFETIME)
+          .retries(HttpClientConstants.DEFAULT_RETRIES)
+          .retryDelay(HttpClientConstants.DEFAULT_RETRY_DELAY)
+          .totalTimeout(HttpClientConstants.DEFAULT_TOTAL_TIMEOUT)
+          .circuitBreaker(true)
           .sharedPool(false)
           .build();
 
@@ -87,6 +104,10 @@ public record ClientSettings(
         .sharedPool(either(sharedPool, fallback.sharedPool))
         .auth(either(auth, fallback.auth))
         .sslBundle(either(sslBundle, fallback.sslBundle))
+        .retries(either(retries, fallback.retries))
+        .retryDelay(either(retryDelay, fallback.retryDelay))
+        .totalTimeout(either(totalTimeout, fallback.totalTimeout))
+        .circuitBreaker(either(circuitBreaker, fallback.circuitBreaker))
         .interfaces(interfaces.isEmpty() ? fallback.interfaces : interfaces)
         .build();
   }
@@ -102,7 +123,14 @@ public record ClientSettings(
    * @return the set durations
    */
   Stream<Duration> durations() {
-    return Stream.of(connectTimeout, timeout, maxWait, idleTimeout, connectionLifetime)
+    return Stream.of(
+            connectTimeout,
+            timeout,
+            maxWait,
+            idleTimeout,
+            connectionLifetime,
+            retryDelay,
+            totalTimeout)
         .filter(Objects::nonNull);
   }
 }

@@ -2,6 +2,9 @@ package com.exepex.stratum.restclient.it;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.exepex.stratum.httpclient.HttpClientConstants;
+import com.exepex.stratum.restclient.ClientAttempt;
+import com.exepex.stratum.restclient.ClientResilience;
 import com.exepex.stratum.restclient.StratumClientCustomizer;
 import com.exepex.stratum.restclient.StratumHttpClients;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
@@ -9,6 +12,7 @@ import com.exepex.stratum.restclient.testsupport.ScriptedDownstream;
 import com.exepex.stratum.restclient.testsupport.clients.ClientsApplication;
 import com.exepex.stratum.restclient.testsupport.clients.InventoryClient;
 import com.exepex.stratum.restclient.testsupport.clients.PricingClient;
+import io.github.resilience4j.retry.RetryConfig;
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -39,6 +43,8 @@ class ClientCustomizerIntegrationTest {
   @Autowired private PricingClient pricingClient;
 
   @Autowired private StratumHttpClients stratumHttpClients;
+
+  @Autowired private ClientResilience resilience;
 
   /**
    * Points both clients at the server.
@@ -73,7 +79,16 @@ class ClientCustomizerIntegrationTest {
     assertThat(DOWNSTREAM.paths()).endsWith(REPORTS + ScriptedDownstream.STOCK);
   }
 
-  /** The service's customizer: it moves only the inventory client. */
+  @Test
+  @DisplayName("a customizer that stops pricing's retries leaves inventory's as set")
+  void retryRulesOfNamedClientChanged() {
+    assertThat(resilience.retry(RestClientTestData.PRICING).getRetryConfig().getMaxAttempts())
+        .isEqualTo(1);
+    assertThat(resilience.retry(RestClientTestData.INVENTORY).getRetryConfig().getMaxAttempts())
+        .isEqualTo(HttpClientConstants.DEFAULT_RETRIES + 1);
+  }
+
+  /** The service's customizer: it moves only the inventory client and stops pricing's retries. */
   @TestConfiguration(proxyBeanMethods = false)
   static class InventoryUnderReports {
 
@@ -84,14 +99,21 @@ class ClientCustomizerIntegrationTest {
      */
     @Bean
     StratumClientCustomizer inventoryUnderReports() {
-      return this::moveInventoryUnderReports;
-    }
+      return new StratumClientCustomizer() {
+        @Override
+        public void customize(String client, RestClient.Builder builder) {
+          if (RestClientTestData.INVENTORY.equals(client)) {
+            builder.baseUrl(DOWNSTREAM.url() + REPORTS);
+          }
+        }
 
-    /** Moves the inventory client's address under {@code /reports}, and leaves other clients. */
-    private void moveInventoryUnderReports(String client, RestClient.Builder builder) {
-      if (RestClientTestData.INVENTORY.equals(client)) {
-        builder.baseUrl(DOWNSTREAM.url() + REPORTS);
-      }
+        @Override
+        public void customizeRetry(String client, RetryConfig.Builder<ClientAttempt> retry) {
+          if (RestClientTestData.PRICING.equals(client)) {
+            retry.maxAttempts(1);
+          }
+        }
+      };
     }
   }
 }

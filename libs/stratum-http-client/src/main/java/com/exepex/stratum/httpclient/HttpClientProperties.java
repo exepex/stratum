@@ -96,6 +96,20 @@ public record HttpClientProperties(
   }
 
   /**
+   * Returns whether every {@code retries}, shared or of one client, is from 0 to 9. Validation
+   * reports one that is not as {@code stratum.http-client.retries-in-range breaks @AssertTrue}.
+   *
+   * @return whether every retry count is in range
+   */
+  @AssertTrue
+  public boolean isRetriesInRange() {
+    return allSettings()
+        .map(ClientSettings::retries)
+        .filter(Objects::nonNull)
+        .allMatch(count -> count >= 0 && count <= HttpClientConstants.MAX_RETRIES);
+  }
+
+  /**
    * Returns whether every client's name is lowercase letters, digits and hyphens, from a letter.
    * Validation reports one that is not as {@code stratum.http-client.client-names-valid
    * breaks @AssertTrue}, without the name.

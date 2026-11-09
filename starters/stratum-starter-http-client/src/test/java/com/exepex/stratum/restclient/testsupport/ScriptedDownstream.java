@@ -34,8 +34,14 @@ import java.util.zip.GZIPOutputStream;
  *   <li>{@link #UNAVAILABLE}: 503;
  *   <li>{@link #MOVED}: 302 to {@link #STOCK};
  *   <li>{@link #GZIPPED}: 200 with {@link #BODY} compressed with gzip;
- *   <li>{@link #SHORT_KEEP_ALIVE}: 200 with {@code Keep-Alive: timeout=1}.
+ *   <li>{@link #SHORT_KEEP_ALIVE}: 200 with {@code Keep-Alive: timeout=1};
+ *   <li>{@link #STATUS} and a status, such as {@code /status/502}: that status;
+ *   <li>{@link #RETRY_AFTER} and a value, such as {@code /retry-after/1}: 503 with that {@code
+ *       Retry-After};
+ *   <li>{@link #DROPPED}: no answer; the connection is closed.
  * </ul>
+ *
+ * <p>A request's body is read and dropped.
  */
 public final class ScriptedDownstream implements AutoCloseable {
 
@@ -57,11 +63,29 @@ public final class ScriptedDownstream implements AutoCloseable {
   /** The path of an answer that keeps its connection alive for 1 second only. */
   public static final String SHORT_KEEP_ALIVE = "/short-keep-alive";
 
+  /** The start of the paths that answer with the status that follows, such as 502. */
+  public static final String STATUS = "/status/";
+
+  /** The start of the paths that answer 503 with the {@code Retry-After} that follows. */
+  public static final String RETRY_AFTER = "/retry-after/";
+
+  /** The path whose connection is closed without an answer. */
+  public static final String DROPPED = "/dropped";
+
+  /** A path that answers with the status given as {@code {status}}, for a client interface. */
+  public static final String ANY_STATUS = STATUS + "{status}";
+
   /** The body of every 200 answer. */
   public static final String BODY = "in stock";
 
+  /** The end of each line of an answer's head. */
+  private static final String CRLF = "\r\n";
+
   /** The status line of every answer that succeeds. */
   private static final String OK = "200 OK";
+
+  /** The start of a request's {@code Content-Length} header, in lowercase. */
+  private static final String CONTENT_LENGTH = "content-length:";
 
   /** How long a held answer waits at most, so a failed test does not hang. */
   private static final Duration HOLD_LIMIT = Duration.ofSeconds(10);
@@ -262,11 +286,9 @@ public final class ScriptedDownstream implements AutoCloseable {
                 new InputStreamReader(connection.getInputStream(), StandardCharsets.US_ASCII));
         var out = connection.getOutputStream()) {
       connection.setSoTimeout(Math.toIntExact(closeIdleAfter.toMillis()));
-      for (var requestLine = in.readLine(); requestLine != null; requestLine = in.readLine()) {
-        receivedHeaders.add(readHeaders(in));
-        var path = requestLine.split(" ")[1];
-        receivedPaths.add(path);
-        answer(path, out);
+      var requestLine = in.readLine();
+      while (requestLine != null && answered(requestLine, in, out)) {
+        requestLine = in.readLine();
       }
     } catch (InterruptedException _) {
       Thread.currentThread().interrupt();
@@ -279,7 +301,22 @@ public final class ScriptedDownstream implements AutoCloseable {
     }
   }
 
-  /** Reads the request's header lines; requests in these tests have no body. */
+  /** Reads one request and answers it; returns false when the connection is to be closed. */
+  private boolean answered(String requestLine, BufferedReader in, OutputStream out)
+      throws IOException, InterruptedException {
+    var headers = readHeaders(in);
+    receivedHeaders.add(headers);
+    skipBody(in, bodyLength(headers));
+    var path = requestLine.split(" ")[1];
+    receivedPaths.add(path);
+    if (DROPPED.equals(path)) {
+      return false;
+    }
+    answer(path, out);
+    return true;
+  }
+
+  /** Reads the request's header lines. */
   private List<String> readHeaders(BufferedReader in) throws IOException {
     var lines = new ArrayList<String>();
     var header = in.readLine();
@@ -288,6 +325,23 @@ public final class ScriptedDownstream implements AutoCloseable {
       header = in.readLine();
     }
     return lines;
+  }
+
+  /** Returns the length of the request's body, from its {@code Content-Length}, or 0. */
+  private long bodyLength(List<String> headers) {
+    return headers.stream()
+        .filter(header -> header.toLowerCase(Locale.ROOT).startsWith(CONTENT_LENGTH))
+        .mapToLong(header -> Long.parseLong(header.substring(CONTENT_LENGTH.length()).strip()))
+        .findFirst()
+        .orElse(0L);
+  }
+
+  /** Reads and drops a request's body; the tests send only ASCII bodies. */
+  private void skipBody(BufferedReader in, long bodyLength) throws IOException {
+    var skipped = in.skip(bodyLength);
+    if (skipped != bodyLength) {
+      throw new IOException("The request's body ended early");
+    }
   }
 
   /** Writes the answer for one path. */
@@ -301,9 +355,17 @@ public final class ScriptedDownstream implements AutoCloseable {
         write(out, OK, "", body);
       }
       case UNAVAILABLE -> write(out, "503 Service Unavailable", "", new byte[0]);
-      case MOVED -> write(out, "302 Found", "Location: " + STOCK + "\r\n", new byte[0]);
-      case GZIPPED -> write(out, OK, "Content-Encoding: gzip\r\n", gzip(body));
-      case SHORT_KEEP_ALIVE -> write(out, OK, "Keep-Alive: timeout=1\r\n", body);
+      case MOVED -> write(out, "302 Found", "Location: " + STOCK + CRLF, new byte[0]);
+      case GZIPPED -> write(out, OK, "Content-Encoding: gzip" + CRLF, gzip(body));
+      case SHORT_KEEP_ALIVE -> write(out, OK, "Keep-Alive: timeout=1" + CRLF, body);
+      case String status when status.startsWith(STATUS) ->
+          write(out, status.substring(STATUS.length()) + " Scripted", "", new byte[0]);
+      case String wait when wait.startsWith(RETRY_AFTER) ->
+          write(
+              out,
+              "503 Service Unavailable",
+              "Retry-After: " + wait.substring(RETRY_AFTER.length()) + CRLF,
+              new byte[0]);
       default -> write(out, OK, "", body);
     }
   }
@@ -314,11 +376,14 @@ public final class ScriptedDownstream implements AutoCloseable {
     var head =
         "HTTP/1.1 "
             + status
-            + "\r\nContent-Type: text/plain\r\nContent-Length: "
+            + CRLF
+            + "Content-Type: text/plain"
+            + CRLF
+            + "Content-Length: "
             + body.length
-            + "\r\n"
+            + CRLF
             + headers
-            + "\r\n";
+            + CRLF;
     out.write(head.getBytes(StandardCharsets.US_ASCII));
     out.write(body);
     out.flush();

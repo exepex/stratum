@@ -11,7 +11,11 @@ class RestClientArchTest {
 
   /** The starter's types services use; every other one carries the label. */
   private static final Set<Class<?>> API_TYPES =
-      Set.of(StratumClientCustomizer.class, StratumHttpClients.class);
+      Set.of(
+          ClientAttempt.class,
+          ClientAttempt.ClientAttemptBuilder.class,
+          StratumClientCustomizer.class,
+          StratumHttpClients.class);
 
   @Test
   @DisplayName(

@@ -60,6 +60,12 @@ public class RestClientTestData {
    */
   public static final String SECRET = "not-a-real-secret-4f2a";
 
+  /**
+   * The setting that turns Stratum's retries off for every client, for a test of one attempt of a
+   * call, such as Apache's own resend or one timeout.
+   */
+  public static final String NO_RETRIES = HttpClientConstants.DEFAULTS + ".retries=0";
+
   /** An address no test calls, for tests that only start the application. */
   public static final String UNUSED_URL = "http://127.0.0.1:9";
 
