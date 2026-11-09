@@ -97,7 +97,7 @@ public final class DownstreamException extends RestClientResponseException {
           .map(properties -> properties.get("code"))
           .filter(String.class::isInstance)
           .map(String.class::cast);
-    } catch (RestClientException unreadable) {
+    } catch (RestClientException _) {
       return Optional.empty();
     }
   }
