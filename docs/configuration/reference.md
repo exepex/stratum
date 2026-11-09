@@ -98,7 +98,7 @@ Each module's full table, with every key it reads or gives a default:
 | `stratum.observability.*` | `stratum-starter-observability` | [Observability → Properties](../../starters/stratum-starter-observability/README.md#properties) | Collector addresses |
 | `stratum.security.*` | `stratum-starter-security` | [Security → Properties](../modules/security.md#properties) | `resource-server.issuer-uri` |
 | `stratum.oauth2-client.*` | `stratum-starter-oauth2-client` | [OAuth2 client → Properties](../modules/oauth2-client.md#properties) | a `spring.security.oauth2.client.registration.<name>` |
-| `stratum.http-client.*` | `stratum-starter-http-client` | [HTTP client → Properties](../modules/http-client.md#properties) | `clients.<name>.base-url` |
+| `stratum.http-client.*` | `stratum-starter-http-client` | [HTTP client → Properties](../modules/http-client.md#properties) | `clients.<name>.url` |
 | `stratum.resilience.*` | `stratum-starter-resilience` | [Resilience → Properties](../modules/resilience.md#properties) | none |
 | `stratum.data.*` | `stratum-starter-data-jpa` | [Data → Properties](../modules/data-jpa.md#properties) | `spring.datasource.url`, `username`, `password` |
 | `stratum.cache.*` | `stratum-starter-cache` | [Cache → Properties](../modules/cache.md#properties) | `spring.application.name` with Spring Data Redis, unless you set `spring.cache.redis.key-prefix`; `spring.data.redis.*` to reach your Redis (with `spring-boot-starter-data-redis`) |
