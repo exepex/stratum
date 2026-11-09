@@ -136,7 +136,7 @@ the Spring Boot keys it sets, with both defaults:
 [Logging](../../starters/stratum-starter-logging/README.md#properties),
 [Observability](../../starters/stratum-starter-observability/README.md#properties),
 [Data](../modules/data-jpa.md#properties) and [Cache](../modules/cache.md#properties). The planned
-modules' pages list theirs. The planned HTTP client starters are the one exception: each client's settings live
+modules' pages list theirs. The HTTP client starters are the one exception: each client's settings live
 under `stratum.http-client.clients.<name>.*`, and Spring Boot's `spring.http.serviceclient.*` keys do not apply
 ([ADR 0011](../adr/0011-http-client-starters.md)).
 
@@ -172,7 +172,7 @@ stratum:
     resource-server:
       issuer-uri: https://idp.acme.com/realms/acme
       audiences: [order-service]
-  http-client:                   # planned keys (ADR 0011)
+  http-client:                   # url, timeout built; auth, retries planned (ADR 0011)
     clients:
       inventory:
         url: http://inventory-service
@@ -197,7 +197,7 @@ management.opentelemetry.tracing.export.otlp.endpoint=http://otel-collector:4318
 stratum.environment=prod
 stratum.security.resource-server.issuer-uri=https://idp.acme.com/realms/acme
 stratum.security.resource-server.audiences=order-service
-# Planned HTTP client keys (ADR 0011)
+# HTTP client keys (ADR 0011): url and timeout are built; auth and retries are planned
 stratum.http-client.clients.inventory.url=http://inventory-service
 stratum.http-client.clients.inventory.auth.token-relay=true
 stratum.http-client.clients.payments.url=http://payments-service

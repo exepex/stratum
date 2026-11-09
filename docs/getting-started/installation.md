@@ -97,7 +97,7 @@ service does. You can add more later.
 | --- | --- |
 | Exposes a REST API | `stratum-starter-webmvc` (or `stratum-starter-webflux` if it is reactive), `stratum-starter-observability`, `stratum-starter-logging` |
 | Requires a valid token on its API | `stratum-starter-security` |
-| Calls other services over HTTP | `stratum-starter-http-client`, which brings its own retries and circuit breaker |
+| Calls other services over HTTP | `stratum-starter-http-client`, which gives each client its own timeouts and connection pool; its retries and circuit breaker are planned |
 | Calls secured services | `stratum-starter-oauth2-client` |
 | Uses a relational database | `stratum-starter-data-jpa` |
 | Caches results | `stratum-starter-cache` |

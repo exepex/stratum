@@ -14,5 +14,41 @@
   <artifactId>stratum-starter-http-client</artifactId>
 
   <name>Stratum starter: HTTP client</name>
-  <description>Planned: Declarative HTTP clients with timeouts, tracing, tokens and retries.</description>
+  <description>Blocking clients of other services: @StratumClient interfaces on RestClient and Apache HttpClient 5, each with its own timeouts and bounded connection pool.</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.exepex.stratum</groupId>
+      <artifactId>stratum-http-client</artifactId>
+    </dependency>
+    <!-- Spring Boot's RestClient set-up and Spring's HTTP service groups, which turn each
+         @StratumClient interface into a client. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-restclient</artifactId>
+    </dependency>
+    <!-- Sends the calls of Stratum's clients. Unlike Java's own client, it has a connection pool per
+         client that can be bounded, a wait for a free connection and a connection lifetime. -->
+    <dependency>
+      <groupId>org.apache.httpcomponents.client5</groupId>
+      <artifactId>httpclient5</artifactId>
+    </dependency>
+    <!-- The checks and set-up that every starter's tests share. -->
+    <dependency>
+      <groupId>com.exepex.stratum</groupId>
+      <artifactId>stratum-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Reactor, for the client with a Mono method that the blocking starter refuses at startup. -->
+    <dependency>
+      <groupId>io.projectreactor</groupId>
+      <artifactId>reactor-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
 </project>

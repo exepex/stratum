@@ -170,8 +170,8 @@ Customizers Stratum supports:
 
 | Customizer | Adjusts | Module | Status |
 | --- | --- | --- | --- |
-| `RestClientCustomizer` (Spring Boot) | Every HTTP client built from Spring Boot's `RestClient.Builder` | http-client | Works today: Spring Boot applies it. The http-client starter is planned |
-| `StratumClientCustomizer` | One named client's builder, for what has no key ([ADR 0011](../adr/0011-http-client-starters.md)); its keys go through `HttpClientPropertiesCustomizer` | http-client | Planned |
+| `RestClientCustomizer` (Spring Boot) | Every HTTP client built from Spring Boot's `RestClient.Builder` | http-client | Works today: Spring Boot applies it. On a Stratum client it runs first, and Stratum's pool replaces any request factory it sets ([HTTP client](../modules/http-client.md#customize)) |
+| `StratumClientCustomizer` | One named client's builder, for what has no key ([ADR 0011](../adr/0011-http-client-starters.md)); its keys go through `HttpClientPropertiesCustomizer` | http-client | Works today in the blocking starter |
 | `StratumSecurityCustomizer` | The `HttpSecurity` before Stratum's chain is built | security | Planned |
 | `StratumErrorResponseCustomizer` | Extra fields on every error response | web | Planned |
 | `MeterFilter` / `ObservationFilter` (Micrometer) | Metric names, tags and observations | observability | Works today: Spring Boot applies them |

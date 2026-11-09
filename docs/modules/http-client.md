@@ -1,23 +1,24 @@
 # HTTP client: `stratum-starter-http-client`
 
-**Status: Planned.** Calls to other services through declarative Java interfaces, with timeouts,
-tracing, correlation IDs, tokens, logging and resilience set up for you.
+**Status: Partly built.** Calls to other services through Java interfaces marked `@StratumClient`. Each client
+gets its own address, timeouts and bounded connection pool from one settings block, and Apache HttpClient 5 sends
+its calls. Tokens, retries and the circuit breaker, headers, error mapping, the call log and pool metrics are
+planned ([Planned](#planned)).
 
-[← Documentation home](../README.md) · Property prefix: `stratum.http-client`
-
-> **The agreed design is [ADR 0011](../adr/0011-http-client-starters.md).** This page still shows an earlier plan
-> (`base-url`, `read-timeout`, `propagate-headers`, `log-bodies`, `resilience-policy`); it is rewritten when the
-> starter is built. Where the two differ, ADR 0011 is the design.
+[← Documentation home](../README.md) · Property prefix: `stratum.http-client` ·
+Design: [ADR 0011](../adr/0011-http-client-starters.md)
 
 ## What it does
 
-The most common production incident in microservices is a call that waits forever on a slow
-downstream service. Close behind are lost trace headers and missing tokens. This starter makes the
-safe setup the default: you describe the remote API as an interface, give its URL, and every call
-is protected.
+The most common production incident in microservices is a call that waits too long on a slow service. Close behind
+are pools that grow without bound and connections that a load balancer already closed. This starter makes the safe
+setup the default: you describe the other service's API as an interface, give its address, and every call has a
+timeout, a bounded pool and a wait for a free connection.
 
-It builds on Spring Framework's **HTTP interface clients** and Spring Boot's HTTP service client
-groups, backed by `RestClient`.
+It builds on Spring's **HTTP interface clients**: you write an interface with Spring's own `@GetExchange`,
+`@PostExchange`, `@PathVariable` and `@RequestBody`, and Spring makes the client. Stratum finds the interface, gives
+it the settings of its own block and sends its calls through Apache HttpClient 5, which, unlike Java's own client,
+has a connection pool per client.
 
 ## Add it
 
@@ -28,8 +29,7 @@ groups, backed by `RestClient`.
 </dependency>
 ```
 
-The starter is on as soon as it is on the classpath; no line is needed. To turn it off, set in
-`application.properties`:
+The starter is on as soon as it is on the classpath. To turn it off, set in `application.properties`:
 
 ```properties
 stratum.http-client.enabled=false
@@ -43,11 +43,18 @@ stratum:
     enabled: false
 ```
 
-## Use it in three steps
+When it is off, Stratum finds no `@StratumClient` interface, makes no client and changes no Spring Boot setting.
 
-**1. Describe the remote API:**
+The `stratum-starter-microservice` bundle includes it. The reactive bundle does not, until the reactive HTTP client
+starter is built ([Bundles](bundles.md)).
+
+## Use it
+
+**1. Describe the other service's API** as an interface in your application's packages, the ones Spring Boot scans
+from your `@SpringBootApplication` class:
 
 ```java
+@StratumClient("inventory")
 public interface InventoryClient {
 
   @GetExchange("/stock/{sku}")
@@ -55,167 +62,245 @@ public interface InventoryClient {
 
   @PostExchange("/reservations")
   Reservation reserve(@RequestBody ReservationRequest request);
-
-  record Stock(String sku, int available) {}
 }
 ```
 
-**2. Register it in a named group:**
+The name in `@StratumClient` is the client's name in the settings: lowercase letters, digits and hyphens, starting
+with a letter, such as `inventory` or `payments-v2`. Two interfaces with the same name are one client: they share
+its settings and its pool.
 
-```java
-@Configuration
-@ImportHttpServices(group = "inventory", types = InventoryClient.class)
-class HttpClientsConfig {}
+**2. Give the client its address:**
+
+```properties
+stratum.http-client.clients.inventory.url=http://inventory:8080
 ```
-
-**3. Configure the group by the same name:**
 
 ```yaml
 stratum:
   http-client:
     clients:
       inventory:
-        base-url: https://inventory.internal
+        url: http://inventory:8080
 ```
 
-```properties
-stratum.http-client.clients.inventory.base-url=https://inventory.internal
-```
-
-Inject `InventoryClient` anywhere and call its methods like any Java object.
-
-## What you get on every call
-
-| Feature | Behaviour |
-| --- | --- |
-| Timeouts | Connect `2s` and read `5s` unless you set others; no call can hang forever |
-| Tracing | `traceparent` header sent; a client span and `http.client.requests` metric per call |
-| Correlation ID | The current correlation ID is sent in `X-Correlation-Id` |
-| Tokens | Client credentials or token relay, per client (see [OAuth2 client](oauth2-client.md)) |
-| Error mapping | `4xx` and `5xx` answers become typed exceptions; timeouts and connection failures become `DownstreamUnavailableException`, which the web starter turns into `503`/`504` |
-| Logging | One `DEBUG` line per call (method, URL without query, status, duration); bodies never logged unless you ask |
-| Resilience | Retry and circuit breaker per client, built into this starter ([ADR 0011](../adr/0011-http-client-starters.md)) |
-| Connection pooling | Pooled, bounded connections per client |
-
-### Errors your code can catch
-
-| Exception | When |
-| --- | --- |
-| `HttpClientErrorException` (Spring), e.g. `.NotFound`, `.Conflict` | The downstream answered `4xx` |
-| `HttpServerErrorException` (Spring) | The downstream answered `5xx` |
-| `DownstreamUnavailableException` (Stratum) | Timeout, connection refused, DNS failure, or circuit breaker open |
+**3. Inject the interface** anywhere and call its methods like any Java object:
 
 ```java
-try {
-  return inventory.stockFor(sku);
-} catch (HttpClientErrorException.NotFound e) {
-  throw new UnknownProductException(sku);
+@Service
+@RequiredArgsConstructor
+class ReservationService {
+
+  private final InventoryClient inventory;
+
+  boolean inStock(String sku) {
+    return inventory.stockFor(sku).available() > 0;
+  }
 }
 ```
 
-Let the rest propagate: the web starter turns them into the right Problem Details response.
+A method returns the value itself, such as `Stock`. A method that returns `Mono` or `Flux` stops startup with
+`SX-HTTPC-1002`: this starter is blocking, and the reactive one is planned.
+
+Do not put personal data, such as an e-mail address or a customer name, in a path or query value: addresses end up
+in proxy and server logs that Stratum does not control. Send it in the request body instead.
+
+## What every client gets
+
+| What | Behaviour |
+| --- | --- |
+| Timeouts | A connection must open within `connect-timeout` (2s) and the answer to each call must come within `timeout` (5s). |
+| A pool per client | At most `max-connections` (50) connections. A call that finds them all busy waits at most `max-wait` (2s), then fails. A slow service fills only its own client's pool. |
+| No silent resends | Apache HttpClient 5's own retries are off, so a call is never sent twice behind your back. Retries come with the planned resilience settings. |
+| No redirects | A `3xx` answer is returned as it is and never followed. |
+| Gzip | Answers compressed with gzip are accepted and unpacked. |
+| Fresh connections | A connection unused for `idle-timeout` (30s) is closed. One unused for more than about 2 seconds is checked before it is used again, so one the server or a load balancer closed meanwhile is replaced. A server's `Keep-Alive: timeout` is honoured. A connection older than `connection-lifetime` (5m) is not used again, so calls follow a change of the service's address. |
+| Nothing at startup | Startup opens no connection, so the application starts and is ready while a downstream service is down. |
+| Clean shutdown | Every pool closes its connections when the application stops. |
+
+A call runs on the thread that makes it, so the logging and tracing context stays with it.
 
 ## Properties
 
-### Defaults for every client
+Every setting can be set for all clients under `stratum.http-client.defaults.*`, and for one client under
+`stratum.http-client.clients.<name>.*`, where `<name>` is the name in `@StratumClient`. A client's own value wins over
+the shared default, which wins over Stratum's.
 
-| Property | Type | Default | Description |
-| --- | --- | --- | --- |
-| `stratum.http-client.enabled` | boolean | `true` | Whether the starter is on. With `false`, the starter sets up nothing. |
-| `stratum.http-client.defaults.connect-timeout` | duration | `2s` | Time allowed to open a connection. |
-| `stratum.http-client.defaults.read-timeout` | duration | `5s` | Time allowed to wait for the response. |
-| `stratum.http-client.defaults.max-connections` | int | `50` | Connection pool size per client. |
-| `stratum.http-client.defaults.propagate-headers` | list | `X-Correlation-Id` | Incoming headers copied onto outgoing calls. |
-| `stratum.http-client.defaults.log-bodies` | boolean | `false` | Logs request and response bodies at `DEBUG` (redacted). Never in production. |
-| `stratum.http-client.defaults.resilience-policy` | string | `default` | Resilience policy used when a client sets none. |
+| Property | Type | Stratum default | Spring Boot default | Description |
+| --- | --- | --- | --- | --- |
+| `stratum.http-client.enabled` | boolean | `true` | no such key | Whether the starter is on. With `false`, it sets up nothing. |
+| `url` | URL | **required** per client | no such key | The address of the other service, such as `http://inventory:8080`. Not allowed under `defaults`, since each client calls its own service. |
+| `connect-timeout` | duration | `2s` | no such key | The time allowed to open a connection. |
+| `timeout` | duration | `5s` | no such key | The time allowed for the answer to one call. |
+| `max-connections` | int | `50` | no such key | The most connections the client keeps open at once, from 1 to 10000. |
+| `max-wait` | duration | `2s` | no such key | How long a call waits for a free connection before it fails. |
+| `idle-timeout` | duration | `30s` | no such key | How long a connection may stay unused before it is closed. |
+| `connection-lifetime` | duration | `5m` | no such key | How old a connection may get before it is closed instead of used again. |
+| `shared-pool` | boolean | `false` | no such key | With `true`, the client uses one pool shared by every client that sets it, instead of its own. That pool takes its size, connect timeout, idle timeout and lifetime from `defaults`; the client keeps its own `timeout` and `max-wait`. |
+| `spring.http.clients.imperative.factory` | `http-components`, `jetty`, `reactor`, `jdk` or `simple` | `jdk` | unset: detects the engine, Apache HttpClient 5 first | The engine of the RestClients Stratum did not build. Stratum's own clients always use Apache HttpClient 5 ([Clients Stratum did not build](#clients-stratum-did-not-build)). |
 
-### Per client: `stratum.http-client.clients.<name>.*`
+Every duration must be above 0. A setting that breaks a rule stops startup with `SX-CORE-1003`, naming the rule, never
+the value.
 
-`<name>` is the group name from `@ImportHttpServices(group = ...)`.
-
-| Property | Type | Default | Description |
-| --- | --- | --- | --- |
-| `base-url` | URL | **required** | Address of the downstream service. |
-| `connect-timeout` | duration | from `defaults` | Overrides the default for this client. |
-| `read-timeout` | duration | from `defaults` | Overrides the default for this client. |
-| `max-connections` | int | from `defaults` | Overrides the default for this client. |
-| `headers` | map | *(empty)* | Fixed headers sent on every call. Not for secrets. |
-| `oauth2-registration` | string | *(none)* | Sends a client credentials token from this registration. |
-| `token-relay` | boolean | `false` | Sends the incoming request's token on. |
-| `resilience-policy` | string | from `defaults` | Name of a policy under `stratum.resilience.policies`; `none` to switch off. |
+Spring Boot's own settings of an HTTP service group, `spring.http.serviceclient.<name>.*`, do not apply to a Stratum
+client: Stratum builds its client. Setting one for a Stratum client's name stops startup with `SX-HTTPC-1001`, naming
+the Stratum key to use instead. This is the one exception to Stratum's rule of using Spring Boot's keys where they
+exist ([ADR 0011](../adr/0011-http-client-starters.md), decision 2).
 
 ## Examples
 
-Two downstream services, one slow and secured:
+A fast service with the defaults, and a slow report service with a longer timeout and a smaller pool:
+
+```properties
+stratum.http-client.defaults.timeout=3s
+stratum.http-client.clients.inventory.url=http://inventory:8080
+stratum.http-client.clients.reports.url=http://reports:8080
+stratum.http-client.clients.reports.timeout=20s
+stratum.http-client.clients.reports.max-connections=10
+```
 
 ```yaml
 stratum:
   http-client:
     defaults:
-      read-timeout: 3s
+      timeout: 3s
     clients:
       inventory:
-        base-url: https://inventory.internal
-      payments:
-        base-url: https://payments.internal
-        read-timeout: 10s
-        oauth2-registration: payments
-        resilience-policy: payments
-        headers:
-          X-Api-Version: "2"
+        url: http://inventory:8080
+      reports:
+        url: http://reports:8080
+        timeout: 20s
+        max-connections: 10
 ```
 
+Behind a load balancer that drops connections unused for 20 seconds, close them first:
+
 ```properties
-stratum.http-client.defaults.read-timeout=3s
-stratum.http-client.clients.inventory.base-url=https://inventory.internal
-stratum.http-client.clients.payments.base-url=https://payments.internal
-stratum.http-client.clients.payments.read-timeout=10s
-stratum.http-client.clients.payments.oauth2-registration=payments
-stratum.http-client.clients.payments.resilience-policy=payments
-stratum.http-client.clients.payments.headers.X-Api-Version=2
+stratum.http-client.defaults.idle-timeout=15s
+```
+
+```yaml
+stratum:
+  http-client:
+    defaults:
+      idle-timeout: 15s
 ```
 
 > [!TIP]
-> Pick timeouts from the downstream's real latency: a read timeout a little above its p99 latency
-> is a good start. Then make sure your own callers' timeouts are longer than yours.
+> Pick a timeout from the other service's real latency: a little above its p99 is a good start. Then make sure the
+> timeouts of your own callers are longer than yours.
 
 ## Configure in Java
 
-**Planned.** You will also be able to set every property on this page in Java code, through this module's
-customizer or builder, with the same names and defaults. This section will show how once that API is designed.
+Every `stratum.http-client.*` setting can also be set in Java, through an `HttpClientPropertiesCustomizer` class, and
+Java wins over the files:
+
+```java
+public class ReportClientSettings implements HttpClientPropertiesCustomizer {
+
+  @Override
+  public HttpClientProperties customize(HttpClientProperties properties) {
+    var reports =
+        properties.clientSettings("reports").toBuilder()
+            .timeout(Duration.ofSeconds(20))
+            .maxConnections(10)
+            .build();
+    var clients = new HashMap<>(properties.clients());
+    clients.put("reports", reports);
+    return properties.toBuilder().clients(clients).build();
+  }
+}
+```
+
+The customizer is not a bean: list the class in the service's `META-INF/spring.factories`. A customizer declared as
+a bean stops startup with `SX-CORE-1004`.
+
+```properties
+com.exepex.stratum.httpclient.HttpClientPropertiesCustomizer=com.acme.orders.ReportClientSettings
+```
 
 ## Customize
 
-- **All clients:** declare a `RestClientCustomizer` bean.
-- **One group:** declare a `StratumHttpClientCustomizer` bean and check the group name:
+For what has no setting, such as a request interceptor or a message converter, declare a `StratumClientCustomizer`
+bean. Spring calls it once per client at startup, after Stratum has set the client's address and pool, with the
+client's name and its `RestClient.Builder`:
 
-  ```java
-  @Bean
-  StratumHttpClientCustomizer paymentsSigning(RequestSigner signer) {
-    return (group, builder) -> {
-      if (group.equals("payments")) {
-        builder.requestInterceptor(signer);
-      }
-    };
-  }
-  ```
+```java
+@Bean
+StratumClientCustomizer inventoryTenantHeader() {
+  return (client, builder) -> {
+    if ("inventory".equals(client)) {
+      builder.defaultHeader("X-Tenant", "retail");
+    }
+  };
+}
+```
 
-- **Plain `RestClient` without an interface:** inject `RestClient.Builder`. It carries Stratum's
-  tracing and correlation settings; set the base URL and timeouts yourself.
+Do not put secrets in a header this way: tokens arrive with the planned `auth` settings.
 
-## Switch it on or off
+Spring Boot's `RestClientCustomizer` beans also apply to Stratum's clients, before Stratum's settings; a request
+factory one of them sets is replaced by Stratum's.
 
-The starter is on when it is on the classpath. Leaving `stratum.http-client.enabled` unset, or
-empty, is the same as `true`.
+To change how Stratum builds a client, declare a `StratumClientCustomizer`, as above. Stratum's other beans for
+the clients are internal: their types may change in any release, so they are not a way to customize.
 
-When it is off: Spring Boot's own HTTP client support stays, without Stratum's
-timeouts, headers or error mapping.
+## Clients Stratum did not build
+
+Stratum never changes a client it did not build. A `RestClient` you build from Spring Boot's `RestClient.Builder`,
+or a group you register with `@ImportHttpServices`, keeps Spring Boot's behaviour, with no Stratum timeout or pool.
+
+This starter puts Apache HttpClient 5 on the classpath, which Spring Boot would otherwise pick first for those
+clients. So that they keep Java's own client, as without Stratum, Stratum gives
+`spring.http.clients.imperative.factory` the default `jdk`. Spring Boot's own default is to detect the engine, with
+Apache HttpClient 5 first. Your value wins:
+
+```properties
+spring.http.clients.imperative.factory=http-components
+```
+
+```yaml
+spring:
+  http:
+    clients:
+      imperative:
+        factory: http-components
+```
+
+## How it is wired
+
+Stratum's auto-configuration runs before Spring Boot's HTTP service client auto-configuration, because Spring Boot
+sets up groups only when their registry exists, and Stratum's registration of the clients creates it. At startup,
+Spring Boot first gives every group its own request factory; Stratum's set-up then replaces it, for Stratum's groups
+only, with the client's Apache HttpClient 5 pool.
+
+## Startup errors
+
+| Code | When |
+| --- | --- |
+| `SX-HTTPC-1001` | A `spring.http.serviceclient.<name>.*` key is set for a Stratum client. |
+| `SX-HTTPC-1002` | A client method returns `Mono` or `Flux`. |
+| `SX-HTTPC-1003` | A client name is not lowercase letters, digits and hyphens starting with a letter. |
+| `SX-HTTPC-1004` | A client has no `url`. |
+
+Each one, with its fix, is in [Error codes](../guides/error-codes.md#stratum-starter-http-client).
+
+## Planned
+
+These parts of [ADR 0011](../adr/0011-http-client-starters.md) are not built yet, and none of their keys is read:
+
+- tokens: client credentials and token relay (`auth`), and `ssl-bundle` for mTLS;
+- resilience: `retries`, `retry-delay`, `total-timeout` and the circuit breaker;
+- `headers` and `copy-headers`;
+- error mapping to `DownstreamException` and the `SX-HTTPC-0001` to `0004` codes;
+- one log line per call and the pool metrics;
+- streaming uploads and downloads, `mock: true`, `urls`, `interface` and `stratumHttpClients`;
+- `ClientInterceptor` and `GlobalClientInterceptor`;
+- the reactive starter, `stratum-starter-reactive-http-client`, on `WebClient`.
 
 ## Troubleshooting
 
 | Symptom | Likely cause and fix |
 | --- | --- |
-| Startup fails: `base-url must not be null` | The client name in properties does not match the `group` name in `@ImportHttpServices`. |
-| `DownstreamUnavailableException` after exactly 5 s | The default read timeout. Raise `read-timeout` for that client if the downstream is legitimately slow. |
-| No `Authorization` header on calls | Neither `oauth2-registration` nor `token-relay` is set for the client, or the OAuth2 client starter is missing. |
-| Trace is broken at this call | The call was made with a `RestClient` built by `RestClient.create()` instead of the injected builder. |
+| Startup fails with `SX-HTTPC-1004` | The client has no `url`, or the name in the settings differs from the one in `@StratumClient`. |
+| No bean of your client interface | The interface is outside your application's packages, or `stratum.http-client.enabled=false`. |
+| Calls fail after exactly 5 s | The default `timeout`. Raise it for that client if the other service is slow for a reason. |
+| Calls fail after 2 s with a connection request timeout | The client's pool is full: raise `max-connections`, or find what holds its connections. |

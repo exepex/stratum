@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.exepex.stratum.cache.CacheConstants;
 import com.exepex.stratum.cache.it.products.ProductsApplication;
 import com.exepex.stratum.cache.testsupport.ProductCatalog;
-import com.exepex.stratum.cache.testsupport.SilentPort;
+import com.exepex.stratum.test.SilentPort;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Duration;
 import java.util.List;

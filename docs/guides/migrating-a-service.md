@@ -84,8 +84,9 @@ Check: your security tests pass, and health probes still answer without a token.
 
 ## Step 6: HTTP clients
 
-Add `stratum-starter-http-client` (and `stratum-starter-oauth2-client` if you need it); it brings its
-own retries and circuit breaker. For each downstream service:
+Add `stratum-starter-http-client` (and `stratum-starter-oauth2-client` if you need it); it gives each
+client its own timeouts and connection pool, and its own retries and circuit breaker are planned. For
+each downstream service:
 
 1. Turn the hand-written client class into an interface with `@StratumClient("<name>")` and
    Spring's `@GetExchange`, `@PostExchange`, ... Stratum finds it by scanning
@@ -93,7 +94,8 @@ own retries and circuit breaker. For each downstream service:
 2. Move its URL and timeouts to `stratum.http-client.clients.<name>.*`.
 3. Delete the old `RestTemplate` or `RestClient` bean and its interceptors.
 
-Check: calls carry `traceparent` and `X-Correlation-Id`; timeouts are what you expect.
+Check: timeouts are what you expect. Trace and correlation headers on these calls are planned
+([HTTP client → Planned](../modules/http-client.md#planned)).
 
 ## Step 7: data, cache, Kafka
 

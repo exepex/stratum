@@ -248,7 +248,7 @@ The security starter is planned and brings no dependency yet. Once it is built, 
 | Bundle | Single starters it adds |
 | --- | --- |
 | `stratum-starter-microservice` | webmvc, logging, observability, http-client, resilience, security |
-| `stratum-starter-reactive-microservice` | webflux, logging, observability, http-client, resilience, security |
+| `stratum-starter-reactive-microservice` | webflux, logging, observability, resilience, security |
 | `stratum-starter-web-ui` | webmvc, logging, observability, security |
 | `stratum-starter-batch` | data-jpa, logging, observability |
 | `stratum-starter-cli` | logging |
@@ -266,7 +266,7 @@ Every starter's module is on when the starter is on the classpath. A service tur
 | [`stratum-starter-observability`](starters/stratum-starter-observability/README.md) | Metrics, traces and health, sent over OTLP to an OpenTelemetry Collector. | `stratum.observability` |
 | [`stratum-starter-security`](docs/modules/security.md) | OAuth2 resource server: JWT validation, roles, public paths, CORS. | `stratum.security` |
 | [`stratum-starter-oauth2-client`](docs/modules/oauth2-client.md) | Gets and refreshes tokens for calls to other services. | `stratum.oauth2-client` |
-| [`stratum-starter-http-client`](docs/modules/http-client.md) | Declarative HTTP clients with timeouts, tracing, tokens and retries. | `stratum.http-client` |
+| [`stratum-starter-http-client`](docs/modules/http-client.md) | Clients of other services as `@StratumClient` interfaces, each with its own timeouts and bounded connection pool; tracing, tokens and retries are planned. | `stratum.http-client` |
 | [`stratum-starter-resilience`](docs/modules/resilience.md) | Named retry, circuit breaker, bulkhead and time limit policies. | `stratum.resilience` |
 | [`stratum-starter-data-jpa`](docs/modules/data-jpa.md) | Spring Data JPA with safe defaults for the connection pool, Hibernate and transactions, and database errors that carry no data values. | `stratum.data` |
 | [`stratum-starter-cache`](docs/modules/cache.md) | Spring's caching switched on, with a time to live, a service key prefix, statistics, short timeouts, SCAN clears, key and value size limits and plain JSON values for Redis, and bounded, expiring Caffeine caches; cached calls keep working when Redis is down. | `stratum.cache` |

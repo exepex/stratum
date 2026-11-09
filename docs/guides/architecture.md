@@ -37,6 +37,7 @@ stratum/
 │   └── stratum-parent/             # parent POM for services: adds the executable jar and build info
 ├── libs/
 │   ├── stratum-core/               # shared internals: constants, property defaults
+│   ├── stratum-http-client/        # what both HTTP client starters share: @StratumClient, settings, codes
 │   ├── stratum-test/               # test support for services
 │   └── stratum-web/                # what both web starters share: settings, error format
 ├── starters/
@@ -50,7 +51,7 @@ stratum/
 │   ├── stratum-starter-microservice/ # bundle: webmvc, logging, observability, http-client, resilience, security
 │   ├── stratum-starter-oauth2-client/
 │   ├── stratum-starter-observability/
-│   ├── stratum-starter-reactive-microservice/ # bundle: webflux, logging, observability, http-client, resilience, security
+│   ├── stratum-starter-reactive-microservice/ # bundle: webflux, logging, observability, resilience, security
 │   ├── stratum-starter-resilience/
 │   ├── stratum-starter-security/
 │   ├── stratum-starter-web-ui/     # bundle: webmvc, logging, observability, security
