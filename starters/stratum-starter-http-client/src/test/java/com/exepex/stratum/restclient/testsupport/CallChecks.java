@@ -17,7 +17,8 @@ public class CallChecks {
 
   /**
    * Starts a call to {@link ScriptedDownstream#HELD} and returns once the downstream holds it, so
-   * that it keeps one connection of its pool busy.
+   * that it keeps one connection of its pool busy. Each call runs on a thread of its own, so that
+   * any number of them can be held at once.
    *
    * @param heldCall the client's call to the held path
    * @param downstream the server that holds it
@@ -26,7 +27,7 @@ public class CallChecks {
   public static CompletableFuture<String> holdOneConnection(
       Supplier<String> heldCall, ScriptedDownstream downstream) {
     var heldRequestsBefore = downstream.heldRequests();
-    var call = CompletableFuture.supplyAsync(heldCall);
+    var call = CompletableFuture.supplyAsync(heldCall, Thread::startVirtualThread);
     await()
         .atMost(RestClientTestData.WAIT)
         .until(() -> downstream.heldRequests() > heldRequestsBefore);

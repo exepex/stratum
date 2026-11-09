@@ -101,6 +101,27 @@ class ClientPoolIntegrationTest {
   }
 
   @Nested
+  @TestPropertySource(properties = RestClientTestData.INVENTORY_SETTINGS + ".max-connections=6")
+  @DisplayName("with max-connections: 6, above Apache's own limit of 5 per host")
+  class AboveApacheHostLimit {
+
+    /** The inventory client's max-connections in this group. */
+    static final int MAX_CONNECTIONS = 6;
+
+    @Test
+    @DisplayName("all 6 connections reach the one host, and a 7th call is refused")
+    void wholePoolServesOneHost() {
+      var heldBefore = INVENTORY.heldRequests();
+      for (var call = 0; call < MAX_CONNECTIONS; call++) {
+        CallChecks.holdOneConnection(inventoryClient::held, INVENTORY);
+      }
+
+      assertThat(INVENTORY.heldRequests()).isEqualTo(heldBefore + MAX_CONNECTIONS);
+      CallChecks.assertFailsFast(inventoryClient::stock, ConnectionRequestTimeoutException.class);
+    }
+  }
+
+  @Nested
   @DisplayName("when the application stops")
   class Shutdown {
 
@@ -124,12 +145,18 @@ class ClientPoolIntegrationTest {
   }
 
   @Nested
-  @TestPropertySource(properties = HttpClientConstants.DEFAULTS + ".shared-pool=true")
+  @TestPropertySource(
+      properties = {
+        HttpClientConstants.DEFAULTS + ".shared-pool=true",
+        RestClientTestData.INVENTORY_SETTINGS + ".max-connections=5",
+        RestClientTestData.PRICING_SETTINGS + ".max-connections=5"
+      })
   @DisplayName("with shared-pool: true")
   class SharedPool {
 
     @Test
-    @DisplayName("every client takes its connections from the one pool sized under defaults")
+    @DisplayName(
+        "every client takes its connections from the one pool sized under defaults, not its own")
     void sharedPoolIsOne() {
       CallChecks.holdOneConnection(inventoryClient::held, INVENTORY);
 

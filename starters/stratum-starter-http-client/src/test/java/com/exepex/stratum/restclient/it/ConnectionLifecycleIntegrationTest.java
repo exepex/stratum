@@ -70,7 +70,9 @@ class ConnectionLifecycleIntegrationTest {
     @DisplayName("a connection unused for idle-timeout is closed by the client")
     void idleConnectionClosed() {
       inventory.stock();
-      await().atMost(RestClientTestData.WAIT).until(() -> DOWNSTREAM.openConnections() == 0);
+      await()
+          .atMost(RestClientTestData.FAILS_WITHIN)
+          .until(() -> DOWNSTREAM.openConnections() == 0);
       assertThat(DOWNSTREAM.connections()).isOne();
     }
   }
