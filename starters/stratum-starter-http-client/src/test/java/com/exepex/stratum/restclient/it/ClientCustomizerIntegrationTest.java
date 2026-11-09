@@ -17,6 +17,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.web.client.RestClient;
 
 @SpringBootTest(
     classes = {
@@ -67,11 +68,14 @@ class ClientCustomizerIntegrationTest {
      */
     @Bean
     StratumClientCustomizer inventoryUnderReports() {
-      return (client, builder) -> {
-        if (RestClientTestData.INVENTORY.equals(client)) {
-          builder.baseUrl(DOWNSTREAM.url() + REPORTS);
-        }
-      };
+      return this::moveInventoryUnderReports;
+    }
+
+    /** Moves the inventory client's address under {@code /reports}, and leaves other clients. */
+    private void moveInventoryUnderReports(String client, RestClient.Builder builder) {
+      if (RestClientTestData.INVENTORY.equals(client)) {
+        builder.baseUrl(DOWNSTREAM.url() + REPORTS);
+      }
     }
   }
 }

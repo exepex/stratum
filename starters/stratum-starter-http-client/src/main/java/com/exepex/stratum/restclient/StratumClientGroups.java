@@ -45,7 +45,7 @@ public class StratumClientGroups implements RestClientHttpServiceGroupConfigurer
    */
   @Override
   public void configureGroups(Groups<RestClient.Builder> groups) {
-    groups.filter(StratumClientGroups::isStratumClient).forEachClient(this::configureClient);
+    groups.filter(this::isStratumClient).forEachClient(this::configureClient);
   }
 
   /**
@@ -70,7 +70,7 @@ public class StratumClientGroups implements RestClientHttpServiceGroupConfigurer
   }
 
   /** Returns whether the group is a Stratum client's. */
-  private static boolean isStratumClient(HttpServiceGroup group) {
+  private boolean isStratumClient(HttpServiceGroup group) {
     return group.httpServiceTypes().stream()
         .anyMatch(type -> type.isAnnotationPresent(StratumClient.class));
   }

@@ -70,7 +70,7 @@ public record ClientSettings(
   }
 
   /** Returns the first value when it is set, or else the second, which may be unset too. */
-  private static <T> @Nullable T either(@Nullable T value, @Nullable T fallback) {
+  private <T> @Nullable T either(@Nullable T value, @Nullable T fallback) {
     return value != null ? value : fallback;
   }
 

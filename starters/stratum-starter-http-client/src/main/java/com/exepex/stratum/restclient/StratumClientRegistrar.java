@@ -93,7 +93,7 @@ public class StratumClientRegistrar extends AbstractHttpServiceRegistrar {
   }
 
   /** Registers the interfaces of one client in its group. */
-  private static void register(GroupRegistry registry, String client, List<Class<?>> interfaces) {
+  private void register(GroupRegistry registry, String client, List<Class<?>> interfaces) {
     registry.forGroup(client).register(interfaces.toArray(Class<?>[]::new));
   }
 

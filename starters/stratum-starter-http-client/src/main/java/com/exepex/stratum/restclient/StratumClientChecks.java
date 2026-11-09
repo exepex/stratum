@@ -6,6 +6,7 @@ import com.exepex.stratum.httpclient.ClientSettings;
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientErrorCode;
 import com.exepex.stratum.httpclient.StratumClient;
+import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -44,13 +45,15 @@ public class StratumClientChecks {
     Arrays.stream(clientInterface.getMethods())
         .filter(method -> isPublisher(method.getReturnType()))
         .findFirst()
-        .ifPresent(
-            method -> {
-              throw new StratumException(
-                  HttpClientErrorCode.REACTIVE_METHOD,
-                  "method " + clientInterface.getName() + "." + method.getName());
-            });
+        .ifPresent(method -> rejectReactiveMethod(clientInterface, method));
     return name;
+  }
+
+  /** Stops startup for a client method that returns a Reactive Streams publisher. */
+  private static void rejectReactiveMethod(Class<?> clientInterface, Method method) {
+    throw new StratumException(
+        HttpClientErrorCode.REACTIVE_METHOD,
+        "method " + clientInterface.getName() + "." + method.getName());
   }
 
   /**

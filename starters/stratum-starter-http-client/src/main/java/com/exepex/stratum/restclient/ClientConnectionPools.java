@@ -3,6 +3,7 @@ package com.exepex.stratum.restclient;
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.httpclient.ClientSettings;
 import com.exepex.stratum.httpclient.HttpClientConstants;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -116,13 +117,14 @@ public class ClientConnectionPools implements DisposableBean {
     var idleTimeout = Objects.requireNonNull(settings.idleTimeout());
     var period = Math.max(1, idleTimeout.toMillis() / 2);
     connectionCloser.scheduleAtFixedRate(
-        () -> {
-          pool.closeExpired();
-          pool.closeIdle(TimeValue.of(idleTimeout));
-        },
-        period,
-        period,
-        TimeUnit.MILLISECONDS);
+        () -> closeUnusedConnections(pool, idleTimeout), period, period, TimeUnit.MILLISECONDS);
     return pool;
+  }
+
+  /** Closes the pool's connections that are past their lifetime or unused for idle-timeout. */
+  private void closeUnusedConnections(
+      PoolingHttpClientConnectionManager pool, Duration idleTimeout) {
+    pool.closeExpired();
+    pool.closeIdle(TimeValue.of(idleTimeout));
   }
 }
