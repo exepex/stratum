@@ -184,7 +184,7 @@ public final class ErrorDownstream implements AutoCloseable {
   private void awaitClose() {
     try {
       closed.await(RestClientTestData.WAIT.toMillis(), TimeUnit.MILLISECONDS);
-    } catch (InterruptedException interrupted) {
+    } catch (InterruptedException _) {
       Thread.currentThread().interrupt();
     }
   }
