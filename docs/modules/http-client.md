@@ -239,14 +239,8 @@ Do not put secrets in a header this way: tokens arrive with the planned `auth` s
 Spring Boot's `RestClientCustomizer` beans also apply to Stratum's clients, before Stratum's settings; a request
 factory one of them sets is replaced by Stratum's.
 
-To replace a part of the set-up, declare your own bean of the same type, and Stratum's steps aside:
-
-| Bean | What it does |
-| --- | --- |
-| `ClientConnectionPools` | Makes each client's Apache HttpClient 5 pool and request factory, and closes them on shutdown. |
-| `StratumClientGroups` | Gives each Stratum client its address and pool, and runs the `StratumClientCustomizer` beans. |
-
-Both are internal types (`@StratumInternal`): they may change in any release, so prefer a customizer.
+To change how Stratum builds a client, declare a `StratumClientCustomizer`, as above. Stratum's other beans for
+the clients are internal: their types may change in any release, so they are not a way to customize.
 
 ## Clients Stratum did not build
 

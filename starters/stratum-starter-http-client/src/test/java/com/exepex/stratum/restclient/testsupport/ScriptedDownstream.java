@@ -215,7 +215,7 @@ public final class ScriptedDownstream implements AutoCloseable {
     while (!serverSocket.isClosed()) {
       try {
         serveLater(serverSocket.accept());
-      } catch (IOException closed) {
+      } catch (IOException _) {
         return;
       }
     }
@@ -242,11 +242,11 @@ public final class ScriptedDownstream implements AutoCloseable {
         receivedPaths.add(path);
         answer(path, out);
       }
-    } catch (InterruptedException stopped) {
+    } catch (InterruptedException _) {
       Thread.currentThread().interrupt();
-    } catch (SocketTimeoutException idle) {
+    } catch (SocketTimeoutException _) {
       idleClosedCount.incrementAndGet();
-    } catch (IOException reset) {
+    } catch (IOException _) {
       resetCount.incrementAndGet();
     } finally {
       openConnectionCount.decrementAndGet();
