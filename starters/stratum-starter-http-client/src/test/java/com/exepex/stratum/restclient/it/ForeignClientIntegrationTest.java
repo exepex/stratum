@@ -40,7 +40,7 @@ class ForeignClientIntegrationTest {
    * Starts the application, with its environment post-processors, and returns the request factory
    * Spring Boot gives the service's own clients.
    */
-  private static ClientHttpRequestFactory requestFactoryOfServiceClients(String... settings) {
+  private ClientHttpRequestFactory requestFactoryOfServiceClients(String... settings) {
     var application = new SpringApplication(ClientsApplication.class);
     application.setWebApplicationType(WebApplicationType.NONE);
     var arguments =

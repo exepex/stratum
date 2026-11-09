@@ -91,7 +91,7 @@ class StartupChecksTest {
   }
 
   /** Checks that startup stopped with a Stratum code, and returns the check of its message. */
-  private static AbstractThrowableAssert<?, ? extends Throwable> assertStopped(
+  private AbstractThrowableAssert<?, ? extends Throwable> assertStopped(
       AssertableApplicationContext context, String code) {
     assertThat(context).hasFailed();
     // A check while scanning fails startup itself; one while building a client is a cause.

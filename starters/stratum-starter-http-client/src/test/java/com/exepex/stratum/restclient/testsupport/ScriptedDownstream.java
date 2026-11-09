@@ -254,7 +254,7 @@ public final class ScriptedDownstream implements AutoCloseable {
   }
 
   /** Reads the request's headers; requests in these tests have no body. */
-  private static void skipHeaders(BufferedReader in) throws IOException {
+  private void skipHeaders(BufferedReader in) throws IOException {
     var header = in.readLine();
     while (header != null && !header.isEmpty()) {
       header = in.readLine();
@@ -280,7 +280,7 @@ public final class ScriptedDownstream implements AutoCloseable {
   }
 
   /** Writes one answer that keeps the connection open. */
-  private static void write(OutputStream out, String status, String headers, byte[] body)
+  private void write(OutputStream out, String status, String headers, byte[] body)
       throws IOException {
     var head =
         "HTTP/1.1 "
@@ -296,7 +296,7 @@ public final class ScriptedDownstream implements AutoCloseable {
   }
 
   /** Returns the bytes compressed with gzip. */
-  private static byte[] gzip(byte[] body) throws IOException {
+  private byte[] gzip(byte[] body) throws IOException {
     var compressed = new ByteArrayOutputStream();
     try (var gzip = new GZIPOutputStream(compressed)) {
       gzip.write(body);

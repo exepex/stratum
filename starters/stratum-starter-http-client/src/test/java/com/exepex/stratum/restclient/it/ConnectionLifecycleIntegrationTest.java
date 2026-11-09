@@ -40,7 +40,7 @@ class ConnectionLifecycleIntegrationTest {
       RestClientTestData.INVENTORY_SETTINGS + ".idle-timeout=1m";
 
   /** Waits, so that a connection passes a limit while unused. */
-  private static void waitPast(Duration limit) {
+  private void waitPast(Duration limit) {
     await().pollDelay(limit).atMost(limit.plus(RestClientTestData.WAIT)).until(() -> true);
   }
 
