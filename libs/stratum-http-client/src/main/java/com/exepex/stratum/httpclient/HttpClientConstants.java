@@ -70,4 +70,7 @@ public class HttpClientConstants {
    * server closed meanwhile is not used. Fixed, with no key (ADR 0011, decision 5.2).
    */
   public static final Duration STALE_CHECK_AFTER = Duration.ofSeconds(2);
+
+  /** The header that carries a client's API key when it names none. */
+  public static final String DEFAULT_API_KEY_HEADER = "X-Api-Key";
 }

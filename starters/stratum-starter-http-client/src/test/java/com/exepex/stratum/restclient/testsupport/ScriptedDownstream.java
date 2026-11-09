@@ -14,7 +14,9 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -87,6 +89,9 @@ public final class ScriptedDownstream implements AutoCloseable {
 
   /** The path of every request, in order. */
   private final List<String> receivedPaths = new CopyOnWriteArrayList<>();
+
+  /** The header lines of every request, in order, such as {@code X-Api-Key: geo}. */
+  private final List<List<String>> receivedHeaders = new CopyOnWriteArrayList<>();
 
   /** The latch the held requests wait on, opened and replaced by {@link #release()}. */
   private final AtomicReference<CountDownLatch> releaseLatch =
@@ -198,6 +203,27 @@ public final class ScriptedDownstream implements AutoCloseable {
     return List.copyOf(receivedPaths);
   }
 
+  /**
+   * Returns the value of one header in each request, in order, or an empty text where a request did
+   * not send it. The name is matched without regard to case.
+   *
+   * @param name the header's name, such as Authorization
+   * @return the values
+   */
+  public List<String> headerValues(String name) {
+    var prefix = name.toLowerCase(Locale.ROOT) + ":";
+    return receivedHeaders.stream().map(lines -> valueIn(lines, prefix)).toList();
+  }
+
+  /** Returns the value of the first header line that starts with the prefix, or an empty text. */
+  private String valueIn(List<String> lines, String prefix) {
+    return lines.stream()
+        .filter(line -> line.toLowerCase(Locale.ROOT).startsWith(prefix))
+        .map(line -> line.substring(prefix.length()).strip())
+        .findFirst()
+        .orElse("");
+  }
+
   /** Lets every request held now answer; later ones are held again. */
   public void release() {
     releaseLatch.getAndSet(new CountDownLatch(1)).countDown();
@@ -237,7 +263,7 @@ public final class ScriptedDownstream implements AutoCloseable {
         var out = connection.getOutputStream()) {
       connection.setSoTimeout(Math.toIntExact(closeIdleAfter.toMillis()));
       for (var requestLine = in.readLine(); requestLine != null; requestLine = in.readLine()) {
-        skipHeaders(in);
+        receivedHeaders.add(readHeaders(in));
         var path = requestLine.split(" ")[1];
         receivedPaths.add(path);
         answer(path, out);
@@ -253,12 +279,15 @@ public final class ScriptedDownstream implements AutoCloseable {
     }
   }
 
-  /** Reads the request's headers; requests in these tests have no body. */
-  private void skipHeaders(BufferedReader in) throws IOException {
+  /** Reads the request's header lines; requests in these tests have no body. */
+  private List<String> readHeaders(BufferedReader in) throws IOException {
+    var lines = new ArrayList<String>();
     var header = in.readLine();
     while (header != null && !header.isEmpty()) {
+      lines.add(header);
       header = in.readLine();
     }
+    return lines;
   }
 
   /** Writes the answer for one path. */

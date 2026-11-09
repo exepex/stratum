@@ -132,6 +132,85 @@ public record HttpClientProperties(
     return defaults.interfaces().isEmpty();
   }
 
+  /**
+   * Returns whether the shared defaults leave {@code auth} unset, so that a secret goes only to the
+   * client it is for. Validation reports one that is set as {@code
+   * stratum.http-client.defaults-without-auth breaks @AssertTrue}.
+   *
+   * @return whether the defaults have no auth
+   */
+  @AssertTrue
+  public boolean isDefaultsWithoutAuth() {
+    return defaults.auth() == null;
+  }
+
+  /**
+   * Returns whether the shared defaults leave {@code ssl-bundle} unset, so that a certificate and
+   * its trust material reach only the clients that name them. Validation reports one that is set as
+   * {@code stratum.http-client.defaults-without-ssl-bundle breaks @AssertTrue}.
+   *
+   * @return whether the defaults have no SSL bundle
+   */
+  @AssertTrue
+  public boolean isDefaultsWithoutSslBundle() {
+    return defaults.sslBundle() == null;
+  }
+
+  /**
+   * Returns whether no client with an {@code ssl-bundle} uses the shared pool, whether it sets
+   * {@code shared-pool: true} itself or takes it from the defaults, since the shared pool serves
+   * several clients and has no bundle. Validation reports one that does as {@code
+   * stratum.http-client.shared-pool-without-ssl-bundle breaks @AssertTrue}.
+   *
+   * @return whether no shared-pool client has a bundle
+   */
+  @AssertTrue
+  public boolean isSharedPoolWithoutSslBundle() {
+    return clients.keySet().stream()
+        .map(this::clientSettings)
+        .noneMatch(
+            client -> Boolean.TRUE.equals(client.sharedPool()) && client.sslBundle() != null);
+  }
+
+  /**
+   * Returns whether every client's {@code auth} sets exactly one kind. Validation reports one that
+   * does not as {@code stratum.http-client.auth-one-kind breaks @AssertTrue}.
+   *
+   * @return whether every auth has one kind
+   */
+  @AssertTrue
+  public boolean isAuthOneKind() {
+    return clientAuths().allMatch(ClientAuth::hasOneKind);
+  }
+
+  /**
+   * Returns whether every client's Basic credentials have a user name and a password. Validation
+   * reports one that does not as {@code stratum.http-client.basic-complete breaks @AssertTrue}.
+   *
+   * @return whether every Basic auth is complete
+   */
+  @AssertTrue
+  public boolean isBasicComplete() {
+    return clientAuths().allMatch(ClientAuth::isBasicComplete);
+  }
+
+  /**
+   * Returns whether every client sets {@code api-key-header} only together with {@code api-key}.
+   * Validation reports one that does not as {@code stratum.http-client.api-key-header-with-api-key
+   * breaks @AssertTrue}.
+   *
+   * @return whether every API key header has a key
+   */
+  @AssertTrue
+  public boolean isApiKeyHeaderWithApiKey() {
+    return clientAuths().allMatch(ClientAuth::isApiKeyHeaderWithApiKey);
+  }
+
+  /** Returns the auth of each client that sets one. */
+  private Stream<ClientAuth> clientAuths() {
+    return clients.values().stream().map(ClientSettings::auth).filter(Objects::nonNull);
+  }
+
   /** Returns the shared defaults and the settings of each client. */
   private Stream<ClientSettings> allSettings() {
     return Stream.concat(Stream.of(defaults), clients.values().stream());

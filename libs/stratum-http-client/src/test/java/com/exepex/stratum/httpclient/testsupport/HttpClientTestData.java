@@ -19,6 +19,18 @@ public class HttpClientTestData {
   /** The prefix of the inventory client's own settings. */
   public static final String INVENTORY_SETTINGS = HttpClientConstants.CLIENTS + "." + INVENTORY;
 
+  /** The prefix of the inventory client's auth settings. */
+  public static final String INVENTORY_AUTH = INVENTORY_SETTINGS + ".auth";
+
+  /** The partner client, which {@code http-client.yml} gives Basic credentials. */
+  public static final String PARTNER = "partner";
+
+  /**
+   * A stand-in for a secret, which no startup message may show. It is not a real credential: tests
+   * check only that it is passed on or hidden.
+   */
+  public static final String SECRET = "not-a-real-secret-4f2a";
+
   /** The inventory client's address. */
   public static final String INVENTORY_URL = "http://inventory:8080";
 

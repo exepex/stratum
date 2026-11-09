@@ -6,6 +6,7 @@ import java.util.Objects;
 import java.util.stream.Stream;
 import lombok.Builder;
 import org.jspecify.annotations.Nullable;
+import org.springframework.boot.context.properties.NestedConfigurationProperty;
 
 /**
  * The settings of one client, or of every client under {@code defaults}. A setting a client leaves
@@ -28,6 +29,11 @@ import org.jspecify.annotations.Nullable;
  * @param sharedPool Whether the client uses the one pool shared by every client that sets it,
  *     instead of its own. That pool takes its size, connect timeout, idle timeout and lifetime from
  *     defaults. Defaults to false.
+ * @param auth How the client proves who it is to the other service: one of api-key, bearer or
+ *     basic. Not allowed under defaults, so that a secret goes only to the client it is for.
+ * @param sslBundle The name of a spring.ssl.bundle bundle whose certificate the client presents and
+ *     whose trust material it checks the other service with (mutual TLS), such as bank. Not allowed
+ *     under defaults, nor with shared-pool.
  * @param interfaces The full names of generated interfaces, such as com.partner.OrdersApi, that
  *     call this client's service with all of its settings, as an interface marked @StratumClient
  *     does. Only for a client; not allowed under defaults. Defaults to none.
@@ -42,6 +48,8 @@ public record ClientSettings(
     @Nullable Duration idleTimeout,
     @Nullable Duration connectionLifetime,
     @Nullable Boolean sharedPool,
+    @NestedConfigurationProperty @Nullable ClientAuth auth,
+    @Nullable String sslBundle,
     List<String> interfaces) {
 
   /** Keeps the interfaces a fixed list, empty when none is named. */
@@ -77,6 +85,8 @@ public record ClientSettings(
         .idleTimeout(either(idleTimeout, fallback.idleTimeout))
         .connectionLifetime(either(connectionLifetime, fallback.connectionLifetime))
         .sharedPool(either(sharedPool, fallback.sharedPool))
+        .auth(either(auth, fallback.auth))
+        .sslBundle(either(sslBundle, fallback.sslBundle))
         .interfaces(interfaces.isEmpty() ? fallback.interfaces : interfaces)
         .build();
   }

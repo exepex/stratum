@@ -7,6 +7,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
@@ -23,6 +24,8 @@ import org.apache.hc.core5.io.CloseMode;
 import org.apache.hc.core5.util.TimeValue;
 import org.apache.hc.core5.util.Timeout;
 import org.springframework.beans.factory.DisposableBean;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.ssl.SslBundles;
 import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 
@@ -31,8 +34,9 @@ import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
  * every client with {@code shared-pool: true}, which takes its connection settings from {@code
  * defaults}. Each pool holds at most {@code max-connections}, checks a connection idle for more
  * than 2 seconds before using it, closes one unused for {@code idle-timeout} and does not reuse one
- * older than {@code connection-lifetime}. Apache's own retries and redirects are off. Every pool
- * closes with the application.
+ * older than {@code connection-lifetime}. A client with {@code ssl-bundle} opens its TLS
+ * connections with that bundle. Apache's own retries and redirects are off. Every pool closes with
+ * the application.
  */
 @StratumInternal
 @RequiredArgsConstructor
@@ -43,6 +47,9 @@ public class ClientConnectionPools implements DisposableBean {
 
   /** The settings of the shared pool: the shared defaults under {@code defaults}. */
   private final ClientSettings sharedPoolSettings;
+
+  /** Spring Boot's SSL bundles, read only for a client that names one. */
+  private final ObjectProvider<SslBundles> sslBundles;
 
   /** The pools made so far, by client name or {@link #SHARED_POOL}. */
   private final Map<String, PoolingHttpClientConnectionManager> pools = new ConcurrentHashMap<>();
@@ -97,11 +104,18 @@ public class ClientConnectionPools implements DisposableBean {
     connectionCloser.shutdownNow();
   }
 
-  /** Makes a pool and has its idle and old connections closed twice per idle timeout. */
+  /**
+   * Makes a pool, with the client's SSL bundle if it names one, and has its idle and old
+   * connections closed twice per idle timeout.
+   */
   private PoolingHttpClientConnectionManager newPool(ClientSettings settings) {
     var maxConnections = Objects.requireNonNull(settings.maxConnections());
+    var builder = PoolingHttpClientConnectionManagerBuilder.create();
+    Optional.ofNullable(settings.sslBundle())
+        .map(bundle -> new SslBundleTlsStrategy(sslBundles.getObject(), bundle))
+        .ifPresent(builder::setTlsSocketStrategy);
     var pool =
-        PoolingHttpClientConnectionManagerBuilder.create()
+        builder
             .useSystemProperties()
             .setMaxConnTotal(maxConnections)
             .setMaxConnPerRoute(maxConnections)
