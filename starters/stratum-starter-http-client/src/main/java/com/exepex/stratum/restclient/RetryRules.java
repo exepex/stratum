@@ -151,8 +151,8 @@ public class RetryRules {
    * Returns the circuit breaker rules of a client's {@code circuit-breaker} settings, merged with
    * the defaults, with Stratum's choice of the failures it counts. Each slow-call key is passed
    * only when it is set, and startup checks that the rate comes with the duration, so that without
-   * them the slow-call rule is Resilience4j's own, which a whole call's {@code total-timeout} never
-   * reaches.
+   * them the slow-call rule is Resilience4j's own, 60s at 100%, which an attempt reaches only with
+   * a {@code total-timeout} above 60s.
    *
    * @param breaker the client's merged circuit breaker settings
    * @return the rules, which a service's customizer may still change

@@ -24,10 +24,10 @@ import org.jspecify.annotations.Nullable;
  *     state, from 1 to 1000; below the threshold the breaker closes, otherwise it opens again.
  *     Defaults to 10.
  * @param slowCallDurationThreshold How long an attempt may take before it counts as slow, such as
- *     2s. Setting it turns on the slow-call rule. Defaults to unset: no slow-call rule.
+ *     2s. Unset, Resilience4j's 60s applies, which an attempt reaches only with a total-timeout
+ *     above 60s.
  * @param slowCallRateThreshold The share of slow attempts, in percent from 1 to 100, that opens the
- *     breaker. Only with slow-call-duration-threshold. Defaults to 100 when only the duration is
- *     set.
+ *     breaker. Only with slow-call-duration-threshold. Unset, Resilience4j's 100 applies.
  */
 @Builder(toBuilder = true)
 public record ClientCircuitBreaker(
@@ -72,8 +72,8 @@ public record ClientCircuitBreaker(
   }
 
   /**
-   * Returns whether a slow-call rate is set only together with the slow-call duration, which turns
-   * the slow-call rule on.
+   * Returns whether a slow-call rate is set only together with the slow-call duration, so that the
+   * rate is never set on Resilience4j's own 60s by mistake.
    *
    * @return whether the rate has its duration
    */

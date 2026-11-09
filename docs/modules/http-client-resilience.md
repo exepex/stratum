@@ -14,7 +14,8 @@ Every client gets today's safe values, and a service sets no key:
 
 - up to 3 retries of a call that is safe to repeat, the first after about 200ms, each next wait doubled, at most 2s;
 - a circuit breaker with Resilience4j's own defaults: it opens when half of the last 100 attempts failed, once it has
-  seen 100, stays open for 60s, then lets 10 trial calls through.
+  seen 100, stays open for 60s, then lets 10 trial calls through. Its slow-call rule, 60s at 100%, is never reached
+  while `total-timeout` stays at 8s.
 
 A **circuit breaker** watches a client's recent attempts. While most of them work it is **closed** and calls go
 through. When too many fail it **opens**: every call fails at once, without being sent, so a service that is down
@@ -74,7 +75,7 @@ The names are Resilience4j's own, so a team that knows Resilience4j reads them a
 | `minimum-number-of-calls` | Closed: how many attempts it must see before it may open, from 1 to 10000. Above `sliding-window-size`, the window size is used. | `10`, with the window above. |
 | `wait-duration-in-open-state` | Open: how long every call fails at once, without being sent, before it is half open. | `10s` for a downstream that recovers in seconds. |
 | `permitted-number-of-calls-in-half-open-state` | Half open: how many trial calls go through, from 1 to 1000. Below the threshold it closes, otherwise it opens again. | `1` for a fragile downstream, so one probe goes first. |
-| `slow-call-duration-threshold` | Turns the slow-call rule on: an attempt that takes longer counts as slow. | `2s` for a downstream that slows down before it fails, such as one with a filling database pool. |
+| `slow-call-duration-threshold` | Sets the slow-call rule: an attempt that takes longer counts as slow. Unset, Resilience4j's 60s applies. | `2s` for a downstream that slows down before it fails, such as one with a filling database pool. |
 | `slow-call-rate-threshold` | Closed to open: the share of slow attempts, in percent from 1 to 100, that opens it. Only with `slow-call-duration-threshold`; when only the duration is set, Resilience4j's `100` applies. | `50`, with the duration above. |
 
 **What counts.** The breaker counts an attempt with no answer, a full pool included, an answer whose body was cut off,
@@ -82,9 +83,12 @@ and an answer of `5xx` or `429`. Other `4xx` answers mean the service is up, so 
 attempt, retries included: with `max-retries: 3`, one failing `GET` can be 4 counted attempts, so
 `minimum-number-of-calls: 10` can be reached by 3 failing calls. Size the window in attempts, not calls.
 
-**The slow-call rule is off unless `slow-call-duration-threshold` is set.** Without it, Resilience4j's own values
-apply, 60s at 100%, which no call reaches: a whole call ends at `total-timeout` (8s by default). Setting
-`slow-call-rate-threshold` without the duration stops startup, so no team thinks a rule is on when it is not.
+**Without `slow-call-duration-threshold`, the slow-call rule is Resilience4j's own: 60s at 100%.** Resilience4j has no
+switch to turn it off. The breaker then opens on slow calls only when every attempt in its window took longer than
+60s. With Stratum's `total-timeout` of 8s no attempt lasts that long, so in practice the rule never acts. A client
+whose `total-timeout` is above 60s can reach it: set `slow-call-duration-threshold` above that client's longest
+expected attempt, or to the value you want. Setting `slow-call-rate-threshold` without the duration stops startup, so
+no team thinks it changed the rule when it did not.
 
 When the breaker is open, a call fails with `SX-HTTPC-0003`, which answers `503` ([errors](http-client-errors.md)).
 Each change of its state is logged once at `WARN`, such as `The circuit breaker of HTTP client inventory went from

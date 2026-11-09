@@ -34,7 +34,7 @@ class RetryBackOffTest {
     @DisplayName("with nothing set, it starts at 200ms, doubles, and stays at most 2s, as before")
     void stratumBackOff() {
       BackOffChecks.assertExponentialWaits(
-          RetryRules.backOff(STRATUM_RETRY),
+          BackOffChecks.waitsOf(RetryRules.backOff(STRATUM_RETRY)),
           HttpClientConstants.DEFAULT_RETRY_DELAY,
           HttpClientConstants.DEFAULT_MULTIPLIER,
           HttpClientConstants.MAX_RETRY_DELAY);
@@ -46,7 +46,10 @@ class RetryBackOffTest {
       var retry = STRATUM_RETRY.toBuilder().multiplier(TRIPLING).maxDelay(ONE_SECOND).build();
 
       BackOffChecks.assertExponentialWaits(
-          RetryRules.backOff(retry), HttpClientConstants.DEFAULT_RETRY_DELAY, TRIPLING, ONE_SECOND);
+          BackOffChecks.waitsOf(RetryRules.backOff(retry)),
+          HttpClientConstants.DEFAULT_RETRY_DELAY,
+          TRIPLING,
+          ONE_SECOND);
     }
 
     @Test
@@ -55,7 +58,7 @@ class RetryBackOffTest {
       var retry = STRATUM_RETRY.toBuilder().delay(LONG_DELAY).build();
 
       BackOffChecks.assertExponentialWaits(
-          RetryRules.backOff(retry),
+          BackOffChecks.waitsOf(RetryRules.backOff(retry)),
           LONG_DELAY,
           HttpClientConstants.DEFAULT_MULTIPLIER,
           LONG_DELAY);
@@ -77,7 +80,7 @@ class RetryBackOffTest {
               .delay(LONG_DELAY)
               .build();
 
-      BackOffChecks.assertFixedWaits(RetryRules.backOff(retry), LONG_DELAY);
+      BackOffChecks.assertFixedWaits(BackOffChecks.waitsOf(RetryRules.backOff(retry)), LONG_DELAY);
     }
   }
 }

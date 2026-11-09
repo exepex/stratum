@@ -219,9 +219,9 @@ public record HttpClientProperties(
 
   /**
    * Returns whether every client sets {@code circuit-breaker.slow-call-rate-threshold} only
-   * together with {@code slow-call-duration-threshold}, which turns the slow-call rule on, so that
-   * no team thinks a rule is on when it is not. It reads the shared defaults and each client's
-   * merged settings. Validation reports one that does not as {@code
+   * together with {@code slow-call-duration-threshold}, so that no team thinks it changed the
+   * slow-call rule, which stays Resilience4j's own 60s without the duration. It reads the shared
+   * defaults and each client's merged settings. Validation reports one that does not as {@code
    * stratum.http-client.slow-call-rate-with-duration breaks @AssertTrue}.
    *
    * @return whether every slow-call rate has its duration

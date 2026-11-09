@@ -11,7 +11,6 @@ import com.exepex.stratum.restclient.testsupport.BackOffChecks;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
-import io.github.resilience4j.core.IntervalFunction;
 import io.github.resilience4j.core.functions.Either;
 import io.github.resilience4j.retry.RetryConfig;
 import java.time.Clock;
@@ -20,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.function.IntToLongFunction;
 import java.util.stream.IntStream;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.DisplayName;
@@ -235,15 +235,17 @@ class ClientResilienceTest {
   }
 
   /** Returns the inventory client's wait before each attempt that follows a failure. */
-  private IntervalFunction backOffOf(ClientResilience resilience) {
+  private IntToLongFunction backOffOf(ClientResilience resilience) {
     var waits = retryConfigOf(resilience).getIntervalBiFunction();
-    return attempt -> waits.apply(attempt.intValue(), Either.left(new IllegalStateException()));
+    return attempt -> waits.apply(attempt, Either.left(new IllegalStateException()));
   }
 
   /** Checks that the breaker's rules set by settings are those expected. */
   private void assertBreakerRules(CircuitBreakerConfig actual, CircuitBreakerConfig expected) {
-    assertThat(BREAKER_RULES)
-        .allSatisfy(rule -> assertThat(rule.apply(actual)).isEqualTo(rule.apply(expected)));
+    var expectedValues = BREAKER_RULES.stream().map(rule -> rule.apply(expected)).toList();
+
+    assertThat(BREAKER_RULES.stream().map(rule -> rule.apply(actual)).toList())
+        .isEqualTo(expectedValues);
   }
 
   /** A service's customizer that widens the window and the attempts of every client. */
