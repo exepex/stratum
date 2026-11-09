@@ -19,3 +19,7 @@ stratum:
           basic:
             username: orders
             password: not-a-real-secret-4f2a
+      billing:
+        url: http://billing:8080
+        auth:
+          client-credentials: invoices

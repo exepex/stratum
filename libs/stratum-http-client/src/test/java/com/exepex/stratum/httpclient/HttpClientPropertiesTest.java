@@ -158,6 +158,21 @@ class HttpClientPropertiesTest {
                   .basic(new BasicCredentials("orders", HttpClientTestData.SECRET))
                   .build());
     }
+
+    @Test
+    @DisplayName("a service token is read from a .yml file, and token relay from properties")
+    void tokenAuthFromBothFormats() throws IOException {
+      var fromYaml = HttpClientProperties.resolve(HttpClientTestData.yamlEnvironment());
+      var fromProperties =
+          HttpClientProperties.resolve(
+              new MockEnvironment()
+                  .withProperty(HttpClientTestData.INVENTORY_AUTH + ".token-relay", "true"));
+
+      assertThat(fromYaml.clientSettings("billing").auth())
+          .isEqualTo(ClientAuth.builder().clientCredentials("invoices").build());
+      assertThat(fromProperties.clientSettings(HttpClientTestData.INVENTORY).auth())
+          .isEqualTo(ClientAuth.builder().tokenRelay(true).build());
+    }
   }
 
   @Nested

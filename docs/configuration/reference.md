@@ -97,7 +97,6 @@ Each module's full table, with every key it reads or gives a default:
 | `stratum.logging.*` | `stratum-starter-logging` | [Logging → Properties](../../starters/stratum-starter-logging/README.md#properties) | none |
 | `stratum.observability.*` | `stratum-starter-observability` | [Observability → Properties](../../starters/stratum-starter-observability/README.md#properties) | Collector addresses |
 | `stratum.security.*` | `stratum-starter-security` | [Security → Properties](../modules/security.md#properties) | `resource-server.issuer-uri` |
-| `stratum.oauth2-client.*` | `stratum-starter-oauth2-client` | [OAuth2 client → Properties](../modules/oauth2-client.md#properties) | a `spring.security.oauth2.client.registration.<name>` |
 | `stratum.http-client.*` | `stratum-starter-http-client` | [HTTP client → Properties](../modules/http-client.md#properties) | `clients.<name>.url` |
 | `stratum.resilience.*` | `stratum-starter-resilience` | [Resilience → Properties](../modules/resilience.md#properties) | none |
 | `stratum.data.*` | `stratum-starter-data-jpa` | [Data → Properties](../modules/data-jpa.md#properties) | `spring.datasource.url`, `username`, `password` |
@@ -118,7 +117,6 @@ switches, such as `stratum.web.request-log.enabled`, apply only while the module
 | `stratum.logging.enabled` | Structured format and redaction |
 | `stratum.observability.enabled` | Stratum's metrics, tracing and health settings |
 | `stratum.security.enabled` | Stratum's security chain (Spring Security's defaults then apply) |
-| `stratum.oauth2-client.enabled` | Token handling for outgoing calls |
 | `stratum.http-client.enabled` | Stratum's HTTP client setup |
 | `stratum.resilience.enabled` | All resilience policies |
 | `stratum.data.enabled` | Stratum's data defaults |
@@ -172,7 +170,7 @@ stratum:
     resource-server:
       issuer-uri: https://idp.acme.com/realms/acme
       audiences: [order-service]
-  http-client:                   # url, timeout, retries built; token-relay planned (ADR 0011)
+  http-client:                   # token-relay sends the caller's verified token (ADR 0011)
     clients:
       inventory:
         url: http://inventory-service
@@ -197,7 +195,7 @@ management.opentelemetry.tracing.export.otlp.endpoint=http://otel-collector:4318
 stratum.environment=prod
 stratum.security.resource-server.issuer-uri=https://idp.acme.com/realms/acme
 stratum.security.resource-server.audiences=order-service
-# HTTP client keys (ADR 0011): url, timeout and retries are built; token-relay is planned
+# HTTP client keys (ADR 0011): url, timeout, retries and token-relay are built
 stratum.http-client.clients.inventory.url=http://inventory-service
 stratum.http-client.clients.inventory.auth.token-relay=true
 stratum.http-client.clients.payments.url=http://payments-service

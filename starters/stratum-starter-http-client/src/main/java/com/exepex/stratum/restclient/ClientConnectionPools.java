@@ -51,6 +51,14 @@ public class ClientConnectionPools implements DisposableBean {
   /** The limit on an error answer's body, first in each client's chain, before gzip is undone. */
   private static final ErrorBodyLimit ERROR_BODY_LIMIT = new ErrorBodyLimit();
 
+  /**
+   * The start of the key of a client's token pool, which no client name has, as names have no ':'.
+   */
+  private static final String TOKEN_POOL = "token:";
+
+  /** The connections of a client's token pool: one fetch runs at a time per registration. */
+  private static final int TOKEN_POOL_CONNECTIONS = 2;
+
   /** The settings of the shared pool: the shared defaults under {@code defaults}. */
   private final ClientSettings sharedPoolSettings;
 
@@ -77,6 +85,16 @@ public class ClientConnectionPools implements DisposableBean {
    * @return the request factory
    */
   public ClientHttpRequestFactory requestFactory(String client, ClientSettings settings) {
+    return requestFactory(client, settings, true);
+  }
+
+  /**
+   * Returns the request factory of one pool. With {@code streamsAnswers}, a streamed download keeps
+   * its answer timeout; without, as for a token request, the answer timeout always ends by the
+   * call's {@code total-timeout}.
+   */
+  private ClientHttpRequestFactory requestFactory(
+      String poolKey, ClientSettings settings, boolean streamsAnswers) {
     var requestConfig =
         RequestConfig.custom()
             .setConnectionRequestTimeout(Timeout.of(Objects.requireNonNull(settings.maxWait())))
@@ -85,7 +103,7 @@ public class ClientConnectionPools implements DisposableBean {
     var httpClient =
         HttpClients.custom()
             .useSystemProperties()
-            .setConnectionManager(poolFor(client, settings))
+            .setConnectionManager(poolFor(poolKey, settings))
             .setConnectionManagerShared(true)
             .addExecInterceptorFirst(ErrorBodyLimit.NAME, ERROR_BODY_LIMIT)
             .disableAutomaticRetries()
@@ -94,15 +112,40 @@ public class ClientConnectionPools implements DisposableBean {
             .build();
     clients.add(httpClient);
     return withAttemptTimeouts(
-        new HttpComponentsClientHttpRequestFactory(httpClient), requestConfig, settings);
+        new HttpComponentsClientHttpRequestFactory(httpClient),
+        requestConfig,
+        settings,
+        streamsAnswers);
+  }
+
+  /**
+   * Returns the request factory a client's service token is fetched through: a small pool of its
+   * own, with the client's timeouts, so that the fetch counts toward the call's {@code
+   * total-timeout}, even when the call is a streamed download, and the JVM's default TLS, never the
+   * client's {@code ssl-bundle}, which is for the other service, not the identity provider.
+   *
+   * @param client the client's name
+   * @param settings the client's settings
+   * @return the request factory
+   */
+  public ClientHttpRequestFactory tokenRequestFactory(String client, ClientSettings settings) {
+    var tokenSettings =
+        settings.toBuilder()
+            .sslBundle(null)
+            .sharedPool(false)
+            .maxConnections(TOKEN_POOL_CONNECTIONS)
+            .build();
+    return requestFactory(TOKEN_POOL + client, tokenSettings, false);
   }
 
   /** Makes each attempt of a call through the factory end by the call's {@code total-timeout}. */
   private ClientHttpRequestFactory withAttemptTimeouts(
       HttpComponentsClientHttpRequestFactory requestFactory,
       RequestConfig requestConfig,
-      ClientSettings settings) {
-    requestFactory.setHttpContextFactory((method, uri) -> attemptContext(requestConfig, settings));
+      ClientSettings settings,
+      boolean streamsAnswers) {
+    requestFactory.setHttpContextFactory(
+        (method, uri) -> attemptContext(requestConfig, settings, streamsAnswers));
     return requestFactory;
   }
 
@@ -111,24 +154,28 @@ public class ClientConnectionPools implements DisposableBean {
    * total-timeout}, or none outside a call of a client's interface, which keeps the client's own.
    */
   private @Nullable HttpContext attemptContext(
-      RequestConfig requestConfig, ClientSettings settings) {
+      RequestConfig requestConfig, ClientSettings settings, boolean streamsAnswers) {
     return AttemptTimeLeft.timeLeft()
-        .map(timeLeft -> contextWithin(requestConfig, settings, timeLeft))
+        .map(timeLeft -> contextWithin(requestConfig, settings, timeLeft, streamsAnswers))
         .orElse(null);
   }
 
   /**
    * Returns a context whose pool wait and answer timeout are each the smaller of the client's and
-   * the time left; a streamed download keeps its answer timeout, the longest gap between bytes. The
-   * pool cuts the connect timeout, in {@link #connectionConfig}.
+   * the time left; a streamed download through a factory that streams answers keeps its answer
+   * timeout, the longest gap between bytes. The pool cuts the connect timeout, in {@link
+   * #connectionConfig}.
    */
   private HttpContext contextWithin(
-      RequestConfig requestConfig, ClientSettings settings, Duration timeLeft) {
+      RequestConfig requestConfig,
+      ClientSettings settings,
+      Duration timeLeft,
+      boolean streamsAnswers) {
     var attemptConfig =
         RequestConfig.copy(requestConfig)
             .setConnectionRequestTimeout(
                 within(Objects.requireNonNull(settings.maxWait()), timeLeft));
-    if (!AttemptTimeLeft.keepsAnswerTimeout()) {
+    if (!streamsAnswers || !AttemptTimeLeft.keepsAnswerTimeout()) {
       attemptConfig.setResponseTimeout(
           within(Objects.requireNonNull(settings.timeout()), timeLeft));
     }
