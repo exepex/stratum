@@ -166,7 +166,11 @@ class StreamingIntegrationTest {
     /** Checks that the last upload came chunked, with no length, and in full. */
     private void assertStreamed() {
       assertThat(DOWNSTREAM.lastUpload())
-          .isEqualTo(new StreamingDownstream.Upload("chunked", null, UPLOAD_SIZE));
+          .isEqualTo(
+              StreamingDownstream.Upload.builder()
+                  .transferEncoding("chunked")
+                  .size(UPLOAD_SIZE)
+                  .build());
     }
   }
 

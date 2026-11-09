@@ -8,12 +8,15 @@ import java.io.UncheckedIOException;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.Builder;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -85,7 +88,20 @@ public final class StreamingDownstream implements AutoCloseable {
    * @return the address
    */
   public String url() {
-    return "http://" + server.getAddress().getHostString() + ":" + server.getAddress().getPort();
+    var address = server.getAddress();
+    try {
+      return new URI(
+              "http",
+              null,
+              address.getAddress().getHostAddress(),
+              address.getPort(),
+              null,
+              null,
+              null)
+          .toString();
+    } catch (URISyntaxException e) {
+      throw new IllegalStateException(e);
+    }
   }
 
   /**
@@ -130,8 +146,11 @@ public final class StreamingDownstream implements AutoCloseable {
     var headers = exchange.getRequestHeaders();
     long size = exchange.getRequestBody().transferTo(OutputStream.nullOutputStream());
     uploads.set(
-        new Upload(
-            headers.getFirst("Transfer-Encoding"), headers.getFirst("Content-Length"), size));
+        Upload.builder()
+            .transferEncoding(headers.getFirst("Transfer-Encoding"))
+            .contentLength(headers.getFirst("Content-Length"))
+            .size(size)
+            .build());
     var answer = "ok".getBytes(StandardCharsets.US_ASCII);
     exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, answer.length);
     try (var body = exchange.getResponseBody()) {
@@ -167,6 +186,7 @@ public final class StreamingDownstream implements AutoCloseable {
    * @param contentLength the {@code Content-Length} header, set when the client buffered the body
    * @param size the bytes received
    */
+  @Builder
   public record Upload(
       @Nullable String transferEncoding, @Nullable String contentLength, long size) {}
 }
