@@ -8,6 +8,7 @@ import com.exepex.stratum.httpclient.HttpClientPropertiesCustomizer;
 import com.exepex.stratum.restclient.ClientConnectionPools;
 import com.exepex.stratum.restclient.StratumClientGroups;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
+import com.exepex.stratum.restclient.testsupport.clients.InventoryAdmin;
 import com.exepex.stratum.restclient.testsupport.clients.InventoryClient;
 import com.exepex.stratum.restclient.testsupport.clients.InventoryClients;
 import org.junit.jupiter.api.DisplayName;
@@ -46,6 +47,13 @@ class RestClientAutoConfigurationTest {
                   .hasSingleBean(InventoryClient.class)
                   .hasSingleBean(ClientConnectionPools.class)
                   .hasSingleBean(StratumClientGroups.class));
+    }
+
+    @Test
+    @DisplayName("an interface that only extends a client, without @StratumClient, is not a client")
+    void subInterfaceWithoutAnnotationSkipped() {
+      clients.run(
+          context -> assertThat(context).hasNotFailed().doesNotHaveBean(InventoryAdmin.class));
     }
   }
 

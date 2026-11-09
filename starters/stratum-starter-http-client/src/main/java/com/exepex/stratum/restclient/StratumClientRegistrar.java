@@ -100,10 +100,13 @@ public class StratumClientRegistrar extends AbstractHttpServiceRegistrar {
   /** A scanner that finds interfaces with {@code @StratumClient}, which Spring's skips. */
   private static final class InterfaceScanner extends ClassPathScanningCandidateComponentProvider {
 
-    /** Makes the scanner, with no filter but {@code @StratumClient}. */
+    /**
+     * Makes the scanner, with no filter but {@code @StratumClient} on the interface itself, so that
+     * an interface that only extends a client is not one.
+     */
     InterfaceScanner(Environment environment) {
       super(false, environment);
-      addIncludeFilter(new AnnotationTypeFilter(StratumClient.class, false, true));
+      addIncludeFilter(new AnnotationTypeFilter(StratumClient.class, false, false));
     }
 
     /** Accepts interfaces only, the type a client is. */

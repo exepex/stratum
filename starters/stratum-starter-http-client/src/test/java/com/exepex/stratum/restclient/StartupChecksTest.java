@@ -90,6 +90,21 @@ class StartupChecksTest {
                     .hasMessageContaining(RestClientTestData.PRICING_URL));
   }
 
+  @Test
+  @DisplayName("a client whose address is blank, as an unset ${VARIABLE:} gives: SX-HTTPC-1004")
+  void blankUrlStopsStartup() {
+    RestClientTestData.contextRunner()
+        .withUserConfiguration(InventoryClients.class)
+        .withPropertyValues(
+            RestClientTestData.setting(
+                RestClientTestData.INVENTORY_URL, RestClientTestData.UNUSED_URL),
+            RestClientTestData.setting(RestClientTestData.PRICING_URL, " "))
+        .run(
+            context ->
+                assertStopped(context, "SX-HTTPC-1004")
+                    .hasMessageContaining(RestClientTestData.PRICING_URL));
+  }
+
   /** Checks that startup stopped with a Stratum code, and returns the check of its message. */
   private AbstractThrowableAssert<?, ? extends Throwable> assertStopped(
       AssertableApplicationContext context, String code) {

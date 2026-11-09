@@ -19,7 +19,12 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.restclient.RestClientCustomizer;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
@@ -122,6 +127,20 @@ class ClientPoolIntegrationTest {
   }
 
   @Nested
+  @Import(ServiceRequestFactory.class)
+  @DisplayName("with the service's RestClientCustomizer setting a request factory on every builder")
+  class WithServiceRequestFactory {
+
+    @Test
+    @DisplayName("Stratum's pool replaces it, so a full pool still refuses after max-wait")
+    void stratumPoolWins() {
+      CallChecks.holdOneConnection(inventoryClient::held, INVENTORY);
+
+      CallChecks.assertFailsFast(inventoryClient::stock, ConnectionRequestTimeoutException.class);
+    }
+  }
+
+  @Nested
   @DisplayName("when the application stops")
   class Shutdown {
 
@@ -161,6 +180,21 @@ class ClientPoolIntegrationTest {
       CallChecks.holdOneConnection(inventoryClient::held, INVENTORY);
 
       CallChecks.assertFailsFast(pricingClient::price, ConnectionRequestTimeoutException.class);
+    }
+  }
+
+  /** The service's customizer of every Spring Boot RestClient builder, Stratum's included. */
+  @TestConfiguration(proxyBeanMethods = false)
+  static class ServiceRequestFactory {
+
+    /**
+     * Gives every builder Spring's plain request factory, which has no pool.
+     *
+     * @return the customizer
+     */
+    @Bean
+    RestClientCustomizer plainRequestFactory() {
+      return builder -> builder.requestFactory(new SimpleClientHttpRequestFactory());
     }
   }
 }
