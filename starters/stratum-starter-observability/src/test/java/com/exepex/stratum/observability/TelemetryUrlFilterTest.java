@@ -174,6 +174,12 @@ class TelemetryUrlFilterTest {
                 "https://partner.com/pay?iban=DE89+3704+0044+0532+0130+00&note=a+b",
                 "https://partner.com/pay?iban=****0+00&note=a+b"),
             Arguments.of(
+                "https://partner.com/pay?ref=4111+1111+1111+1111*eyJaaaaaa.aaaaaa",
+                "https://partner.com/pay?ref=****1111*****"),
+            Arguments.of(
+                "https://partner.com/users?to=jane+news@example.com",
+                "https://partner.com/users?to=****.com"),
+            Arguments.of(
                 "https://partner.com/find?q=caf%C3%A9%20au%20lait&rate=100%zz",
                 "https://partner.com/find?q=caf%C3%A9%20au%20lait&rate=100%zz"),
             Arguments.of(

@@ -4,7 +4,6 @@ import com.exepex.stratum.redaction.ContentMaskingRules;
 import com.exepex.stratum.redaction.SensitiveFieldNames;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Optional;
 import java.util.function.UnaryOperator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -62,30 +61,26 @@ final class QueryValueMasker {
 
   /**
    * Returns the text as sent when the rules leave its decoded form unchanged, so ordinary values
-   * keep their encoding, or else the masked form encoded again for a query. A text with {@code +}
-   * is also checked with each {@code +} read as a space, as Java's {@code URLEncoder} writes it, so
-   * {@code 4111+1111+1111+1111} is masked like the card number it is.
+   * keep their encoding, or else the masked form encoded again for a query.
    */
   private String maskedText(String text, UnaryOperator<String> rules) {
-    return maskedForm(text, rules)
-        .or(
-            () ->
-                text.indexOf('+') < 0
-                    ? Optional.empty()
-                    : maskedForm(text.replace('+', ' '), rules))
-        .orElse(text);
+    var decodedText = decoded(text);
+    var maskedText = withSpacesMasked(rules.apply(decodedText), rules);
+    return maskedText.equals(decodedText)
+        ? text
+        : UriUtils.encodeQueryParam(maskedText, StandardCharsets.UTF_8);
   }
 
   /**
-   * Returns the text masked and encoded again for a query, or nothing when the rules leave its
-   * decoded form unchanged.
+   * Returns the masked text checked again with each {@code +} read as a space, as Java's {@code
+   * URLEncoder} writes it, so {@code 4111+1111+1111+1111} is masked like the card number it is. The
+   * {@code +} stays when this finds nothing more, because Spring's URI builders keep a {@code +} as
+   * sent, as in {@code jane+news@example.com}.
    */
-  private Optional<String> maskedForm(String text, UnaryOperator<String> rules) {
-    var decodedText = decoded(text);
-    var maskedText = rules.apply(decodedText);
-    return maskedText.equals(decodedText)
-        ? Optional.empty()
-        : Optional.of(UriUtils.encodeQueryParam(maskedText, StandardCharsets.UTF_8));
+  private String withSpacesMasked(String maskedText, UnaryOperator<String> rules) {
+    var spacedText = maskedText.replace('+', ' ');
+    var maskedSpacedText = rules.apply(spacedText);
+    return maskedSpacedText.equals(spacedText) ? maskedText : maskedSpacedText;
   }
 
   /**
