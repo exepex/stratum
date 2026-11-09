@@ -1,5 +1,6 @@
-package com.exepex.stratum.logging.redaction;
+package com.exepex.stratum.redaction;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
@@ -24,7 +25,8 @@ import org.jspecify.annotations.Nullable;
  * The service's own names are matched whole, without case, {@code _} or {@code -}, on their last
  * dot-separated part.
  */
-final class SensitiveFieldNames {
+@StratumInternal
+public final class SensitiveFieldNames {
 
   /** Credential words, masked in full. */
   private static final Set<String> SECRET_WORDS =
@@ -146,9 +148,9 @@ final class SensitiveFieldNames {
   /**
    * Takes the service's own names, which are masked in full.
    *
-   * @param extraKeys the service's names from {@code stratum.logging.redaction.extra-keys}
+   * @param extraKeys the service's own names, such as the logging starter's {@code extra-keys}
    */
-  SensitiveFieldNames(Collection<String> extraKeys) {
+  public SensitiveFieldNames(Collection<String> extraKeys) {
     this.extraKeys =
         extraKeys.stream().map(this::normalize).collect(Collectors.toUnmodifiableSet());
   }
@@ -160,7 +162,7 @@ final class SensitiveFieldNames {
    * @param valueSupplier supplies the value, read only when its last four characters are kept
    * @return the masked value, or empty when the name is not sensitive
    */
-  Optional<String> mask(@Nullable String name, Supplier<String> valueSupplier) {
+  public Optional<String> mask(@Nullable String name, Supplier<String> valueSupplier) {
     if (name == null) {
       return Optional.empty();
     }
@@ -177,7 +179,7 @@ final class SensitiveFieldNames {
    * @param name the field or key name; {@code null} when the value has none
    * @return whether the service listed the name
    */
-  boolean isExtraKey(@Nullable String name) {
+  public boolean isExtraKey(@Nullable String name) {
     return name != null && isExtraKeyName(name);
   }
 

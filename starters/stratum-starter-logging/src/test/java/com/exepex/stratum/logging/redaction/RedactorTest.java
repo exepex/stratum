@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.logging.testsupport.LoggingTestData;
 import com.exepex.stratum.logging.testsupport.ValueTextTestData;
+import com.exepex.stratum.redaction.MaskedText;
 import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
 import java.util.List;

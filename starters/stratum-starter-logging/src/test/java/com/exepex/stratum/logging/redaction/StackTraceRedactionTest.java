@@ -6,6 +6,7 @@ import static com.exepex.stratum.logging.testsupport.LoggingTestData.EMAIL;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.logging.testsupport.LoggingTestData;
+import com.exepex.stratum.redaction.MaskedText;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

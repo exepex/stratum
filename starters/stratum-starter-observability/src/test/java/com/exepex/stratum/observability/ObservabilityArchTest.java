@@ -5,6 +5,7 @@ import com.exepex.stratum.observability.linkedwork.LinkedWorkContext;
 import com.exepex.stratum.observability.linkedwork.LinkedWorkTracingHandler;
 import com.exepex.stratum.observability.linkedwork.ReactiveLinkedWork;
 import com.exepex.stratum.observability.linkedwork.WorkOrigin;
+import com.exepex.stratum.redaction.MaskedText;
 import com.exepex.stratum.test.StarterTestSupport;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
@@ -45,6 +46,7 @@ class ObservabilityArchTest {
   @DisplayName(
       "its autoconfigure package only declares beans, it uses no other starter and has no cycles")
   void followsStarterArchitecture() {
-    StarterTestSupport.checkStarterArchitecture(ObservabilityConstants.class, API_TYPES);
+    StarterTestSupport.checkStarterArchitecture(
+        ObservabilityConstants.class, API_TYPES, MaskedText.class.getPackageName());
   }
 }

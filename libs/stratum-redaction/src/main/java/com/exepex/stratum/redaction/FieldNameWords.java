@@ -1,4 +1,4 @@
-package com.exepex.stratum.logging.redaction;
+package com.exepex.stratum.redaction;
 
 import java.util.ArrayList;
 import java.util.List;

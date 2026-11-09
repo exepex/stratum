@@ -37,6 +37,7 @@ stratum/
 │   └── stratum-parent/             # parent POM for services: adds the executable jar and build info
 ├── libs/
 │   ├── stratum-core/               # shared internals: constants, property defaults
+│   ├── stratum-redaction/          # the masking rules that logs and span URLs share
 │   ├── stratum-http-client/        # what both HTTP client starters share: @StratumClient, settings, codes
 │   ├── stratum-test/               # test support for services
 │   └── stratum-web/                # what both web starters share: settings, error format
