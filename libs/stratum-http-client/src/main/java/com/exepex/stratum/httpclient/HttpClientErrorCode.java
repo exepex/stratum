@@ -35,6 +35,14 @@ public enum HttpClientErrorCode implements ErrorCode {
       "The other service is failing, so the call was not sent while its circuit breaker is open",
       ""),
 
+  /** A client relays the caller's token, but the call has no verified caller token. */
+  CALLER_TOKEN_MISSING(
+      "SX-HTTPC-0004",
+      Severity.ERROR,
+      "A client relays the caller's token, but this call has no access token verified by Spring"
+          + " Security",
+      ""),
+
   /**
    * A Spring Boot setting of an HTTP service group is set for a Stratum client, which ignores it.
    */
@@ -86,7 +94,24 @@ public enum HttpClientErrorCode implements ErrorCode {
       "An interface is marked @StratumClient for one client and named in another client's"
           + " interfaces setting",
       "Keep the interface in one client: remove it from the other client's interfaces, or change"
-          + " its @StratumClient name.");
+          + " its @StratumClient name."),
+
+  /** A client's {@code client-credentials} names no client-credentials registration. */
+  REGISTRATION_INVALID(
+      "SX-HTTPC-1005",
+      Severity.ERROR,
+      "A client's auth.client-credentials names no registration of Spring Security's OAuth2"
+          + " client, or one whose grant is not client_credentials",
+      "Add the registration with authorization-grant-type: client_credentials, a client-id, a"
+          + " client-secret and the provider's token-uri."),
+
+  /** A client uses a kind of auth whose Spring Security library is missing. */
+  AUTH_LIBRARY_MISSING(
+      "SX-HTTPC-1006",
+      Severity.ERROR,
+      "A client's auth needs a Spring Security library that the application does not have",
+      "For client-credentials, add stratum-starter-oauth2-client; for token-relay, add Spring"
+          + " Security's OAuth2 resource server, which verifies the caller's token.");
 
   /** The code, such as {@code SX-HTTPC-1001}. */
   private final String code;

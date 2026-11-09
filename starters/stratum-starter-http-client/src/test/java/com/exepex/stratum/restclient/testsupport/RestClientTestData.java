@@ -5,6 +5,7 @@ import com.exepex.stratum.httpclient.HttpClientProperties;
 import com.exepex.stratum.restclient.ClientConnectionPools;
 import com.exepex.stratum.restclient.MockAnswers;
 import com.exepex.stratum.restclient.autoconfigure.RestClientAutoConfiguration;
+import com.exepex.stratum.restclient.autoconfigure.RestClientTokenAutoConfiguration;
 import com.exepex.stratum.restclient.testsupport.clients.ClientsApplication;
 import java.time.Duration;
 import lombok.experimental.UtilityClass;
@@ -16,6 +17,7 @@ import org.springframework.boot.http.client.autoconfigure.HttpClientAutoConfigur
 import org.springframework.boot.http.client.autoconfigure.imperative.ImperativeHttpClientAutoConfiguration;
 import org.springframework.boot.http.client.autoconfigure.service.HttpServiceClientPropertiesAutoConfiguration;
 import org.springframework.boot.restclient.autoconfigure.service.HttpServiceClientAutoConfiguration;
+import org.springframework.boot.security.oauth2.client.autoconfigure.OAuth2ClientAutoConfiguration;
 import org.springframework.boot.ssl.SslBundles;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -104,8 +106,67 @@ public class RestClientTestData {
   /** The longest a test waits for a downstream to see what it expects. */
   public static final Duration WAIT = Duration.ofSeconds(10);
 
+  /** The registration of the service's own token in the tests. */
+  public static final String REGISTRATION = "invoices";
+
+  /** The inventory client's setting that names the registration of its service token. */
+  public static final String INVENTORY_CLIENT_CREDENTIALS =
+      INVENTORY_SETTINGS + ".auth.client-credentials";
+
   /**
-   * Returns a runner with the starter and the Spring Boot auto-configurations it builds on.
+   * Returns the settings of a registration and its provider, as a service writes them.
+   *
+   * @param grant the registration's grant, such as {@code client_credentials}
+   * @param tokenUri the provider's token endpoint
+   * @return the settings, as {@code key=value}
+   */
+  public static String[] registrationSettings(String grant, String tokenUri) {
+    var registration = "spring.security.oauth2.client.registration." + REGISTRATION;
+    return new String[] {
+      setting(registration + ".client-id", "orders"),
+      setting(registration + ".client-secret", SECRET),
+      setting(registration + ".authorization-grant-type", grant),
+      setting(registration + ".redirect-uri", "http://127.0.0.1/login"),
+      setting(registration + ".provider", REGISTRATION),
+      setting("spring.security.oauth2.client.provider." + REGISTRATION + ".token-uri", tokenUri),
+      setting(
+          "spring.security.oauth2.client.provider." + REGISTRATION + ".authorization-uri", tokenUri)
+    };
+  }
+
+  /**
+   * Points both clients at an identity provider's test server, and gives the registration its token
+   * endpoint there.
+   *
+   * @param registry the test's properties
+   * @param server the server
+   */
+  public static void pointClientsAtTokenServer(
+      DynamicPropertyRegistry registry, TokenDownstream server) {
+    registry.add(INVENTORY_URL, server::url);
+    registry.add(PRICING_URL, server::url);
+    pointRegistrationAtTokenServer(registry, server);
+  }
+
+  /**
+   * Gives the registration its token endpoint on an identity provider's test server.
+   *
+   * @param registry the test's properties
+   * @param server the server
+   */
+  public static void pointRegistrationAtTokenServer(
+      DynamicPropertyRegistry registry, TokenDownstream server) {
+    // A loop, as each setting is split into its key and value before it is added.
+    for (var keyAndValue :
+        registrationSettings("client_credentials", server.url() + TokenDownstream.TOKEN)) {
+      var split = keyAndValue.indexOf('=');
+      registry.add(keyAndValue.substring(0, split), () -> keyAndValue.substring(split + 1));
+    }
+  }
+
+  /**
+   * Returns a runner with the starter and the Spring Boot auto-configurations it builds on, Spring
+   * Boot's OAuth2 client included.
    *
    * @return the runner
    */
@@ -114,6 +175,8 @@ public class RestClientTestData {
         .withConfiguration(
             AutoConfigurations.of(
                 RestClientAutoConfiguration.class,
+                RestClientTokenAutoConfiguration.class,
+                OAuth2ClientAutoConfiguration.class,
                 HttpClientAutoConfiguration.class,
                 ImperativeHttpClientAutoConfiguration.class,
                 HttpServiceClientPropertiesAutoConfiguration.class,

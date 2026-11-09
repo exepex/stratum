@@ -2,8 +2,9 @@
 
 **Status: Partly built.** Calls to other services through Java interfaces marked `@StratumClient`. Each client
 gets its own address, timeouts and bounded connection pool from one settings block, and Apache HttpClient 5 sends
-its calls, with retries, a time limit for the whole call, a circuit breaker and one exception per failure
-([errors](http-client-errors.md)). Tokens, headers, the call log and pool metrics are planned ([Planned](#planned)).
+its calls, with retries, a time limit for the whole call, a circuit breaker, its credential or token, and
+one exception per failure ([errors](http-client-errors.md)). Headers, the call log and pool metrics are
+planned ([Planned](#planned)).
 
 [← Documentation home](../README.md) · Property prefix: `stratum.http-client` ·
 Design: [ADR 0011](../adr/0011-http-client-starters.md), [ADR 0012](../adr/0012-http-client-changes-found-while-building.md)
@@ -149,6 +150,8 @@ the shared default, which wins over Stratum's.
 | `auth.api-key-header` | text | `X-Api-Key` | no such key | The header that carries the API key. Only with `auth.api-key`. |
 | `auth.bearer` | text | unset | no such key | A fixed token sent as `Authorization: Bearer` on every call. |
 | `auth.basic.username`, `auth.basic.password` | text | unset | no such key | Credentials sent with HTTP Basic authentication on every call. Both are required. |
+| `auth.client-credentials` | text | unset | no such key | The `spring.security.oauth2.client.registration` whose token the service sends as itself. Needs `stratum-starter-oauth2-client`. |
+| `auth.token-relay` | `true`/`false` | `false` | no such key | Sends the caller's access token, as Spring Security's resource server verified it. |
 | `ssl-bundle` | text | unset | no such key | The name of a `spring.ssl.bundle.*` bundle whose certificate the client presents (mutual TLS). Not allowed under `defaults`, nor with `shared-pool`. |
 | `spring.http.clients.imperative.factory` | `http-components`, `jetty`, `reactor`, `jdk` or `simple` | `jdk` | unset: detects the engine, Apache HttpClient 5 first | The engine of the RestClients Stratum did not build. Stratum's own clients always use Apache HttpClient 5 ([Clients Stratum did not build](#clients-stratum-did-not-build)). |
 
@@ -464,7 +467,6 @@ own exception, the 64 KB read of an error body and the startup errors are on
 
 These parts of [ADR 0011](../adr/0011-http-client-starters.md) are not built yet, and none of their keys is read:
 
-- tokens: `auth.client-credentials` and `auth.token-relay`;
 - `headers` and `copy-headers`;
 - one log line per call and the pool metrics;
 - `urls`;

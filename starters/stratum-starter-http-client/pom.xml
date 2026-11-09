@@ -58,6 +58,20 @@
       <artifactId>stratum-web</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Optional: the service token of auth.client-credentials, which a team gets by adding
+         stratum-starter-oauth2-client, and the caller's verified token of auth.token-relay, which
+         Spring Security's resource server puts in the security context. Stratum's OAuth parts load
+         only when these are present. -->
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-oauth2-client</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-oauth2-resource-server</artifactId>
+      <optional>true</optional>
+    </dependency>
     <!-- The checks and set-up that every starter's tests share. -->
     <dependency>
       <groupId>com.exepex.stratum</groupId>
@@ -67,6 +81,18 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- The registrations of client-credentials, as a team gets them with the starter. -->
+    <dependency>
+      <groupId>com.exepex.stratum</groupId>
+      <artifactId>stratum-starter-oauth2-client</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- A verified JWT in the security context, as the resource server leaves it, for relay. -->
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-oauth2-jose</artifactId>
       <scope>test</scope>
     </dependency>
     <!-- Reactor, for the client with a Mono method that the blocking starter refuses at startup. -->

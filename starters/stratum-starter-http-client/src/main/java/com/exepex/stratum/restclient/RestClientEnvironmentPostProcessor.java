@@ -19,7 +19,8 @@ import org.springframework.http.HttpStatus;
  * Boot, now that this starter puts Apache HttpClient 5 on the class path for Stratum's clients:
  * {@code spring.http.clients.imperative.factory} is {@code jdk}. And it gives each code a call to
  * another service can end with its HTTP status in {@code stratum.web.error.statuses}: 504 for a
- * timeout, 503 when the service cannot be reached or its circuit breaker is open.
+ * timeout, 503 when the service cannot be reached or its circuit breaker is open, 500 when a client
+ * that relays the caller's token has none.
  */
 @StratumInternal
 public class RestClientEnvironmentPostProcessor implements EnvironmentPostProcessor, Ordered {
@@ -34,7 +35,9 @@ public class RestClientEnvironmentPostProcessor implements EnvironmentPostProces
           HttpClientConstants.errorStatus(HttpClientErrorCode.DOWNSTREAM_UNAVAILABLE.getCode()),
           HttpStatus.SERVICE_UNAVAILABLE.value(),
           HttpClientConstants.errorStatus(HttpClientErrorCode.BREAKER_OPEN.getCode()),
-          HttpStatus.SERVICE_UNAVAILABLE.value());
+          HttpStatus.SERVICE_UNAVAILABLE.value(),
+          HttpClientConstants.errorStatus(HttpClientErrorCode.CALLER_TOKEN_MISSING.getCode()),
+          HttpStatus.INTERNAL_SERVER_ERROR.value());
 
   /**
    * Runs right after the configuration files are read, so that the module switch and the service's

@@ -2,6 +2,7 @@ package com.exepex.stratum.restclient;
 
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.error.StratumException;
+import com.exepex.stratum.httpclient.ClientAuth;
 import com.exepex.stratum.httpclient.ClientSettings;
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientErrorCode;
@@ -28,6 +29,15 @@ public class StratumClientChecks {
 
   /** The type every {@code Mono} and {@code Flux} is. */
   private static final String PUBLISHER = "org.reactivestreams.Publisher";
+
+  /** A type of Spring Security's OAuth2 client, which fetches the service's own tokens. */
+  private static final String OAUTH2_CLIENT =
+      "org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager";
+
+  /** The type of a caller's token that Spring Security's resource server has verified. */
+  private static final String VERIFIED_TOKEN =
+      "org.springframework.security.oauth2.server.resource.authentication"
+          + ".AbstractOAuth2TokenAuthenticationToken";
 
   /**
    * Returns the name of a client interface, after checking the name and the methods.
@@ -150,5 +160,35 @@ public class StratumClientChecks {
           HttpClientErrorCode.URL_MISSING, HttpClientConstants.CLIENTS + "." + client + ".url");
     }
     return url;
+  }
+
+  /**
+   * Checks that the Spring Security library each client's kind of auth needs is present.
+   *
+   * @param client the client's name
+   * @param auth the client's auth settings
+   * @param classLoader the class loader of the application's beans
+   * @throws StratumException {@code SX-HTTPC-1006} naming the client and the library to add
+   */
+  public static void checkAuthLibrary(
+      String client, ClientAuth auth, @Nullable ClassLoader classLoader) {
+    if (auth.clientCredentials() != null && !ClassUtils.isPresent(OAUTH2_CLIENT, classLoader)) {
+      throw authLibraryMissing(client);
+    }
+    if (auth.isTokenRelay() && !ClassUtils.isPresent(VERIFIED_TOKEN, classLoader)) {
+      throw authLibraryMissing(client);
+    }
+  }
+
+  /**
+   * Returns the failure of a client whose kind of auth has no Spring Security library to send it.
+   *
+   * @param client the client's name
+   * @return {@code SX-HTTPC-1006} naming the client
+   */
+  public static StratumException authLibraryMissing(String client) {
+    return new StratumException(
+        HttpClientErrorCode.AUTH_LIBRARY_MISSING,
+        HttpClientConstants.CLIENTS + "." + client + ".auth");
   }
 }

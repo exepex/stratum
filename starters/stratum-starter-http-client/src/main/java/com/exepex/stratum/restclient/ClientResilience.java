@@ -54,6 +54,9 @@ public class ClientResilience implements ClientExchangeDecorator {
   /** The clock a {@code Retry-After} date is read against. */
   private final Clock clock;
 
+  /** The resend after a 401 of a client with a service token, present with the OAuth2 client. */
+  private final ObjectProvider<ServiceTokenResend> tokenResend;
+
   /** The retry and breaker of each client, made on its first call. */
   private final Map<String, ClientGuards> guardsByClient = new ConcurrentHashMap<>();
 
@@ -144,7 +147,10 @@ public class ClientResilience implements ClientExchangeDecorator {
                         attemptNumber.incrementAndGet(),
                         deadlineNanos,
                         streamedDownload,
-                        () -> remember(lastResult, guards.protect(exchange))));
+                        () ->
+                            remember(
+                                lastResult,
+                                guards.protect(withResend(client, streamedBody, exchange)))));
     lastAttempt.getFailure().ifPresent(this::rethrow);
     return lastResult.get();
   }
@@ -176,6 +182,16 @@ public class ClientResilience implements ClientExchangeDecorator {
     return ended.toBuilder()
         .nextWait(Duration.ofMillis(guards.waits().apply(attemptNumber, Either.right(ended))))
         .build();
+  }
+
+  /**
+   * Returns one attempt with the resend after a 401 inside it, for a client with a service token;
+   * the resend and its new token then count as one attempt.
+   */
+  private <T> Supplier<@Nullable T> withResend(
+      String client, boolean streamedBody, Supplier<@Nullable T> exchange) {
+    var resend = tokenResend.getIfAvailable();
+    return resend == null ? exchange : () -> resend.call(client, streamedBody, exchange);
   }
 
   /**

@@ -30,6 +30,9 @@ public class StratumClientBuilders {
   /** The service's changes to the clients' builders. */
   private final ObjectProvider<StratumClientCustomizer> customizers;
 
+  /** The senders of Spring Security's tokens, one per kind whose library is present. */
+  private final ObjectProvider<TokenInitializers> tokenInitializers;
+
   /** The answers of the clients set to {@code mock: true}. */
   private final MockAnswers mockAnswers;
 
@@ -45,7 +48,8 @@ public class StratumClientBuilders {
     StratumClientChecks.checkNoBootSettings(environment, client);
     var settings = properties.clientSettings(client);
     builder.baseUrl(StratumClientChecks.requireUrl(client, settings));
-    ClientTransport.of(settings, pools, mockAnswers).setUp(client, settings, builder);
+    ClientTransport.of(settings, pools, tokenInitializers, mockAnswers)
+        .setUp(client, settings, builder);
     customizers.orderedStream().forEach(customizer -> customizer.customize(client, builder));
   }
 }

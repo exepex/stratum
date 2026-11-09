@@ -15,14 +15,18 @@ import com.exepex.stratum.restclient.DefaultStratumHttpClients;
 import com.exepex.stratum.restclient.MockAnswers;
 import com.exepex.stratum.restclient.MockClients;
 import com.exepex.stratum.restclient.OptionalNotFound;
+import com.exepex.stratum.restclient.ServiceTokenResend;
 import com.exepex.stratum.restclient.StratumClientBuilders;
+import com.exepex.stratum.restclient.StratumClientChecks;
 import com.exepex.stratum.restclient.StratumClientCustomizer;
 import com.exepex.stratum.restclient.StratumClientGroups;
 import com.exepex.stratum.restclient.StratumClientRegistrar;
 import com.exepex.stratum.restclient.StratumHttpClients;
+import com.exepex.stratum.restclient.TokenInitializers;
 import java.time.Clock;
-import org.springframework.beans.factory.ListableBeanFactory;
+import java.util.Optional;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureOrder;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -50,12 +54,24 @@ public final class RestClientAutoConfiguration {
 
   /**
    * Stops startup with {@code SX-CORE-1004} when the service declares a settings customizer as a
-   * bean, which would be silently ignored.
+   * bean, which would be silently ignored, and with {@code SX-HTTPC-1006} when a client's kind of
+   * auth needs a Spring Security library the service does not have.
    *
    * @param beanFactory the service's beans
+   * @param environment the service's environment, from which the settings are resolved
    */
-  public RestClientAutoConfiguration(ListableBeanFactory beanFactory) {
+  public RestClientAutoConfiguration(
+      ConfigurableListableBeanFactory beanFactory, Environment environment) {
     StratumCustomizers.rejectBeans(beanFactory);
+    HttpClientProperties.resolve(environment)
+        .clients()
+        .forEach(
+            (client, settings) ->
+                Optional.ofNullable(settings.auth())
+                    .ifPresent(
+                        auth ->
+                            StratumClientChecks.checkAuthLibrary(
+                                client, auth, beanFactory.getBeanClassLoader())));
   }
 
   /**
@@ -81,6 +97,7 @@ public final class RestClientAutoConfiguration {
    * @param environment the service's environment, from which the settings are resolved
    * @param pools the connection pools
    * @param customizers the service's changes to the clients' builders
+   * @param tokenInitializers the senders of Spring Security's tokens, present with their libraries
    * @param mockAnswers the answers of the clients set to {@code mock: true}
    * @return the set-up
    */
@@ -91,9 +108,15 @@ public final class RestClientAutoConfiguration {
       Environment environment,
       ClientConnectionPools pools,
       ObjectProvider<StratumClientCustomizer> customizers,
+      ObjectProvider<TokenInitializers> tokenInitializers,
       MockAnswers mockAnswers) {
     return new StratumClientBuilders(
-        HttpClientProperties.resolve(environment), pools, environment, customizers, mockAnswers);
+        HttpClientProperties.resolve(environment),
+        pools,
+        environment,
+        customizers,
+        tokenInitializers,
+        mockAnswers);
   }
 
   /**
@@ -149,15 +172,18 @@ public final class RestClientAutoConfiguration {
    *
    * @param environment the service's environment, from which the settings are resolved
    * @param customizers the service's changes to the clients' retry and breaker rules
+   * @param tokenResend the resend after a 401 of a client with a service token, if present
    * @return the retries and breakers
    */
   @Bean
   @Fallback
   @ConditionalOnMissingBean
   public ClientResilience stratumClientResilience(
-      Environment environment, ObjectProvider<StratumClientCustomizer> customizers) {
+      Environment environment,
+      ObjectProvider<StratumClientCustomizer> customizers,
+      ObjectProvider<ServiceTokenResend> tokenResend) {
     return new ClientResilience(
-        HttpClientProperties.resolve(environment), customizers, Clock.systemUTC());
+        HttpClientProperties.resolve(environment), customizers, Clock.systemUTC(), tokenResend);
   }
 
   /**

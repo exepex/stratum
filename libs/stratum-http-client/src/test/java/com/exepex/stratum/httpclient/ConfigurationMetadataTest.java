@@ -40,7 +40,9 @@ class ConfigurationMetadataTest {
           "auth.api-key-header",
           "auth.bearer",
           "auth.basic.username",
-          "auth.basic.password");
+          "auth.basic.password",
+          "auth.client-credentials",
+          "auth.token-relay");
 
   @Test
   @DisplayName("every property is listed with a description")

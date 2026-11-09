@@ -15,9 +15,12 @@ import org.assertj.core.api.AbstractThrowableAssert;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.core.NestedExceptionUtils;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager;
+import org.springframework.security.oauth2.server.resource.authentication.AbstractOAuth2TokenAuthenticationToken;
 
 @DisplayName("A client set up wrongly stops startup with a code that names the client or the key")
 class StartupChecksTest {
@@ -181,6 +184,67 @@ class StartupChecksTest {
               context ->
                   assertStopped(context, "SX-HTTPC-1002")
                       .hasMessageContaining("ReactiveStockClient.stock"));
+    }
+  }
+
+  @Nested
+  @DisplayName("a client whose auth is a Spring Security token")
+  class TokenAuth {
+
+    /** The inventory client with an address. */
+    private final ApplicationContextRunner inventory =
+        clients.withPropertyValues(
+            RestClientTestData.setting(
+                RestClientTestData.INVENTORY_CLIENT_CREDENTIALS, RestClientTestData.REGISTRATION));
+
+    @Test
+    @DisplayName("client-credentials with its registration: the application starts")
+    void registrationFound() {
+      inventory
+          .withPropertyValues(
+              RestClientTestData.registrationSettings(
+                  "client_credentials", RestClientTestData.UNUSED_URL))
+          .run(context -> assertThat(context).hasNotFailed());
+    }
+
+    @Test
+    @DisplayName("client-credentials without its registration: SX-HTTPC-1005, naming both")
+    void registrationMissingStopsStartup() {
+      inventory.run(
+          context ->
+              assertStopped(context, "SX-HTTPC-1005")
+                  .hasMessageContaining(RestClientTestData.INVENTORY_CLIENT_CREDENTIALS)
+                  .hasMessageContaining(RestClientTestData.REGISTRATION));
+    }
+
+    @Test
+    @DisplayName("client-credentials naming a registration of another grant: SX-HTTPC-1005")
+    void otherGrantStopsStartup() {
+      inventory
+          .withPropertyValues(
+              RestClientTestData.registrationSettings(
+                  "authorization_code", RestClientTestData.UNUSED_URL))
+          .run(context -> assertStopped(context, "SX-HTTPC-1005"));
+    }
+
+    @Test
+    @DisplayName("client-credentials without Spring Security's OAuth2 client: SX-HTTPC-1006")
+    void oauthClientMissingStopsStartup() {
+      inventory
+          .withClassLoader(new FilteredClassLoader(OAuth2AuthorizedClientManager.class))
+          .run(
+              context ->
+                  assertStopped(context, "SX-HTTPC-1006")
+                      .hasMessageContaining(RestClientTestData.INVENTORY_SETTINGS + ".auth"));
+    }
+
+    @Test
+    @DisplayName("token-relay without Spring Security's resource server: SX-HTTPC-1006")
+    void resourceServerMissingStopsStartup() {
+      clients
+          .withPropertyValues(RestClientTestData.INVENTORY_SETTINGS + ".auth.token-relay=true")
+          .withClassLoader(new FilteredClassLoader(AbstractOAuth2TokenAuthenticationToken.class))
+          .run(context -> assertStopped(context, "SX-HTTPC-1006"));
     }
   }
 
