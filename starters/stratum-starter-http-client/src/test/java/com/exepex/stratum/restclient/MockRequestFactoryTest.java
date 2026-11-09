@@ -11,10 +11,8 @@ import java.net.URI;
 import java.time.Duration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
-import tools.jackson.databind.json.JsonMapper;
 
 @DisplayName("A mocked answer's delay is limited as a real answer's wait is")
 class MockRequestFactoryTest {
@@ -26,8 +24,7 @@ class MockRequestFactoryTest {
   private static final Duration TIME_LEFT = Duration.ofMillis(100);
 
   /** The answers, with a 300ms delay scripted for the method. */
-  private final MockAnswers answers =
-      new MockAnswers(new StaticListableBeanFactory().getBeanProvider(JsonMapper.class));
+  private final MockAnswers answers = RestClientTestData.answersWithoutMapper();
 
   /** The factory under test, with a client timeout far above the delay. */
   private final MockRequestFactory factory =
@@ -73,8 +70,8 @@ class MockRequestFactoryTest {
       try (var response = request.execute()) {
         return HttpStatus.valueOf(response.getStatusCode().value());
       }
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
+    } catch (IOException failure) {
+      throw new UncheckedIOException(failure);
     }
   }
 }

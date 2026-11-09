@@ -12,8 +12,6 @@ import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.support.StaticListableBeanFactory;
-import tools.jackson.databind.json.JsonMapper;
 
 @DisplayName("MockClients warns about each mocked client and refuses a client that is not mocked")
 class DefaultMockClientsTest {
@@ -30,7 +28,7 @@ class DefaultMockClientsTest {
                       RestClientTestData.INVENTORY,
                       ClientSettings.builder().build()))
               .build(),
-          new MockAnswers(new StaticListableBeanFactory().getBeanProvider(JsonMapper.class)));
+          RestClientTestData.answersWithoutMapper());
 
   @Nested
   @DisplayName("At startup")

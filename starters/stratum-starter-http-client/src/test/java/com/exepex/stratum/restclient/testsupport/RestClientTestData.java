@@ -3,6 +3,7 @@ package com.exepex.stratum.restclient.testsupport;
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientProperties;
 import com.exepex.stratum.restclient.ClientConnectionPools;
+import com.exepex.stratum.restclient.MockAnswers;
 import com.exepex.stratum.restclient.autoconfigure.RestClientAutoConfiguration;
 import com.exepex.stratum.restclient.testsupport.clients.ClientsApplication;
 import java.time.Duration;
@@ -19,6 +20,7 @@ import org.springframework.boot.ssl.SslBundles;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
+import tools.jackson.databind.json.JsonMapper;
 
 /** Names, values and set-up shared by the blocking HTTP client starter's tests. */
 @UtilityClass
@@ -108,6 +110,16 @@ public class RestClientTestData {
                 HttpServiceClientPropertiesAutoConfiguration.class,
                 org.springframework.boot.restclient.autoconfigure.RestClientAutoConfiguration.class,
                 HttpServiceClientAutoConfiguration.class));
+  }
+
+  /**
+   * Returns mock answers with no JSON mapper bean, as in a context without Jackson's
+   * auto-configuration.
+   *
+   * @return the answers
+   */
+  public static MockAnswers answersWithoutMapper() {
+    return new MockAnswers(new StaticListableBeanFactory().getBeanProvider(JsonMapper.class));
   }
 
   /**

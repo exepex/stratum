@@ -174,10 +174,10 @@ public class MockAnswers {
     boolean endedByReset;
     try {
       endedByReset = resetSignal.get().await(time.toNanos(), TimeUnit.NANOSECONDS);
-    } catch (InterruptedException e) {
+    } catch (InterruptedException interruption) {
       Thread.currentThread().interrupt();
       var interrupted = new InterruptedIOException("A mocked answer's delay was interrupted");
-      interrupted.initCause(e);
+      interrupted.initCause(interruption);
       throw interrupted;
     }
     if (endedByReset) {
@@ -221,8 +221,8 @@ public class MockAnswers {
     }
     try {
       return Optional.of(resource.getContentAsString(StandardCharsets.UTF_8));
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
+    } catch (IOException unreadable) {
+      throw new UncheckedIOException(unreadable);
     }
   }
 }

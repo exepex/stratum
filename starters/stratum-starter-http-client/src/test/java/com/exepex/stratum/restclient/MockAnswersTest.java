@@ -6,8 +6,6 @@ import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.support.StaticListableBeanFactory;
-import tools.jackson.databind.json.JsonMapper;
 
 @DisplayName("MockAnswers records calls only for a client a test asked for, across resets")
 class MockAnswersTest {
@@ -19,8 +17,7 @@ class MockAnswersTest {
   private static final String PAYMENT_ID = "p-1";
 
   /** The answers under test, with no JSON mapper bean. */
-  private final MockAnswers answers =
-      new MockAnswers(new StaticListableBeanFactory().getBeanProvider(JsonMapper.class));
+  private final MockAnswers answers = RestClientTestData.answersWithoutMapper();
 
   @Test
   @DisplayName("records nothing before a test asks for the client, as a demo app never does")

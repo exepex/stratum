@@ -81,7 +81,7 @@ class CheckoutTest {
 
 | Call | What it does |
 | --- | --- |
-| `on("method").respond(value)` | Answers `200` with the value: a text as it is, any other value as JSON written by the application's JSON mapper, no body for `null`. |
+| `on("method").respond(value)` | Answers `200` with the value: a text as it is, any other value as JSON written by the application's JSON mapper, no body for `null`. Pass the object, such as `new Payment(...)`, not its JSON text: a text is sent as `text/plain`, which the JSON converter does not read. |
 | `on("method").fail(HttpStatus.NOT_FOUND)` | Answers that status with no body; `fail(status, "{...}")` adds a JSON body. |
 | `on("method").delay(Duration.ofMillis(200)).respond(value)` | Answers after the delay. A delay longer than the call's limit, the client's `timeout` or the time its `total-timeout` leaves, waits that limit and fails the call with `ResourceAccessException`, as a read timeout would. |
 | `calls("method")` | The calls of that method since `of` was called: each with its method name and arguments. |
