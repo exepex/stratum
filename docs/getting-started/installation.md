@@ -53,8 +53,9 @@ There are two ways. Both give you the same tested versions; they differ in what 
 | | Stratum as the parent | Stratum as a dependency |
 | --- | --- | --- |
 | Use when | You start a new service, or your `pom.xml` has no parent | Your `pom.xml` must keep its parent: `spring-boot-starter-parent` or your company's parent |
-| What you add | `stratum-parent` as the `<parent>` | `stratum-bom` imported in `<dependencyManagement>` |
+| What you add | `stratum-microservice-parent` as the `<parent>` for a microservice, `stratum-parent` for any other kind of application | `stratum-bom` imported in `<dependencyManagement>` |
 | Dependency versions | Managed | Managed |
+| The microservice bundle and the test libraries | Brought by `stratum-microservice-parent` | You add them |
 | Java 25 | Set for you | You set one property |
 | Build info, Git info and the JDK 25 check | Set for you | You add three plugins |
 | Stratum's quality checks | Set for you | Not available yet |
@@ -71,7 +72,11 @@ What the parent and the BOM contain in detail: [Parent POM and BOM](../modules/p
 
 ## Step 2: add the starters you need
 
-The quickest way is one [bundle starter](../modules/bundles.md) for your kind of application:
+With `stratum-microservice-parent`, the microservice bundle and the test libraries are already there:
+skip this step, unless you add a starter the bundle does not hold
+([Add a starter](with-stratum-parent.md#add-a-starter)).
+
+Otherwise, the quickest way is one [bundle starter](../modules/bundles.md) for your kind of application:
 `stratum-starter-microservice`, `stratum-starter-reactive-microservice`, `stratum-starter-web-ui`,
 `stratum-starter-batch` or `stratum-starter-cli`. Or pick single starters that match what your
 service does. You can add more later.
@@ -86,7 +91,7 @@ service does. You can add more later.
 | Caches results | `stratum-starter-cache` |
 | Produces or consumes Kafka messages | `stratum-starter-kafka` (**planned**, not published) |
 | Uses cloud storage, queues or secrets | `stratum-starter-cloud-<provider>` (**planned**) |
-| Has tests (every service) | `stratum-test` with `<scope>test</scope>` |
+| Has tests (every service) | `stratum-test` and Spring Boot's `spring-boot-starter-test`, both with `<scope>test</scope>` |
 
 A typical REST service that calls other services and caches results, with built starters only:
 
@@ -118,6 +123,11 @@ A typical REST service that calls other services and caches results, with built 
     <artifactId>stratum-test</artifactId>
     <scope>test</scope>
   </dependency>
+  <dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-test</artifactId>
+    <scope>test</scope>
+  </dependency>
 </dependencies>
 ```
 
@@ -137,7 +147,8 @@ Rules that keep you out of trouble:
 ## Step 3: set the minimum configuration
 
 Every service must have a name. Stratum uses it in logs, metrics, traces and cache keys. Each module
-you added is already on, so you write no line to switch one on:
+whose starter is on your classpath, through your parent, a bundle or your own dependencies, is
+already on, so you write no line to switch one on:
 
 ```yaml
 # src/main/resources/application.yml
@@ -178,7 +189,7 @@ curl -s localhost:8080/actuator/health
 # {"status":"UP"}
 ```
 
-Every module whose starter you added is on. If you turned one off, the startup log names it in one
+Every module whose starter is on your classpath is on. If you turned one off, the startup log names it in one
 INFO line, with the property that turned it off:
 
 ```text

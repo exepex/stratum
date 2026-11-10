@@ -141,12 +141,12 @@ every step and explains each line.
 
 **You need:** JDK 25 and Maven 3.9 or later.
 
-**1. Use Stratum as the parent of your service's `pom.xml`:**
+**1. Use Stratum's microservice parent as the parent of your service's `pom.xml`:**
 
 ```xml
 <parent>
   <groupId>io.github.exepex.stratum</groupId>
-  <artifactId>stratum-parent</artifactId>
+  <artifactId>stratum-microservice-parent</artifactId>
   <version>0.1.0-SNAPSHOT</version>
 </parent>
 ```
@@ -154,34 +154,14 @@ every step and explains each line.
 Your service already has a parent, such as your company's? Import the Stratum BOM instead. See
 [Installation](docs/getting-started/installation.md).
 
-**2. Add the starters you need.** No `<version>` tags: Stratum manages them. This example uses
-three single starters. For a whole application, add a [bundle](#bundles) instead. Each module is on
-as soon as its starter is on the classpath.
-
-```xml
-<dependencies>
-  <dependency>
-    <groupId>io.github.exepex.stratum</groupId>
-    <artifactId>stratum-starter-webmvc</artifactId>
-  </dependency>
-  <dependency>
-    <groupId>io.github.exepex.stratum</groupId>
-    <artifactId>stratum-starter-logging</artifactId>
-  </dependency>
-  <dependency>
-    <groupId>io.github.exepex.stratum</groupId>
-    <artifactId>stratum-starter-observability</artifactId>
-  </dependency>
-  <dependency>
-    <groupId>io.github.exepex.stratum</groupId>
-    <artifactId>stratum-test</artifactId>
-    <scope>test</scope>
-  </dependency>
-</dependencies>
-```
+**2. There is no step 2 in the `pom.xml`.** The parent brings the
+[microservice bundle](#bundles) (web MVC, logging, observability, HTTP client and cache) and the test
+libraries `stratum-test` and `spring-boot-starter-test`. Each module is on as soon as its starter is on
+the classpath. To add a starter, declare it with no `<version>`; to leave a bundled one out, see
+[Stratum as your parent POM](docs/getting-started/with-stratum-parent.md#leave-a-bundled-starter-out).
 
 **3. Name your service** in `application.yml` (or `application.properties`). Every module whose
-starter you added is already on; you write no line to switch it on:
+starter is on the classpath is already on; you write no line to switch it on:
 
 ```yaml
 spring:
@@ -237,12 +217,16 @@ troubleshoot it.
 | Module | In one sentence |
 | --- | --- |
 | [`stratum-parent`](docs/modules/parent-and-bom.md) | Parent POM: Java 25, plugin versions and the quality gates every service build runs. |
+| [`stratum-microservice-parent`](docs/modules/parent-and-bom.md#the-microservice-parent) | Parent POM for a REST microservice: `stratum-parent` plus the microservice bundle and the test libraries, so the service's `pom.xml` needs no dependency. |
 | [`stratum-bom`](docs/modules/parent-and-bom.md#the-bom) | Bill of materials (BOM): one list of tested versions, for services that keep their own parent. |
 
 ### Bundles
 
 One dependency per kind of application; each lists only the single starters that kind needs. See
 [Bundle starters](docs/modules/bundles.md).
+
+`stratum-microservice-parent` brings the microservice bundle, so a service on it does not declare it
+([ADR 0019](docs/adr/0019-one-parent-per-kind-of-application.md)).
 
 A bundle lists only single starters that have code. The security, resilience and data-jpa
 starters join no bundle until they are built. The microservice bundle's cache starter caches
@@ -350,7 +334,7 @@ against it. There are three setups:
 
 | Setup | Parent chain | When to use it |
 | --- | --- | --- |
-| A: Stratum as parent | Spring Boot → `stratum-parent` → service | There is no company framework |
+| A: Stratum as parent | Spring Boot → `stratum-parent` → service, or → `stratum-parent` → `stratum-microservice-parent` → service for a microservice | There is no company framework |
 | B: company parent, Stratum BOM | Spring Boot → company parent → service, importing `stratum-bom` | **Recommended** when a company framework exists |
 | C: team fork of Stratum | Spring Boot → company parent → forked `stratum-parent` → service | Supported, when a team wants one parent and accepts merging every Stratum release into its fork |
 
@@ -374,9 +358,9 @@ The decision behind it: [ADR 0001](docs/adr/0001-coexistence-with-company-framew
 ## Testing your service
 
 `stratum-test` gives your integration tests a PostgreSQL database and a Redis server in Docker,
-with images pinned once for every service ([Containers](docs/modules/test.md#containers)). Add Spring
-Boot's `spring-boot-starter-test` with `<scope>test</scope>` next to it for JUnit 5, AssertJ and
-Mockito.
+with images pinned once for every service ([Containers](docs/modules/test.md#containers)). Spring
+Boot's `spring-boot-starter-test` gives JUnit 5, AssertJ and Mockito. `stratum-microservice-parent`
+brings both in test scope; under any other parent, add both with `<scope>test</scope>`.
 
 ```java
 @SpringBootTest
@@ -408,7 +392,7 @@ Full guide: [Testing with stratum-test](docs/modules/test.md).
 - Stratum follows [semantic versioning](https://semver.org): a patch release never breaks you; a major
   release may, and its release notes list the exact migration steps.
 - Each Stratum release supports one Spring Boot line, such as `4.1.x`, and is tested with one release
-  in it. With `stratum-parent`, upgrading Stratum upgrades Spring Boot and every managed library
+  in it. With a Stratum parent, upgrading Stratum upgrades Spring Boot and every managed library
   together. Under a company parent, the company parent sets the Spring Boot version. When it is
   outside the supported line, Stratum logs one `SX-CORE-1005` warning at startup and starts anyway.
 - Stratum needs Java 25 and the Spring Boot 4.1.x line. Older versions are not supported.

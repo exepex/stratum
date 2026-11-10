@@ -46,7 +46,7 @@ order-service/
 
   <parent>
     <groupId>io.github.exepex.stratum</groupId>
-    <artifactId>stratum-parent</artifactId>
+    <artifactId>stratum-microservice-parent</artifactId>
     <version>0.1.0-SNAPSHOT</version>
     <relativePath/>
   </parent>
@@ -54,36 +54,13 @@ order-service/
   <groupId>com.acme.orders</groupId>
   <artifactId>order-service</artifactId>
   <version>1.0.0-SNAPSHOT</version>
-
-  <dependencies>
-    <dependency>
-      <groupId>io.github.exepex.stratum</groupId>
-      <artifactId>stratum-starter-webmvc</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.github.exepex.stratum</groupId>
-      <artifactId>stratum-starter-logging</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.github.exepex.stratum</groupId>
-      <artifactId>stratum-starter-observability</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.github.exepex.stratum</groupId>
-      <artifactId>stratum-starter-http-client</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.github.exepex.stratum</groupId>
-      <artifactId>stratum-test</artifactId>
-      <scope>test</scope>
-    </dependency>
-  </dependencies>
 </project>
 ```
 
-**What Stratum did:** the parent set Java 25, every plugin version and the quality checks. The
-starters brought Spring MVC, Actuator, Micrometer, OpenTelemetry, structured logging and an HTTP
-client library, all at versions tested together.
+**What Stratum did:** the parent set Java 25, every plugin version and the quality checks. It also
+brought the [microservice bundle](../modules/bundles.md), whose starters bring Spring MVC, Actuator,
+Micrometer, OpenTelemetry, structured logging, an HTTP client library and caching, and the test
+libraries, all at versions tested together.
 
 ## Step 2: the application class
 

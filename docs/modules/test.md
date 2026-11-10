@@ -11,10 +11,20 @@ share, such as `StarterTestSupport`, `WebTestSupport`, `LogLineCapture`, `CpuCos
 
 ## Add it
 
+With `stratum-microservice-parent` as your parent, skip this step: the parent already brings
+`stratum-test` and `spring-boot-starter-test` in test scope
+([The microservice parent](parent-and-bom.md#the-microservice-parent)). Under any other parent, add
+both:
+
 ```xml
 <dependency>
   <groupId>io.github.exepex.stratum</groupId>
   <artifactId>stratum-test</artifactId>
+  <scope>test</scope>
+</dependency>
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-test</artifactId>
   <scope>test</scope>
 </dependency>
 ```
@@ -44,8 +54,9 @@ service already has `spring-boot-starter-data-redis`, the Redis client.
 `testcontainers-postgresql` as optional, so a module or service gets none of them through
 `stratum-test`, only the ones it adds itself.
 
-JUnit 5, AssertJ and Mockito come from Spring Boot's `spring-boot-starter-test`, which your service
-adds in test scope; `stratum-test` does not bring it.
+JUnit 5, AssertJ and Mockito come from Spring Boot's `spring-boot-starter-test`, which
+`stratum-microservice-parent` brings and a service under any other parent adds in test scope, as
+above; `stratum-test` does not bring it.
 
 ## Three kinds of tests
 

@@ -60,8 +60,10 @@ Spring Boot's parent keeps them (`<parameters>true</parameters>`); without it, s
 ## Example 1: under `spring-boot-starter-parent`
 
 The complete `pom.xml` of the same service as in [Stratum as your parent POM](with-stratum-parent.md),
-with Spring Boot's parent. The `<build>` section adds back what `stratum-parent` would have given:
-the JDK check, `git.properties` and `build-info.properties`.
+with Spring Boot's parent. The `<dependencies>` section adds what `stratum-microservice-parent` would
+have brought: the [microservice bundle](../modules/bundles.md) and the test libraries. The `<build>`
+section adds back what `stratum-parent` would have given: the JDK check, `git.properties` and
+`build-info.properties`.
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -102,30 +104,21 @@ the JDK check, `git.properties` and `build-info.properties`.
 
   <dependencies>
     <!-- No <version>: stratum-bom manages every published Stratum module. -->
+    <!-- The microservice bundle: web MVC, logging, observability, HTTP client and cache. -->
     <dependency>
       <groupId>io.github.exepex.stratum</groupId>
-      <artifactId>stratum-starter-webmvc</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.github.exepex.stratum</groupId>
-      <artifactId>stratum-starter-logging</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.github.exepex.stratum</groupId>
-      <artifactId>stratum-starter-observability</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.github.exepex.stratum</groupId>
-      <artifactId>stratum-starter-http-client</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.github.exepex.stratum</groupId>
-      <artifactId>stratum-starter-cache</artifactId>
+      <artifactId>stratum-starter-microservice</artifactId>
     </dependency>
 
     <dependency>
       <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- JUnit 5, AssertJ, Mockito and Spring Boot's test support; Spring Boot manages its version. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -244,30 +237,21 @@ itself, sets Java 25 and writes the plugin versions.
 
   <dependencies>
     <!-- No <version>: stratum-bom manages every published Stratum module. -->
+    <!-- The microservice bundle: web MVC, logging, observability, HTTP client and cache. -->
     <dependency>
       <groupId>io.github.exepex.stratum</groupId>
-      <artifactId>stratum-starter-webmvc</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.github.exepex.stratum</groupId>
-      <artifactId>stratum-starter-logging</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.github.exepex.stratum</groupId>
-      <artifactId>stratum-starter-observability</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.github.exepex.stratum</groupId>
-      <artifactId>stratum-starter-http-client</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.github.exepex.stratum</groupId>
-      <artifactId>stratum-starter-cache</artifactId>
+      <artifactId>stratum-starter-microservice</artifactId>
     </dependency>
 
     <dependency>
       <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- JUnit 5, AssertJ, Mockito and Spring Boot's test support; Spring Boot manages its version. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -353,6 +337,7 @@ use the `<build>` section of [example 1](#example-1-under-spring-boot-starter-pa
 
 | What `stratum-parent` gives | Under another parent | How to get it back |
 | --- | --- | --- |
+| The microservice bundle and the test libraries, which `stratum-microservice-parent` adds | Not brought | Declare them, as in the examples |
 | Java 25 | Your parent's Java version | The properties in [The properties to set](#the-properties-to-set) |
 | `build-info.properties`, shown by `/actuator/info` | Not written | The `build-info` execution of `spring-boot-maven-plugin`, as in the examples |
 | `git.properties`, shown by `/actuator/info` | Not written | `git-commit-id-maven-plugin`, as in the examples |
