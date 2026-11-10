@@ -19,6 +19,7 @@ The [project README](../README.md) gives the overview.
 | Module | Page |
 | --- | --- |
 | Demo starter | [stratum-starter-demo/README.md](../starters/stratum-starter-demo/README.md) |
+| Demo client | [Demo client](modules/demo-client.md) with [auth](modules/demo-client-auth.md), [errors](modules/demo-client-errors.md) and [Spring](https://spring.io) |
 
 ## Architecture decisions
 

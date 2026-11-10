@@ -104,12 +104,17 @@ Stratum's documentation there. It is a copy: `docs/` stays the one source, so ed
 `docs/`, never in the wiki. The wiki's own pages, such as audit reports, are written in the wiki.
 
 [`.github/workflows/wiki.yml`](../.github/workflows/wiki.yml) copies the pages after every merge to
-`main` that changes `docs/`, a starter's `README.md` or the sync itself, and after every edit in the
-wiki, so a new audit report reaches the sidebar. It runs
+`main`, whatever the merge changes, and after every edit in the wiki, so a new audit report reaches
+the sidebar. It runs
 [`.github/wiki/WikiSync.java`](../.github/wiki/WikiSync.java), which:
 
-- copies [`docs/README.md`](README.md) as the wiki's **Home**, and every page it links except the
-  project README; the agent rules in `docs/agents/` stay in the repository;
+- copies [`docs/README.md`](README.md) as the wiki's **Home**, and every page it links in a table row:
+  every relative link of a row becomes a page, so the HTTP client row yields all its pages. A link to
+  a file outside `docs/` fails the run. The agent rules in `docs/agents/` are not in the index, so they
+  stay in the repository;
+- copies the project [`README.md`](../README.md) as the page **Project-README**, linked under Home in
+  the sidebar. Home is the documentation index; Project-README is the overview of what Stratum is.
+  Links between the two work in the wiki;
 - names each page from its path, such as `Modules-web` for `docs/modules/web.md` and
   `stratum-starter-logging` for that starter's `README.md`;
 - builds the sidebar from the tables in `docs/README.md`, in the groups Getting started,
@@ -127,7 +132,7 @@ pages get the same name, when a page written in the wiki has a copied page's nam
 needs its group in `WikiSync.java`, and a page written in the wiki needs a name no copied page has.
 A run that changes no page makes no commit.
 
-On a pull request that touches these files, the workflow runs the sync's golden test,
+On every pull request, the workflow runs the sync's golden test,
 [`.github/wiki/test.sh`](../.github/wiki/test.sh), then syncs into a throwaway copy of the wiki and
 lists the pages that would change on the run's summary page. It pushes nothing. To run the test
 yourself, run `.github/wiki/test.sh`; it needs a JDK and git.

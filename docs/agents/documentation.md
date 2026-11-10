@@ -18,7 +18,7 @@ the documentation must work for both. Documentation is part of every change and 
 | `README.md` of a starter or library | The module's own page, for a developer who uses that module: what it sets up, each of its properties (type, default, meaning), how to replace each bean, and usage examples. It links to `docs/` for everything that is not about the module. |
 | `docs/modules/<module>.md` | The page of a module that has no `README.md` of its own yet, with the same content. |
 | `docs/contributing.md` | How a person proposes a change: issues, branches, build commands. It links to `AGENTS.md` for the rules and repeats none of them. |
-| The GitHub wiki | A copy of `docs/README.md` (as Home), the pages it links and a sidebar, made on every merge by the sync in [contributing](../contributing.md#the-wiki). Edit `docs/`, never a copied wiki page. Audit reports live only in the wiki. |
+| The GitHub wiki | A copy of `docs/README.md` (as Home), the pages it links, the project `README.md` (as Project-README) and a sidebar, made on every merge by the sync in [contributing](../contributing.md#the-wiki). Edit `docs/`, never a copied wiki page. Audit reports live only in the wiki. |
 | `docs/adr/` | Architecture decision records, numbered in order. An accepted record is never edited, which is the one exception to ST-DOC-03; a new record replaces it. Each is linked from `docs/README.md`. |
 | `docs/guides/` | Topics that span modules: architecture, migrating a service, upgrading, troubleshooting, FAQ. |
 | Release notes | What changed in each release, breaking changes and the steps to migrate. |
