@@ -20,7 +20,7 @@ BOM and the starters used below exist. No release is published yet; snapshots ar
 ### Using a snapshot
 
 Until the first release, each push to Stratum's `main` branch publishes `0.1.0-SNAPSHOT` to Maven
-Central's snapshot repository. A *snapshot* is a build that changes with each push, and the
+Central's snapshot repository, once snapshots are enabled for the `io.github.exepex` namespace. A *snapshot* is a build that changes with each push, and the
 repository deletes it after 90 days. Maven does not look there by default, so add the repository
 to your `pom.xml`. The plugin repository is needed too, because `stratum-parent`'s build checks load
 `stratum-build-rules` as a plugin dependency:

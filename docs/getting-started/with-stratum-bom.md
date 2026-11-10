@@ -101,7 +101,7 @@ the JDK check, `git.properties` and `build-info.properties`.
   </dependencyManagement>
 
   <dependencies>
-    <!-- No <version>: stratum-bom manages every Stratum module. -->
+    <!-- No <version>: stratum-bom manages every published Stratum module. -->
     <dependency>
       <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-webmvc</artifactId>
@@ -243,7 +243,7 @@ itself, sets Java 25 and writes the plugin versions.
   </dependencyManagement>
 
   <dependencies>
-    <!-- No <version>: stratum-bom manages every Stratum module. -->
+    <!-- No <version>: stratum-bom manages every published Stratum module. -->
     <dependency>
       <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-webmvc</artifactId>

@@ -59,7 +59,7 @@ MVC, logging, observability, the HTTP client and the cache.
   <version>1.0.0-SNAPSHOT</version>
 
   <dependencies>
-    <!-- No <version>: stratum-parent manages every Stratum module. -->
+    <!-- No <version>: stratum-parent manages every published Stratum module. -->
     <dependency>
       <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-webmvc</artifactId>
