@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.restclient.DownstreamException;
+import com.exepex.stratum.restclient.testsupport.CallChecks;
 import com.exepex.stratum.restclient.testsupport.ClientBeanCalls;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import com.exepex.stratum.restclient.testsupport.errors.ErrorDownstream;
@@ -118,17 +119,9 @@ class ErrorBodyDrainIntegrationTest {
         .isLessThan(RestClientTestData.FAILS_WITHIN);
   }
 
-  /**
-   * Returns how many connections a check's call left the client to open: 0 when it gave its
-   * connection back, 1 when it dropped it. A small error call runs first, so that the check's call
-   * finds a connection to reuse, and after, so that it shows whether that one is still there.
-   */
+  /** Returns the connections opened after a check's call, as {@link CallChecks} counts them. */
   private int connectionsOpenedAfter(Runnable check) {
-    smallError();
-    var before = DOWNSTREAM.connections();
-    check.run();
-    smallError();
-    return DOWNSTREAM.connections() - before;
+    return CallChecks.connectionsOpenedAfter(DOWNSTREAM::connections, this::smallError, check);
   }
 
   /** Makes a call whose error body is small, which keeps its connection. */

@@ -20,7 +20,7 @@ import org.springframework.http.HttpStatus;
  * {@code spring.http.clients.imperative.factory} is {@code jdk}. And it gives each code a call to
  * another service can end with its HTTP status in {@code stratum.web.error.statuses}: 504 for a
  * timeout, 503 when the service cannot be reached or its circuit breaker is open, 500 when a client
- * that relays the caller's token has none.
+ * that relays the caller's token has none, an interceptor's body or an answer is too large.
  */
 @StratumInternal
 public class RestClientEnvironmentPostProcessor implements EnvironmentPostProcessor, Ordered {
@@ -39,6 +39,8 @@ public class RestClientEnvironmentPostProcessor implements EnvironmentPostProces
           HttpClientConstants.errorStatus(HttpClientErrorCode.CALLER_TOKEN_MISSING.getCode()),
           HttpStatus.INTERNAL_SERVER_ERROR.value(),
           HttpClientConstants.errorStatus(HttpClientErrorCode.INTERCEPTOR_BODY_TOO_LARGE.getCode()),
+          HttpStatus.INTERNAL_SERVER_ERROR.value(),
+          HttpClientConstants.errorStatus(HttpClientErrorCode.RESPONSE_TOO_LARGE.getCode()),
           HttpStatus.INTERNAL_SERVER_ERROR.value());
 
   /**

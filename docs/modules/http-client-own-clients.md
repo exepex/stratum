@@ -205,11 +205,13 @@ default: each attempt waits for the answer at most `timeout` or the time left, w
 call does. To call a slow service, raise `total-timeout` for that client or under `defaults`, for example to 30s.
 
 An error answer is read inside its attempt, at most 64 KB, and its connection freed before any wait for the next
-attempt, as an interface's is. A success answer is handed over unread after the last attempt. A body still arriving
-when `total-timeout` runs out is cut off: `body(...)` throws Spring's `RestClientException` caused by
-`SocketTimeoutException`, and a stream you read yourself in `exchange(...)` throws the `SocketTimeoutException`.
-Neither is retried or counted. `toBodilessEntity()` returns the status and headers. For large downloads, raise
-`total-timeout` for that client, or use an interface method that returns `InputStream`.
+attempt, as an interface's is. A success answer is handed over unread after the last attempt, and read up to
+`response-body-limit`, 32 MB by default: a larger one fails with Spring's `RestClientException`, whose cause's message
+starts with `SX-HTTPC-0006`, and is not retried ([errors](http-client-errors.md#the-answer-body-is-read-up-to-32-mb)).
+A body still arriving when `total-timeout` runs out is cut off: `body(...)` throws Spring's `RestClientException`
+caused by `SocketTimeoutException`, and a stream you read yourself in `exchange(...)` throws the
+`SocketTimeoutException`. Neither is retried or counted. `toBodilessEntity()` returns the status and headers. For large
+downloads, raise `total-timeout` for that client, or use an interface method that returns `InputStream`.
 
 ## What differs from an interface
 

@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.util.Optional;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.apache.hc.core5.http.io.entity.ByteArrayEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -35,6 +36,9 @@ final class MockRequestFactory implements ClientHttpRequestFactory {
 
   /** The client's {@code timeout}, the longest wait for an answer. */
   private final Duration timeout;
+
+  /** The client's {@code response-body-limit}, in bytes, or -1 for none. */
+  private final long responseBodyLimit;
 
   /** The answers of every mocked client. */
   private final MockAnswers answers;
@@ -95,16 +99,23 @@ final class MockRequestFactory implements ClientHttpRequestFactory {
               .orElse(null);
       var answer = answers.answer(client, call);
       await(answer.delay());
-      return new MockResponse(answer);
+      // Read here, inside the attempt, as the pool's handler does (ResponseBodyLimit).
+      var limited =
+          responseBodyLimit != HttpClientConstants.NO_RESPONSE_BODY_LIMIT.toBytes()
+              && !AttemptTimeLeft.keepsAnswerTimeout();
+      return new MockResponse(client, answer, limited ? responseBodyLimit : -1);
     }
   }
 
   /**
    * The answer of a mocked call.
    *
+   * @param client the client's name
    * @param answer the answer
+   * @param bodyLimit the most of a successful body that is read, or -1 for no limit
    */
-  private record MockResponse(MockAnswer answer) implements ClientHttpResponse {
+  private record MockResponse(String client, MockAnswer answer, long bodyLimit)
+      implements ClientHttpResponse {
 
     @Override
     public HttpStatusCode getStatusCode() {
@@ -125,15 +136,18 @@ final class MockRequestFactory implements ClientHttpRequestFactory {
     }
 
     @Override
-    public InputStream getBody() {
+    public InputStream getBody() throws IOException {
       var bytes = answer.body().getBytes(StandardCharsets.UTF_8);
-      // An error body is cut as a real one is (ErrorBodyLimit), so a test sees what production
-      // sees.
-      var length =
-          answer.status().isError()
-              ? Math.min(bytes.length, HttpClientConstants.ERROR_BODY_LIMIT)
-              : bytes.length;
-      return new ByteArrayInputStream(bytes, 0, length);
+      // A body is limited as a real one is (ErrorBodyLimit, ResponseBodyLimit), so a test sees what
+      // production sees.
+      if (answer.status().isError()) {
+        return new ByteArrayInputStream(
+            bytes, 0, Math.min(bytes.length, HttpClientConstants.ERROR_BODY_LIMIT));
+      }
+      return bodyLimit < 0
+          ? new ByteArrayInputStream(bytes)
+          : LimitedAnswerEntity.failingPast(new ByteArrayEntity(bytes, null), bodyLimit, client)
+              .getContent();
     }
 
     @Override

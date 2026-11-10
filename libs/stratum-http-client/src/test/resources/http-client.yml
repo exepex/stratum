@@ -30,6 +30,7 @@ stratum:
           - X-Request-Origin
         interceptor-body-limit: 8MB
         call-log: all
+        response-body-limit: 64MB
         interfaces:
           - com.partner.OrdersApi
           - com.partner.CustomersApi

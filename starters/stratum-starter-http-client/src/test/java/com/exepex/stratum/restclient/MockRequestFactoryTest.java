@@ -31,9 +31,12 @@ class MockRequestFactoryTest {
   /** The answers, with a 300ms delay scripted for the method. */
   private final MockAnswers answers = RestClientTestData.answersWithoutMapper();
 
+  /** The factory's response-body-limit: 256 KB, above every body but the one over it. */
+  private static final int LIMIT = 256 * 1024;
+
   /** The factory under test, with a client timeout far above the delay. */
   private final MockRequestFactory factory =
-      new MockRequestFactory(RestClientTestData.PAYMENTS, RestClientTestData.WAIT, answers);
+      new MockRequestFactory(RestClientTestData.PAYMENTS, RestClientTestData.WAIT, LIMIT, answers);
 
   @Nested
   @DisplayName("in its delay")
@@ -94,6 +97,52 @@ class MockRequestFactoryTest {
     }
   }
 
+  @Nested
+  @DisplayName("in its successful body")
+  class SuccessfulBody {
+
+    @Test
+    @DisplayName("a body over response-body-limit fails with SX-HTTPC-0006, as a real one does")
+    void bodyOverLimitFails() {
+      scriptBodyOverLimit();
+
+      assertThatExceptionOfType(IOException.class)
+          .isThrownBy(MockRequestFactoryTest.this::bodyLength)
+          .withMessageStartingWith("SX-HTTPC-0006: the answer to client payments");
+    }
+
+    @Test
+    @DisplayName("a streamed download's body is not limited")
+    void streamedDownloadNotLimited() {
+      scriptBodyOverLimit();
+
+      assertThat(
+              AttemptTimeLeft.runWithin(
+                  deadline(), true, new AtomicReference<>(), MockRequestFactoryTest.this::length))
+          .isEqualTo(LIMIT + 1);
+    }
+
+    @Test
+    @DisplayName("with response-body-limit: -1, a body of any size is read")
+    void noLimit() throws IOException {
+      scriptBodyOverLimit();
+      var unlimited =
+          new MockRequestFactory(RestClientTestData.PAYMENTS, RestClientTestData.WAIT, -1, answers);
+
+      try (var response = execute(unlimited)) {
+        assertThat(response.getBody().readAllBytes()).hasSize(LIMIT + 1);
+      }
+    }
+
+    /** Scripts a 200 whose body is one byte over the limit. */
+    private void scriptBodyOverLimit() {
+      answers.script(
+          RestClientTestData.PAYMENTS,
+          METHOD,
+          MockAnswer.text(HttpStatus.OK, "x".repeat(LIMIT + 1)));
+    }
+  }
+
   /** Scripts a 200 that takes longer than the time left. */
   private void scriptDelayedAnswer() {
     answers.script(
@@ -118,14 +167,28 @@ class MockRequestFactoryTest {
 
   /** Sends one call of the method and returns the length of the body it reads. */
   private int bodyLength() throws IOException {
-    try (var response = execute()) {
+    try (var response = execute(factory)) {
       return response.getBody().readAllBytes().length;
+    }
+  }
+
+  /** Sends one call of the method and returns the length of its body, failing unchecked. */
+  private int length() {
+    try {
+      return bodyLength();
+    } catch (IOException failure) {
+      throw new UncheckedIOException(failure);
     }
   }
 
   /** Sends one call of the method and returns its answer. */
   private ClientHttpResponse execute() throws IOException {
-    var request = factory.createRequest(URI.create("http://payments/files"), HttpMethod.GET);
+    return execute(factory);
+  }
+
+  /** Sends one call of the method through a factory and returns its answer. */
+  private ClientHttpResponse execute(MockRequestFactory requestFactory) throws IOException {
+    var request = requestFactory.createRequest(URI.create("http://payments/files"), HttpMethod.GET);
     request.getAttributes().put(MockAnswers.METHOD_ATTRIBUTE, new MockCall(METHOD, false));
     return request.execute();
   }
