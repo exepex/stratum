@@ -42,20 +42,20 @@ stratum/
 │   ├── stratum-test/               # test support for services
 │   └── stratum-web/                # what both web starters share: settings, error format
 ├── starters/
-│   ├── stratum-starter-batch/      # bundle: data-jpa, logging, observability
+│   ├── stratum-starter-batch/      # bundle: logging, observability
 │   ├── stratum-starter-cache/
 │   ├── stratum-starter-cli/        # bundle: logging
 │   ├── stratum-starter-data-jpa/
 │   ├── stratum-starter-http-client/
 │   ├── stratum-starter-kafka/
 │   ├── stratum-starter-logging/
-│   ├── stratum-starter-microservice/ # bundle: webmvc, logging, observability, http-client, resilience, security
+│   ├── stratum-starter-microservice/ # bundle: webmvc, logging, observability, http-client, cache
 │   ├── stratum-starter-oauth2-client/
 │   ├── stratum-starter-observability/
-│   ├── stratum-starter-reactive-microservice/ # bundle: webflux, logging, observability, resilience, security
+│   ├── stratum-starter-reactive-microservice/ # bundle: webflux, logging, observability
 │   ├── stratum-starter-resilience/
 │   ├── stratum-starter-security/
-│   ├── stratum-starter-web-ui/     # bundle: webmvc, logging, observability, security
+│   ├── stratum-starter-web-ui/     # bundle: webmvc, logging, observability
 │   ├── stratum-starter-webflux/
 │   └── stratum-starter-webmvc/
 └── docs/                           # this documentation

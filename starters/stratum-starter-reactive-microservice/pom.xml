@@ -21,7 +21,7 @@
   <artifactId>stratum-starter-reactive-microservice</artifactId>
 
   <name>Stratum bundle: reactive microservice</name>
-  <description>Bundle for a reactive REST microservice: WebFlux, logging, observability, resilience and security.</description>
+  <description>Bundle for a reactive REST microservice: WebFlux, logging and observability.</description>
 
   <!-- Keep the starters sorted by name. -->
   <!-- No HTTP client starter until the reactive one exists: the blocking one would give a
@@ -34,14 +34,6 @@
     <dependency>
       <groupId>com.exepex.stratum</groupId>
       <artifactId>stratum-starter-observability</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.exepex.stratum</groupId>
-      <artifactId>stratum-starter-resilience</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.exepex.stratum</groupId>
-      <artifactId>stratum-starter-security</artifactId>
     </dependency>
     <dependency>
       <groupId>com.exepex.stratum</groupId>

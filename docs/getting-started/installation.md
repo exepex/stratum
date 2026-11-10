@@ -1,7 +1,7 @@
 # Installation
 
-**Status: Partly built.** How to add Stratum to a service, new or existing. The parent, the BOM and the
-module switches are built; the bundles are built as POMs and not released.
+**Status: Built, not released.** How to add Stratum to a service, new or existing. The parent POM, the
+BOM and the starters used below exist, but no version is published yet.
 
 [← Documentation home](../README.md)
 
@@ -18,74 +18,26 @@ module switches are built; the bundles are built as POMs and not released.
 
 ## Step 1: choose how your service gets Stratum's versions
 
-There are two options. Both give you the same tested versions; they differ in what else you get.
+There are two ways. Both give you the same tested versions; they differ in what else you get.
 
-| | Option A: parent POM | Option B: BOM import |
+| | Stratum as the parent | Stratum as a dependency |
 | --- | --- | --- |
-| Use when | You start a new service, or your `pom.xml` has no parent | Your `pom.xml` already has a parent you must keep, such as your company's parent |
+| Use when | You start a new service, or your `pom.xml` has no parent | Your `pom.xml` must keep its parent: `spring-boot-starter-parent` or your company's parent |
+| What you add | `stratum-parent` as the `<parent>` | `stratum-bom` imported in `<dependencyManagement>` |
 | Dependency versions | Managed | Managed |
-| Java 25 compiler settings | Set for you | You set them |
-| Plugin versions and quality gates | Set for you | You set them |
-| Spring Boot version | Set by Stratum | Set by your parent |
-| Recommended | **Yes** | When A is not possible |
+| Java 25 | Set for you | You set one property |
+| Build info, Git info and the JDK 25 check | Set for you | You add three plugins |
+| Stratum's quality checks | Set for you | Not available yet |
+| Spring Boot version | Set by Stratum | Set by your parent, and it must be 4.1.x |
+| Recommended | **Yes** | When the parent cannot change |
+| Guide, with a complete `pom.xml` | [Stratum as your parent POM](with-stratum-parent.md) | [Stratum as a dependency, under another parent](with-stratum-bom.md) |
 
-### Option A: inherit `stratum-parent`
-
-```xml
-<project>
-  <modelVersion>4.0.0</modelVersion>
-
-  <parent>
-    <groupId>com.exepex.stratum</groupId>
-    <artifactId>stratum-parent</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
-    <relativePath/> <!-- look the parent up in the repository, not on disk -->
-  </parent>
-
-  <groupId>com.acme.orders</groupId>
-  <artifactId>order-service</artifactId>
-  <version>1.0.0-SNAPSHOT</version>
-</project>
-```
-
-`stratum-parent` itself inherits Spring Boot's parent, so everything a Spring Boot parent gives you
-(the `spring-boot-maven-plugin`, resource filtering, and so on) still works.
-
-### Option B: import `stratum-bom`
-
-```xml
-<dependencyManagement>
-  <dependencies>
-    <dependency>
-      <groupId>com.exepex.stratum</groupId>
-      <artifactId>stratum-bom</artifactId>
-      <version>0.1.0-SNAPSHOT</version>
-      <type>pom</type>
-      <scope>import</scope>
-    </dependency>
-  </dependencies>
-</dependencyManagement>
-```
-
-The BOM does not set Spring Boot's versions; your parent does. If your parent extends
-`spring-boot-starter-parent`, as most company parents do, there is nothing more to add. If it does
-not, also import `spring-boot-dependencies` at the version in the
-[compatibility table](../guides/upgrading.md#compatibility).
-
-If your parent belongs to a company framework with its own starters, read
+If your parent belongs to a company framework with its own starters, also read
 [Using Stratum with a company framework](../guides/company-framework.md). It explains which bean wins
 when both frameworks provide one, how to turn off a Stratum module that overlaps, and how a team can
 fork Stratum to put it under the company parent.
 
-With the BOM you also set the Java version yourself:
-
-```xml
-<properties>
-  <maven.compiler.release>25</maven.compiler.release>
-</properties>
-```
-
-What each option contains in detail: [Parent POM and BOM](../modules/parent-and-bom.md).
+What the parent and the BOM contain in detail: [Parent POM and BOM](../modules/parent-and-bom.md).
 
 ## Step 2: add the starters you need
 
@@ -97,16 +49,16 @@ service does. You can add more later.
 | Your service... | Add |
 | --- | --- |
 | Exposes a REST API | `stratum-starter-webmvc` (or `stratum-starter-webflux` if it is reactive), `stratum-starter-observability`, `stratum-starter-logging` |
-| Requires a valid token on its API | `stratum-starter-security` |
+| Requires a valid token on its API | `stratum-starter-security` (**planned**: it brings no dependency yet) |
 | Calls other services over HTTP | `stratum-starter-http-client`, which gives each client its own timeouts, connection pool, retries and circuit breaker |
 | Calls secured services | `stratum-starter-oauth2-client` |
-| Uses a relational database | `stratum-starter-data-jpa` |
+| Uses a relational database | `stratum-starter-data-jpa` (partly built) |
 | Caches results | `stratum-starter-cache` |
-| Produces or consumes Kafka messages | `stratum-starter-kafka` |
-| Uses cloud storage, queues or secrets | `stratum-starter-cloud-<provider>` |
+| Produces or consumes Kafka messages | `stratum-starter-kafka` (**planned**) |
+| Uses cloud storage, queues or secrets | `stratum-starter-cloud-<provider>` (**planned**) |
 | Has tests (every service) | `stratum-test` with `<scope>test</scope>` |
 
-A typical REST service that calls one other service:
+A typical REST service that calls other services and caches results, with built starters only:
 
 ```xml
 <dependencies>
@@ -124,11 +76,11 @@ A typical REST service that calls one other service:
   </dependency>
   <dependency>
     <groupId>com.exepex.stratum</groupId>
-    <artifactId>stratum-starter-security</artifactId>
+    <artifactId>stratum-starter-http-client</artifactId>
   </dependency>
   <dependency>
     <groupId>com.exepex.stratum</groupId>
-    <artifactId>stratum-starter-http-client</artifactId>
+    <artifactId>stratum-starter-cache</artifactId>
   </dependency>
 
   <dependency>
@@ -155,7 +107,7 @@ Rules that keep you out of trouble:
 ## Step 3: set the minimum configuration
 
 Every service must have a name. Stratum uses it in logs, metrics, traces and cache keys. Each module
-you added is already on, so the name is the only line the REST service above needs:
+you added is already on, so you write no line to switch one on:
 
 ```yaml
 # src/main/resources/application.yml
@@ -177,7 +129,7 @@ that module off instead:
 | --- | --- |
 | `stratum-starter-logging` | `spring.application.name` |
 | `stratum-starter-observability` | `management.otlp.metrics.export.url` and `management.opentelemetry.tracing.export.otlp.endpoint`, in every profile |
-| `stratum-starter-security` | `stratum.security.resource-server.issuer-uri` |
+| `stratum-starter-security` (**planned**) | `stratum.security.resource-server.issuer-uri` |
 | `stratum-starter-http-client` | `stratum.http-client.clients.<name>.url` for each client |
 | `stratum-starter-data-jpa` | `spring.datasource.url`, `username`, `password` |
 | `stratum-starter-cache` | `spring.application.name`, with Spring Data Redis, unless you set `spring.cache.redis.key-prefix` |
@@ -196,10 +148,11 @@ curl -s localhost:8080/actuator/health
 # {"status":"UP"}
 ```
 
-The startup log tells you which Stratum modules are active:
+Every module whose starter you added is on. If you turned one off, the startup log names it in one
+INFO line, with the property that turned it off:
 
 ```text
-Stratum 0.1.0 active modules: web, logging, observability, security, http-client
+Stratum modules present but off: cache (stratum.cache.enabled=false)
 ```
 
 If something is not what you expect, see [Troubleshooting](../guides/troubleshooting.md).

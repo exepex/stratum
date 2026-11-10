@@ -244,16 +244,17 @@ troubleshoot it.
 One dependency per kind of application; each lists only the single starters that kind needs. See
 [Bundle starters](docs/modules/bundles.md).
 
-The security starter is planned and brings no dependency yet. Once it is built, a bundle with
-`security` will put Spring Security on the classpath with the security module on. See
-[Security](docs/modules/security.md).
+A bundle lists only single starters that have code. The security, resilience and data-jpa
+starters join no bundle until they are built. The microservice bundle's cache starter caches
+`@Cacheable` methods in bounded Caffeine caches, or in Redis once the service adds it
+([Cache](docs/modules/cache.md)).
 
 | Bundle | Single starters it adds |
 | --- | --- |
-| `stratum-starter-microservice` | webmvc, logging, observability, http-client, resilience, security |
-| `stratum-starter-reactive-microservice` | webflux, logging, observability, resilience, security |
-| `stratum-starter-web-ui` | webmvc, logging, observability, security |
-| `stratum-starter-batch` | data-jpa, logging, observability |
+| `stratum-starter-microservice` | webmvc, logging, observability, http-client, cache |
+| `stratum-starter-reactive-microservice` | webflux, logging, observability |
+| `stratum-starter-web-ui` | webmvc, logging, observability |
+| `stratum-starter-batch` | logging, observability |
 | `stratum-starter-cli` | logging |
 
 ### Starters
