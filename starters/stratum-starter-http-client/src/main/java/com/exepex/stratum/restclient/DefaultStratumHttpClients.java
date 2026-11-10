@@ -13,7 +13,8 @@ import org.springframework.web.client.RestClient;
 /**
  * Builds each client's {@code RestClient} once, as Spring Boot builds a client group: Spring Boot's
  * {@link RestClientCustomizer} beans first, such as the one that records each call, then Stratum's
- * set-up.
+ * set-up, with the client's retries and circuit breaker. It is also the client's {@code RestClient}
+ * bean.
  */
 @StratumInternal
 @RequiredArgsConstructor
@@ -57,7 +58,7 @@ public class DefaultStratumHttpClients implements StratumHttpClients {
   private RestClient build(String client) {
     var builder = RestClient.builder();
     restClientCustomizers.orderedStream().forEach(customizer -> customizer.customize(builder));
-    builders.configure(client, builder);
+    builders.configureBean(client, builder);
     return builder.build();
   }
 }

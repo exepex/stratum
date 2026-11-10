@@ -6,14 +6,16 @@ import org.springframework.web.client.RestClient;
 /**
  * Gives clients that Stratum did not build, such as a generated client that takes a {@code
  * RestClient} or a vendor SDK with its own engine, a Stratum client's settings. Inject it as {@code
- * stratumHttpClients}.
+ * stratumHttpClients}, for a client known by name only at run time; otherwise inject the client's
+ * {@code RestClient} or {@code RestTemplate} bean, qualified with the client's name.
  */
 public interface StratumHttpClients {
 
   /**
-   * Returns the {@code RestClient} of a client: its address, timeouts and connection pool, which it
-   * shares with the client's interfaces, and the service's customizers. It sends each call once; it
-   * does not retry.
+   * Returns the {@code RestClient} of a client, the same object as its {@code RestClient} bean: its
+   * address, timeouts, connection pool and credential, which it shares with the client's
+   * interfaces, and the service's customizers. It retries calls without a body under the client's
+   * retry rules, guarded by its circuit breaker; a call with a body is sent once.
    *
    * @param client the client's name, as under {@code stratum.http-client.clients}
    * @return the client, the same one on every call

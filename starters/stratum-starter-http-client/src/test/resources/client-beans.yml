@@ -1,0 +1,9 @@
+# The audit client of the client beans tests, set in YAML; client-beans.properties sets the same.
+stratum:
+  http-client:
+    clients:
+      audit:
+        url: ${audit-url}
+        retry:
+          max-retries: 1
+          delay: 10ms

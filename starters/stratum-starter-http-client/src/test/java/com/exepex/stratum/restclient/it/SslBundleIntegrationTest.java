@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
+import com.exepex.stratum.restclient.testsupport.ClientBeanCalls;
+import com.exepex.stratum.restclient.testsupport.ClientBeanCalls.ClientBean;
 import com.exepex.stratum.restclient.testsupport.GeneratedKeyStores;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import com.exepex.stratum.restclient.testsupport.ScriptedDownstream;
@@ -27,8 +29,11 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
@@ -144,6 +149,18 @@ class SslBundleIntegrationTest {
     inventoryClient.stock();
 
     assertThat(bank.clientSubjects()).contains(FIRST_SUBJECT);
+  }
+
+  @ParameterizedTest
+  @FieldSource(ClientBeanCalls.BOTH_BEANS)
+  @DisplayName("the client's RestClient and RestTemplate beans present the bundle's certificate")
+  void beansSendClientCertificate(ClientBean bean, @Autowired ApplicationContext context) {
+    var callsBefore = bank.clientSubjects().size();
+
+    ClientBeanCalls.get(context, bean, RestClientTestData.INVENTORY, ScriptedDownstream.STOCK);
+
+    var subjects = bank.clientSubjects();
+    assertThat(subjects.subList(callsBefore, subjects.size())).containsExactly(FIRST_SUBJECT);
   }
 
   @Test

@@ -6,11 +6,30 @@ import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.ClientHttpRequestInitializer;
 import org.springframework.web.client.RestClient;
 
 /** How a client's calls reach its service: through its pool, or answered by its mocks. */
 sealed interface ClientTransport {
+
+  /**
+   * Returns the request factory the client's calls go through: its pool, or its mocks.
+   *
+   * @param client the client's name
+   * @param settings the client's settings
+   * @return the request factory
+   */
+  ClientHttpRequestFactory requestFactory(String client, ClientSettings settings);
+
+  /**
+   * Returns what sets the client's credential on each request, when its calls leave the service.
+   *
+   * @param client the client's name
+   * @param settings the client's settings
+   * @return the credential's initializer, or empty when the client sends none
+   */
+  Optional<ClientHttpRequestInitializer> credential(String client, ClientSettings settings);
 
   /**
    * Sets the client's request factory, and its credential when calls leave the service.
@@ -19,7 +38,10 @@ sealed interface ClientTransport {
    * @param settings the client's settings
    * @param builder the client's builder
    */
-  void setUp(String client, ClientSettings settings, RestClient.Builder builder);
+  default void setUp(String client, ClientSettings settings, RestClient.Builder builder) {
+    builder.requestFactory(requestFactory(client, settings));
+    credential(client, settings).ifPresent(builder::requestInitializer);
+  }
 
   /**
    * Returns the transport of a client: its mocks with {@code mock: true}, its pool otherwise.
@@ -51,11 +73,15 @@ sealed interface ClientTransport {
     private final ObjectProvider<TokenInitializers> tokenInitializers;
 
     @Override
-    public void setUp(String client, ClientSettings settings, RestClient.Builder builder) {
-      builder.requestFactory(pools.requestFactory(client, settings));
-      Optional.ofNullable(settings.auth())
-          .flatMap(auth -> authInitializer(client, settings, auth))
-          .ifPresent(builder::requestInitializer);
+    public ClientHttpRequestFactory requestFactory(String client, ClientSettings settings) {
+      return pools.requestFactory(client, settings);
+    }
+
+    @Override
+    public Optional<ClientHttpRequestInitializer> credential(
+        String client, ClientSettings settings) {
+      return Optional.ofNullable(settings.auth())
+          .flatMap(auth -> authInitializer(client, settings, auth));
     }
 
     /**
@@ -89,9 +115,15 @@ sealed interface ClientTransport {
     private final MockAnswers mockAnswers;
 
     @Override
-    public void setUp(String client, ClientSettings settings, RestClient.Builder builder) {
-      builder.requestFactory(
-          new MockRequestFactory(client, Objects.requireNonNull(settings.timeout()), mockAnswers));
+    public ClientHttpRequestFactory requestFactory(String client, ClientSettings settings) {
+      return new MockRequestFactory(
+          client, Objects.requireNonNull(settings.timeout()), mockAnswers);
+    }
+
+    @Override
+    public Optional<ClientHttpRequestInitializer> credential(
+        String client, ClientSettings settings) {
+      return Optional.empty();
     }
   }
 }

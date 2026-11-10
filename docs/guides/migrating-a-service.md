@@ -100,7 +100,9 @@ client its own timeouts, connection pool, retries and circuit breaker. A client'
    `max-retries` is one less, and `wait-duration` becomes `delay`. A client written for an earlier Stratum moves `retries`, `retry-delay` and
    `circuit-breaker: true|false` to `retry.max-retries`, `retry.delay` and `circuit-breaker.enabled`
    ([retries and the circuit breaker](../modules/http-client-resilience.md#moving-from-the-old-keys)).
-3. Delete the old `RestTemplate` or `RestClient` bean and its interceptors.
+3. Delete the old `RestTemplate` or `RestClient` bean and its interceptors. Code that keeps a `RestTemplate` or
+   `RestClient`, such as a generated client, injects the client's own bean instead
+   ([clients Stratum did not build](../modules/http-client-own-clients.md)).
 
 Check: timeouts are what you expect. Trace and correlation headers on these calls are planned
 ([HTTP client → Planned](../modules/http-client.md#planned)).
@@ -210,7 +212,7 @@ tests to `*IntegrationTest.java` so they run in `mvn verify`.
 | Logback XML, encoders, MDC filters | `stratum-starter-logging` |
 | Error advice, correlation filter | `stratum-starter-webmvc` or `stratum-starter-webflux` |
 | `SecurityFilterChain`, `JwtDecoder`, converters | `stratum-starter-security` |
-| `RestTemplate` beans, interceptors, timeout config | `stratum-starter-http-client` |
+| `RestTemplate` beans, interceptors, timeout config | `stratum-starter-http-client`, and the client's own `RestTemplate` or `RestClient` bean ([clients Stratum did not build](../modules/http-client-own-clients.md)) |
 | Retry loops, circuit breaker config | `stratum-starter-resilience` |
 | PostgreSQL and Redis test containers | `stratum-test` |
 | Dozens of `<version>` tags | `stratum-parent` or `stratum-bom` |

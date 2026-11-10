@@ -58,7 +58,7 @@ public class CallChecks {
   }
 
   /**
-   * Checks that a call of a client's interface ends with one of the HTTP client's codes.
+   * Checks that a call of a client's interface or bean ends with one of the HTTP client's codes.
    *
    * @param call the call
    * @param code the code it must end with

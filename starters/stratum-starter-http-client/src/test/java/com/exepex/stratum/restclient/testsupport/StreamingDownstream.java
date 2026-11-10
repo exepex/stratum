@@ -15,6 +15,7 @@ import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Builder;
 import org.jspecify.annotations.Nullable;
@@ -58,6 +59,9 @@ public final class StreamingDownstream implements AutoCloseable {
 
   /** How the last upload came. */
   private final AtomicReference<@Nullable Upload> uploads = new AtomicReference<>();
+
+  /** The bytes of every upload received so far, counted as they arrive. */
+  private final AtomicLong receivedByteCount = new AtomicLong();
 
   /** Opens the server on the loopback address, with a virtual thread per exchange. */
   private StreamingDownstream() throws IOException {
@@ -113,6 +117,16 @@ public final class StreamingDownstream implements AutoCloseable {
     return uploads.get();
   }
 
+  /**
+   * Returns the bytes of every upload received so far, counted as they arrive, so a test sees an
+   * upload reach the server while it is still being written.
+   *
+   * @return the bytes received
+   */
+  public long receivedBytes() {
+    return receivedByteCount.get();
+  }
+
   @Override
   public void close() {
     closed.countDown();
@@ -144,7 +158,7 @@ public final class StreamingDownstream implements AutoCloseable {
   /** Reads an upload to the end and answers 200 with {@code ok}. */
   private void takeUpload(HttpExchange exchange) throws IOException {
     var headers = exchange.getRequestHeaders();
-    long size = exchange.getRequestBody().transferTo(OutputStream.nullOutputStream());
+    long size = exchange.getRequestBody().transferTo(new CountingSink());
     uploads.set(
         Upload.builder()
             .transferEncoding(headers.getFirst("Transfer-Encoding"))
@@ -175,6 +189,20 @@ public final class StreamingDownstream implements AutoCloseable {
     } catch (InterruptedException _) {
       Thread.currentThread().interrupt();
       return false;
+    }
+  }
+
+  /** Drops what it is given, and counts it as received. */
+  private final class CountingSink extends OutputStream {
+
+    @Override
+    public void write(int oneByte) {
+      receivedByteCount.incrementAndGet();
+    }
+
+    @Override
+    public void write(byte[] bytes, int offset, int length) {
+      receivedByteCount.addAndGet(length);
     }
   }
 

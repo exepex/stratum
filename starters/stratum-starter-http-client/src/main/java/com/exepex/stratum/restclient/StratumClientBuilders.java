@@ -1,18 +1,22 @@
 package com.exepex.stratum.restclient;
 
 import com.exepex.stratum.core.api.StratumInternal;
+import com.exepex.stratum.httpclient.ClientSettings;
 import com.exepex.stratum.httpclient.HttpClientProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.restclient.RestTemplateBuilder;
 import org.springframework.core.env.Environment;
+import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestTemplate;
 
 /**
- * Sets up the builder of one Stratum client: its address, connection pool and credential from
- * {@code stratum.http-client.*}, then the service's {@link StratumClientCustomizer} beans. A client
- * set to {@code mock: true} answers from {@link MockAnswers} instead of a pool, and sends no
- * credential. The one place both the client interfaces and {@link StratumHttpClients#restClient}
- * get their set-up from.
+ * Sets up one Stratum client: its address, connection pool and credential from {@code
+ * stratum.http-client.*}, then the service's {@link StratumClientCustomizer} beans. A client set to
+ * {@code mock: true} answers from {@link MockAnswers} instead of a pool, and sends no credential.
+ * The one place the client interfaces and the client's {@code RestClient} and {@code RestTemplate}
+ * beans get their set-up from; the beans also get the client's retries and circuit breaker.
  */
 @StratumInternal
 @RequiredArgsConstructor
@@ -36,8 +40,12 @@ public class StratumClientBuilders {
   /** The answers of the clients set to {@code mock: true}. */
   private final MockAnswers mockAnswers;
 
+  /** The retries and circuit breakers of the clients, which the beans' calls run through. */
+  private final ClientResilience resilience;
+
   /**
    * Sets one client's address, pool and credential, after the checks, then applies the customizers.
+   * For a client interface, whose calls get their retries around each call instead.
    *
    * @param client the client's name
    * @param builder the client's builder
@@ -45,11 +53,79 @@ public class StratumClientBuilders {
    *     group setting is set for the client, or {@code SX-HTTPC-1004} if it has no address
    */
   public void configure(String client, RestClient.Builder builder) {
-    StratumClientChecks.checkNoBootSettings(environment, client);
     var settings = properties.clientSettings(client);
-    builder.baseUrl(StratumClientChecks.requireUrl(client, settings));
-    ClientTransport.of(settings, pools, tokenInitializers, mockAnswers)
-        .setUp(client, settings, builder);
+    builder.baseUrl(checkedUrl(client, settings));
+    transport(settings).setUp(client, settings, builder);
+    customize(client, builder);
+  }
+
+  /**
+   * Sets up the builder of a client's {@code RestClient} bean: as {@link #configure}, with each
+   * call run through the client's retries and circuit breaker, and its credential set on each
+   * attempt.
+   *
+   * @param client the client's name
+   * @param builder the client's builder
+   * @throws com.exepex.stratum.core.error.StratumException {@code SX-HTTPC-1001} if a Spring Boot
+   *     group setting is set for the client, or {@code SX-HTTPC-1004} if it has no address
+   */
+  public void configureBean(String client, RestClient.Builder builder) {
+    var settings = properties.clientSettings(client);
+    builder
+        .baseUrl(checkedUrl(client, settings))
+        .requestFactory(resilientRequestFactory(client, settings));
+    customize(client, builder);
+  }
+
+  /**
+   * Builds a client's {@code RestTemplate} bean: its address, and its calls run through the
+   * client's request factory with its retries, circuit breaker and credential, then each
+   * customizer's {@link StratumClientCustomizer#customizeRestTemplate}, in their order.
+   *
+   * @param client the client's name
+   * @param builder Spring Boot's builder, with its message converters and customizers
+   * @return the client's {@code RestTemplate}
+   * @throws com.exepex.stratum.core.error.StratumException {@code SX-HTTPC-1001} if a Spring Boot
+   *     group setting is set for the client, or {@code SX-HTTPC-1004} if it has no address
+   */
+  public RestTemplate restTemplate(String client, RestTemplateBuilder builder) {
+    var settings = properties.clientSettings(client);
+    var url = checkedUrl(client, settings);
+    var requestFactory = resilientRequestFactory(client, settings);
+    // The factory is handed over as built, so Spring Boot's own client settings cannot change it.
+    var configured = builder.baseUri(url).requestFactoryBuilder(_ -> requestFactory);
+    return customizers
+        .orderedStream()
+        .reduce(
+            configured,
+            (current, customizer) -> customizer.customizeRestTemplate(client, current),
+            (outer, inner) -> outer)
+        .build();
+  }
+
+  /** Applies each customizer's {@link StratumClientCustomizer#customize}, in their order. */
+  private void customize(String client, RestClient.Builder builder) {
     customizers.orderedStream().forEach(customizer -> customizer.customize(client, builder));
+  }
+
+  /** Checks a client's settings at startup, and returns its address. */
+  private String checkedUrl(String client, ClientSettings settings) {
+    StratumClientChecks.checkNoBootSettings(environment, client);
+    return StratumClientChecks.requireUrl(client, settings);
+  }
+
+  /** Returns the way a client's calls leave the service: its pool, or its mocks. */
+  private ClientTransport transport(ClientSettings settings) {
+    return ClientTransport.of(settings, pools, tokenInitializers, mockAnswers);
+  }
+
+  /** Returns a client's request factory with its retries, breaker and credential on each call. */
+  private ClientHttpRequestFactory resilientRequestFactory(String client, ClientSettings settings) {
+    var transport = transport(settings);
+    return new ResilientRequestFactory(
+        client,
+        transport.requestFactory(client, settings),
+        transport.credential(client, settings).stream().toList(),
+        resilience);
   }
 }
