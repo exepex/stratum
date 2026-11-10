@@ -161,6 +161,27 @@ class ResilienceSettingsTest {
 
     @Test
     @DisplayName(
+        "a client's breaker group that leaves the slow-call rule unset takes it from defaults")
+    void slowCallRuleFromDefaults() {
+      var environment =
+          SettingsChecks.environmentOf(
+              HttpClientTestData.DEFAULTS_BREAKER + SLOW_CALL_OF_2S,
+              HttpClientTestData.DEFAULTS_BREAKER + SLOW_CALL_RATE_OF_50,
+              HttpClientTestData.INVENTORY_BREAKER + ".enabled=true");
+
+      var settings =
+          HttpClientProperties.resolve(environment).clientSettings(HttpClientTestData.INVENTORY);
+
+      assertThat(settings.circuitBreaker())
+          .isEqualTo(
+              HttpClientTestData.STRATUM_CIRCUIT_BREAKER.toBuilder()
+                  .slowCallDurationThreshold(TightResilienceSettings.PAYMENTS_SLOW_CALL)
+                  .slowCallRateThreshold(TightResilienceSettings.PAYMENTS_SLOW_CALL_RATE)
+                  .build());
+    }
+
+    @Test
+    @DisplayName(
         "a customizer that changes defaults and one client wins over the files, and the client"
             + " takes its unset keys from the new defaults")
     void javaSettingsApply(@TempDir Path folder) throws IOException {
@@ -339,6 +360,12 @@ class ResilienceSettingsTest {
                     HttpClientTestData.DEFAULTS_RETRY + MAX_DELAY_OF_1S,
                     HttpClientTestData.INVENTORY_RETRY + ".backoff-policy=fixed",
                     HttpClientTestData.INVENTORY_RETRY + ".delay=2s")),
+            argumentSet(
+                "an exponential max-delay equal to its delay",
+                List.of(
+                    HttpClientTestData.INVENTORY_RETRY + ".backoff-policy=exponential",
+                    HttpClientTestData.INVENTORY_RETRY + ".delay=1s",
+                    HttpClientTestData.INVENTORY_RETRY + MAX_DELAY_OF_1S)),
             argumentSet(
                 "a client's slow-call rate with the shared duration",
                 List.of(

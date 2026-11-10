@@ -10,8 +10,8 @@ import lombok.experimental.UtilityClass;
 
 /**
  * Checks of a back-off's waits, which are spread at random: each wait is drawn many times and must
- * stay within the bounds of its policy, so that a right back-off always passes and a wrong one
- * fails on almost every run.
+ * stay within the bounds of its policy, and the first wait must not come out the same every time,
+ * so that a right back-off always passes and a wrong one fails on almost every run.
  */
 @UtilityClass
 public class BackOffChecks {
@@ -37,7 +37,7 @@ public class BackOffChecks {
 
   /**
    * Checks that every wait grows from {@code delay} by {@code multiplier}, spread by up to half,
-   * and stays at most {@code longest}.
+   * and stays at most {@code longest}, and that the first wait is spread at random.
    *
    * @param backOff the back-off: the wait, in milliseconds, before each attempt number from 1
    * @param delay the first wait before its spread
@@ -54,11 +54,12 @@ public class BackOffChecks {
                     attempt,
                     (double) delay.toMillis() * Math.pow(multiplier, attempt - 1.0),
                     longest.toMillis()));
+    assertFirstWaitSpread(backOff);
   }
 
   /**
    * Checks that every wait is {@code delay}, spread by up to half, however many attempts came
-   * before.
+   * before, and that the first wait is spread at random.
    *
    * @param backOff the back-off: the wait, in milliseconds, before each attempt number from 1
    * @param delay the wait before its spread
@@ -68,6 +69,7 @@ public class BackOffChecks {
         .forEach(
             attempt ->
                 assertWaitsWithin(backOff, attempt, (double) delay.toMillis(), Long.MAX_VALUE));
+    assertFirstWaitSpread(backOff);
   }
 
   /**
@@ -81,5 +83,16 @@ public class BackOffChecks {
 
     assertThat(IntStream.range(0, DRAWS).mapToLong(draw -> backOff.applyAsLong(attempt)))
         .allSatisfy(wait -> assertThat(wait).isBetween(least, most));
+  }
+
+  /**
+   * Checks that the first wait, drawn many times, is not always the same. Only the first, because a
+   * later exponential wait may reach the longest wait, where every draw is equal. A spread of half
+   * a 200ms or longer wait gives at least 200 possible values, so a right back-off draws one value
+   * 1000 times in a row with a chance below one in 10^2000.
+   */
+  private static void assertFirstWaitSpread(IntToLongFunction backOff) {
+    assertThat(IntStream.range(0, DRAWS).mapToLong(draw -> backOff.applyAsLong(1)).distinct())
+        .hasSizeGreaterThan(1);
   }
 }
