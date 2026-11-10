@@ -56,8 +56,9 @@ stands, ADR 0011 decision 4.4 included.
   that attempt's time left between bytes; a team that downloads large files through a bean raises `total-timeout`.
 - Without Spring Boot's `RestTemplateBuilder` bean, as in a WebFlux service, the `RestTemplate` has Spring's default
   converters and no span.
-- How the decision weighs (ST-AG-14): one extra request object per attempt and no body copy (speed); no thread hop
-  or lock (throughput); no log line added (log volume); two beans per client, and every dropped answer closed (memory
-  and leaks); nothing new read or logged (data leaks); the credential only as configured (security); the retry rules
+- How the decision weighs (ST-AG-14): one extra request object per attempt, a request body and a success answer
+  never copied, an error answer read at most 64 KB (speed); no thread hop or lock, and an error answer's connection
+  freed before any wait (throughput); no log line added (log volume); two beans per client, and every error answer
+  closed inside its attempt (memory and leaks); nothing new read or logged (data leaks); the credential only as configured (security); the retry rules
   in one place (maintainability); state per client only (scalability).
 - The documentation is [clients Stratum did not build](../modules/http-client-own-clients.md).

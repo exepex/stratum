@@ -3,6 +3,7 @@ package com.exepex.stratum.restclient.it;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.restclient.ClientConnectionPools;
@@ -14,6 +15,7 @@ import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import com.exepex.stratum.restclient.testsupport.ScriptedDownstream;
 import com.exepex.stratum.restclient.testsupport.StreamingDownstream;
 import com.exepex.stratum.restclient.testsupport.clients.ClientsApplication;
+import com.exepex.stratum.restclient.testsupport.clients.FlakyInventory;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.SocketTimeoutException;
@@ -21,6 +23,8 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import org.apache.hc.core5.http.ConnectionRequestTimeoutException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.AutoClose;
@@ -33,15 +37,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 /**
  * Each client of this test shows one timeout through its beans: held a pool of one with a short
  * total-timeout, hung a second attempt with less time left than its timeout, stalled a body read
- * with a total-timeout far below its timeout, and slow its own timeout next to Spring Boot's.
+ * with a total-timeout far below its timeout, and slow its own timeout next to Spring Boot's;
+ * inventory has a pool of one, for the wait between attempts.
  */
 @SpringBootTest(
     classes = ClientsApplication.class,
@@ -55,6 +62,9 @@ import org.springframework.web.client.RestClientException;
       ClientBeansTimeoutIntegrationTest.STALLED_SETTINGS + ".total-timeout=300ms",
       ClientBeansTimeoutIntegrationTest.SLOW_SETTINGS + ".retry.max-retries=0",
       ClientBeansTimeoutIntegrationTest.SLOW_SETTINGS + ".timeout=600ms",
+      RestClientTestData.INVENTORY_SETTINGS + ".max-connections=1",
+      RestClientTestData.INVENTORY_SETTINGS + ".max-wait=300ms",
+      RestClientTestData.INVENTORY_SETTINGS + ".retry.max-retries=1",
       "spring.http.clients.read-timeout=100ms",
       "spring.http.clients.connect-timeout=100ms"
     })
@@ -123,6 +133,90 @@ class ClientBeansTimeoutIntegrationTest {
     List.of(HELD_SETTINGS, HUNG_SETTINGS, SLOW_SETTINGS)
         .forEach(client -> registry.add(client + ".url", SCRIPTED::url));
     registry.add(STALLED_SETTINGS + ".url", STREAMING::url);
+  }
+
+  @ParameterizedTest
+  @FieldSource(ClientBeanCalls.BOTH_BEANS)
+  @DisplayName("a call waiting for its Retry-After has freed its connection for another call")
+  void connectionFreeDuringRetryWait(ClientBean bean) {
+    assertConnectionFreeWhile(
+        () ->
+            ClientBeanCalls.get(
+                context, bean, RestClientTestData.INVENTORY, ScriptedDownstream.RETRY_AFTER + "1"),
+        bean);
+  }
+
+  @Test
+  @DisplayName("an interface call waiting for its Retry-After has freed its connection too")
+  void interfaceConnectionFreeDuringRetryWait(@Autowired FlakyInventory inventory) {
+    assertConnectionFreeWhile(() -> inventory.getRetryingAfter("1"), ClientBean.REST_CLIENT);
+  }
+
+  /**
+   * Starts a call answered 503 with {@code Retry-After: 1} on the inventory client's pool of one,
+   * and checks that, once the server has its first request, another call through a bean gets the
+   * connection within max-wait, while the first one waits before its second attempt.
+   */
+  private void assertConnectionFreeWhile(Runnable waitingCall, ClientBean bean) {
+    var requestsBefore = SCRIPTED.paths().size();
+    var waiting = CompletableFuture.runAsync(waitingCall, Thread::startVirtualThread);
+    try {
+      await().atMost(RestClientTestData.WAIT).until(() -> SCRIPTED.paths().size() > requestsBefore);
+
+      assertThat(
+              ClientBeanCalls.get(
+                  context, bean, RestClientTestData.INVENTORY, ScriptedDownstream.STOCK))
+          .isEqualTo(ScriptedDownstream.BODY);
+    } finally {
+      // The waiting call ends with its last 503 either way, so the next test finds the pool free.
+      assertThat(waiting)
+          .failsWithin(RestClientTestData.WAIT)
+          .withThrowableThat()
+          .withCauseInstanceOf(RestClientResponseException.class);
+    }
+  }
+
+  @ParameterizedTest
+  @FieldSource(ClientBeanCalls.BOTH_BEANS)
+  @DisplayName(
+      "a call that never gets an answer fails with Spring's own I/O error, after its retries")
+  void noAnswerIsSpringsOwnFailure(ClientBean bean) {
+    assertThatExceptionOfType(ResourceAccessException.class)
+        .isThrownBy(
+            () ->
+                ClientBeanCalls.get(
+                    context, bean, RestClientTestData.INVENTORY, ScriptedDownstream.DROPPED))
+        .withMessageStartingWith("I/O error on GET request for")
+        .withCauseInstanceOf(IOException.class);
+  }
+
+  @ParameterizedTest
+  @FieldSource(ClientBeanCalls.BOTH_BEANS)
+  @DisplayName("a success answer is handed over unread, before its body has ended")
+  void successHandedOverUnread(ClientBean bean) {
+    assertThat(statusBeforeBodyEnds(bean)).isEqualTo(HttpStatus.OK.value());
+  }
+
+  /**
+   * Returns the status of an answer whose body stalls after one byte, read before the body ends:
+   * the service's own code gets the answer while the body is still coming.
+   */
+  private int statusBeforeBodyEnds(ClientBean bean) {
+    return switch (bean) {
+      case REST_CLIENT ->
+          ClientBeanCalls.restClient(context, STALLED)
+              .get()
+              .uri(StreamingDownstream.STALL)
+              .exchange((request, response) -> response.getStatusCode().value(), false);
+      case REST_TEMPLATE ->
+          Objects.requireNonNull(
+              ClientBeanCalls.restTemplate(context, STALLED)
+                  .execute(
+                      StreamingDownstream.STALL,
+                      HttpMethod.GET,
+                      null,
+                      response -> response.getStatusCode().value()));
+    };
   }
 
   /** Lets every held answer end. */

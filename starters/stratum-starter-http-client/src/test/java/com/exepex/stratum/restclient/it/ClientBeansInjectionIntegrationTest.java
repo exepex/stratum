@@ -4,11 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.httpclient.HttpClientConstants;
+import com.exepex.stratum.httpclient.HttpClientErrorCode;
 import com.exepex.stratum.httpclient.HttpClientPropertiesCustomizer;
 import com.exepex.stratum.restclient.ClientResilience;
 import com.exepex.stratum.restclient.StratumHttpClients;
+import com.exepex.stratum.restclient.testsupport.CallChecks;
 import com.exepex.stratum.restclient.testsupport.ClientBeanCalls;
 import com.exepex.stratum.restclient.testsupport.ClientBeanCalls.ClientBean;
 import com.exepex.stratum.restclient.testsupport.LedgerClientSettings;
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.FieldSource;
+import org.springframework.beans.factory.NoUniqueBeanDefinitionException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.restclient.RestTemplateBuilder;
@@ -118,6 +120,26 @@ class ClientBeansInjectionIntegrationTest {
           .isSameAs(context.getBean("ownPartnerRestClient"))
           .isNotSameAs(stratumHttpClients.restClient(RestClientTestData.PARTNER));
     }
+
+    @Test
+    @DisplayName("next to the service's own bean for that name, a lookup by qualifier finds both")
+    void lookupNextToOwnQualifiedBeanFindsBoth() {
+      assertThatExceptionOfType(NoUniqueBeanDefinitionException.class)
+          .isThrownBy(() -> ClientBeanCalls.restClient(context, RestClientTestData.PARTNER));
+      assertThat(context.getBean("ownPartnerRestClient", RestClient.class))
+          .isNotSameAs(stratumHttpClients.restClient(RestClientTestData.PARTNER));
+    }
+
+    @Test
+    @DisplayName("the beans are named stratum.http-client.<name>.rest-client and .rest-template")
+    void beanNames() {
+      var prefix = HttpClientConstants.PREFIX + "." + RestClientTestData.INVENTORY;
+
+      assertThat(context.getBean(prefix + ".rest-client"))
+          .isSameAs(stratumHttpClients.restClient(RestClientTestData.INVENTORY));
+      assertThat(context.getBean(prefix + ".rest-template"))
+          .isSameAs(ClientBeanCalls.restTemplate(context, RestClientTestData.INVENTORY));
+    }
   }
 
   @Nested
@@ -201,9 +223,9 @@ class ClientBeansInjectionIntegrationTest {
                       .isThrownBy(
                           () -> ClientBeanCalls.get(context, bean, TeamBeans.GUARDED, failing)));
 
-      assertThatExceptionOfType(StratumException.class)
-          .isThrownBy(() -> ClientBeanCalls.get(context, bean, TeamBeans.GUARDED, failing))
-          .withMessageStartingWith("SX-HTTPC-0003");
+      CallChecks.assertEndsWith(
+          () -> ClientBeanCalls.get(context, bean, TeamBeans.GUARDED, failing),
+          HttpClientErrorCode.BREAKER_OPEN);
     }
   }
 

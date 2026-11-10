@@ -89,6 +89,17 @@ public class TeamBeans {
   }
 
   /**
+   * Makes the second customizer, declared before the first, so only their order runs them in turn.
+   *
+   * @return the customizer
+   */
+  @Bean
+  @Order(2)
+  StratumClientCustomizer wholesaleTenant() {
+    return new WholesaleTenant();
+  }
+
+  /**
    * Makes the first customizer.
    *
    * @return the customizer
@@ -97,17 +108,6 @@ public class TeamBeans {
   @Order(1)
   StratumClientCustomizer retailSetup() {
     return new RetailSetup();
-  }
-
-  /**
-   * Makes the second customizer.
-   *
-   * @return the customizer
-   */
-  @Bean
-  @Order(2)
-  StratumClientCustomizer wholesaleTenant() {
-    return new WholesaleTenant();
   }
 
   /**

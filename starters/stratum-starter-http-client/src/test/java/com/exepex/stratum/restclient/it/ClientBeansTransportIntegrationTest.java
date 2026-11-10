@@ -3,8 +3,9 @@ package com.exepex.stratum.restclient.it;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
-import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.httpclient.HttpClientConstants;
+import com.exepex.stratum.httpclient.HttpClientErrorCode;
+import com.exepex.stratum.restclient.testsupport.CallChecks;
 import com.exepex.stratum.restclient.testsupport.ClientBeanCalls;
 import com.exepex.stratum.restclient.testsupport.ClientBeanCalls.ClientBean;
 import com.exepex.stratum.restclient.testsupport.QueuedDownstream;
@@ -18,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.DisplayName;
@@ -190,9 +192,8 @@ class ClientBeansTransportIntegrationTest {
       TOKENS.refuseIssuedTokens();
       TOKENS.tokenAnswer(TokenAnswer.REFUSE);
 
-      assertThatExceptionOfType(StratumException.class)
-          .isThrownBy(() -> invoicingGet(bean))
-          .withMessageStartingWith("SX-HTTPC-0002");
+      CallChecks.assertEndsWith(
+          () -> invoicingGet(bean), HttpClientErrorCode.DOWNSTREAM_UNAVAILABLE);
       TOKENS.tokenAnswer(TokenAnswer.ISSUE);
 
       assertThat(invoicingGet(bean)).isEqualTo(ScriptedDownstream.BODY);
@@ -236,9 +237,9 @@ class ClientBeansTransportIntegrationTest {
       HOLDING.tokenAnswer(TokenAnswer.HOLD);
       var startedAt = System.nanoTime();
 
-      assertThatExceptionOfType(StratumException.class)
-          .isThrownBy(() -> ClientBeanCalls.get(context, bean, INVOICING, ScriptedDownstream.STOCK))
-          .withMessageStartingWith("SX-HTTPC-0002");
+      CallChecks.assertEndsWith(
+          () -> ClientBeanCalls.get(context, bean, INVOICING, ScriptedDownstream.STOCK),
+          HttpClientErrorCode.DOWNSTREAM_UNAVAILABLE);
       assertThat(Duration.ofNanos(System.nanoTime() - startedAt))
           .isLessThan(TOKEN_WAIT_ENDS_BEFORE);
       assertThat(HOLDING.tokenRequests()).isEqualTo(tokenRequestsBefore + 1);
@@ -261,6 +262,23 @@ class ClientBeansTransportIntegrationTest {
               () ->
                   ClientBeanCalls.post(
                       context, bean, RestClientTestData.PAYMENTS, "/payments", "payment"));
+    }
+
+    @Test
+    @DisplayName("a mocked client's bean still writes the body it is given, as a real one does")
+    void mockedClientWritesBody() {
+      var written = new AtomicBoolean();
+
+      assertThatExceptionOfType(HttpServerErrorException.NotImplemented.class)
+          .isThrownBy(
+              () ->
+                  ClientBeanCalls.restClient(context, RestClientTestData.PAYMENTS)
+                      .post()
+                      .uri("/payments")
+                      .body(body -> written.set(true))
+                      .retrieve()
+                      .toBodilessEntity());
+      assertThat(written).isTrue();
     }
 
     @ParameterizedTest

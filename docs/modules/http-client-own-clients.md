@@ -67,13 +67,17 @@ RestClient partner = BeanFactoryAnnotationUtils.qualifiedBeanOfType(beanFactory,
 // or: stratumHttpClients.restClient("partner"), which returns the same RestClient
 ```
 
-`beanFactory` is the `BeanFactory` Spring injects, or `context.getAutowireCapableBeanFactory()`.
+`beanFactory` is the `BeanFactory` Spring injects, or `context.getAutowireCapableBeanFactory()`. When your service
+also has its own `RestClient` bean for that name, `qualifiedBeanOfType` finds both and throws
+`NoUniqueBeanDefinitionException`: look your own bean up by its bean name, `beanFactory.getBean("myPartnerClient",
+RestClient.class)`, and Stratum's through `stratumHttpClients.restClient("partner")`.
 
 **Your own beans stay yours.** Stratum's beans are injected only where a qualifier names them. Your own
 `RestClient` or `RestTemplate` bean, injected without a qualifier, is still the one you get, and a list of
 `RestClient` beans holds only yours. Your own `@Bean @Qualifier("partner") RestClient` replaces Stratum's for that
-name. A lookup by type alone, such as `getBean(RestClient.class)`, finds Stratum's bean only when it is the only
-`RestClient` there is, so always use the qualifier.
+name where a qualifier injects it; a lookup by qualifier at run time then finds both, as above. A lookup by type
+alone, such as `getBean(RestClient.class)`, finds Stratum's bean only when it is the only `RestClient` there is, so
+always use the qualifier.
 
 **A client needs its `url`.** A client without one stops startup with `SX-HTTPC-1004`, naming the key, as its beans
 are made at startup.
@@ -196,8 +200,9 @@ The whole call, its retries and waits included, has its answer by `total-timeout
 for the answer at most `timeout` or the time left, whichever is less, as an interface's call does. To call a slow
 service, raise `total-timeout` for that client or under `defaults`, for example to 30s.
 
-The answer is read after the last attempt. Each attempt's answer timeout also bounds the wait between bytes of its
-body: on the first attempt that is `timeout`, 5s by default, but an answer that comes on a late attempt has only the
+An error answer is read inside its attempt, at most 64 KB, and its connection freed before any wait for the next
+attempt, as an interface's is. A success answer is handed over unread after the last attempt. Each attempt's answer
+timeout also bounds the wait between bytes of its body: on the first attempt that is `timeout`, 5s by default, but an answer that comes on a late attempt has only the
 time that attempt had left. For large downloads, raise `total-timeout` for that client, or use an interface method
 that returns `InputStream`, which keeps its full `timeout`.
 
@@ -206,8 +211,9 @@ that returns `InputStream`, which keeps its full `timeout`.
 - **Spring's own exceptions.** A failed call throws `HttpClientErrorException`, `HttpServerErrorException` or
   `ResourceAccessException`, as a `RestClient` or `RestTemplate` you built would, because a generated client's own
   error handling expects them. A 404 is `HttpClientErrorException.NotFound`. `DownstreamException`, `mapError` and the
-  empty `Optional` on a 404 are for interfaces only ([errors](http-client-errors.md)). Only a call refused by an
-  open breaker becomes `SX-HTTPC-0003`, and a token that cannot be fetched `SX-HTTPC-0002`.
+  empty `Optional` on a 404 are for interfaces only ([errors](http-client-errors.md)). Three Stratum codes
+  remain, as for an interface: `SX-HTTPC-0003` for a call refused by an open breaker, `SX-HTTPC-0002` for a token
+  that cannot be fetched, and `SX-HTTPC-0004` for a token-relay call with no verified caller.
 - **A body is never sent twice.** An interface may resend a `POST` whose connection never opened, and a `PUT`.
 - **A body cut off after the answer's head** is neither retried nor counted by the breaker.
 - **One span and one `http.client.requests` metric per call,** with the last answer; an interface records one per

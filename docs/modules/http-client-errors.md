@@ -141,8 +141,10 @@ dropped when the answer closes, so the connection can be used again; a body that
 ## Clients Stratum did not build
 
 A call through the client's `RestClient` or `RestTemplate` bean, or `stratumHttpClients.restClient("<name>")`,
-throws Spring's own exceptions, as a `RestClient` you built would, except a call refused by an open circuit breaker,
-which throws `SX-HTTPC-0003` ([ADR 0014](../adr/0014-http-client-beans-that-retry.md)). `mapError` reaches
+throws Spring's own exceptions, as a `RestClient` you built would, except for three Stratum codes: `SX-HTTPC-0003`
+for a call refused by an open circuit breaker, `SX-HTTPC-0002` for a service token that cannot be fetched, and
+`SX-HTTPC-0004` for a token-relay call with no verified caller
+([ADR 0014](../adr/0014-http-client-beans-that-retry.md)). `mapError` reaches
 interfaces only. The error body of such a call is still read up to 64 KB
 ([clients Stratum did not build](http-client-own-clients.md#what-differs-from-an-interface)).
 

@@ -4,10 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
-import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.httpclient.HttpClientConstants;
+import com.exepex.stratum.httpclient.HttpClientErrorCode;
 import com.exepex.stratum.restclient.ClientResilience;
 import com.exepex.stratum.restclient.DownstreamException;
+import com.exepex.stratum.restclient.testsupport.CallChecks;
 import com.exepex.stratum.restclient.testsupport.ClientBeanCalls;
 import com.exepex.stratum.restclient.testsupport.ClientBeanCalls.ClientBean;
 import com.exepex.stratum.restclient.testsupport.QueuedDownstream;
@@ -20,6 +21,7 @@ import com.exepex.stratum.restclient.testsupport.errors.ErrorDownstream;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AutoClose;
@@ -29,6 +31,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -118,15 +121,26 @@ class ClientBeansResilienceIntegrationTest {
   @DisplayName("retries")
   class Retries {
 
+    /** The statuses after which a GET is sent again and the breaker counts, on each bean. */
+    private static final List<Arguments> RETRIED_ANSWERS =
+        ClientBeanCalls.BEANS.stream()
+            .flatMap(
+                bean ->
+                    Stream.of(
+                        Arguments.of(bean, UNAVAILABLE),
+                        Arguments.of(bean, HttpStatus.TOO_MANY_REQUESTS.value())))
+            .toList();
+
     @ParameterizedTest
-    @FieldSource(ClientBeanCalls.BOTH_BEANS)
-    @DisplayName("a GET answered 503, then 200, returns the 200")
-    void getRetried(ClientBean bean) {
+    @FieldSource("RETRIED_ANSWERS")
+    @DisplayName("a GET answered 503 or 429, then 200, returns the 200, and the breaker counts one")
+    void getRetried(ClientBean bean, int status) {
       var requestsBefore = QUEUED.requests().size();
-      QUEUED.answerNext(UNAVAILABLE);
+      QUEUED.answerNext(status);
 
       assertThat(inventoryGet(bean)).isEqualTo(ScriptedDownstream.BODY);
       assertThat(QUEUED.requests()).hasSize(requestsBefore + 2);
+      assertThat(inventoryFailedCalls()).isEqualTo(1);
     }
 
     @ParameterizedTest
@@ -201,12 +215,10 @@ class ClientBeansResilienceIntegrationTest {
     @FieldSource(ClientBeanCalls.BOTH_BEANS)
     @DisplayName("a 503 kept when the breaker opens is freed, so the next call gets the connection")
     void answerKeptWhenBreakerOpensIsFreed(ClientBean bean) {
-      assertThatExceptionOfType(StratumException.class)
-          .isThrownBy(
-              () ->
-                  ClientBeanCalls.get(
-                      context, bean, GuardRules.LEDGER, ScriptedDownstream.UNAVAILABLE))
-          .withMessageStartingWith("SX-HTTPC-0003");
+      CallChecks.assertEndsWith(
+          () ->
+              ClientBeanCalls.get(context, bean, GuardRules.LEDGER, ScriptedDownstream.UNAVAILABLE),
+          HttpClientErrorCode.BREAKER_OPEN);
       resilience.circuitBreaker(GuardRules.LEDGER).orElseThrow().transitionToClosedState();
 
       assertThat(ClientBeanCalls.get(context, bean, GuardRules.LEDGER, ScriptedDownstream.STOCK))
@@ -268,9 +280,7 @@ class ClientBeansResilienceIntegrationTest {
 
     /** Checks that the inventory client's bean is refused with SX-HTTPC-0003. */
     private void assertBreakerOpen(ClientBean bean) {
-      assertThatExceptionOfType(StratumException.class)
-          .isThrownBy(() -> inventoryGet(bean))
-          .withMessageStartingWith("SX-HTTPC-0003");
+      CallChecks.assertEndsWith(() -> inventoryGet(bean), HttpClientErrorCode.BREAKER_OPEN);
     }
 
     /** Returns the given status, once for each call the inventory client's breaker judges. */
