@@ -38,6 +38,7 @@ class HttpClientPropertiesTest {
                   .totalTimeout(HttpClientConstants.DEFAULT_TOTAL_TIMEOUT)
                   .circuitBreaker(HttpClientTestData.STRATUM_CIRCUIT_BREAKER)
                   .mock(false)
+                  .callLog(CallLog.ERRORS)
                   .build());
     }
   }

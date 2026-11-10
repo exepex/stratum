@@ -2,6 +2,7 @@ stratum:
   http-client:
     defaults:
       timeout: 3s
+      call-log: none
       retry:
         delay: 1s
       circuit-breaker:
@@ -19,6 +20,7 @@ stratum:
           failure-rate-threshold: 10
           slow-call-duration-threshold: 2s
         mock: true
+        call-log: all
         interfaces:
           - com.partner.OrdersApi
           - com.partner.CustomersApi

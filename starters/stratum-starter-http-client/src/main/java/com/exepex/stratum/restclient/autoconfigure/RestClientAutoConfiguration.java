@@ -3,15 +3,19 @@ package com.exepex.stratum.restclient.autoconfigure;
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
+import com.exepex.stratum.core.logging.LogRedaction;
 import com.exepex.stratum.core.properties.StratumCustomizers;
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientProperties;
+import com.exepex.stratum.restclient.ClientCallLog;
 import com.exepex.stratum.restclient.ClientConnectionPools;
 import com.exepex.stratum.restclient.ClientErrors;
 import com.exepex.stratum.restclient.ClientExchangeDecorator;
+import com.exepex.stratum.restclient.ClientMeters;
 import com.exepex.stratum.restclient.ClientResilience;
 import com.exepex.stratum.restclient.DefaultMockClients;
 import com.exepex.stratum.restclient.DefaultStratumHttpClients;
+import com.exepex.stratum.restclient.MicrometerClientMeters;
 import com.exepex.stratum.restclient.MockAnswers;
 import com.exepex.stratum.restclient.MockClients;
 import com.exepex.stratum.restclient.OptionalNotFound;
@@ -24,17 +28,21 @@ import com.exepex.stratum.restclient.StratumClientGroups;
 import com.exepex.stratum.restclient.StratumClientRegistrar;
 import com.exepex.stratum.restclient.StratumHttpClients;
 import com.exepex.stratum.restclient.TokenInitializers;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
 import java.util.Optional;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureOrder;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.restclient.RestClientCustomizer;
 import org.springframework.boot.restclient.autoconfigure.service.HttpServiceClientAutoConfiguration;
 import org.springframework.boot.ssl.SslBundles;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Fallback;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.env.Environment;
@@ -48,11 +56,28 @@ import tools.jackson.databind.json.JsonMapper;
  * this one imports creates it.
  */
 @StratumInternal
-@AutoConfiguration(before = HttpServiceClientAutoConfiguration.class)
+@AutoConfiguration(
+    before = HttpServiceClientAutoConfiguration.class,
+    afterName = {
+      RestClientAutoConfiguration.METRICS_AUTO_CONFIGURATION,
+      RestClientAutoConfiguration.COMPOSITE_REGISTRY_AUTO_CONFIGURATION
+    })
 @AutoConfigureOrder(StratumModuleConstants.AUTO_CONFIGURATION_ORDER)
 @ConditionalOnStratumModule(HttpClientConstants.MODULE)
 @Import({StratumClientRegistrar.class, StratumClientBeansRegistrar.class})
 public final class RestClientAutoConfiguration {
+
+  /** Spring Boot's Micrometer set-up, after which the service's registry exists. */
+  static final String METRICS_AUTO_CONFIGURATION =
+      "org.springframework.boot.micrometer.metrics.autoconfigure.MetricsAutoConfiguration";
+
+  /** Spring Boot's composite registry, made after every registry it gathers. */
+  static final String COMPOSITE_REGISTRY_AUTO_CONFIGURATION =
+      "org.springframework.boot.micrometer.metrics.autoconfigure."
+          + "CompositeMeterRegistryAutoConfiguration";
+
+  /** Micrometer's registry, which the clients' meters are made in. */
+  static final String METER_REGISTRY = "io.micrometer.core.instrument.MeterRegistry";
 
   /**
    * Stops startup with {@code SX-CORE-1004} when the service declares a settings customizer as a
@@ -81,15 +106,18 @@ public final class RestClientAutoConfiguration {
    *
    * @param environment the service's environment, from which the settings are resolved
    * @param sslBundles Spring Boot's SSL bundles, for clients that name one
+   * @param meters the clients' meters, present with Micrometer and a registry
    * @return the pools
    */
   @Bean
   @Fallback
   @ConditionalOnMissingBean
   public ClientConnectionPools stratumClientConnectionPools(
-      Environment environment, ObjectProvider<SslBundles> sslBundles) {
+      Environment environment,
+      ObjectProvider<SslBundles> sslBundles,
+      ObjectProvider<ClientMeters> meters) {
     return new ClientConnectionPools(
-        HttpClientProperties.resolve(environment).defaults(), sslBundles);
+        HttpClientProperties.resolve(environment).defaults(), sslBundles, meters);
   }
 
   /**
@@ -178,6 +206,8 @@ public final class RestClientAutoConfiguration {
    * @param environment the service's environment, from which the settings are resolved
    * @param customizers the service's changes to the clients' retry and breaker rules
    * @param tokenResend the resend after a 401 of a client with a service token, if present
+   * @param callLog the log line of each call
+   * @param meters the clients' meters, present with Micrometer and a registry
    * @return the retries and breakers
    */
   @Bean
@@ -186,9 +216,32 @@ public final class RestClientAutoConfiguration {
   public ClientResilience stratumClientResilience(
       Environment environment,
       ObjectProvider<StratumClientCustomizer> customizers,
-      ObjectProvider<ServiceTokenResend> tokenResend) {
+      ObjectProvider<ServiceTokenResend> tokenResend,
+      ClientCallLog callLog,
+      ObjectProvider<ClientMeters> meters) {
     return new ClientResilience(
-        HttpClientProperties.resolve(environment), customizers, Clock.systemUTC(), tokenResend);
+        HttpClientProperties.resolve(environment),
+        customizers,
+        Clock.systemUTC(),
+        tokenResend,
+        callLog,
+        meters);
+  }
+
+  /**
+   * Creates the log line of each call of a Stratum client, which carries the called URL only while
+   * the logging starter's redaction runs.
+   *
+   * @param environment the service's environment, from which the settings are resolved
+   * @param redaction the marker that the logging starter's redaction runs, present only then
+   * @return the call log
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean
+  public ClientCallLog stratumClientCallLog(
+      Environment environment, ObjectProvider<LogRedaction> redaction) {
+    return new ClientCallLog(HttpClientProperties.resolve(environment), redaction.getIfAvailable());
   }
 
   /**
@@ -235,5 +288,31 @@ public final class RestClientAutoConfiguration {
       ObjectProvider<RestClientCustomizer> restClientCustomizers) {
     return new DefaultStratumHttpClients(
         HttpClientProperties.resolve(environment), builders, restClientCustomizers);
+  }
+
+  /**
+   * Creates the clients' meters when Micrometer is on the classpath and the service has a registry,
+   * as with Spring Boot's Actuator or the observability starter. A nested class, so Micrometer's
+   * types are only loaded then.
+   */
+  @StratumInternal
+  @Configuration(proxyBeanMethods = false)
+  @ConditionalOnStratumModule(HttpClientConstants.MODULE)
+  @ConditionalOnClass(name = METER_REGISTRY)
+  @ConditionalOnBean(type = METER_REGISTRY)
+  public static class ClientMetersConfiguration {
+
+    /**
+     * Creates the meters of each call, retry, breaker state and pool of Stratum's clients.
+     *
+     * @param registry the service's registry
+     * @return the meters
+     */
+    @Bean
+    @Fallback
+    @ConditionalOnMissingBean
+    public ClientMeters stratumClientMeters(MeterRegistry registry) {
+      return new MicrometerClientMeters(registry);
+    }
   }
 }

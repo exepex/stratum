@@ -163,6 +163,36 @@ public class HttpClientConstants {
    */
   public static final Duration STALE_CHECK_AFTER = Duration.ofSeconds(2);
 
+  /**
+   * The most characters of a URI template the call log writes when no redaction runs over the line,
+   * cut at its first {@code ?} too. Fixed, with no key, as ADR 0011 decision 2.4 fixes the keys.
+   */
+  public static final int MAX_LOGGED_URI_LENGTH = 256;
+
+  /** The prefix of the names of the meters of Stratum's clients. */
+  public static final String METER_PREFIX = "stratum.http.client";
+
+  /** The timer of each whole call, retries and waits included, tagged by client and outcome. */
+  public static final String CALLS_METER = METER_PREFIX + ".calls";
+
+  /** The counter of the attempts after the first, tagged by client. */
+  public static final String RETRIES_METER = METER_PREFIX + ".retries";
+
+  /** The gauge of each state of a client's circuit breaker, 1 for the current one. */
+  public static final String BREAKER_STATE_METER = METER_PREFIX + ".circuitbreaker.state";
+
+  /** The counter of the attempts a full pool refused within {@code max-wait}. */
+  public static final String POOL_REFUSED_METER = METER_PREFIX + ".pool.refused";
+
+  /** The tag that names the client on each meter. */
+  public static final String CLIENT_TAG = "client";
+
+  /** The name the shared pool's meters carry in their {@code client} tag. */
+  public static final String SHARED_POOL_TAG = "_shared";
+
+  /** The start of the logger name of each client's call log, followed by the client's name. */
+  public static final String CALL_LOGGER_PREFIX = "stratum.http-client.";
+
   /** The header that carries a client's API key when it names none. */
   public static final String DEFAULT_API_KEY_HEADER = "X-Api-Key";
 

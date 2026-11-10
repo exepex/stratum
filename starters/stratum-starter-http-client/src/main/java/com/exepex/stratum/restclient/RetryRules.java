@@ -6,11 +6,15 @@ import com.exepex.stratum.httpclient.ClientCircuitBreaker;
 import com.exepex.stratum.httpclient.ClientRetry;
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
+import io.github.resilience4j.core.IntervalBiFunction;
 import io.github.resilience4j.core.IntervalFunction;
+import io.github.resilience4j.core.functions.Either;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.NoRouteToHostException;
+import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
@@ -128,6 +132,46 @@ public class RetryRules {
       Instant now) {
     return retryAfter(failure, now)
         .orElseGet(() -> Duration.ofMillis(backOff.apply(attemptNumber)));
+  }
+
+  /**
+   * Returns Stratum's wait before the next attempt: the {@code Retry-After} of a 503 or 429, or
+   * else the back-off's wait, which is also the wait when a service's own rules retry after an
+   * exception.
+   *
+   * @param attempts the attempts so far
+   * @param outcome the last attempt, or the exception a service's own rules retry after
+   * @param backOff the client's back-off
+   * @param clock the clock a {@code Retry-After} date is read against
+   * @return the wait, in milliseconds
+   */
+  public static long stratumWaitMillis(
+      int attempts,
+      Either<Throwable, ClientAttempt> outcome,
+      IntervalFunction backOff,
+      Clock clock) {
+    return outcome.isRight()
+        ? nextWait(outcome.get().getFailure().orElse(null), attempts, backOff, clock.instant())
+            .toMillis()
+        : backOff.apply(attempts);
+  }
+
+  /**
+   * Returns the wait the last attempt carries, worked out when it ended, or the client's wait when
+   * a service's own rules retry after an exception.
+   *
+   * @param attempts the attempts so far
+   * @param outcome the last attempt, or the exception a service's own rules retry after
+   * @param waits the client's wait before each next attempt, Stratum's or the service's
+   * @return the wait, in milliseconds
+   */
+  public static long carriedWaitMillis(
+      int attempts,
+      Either<Throwable, ClientAttempt> outcome,
+      IntervalBiFunction<ClientAttempt> waits) {
+    return outcome.isRight()
+        ? outcome.get().getNextWait().toMillis()
+        : waits.apply(attempts, outcome);
   }
 
   /**
@@ -253,8 +297,7 @@ public class RetryRules {
    */
   private static boolean isRetryableWithoutAnswer(
       HttpMethod method, ResourceAccessException failure) {
-    if (FailureCauses.causesOf(failure)
-        .anyMatch(ConnectionRequestTimeoutException.class::isInstance)) {
+    if (isPoolFull(failure)) {
       return false;
     }
     return FailureCauses.causesOf(failure).anyMatch(RetryRules::isConnectFailure)
@@ -286,6 +329,29 @@ public class RetryRules {
     // Jackson 2 may wrap a real I/O failure, such as a read timeout inside a record.
     return Stream.<Class<?>>iterate(cause.getClass(), Objects::nonNull, Class::getSuperclass)
         .anyMatch(type -> JACKSON_2_READ_FAILURE.equals(type.getName()));
+  }
+
+  /**
+   * Returns whether a failure is a full pool's refusal: no connection came free within the client's
+   * {@code max-wait}.
+   *
+   * @param failure the failure of an attempt
+   * @return whether the pool was full
+   */
+  public static boolean isPoolFull(Throwable failure) {
+    return FailureCauses.causesOf(failure)
+        .anyMatch(ConnectionRequestTimeoutException.class::isInstance);
+  }
+
+  /**
+   * Returns whether the I/O failure that ended a call is an answer timeout, once connected; a
+   * connect timeout, a full pool or a dropped connection is not.
+   *
+   * @param cause the I/O failure, as {@link #ioFailureOf} finds it
+   * @return whether no answer came within the answer timeout
+   */
+  public static boolean isAnswerTimeout(IOException cause) {
+    return cause instanceof SocketTimeoutException && !(cause instanceof ConnectTimeoutException);
   }
 
   /** Returns whether an answer's body was cut off while it was read, as {@link #ioFailureOf}. */

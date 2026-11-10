@@ -46,6 +46,8 @@ import org.springframework.boot.context.properties.NestedConfigurationProperty;
  * @param interfaces The full names of generated interfaces, such as com.partner.OrdersApi, that
  *     call this client's service with all of its settings, as an interface marked @StratumClient
  *     does. Only for a client; not allowed under defaults. Defaults to none.
+ * @param callLog Which calls write a log line: errors, one WARN per failed call after its retries;
+ *     all, also one INFO per successful call; or none. Defaults to errors.
  */
 @Builder(toBuilder = true)
 public record ClientSettings(
@@ -63,7 +65,8 @@ public record ClientSettings(
     @Nullable Duration totalTimeout,
     @NestedConfigurationProperty @Nullable ClientCircuitBreaker circuitBreaker,
     @Nullable Boolean mock,
-    List<String> interfaces) {
+    List<String> interfaces,
+    @Nullable CallLog callLog) {
 
   /** Keeps the interfaces a fixed list, empty when none is named. */
   public ClientSettings {
@@ -99,6 +102,7 @@ public record ClientSettings(
                   .build())
           .sharedPool(false)
           .mock(false)
+          .callLog(CallLog.ERRORS)
           .build();
 
   /**
@@ -127,6 +131,7 @@ public record ClientSettings(
                 : circuitBreaker.orElse(fallback.circuitBreaker))
         .mock(either(mock, fallback.mock))
         .interfaces(interfaces.isEmpty() ? fallback.interfaces : interfaces)
+        .callLog(either(callLog, fallback.callLog))
         .build();
   }
 

@@ -10,6 +10,7 @@ import java.io.UncheckedIOException;
 import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.time.Duration;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -42,7 +43,9 @@ class MockRequestFactoryTest {
     void streamedDownloadKeepsTimeout() {
       scriptDelayedAnswer();
 
-      assertThat(AttemptTimeLeft.runWithin(deadline(), true, MockRequestFactoryTest.this::call))
+      assertThat(
+              AttemptTimeLeft.runWithin(
+                  deadline(), true, new AtomicReference<>(), MockRequestFactoryTest.this::call))
           .isEqualTo(HttpStatus.OK);
     }
 
@@ -54,7 +57,9 @@ class MockRequestFactoryTest {
 
       assertThatExceptionOfType(UncheckedIOException.class)
           .isThrownBy(
-              () -> AttemptTimeLeft.runWithin(deadline, false, MockRequestFactoryTest.this::call))
+              () ->
+                  AttemptTimeLeft.runWithin(
+                      deadline, false, new AtomicReference<>(), MockRequestFactoryTest.this::call))
           .withCauseInstanceOf(SocketTimeoutException.class);
     }
   }

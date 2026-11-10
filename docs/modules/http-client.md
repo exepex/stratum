@@ -3,13 +3,14 @@
 **Status: Partly built.** Calls to other services through Java interfaces marked `@StratumClient`. Each client
 gets its own address, timeouts and bounded connection pool from one settings block, and Apache HttpClient 5 sends
 its calls, with retries, a time limit for the whole call, a circuit breaker, its credential or token, and
-one exception per failure ([errors](http-client-errors.md)). Headers, the call log and pool metrics are
-planned ([Planned](#planned)).
+one exception per failure ([errors](http-client-errors.md)), one log line per failed call and its meters
+([call log and meters](http-client-observability.md)). Headers are planned ([Planned](#planned)).
 
 [← Documentation home](../README.md) · Property prefix: `stratum.http-client` ·
 Design: [ADR 0011](../adr/0011-http-client-starters.md), [ADR 0012](../adr/0012-http-client-changes-found-while-building.md),
 [ADR 0013](../adr/0013-http-client-retry-and-circuit-breaker-keys.md),
-[ADR 0014](../adr/0014-http-client-beans-that-retry.md)
+[ADR 0014](../adr/0014-http-client-beans-that-retry.md),
+[ADR 0016](../adr/0016-http-client-call-log-and-meters.md)
 
 ## What it does
 
@@ -157,6 +158,7 @@ the shared default, which wins over Stratum's.
 | `circuit-breaker.slow-call-rate-threshold` | percent | unset: Resilience4j's `100` | no such key | The share of slow attempts, from 1 to 100, that opens the breaker. Only with `slow-call-duration-threshold`. |
 | `shared-pool` | boolean | `false` | no such key | With `true`, the client uses one pool shared by every client that sets it, instead of its own. That pool takes its size, connect timeout, idle timeout and lifetime from `defaults`; the client keeps its own `timeout` and `max-wait`. |
 | `interfaces` | list of interface names | none | no such key | Generated interfaces, by full name such as `com.partner.OrdersApi`, that call this client's service with all its settings, as a `@StratumClient` interface does ([Clients Stratum did not build](#clients-stratum-did-not-build)). Not allowed under `defaults`. |
+| `call-log` | `errors`, `all` or `none` | `errors` | no such key | Which calls write a log line: `errors`, one WARN per failed call; `all`, also one INFO per success; `none`, no line ([call log and meters](http-client-observability.md)). |
 | `mock` | boolean | `false` | no such key | Whether the client answers from files under `stratum-mocks` and from test scripts instead of calling its service, for a service not deployed yet and for tests. Logs a `WARN` at every startup ([Mocked clients](http-client-mocks.md)). |
 | `auth.api-key` | text | unset | no such key | An API key sent on every call of the client, from a placeholder such as `${GEO_API_KEY}`. Not allowed under `defaults`, like every `auth` key ([Auth and mTLS](http-client-auth.md)). |
 | `auth.api-key-header` | text | `X-Api-Key` | no such key | The header that carries the API key. Only with `auth.api-key`. |
@@ -403,6 +405,12 @@ sets up groups only when their registry exists, and Stratum's registration of th
 Spring Boot first gives every group its own request factory; Stratum's set-up then replaces it, for Stratum's groups
 only, with the client's Apache HttpClient 5 pool.
 
+## Call log and meters
+
+What a failed call writes, with and without the logging starter, what its redaction masks in the called URL, the
+`call-log` key with full examples, and every meter are on
+[HTTP client: call log and meters](http-client-observability.md).
+
 ## Errors
 
 What a failed call throws, `DownstreamException`, a `404` read as an empty `Optional`, mapping an error answer to your
@@ -414,7 +422,7 @@ own exception, the 64 KB read of an error body and the startup errors are on
 These parts of [ADR 0011](../adr/0011-http-client-starters.md) are not built yet, and none of their keys is read:
 
 - `headers` and `copy-headers`;
-- one log line per call and the pool metrics;
+- `trace-headers` ([call log and meters](http-client-observability.md#planned));
 - `urls`;
 - the retry and circuit breaker of a client with its own engine
   ([#262](https://github.com/exepex/stratum/issues/262));

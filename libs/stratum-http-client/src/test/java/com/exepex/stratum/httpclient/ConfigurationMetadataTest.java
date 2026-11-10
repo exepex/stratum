@@ -47,6 +47,7 @@ class ConfigurationMetadataTest {
           "circuit-breaker.slow-call-rate-threshold",
           "mock",
           "interfaces",
+          "call-log",
           "ssl-bundle",
           "auth.api-key",
           "auth.api-key-header",

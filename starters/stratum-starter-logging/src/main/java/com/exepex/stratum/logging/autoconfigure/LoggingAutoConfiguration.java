@@ -4,6 +4,7 @@ import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.executor.ContextCarryingExecutorsConfiguration;
+import com.exepex.stratum.core.logging.LogRedaction;
 import com.exepex.stratum.core.properties.StratumCustomizers;
 import com.exepex.stratum.core.reactor.ReactorOperatorContextPropagation;
 import com.exepex.stratum.logging.LoggingConstants;
@@ -53,6 +54,19 @@ public final class LoggingAutoConfiguration {
   public LoggingAutoConfiguration(ListableBeanFactory beanFactory, Environment environment) {
     StratumCustomizers.rejectBeans(beanFactory);
     ReactorOperatorContextPropagation.enableWhenSetToEveryOperator(environment);
+  }
+
+  /**
+   * Tells other modules that the redaction runs over every log line, as it does while this module
+   * is on, so that the HTTP client starter may log the URL it called.
+   *
+   * @return the marker
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean
+  public LogRedaction stratumLogRedaction() {
+    return new LogRedaction();
   }
 
   /**

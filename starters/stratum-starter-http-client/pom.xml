@@ -44,6 +44,15 @@
       <groupId>io.github.resilience4j</groupId>
       <artifactId>resilience4j-circuitbreaker</artifactId>
     </dependency>
+    <!-- Optional: the meters of each call, retry, breaker state and pool (ADR 0016). Micrometer's
+         core holds the registry and the Apache HttpClient 5 pool binder; a service gets it with
+         Spring Boot's Actuator or the observability starter, and without it the starter makes no
+         meters. Spring Boot manages its version. -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-core</artifactId>
+      <optional>true</optional>
+    </dependency>
     <!-- Spring's test framework, for the listener that clears the mocks of MockClient after each
          test. Optional: a running service never loads the listener, and a team's tests already
          have it through spring-boot-starter-test. -->
@@ -95,6 +104,13 @@
       <artifactId>spring-security-oauth2-jose</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- The logging starter's redaction, under which the call log writes the called URL. The shared
+         test settings switch it off; the tests in it.redaction switch it on in their own fork. -->
+    <dependency>
+      <groupId>com.exepex.stratum</groupId>
+      <artifactId>stratum-starter-logging</artifactId>
+      <scope>test</scope>
+    </dependency>
     <!-- Reactor, for the client with a Mono method that the blocking starter refuses at startup. -->
     <dependency>
       <groupId>io.projectreactor</groupId>
@@ -110,4 +126,38 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+
+  <build>
+    <plugins>
+      <!-- Spring Boot keeps the console format in a JVM-wide setting, so the tests that switch the
+           logging starter on run in a second execution, in a fork of their own. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>default</id>
+            <configuration>
+              <excludes>
+                <exclude>**/it/redaction/**</exclude>
+              </excludes>
+            </configuration>
+          </execution>
+          <execution>
+            <id>redaction</id>
+            <goals>
+              <goal>integration-test</goal>
+              <goal>verify</goal>
+            </goals>
+            <configuration>
+              <includes>
+                <include>**/it/redaction/*IntegrationTest.java</include>
+              </includes>
+              <summaryFile>${project.build.directory}/failsafe-reports/failsafe-summary-redaction.xml</summaryFile>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 </project>

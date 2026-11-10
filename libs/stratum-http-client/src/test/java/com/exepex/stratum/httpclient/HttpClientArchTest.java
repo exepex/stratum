@@ -26,6 +26,7 @@ class HttpClientArchTest {
           ClientRetry.class,
           ClientRetry.ClientRetryBuilder.class,
           BackoffPolicy.class,
+          CallLog.class,
           ClientCircuitBreaker.class,
           ClientCircuitBreaker.ClientCircuitBreakerBuilder.class,
           HttpClientPropertiesCustomizer.class);

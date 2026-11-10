@@ -3,6 +3,7 @@ package com.exepex.stratum.restclient.testsupport;
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientProperties;
 import com.exepex.stratum.restclient.ClientConnectionPools;
+import com.exepex.stratum.restclient.ClientMeters;
 import com.exepex.stratum.restclient.MockAnswers;
 import com.exepex.stratum.restclient.autoconfigure.RestClientAutoConfiguration;
 import com.exepex.stratum.restclient.autoconfigure.RestClientTokenAutoConfiguration;
@@ -216,7 +217,8 @@ public class RestClientTestData {
   public static ClientConnectionPools ownPools() {
     return new ClientConnectionPools(
         HttpClientProperties.builder().build().defaults(),
-        new StaticListableBeanFactory().getBeanProvider(SslBundles.class));
+        new StaticListableBeanFactory().getBeanProvider(SslBundles.class),
+        new StaticListableBeanFactory().getBeanProvider(ClientMeters.class));
   }
 
   /**
