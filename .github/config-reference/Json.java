@@ -6,6 +6,7 @@ import java.util.Map;
 /**
  * Reads one JSON document, enough for configuration metadata: objects become maps, arrays lists,
  * strings and numbers strings, and {@code true}, {@code false} and {@code null} their Java values.
+ * Its methods use loops, not streams, because each step moves the one shared read position.
  */
 final class Json {
 

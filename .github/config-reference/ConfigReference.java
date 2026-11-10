@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -187,20 +188,27 @@ final class ConfigReference {
         .forEach(names::add);
     var groups = new LinkedHashMap<String, List<Map<String, Object>>>();
     names.forEach(name -> groups.put(name, new ArrayList<>()));
-    for (Map<String, Object> property : stratumKeys(module.folder())) {
-      String key = (String) property.get("name");
-      if (!key.startsWith(module.prefix() + ".")) {
-        throw new IllegalStateException(
-            module.folder() + ": " + key + " does not start with " + module.prefix());
-      }
-      String group =
-          names.descendingSet().stream().filter(name -> key.startsWith(name + ".")).findFirst().orElseThrow();
-      groups.get(group).add(property);
-    }
+    stratumKeys(module.folder()).forEach(property -> groups.get(groupOf(module, names, property)).add(property));
     groups.values().removeIf(List::isEmpty);
     Comparator<Map<String, Object>> byKey = Comparator.comparing(property -> (String) property.get("name"));
     groups.values().forEach(keys -> keys.sort(byKey));
     return groups;
+  }
+
+  /**
+   * Returns the group of one key: the longest group name the key starts with.
+   *
+   * @param module the module the key belongs to
+   * @param names the module's group names
+   * @param property the key's metadata
+   * @return the group name
+   */
+  private String groupOf(Module module, TreeSet<String> names, Map<String, Object> property) {
+    String key = (String) property.get("name");
+    if (!key.startsWith(module.prefix() + ".")) {
+      throw new IllegalStateException(module.folder() + ": " + key + " does not start with " + module.prefix());
+    }
+    return names.descendingSet().stream().filter(name -> key.startsWith(name + ".")).findFirst().orElseThrow();
   }
 
   /** Adds a module's entries to the table of contents and its section, with one table per group. */
@@ -212,13 +220,15 @@ final class ConfigReference {
     contents.append("- [").append(module.title()).append("](#").append(anchor(module.title())).append(")\n");
     body.append("\n## ").append(module.title()).append("\n\n");
     body.append("Module page: [").append(module.page()).append("](").append(module.link()).append(").\n");
-    groups.forEach(
-        (group, keys) -> {
-          contents.append("  - [`").append(group).append("`](#").append(anchor(group)).append(")\n");
-          body.append("\n### `").append(group).append("`\n\n");
-          body.append("| Key | Type | Default | Description |\n| --- | --- | --- | --- |\n");
-          keys.forEach(property -> body.append(row(property)));
-        });
+    groups.forEach((group, keys) -> addGroup(group, keys, contents, body));
+  }
+
+  /** Adds a group's entry to the table of contents and its table to the section. */
+  private void addGroup(String group, List<Map<String, Object>> keys, StringBuilder contents, StringBuilder body) {
+    contents.append("  - [`").append(group).append("`](#").append(anchor(group)).append(")\n");
+    body.append("\n### `").append(group).append("`\n\n");
+    body.append("| Key | Type | Default | Description |\n| --- | --- | --- | --- |\n");
+    keys.forEach(property -> body.append(row(property)));
   }
 
   /** Returns one table row: the key, its type, its default and its description. */
@@ -250,14 +260,15 @@ final class ConfigReference {
   /** Returns a description on one line, with Javadoc code tags as code spans and Markdown escaped. */
   private String description(String text) {
     String line = text.strip().replaceAll("\\s+", " ");
-    Matcher code = JAVADOC_CODE.matcher(line);
-    var result = new StringBuilder();
-    int end = 0;
-    while (code.find()) {
-      result.append(escape(line.substring(end, code.start()))).append('`').append(code.group(1)).append('`');
-      end = code.end();
-    }
-    return result.append(escape(line.substring(end))).toString();
+    return Arrays.stream(JAVADOC_CODE.splitWithDelimiters(line, 0))
+        .map(this::descriptionPart)
+        .collect(Collectors.joining());
+  }
+
+  /** Returns a Javadoc code tag as a code span, and any other text with Markdown escaped. */
+  private String descriptionPart(String part) {
+    Matcher code = JAVADOC_CODE.matcher(part);
+    return code.matches() ? "`" + code.group(1) + "`" : escape(part);
   }
 
   /** Escapes the characters Markdown would read as formatting. */
