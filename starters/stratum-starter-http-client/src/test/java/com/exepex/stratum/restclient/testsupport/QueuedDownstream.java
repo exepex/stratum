@@ -16,14 +16,16 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.springframework.http.HttpHeaders;
 
 /**
  * A downstream service whose answer changes from one attempt to the next: each request, on any
  * path, gets the next status a test queued, and 200 with {@link ScriptedDownstream#BODY} once none
  * is left. Every answer carries its number in {@link #ANSWER_NUMBER} and, for an error, in its
- * body, so a test sees which attempt's answer it got. It records each request's method, path and
- * headers, and reads and drops its body.
+ * body, so a test sees which attempt's answer it got; {@link #answerNextLarge} sends one error with
+ * a large body instead. It records each request's method, path and headers, and reads and drops its
+ * body.
  */
 public final class QueuedDownstream implements AutoCloseable {
 
@@ -33,8 +35,14 @@ public final class QueuedDownstream implements AutoCloseable {
   /** The start of an error answer's body, followed by its number, such as {@code answer 3}. */
   public static final String ERROR_BODY = "answer ";
 
+  /** The size of a large error answer's body: far more than the 64 KB a client reads of it. */
+  public static final int LARGE_BODY_SIZE = 1024 * 1024;
+
   /** The server. */
   private final HttpServer server;
+
+  /** Whether the next error answer is a large one, with {@code Retry-After: 1}. */
+  private final AtomicBoolean nextErrorLarge = new AtomicBoolean();
 
   /** The statuses still to answer with, in order. */
   private final Queue<Integer> statuses = new ConcurrentLinkedQueue<>();
@@ -82,8 +90,20 @@ public final class QueuedDownstream implements AutoCloseable {
    * @param nextStatuses the statuses, such as 503, 503
    */
   public void answerNext(int... nextStatuses) {
+    nextErrorLarge.set(false);
     statuses.clear();
     Arrays.stream(nextStatuses).forEach(statuses::add);
+  }
+
+  /**
+   * Sets the next request's answer to the status, with {@code Retry-After: 1} and a body of {@link
+   * #LARGE_BODY_SIZE}, which a client reads only in part; later requests get 200.
+   *
+   * @param status the status, such as 503
+   */
+  public void answerNextLarge(int status) {
+    answerNext(status);
+    nextErrorLarge.set(true);
   }
 
   /**
@@ -125,9 +145,17 @@ public final class QueuedDownstream implements AutoCloseable {
       received.add(exchange.getRequestMethod() + " " + exchange.getRequestURI().getPath());
       var number = received.size();
       var status = Optional.ofNullable(statuses.poll()).orElse(HttpURLConnection.HTTP_OK);
+      var large = status != HttpURLConnection.HTTP_OK && nextErrorLarge.getAndSet(false);
       var body =
-          (status == HttpURLConnection.HTTP_OK ? ScriptedDownstream.BODY : ERROR_BODY + number)
-              .getBytes(StandardCharsets.UTF_8);
+          large
+              ? new byte[LARGE_BODY_SIZE]
+              : (status == HttpURLConnection.HTTP_OK
+                      ? ScriptedDownstream.BODY
+                      : ERROR_BODY + number)
+                  .getBytes(StandardCharsets.UTF_8);
+      if (large) {
+        exchange.getResponseHeaders().add(HttpHeaders.RETRY_AFTER, "1");
+      }
       exchange.getResponseHeaders().add(HttpHeaders.CONTENT_TYPE, "text/plain");
       exchange.getResponseHeaders().add(ANSWER_NUMBER, String.valueOf(number));
       exchange.sendResponseHeaders(status, body.length);

@@ -11,6 +11,7 @@ import com.exepex.stratum.restclient.StratumHttpClients;
 import com.exepex.stratum.restclient.testsupport.CallChecks;
 import com.exepex.stratum.restclient.testsupport.ClientBeanCalls;
 import com.exepex.stratum.restclient.testsupport.ClientBeanCalls.ClientBean;
+import com.exepex.stratum.restclient.testsupport.QueuedDownstream;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import com.exepex.stratum.restclient.testsupport.ScriptedDownstream;
 import com.exepex.stratum.restclient.testsupport.StreamingDownstream;
@@ -42,13 +43,13 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestClientResponseException;
 
 /**
  * Each client of this test shows one timeout through its beans: held a pool of one with a short
  * total-timeout, hung a second attempt with less time left than its timeout, stalled a body read
  * with a total-timeout far below its timeout, and slow its own timeout next to Spring Boot's;
- * inventory has a pool of one, for the wait between attempts.
+ * inventory has a pool of one and a server whose next error may have a large body, for the wait
+ * between attempts.
  */
 @SpringBootTest(
     classes = ClientsApplication.class,
@@ -117,6 +118,9 @@ class ClientBeansTimeoutIntegrationTest {
   /** The server that holds answers. */
   @AutoClose private static final ScriptedDownstream SCRIPTED = ScriptedDownstream.start();
 
+  /** The inventory service, whose next error answer may have a large body. */
+  @AutoClose private static final QueuedDownstream QUEUED = QueuedDownstream.start();
+
   /** The server that stalls a body. */
   @AutoClose private static final StreamingDownstream STREAMING = StreamingDownstream.start();
 
@@ -133,6 +137,7 @@ class ClientBeansTimeoutIntegrationTest {
     List.of(HELD_SETTINGS, HUNG_SETTINGS, SLOW_SETTINGS)
         .forEach(client -> registry.add(client + ".url", SCRIPTED::url));
     registry.add(STALLED_SETTINGS + ".url", STREAMING::url);
+    registry.add(RestClientTestData.INVENTORY_URL, QUEUED::url);
   }
 
   @ParameterizedTest
@@ -142,7 +147,7 @@ class ClientBeansTimeoutIntegrationTest {
     assertConnectionFreeWhile(
         () ->
             ClientBeanCalls.get(
-                context, bean, RestClientTestData.INVENTORY, ScriptedDownstream.RETRY_AFTER + "1"),
+                context, bean, RestClientTestData.INVENTORY, ScriptedDownstream.STOCK),
         bean);
   }
 
@@ -153,26 +158,27 @@ class ClientBeansTimeoutIntegrationTest {
   }
 
   /**
-   * Starts a call answered 503 with {@code Retry-After: 1} on the inventory client's pool of one,
-   * and checks that, once the server has its first request, another call through a bean gets the
-   * connection within max-wait, while the first one waits before its second attempt.
+   * Starts a call answered 503 with {@code Retry-After: 1} and a 1 MB body, more than the call
+   * reads of it, on the inventory client's pool of one, and checks that, once the server has its
+   * first request, another call through a bean gets the connection within max-wait, while the first
+   * one waits before its second attempt, which then succeeds.
    */
   private void assertConnectionFreeWhile(Runnable waitingCall, ClientBean bean) {
-    var requestsBefore = SCRIPTED.paths().size();
+    var requestsBefore = QUEUED.requests().size();
+    QUEUED.answerNextLarge(HttpStatus.SERVICE_UNAVAILABLE.value());
     var waiting = CompletableFuture.runAsync(waitingCall, Thread::startVirtualThread);
     try {
-      await().atMost(RestClientTestData.WAIT).until(() -> SCRIPTED.paths().size() > requestsBefore);
+      await()
+          .atMost(RestClientTestData.WAIT)
+          .until(() -> QUEUED.requests().size() > requestsBefore);
 
       assertThat(
               ClientBeanCalls.get(
                   context, bean, RestClientTestData.INVENTORY, ScriptedDownstream.STOCK))
           .isEqualTo(ScriptedDownstream.BODY);
     } finally {
-      // The waiting call ends with its last 503 either way, so the next test finds the pool free.
-      assertThat(waiting)
-          .failsWithin(RestClientTestData.WAIT)
-          .withThrowableThat()
-          .withCauseInstanceOf(RestClientResponseException.class);
+      // The waiting call ends either way, so the next test finds the pool free.
+      assertThat(waiting).succeedsWithin(RestClientTestData.WAIT);
     }
   }
 
@@ -182,10 +188,7 @@ class ClientBeansTimeoutIntegrationTest {
       "a call that never gets an answer fails with Spring's own I/O error, after its retries")
   void noAnswerIsSpringsOwnFailure(ClientBean bean) {
     assertThatExceptionOfType(ResourceAccessException.class)
-        .isThrownBy(
-            () ->
-                ClientBeanCalls.get(
-                    context, bean, RestClientTestData.INVENTORY, ScriptedDownstream.DROPPED))
+        .isThrownBy(() -> ClientBeanCalls.get(context, bean, HUNG, ScriptedDownstream.DROPPED))
         .withMessageStartingWith("I/O error on GET request for")
         .withCauseInstanceOf(IOException.class);
   }
