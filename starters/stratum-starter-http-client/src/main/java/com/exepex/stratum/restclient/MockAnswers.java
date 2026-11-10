@@ -144,8 +144,8 @@ public class MockAnswers {
    * Returns the answer to one call of a mocked client.
    *
    * @param client the client's name
-   * @param call the interface method the call came from, or {@code null} for a call through {@code
-   *     stratumHttpClients.restClient}, which no method marks
+   * @param call the interface method the call came from, or {@code null} for a call through the
+   *     client's {@code RestClient} or {@code RestTemplate}, which no method marks
    * @return the answer
    */
   MockAnswer answer(String client, @Nullable MockCall call) {
@@ -155,7 +155,7 @@ public class MockAnswers {
           "no mock answer for client "
               + client
               + ": only the methods of its interfaces are mocked, not calls through"
-              + " stratumHttpClients.restClient");
+              + " its RestClient or RestTemplate");
     }
     var path = ANSWER_FILE.formatted(client, call.method());
     return Optional.ofNullable(scripts.getOrDefault(client, Map.of()).get(call.method()))

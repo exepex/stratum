@@ -16,6 +16,7 @@ import com.exepex.stratum.restclient.MockAnswers;
 import com.exepex.stratum.restclient.MockClients;
 import com.exepex.stratum.restclient.OptionalNotFound;
 import com.exepex.stratum.restclient.ServiceTokenResend;
+import com.exepex.stratum.restclient.StratumClientBeansRegistrar;
 import com.exepex.stratum.restclient.StratumClientBuilders;
 import com.exepex.stratum.restclient.StratumClientChecks;
 import com.exepex.stratum.restclient.StratumClientCustomizer;
@@ -40,8 +41,9 @@ import org.springframework.core.env.Environment;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Turns each {@code @StratumClient} interface into a client with its own connection pool, unless
- * {@code stratum.http-client.enabled=false}. Ordered before Spring Boot's HTTP service client
+ * Turns each {@code @StratumClient} interface into a client with its own connection pool, and gives
+ * each configured client a {@code RestClient} and a {@code RestTemplate} bean, unless {@code
+ * stratum.http-client.enabled=false}. Ordered before Spring Boot's HTTP service client
  * auto-configuration, which sets up the groups only when their registry exists, and the registrar
  * this one imports creates it.
  */
@@ -49,7 +51,7 @@ import tools.jackson.databind.json.JsonMapper;
 @AutoConfiguration(before = HttpServiceClientAutoConfiguration.class)
 @AutoConfigureOrder(StratumModuleConstants.AUTO_CONFIGURATION_ORDER)
 @ConditionalOnStratumModule(HttpClientConstants.MODULE)
-@Import(StratumClientRegistrar.class)
+@Import({StratumClientRegistrar.class, StratumClientBeansRegistrar.class})
 public final class RestClientAutoConfiguration {
 
   /**
@@ -91,14 +93,15 @@ public final class RestClientAutoConfiguration {
   }
 
   /**
-   * Creates Stratum's set-up of a client's builder, shared by the client interfaces and {@link
-   * StratumHttpClients}.
+   * Creates Stratum's set-up of a client, shared by the client interfaces, {@link
+   * StratumHttpClients} and each client's {@code RestClient} and {@code RestTemplate} beans.
    *
    * @param environment the service's environment, from which the settings are resolved
    * @param pools the connection pools
    * @param customizers the service's changes to the clients' builders
    * @param tokenInitializers the senders of Spring Security's tokens, present with their libraries
    * @param mockAnswers the answers of the clients set to {@code mock: true}
+   * @param resilience the retries and circuit breakers the beans' calls run through
    * @return the set-up
    */
   @Bean
@@ -109,14 +112,16 @@ public final class RestClientAutoConfiguration {
       ClientConnectionPools pools,
       ObjectProvider<StratumClientCustomizer> customizers,
       ObjectProvider<TokenInitializers> tokenInitializers,
-      MockAnswers mockAnswers) {
+      MockAnswers mockAnswers,
+      ClientResilience resilience) {
     return new StratumClientBuilders(
         HttpClientProperties.resolve(environment),
         pools,
         environment,
         customizers,
         tokenInitializers,
-        mockAnswers);
+        mockAnswers,
+        resilience);
   }
 
   /**

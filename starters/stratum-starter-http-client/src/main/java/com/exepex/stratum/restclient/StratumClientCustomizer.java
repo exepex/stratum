@@ -2,14 +2,17 @@ package com.exepex.stratum.restclient;
 
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.retry.RetryConfig;
+import org.springframework.boot.restclient.RestTemplateBuilder;
 import org.springframework.web.client.RestClient;
 
 /**
  * Changes the builder of Stratum's clients, for what has no setting, such as a request interceptor
  * or a message converter, their retry and circuit breaker rules, and the exception an error answer
- * becomes. Declare it as a bean; every one is called for each client, in their order, after Stratum
- * has set the client's address and connection pool. The builder and the rules are changed once per
- * client; only {@link #mapError} runs per call, on a call that ends with an error answer.
+ * of a client interface becomes. Declare it as a bean; every one is called for each client, in
+ * their order, after Stratum has set the client's address and connection pool. {@link #customize}
+ * changes the client's interfaces and its {@code RestClient} bean, {@link #customizeRestTemplate}
+ * its {@code RestTemplate} bean. The builders and the rules are changed once per client; only
+ * {@link #mapError} runs per call, on a call of an interface that ends with an error answer.
  *
  * <pre>{@code
  * @Bean
@@ -32,6 +35,20 @@ public interface StratumClientCustomizer {
    * @param builder the client's builder, with its address and connection pool already set
    */
   void customize(String client, RestClient.Builder builder);
+
+  /**
+   * Changes the builder of one client's {@code RestTemplate} bean, and returns the builder to use:
+   * Spring Boot's builder returns a new one from each method, such as {@code
+   * builder.defaultHeader("X-Tenant", "retail")}. Each customizer gets the builder the one before
+   * it returned. By default it returns the builder unchanged.
+   *
+   * @param client the client's name
+   * @param builder the builder, with the client's address and connection pool already set
+   * @return the builder to use
+   */
+  default RestTemplateBuilder customizeRestTemplate(String client, RestTemplateBuilder builder) {
+    return builder;
+  }
 
   /**
    * Changes one client's retry rules, such as a custom wait or which attempt is sent again. It is
