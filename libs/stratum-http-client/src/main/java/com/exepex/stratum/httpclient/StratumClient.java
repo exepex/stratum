@@ -34,4 +34,13 @@ public @interface StratumClient {
    * @return the client's name
    */
   String value();
+
+  /**
+   * The interceptor beans that change each call of this client before it is sent, by type, such as
+   * {@code OrderSigner.class}. Every interface of the client may name some; they are joined. Each
+   * type needs exactly one bean. A {@link GlobalClientInterceptor} runs for every client anyway.
+   *
+   * @return the interceptors' types; none by default
+   */
+  Class<? extends ClientInterceptor>[] interceptors() default {};
 }

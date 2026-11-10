@@ -9,6 +9,7 @@ import com.exepex.stratum.httpclient.HttpClientProperties;
 import com.exepex.stratum.restclient.ClientConnectionPools;
 import com.exepex.stratum.restclient.ClientErrors;
 import com.exepex.stratum.restclient.ClientExchangeDecorator;
+import com.exepex.stratum.restclient.ClientInterceptors;
 import com.exepex.stratum.restclient.ClientResilience;
 import com.exepex.stratum.restclient.DefaultMockClients;
 import com.exepex.stratum.restclient.DefaultStratumHttpClients;
@@ -102,6 +103,7 @@ public final class RestClientAutoConfiguration {
    * @param tokenInitializers the senders of Spring Security's tokens, present with their libraries
    * @param mockAnswers the answers of the clients set to {@code mock: true}
    * @param resilience the retries and circuit breakers the beans' calls run through
+   * @param interceptors the interceptors of each client
    * @return the set-up
    */
   @Bean
@@ -113,7 +115,8 @@ public final class RestClientAutoConfiguration {
       ObjectProvider<StratumClientCustomizer> customizers,
       ObjectProvider<TokenInitializers> tokenInitializers,
       MockAnswers mockAnswers,
-      ClientResilience resilience) {
+      ClientResilience resilience,
+      ClientInterceptors interceptors) {
     return new StratumClientBuilders(
         HttpClientProperties.resolve(environment),
         pools,
@@ -121,7 +124,8 @@ public final class RestClientAutoConfiguration {
         customizers,
         tokenInitializers,
         mockAnswers,
-        resilience);
+        resilience,
+        interceptors);
   }
 
   /**
@@ -131,6 +135,7 @@ public final class RestClientAutoConfiguration {
    * @param builders Stratum's set-up of a client's builder
    * @param decorators what Stratum puts around each client's calls, such as the retries
    * @param mockAnswers the answers and calls of the clients set to {@code mock: true}
+   * @param interceptors the interceptors of each client
    * @return the set-up
    */
   @Bean
@@ -140,9 +145,10 @@ public final class RestClientAutoConfiguration {
       Environment environment,
       StratumClientBuilders builders,
       ObjectProvider<ClientExchangeDecorator> decorators,
-      MockAnswers mockAnswers) {
+      MockAnswers mockAnswers,
+      ClientInterceptors interceptors) {
     return new StratumClientGroups(
-        HttpClientProperties.resolve(environment), builders, decorators, mockAnswers);
+        HttpClientProperties.resolve(environment), builders, decorators, mockAnswers, interceptors);
   }
 
   /**

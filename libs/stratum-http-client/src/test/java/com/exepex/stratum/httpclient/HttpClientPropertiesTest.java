@@ -9,6 +9,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.env.MockEnvironment;
+import org.springframework.util.unit.DataSize;
 
 @DisplayName("HttpClientProperties come from properties, changed by Java configuration, which wins")
 class HttpClientPropertiesTest {
@@ -38,6 +39,7 @@ class HttpClientPropertiesTest {
                   .totalTimeout(HttpClientConstants.DEFAULT_TOTAL_TIMEOUT)
                   .circuitBreaker(HttpClientTestData.STRATUM_CIRCUIT_BREAKER)
                   .mock(false)
+                  .interceptorBodyLimit(DataSize.ofMegabytes(1))
                   .build());
     }
   }

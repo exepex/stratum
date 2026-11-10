@@ -1,6 +1,7 @@
 package com.exepex.stratum.httpclient;
 
 import com.exepex.stratum.core.properties.StratumCustomizers;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import java.time.Duration;
 import java.util.Map;
@@ -26,8 +27,8 @@ import org.springframework.core.env.Environment;
 @Builder(toBuilder = true)
 @ConfigurationProperties(prefix = HttpClientConstants.PREFIX)
 public record HttpClientProperties(
-    @NestedConfigurationProperty @DefaultValue ClientSettings defaults,
-    Map<String, ClientSettings> clients) {
+    @NestedConfigurationProperty @DefaultValue @Valid ClientSettings defaults,
+    Map<String, @Valid ClientSettings> clients) {
 
   /** Fills the defaults left unset with Stratum's, and keeps the clients a fixed map. */
   public HttpClientProperties {
@@ -343,6 +344,21 @@ public record HttpClientProperties(
   @AssertTrue
   public boolean isApiKeyHeaderWithApiKey() {
     return clientAuths().allMatch(ClientAuth::isApiKeyHeaderWithApiKey);
+  }
+
+  /**
+   * Returns whether no header in {@code headers} or {@code copy-headers}, shared or of one client,
+   * is one Stratum refuses: Authorization, Cookie, Set-Cookie, Proxy-Authorization or the client's
+   * API key header, compared without case. Each client is checked with the defaults merged in.
+   * Validation reports one that is refused as {@code stratum.http-client.headers-allowed
+   * breaks @AssertTrue}, without the client, the header or its value.
+   *
+   * @return whether every header name is allowed
+   */
+  @AssertTrue
+  public boolean isHeadersAllowed() {
+    return Stream.concat(Stream.of(defaults), clients.keySet().stream().map(this::clientSettings))
+        .allMatch(ClientSettings::isHeadersAllowed);
   }
 
   /** Returns the auth of each client that sets one. */

@@ -54,6 +54,8 @@ class RestClientEnvironmentPostProcessorTest {
     assertThat(environment.getProperty(HttpClientConstants.errorStatus("SX-HTTPC-0003")))
         .isEqualTo("503");
     assertThat(environment.getProperty(STATUS_0004)).isEqualTo("500");
+    assertThat(environment.getProperty(HttpClientConstants.errorStatus("SX-HTTPC-0005")))
+        .isEqualTo("500");
   }
 
   @Test

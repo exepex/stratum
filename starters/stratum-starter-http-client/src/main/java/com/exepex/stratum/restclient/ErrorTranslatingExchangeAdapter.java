@@ -48,6 +48,10 @@ public class ErrorTranslatingExchangeAdapter extends AroundCallExchangeAdapter {
       HttpRequestValues values, boolean streamedDownload, Supplier<@Nullable T> call) {
     try {
       return call.get();
+    } catch (InterceptorFailure failure) {
+      // The outermost layer: the service gets its interceptor's own failure, never the carrier.
+      failure.throwOriginal();
+      throw failure;
     } catch (RestClientResponseException answer) {
       throw errors.downstream(client, values, answer);
     } catch (RestClientException failure) {

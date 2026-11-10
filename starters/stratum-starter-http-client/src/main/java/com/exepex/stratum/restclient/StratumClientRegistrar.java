@@ -12,7 +12,10 @@ import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanFactory;
+import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition;
+import org.springframework.beans.factory.support.BeanDefinitionRegistry;
+import org.springframework.beans.factory.support.RootBeanDefinition;
 import org.springframework.boot.autoconfigure.AutoConfigurationPackages;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.env.Environment;
@@ -24,9 +27,10 @@ import org.springframework.web.service.registry.AbstractHttpServiceRegistrar;
 /**
  * Finds the {@code @StratumClient} interfaces in the application's packages, the ones Spring Boot
  * scans for entities and repositories, and the interfaces each client's {@code interfaces} setting
- * names, and makes each client name one HTTP service group. Two interfaces with the same name join
- * one group. Each interface is checked as it is found ({@link StratumClientChecks#checkInterface},
- * {@link StratumClientChecks#namedInterface}).
+ * names, and makes each client name one HTTP service group, and registers {@link
+ * ClientInterceptors} from the interceptors the interfaces name. Two interfaces with the same name
+ * join one group. Each interface is checked as it is found ({@link
+ * StratumClientChecks#checkInterface}, {@link StratumClientChecks#namedInterface}).
  */
 @StratumInternal
 public class StratumClientRegistrar extends AbstractHttpServiceRegistrar {
@@ -84,12 +88,32 @@ public class StratumClientRegistrar extends AbstractHttpServiceRegistrar {
   @Override
   protected void registerHttpServices(
       GroupRegistry registry, AnnotationMetadata importingClassMetadata) {
-    Stream.concat(markedInterfaces(), namedInterfaces())
-        .distinct()
-        .collect(
-            Collectors.groupingBy(
-                Map.Entry::getKey, Collectors.mapping(Map.Entry::getValue, Collectors.toList())))
-        .forEach((client, interfaces) -> register(registry, client, interfaces));
+    var interfacesByClient =
+        Stream.concat(markedInterfaces(), namedInterfaces())
+            .distinct()
+            .collect(
+                Collectors.groupingBy(
+                    Map.Entry::getKey,
+                    Collectors.mapping(Map.Entry::getValue, Collectors.toList())));
+    interfacesByClient.forEach((client, interfaces) -> register(registry, client, interfaces));
+    registerInterceptors(interfacesByClient);
+  }
+
+  /**
+   * Registers the interceptors of every client, from the interfaces just found, unless the service
+   * registered its own under the same name. Marked as a fallback, as every Stratum bean is.
+   */
+  private void registerInterceptors(Map<String, List<Class<?>>> interfacesByClient) {
+    var beans = Objects.requireNonNull(beanFactory);
+    if (beans instanceof BeanDefinitionRegistry definitions
+        && beans instanceof ListableBeanFactory listable
+        && !definitions.containsBeanDefinition(ClientInterceptors.BEAN_NAME)) {
+      var interceptors =
+          new RootBeanDefinition(
+              ClientInterceptors.class, () -> ClientInterceptors.of(interfacesByClient, listable));
+      interceptors.setFallback(true);
+      definitions.registerBeanDefinition(ClientInterceptors.BEAN_NAME, interceptors);
+    }
   }
 
   /** Returns each {@code @StratumClient} interface in the application's packages, by client. */

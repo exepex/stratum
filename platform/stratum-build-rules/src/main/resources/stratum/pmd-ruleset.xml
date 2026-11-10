@@ -29,7 +29,12 @@
     The web MVC starter's ResponseTimeoutFilter answers a request that ran out of time with the
     timeout status whatever the rest of the chain fails with, and a filter after it, such as
     Spring Security's or the service's own, can fail with any unchecked exception. The owner
-    allowed its doFilterInternal too (2026-11-05). Every other method is still checked.
+    allowed its doFilterInternal too (2026-11-05).
+    The HTTP client starter's DefaultOutgoingRequest.runInterceptors calls service-written
+    interceptor code on each attempt and must mark any failure of it, which can be any unchecked
+    exception, so that Stratum's retries and circuit breaker see that nothing was sent; it always
+    rethrows. Allowed by the owner's delegated panel (2026-11-10, PR #274). Every other method is
+    still checked.
   -->
   <rule ref="category/java/errorprone.xml/AvoidCatchingGenericException">
     <properties>
@@ -42,7 +47,10 @@
               [ancestor::CompilationUnit/PackageDeclaration[@Name='com.exepex.stratum.cache']]
             | ./ancestor::MethodDeclaration[@Name='doFilterInternal']
               [ancestor::ClassDeclaration[@SimpleName='ResponseTimeoutFilter']]
-              [ancestor::CompilationUnit/PackageDeclaration[@Name='com.exepex.stratum.webmvc']]"/>
+              [ancestor::CompilationUnit/PackageDeclaration[@Name='com.exepex.stratum.webmvc']]
+            | ./ancestor::MethodDeclaration[@Name='runInterceptors']
+              [ancestor::ClassDeclaration[@SimpleName='DefaultOutgoingRequest']]
+              [ancestor::CompilationUnit/PackageDeclaration[@Name='com.exepex.stratum.restclient']]"/>
     </properties>
   </rule>
   <rule ref="category/java/multithreading.xml">

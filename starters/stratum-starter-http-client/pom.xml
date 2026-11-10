@@ -44,6 +44,14 @@
       <groupId>io.github.resilience4j</groupId>
       <artifactId>resilience4j-circuitbreaker</artifactId>
     </dependency>
+    <!-- The servlet API, to read the headers that copy-headers copies from the request the service is
+         answering; Spring has no servlet-free way to read them. Optional: a service without it, such
+         as a batch job, never loads a servlet class and copies nothing. Version from Spring Boot. -->
+    <dependency>
+      <groupId>jakarta.servlet</groupId>
+      <artifactId>jakarta.servlet-api</artifactId>
+      <optional>true</optional>
+    </dependency>
     <!-- Spring's test framework, for the listener that clears the mocks of MockClient after each
          test. Optional: a running service never loads the listener, and a team's tests already
          have it through spring-boot-starter-test. -->

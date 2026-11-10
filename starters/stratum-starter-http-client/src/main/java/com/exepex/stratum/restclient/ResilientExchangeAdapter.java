@@ -45,7 +45,7 @@ public class ResilientExchangeAdapter extends AroundCallExchangeAdapter {
   @Override
   protected <T> @Nullable T around(
       HttpRequestValues values, boolean streamedDownload, Supplier<@Nullable T> call) {
-    return resilience.call(
+    return resilience.callMarkingInterceptorFailures(
         client,
         values.getHttpMethod(),
         StreamedBody.isStreamed(values.getBodyValue()),
