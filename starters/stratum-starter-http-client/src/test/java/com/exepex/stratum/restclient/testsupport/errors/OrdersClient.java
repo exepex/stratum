@@ -59,6 +59,22 @@ public interface OrdersClient {
   String largeError();
 
   /**
+   * Reads an error answer whose body never ends.
+   *
+   * @return never, as the answer is a 500
+   */
+  @GetExchange(ErrorDownstream.ENDLESS_ERROR)
+  String endlessError();
+
+  /**
+   * Reads an error answer that promises 50 GB and stops after 64 KB.
+   *
+   * @return never, as the answer is a 500
+   */
+  @GetExchange(ErrorDownstream.STALLED_ERROR)
+  String stalledError();
+
+  /**
    * Reads an error answer whose gzip body is small but far over 64 KB once undone.
    *
    * @return never, as the answer is a 500

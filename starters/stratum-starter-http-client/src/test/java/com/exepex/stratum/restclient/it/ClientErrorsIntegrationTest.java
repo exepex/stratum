@@ -173,19 +173,25 @@ class ClientErrorsIntegrationTest {
   class BodyLimit {
 
     @Test
-    @DisplayName("a 1 MB error body: 64 KB is kept, and the connection is used again")
+    @DisplayName("a 1 MB error body: 64 KB is kept, and the rest is dropped with its connection")
     void largeErrorBodyCapped() {
+      assertLargeErrorBodyCapped();
       var connectionsBefore = DOWNSTREAM.connections();
 
-      for (var call = 0; call < 2; call++) {
-        assertThatExceptionOfType(DownstreamException.class)
-            .isThrownBy(orders::largeError)
-            .satisfies(
-                failure ->
-                    assertThat(failure.getResponseBodyAsByteArray())
-                        .hasSize(HttpClientConstants.ERROR_BODY_LIMIT));
-      }
-      assertThat(DOWNSTREAM.connections() - connectionsBefore).isLessThanOrEqualTo(1);
+      assertLargeErrorBodyCapped();
+
+      // Past 64 KB the body is not drained, so the second call needs a new connection.
+      assertThat(DOWNSTREAM.connections() - connectionsBefore).isOne();
+    }
+
+    /** Calls the 1 MB error body and checks that 64 KB of it was kept. */
+    private void assertLargeErrorBodyCapped() {
+      assertThatExceptionOfType(DownstreamException.class)
+          .isThrownBy(orders::largeError)
+          .satisfies(
+              failure ->
+                  assertThat(failure.getResponseBodyAsByteArray())
+                      .hasSize(HttpClientConstants.ERROR_BODY_LIMIT));
     }
 
     @Test

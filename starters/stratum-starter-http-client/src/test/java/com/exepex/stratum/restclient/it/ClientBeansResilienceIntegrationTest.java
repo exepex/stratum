@@ -311,26 +311,27 @@ class ClientBeansResilienceIntegrationTest {
 
     @ParameterizedTest
     @FieldSource(ClientBeanCalls.BOTH_BEANS)
-    @DisplayName("a 1 MB error body: the service reads 64 KB, and the connection is used again")
+    @DisplayName("a 1 MB error body: the service reads 64 KB, and its connection is dropped")
     void largeErrorBodyCapped(ClientBean bean) {
+      assertLargeErrorBodyCapped(bean);
       var connectionsBefore = ERRORS.connections();
 
-      Stream.of(1, 2)
-          .forEach(
-              _ ->
-                  assertThatExceptionOfType(HttpServerErrorException.class)
-                      .isThrownBy(
-                          () ->
-                              ClientBeanCalls.get(
-                                  context,
-                                  bean,
-                                  RestClientTestData.ORDERS,
-                                  ErrorDownstream.LARGE_ERROR))
-                      .satisfies(
-                          failure ->
-                              assertThat(failure.getResponseBodyAsByteArray())
-                                  .hasSize(HttpClientConstants.ERROR_BODY_LIMIT)));
-      assertThat(ERRORS.connections() - connectionsBefore).isLessThanOrEqualTo(1);
+      assertLargeErrorBodyCapped(bean);
+
+      assertThat(ERRORS.connections() - connectionsBefore).isOne();
+    }
+
+    /** Calls the 1 MB error body through a bean and checks that 64 KB of it was read. */
+    private void assertLargeErrorBodyCapped(ClientBean bean) {
+      assertThatExceptionOfType(HttpServerErrorException.class)
+          .isThrownBy(
+              () ->
+                  ClientBeanCalls.get(
+                      context, bean, RestClientTestData.ORDERS, ErrorDownstream.LARGE_ERROR))
+          .satisfies(
+              failure ->
+                  assertThat(failure.getResponseBodyAsByteArray())
+                      .hasSize(HttpClientConstants.ERROR_BODY_LIMIT));
     }
 
     @ParameterizedTest

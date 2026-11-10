@@ -19,8 +19,8 @@ import org.apache.hc.core5.http.io.entity.HttpEntityWrapper;
  * Lets at most 64 KB of an error answer's body, status 400 or more, be read, so that a huge error
  * body is never held in memory; an answer that succeeded is untouched. It must be the first handler
  * of Apache's chain, outside the one that undoes gzip, so that it counts the bytes as read and not
- * as sent. Closing the body closes Apache's own stream, which reads and drops the rest so that the
- * connection can be used again.
+ * as sent. Closing the body drains the rest, so that the connection can be used again, but no
+ * further than 64 KB in all: a longer body is left unread and its connection dropped.
  */
 @StratumInternal
 public class ErrorBodyLimit implements ExecChainHandler {
@@ -49,8 +49,20 @@ public class ErrorBodyLimit implements ExecChainHandler {
     return response;
   }
 
-  /** An error body of which at most 64 KB can be read. */
+  /**
+   * An error body of which at most 64 KB can be read. One count, shared by every stream of the
+   * body, holds the bytes the caller read and those drained when the body is closed.
+   */
   private static final class LimitedEntity extends HttpEntityWrapper {
+
+    /** The size of the buffer the drain on close reads into. */
+    private static final int DRAIN_BUFFER = 8192;
+
+    /** The bytes read so far, by the caller and by the drain. */
+    private long count;
+
+    /** Whether the body is known to pass the limit, which leaves Apache's stream unread. */
+    private boolean limitPassed;
 
     /**
      * Wraps the body.
@@ -95,81 +107,128 @@ public class ErrorBodyLimit implements ExecChainHandler {
         content.transferTo(out);
       }
     }
-  }
-
-  /** A stream that ends after 64 KB and closes the stream it reads. */
-  private static final class LimitedStream extends FilterInputStream {
-
-    /** How many bytes may still be read. */
-    private int left = HttpClientConstants.ERROR_BODY_LIMIT;
 
     /**
-     * Wraps the stream.
+     * Closes Apache's body, which drains it, unless it is known to pass the limit.
      *
-     * @param content the error answer's body
-     */
-    private LimitedStream(InputStream content) {
-      super(content);
-    }
-
-    /**
-     * Reads one byte, or ends after the limit.
-     *
-     * @return the byte, or -1 at the end
-     * @throws IOException when it cannot be read
+     * @throws IOException when it cannot be closed
      */
     @Override
-    public int read() throws IOException {
-      if (left <= 0) {
-        return -1;
+    public void close() throws IOException {
+      if (!limitPassed) {
+        super.close();
       }
-      var read = super.read();
-      left -= read < 0 ? 0 : 1;
-      return read;
     }
 
-    /**
-     * Reads bytes, never past the limit.
-     *
-     * @param buffer where the bytes go
-     * @param offset where in the buffer
-     * @param length how many at most
-     * @return how many were read, or -1 at the end
-     * @throws IOException when it cannot be read
-     */
-    @Override
-    public int read(byte[] buffer, int offset, int length) throws IOException {
-      if (left <= 0) {
-        return -1;
+    /** Returns how many bytes may still be read. */
+    private long left() {
+      return Math.max(0, HttpClientConstants.ERROR_BODY_LIMIT - count);
+    }
+
+    /** A stream that ends after 64 KB and drains the rest, up to 64 KB, when closed. */
+    private final class LimitedStream extends FilterInputStream {
+
+      /**
+       * Wraps the stream.
+       *
+       * @param content the error answer's body
+       */
+      private LimitedStream(InputStream content) {
+        super(content);
       }
-      var read = super.read(buffer, offset, Math.min(length, left));
-      left -= Math.max(read, 0);
-      return read;
-    }
 
-    /**
-     * Skips bytes, never past the limit.
-     *
-     * @param count how many at most
-     * @return how many were skipped
-     * @throws IOException when it cannot be read
-     */
-    @Override
-    public long skip(long count) throws IOException {
-      var skipped = super.skip(Math.min(count, left));
-      left -= (int) skipped;
-      return skipped;
-    }
+      /**
+       * Reads one byte, or ends after the limit.
+       *
+       * @return the byte, or -1 at the end
+       * @throws IOException when it cannot be read
+       */
+      @Override
+      public int read() throws IOException {
+        if (left() <= 0) {
+          return -1;
+        }
+        var read = super.read();
+        count += read < 0 ? 0 : 1;
+        return read;
+      }
 
-    /**
-     * Returns how many bytes can be read without blocking, never past the limit.
-     *
-     * @return the count
-     * @throws IOException when it cannot be read
-     */
-    @Override
-    public int available() throws IOException {
-      return Math.min(super.available(), left);
+      /**
+       * Reads bytes, never past the limit.
+       *
+       * @param buffer where the bytes go
+       * @param offset where in the buffer
+       * @param length how many at most
+       * @return how many were read, or -1 at the end
+       * @throws IOException when it cannot be read
+       */
+      @Override
+      public int read(byte[] buffer, int offset, int length) throws IOException {
+        if (left() <= 0) {
+          return -1;
+        }
+        var read = super.read(buffer, offset, (int) Math.min(length, left()));
+        count += Math.max(read, 0);
+        return read;
+      }
+
+      /**
+       * Skips bytes, never past the limit.
+       *
+       * @param skipped how many at most
+       * @return how many were skipped
+       * @throws IOException when it cannot be read
+       */
+      @Override
+      public long skip(long skipped) throws IOException {
+        var done = super.skip(Math.min(skipped, left()));
+        count += done;
+        return done;
+      }
+
+      /**
+       * Returns how many bytes can be read without blocking, never past the limit.
+       *
+       * @return the count
+       * @throws IOException when it cannot be read
+       */
+      @Override
+      public int available() throws IOException {
+        return (int) Math.min(super.available(), left());
+      }
+
+      /**
+       * Drains the rest of the body, then closes Apache's stream, so that the connection is used
+       * again, but reads no more than 64 KB in all: a body whose {@code Content-Length} is over 64
+       * KB, or that passes it while drained, is left unread, so its connection is dropped, and the
+       * close does not fail. A failed read, such as a read timeout, also leaves it unread and is
+       * thrown; Spring ignores a failure to close an answer.
+       *
+       * @throws IOException when the drain cannot read the body
+       */
+      @Override
+      public void close() throws IOException {
+        if (limitPassed
+            || LimitedEntity.super.getContentLength() > HttpClientConstants.ERROR_BODY_LIMIT) {
+          limitPassed = true;
+          return;
+        }
+        var buffer = new byte[DRAIN_BUFFER];
+        try {
+          // A loop, as each read may end the drain early.
+          for (var read = in.read(buffer); read >= 0; read = in.read(buffer)) {
+            count += read;
+            if (count > HttpClientConstants.ERROR_BODY_LIMIT) {
+              limitPassed = true;
+              return;
+            }
+          }
+        } catch (IOException failure) {
+          limitPassed = true;
+          throw failure;
+        }
+        in.close();
+      }
     }
   }
 }

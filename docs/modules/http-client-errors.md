@@ -135,9 +135,10 @@ StratumClientCustomizer stockNotFound() {
 ## The error body is read up to 64 KB
 
 Of an error answer's body, at most 64 KB is read and kept, after gzip is undone, so a huge error body never fills the
-memory. An answer that succeeds is read whole. The limit has no key. The rest of a longer error body is read and
-dropped when the answer closes, so the connection can be used again; a body that never ends is bounded only by
-`timeout` between bytes ([#236](https://github.com/exepex/stratum/issues/236)).
+memory. An answer that succeeds is read whole ([#236](https://github.com/exepex/stratum/issues/236)). The limit has
+no key. When the answer closes, the rest of the body is read and dropped up to 64 KB in all, so the connection can be
+used again. A longer body, one that never ends, or one whose `Content-Length` is over 64 KB is not read further: its
+connection is closed instead of being used again, so a huge error body never holds the call.
 
 ## Clients Stratum did not build
 
