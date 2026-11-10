@@ -10,7 +10,9 @@ one log line per failed call, its meters and its trace headers ([call log and me
 Design: [ADR 0011](../adr/0011-http-client-starters.md), [ADR 0012](../adr/0012-http-client-changes-found-while-building.md),
 [ADR 0013](../adr/0013-http-client-retry-and-circuit-breaker-keys.md),
 [ADR 0014](../adr/0014-http-client-beans-that-retry.md),
-[ADR 0016](../adr/0016-http-client-call-log-and-meters.md)
+[ADR 0015](../adr/0015-http-client-interceptor-body-limit.md),
+[ADR 0016](../adr/0016-http-client-call-log-and-meters.md),
+[ADR 0017](../adr/0017-http-client-response-body-limit.md)
 
 ## What it does
 

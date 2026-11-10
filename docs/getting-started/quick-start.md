@@ -234,7 +234,7 @@ class OutOfStockException extends RuntimeException {
 | Invalid input returns `400` with a list of field errors | `stratum-starter-webmvc` validation and error handling |
 | `OutOfStockException` returns `409` as Problem Details JSON | `stratum-starter-webmvc` error handling |
 | Every log line written inside a traced operation carries `traceId`, `spanId` and `correlationId` | `stratum-starter-observability`, written as JSON by `stratum-starter-logging` |
-| The call to inventory carries the trace and correlation headers (planned) | `stratum-starter-http-client` |
+| The call to inventory carries the trace and correlation headers (`trace-headers`, on by default) | `stratum-starter-http-client` |
 | The call to inventory times out after 2 s instead of hanging | Your `timeout` plus Stratum's connect timeout |
 | `http.server.requests` and `http.client.requests` metrics | `stratum-starter-observability` |
 

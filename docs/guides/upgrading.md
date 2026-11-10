@@ -63,8 +63,9 @@ in `stratum-test` is internal today except `PostgresContainerConfiguration` and
 2. **Change the version** in one place: the `<parent>` (or the BOM import). Under a company parent,
    check first that the Spring Boot version it sets is in the new release's supported line.
 3. **Build:** `mvn verify`. This runs unit and integration tests against the new versions.
-4. **Start the service** and look for `WARN` lines about deprecated properties. Each names its
-   replacement.
+4. **Start the service** and read the log for startup errors. Search your configuration files for
+   every key the release notes say was renamed or removed: an old key Stratum no longer reads is
+   ignored, with no warning.
 5. **Deploy to a test environment** and check dashboards: error rate, latency, and that traces still
    connect between services.
 
@@ -74,15 +75,14 @@ in `stratum-test` is internal today except `PostgresContainerConfiguration` and
 
 ## Deprecated properties
 
-When a property is renamed, the old name keeps working for at least one minor release. At startup
-Stratum logs:
-
-```text
-WARN  Property 'stratum.http-client.read-timeout' is deprecated; use 'stratum.http-client.defaults.timeout' instead.
-```
-
-Your IDE also marks deprecated keys in `application.yml` and `application.properties`, using the
-configuration metadata shipped with each starter.
+Stratum does not promise that a renamed key keeps working, and it logs no deprecation warning. A
+renamed key can be marked as deprecated in the configuration metadata shipped with the module, as
+the HTTP client's old keys are, so your IDE shows it in `application.yml` and `application.properties` with the new key. What the service
+does with the old key depends on the key: an unknown key is ignored, so the setting falls back to
+Stratum's default, and a key whose value no longer fits fails startup. The HTTP client's rename is
+the example ([ADR 0013](../adr/0013-http-client-retry-and-circuit-breaker-keys.md), and the
+[old and new keys](../modules/http-client-resilience.md#moving-from-the-old-keys)). Search your files for each
+key the release notes name.
 
 ## Security fixes
 

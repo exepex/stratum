@@ -1,6 +1,7 @@
 # Installation
 
-**Status: Planned.** How to add Stratum to a service, new or existing.
+**Status: Partly built.** How to add Stratum to a service, new or existing. The parent, the BOM and the
+module switches are built; the bundles are built as POMs and not released.
 
 [← Documentation home](../README.md)
 

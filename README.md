@@ -23,9 +23,10 @@ Add a starter. Set a few properties. Write only business code.
 ---
 
 > [!IMPORTANT]
-> **Stratum is in the design stage.** This README and the [documentation](docs/README.md) describe what
-> Stratum will do once it is built. No module is released yet. Everything marked **Planned** is the
-> design target and may change. The Maven `groupId` is `com.exepex.stratum`; the version
+> **Stratum is under construction.** The parent, the BOM, the web, cache, logging and observability
+> modules are built, and the data and HTTP client modules are partly built. This README and the
+> [documentation](docs/README.md) also describe modules that are not built yet. No module is released.
+> Everything marked **Planned** is the design target and may change. The Maven `groupId` is `com.exepex.stratum`; the version
 > `0.1.0-SNAPSHOT` in the examples is a **placeholder** until the first release.
 
 ## Table of contents

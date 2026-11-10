@@ -1,7 +1,8 @@
 # Using Stratum with a company framework
 
-**Status: Planned.** How to use Stratum when your company already has its own framework built on
-Spring Boot, and how to make the two work together without conflicts.
+**Status: Partly built.** How to use Stratum when your company already has its own framework built on
+Spring Boot, and how to make the two work together without conflicts. The parent, the BOM and the
+module switches described here are built.
 
 [← Documentation home](../README.md) · Decision record: [ADR 0001](../adr/0001-coexistence-with-company-frameworks.md)
 
@@ -96,7 +97,7 @@ module page says so. In that case the company orders its auto-configuration befo
 
 A company auto-configuration that sets its own late order can still run before Stratum's by naming
 it, for example
-`@AutoConfiguration(beforeName = "com.exepex.stratum.web.autoconfigure.StratumCorrelationAutoConfiguration")`.
+`@AutoConfiguration(beforeName = "com.exepex.stratum.webmvc.autoconfigure.WebMvcRequestFieldsAutoConfiguration")`.
 Using `beforeName` avoids a compile-time dependency on Stratum. Stratum's auto-configuration class
 names may change between minor versions, and the release notes list every rename.
 
@@ -117,7 +118,7 @@ starter from the bundle:
 | --- | --- | --- |
 | Security filter chain | Requests pass one chain and fail the other | `stratum.security.enabled=false` |
 | Log format and redaction | Log lines in two formats, or the company's format without Stratum's redaction | `stratum.logging.enabled=false` |
-| Correlation ID filter | Two IDs per request, under two header names | `stratum.web.correlation.enabled=false` when `stratum.web` is on |
+| Correlation ID filter | Two IDs per request, under two header names | `stratum.web.enabled=false`, which also turns off the error format, the request log and the response timeouts; or `stratum.web.correlation.accept-from-caller=false` to ignore the caller's `X-Correlation-Id` and always use the trace ID |
 | Metrics and tracing setup | Duplicate metric tags, or traces that do not connect | `stratum.observability.enabled=false` |
 | HTTP client defaults | Two sets of timeouts or interceptors on the same client | `stratum.http-client.enabled=false` |
 
