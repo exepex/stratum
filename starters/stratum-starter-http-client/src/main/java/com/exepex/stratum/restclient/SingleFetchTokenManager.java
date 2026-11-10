@@ -77,15 +77,22 @@ public class SingleFetchTokenManager {
    * @param registration the registration's name
    * @param waitLimit the longest wait for another caller's fetch
    * @return the token
-   * @throws StratumException {@code SX-HTTPC-0002} when the token cannot be fetched in time
+   * @throws InterceptorFailure carrying {@code SX-HTTPC-0002} when the token cannot be fetched in
+   *     time: nothing was sent, so the breaker ignores the call, and the outer layer of the call
+   *     throws the {@code SX-HTTPC-0002} itself
    */
   public OAuth2AccessToken token(String client, String registration, Duration waitLimit) {
-    return attemptToken(registration)
-        .or(() -> validToken(registration))
-        .orElseGet(
-            () ->
-                singleFetch(
-                    client, registration, waitLimit, () -> authorize(client, registration)));
+    try {
+      return attemptToken(registration)
+          .or(() -> validToken(registration))
+          .orElseGet(
+              () ->
+                  singleFetch(
+                      client, registration, waitLimit, () -> authorize(client, registration)));
+    } catch (StratumException unavailable) {
+      // Marked here, not by its code: the same code after a 401's renewal follows a real send.
+      throw new InterceptorFailure(unavailable);
+    }
   }
 
   /**

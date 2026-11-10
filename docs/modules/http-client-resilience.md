@@ -85,8 +85,10 @@ attempt, retries included: with `max-retries: 3`, one failing `GET` can be 4 cou
 `minimum-number-of-calls: 10` can be reached by 3 failing calls. Size the window in attempts, not calls. A call
 that was never sent is neither retried nor recorded, as a success or a failure, and in half-open state it gives back
 its permit: one where an [interceptor](http-client-headers.md#interceptors) failed, or read a body larger than
-`interceptor-body-limit` (`SX-HTTPC-0005`). A `customizeCircuitBreaker` that replaces Stratum's `ignoreException`
-rule counts such calls again.
+`interceptor-body-limit` (`SX-HTTPC-0005`); one whose service token could not be fetched before the first send
+(`SX-HTTPC-0002`); and one with no caller token to relay (`SX-HTTPC-0004`). A call that was sent, answered `401` and
+then could not get a new token also ends with `SX-HTTPC-0002`, but counts as the `401` does. A
+`customizeCircuitBreaker` that replaces Stratum's `ignoreException` rule counts such calls again.
 
 **Without `slow-call-duration-threshold`, the slow-call rule is Resilience4j's own: 60s at 100%.** Resilience4j has no
 switch to turn it off. The breaker then opens on slow calls only when every attempt in its window took longer than
