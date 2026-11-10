@@ -40,7 +40,8 @@ them in the repository's `docs/` folder, not in the wiki
 | [Configuration basics](configuration/basics.md) | YAML and properties side by side, property names, types (durations, sizes, lists, maps), environment variables, validation, IDE completion. |
 | [Profiles and environments](configuration/profiles-and-environments.md) | Per-environment settings, which source wins, keeping secrets out of files. |
 | [Overriding defaults](configuration/overriding-defaults.md) | Changing values, customizers, replacing beans, switching modules off. |
-| [Configuration reference](configuration/reference.md) | Every `stratum.*` prefix with a link to its full property table. |
+| [Shared settings](configuration/shared-settings.md) | The service's name and environment, the instance ID, the Spring Boot keys Stratum gives a default, a complete example. |
+| [Configuration reference](configuration/reference.md) | Every `stratum.*` key with its type, default and description, generated from the code, by module and group, with a link to each module's page. |
 
 ## Modules
 

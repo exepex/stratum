@@ -1,0 +1,21 @@
+{
+  "groups": [
+    {
+      "name": "stratum",
+      "description": "Settings that several Stratum modules share."
+    }
+  ],
+  "properties": [
+    {
+      "name": "stratum.environment",
+      "type": "java.lang.String",
+      "description": "The environment, such as prod.\n  Written to logs."
+    },
+    {
+      "name": "stratum.backward-compatible",
+      "type": "java.lang.Boolean",
+      "description": "Whether external contracts stay as they were.",
+      "defaultValue": false
+    }
+  ]
+}

@@ -30,8 +30,8 @@ the documentation must work for both. Documentation is part of every change and 
   version updates every document that describes it in the same pull request. A pull request that leaves a document
   describing the old behaviour is not finished, and the judge fails it.
 - **ST-DOC-02 One place per topic.** Each topic is described fully in one document. Other documents link to it with
-  one line instead of describing it again. A module's property table is never copied, not even into
-  `docs/configuration/reference.md`, which links to it.
+  one line instead of describing it again. A module's property table is never copied, with one exception:
+  `docs/configuration/reference.md` is generated from the code's configuration metadata, and CI fails when it differs.
 - **ST-DOC-03 Edit in place.** Update the document that owns the topic. Do not add dated summaries, handover notes or
   "update" files.
 - **ST-DOC-04 Every property documented.** Each module has one property table, on the page that owns its prefix: the
