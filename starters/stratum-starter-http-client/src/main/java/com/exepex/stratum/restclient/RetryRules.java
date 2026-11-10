@@ -2,11 +2,9 @@ package com.exepex.stratum.restclient;
 
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.error.FailureCauses;
-import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.httpclient.ClientCircuitBreaker;
 import com.exepex.stratum.httpclient.ClientRetry;
 import com.exepex.stratum.httpclient.HttpClientConstants;
-import com.exepex.stratum.httpclient.HttpClientErrorCode;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.core.IntervalBiFunction;
 import io.github.resilience4j.core.IntervalFunction;
@@ -212,7 +210,7 @@ public class RetryRules {
     var config =
         CircuitBreakerConfig.custom()
             .recordException(RetryRules::countsAsBreakerFailure)
-            .ignoreException(RetryRules::isNeverSent)
+            .ignoreException(NeverSentFailures::isNeverSent)
             .failureRateThreshold(Objects.requireNonNull(breaker.failureRateThreshold()))
             .slidingWindowSize(Objects.requireNonNull(breaker.slidingWindowSize()))
             .minimumNumberOfCalls(Objects.requireNonNull(breaker.minimumNumberOfCalls()))
@@ -233,20 +231,6 @@ public class RetryRules {
     return delay.compareTo(HttpClientConstants.MAX_RETRY_DELAY) > 0
         ? delay
         : HttpClientConstants.MAX_RETRY_DELAY;
-  }
-
-  /**
-   * Returns whether a call failed before anything was sent: an interceptor failed, or read a body
-   * larger than the client's {@code interceptor-body-limit} ({@code SX-HTTPC-0005}). The breaker
-   * ignores such a call: it is neither a success nor a failure of the other service.
-   *
-   * @param failure the failure of a call
-   * @return whether nothing was sent
-   */
-  public static boolean isNeverSent(Throwable failure) {
-    return failure instanceof InterceptorFailure
-        || failure instanceof StratumException stratum
-            && stratum.getErrorCode() == HttpClientErrorCode.INTERCEPTOR_BODY_TOO_LARGE;
   }
 
   /**
@@ -369,19 +353,6 @@ public class RetryRules {
    */
   public static boolean isAnswerTimeout(IOException cause) {
     return cause instanceof SocketTimeoutException && !(cause instanceof ConnectTimeoutException);
-  }
-
-  /**
-   * Returns the outcome of a call that a Stratum failure stopped before an attempt was sent:
-   * unavailable when the service token could not be fetched, an error for any other.
-   *
-   * @param failure the failure, such as {@code SX-HTTPC-0002}
-   * @return the call's outcome
-   */
-  public static CallOutcome notSentOutcome(StratumException failure) {
-    return failure.getErrorCode() == HttpClientErrorCode.DOWNSTREAM_UNAVAILABLE
-        ? CallOutcome.UNAVAILABLE
-        : CallOutcome.ERROR;
   }
 
   /** Returns whether an answer's body was cut off while it was read, as {@link #ioFailureOf}. */

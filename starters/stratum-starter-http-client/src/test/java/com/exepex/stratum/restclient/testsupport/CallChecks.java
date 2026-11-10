@@ -7,6 +7,7 @@ import static org.awaitility.Awaitility.await;
 
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.httpclient.HttpClientErrorCode;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
@@ -69,5 +70,18 @@ public class CallChecks {
     return assertThatExceptionOfType(StratumException.class)
         .isThrownBy(call)
         .satisfies(failure -> assertThat(failure.getErrorCode()).isEqualTo(code));
+  }
+
+  /**
+   * Checks that a client's breaker is in the state given and has recorded neither a success nor a
+   * failure, as after a call that was never sent.
+   *
+   * @param breaker the client's breaker
+   * @param state the state it must be in
+   */
+  public static void assertNothingRecorded(CircuitBreaker breaker, CircuitBreaker.State state) {
+    assertThat(breaker.getState()).isEqualTo(state);
+    assertThat(breaker.getMetrics().getNumberOfSuccessfulCalls()).isZero();
+    assertThat(breaker.getMetrics().getNumberOfFailedCalls()).isZero();
   }
 }

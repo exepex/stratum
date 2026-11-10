@@ -160,7 +160,10 @@ public class ClientResilience implements ClientExchangeDecorator {
               attempt -> noteSent(call, attempt, lastSent, sentAttempts));
       attemptsEnded = true;
     } catch (StratumException failure) {
-      notSent = RetryRules.notSentOutcome(failure);
+      notSent = NeverSentFailures.notSentOutcome(failure);
+      throw failure;
+    } catch (InterceptorFailure failure) {
+      notSent = NeverSentFailures.notSentOutcome(failure);
       throw failure;
     } finally {
       var duration = Duration.ofNanos(System.nanoTime() - startNanos);
