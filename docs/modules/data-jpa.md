@@ -30,6 +30,10 @@ own keys, so every value your service sets wins.
 </dependency>
 ```
 
+> [!NOTE]
+> Until this starter is fully built, it is not published to Maven Central or listed in `stratum-bom`, so
+> this dependency does not resolve yet ([Publishing](../contributing.md#publishing)).
+
 The starter brings Spring Boot's `spring-boot-starter-data-jpa`: HikariCP, Hibernate and Spring
 Data JPA. It brings no migration tool: add `spring-boot-starter-flyway` or
 `spring-boot-starter-liquibase` yourself, and Spring Boot runs it before Hibernate starts. Their

@@ -1,7 +1,8 @@
 # Installation
 
 **Status: Built, not released.** How to add Stratum to a service, new or existing. The parent POM, the
-BOM and the starters used below exist, but no version is published yet.
+BOM and the starters used below exist. No release is published yet; snapshots are
+([Using a snapshot](#using-a-snapshot)).
 
 [← Documentation home](../README.md)
 
@@ -15,6 +16,35 @@ BOM and the starters used below exist, but no version is published yet.
 
 > [!NOTE]
 > `0.1.0-SNAPSHOT` below is a placeholder for the first released version.
+
+### Using a snapshot
+
+Until the first release, each push to Stratum's `main` branch publishes `0.1.0-SNAPSHOT` to Maven
+Central's snapshot repository, once snapshots are enabled for the `io.github.exepex` namespace. A *snapshot* is a build that changes with each push, and the
+repository deletes it after 90 days. Maven does not look there by default, so add the repository
+to your `pom.xml`. The plugin repository is needed too, because `stratum-parent`'s build checks load
+`stratum-build-rules` as a plugin dependency:
+
+```xml
+<repositories>
+  <repository>
+    <id>central-snapshots</id>
+    <url>https://central.sonatype.com/repository/maven-snapshots/</url>
+    <releases><enabled>false</enabled></releases>
+    <snapshots><enabled>true</enabled></snapshots>
+  </repository>
+</repositories>
+<pluginRepositories>
+  <pluginRepository>
+    <id>central-snapshots</id>
+    <url>https://central.sonatype.com/repository/maven-snapshots/</url>
+    <releases><enabled>false</enabled></releases>
+    <snapshots><enabled>true</enabled></snapshots>
+  </pluginRepository>
+</pluginRepositories>
+```
+
+Remove both once you move to a released version.
 
 ## Step 1: choose how your service gets Stratum's versions
 
@@ -49,12 +79,12 @@ service does. You can add more later.
 | Your service... | Add |
 | --- | --- |
 | Exposes a REST API | `stratum-starter-webmvc` (or `stratum-starter-webflux` if it is reactive), `stratum-starter-observability`, `stratum-starter-logging` |
-| Requires a valid token on its API | `stratum-starter-security` (**planned**: it brings no dependency yet) |
+| Requires a valid token on its API | `stratum-starter-security` (**planned**: it brings no dependency yet and is not published) |
 | Calls other services over HTTP | `stratum-starter-http-client`, which gives each client its own timeouts, connection pool, retries and circuit breaker |
 | Calls secured services | `stratum-starter-oauth2-client` |
-| Uses a relational database | `stratum-starter-data-jpa` (partly built) |
+| Uses a relational database | `stratum-starter-data-jpa` (partly built, and not published until it is built) |
 | Caches results | `stratum-starter-cache` |
-| Produces or consumes Kafka messages | `stratum-starter-kafka` (**planned**) |
+| Produces or consumes Kafka messages | `stratum-starter-kafka` (**planned**, not published) |
 | Uses cloud storage, queues or secrets | `stratum-starter-cloud-<provider>` (**planned**) |
 | Has tests (every service) | `stratum-test` with `<scope>test</scope>` |
 

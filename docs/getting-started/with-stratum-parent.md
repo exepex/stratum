@@ -1,7 +1,8 @@
 # Stratum as your parent POM
 
-**Status: Built, not released.** `stratum-parent` exists and builds the example below, but no version
-is published yet. `0.1.0-SNAPSHOT` is a placeholder for the first released version.
+**Status: Built, not released.** `stratum-parent` exists and builds the example below. No release is
+published yet, only [snapshots](installation.md#using-a-snapshot). `0.1.0-SNAPSHOT` is a placeholder
+for the first released version.
 
 This guide sets up a service whose `pom.xml` inherits `stratum-parent`. Use it for a new service, or
 for a service whose `pom.xml` has no parent yet. If your service must keep another parent, such as
@@ -58,7 +59,7 @@ MVC, logging, observability, the HTTP client and the cache.
   <version>1.0.0-SNAPSHOT</version>
 
   <dependencies>
-    <!-- No <version>: stratum-parent manages every Stratum module. -->
+    <!-- No <version>: stratum-parent manages every published Stratum module. -->
     <dependency>
       <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-webmvc</artifactId>

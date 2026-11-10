@@ -33,6 +33,10 @@ flowchart LR
 </dependency>
 ```
 
+> [!NOTE]
+> Until this starter is built, it is not published to Maven Central or listed in `stratum-bom`, so
+> this dependency does not resolve yet ([Publishing](../contributing.md#publishing)).
+
 The starter is on as soon as it is on the classpath; no line is needed. To turn it off, set in
 `application.properties`:
 

@@ -23,6 +23,12 @@
   <name>Stratum bundle: reactive microservice</name>
   <description>Bundle for a reactive REST microservice: WebFlux, logging and observability.</description>
 
+  <!-- No Java code, so Maven Central gets empty sources and Javadoc jars (root POM, stratum-release). -->
+  <properties>
+    <stratum.placeholder-javadoc.phase>package</stratum.placeholder-javadoc.phase>
+    <stratum.placeholder-sources.phase>package</stratum.placeholder-sources.phase>
+  </properties>
+
   <!-- Keep the starters sorted by name. -->
   <!-- No HTTP client starter until the reactive one exists: the blocking one would give a
        WebFlux service a blocking client and Apache HttpClient 5 (ADR 0011). -->

@@ -1,0 +1,94 @@
+# Publishes Stratum to Maven Central under io.github.exepex.stratum (docs/contributing.md#publishing).
+# - A push to main, or a manual run, deploys the -SNAPSHOT version set in .mvn/maven.config to
+#   Central's snapshot repository. A version without -SNAPSHOT is not deployed from main.
+# - A tag v<version>, such as v0.1.0, uploads that version as a release to the Central Portal, where it
+#   waits until the owner publishes it there.
+# Tests are skipped: the Build workflow runs them on every pull request and every push to main.
+name: Publish
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Two publishes never run at once, and a running one is never cancelled half-way through an upload.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Deploy to Maven Central
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Writes a settings.xml server "central" that reads the token from the environment, and imports
+      # the signing key into a temporary keyring that the job's post step deletes.
+      - name: Set up JDK 25, the Central token and the signing key
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          server-id: central
+          server-username-env-var: CENTRAL_TOKEN_USERNAME
+          server-password-env-var: CENTRAL_TOKEN_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase-env-var: MAVEN_GPG_PASSPHRASE
+
+      - name: Choose the version
+        id: version
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [[ "$REF_TYPE" == "tag" ]]; then
+            version="${REF_NAME#v}"
+            if [[ -z "$version" || "$version" == *SNAPSHOT* ]]; then
+              echo "::error::Tag $REF_NAME is not a release version; a release tag is v<version> without SNAPSHOT."
+              exit 1
+            fi
+          else
+            version=$(./mvnw -B -q -N help:evaluate -Dexpression=project.version -DforceStdout)
+            if [[ "$version" != *-SNAPSHOT ]]; then
+              echo "::notice::Version $version on $REF_NAME is not a snapshot, so nothing is deployed."
+              echo "deploy=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "deploy=true" >> "$GITHUB_OUTPUT"
+
+      # Maven Central needs signatures made with the primary key. The "!" after its fingerprint stops
+      # GnuPG from choosing a signing subkey instead.
+      - name: Find the primary signing key
+        if: steps.version.outputs.deploy == 'true'
+        id: key
+        run: |
+          fingerprint=$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr:/ { print $10; exit }')
+          if [[ -z "$fingerprint" ]]; then
+            echo "::error::No secret key was imported from GPG_PRIVATE_KEY."
+            exit 1
+          fi
+          echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
+
+      - name: Sign and deploy
+        if: steps.version.outputs.deploy == 'true'
+        env:
+          CENTRAL_TOKEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
+          CENTRAL_TOKEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          VERSION: ${{ steps.version.outputs.version }}
+          KEY_FINGERPRINT: ${{ steps.key.outputs.fingerprint }}
+        run: >-
+          ./mvnw -B --no-transfer-progress -Pstratum-release -DskipTests
+          "-Drevision=${VERSION}" "-Dgpg.keyname=${KEY_FINGERPRINT}!" deploy

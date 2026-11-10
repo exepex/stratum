@@ -1,7 +1,7 @@
 # Parent POM and BOM: `stratum-parent` and `stratum-bom`
 
 **Status: Built, not released.** `stratum-parent` and `stratum-bom` exist in the repository and pass
-`mvn verify`, but no version is published yet.
+`mvn verify`. No release is published yet, only [snapshots](../getting-started/installation.md#using-a-snapshot).
 This page explains how your service gets Stratum's tested versions, Java settings and build checks.
 
 [← Documentation home](../README.md) · How to choose between them: [Installation](../getting-started/installation.md)
@@ -38,7 +38,8 @@ used next to a company framework. The reasons are in
 
 The BOM manages versions of:
 
-- every Stratum module, including the [bundle starters](bundles.md),
+- every Stratum module that is published to Maven Central, including the [bundle starters](bundles.md);
+  the security, resilience, Kafka and data JPA starters are added when they are built,
 - the extra libraries Stratum uses or recommends that Spring Boot does not manage (Resilience4j,
   cloud SDKs, and so on),
 - the container images used in tests, as Maven properties (`testcontainers.image.postgres` and

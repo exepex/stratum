@@ -15,4 +15,10 @@
 
   <name>Stratum starter: Kafka</name>
   <description>Planned: Kafka producers and consumers with retries and dead-letter topics.</description>
+
+  <!-- Not built yet, so not published to Maven Central and not in stratum-bom
+       (docs/contributing.md#publishing). -->
+  <properties>
+    <skipPublishing>true</skipPublishing>
+  </properties>
 </project>
