@@ -12,11 +12,12 @@ import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.util.unit.DataSize;
 
 /**
- * The request factory of a client with {@code copy-headers} or interceptors, around the factory of
- * its transport, the pool's or the mocks'. Each request it makes copies the headers and runs the
- * interceptors when it is sent, after Spring has set the call's own headers and the credential.
- * Spring makes a new request for each attempt, so these steps run on every attempt. Unlike a {@code
- * ClientHttpRequestInterceptor}, it never makes Spring hold the body in memory.
+ * The request factory of every Stratum client, around the factory of its transport, the pool's or
+ * the mocks'. Each request it makes copies the headers, runs the interceptors and applies the trace
+ * headers when it is sent, after Spring has set the call's own headers, the credential and the
+ * tracing headers. Spring makes a new request for each attempt, so these steps run on every
+ * attempt. Unlike a {@code ClientHttpRequestInterceptor}, it never makes Spring hold the body in
+ * memory.
  */
 @RequiredArgsConstructor
 final class OutgoingStepsRequestFactory implements ClientHttpRequestFactory {
@@ -39,9 +40,17 @@ final class OutgoingStepsRequestFactory implements ClientHttpRequestFactory {
   /** The client's {@code interceptor-body-limit}: the most of a body an interceptor reads. */
   private final DataSize bodyLimit;
 
+  /** The client's {@code trace-headers}. */
+  private final TraceHeaders traceHeaders;
+
   @Override
   public ClientHttpRequest createRequest(URI uri, HttpMethod method) throws IOException {
     return new DefaultOutgoingRequest(
-        client, transport.createRequest(uri, method), copiedHeaders, interceptors.get(), bodyLimit);
+        client,
+        transport.createRequest(uri, method),
+        copiedHeaders,
+        interceptors.get(),
+        bodyLimit,
+        traceHeaders);
   }
 }

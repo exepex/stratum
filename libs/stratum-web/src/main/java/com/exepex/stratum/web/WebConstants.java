@@ -2,6 +2,7 @@ package com.exepex.stratum.web;
 
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import lombok.experimental.UtilityClass;
 
 /** The property keys, headers and error body members the web module uses (ST-ENG-45). */
@@ -114,10 +115,10 @@ public class WebConstants {
   public static final String REQUEST_FIELDS_CONTEXT_KEY = "stratum.web.request-fields";
 
   /** The W3C header that carries the tracing baggage, and the correlation ID in it. */
-  public static final String BAGGAGE_HEADER = "baggage";
+  public static final String BAGGAGE_HEADER = LoggingContextConstants.BAGGAGE_HEADER;
 
   /** The header that carries the correlation ID, in and out. */
-  public static final String CORRELATION_ID_HEADER = "X-Correlation-Id";
+  public static final String CORRELATION_ID_HEADER = LoggingContextConstants.CORRELATION_ID_HEADER;
 
   /** The response header that asks browsers for client hints, such as the device model. */
   public static final String ACCEPT_CLIENT_HINTS_HEADER = "Accept-CH";

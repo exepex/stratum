@@ -72,6 +72,9 @@ import org.springframework.util.unit.DataSize;
  *     from 1B to 1GB, or -1 for no limit. Reading a larger body fails with SX-HTTPC-0006; a body
  *     the call does not read is dropped once it passes the limit. A method that returns an
  *     InputStream is not limited. Defaults to 32MB.
+ * @param traceHeaders Whether calls carry the correlation ID: true sends X-Correlation-Id when the
+ *     call has none, beside the trace headers Spring Boot's tracing sends; false sends no trace,
+ *     baggage or correlation header, such as to a third party. Defaults to true.
  */
 @Builder(toBuilder = true)
 public record ClientSettings(
@@ -94,7 +97,8 @@ public record ClientSettings(
     List<String> copyHeaders,
     @Nullable DataSize interceptorBodyLimit,
     @Nullable CallLog callLog,
-    @Nullable DataSize responseBodyLimit) {
+    @Nullable DataSize responseBodyLimit,
+    @Nullable Boolean traceHeaders) {
 
   /** Keeps the interfaces, headers and copied headers fixed, empty when none is named. */
   public ClientSettings {
@@ -135,6 +139,7 @@ public record ClientSettings(
           .interceptorBodyLimit(HttpClientConstants.DEFAULT_INTERCEPTOR_BODY_LIMIT)
           .callLog(CallLog.ERRORS)
           .responseBodyLimit(HttpClientConstants.DEFAULT_RESPONSE_BODY_LIMIT)
+          .traceHeaders(true)
           .build();
 
   /**
@@ -168,6 +173,7 @@ public record ClientSettings(
         .interceptorBodyLimit(either(interceptorBodyLimit, fallback.interceptorBodyLimit))
         .callLog(either(callLog, fallback.callLog))
         .responseBodyLimit(either(responseBodyLimit, fallback.responseBodyLimit))
+        .traceHeaders(either(traceHeaders, fallback.traceHeaders))
         .build();
   }
 
@@ -199,7 +205,8 @@ public record ClientSettings(
             "headers=" + new TreeSet<>(headers.keySet()),
             "copyHeaders=" + copyHeaders,
             "interceptorBodyLimit=" + interceptorBodyLimit,
-            "responseBodyLimit=" + responseBodyLimit)
+            "responseBodyLimit=" + responseBodyLimit,
+            "traceHeaders=" + traceHeaders)
         .collect(Collectors.joining(", ", "ClientSettings[", "]"));
   }
 

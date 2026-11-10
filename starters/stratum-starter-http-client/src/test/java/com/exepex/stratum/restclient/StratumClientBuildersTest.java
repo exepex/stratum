@@ -15,7 +15,7 @@ import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.mock.env.MockEnvironment;
 
 @DisplayName(
-    "A client's calls go through the steps of headers and interceptors only if it has some")
+    "Every client's calls go through the steps of copied headers, interceptors and trace headers")
 class StratumClientBuildersTest {
 
   /** A mocked client's transport, whose factory the steps wrap or not. */
@@ -27,13 +27,15 @@ class StratumClientBuildersTest {
       HttpClientProperties.builder().build().clientSettings(RestClientTestData.INVENTORY);
 
   @Test
-  @DisplayName("a client with no copied header and no interceptor gets its transport's factory")
-  void noStepsWithoutCopyOrInterceptor() {
+  @DisplayName(
+      "a client with no copied header and no interceptor still gets the steps, for its trace"
+          + " headers")
+  void stepsWithoutCopyOrInterceptor() {
     var factory =
         buildersWith(new StaticListableBeanFactory())
             .requestFactory(RestClientTestData.INVENTORY, plain, transport);
 
-    assertThat(factory).isInstanceOf(MockRequestFactory.class);
+    assertThat(factory).isInstanceOf(OutgoingStepsRequestFactory.class);
   }
 
   @Test

@@ -42,6 +42,7 @@ class HttpClientPropertiesTest {
                   .interceptorBodyLimit(DataSize.ofMegabytes(1))
                   .callLog(CallLog.ERRORS)
                   .responseBodyLimit(DataSize.parse("32MB"))
+                  .traceHeaders(true)
                   .build());
     }
   }
