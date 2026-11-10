@@ -152,41 +152,10 @@ with the company framework's beans. More ways to switch parts off are in
 This is the recommended setup when a company framework exists. The service keeps its parent and
 uses Stratum's starters through the BOM.
 
-**Step 1.** Import `stratum-bom` in the service's `pom.xml`:
-
-```xml
-<project>
-  <modelVersion>4.0.0</modelVersion>
-
-  <parent>
-    <groupId>com.acme.platform</groupId>      <!-- your company parent -->
-    <artifactId>acme-parent</artifactId>
-    <version>7.3.0</version>
-    <relativePath/>
-  </parent>
-
-  <groupId>com.acme.orders</groupId>
-  <artifactId>order-service</artifactId>
-  <version>1.0.0-SNAPSHOT</version>
-
-  <dependencyManagement>
-    <dependencies>
-      <dependency>
-        <groupId>com.exepex.stratum</groupId>
-        <artifactId>stratum-bom</artifactId>
-        <version>0.1.0-SNAPSHOT</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
-</project>
-```
-
-If the company parent does not extend `spring-boot-starter-parent` and does not manage Spring Boot's
-versions, also import `spring-boot-dependencies` at the version in the
-[compatibility table](upgrading.md#compatibility). The two BOMs do not overlap, so their order does
-not matter.
+**Step 1.** Import `stratum-bom` in the service's `pom.xml`, set Java 25 and add back the build
+plugins that `stratum-parent` would give. The complete `pom.xml` under a company parent, the
+properties to set and what to do when the company parent pins an older Spring Boot are in
+[Stratum as a dependency, under another parent](../getting-started/with-stratum-bom.md#example-2-under-a-company-parent).
 
 **Step 2.** Add only the Stratum starters for concerns the company framework does not cover, or
 covers less well. The [starter table](../getting-started/installation.md#step-2-add-the-starters-you-need)
@@ -204,8 +173,9 @@ as shown in Rule 3.
   Stratum bean the company replaced is listed with `@ConditionalOnMissingBean` and the bean that
   was found. See [Troubleshooting](troubleshooting.md).
 
-The company parent keeps setting Java, plugins and build checks. `stratum-parent`'s build checks do
-not apply in this setup; the company parent's apply instead.
+The company parent keeps setting plugins and build checks, but the service must build with Java 25.
+`stratum-parent`'s build checks do not apply in this setup; the company parent's apply instead
+([what you lose without `stratum-parent`](../getting-started/with-stratum-bom.md#what-you-lose-without-stratum-parent)).
 
 ## Setup C: fork Stratum under the company parent
 

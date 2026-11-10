@@ -19,8 +19,8 @@ them in the repository's `docs/` folder, not in the wiki
 | --- | --- |
 | New to Spring Boot or to microservices | [Core concepts](getting-started/concepts.md) → [Quick start](getting-started/quick-start.md) → [Configuration basics](configuration/basics.md) |
 | An experienced Spring developer | [Quick start](getting-started/quick-start.md) → [Overriding defaults](configuration/overriding-defaults.md) → the module pages you need |
-| Moving an existing service to Stratum | [Installation](getting-started/installation.md) → [Migrating a service](guides/migrating-a-service.md) |
-| Already using your company's framework | [Installation](getting-started/installation.md) → [Using Stratum with a company framework](guides/company-framework.md) |
+| Moving an existing service to Stratum | [Installation](getting-started/installation.md) → [Stratum as your parent POM](getting-started/with-stratum-parent.md) or [Stratum as a dependency](getting-started/with-stratum-bom.md) → [Migrating a service](guides/migrating-a-service.md) |
+| Already using your company's framework | [Installation](getting-started/installation.md) → [Stratum as a dependency](getting-started/with-stratum-bom.md) → [Using Stratum with a company framework](guides/company-framework.md) |
 | Looking up one property | [Configuration reference](configuration/reference.md) |
 
 ## Getting started
@@ -29,6 +29,8 @@ them in the repository's `docs/` folder, not in the wiki
 | --- | --- |
 | [Core concepts](getting-started/concepts.md) | Starters, beans, auto-configuration, properties and profiles, explained from the beginning, plus a glossary. |
 | [Installation](getting-started/installation.md) | Adding Stratum to a service: parent POM or BOM, choosing starters, checking that it works. |
+| [Stratum as your parent POM](getting-started/with-stratum-parent.md) | A complete `pom.xml` with `stratum-parent` as the parent, and what the parent sets for you. |
+| [Stratum as a dependency, under another parent](getting-started/with-stratum-bom.md) | Complete `pom.xml` examples under `spring-boot-starter-parent` and under a company parent, the properties to set, what you lose without `stratum-parent`, and an older Spring Boot in the parent. |
 | [Quick start](getting-started/quick-start.md) | Build a small but complete service step by step: REST API, logs, tracing, a downstream call, tests. |
 
 ## Configuration
