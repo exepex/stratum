@@ -1,12 +1,15 @@
 package com.exepex.stratum.restclient.testsupport.payments;
 
 import com.exepex.stratum.restclient.StratumClientCustomizer;
+import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.http.client.ClientHttpRequestExecution;
+import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.web.client.RestClient;
 
 /**
@@ -22,7 +25,7 @@ public class PaymentsSetup implements StratumClientCustomizer {
   public void customize(String client, RestClient.Builder builder) {
     builder
         .defaultStatusHandler(this::isNotFound, (request, response) -> paymentMissing())
-        .requestInitializer(this::noteAuthorization);
+        .requestInterceptor(this::noteAuthorization);
   }
 
   /**
@@ -44,8 +47,13 @@ public class PaymentsSetup implements StratumClientCustomizer {
     throw new PaymentMissingException();
   }
 
-  /** Notes the request's {@code Authorization} header. */
-  private void noteAuthorization(HttpRequest request) {
+  /**
+   * Notes the request's {@code Authorization} header as the request leaves, after every initializer
+   * and default header has set its own, then sends the request on.
+   */
+  private ClientHttpResponse noteAuthorization(
+      HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
     authorization.set(request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION));
+    return execution.execute(request, body);
   }
 }

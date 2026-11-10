@@ -149,6 +149,19 @@ public class RestClientTestData {
   }
 
   /**
+   * Points the payments client at an identity provider's test server, and gives the registration
+   * its token endpoint there.
+   *
+   * @param registry the test's properties
+   * @param server the server
+   */
+  public static void pointPaymentsAtTokenServer(
+      DynamicPropertyRegistry registry, TokenDownstream server) {
+    registry.add(PAYMENTS_SETTINGS + URL, server::url);
+    pointRegistrationAtTokenServer(registry, server);
+  }
+
+  /**
    * Gives the registration its token endpoint on an identity provider's test server.
    *
    * @param registry the test's properties

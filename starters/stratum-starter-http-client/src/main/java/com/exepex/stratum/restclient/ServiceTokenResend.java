@@ -19,7 +19,8 @@ import org.springframework.web.client.HttpClientErrorException;
  * and warned once per client per minute. An attempt whose body is streamed is never sent twice. The
  * token is fetched before the attempt creates its request, whose timeouts are then set from the
  * time the fetch left. It runs inside each attempt of {@link ClientResilience#call}, so interface
- * calls and any other call through it both get it.
+ * calls and any other call through it both get it. A client with {@code mock: true} fetches no
+ * token: its attempt runs as it is.
  */
 @Slf4j
 @StratumInternal
@@ -46,10 +47,9 @@ public class ServiceTokenResend {
    * @throws HttpClientErrorException.Unauthorized when the new token is refused too
    */
   public <T> @Nullable T call(String client, boolean streamedBody, Supplier<@Nullable T> attempt) {
-    var registration =
-        Optional.ofNullable(properties.clientSettings(client).auth())
-            .map(ClientAuth::clientCredentials);
-    if (registration.isEmpty()) {
+    var settings = properties.clientSettings(client);
+    var registration = Optional.ofNullable(settings.auth()).map(ClientAuth::clientCredentials);
+    if (registration.isEmpty() || Boolean.TRUE.equals(settings.mock())) {
       return attempt.get();
     }
     var token = tokens.token(client, registration.get(), waitLimit(client));
