@@ -109,8 +109,9 @@ the sidebar. It runs
 [`.github/wiki/WikiSync.java`](../.github/wiki/WikiSync.java), which:
 
 - copies [`docs/README.md`](README.md) as the wiki's **Home**, and every page it links in a table row:
-  every relative link of a row becomes a page, so the HTTP client row yields all its pages. A link to
-  a file outside `docs/` fails the run. The agent rules in `docs/agents/` are not in the index, so they
+  every relative link of a row becomes a page, so the HTTP client row yields all its pages. A row
+  may link only to a page in `docs/`, a starter's `README.md` or the project `README.md`; any other
+  file fails the run. The agent rules in `docs/agents/` are not in the index, so they
   stay in the repository;
 - copies the project [`README.md`](../README.md) as the page **Project-README**, linked under Home in
   the sidebar. Home is the documentation index; Project-README is the overview of what Stratum is.
