@@ -1,5 +1,6 @@
 package com.exepex.stratum.restclient;
 
+import java.net.URI;
 import java.time.Duration;
 import java.util.Optional;
 import lombok.AccessLevel;
@@ -13,7 +14,7 @@ import org.springframework.http.HttpMethod;
 /**
  * One attempt of a call by a Stratum client, as its retry rules see it. A service's {@link
  * StratumClientCustomizer#customizeRetry} can decide on it with its own rules. Its text leaves out
- * the result and the failure, which can hold the other service's data.
+ * the result, the failure and the address, which can hold the other service's data.
  */
 @Value
 @Builder(toBuilder = true)
@@ -41,6 +42,12 @@ public class ClientAttempt {
    * the client's back-off from {@code retry.delay}.
    */
   Duration nextWait;
+
+  /**
+   * The address the attempt was sent to, path and query included, or {@code null} when it was not
+   * sent, such as when the breaker refused it.
+   */
+  @ToString.Exclude @Nullable URI url;
 
   /**
    * Returns why the attempt failed: Spring's {@code RestClientResponseException} for an error
