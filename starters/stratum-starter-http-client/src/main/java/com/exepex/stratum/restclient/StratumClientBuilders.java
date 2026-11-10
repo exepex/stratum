@@ -3,20 +3,25 @@ package com.exepex.stratum.restclient;
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.httpclient.ClientSettings;
 import com.exepex.stratum.httpclient.HttpClientProperties;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.restclient.RestTemplateBuilder;
 import org.springframework.core.env.Environment;
 import org.springframework.http.client.ClientHttpRequestFactory;
+import org.springframework.util.function.SingletonSupplier;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestTemplate;
 
 /**
- * Sets up one Stratum client: its address, connection pool and credential from {@code
- * stratum.http-client.*}, then the service's {@link StratumClientCustomizer} beans. A client set to
- * {@code mock: true} answers from {@link MockAnswers} instead of a pool, and sends no credential.
- * The one place the client interfaces and the client's {@code RestClient} and {@code RestTemplate}
- * beans get their set-up from; the beans also get the client's retries and circuit breaker.
+ * Sets up one Stratum client: its address, connection pool, credential and headers from {@code
+ * stratum.http-client.*}, its interceptors, then the service's {@link StratumClientCustomizer}
+ * beans. A client set to {@code mock: true} answers from {@link MockAnswers} instead of a pool, and
+ * sends no credential. The one place the client interfaces and the client's {@code RestClient} and
+ * {@code RestTemplate} beans get their set-up from; the beans also get the client's retries and
+ * circuit breaker.
  */
 @StratumInternal
 @RequiredArgsConstructor
@@ -43,6 +48,9 @@ public class StratumClientBuilders {
   /** The retries and circuit breakers of the clients, which the beans' calls run through. */
   private final ClientResilience resilience;
 
+  /** The interceptors of each client. */
+  private final ClientInterceptors interceptors;
+
   /**
    * Sets one client's address, pool and credential, after the checks, then applies the customizers.
    * For a client interface, whose calls get their retries around each call instead.
@@ -55,7 +63,10 @@ public class StratumClientBuilders {
   public void configure(String client, RestClient.Builder builder) {
     var settings = properties.clientSettings(client);
     builder.baseUrl(checkedUrl(client, settings));
-    transport(settings).setUp(client, settings, builder);
+    var transport = transport(settings);
+    builder.requestFactory(requestFactory(client, settings, transport));
+    transport.credential(client, settings).ifPresent(builder::requestInitializer);
+    builder.defaultHeaders(headers -> sentHeaders(settings).forEach(headers::set));
     customize(client, builder);
   }
 
@@ -73,7 +84,8 @@ public class StratumClientBuilders {
     var settings = properties.clientSettings(client);
     builder
         .baseUrl(checkedUrl(client, settings))
-        .requestFactory(resilientRequestFactory(client, settings));
+        .requestFactory(resilientRequestFactory(client, settings))
+        .defaultHeaders(headers -> sentHeaders(settings).forEach(headers::set));
     customize(client, builder);
   }
 
@@ -93,7 +105,12 @@ public class StratumClientBuilders {
     var url = checkedUrl(client, settings);
     var requestFactory = resilientRequestFactory(client, settings);
     // The factory is handed over as built, so Spring Boot's own client settings cannot change it.
-    var configured = builder.baseUri(url).requestFactoryBuilder(_ -> requestFactory);
+    var configured =
+        sentHeaders(settings).entrySet().stream()
+            .reduce(
+                builder.baseUri(url).requestFactoryBuilder(_ -> requestFactory),
+                (current, header) -> current.defaultHeader(header.getKey(), header.getValue()),
+                (outer, inner) -> outer);
     return customizers
         .orderedStream()
         .reduce(
@@ -124,8 +141,40 @@ public class StratumClientBuilders {
     var transport = transport(settings);
     return new ResilientRequestFactory(
         client,
-        transport.requestFactory(client, settings),
+        requestFactory(client, settings, transport),
         transport.credential(client, settings).stream().toList(),
         resilience);
+  }
+
+  /** Returns the client's headers that send a value: an empty one only drops a default. */
+  private Map<String, String> sentHeaders(ClientSettings settings) {
+    return settings.headers().entrySet().stream()
+        .filter(header -> !header.getValue().isEmpty())
+        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+  }
+
+  /**
+   * Returns the request factory of a client's calls: its transport's, inside {@link
+   * OutgoingStepsRequestFactory} when the client copies headers or has interceptors, so that those
+   * steps run on each request the transport makes, each attempt included. A client with neither
+   * gets its transport's factory itself. Used by the interfaces and by the beans alike.
+   *
+   * @param client the client's name
+   * @param settings the client's settings
+   * @param transport the client's transport
+   * @return the request factory
+   */
+  ClientHttpRequestFactory requestFactory(
+      String client, ClientSettings settings, ClientTransport transport) {
+    var factory = transport.requestFactory(client, settings);
+    if (settings.copyHeaders().isEmpty() && !interceptors.hasInterceptors(client)) {
+      return factory;
+    }
+    return new OutgoingStepsRequestFactory(
+        client,
+        factory,
+        new CopiedHeaders(settings.copyHeaders()),
+        SingletonSupplier.of(() -> interceptors.interceptorsOf(client)),
+        Objects.requireNonNull(settings.interceptorBodyLimit()));
   }
 }

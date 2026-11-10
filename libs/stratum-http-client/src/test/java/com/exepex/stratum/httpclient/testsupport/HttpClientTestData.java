@@ -66,6 +66,9 @@ public class HttpClientTestData {
   /** The partner client, which {@code http-client.yml} gives Basic credentials. */
   public static final String PARTNER = "partner";
 
+  /** The prefix of the partner client's auth settings. */
+  public static final String PARTNER_AUTH = HttpClientConstants.CLIENTS + "." + PARTNER + ".auth";
+
   /**
    * A stand-in for a secret, which no startup message may show. It is not a real credential: tests
    * check only that it is passed on or hidden.

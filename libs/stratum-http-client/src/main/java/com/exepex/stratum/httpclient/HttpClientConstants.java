@@ -3,8 +3,10 @@ package com.exepex.stratum.httpclient;
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import java.time.Duration;
+import java.util.List;
 import java.util.regex.Pattern;
 import lombok.experimental.UtilityClass;
+import org.springframework.util.unit.DataSize;
 
 /** The names and defaults of the HTTP client module's settings. */
 @StratumInternal
@@ -165,6 +167,26 @@ public class HttpClientConstants {
 
   /** The header that carries a client's API key when it names none. */
   public static final String DEFAULT_API_KEY_HEADER = "X-Api-Key";
+
+  /**
+   * The headers never accepted in {@code headers} or {@code copy-headers}, since they carry a
+   * user's identity or a credential (ADR 0011, decision 3.4). A client's API key header is refused
+   * too.
+   */
+  public static final List<String> REFUSED_HEADERS =
+      List.of("Authorization", "Cookie", "Set-Cookie", "Proxy-Authorization");
+
+  /** Stratum's default for the most of a request body an interceptor may read: 1 MiB. */
+  public static final DataSize DEFAULT_INTERCEPTOR_BODY_LIMIT = DataSize.ofMegabytes(1);
+
+  /** The largest {@code interceptor-body-limit} a client may set: 1 GiB. */
+  public static final DataSize MAX_INTERCEPTOR_BODY_LIMIT = DataSize.ofGigabytes(1);
+
+  /**
+   * The attribute that marks a call whose body an interceptor may read: it is not streamed, so it
+   * can be written a second time.
+   */
+  public static final String BODY_READABLE = PREFIX + ".body-readable";
 
   /**
    * Returns the key that gives one code its HTTP status in the web starter's map, with the code in

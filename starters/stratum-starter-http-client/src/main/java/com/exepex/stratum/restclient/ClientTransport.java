@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.ClientHttpRequestInitializer;
-import org.springframework.web.client.RestClient;
 
 /** How a client's calls reach its service: through its pool, or answered by its mocks. */
 sealed interface ClientTransport {
@@ -30,18 +29,6 @@ sealed interface ClientTransport {
    * @return the credential's initializer, or empty when the client sends none
    */
   Optional<ClientHttpRequestInitializer> credential(String client, ClientSettings settings);
-
-  /**
-   * Sets the client's request factory, and its credential when calls leave the service.
-   *
-   * @param client the client's name
-   * @param settings the client's settings
-   * @param builder the client's builder
-   */
-  default void setUp(String client, ClientSettings settings, RestClient.Builder builder) {
-    builder.requestFactory(requestFactory(client, settings));
-    credential(client, settings).ifPresent(builder::requestInitializer);
-  }
 
   /**
    * Returns the transport of a client: its mocks with {@code mock: true}, its pool otherwise.

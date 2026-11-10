@@ -29,7 +29,7 @@ public class SettingsChecks {
 
   /**
    * Checks that settings stop startup with {@code SX-CORE-1003} and a message that names only the
-   * broken rule, never a value.
+   * broken rule, never a value, a client or a header.
    *
    * @param rule the rule's name after {@code stratum.http-client.}, such as {@code
    *     max-retries-in-range}

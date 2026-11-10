@@ -9,13 +9,17 @@ import org.junit.jupiter.api.Test;
 class HttpClientArchTest {
 
   /**
-   * The library's types that services may use: the annotation of a client, and the settings record,
-   * its builder and its customizer, as every module's, with the auth, retry and circuit breaker
-   * settings a customizer builds. Every other type carries the label.
+   * The library's types that services may use: the annotation of a client, the interceptors and the
+   * call they change, and the settings record, its builder and its customizer, as every module's,
+   * with the auth, retry and circuit breaker settings a customizer builds. Every other type carries
+   * the label.
    */
   private static final Set<Class<?>> API_TYPES =
       Set.of(
           StratumClient.class,
+          ClientInterceptor.class,
+          GlobalClientInterceptor.class,
+          OutgoingRequest.class,
           HttpClientProperties.class,
           HttpClientProperties.HttpClientPropertiesBuilder.class,
           ClientSettings.class,

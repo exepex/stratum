@@ -245,4 +245,39 @@ final class Orders {
 }
 ]]></code>
   </test-code>
+  <test-code>
+    <description>the HTTP client's DefaultOutgoingRequest.runInterceptors may catch RuntimeException</description>
+    <expected-problems>0</expected-problems>
+    <code><![CDATA[
+package com.exepex.stratum.restclient;
+final class DefaultOutgoingRequest {
+  private void runInterceptors(Runnable interceptors) {
+    try {
+      interceptors.run();
+    } catch (RuntimeException failure) {
+      throw new IllegalStateException(failure);
+    }
+  }
+}
+]]></code>
+  </test-code>
+
+  <test-code>
+    <description>another method of DefaultOutgoingRequest is reported</description>
+    <expected-problems>1</expected-problems>
+    <expected-linenumbers>6</expected-linenumbers>
+    <code><![CDATA[
+package com.exepex.stratum.restclient;
+final class DefaultOutgoingRequest {
+  private void execute(Runnable interceptors) {
+    try {
+      interceptors.run();
+    } catch (RuntimeException failure) {
+      throw new IllegalStateException(failure);
+    }
+  }
+}
+]]></code>
+  </test-code>
+
 </test-data>

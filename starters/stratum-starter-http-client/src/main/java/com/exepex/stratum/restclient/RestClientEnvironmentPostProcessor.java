@@ -37,6 +37,8 @@ public class RestClientEnvironmentPostProcessor implements EnvironmentPostProces
           HttpClientConstants.errorStatus(HttpClientErrorCode.BREAKER_OPEN.getCode()),
           HttpStatus.SERVICE_UNAVAILABLE.value(),
           HttpClientConstants.errorStatus(HttpClientErrorCode.CALLER_TOKEN_MISSING.getCode()),
+          HttpStatus.INTERNAL_SERVER_ERROR.value(),
+          HttpClientConstants.errorStatus(HttpClientErrorCode.INTERCEPTOR_BODY_TOO_LARGE.getCode()),
           HttpStatus.INTERNAL_SERVER_ERROR.value());
 
   /**

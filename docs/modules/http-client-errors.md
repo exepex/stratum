@@ -13,6 +13,7 @@ service then gets. Part of the [HTTP client](http-client.md) page.
 | Got no answer for another reason: the connection was refused or timed out, the host is unknown, the pool stayed full for `max-wait`, or the connection dropped; or, with `auth.client-credentials`, the client's token cannot be fetched and the call is not sent | `StratumException` with `SX-HTTPC-0002` | `503` |
 | Was not sent, as the client's circuit breaker is open | `StratumException` with `SX-HTTPC-0003` | `503` |
 | Was not sent, as a client with `auth.token-relay: true` has no verified caller token ([auth](http-client-auth.md#token-relay)) | `StratumException` with `SX-HTTPC-0004` | `500` |
+| Was not sent, as an interceptor read a body larger than the client's `interceptor-body-limit` ([bodies](http-client-headers.md#bodies)) | `StratumException` with `SX-HTTPC-0005` | `500` |
 | Got a `404`, and its method returns `Optional` | Nothing: the method returns an empty `Optional` | no error |
 | Got any other error answer, `4xx` or `5xx` | `DownstreamException`, or your own exception from `mapError` | `500` |
 | Got an answer whose body cannot be read, such as JSON that does not match, with Jackson 3 or with Jackson 2's converter. It is never sent again and never counts for the circuit breaker | Spring's `RestClientException`, as without Stratum | `500` |

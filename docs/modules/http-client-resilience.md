@@ -81,7 +81,11 @@ The names are Resilience4j's own, so a team that knows Resilience4j reads them a
 **What counts.** The breaker counts an attempt with no answer, a full pool included, an answer whose body was cut off,
 and an answer of `5xx` or `429`. Other `4xx` answers mean the service is up, so they never count. It sees each
 attempt, retries included: with `max-retries: 3`, one failing `GET` can be 4 counted attempts, so
-`minimum-number-of-calls: 10` can be reached by 3 failing calls. Size the window in attempts, not calls.
+`minimum-number-of-calls: 10` can be reached by 3 failing calls. Size the window in attempts, not calls. A call
+that was never sent is neither retried nor recorded, as a success or a failure, and in half-open state it gives back
+its permit: one where an [interceptor](http-client-headers.md#interceptors) failed, or read a body larger than
+`interceptor-body-limit` (`SX-HTTPC-0005`). A `customizeCircuitBreaker` that replaces Stratum's `ignoreException`
+rule counts such calls again.
 
 **Without `slow-call-duration-threshold`, the slow-call rule is Resilience4j's own: 60s at 100%.** Resilience4j has no
 switch to turn it off. The breaker then opens on slow calls only when every attempt in its window took longer than

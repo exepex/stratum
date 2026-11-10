@@ -117,8 +117,38 @@ public class ClientResilience implements ClientExchangeDecorator {
    * @throws RestClientException the last attempt's failure, such as an error answer
    * @throws StratumException {@code SX-HTTPC-0003} when the client's breaker is open, so the call
    *     was not sent
+   * @throws RuntimeException an interceptor's own failure, as it threw it: the call was not sent,
+   *     so it is neither retried nor counted by the breaker
    */
   public <T> @Nullable T call(
+      String client,
+      HttpMethod method,
+      boolean streamedBody,
+      boolean streamedDownload,
+      Supplier<@Nullable T> exchange) {
+    try {
+      return callMarkingInterceptorFailures(
+          client, method, streamedBody, streamedDownload, exchange);
+    } catch (InterceptorFailure failure) {
+      failure.throwOriginal();
+      throw failure;
+    }
+  }
+
+  /**
+   * Runs one call as {@link #call} does, but passes an interceptor's failure on as an {@link
+   * InterceptorFailure}, for an outer layer that unwraps it after its own rules, such as the error
+   * translation of a client's interface.
+   *
+   * @param client the client's name
+   * @param method the call's HTTP method
+   * @param streamedBody whether the request's body is streamed, which is never sent twice
+   * @param streamedDownload whether the answer is streamed, which keeps its full answer timeout
+   * @param exchange one attempt of the call
+   * @param <T> what the call returns
+   * @return what the last attempt returned
+   */
+  <T> @Nullable T callMarkingInterceptorFailures(
       String client,
       HttpMethod method,
       boolean streamedBody,
