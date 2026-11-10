@@ -19,6 +19,7 @@ import io.micrometer.core.instrument.Tag;
 import java.net.URI;
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -86,89 +87,104 @@ class CallMetersIntegrationTest {
     assertThatExceptionOfType(StratumException.class).isThrownBy(fragile::get);
   }
 
-  @Test
-  @DisplayName("503, 503, 200 counts two retries and one successful call")
-  void retriesCounted() {
-    DOWNSTREAM.answerNext(CallsTestData.UNAVAILABLE, CallsTestData.UNAVAILABLE);
+  @Nested
+  @DisplayName("the calls timer and the retries counter")
+  class Calls {
 
-    orders.find(CallsTestData.ORDER_ID, CallsTestData.STATUS);
+    @Test
+    @DisplayName("503, 503, 200 counts two retries and one successful call")
+    void retriesCounted() {
+      DOWNSTREAM.answerNext(CallsTestData.UNAVAILABLE, CallsTestData.UNAVAILABLE);
 
-    assertThat(calls(CallsTestData.ORDERS, CallOutcome.SUCCESS)).isOne();
-    assertThat(
-            registry
-                .get(HttpClientConstants.RETRIES_METER)
-                .tag(HttpClientConstants.CLIENT_TAG, CallsTestData.ORDERS)
-                .counter()
-                .count())
-        .isEqualTo(2);
+      orders.find(CallsTestData.ORDER_ID, CallsTestData.STATUS);
+
+      assertThat(calls(CallsTestData.ORDERS, CallOutcome.SUCCESS)).isOne();
+      assertThat(
+              registry
+                  .get(HttpClientConstants.RETRIES_METER)
+                  .tag(HttpClientConstants.CLIENT_TAG, CallsTestData.ORDERS)
+                  .counter()
+                  .count())
+          .isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("a 404 that a method returning Optional reads as empty counts as a success")
+    void optionalNotFoundIsSuccess() {
+      DOWNSTREAM.answerNext(CallsTestData.NOT_FOUND);
+
+      assertThat(orders.findIfPresent(CallsTestData.ORDER_ID)).isEmpty();
+
+      assertThat(calls(CallsTestData.ORDERS, CallOutcome.SUCCESS)).isOne();
+      assertThat(calls(CallsTestData.ORDERS, CallOutcome.CLIENT_ERROR)).isZero();
+    }
   }
 
-  @Test
-  @DisplayName("a 404 that a method returning Optional reads as empty counts as a success")
-  void optionalNotFoundIsSuccess() {
-    DOWNSTREAM.answerNext(CallsTestData.NOT_FOUND);
+  @Nested
+  @DisplayName("the circuit breaker")
+  class Breaker {
 
-    assertThat(orders.findIfPresent(CallsTestData.ORDER_ID)).isEmpty();
+    @Test
+    @DisplayName("a breaker that opens mid-call leaves the last answer's outcome, not refused")
+    void refusedMidRetry(CapturedOutput output) {
+      openBreaker();
 
-    assertThat(calls(CallsTestData.ORDERS, CallOutcome.SUCCESS)).isOne();
-    assertThat(calls(CallsTestData.ORDERS, CallOutcome.CLIENT_ERROR)).isZero();
+      assertCallLine(
+          output, CallsTestData.FRAGILE, "status=503", "outcome=SERVER_ERROR", "attempts=2");
+      assertThat(calls(CallsTestData.FRAGILE, CallOutcome.SERVER_ERROR)).isOne();
+      assertThat(calls(CallsTestData.FRAGILE, CallOutcome.REFUSED)).isZero();
+    }
+
+    @Test
+    @DisplayName("each call the open breaker refuses is counted as refused and writes no line")
+    void refusedCountedNotLogged(CapturedOutput output) {
+      openBreaker();
+
+      assertThatExceptionOfType(StratumException.class).isThrownBy(fragile::get);
+      assertThatExceptionOfType(StratumException.class).isThrownBy(fragile::get);
+
+      assertThat(calls(CallsTestData.FRAGILE, CallOutcome.REFUSED)).isEqualTo(2);
+      assertThat(linesOf(output, CallsTestData.FRAGILE)).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("the breaker state gauge shows closed, then open once the breaker opens")
+    void breakerStateGauge() {
+      DOWNSTREAM.answerNext();
+      fragile.get();
+      assertThat(breakerState("closed")).isOne();
+      assertThat(breakerState("open")).isZero();
+
+      openBreaker();
+
+      assertThat(breakerState("open")).isOne();
+      assertThat(breakerState("closed")).isZero();
+      assertThat(breakerState("half_open")).isZero();
+    }
   }
 
-  @Test
-  @DisplayName("a breaker that opens mid-call leaves the last answer's outcome, not refused")
-  void refusedMidRetry(CapturedOutput output) {
-    openBreaker();
+  @Nested
+  @DisplayName("the tags")
+  class Tags {
 
-    assertCallLine(
-        output, CallsTestData.FRAGILE, "status=503", "outcome=SERVER_ERROR", "attempts=2");
-    assertThat(calls(CallsTestData.FRAGILE, CallOutcome.SERVER_ERROR)).isOne();
-    assertThat(calls(CallsTestData.FRAGILE, CallOutcome.REFUSED)).isZero();
-  }
+    @Test
+    @DisplayName("no tag of a client's meters holds a path value, a query value or the host")
+    void tagsHaveTemplateOnly() {
+      CallsTestData.failEveryAttempt(DOWNSTREAM);
+      assertThatExceptionOfType(RestClientException.class)
+          .isThrownBy(() -> orders.find(CallsTestData.ORDER_ID, CallsTestData.STATUS));
 
-  @Test
-  @DisplayName("each call the open breaker refuses is counted as refused and writes no line")
-  void refusedCountedNotLogged(CapturedOutput output) {
-    openBreaker();
-
-    assertThatExceptionOfType(StratumException.class).isThrownBy(fragile::get);
-    assertThatExceptionOfType(StratumException.class).isThrownBy(fragile::get);
-
-    assertThat(calls(CallsTestData.FRAGILE, CallOutcome.REFUSED)).isEqualTo(2);
-    assertThat(linesOf(output, CallsTestData.FRAGILE)).hasSize(1);
-  }
-
-  @Test
-  @DisplayName("the breaker state gauge shows closed, then open once the breaker opens")
-  void breakerStateGauge() {
-    DOWNSTREAM.answerNext();
-    fragile.get();
-    assertThat(breakerState("closed")).isOne();
-    assertThat(breakerState("open")).isZero();
-
-    openBreaker();
-
-    assertThat(breakerState("open")).isOne();
-    assertThat(breakerState("closed")).isZero();
-    assertThat(breakerState("half_open")).isZero();
-  }
-
-  @Test
-  @DisplayName("no tag of a client's meters holds a path value, a query value or the host")
-  void tagsHaveTemplateOnly() {
-    CallsTestData.failEveryAttempt(DOWNSTREAM);
-    assertThatExceptionOfType(RestClientException.class)
-        .isThrownBy(() -> orders.find(CallsTestData.ORDER_ID, CallsTestData.STATUS));
-
-    var tagValues =
-        registry.getMeters().stream()
-            .filter(meter -> meter.getId().getName().startsWith("stratum.http.client"))
-            .flatMap(meter -> meter.getId().getTags().stream())
-            .map(Tag::getValue)
-            .toList();
-    assertThat(tagValues)
-        .isNotEmpty()
-        .noneMatch(value -> value.contains(CallsTestData.ORDER_ID))
-        .noneMatch(value -> value.contains(CallsTestData.STATUS))
-        .noneMatch(value -> value.contains(URI.create(DOWNSTREAM.url()).getHost()));
+      var tagValues =
+          registry.getMeters().stream()
+              .filter(meter -> meter.getId().getName().startsWith("stratum.http.client"))
+              .flatMap(meter -> meter.getId().getTags().stream())
+              .map(Tag::getValue)
+              .toList();
+      assertThat(tagValues)
+          .isNotEmpty()
+          .noneMatch(value -> value.contains(CallsTestData.ORDER_ID))
+          .noneMatch(value -> value.contains(CallsTestData.STATUS))
+          .noneMatch(value -> value.contains(URI.create(DOWNSTREAM.url()).getHost()));
+    }
   }
 }

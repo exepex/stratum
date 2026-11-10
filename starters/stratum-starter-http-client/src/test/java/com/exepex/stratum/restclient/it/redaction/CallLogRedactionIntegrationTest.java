@@ -60,17 +60,15 @@ class CallLogRedactionIntegrationTest {
   /** Makes a call of the orders client to the template, whose every attempt gets 503. */
   private void callFailing(String uriTemplate, Object... values) {
     CallsTestData.failEveryAttempt(DOWNSTREAM);
-    var orders = clients.restClient(CallsTestData.ORDERS);
-    assertThatExceptionOfType(RestClientException.class)
-        .isThrownBy(() -> orders.get().uri(uriTemplate, values).retrieve().toBodilessEntity());
+    var answer = clients.restClient(CallsTestData.ORDERS).get().uri(uriTemplate, values).retrieve();
+    assertThatExceptionOfType(RestClientException.class).isThrownBy(answer::toBodilessEntity);
   }
 
   /** Makes a call of the orders client to the address as written, whose every attempt gets 503. */
   private void callFailing(URI url) {
     CallsTestData.failEveryAttempt(DOWNSTREAM);
-    var orders = clients.restClient(CallsTestData.ORDERS);
-    assertThatExceptionOfType(RestClientException.class)
-        .isThrownBy(() -> orders.get().uri(url).retrieve().toBodilessEntity());
+    var answer = clients.restClient(CallsTestData.ORDERS).get().uri(url).retrieve();
+    assertThatExceptionOfType(RestClientException.class).isThrownBy(answer::toBodilessEntity);
   }
 
   /** Returns the address of the other service with the path and query as written. */

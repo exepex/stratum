@@ -11,6 +11,7 @@ import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicReference;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -54,12 +55,13 @@ class MockRequestFactoryTest {
     void otherCallEndsByTotalTimeout() {
       scriptDelayedAnswer();
       var deadline = deadline();
+      var sentTo = new AtomicReference<@Nullable URI>();
 
       assertThatExceptionOfType(UncheckedIOException.class)
           .isThrownBy(
               () ->
                   AttemptTimeLeft.runWithin(
-                      deadline, false, new AtomicReference<>(), MockRequestFactoryTest.this::call))
+                      deadline, false, sentTo, MockRequestFactoryTest.this::call))
           .withCauseInstanceOf(SocketTimeoutException.class);
     }
   }

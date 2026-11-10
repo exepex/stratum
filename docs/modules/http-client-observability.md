@@ -15,7 +15,7 @@ Every way of calling a client gets the same line and meters, with no code: its `
 
 - **A failed call writes one WARN line**, after its retries. "Failed" means it ended with an error answer (4xx or 5xx),
   a timeout, no connection, a full pool, a service token that could not be fetched, or a failure inside your service,
-  such as an answer that cannot be read.
+  such as an answer of an interface method that cannot be read ([Limits](#limits) says when the body is read).
 - A call that the open circuit breaker refused writes **no** line: it is counted instead (`outcome=REFUSED`).
 - A `404` that a method returning `Optional` reads as empty is not a failure: it writes nothing.
 - A successful call writes nothing, unless the client has `call-log: all`.
@@ -123,9 +123,8 @@ unmasked, as they see every line: mask in the OpenTelemetry Collector, as the lo
 
 ## The key
 
-| Property | Type | Stratum default | Spring Boot default | Description |
-| --- | --- | --- | --- | --- |
-| `call-log` | `errors`, `all` or `none` | `errors` | no such key | Which calls write a line: `errors`, one WARN per failed call; `all`, also one INFO per successful call; `none`, no line, while the meters still count every call. |
+`call-log` is listed in the module's [property table](http-client.md#properties): `errors` (the default), one WARN
+per failed call; `all`, also one INFO per successful call; `none`, no line, while the meters still count every call.
 
 Set it under `stratum.http-client.defaults` for every client, or under `stratum.http-client.clients.<name>` for one;
 the client's value wins. A value that is none of the three stops startup with Spring Boot's binding error naming the
@@ -217,6 +216,10 @@ same and makes no meters. Each meter is tagged `client`, the client's name.
   4xx answer does not count toward the breaker, so a storm of 400s writes one line per call: the logging starter caps
   each logger at 5000 WARN lines per second, and without it there is no cap.
 - **A streamed download** is recorded when its headers arrive; a failure while your code reads the body is not seen.
+- **`restClient(name)` and the `RestClient` and `RestTemplate` beans** end the call when a successful answer's
+  headers arrive: Spring reads its body afterwards. A body that cannot be read, or whose reading times out, writes
+  no line and is not counted as a failure, and the calls timer leaves out the time spent reading it. A call of an
+  interface method includes the reading.
 - **A `StratumClientCustomizer` that replaces the client's request factory** also replaces the part that notes the
   address: that client's line has no `url`.
 - **Log4j2:** the key-value fields are checked under Logback, the default; not checked under Log4j2.

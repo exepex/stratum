@@ -22,6 +22,7 @@ import java.util.concurrent.CompletableFuture;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -87,55 +88,65 @@ class PoolMetersIntegrationTest {
     return counter == null ? 0 : counter.count();
   }
 
-  @Test
-  @DisplayName("two clients' own pools and the shared pool each show four gauges, by client")
-  void gaugesPerClient() {
-    DOWNSTREAM.answerNext();
-    orders.find(CallsTestData.ORDER_ID, CallsTestData.STATUS);
-    audited.find(CallsTestData.ORDER_ID);
-    silent.ping();
+  @Nested
+  @DisplayName("the pool gauges")
+  class Gauges {
 
-    POOL_GAUGES.forEach(
-        gauge ->
-            assertThat(
-                    registry.find(gauge).gauges().stream()
-                        .map(meter -> meter.getId().getTag(HttpClientConstants.CLIENT_TAG))
-                        .toList())
-                .as(gauge)
-                .contains(
-                    CallsTestData.ORDERS,
-                    CallsTestData.AUDITED,
-                    HttpClientConstants.SHARED_POOL_TAG)
-                .doesNotContain(CallsTestData.SILENT));
-  }
+    @Test
+    @DisplayName("two clients' own pools and the shared pool each show four gauges, by client")
+    void gaugesPerClient() {
+      DOWNSTREAM.answerNext();
+      orders.find(CallsTestData.ORDER_ID, CallsTestData.STATUS);
+      audited.find(CallsTestData.ORDER_ID);
+      silent.ping();
 
-  @Test
-  @DisplayName("with its one connection busy, an attempt that waits past max-wait is counted")
-  void poolFullCounted() {
-    var before = refused(CallsTestData.HELD);
-    var heldBefore = HELD.heldRequests();
-    var first = CompletableFuture.supplyAsync(held::held);
-    try {
-      Awaitility.await().atMost(REACHED_WITHIN).until(() -> HELD.heldRequests() > heldBefore);
-
-      assertThatExceptionOfType(StratumException.class).isThrownBy(held::held);
-
-      assertThat(refused(CallsTestData.HELD)).isEqualTo(before + 1);
-    } finally {
-      HELD.release();
-      first.exceptionally(failure -> null).join();
+      POOL_GAUGES.forEach(
+          gauge ->
+              assertThat(
+                      registry.find(gauge).gauges().stream()
+                          .map(meter -> meter.getId().getTag(HttpClientConstants.CLIENT_TAG))
+                          .toList())
+                  .as(gauge)
+                  .contains(
+                      CallsTestData.ORDERS,
+                      CallsTestData.AUDITED,
+                      HttpClientConstants.SHARED_POOL_TAG)
+                  .doesNotContain(CallsTestData.SILENT));
     }
   }
 
-  @Test
-  @DisplayName("an answer timeout and a failed connection are not counted as a full pool")
-  void otherFailuresNotCounted() {
-    final var before = refused(CallsTestData.HELD);
-    assertThatExceptionOfType(StratumException.class).isThrownBy(held::held);
-    HELD.release();
-    assertThatExceptionOfType(StratumException.class).isThrownBy(unreachable::get);
+  @Nested
+  @DisplayName("the full-pool counter")
+  class Refusals {
 
-    assertThat(refused(CallsTestData.HELD)).isEqualTo(before);
-    assertThat(refused(CallsTestData.FRAGILE)).isZero();
+    @Test
+    @DisplayName("with its one connection busy, an attempt that waits past max-wait is counted")
+    void poolFullCounted() {
+      var before = refused(CallsTestData.HELD);
+      var heldBefore = HELD.heldRequests();
+      var first = CompletableFuture.supplyAsync(held::held);
+      try {
+        Awaitility.await().atMost(REACHED_WITHIN).until(() -> HELD.heldRequests() > heldBefore);
+
+        assertThatExceptionOfType(StratumException.class).isThrownBy(held::held);
+
+        assertThat(refused(CallsTestData.HELD)).isEqualTo(before + 1);
+      } finally {
+        HELD.release();
+        first.exceptionally(failure -> null).join();
+      }
+    }
+
+    @Test
+    @DisplayName("an answer timeout and a failed connection are not counted as a full pool")
+    void otherFailuresNotCounted() {
+      final var before = refused(CallsTestData.HELD);
+      assertThatExceptionOfType(StratumException.class).isThrownBy(held::held);
+      HELD.release();
+      assertThatExceptionOfType(StratumException.class).isThrownBy(unreachable::get);
+
+      assertThat(refused(CallsTestData.HELD)).isEqualTo(before);
+      assertThat(refused(CallsTestData.FRAGILE)).isZero();
+    }
   }
 }

@@ -152,16 +152,14 @@ class CallLogIntegrationTest {
         "a query joined into a team's own call is cut at the ?, so its secret is not written")
     void queryNotWritten(CapturedOutput output) {
       CallsTestData.failEveryAttempt(DOWNSTREAM);
-      var orderClient = clients.restClient(CallsTestData.ORDERS);
+      var answer =
+          clients
+              .restClient(CallsTestData.ORDERS)
+              .get()
+              .uri("/orders?api_key=" + CallsTestData.API_KEY)
+              .retrieve();
 
-      assertThatExceptionOfType(RestClientException.class)
-          .isThrownBy(
-              () ->
-                  orderClient
-                      .get()
-                      .uri("/orders?api_key=" + CallsTestData.API_KEY)
-                      .retrieve()
-                      .toBodilessEntity());
+      assertThatExceptionOfType(RestClientException.class).isThrownBy(answer::toBodilessEntity);
 
       assertThat(assertCallLine(output, CallsTestData.ORDERS, "uri=/orders status=503"))
           .doesNotContain(CallsTestData.API_KEY);
@@ -172,10 +170,9 @@ class CallLogIntegrationTest {
     void uriCut(CapturedOutput output) {
       CallsTestData.failEveryAttempt(DOWNSTREAM);
       var longPath = "/" + "a".repeat(CallsTestData.HOSTILE_LENGTH);
-      var orderClient = clients.restClient(CallsTestData.ORDERS);
+      var answer = clients.restClient(CallsTestData.ORDERS).get().uri(longPath).retrieve();
 
-      assertThatExceptionOfType(RestClientException.class)
-          .isThrownBy(() -> orderClient.get().uri(longPath).retrieve().toBodilessEntity());
+      assertThatExceptionOfType(RestClientException.class).isThrownBy(answer::toBodilessEntity);
 
       var written = longPath.substring(0, HttpClientConstants.MAX_LOGGED_URI_LENGTH);
       assertThat(assertCallLine(output, CallsTestData.ORDERS, "uri=" + written + " "))
@@ -238,16 +235,14 @@ class CallLogIntegrationTest {
     @DisplayName("restClient(name) writes one line with the call's template")
     void restClientOfName(CapturedOutput output) {
       CallsTestData.failEveryAttempt(DOWNSTREAM);
-      var orderClient = clients.restClient(CallsTestData.ORDERS);
+      var answer =
+          clients
+              .restClient(CallsTestData.ORDERS)
+              .get()
+              .uri(CallsTestData.ORDER_TEMPLATE, CallsTestData.ORDER_ID)
+              .retrieve();
 
-      assertThatExceptionOfType(RestClientException.class)
-          .isThrownBy(
-              () ->
-                  orderClient
-                      .get()
-                      .uri(CallsTestData.ORDER_TEMPLATE, CallsTestData.ORDER_ID)
-                      .retrieve()
-                      .toBodilessEntity());
+      assertThatExceptionOfType(RestClientException.class).isThrownBy(answer::toBodilessEntity);
 
       assertCallLine(output, CallsTestData.ORDERS, "uri=/orders/{id} status=503", ALL_ATTEMPTS);
     }
