@@ -27,6 +27,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.web.client.RestClientException;
+import tools.jackson.core.JacksonException;
 
 @SpringBootTest(
     classes = ErrorsApplication.class,
@@ -155,6 +157,15 @@ class ClientErrorsIntegrationTest {
   void cutOffJsonIsTimeout() {
     CallChecks.assertEndsWith(orders::cutJson, HttpClientErrorCode.DOWNSTREAM_TIMEOUT)
         .withRootCauseInstanceOf(SocketTimeoutException.class);
+  }
+
+  @Test
+  @DisplayName(
+      "a client reads JSON with Jackson 3 by default, though Jackson 2 is on the classpath")
+  void readsWithJackson3ByDefault() {
+    assertThatExceptionOfType(RestClientException.class)
+        .isThrownBy(orders::badJson)
+        .withRootCauseInstanceOf(JacksonException.class);
   }
 
   @Nested

@@ -75,6 +75,22 @@ public interface OrdersClient {
   Map<String, Object> cutJson();
 
   /**
+   * Reads an order whose 200 body is typed as JSON but is not JSON.
+   *
+   * @return never, as the body is not valid
+   */
+  @GetExchange(ErrorDownstream.BAD_JSON)
+  Order badJson();
+
+  /**
+   * Reads an order whose JSON body stops inside its list of lines.
+   *
+   * @return never, as the body is cut off by the timeout
+   */
+  @GetExchange(ErrorDownstream.CUT_ORDER)
+  Order cutOrder();
+
+  /**
    * Reads an answer that succeeds with a body far over 64 KB.
    *
    * @return the body

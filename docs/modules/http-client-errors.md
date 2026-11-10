@@ -15,7 +15,7 @@ service then gets. Part of the [HTTP client](http-client.md) page.
 | Was not sent, as a client with `auth.token-relay: true` has no verified caller token ([auth](http-client-auth.md#token-relay)) | `StratumException` with `SX-HTTPC-0004` | `500` |
 | Got a `404`, and its method returns `Optional` | Nothing: the method returns an empty `Optional` | no error |
 | Got any other error answer, `4xx` or `5xx` | `DownstreamException`, or your own exception from `mapError` | `500` |
-| Got an answer whose body cannot be read, such as JSON that does not match | Spring's `RestClientException`, as without Stratum | `500` |
+| Got an answer whose body cannot be read, such as JSON that does not match, with Jackson 3 or with Jackson 2's converter. It is never sent again and never counts for the circuit breaker | Spring's `RestClientException`, as without Stratum | `500` |
 
 These codes say only what went wrong, such as "The other service did not answer in time". The body your caller
 gets never names the other service, its address or its path. Your own log does: the code's cause, Spring's
