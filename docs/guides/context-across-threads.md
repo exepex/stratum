@@ -220,3 +220,29 @@ and [Observability](../../starters/stratum-starter-observability/README.md#prope
 starter also sets the second ([Web](../modules/web.md#properties)). The third is
 shared by both modules, so it is in the
 [configuration reference](../configuration/reference.md#shared-properties).
+
+To leave your own pool beans as they are, so their tasks do not keep the fields, set the third key to
+`false`. Spring Boot's executors and `@Async` keep them. In `application.properties`:
+
+```properties
+stratum.context-propagation.executor-beans=false
+```
+
+or in `application.yml`:
+
+```yaml
+stratum:
+  context-propagation:
+    executor-beans: false
+```
+
+This key has no Stratum customizer, because Spring reads it before any bean exists. Set it in Java as a
+default property of the application, as [Overriding
+defaults](../configuration/overriding-defaults.md#switches-shared-properties-and-spring-boot-properties-in-java)
+shows:
+
+```java
+var application = new SpringApplication(OrdersApplication.class);
+application.setDefaultProperties(Map.of("stratum.context-propagation.executor-beans", false));
+application.run(args);
+```
