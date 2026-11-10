@@ -22,6 +22,12 @@
   <name>Stratum bundle: web-ui</name>
   <description>Bundle for a server-rendered web application: web MVC, logging and observability.</description>
 
+  <!-- No Java code, so Maven Central gets empty sources and Javadoc jars (root POM, stratum-release). -->
+  <properties>
+    <stratum.placeholder-javadoc.phase>package</stratum.placeholder-javadoc.phase>
+    <stratum.placeholder-sources.phase>package</stratum.placeholder-sources.phase>
+  </properties>
+
   <!-- Keep the starters sorted by name. -->
   <dependencies>
     <dependency>

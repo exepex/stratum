@@ -160,6 +160,34 @@ On every pull request, the workflow runs the sync's golden test,
 lists the pages that would change on the run's summary page. It pushes nothing. To run the test
 yourself, run `.github/wiki/test.sh`; it needs a JDK and git.
 
+## Publishing
+
+[`.github/workflows/publish.yml`](../.github/workflows/publish.yml) publishes Stratum to Maven Central
+under the namespace `io.github.exepex`, through the Central Portal. It runs the root POM's
+`stratum-release` profile, which adds sources and Javadoc jars, signs every file with GPG, and
+uploads with Sonatype's `central-publishing-maven-plugin`. The profile is not named `release`, so a
+service's own `release` profile never turns it on. The workflow skips the tests, because the
+[Build workflow](#checks-on-every-pull-request) has run them.
+
+| When | What is published | Where |
+| --- | --- | --- |
+| A push to `main`, or **Run workflow** in the Actions tab | The `-SNAPSHOT` version in `.mvn/maven.config`. A version without `-SNAPSHOT` is not published from `main` | `https://central.sonatype.com/repository/maven-snapshots/`, which keeps a snapshot for 90 days |
+| A tag `v<version>`, such as `v0.1.0`, on a commit of `main` whose Build passed | That version; a tag that contains `SNAPSHOT` fails the run | The Central Portal, as a deployment that waits until the owner clicks **Publish** there |
+
+Snapshots are published only after the owner enables SNAPSHOTs for the `io.github.exepex` namespace
+in the Central Portal. How a service uses a snapshot is in
+[Installation](getting-started/installation.md#using-a-snapshot).
+
+The workflow needs four repository secrets: `CENTRAL_TOKEN_USERNAME` and `CENTRAL_TOKEN_PASSWORD`
+(a Central Portal user token), `GPG_PRIVATE_KEY` (the ASCII-armored private key) and
+`GPG_PASSPHRASE`. It signs with the key's primary key, as Central requires.
+
+Only built modules are published. A module that is not built yet sets `skipPublishing` to `true`
+in its `pom.xml` and is left out of `stratum-bom`. Today these are the security, resilience, Kafka
+and data JPA starters; when one is built, remove both. A module with no Java code, such as a bundle,
+sets the `stratum.placeholder-*.phase` properties to `package`, because Central needs a sources
+and a Javadoc jar next to every jar.
+
 ## Rules for a new starter
 
 A new starter meets every rule in [engineering](agents/engineering.md), [testing](agents/testing.md),

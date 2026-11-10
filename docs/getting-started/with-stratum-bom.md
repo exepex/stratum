@@ -1,7 +1,8 @@
 # Stratum as a dependency, under another parent
 
-**Status: Built, not released.** `stratum-bom` exists and builds both examples below, but no version
-is published yet. `0.1.0-SNAPSHOT` is a placeholder for the first released version.
+**Status: Built, not released.** `stratum-bom` exists and builds both examples below. No release is
+published yet, only [snapshots](installation.md#using-a-snapshot). `0.1.0-SNAPSHOT` is a placeholder
+for the first released version.
 
 This guide sets up a service that keeps its own parent POM and gets Stratum through `stratum-bom`.
 Use it when your `pom.xml` must keep `spring-boot-starter-parent` or your company's parent. If your

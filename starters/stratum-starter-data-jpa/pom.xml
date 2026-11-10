@@ -16,6 +16,12 @@
   <name>Stratum starter: data JPA</name>
   <description>Spring Data JPA with safe defaults for the connection pool, Hibernate and transactions.</description>
 
+  <!-- Only partly built, so not published to Maven Central yet and not in stratum-bom
+       (docs/contributing.md#publishing). -->
+  <properties>
+    <skipPublishing>true</skipPublishing>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>io.github.exepex.stratum</groupId>

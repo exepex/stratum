@@ -7,6 +7,8 @@
   the versions below resolve when a service imports it; Maven imports only <dependencyManagement>, so
   those properties do not change the service. The BOM never brings Spring Boot's versions, so a
   service under a company parent gets them from that parent only (ADR 0001, ST-ENG-60).
+  It lists only the modules that are published to Maven Central; a starter that is not built yet, and
+  so not published (docs/contributing.md#publishing), is added here when it is.
   Keep <dependencyManagement> sorted by name.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
@@ -61,17 +63,7 @@
       </dependency>
       <dependency>
         <groupId>io.github.exepex.stratum</groupId>
-        <artifactId>stratum-starter-data-jpa</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.github.exepex.stratum</groupId>
         <artifactId>stratum-starter-http-client</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.github.exepex.stratum</groupId>
-        <artifactId>stratum-starter-kafka</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
@@ -97,16 +89,6 @@
       <dependency>
         <groupId>io.github.exepex.stratum</groupId>
         <artifactId>stratum-starter-reactive-microservice</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.github.exepex.stratum</groupId>
-        <artifactId>stratum-starter-resilience</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.github.exepex.stratum</groupId>
-        <artifactId>stratum-starter-security</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
@@ -189,13 +171,6 @@
         <artifactId>flatten-maven-plugin</artifactId>
         <configuration>
           <flattenMode>bom</flattenMode>
-          <!-- Spring's project URL, developers and SCM, inherited through the root POM, are not Stratum's. -->
-          <pomElements>
-            <developers>remove</developers>
-            <issueManagement>remove</issueManagement>
-            <scm>remove</scm>
-            <url>remove</url>
-          </pomElements>
         </configuration>
       </plugin>
     </plugins>
