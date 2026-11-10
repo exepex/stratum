@@ -3,6 +3,7 @@ stratum:
     defaults:
       timeout: 3s
       call-log: none
+      trace-headers: false
       retry:
         delay: 1s
       circuit-breaker:
@@ -30,6 +31,7 @@ stratum:
           - X-Request-Origin
         interceptor-body-limit: 8MB
         call-log: all
+        trace-headers: true
         interfaces:
           - com.partner.OrdersApi
           - com.partner.CustomersApi

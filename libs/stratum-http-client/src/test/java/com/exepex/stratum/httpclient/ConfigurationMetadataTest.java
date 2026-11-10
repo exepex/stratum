@@ -51,6 +51,7 @@ class ConfigurationMetadataTest {
           "copy-headers",
           "interceptor-body-limit",
           "call-log",
+          "trace-headers",
           "ssl-bundle",
           "auth.api-key",
           "auth.api-key-header",

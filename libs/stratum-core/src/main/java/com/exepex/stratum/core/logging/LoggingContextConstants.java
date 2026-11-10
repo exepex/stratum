@@ -7,7 +7,8 @@ import lombok.experimental.UtilityClass;
 import org.jspecify.annotations.Nullable;
 
 /**
- * The keys under which tracing and Stratum put request IDs in the logging context (SLF4J's MDC).
+ * The keys under which tracing and Stratum put request IDs in the logging context (SLF4J's MDC),
+ * and the headers that carry the correlation ID between services.
  */
 @StratumInternal
 @UtilityClass
@@ -21,6 +22,12 @@ public class LoggingContextConstants {
 
   /** The ID that ties the steps of one business workflow together, set by Stratum. */
   public static final String CORRELATION_ID = "correlationId";
+
+  /** The header that carries the correlation ID between services, in and out. */
+  public static final String CORRELATION_ID_HEADER = "X-Correlation-Id";
+
+  /** The W3C header that carries the tracing baggage, and the correlation ID in it. */
+  public static final String BAGGAGE_HEADER = "baggage";
 
   /** The request's HTTP method, such as {@code GET}, set by the web module. */
   public static final String HTTP_METHOD = "httpMethod";

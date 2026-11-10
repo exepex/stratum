@@ -2,6 +2,7 @@ package com.exepex.stratum.httpclient;
 
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import java.time.Duration;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -205,6 +206,29 @@ public class HttpClientConstants {
    */
   public static final List<String> REFUSED_HEADERS =
       List.of("Authorization", "Cookie", "Set-Cookie", "Proxy-Authorization");
+
+  /**
+   * The headers a client with {@code trace-headers: false} never sends: W3C trace context and
+   * baggage, B3 in its single and multiple forms, and the correlation ID.
+   */
+  public static final List<String> TRACE_HEADERS =
+      List.of(
+          "traceparent",
+          "tracestate",
+          LoggingContextConstants.BAGGAGE_HEADER,
+          "b3",
+          "X-B3-TraceId",
+          "X-B3-SpanId",
+          "X-B3-ParentSpanId",
+          "X-B3-Sampled",
+          "X-B3-Flags",
+          LoggingContextConstants.CORRELATION_ID_HEADER);
+
+  /**
+   * Spring Boot's key that names the baggage entries its tracing sends as headers of their own,
+   * which a client with {@code trace-headers: false} does not send either.
+   */
+  public static final String BAGGAGE_REMOTE_FIELDS = "management.tracing.baggage.remote-fields";
 
   /** Stratum's default for the most of a request body an interceptor may read: 1 MiB. */
   public static final DataSize DEFAULT_INTERCEPTOR_BODY_LIMIT = DataSize.ofMegabytes(1);

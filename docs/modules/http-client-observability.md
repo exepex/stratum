@@ -1,8 +1,10 @@
 # HTTP client: call log and meters
 
-**Status: Partly built.** Every call of a Stratum client is written to the log once when it fails, and counted in
-the meters: how long it took and how it ended, how many retries ran, the circuit breaker's state, and how full each
-connection pool is. Trace headers (`trace-headers`) are planned ([Planned](#planned)).
+**Status: Built**, except the timer of the wait for a free connection
+([#237](https://github.com/exepex/stratum/issues/237)). Every call of a Stratum client is written to the log once when it fails, and counted in the
+meters: how long it took and how it ended, how many retries ran, the circuit breaker's state, and how full each
+connection pool is. Every call also carries the correlation ID, unless the client is set to send no trace headers
+([Trace headers](#trace-headers)).
 
 [← HTTP client](http-client.md) · [← Documentation home](../README.md) · Property prefix: `stratum.http-client` ·
 Design: [ADR 0016](../adr/0016-http-client-call-log-and-meters.md), [ADR 0011](../adr/0011-http-client-starters.md),
@@ -121,14 +123,20 @@ word, so a URL that long is written as `...[truncated]`.
 The OpenTelemetry Java agent and OpenTelemetry's log appender read each event before any format, so they see `url`
 unmasked, as they see every line: mask in the OpenTelemetry Collector, as the logging starter's page says.
 
-## The key
+## The keys
 
-`call-log` is listed in the module's [property table](http-client.md#properties): `errors` (the default), one WARN
-per failed call; `all`, also one INFO per successful call; `none`, no line, while the meters still count every call.
+`call-log` and `trace-headers` are listed in the module's [property table](http-client.md#properties).
 
-Set it under `stratum.http-client.defaults` for every client, or under `stratum.http-client.clients.<name>` for one;
-the client's value wins. A value that is none of the three stops startup with Spring Boot's binding error naming the
-key. Use `all` while you onboard a new partner, and `none` for a health pinger whose failures are expected.
+`call-log`: `errors` (the default), one WARN per failed call; `all`, also one INFO per successful call; `none`, no
+line, while the meters still count every call.
+
+`trace-headers`: `true` (the default) sends `X-Correlation-Id` on every call; `false` sends no trace, baggage or
+correlation header ([Trace headers](#trace-headers)).
+
+Set each under `stratum.http-client.defaults` for every client, or under `stratum.http-client.clients.<name>` for
+one; the client's value wins. A value the key does not take stops startup with Spring Boot's binding error naming the
+key. Use `call-log: all` while you onboard a new partner, `call-log: none` for a health pinger whose failures are
+expected, and `trace-headers: false` for a payment provider that must not receive your trace or correlation IDs.
 
 `application.yml`:
 
@@ -137,9 +145,13 @@ stratum:
   http-client:
     defaults:
       call-log: errors          # the default: one WARN per failed call
+      trace-headers: true       # the default
     clients:
       orders:
         url: http://orders:8080
+      payments-provider:        # a third party
+        url: https://api.payments.example
+        trace-headers: false
       inventory:
         url: http://inventory:8080
         call-log: all           # every call: INFO on success, WARN on failure
@@ -152,7 +164,10 @@ stratum:
 
 ```properties
 stratum.http-client.defaults.call-log=errors
+stratum.http-client.defaults.trace-headers=true
 stratum.http-client.clients.orders.url=http://orders:8080
+stratum.http-client.clients.payments-provider.url=https://api.payments.example
+stratum.http-client.clients.payments-provider.trace-headers=false
 stratum.http-client.clients.inventory.url=http://inventory:8080
 stratum.http-client.clients.inventory.call-log=all
 stratum.http-client.clients.status-pinger.url=http://pinger:8080
@@ -161,17 +176,20 @@ stratum.http-client.clients.status-pinger.call-log=none
 
 ### Configure in Java
 
-The same values for the two changed clients, in an `HttpClientPropertiesCustomizer`; Java wins over the files:
+The same values for the three changed clients, in an `HttpClientPropertiesCustomizer`; Java wins over the files:
 
 ```java
 public class PartnerClientSettings implements HttpClientPropertiesCustomizer {
 
   @Override
   public HttpClientProperties customize(HttpClientProperties properties) {
+    var payments =
+        properties.clientSettings("payments-provider").toBuilder().traceHeaders(false).build();
     var inventory = properties.clientSettings("inventory").toBuilder().callLog(CallLog.ALL).build();
     var pinger =
         properties.clientSettings("status-pinger").toBuilder().callLog(CallLog.NONE).build();
     var clients = new HashMap<>(properties.clients());
+    clients.put("payments-provider", payments);
     clients.put("inventory", inventory);
     clients.put("status-pinger", pinger);
     return properties.toBuilder().clients(clients).build();
@@ -183,6 +201,26 @@ public class PartnerClientSettings implements HttpClientPropertiesCustomizer {
 # META-INF/spring.factories
 com.exepex.stratum.httpclient.HttpClientPropertiesCustomizer=com.acme.orders.PartnerClientSettings
 ```
+
+## Trace headers
+
+With tracing on, such as with the [observability starter](observability-traces.md), Spring Boot's tracing already
+sends `traceparent` and the `baggage` header, with the correlation ID in it, on every call of a Stratum client. The
+starter adds `X-Correlation-Id`, the header the web starters read ([web](web.md#correlation-id)), so a service that
+does not read baggage still gets the ID.
+
+- **`trace-headers: true`, the default.** Each attempt gets `X-Correlation-Id` with the correlation ID of the logging
+  context, when the call has none yet. A value your code sets wins, from a `@RequestHeader`, `headers`,
+  `copy-headers` or an interceptor: one value is sent. With no correlation ID in the logging context, as without
+  tracing, or with one that is not 1 to 128 letters, digits, `-`, `_`, `.` or `:`, no header is sent.
+- **`trace-headers: false`.** Each attempt is sent with none of these headers, whoever set them, your interceptors
+  included: `traceparent`, `tracestate`, `baggage`, `b3`, `X-B3-TraceId`, `X-B3-SpanId`, `X-B3-ParentSpanId`,
+  `X-B3-Sampled`, `X-B3-Flags`, `X-Correlation-Id`, and each name in Spring Boot's
+  `management.tracing.baggage.remote-fields`, which Spring Boot sends as headers of their own. The call is still
+  traced and measured inside your service: its span and Spring Boot's `http.client.requests` timer stay.
+
+The headers are set or removed when each attempt is sent, after the copied headers and your interceptors, so they
+apply to every way of calling the client and to each retry. The small pools that fetch service tokens get neither.
 
 ## The meters
 
@@ -221,10 +259,6 @@ same and makes no meters. Each meter is tagged `client`, the client's name.
   no line and is not counted as a failure, and the calls timer leaves out the time spent reading it. A call of an
   interface method includes the reading.
 - **A `StratumClientCustomizer` that replaces the client's request factory** also replaces the part that notes the
-  address: that client's line has no `url`.
+  address and the part that sets the trace headers: that client's line has no `url`, its calls get no
+  `X-Correlation-Id`, and `trace-headers: false` removes nothing.
 - **Log4j2:** the key-value fields are checked under Logback, the default; not checked under Log4j2.
-
-## Planned
-
-- `trace-headers`: `X-Correlation-Id` on every call, and `false` to send no trace or correlation header to a third
-  party. Spring Boot's tracing already sends `traceparent` and `baggage` on Stratum clients when tracing is on.

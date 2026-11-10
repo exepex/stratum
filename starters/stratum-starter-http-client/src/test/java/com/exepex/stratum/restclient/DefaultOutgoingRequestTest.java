@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.http.client.ClientHttpRequest;
+import org.springframework.mock.env.MockEnvironment;
 
 @DisplayName("A failing interceptor is marked for the retries and breaker, and nothing is sent")
 class DefaultOutgoingRequestTest {
@@ -30,7 +31,8 @@ class DefaultOutgoingRequestTest {
         delegate,
         new CopiedHeaders(List.of()),
         List.of(failing),
-        HttpClientConstants.DEFAULT_INTERCEPTOR_BODY_LIMIT);
+        HttpClientConstants.DEFAULT_INTERCEPTOR_BODY_LIMIT,
+        TraceHeaders.of(true, new MockEnvironment()));
   }
 
   /** Throws an unchecked failure, a runtime exception or an error, as it is. */
