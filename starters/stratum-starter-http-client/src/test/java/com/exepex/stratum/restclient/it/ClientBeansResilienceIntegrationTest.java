@@ -220,7 +220,9 @@ class ClientBeansResilienceIntegrationTest {
     @FieldSource(ClientBeanCalls.BOTH_BEANS)
     @DisplayName("opened by the client's interface, it refuses the bean's call with SX-HTTPC-0003")
     void openedByInterfaceRefusesBean(ClientBean bean, @Autowired FlakyInventory inventory) {
+      // The bean's call goes through first, then the breaker starts its window afresh.
       assertThat(inventoryGet(bean)).isEqualTo(ScriptedDownstream.BODY);
+      resilience.circuitBreaker(RestClientTestData.INVENTORY).orElseThrow().reset();
       QUEUED.answerNext(failures(FAILED));
       IntStream.range(0, GuardRules.INVENTORY_WINDOW)
           .forEach(
