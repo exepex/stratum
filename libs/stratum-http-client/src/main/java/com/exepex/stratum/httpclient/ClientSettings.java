@@ -44,8 +44,8 @@ import org.springframework.util.unit.DataSize;
  *     whose trust material it checks the other service with (mutual TLS), such as bank. Not allowed
  *     under defaults, nor with shared-pool.
  * @param retry When a failed call is sent again, and how long the client waits first.
- * @param totalTimeout The time allowed for a whole call, retries and waits included, such as 8s.
- *     Defaults to 8s.
+ * @param totalTimeout The time allowed for a whole call, retries, waits and the answer's body
+ *     included, except a streamed download's body, such as 8s. Defaults to 8s.
  * @param circuitBreaker When calls stop for a while, failing at once, after many of them fail.
  * @param mock Whether the client answers from files under stratum-mocks and from test scripts
  *     instead of calling the other service, for a service that is not deployed yet and for tests.

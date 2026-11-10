@@ -90,11 +90,12 @@ public class ClientConnectionPools implements DisposableBean {
 
   /**
    * Returns the request factory of one pool. With {@code streamsAnswers}, a streamed download keeps
-   * its answer timeout; without, as for a token request, the answer timeout always ends by the
+   * its answer timeout; without, as for a token request, the answer and its body always end by the
    * call's {@code total-timeout}.
    */
   private ClientHttpRequestFactory requestFactory(
       String poolKey, ClientSettings settings, boolean streamsAnswers) {
+    var bodyDeadline = new BodyDeadline(Objects.requireNonNull(settings.timeout()), streamsAnswers);
     var requestConfig =
         RequestConfig.custom()
             .setConnectionRequestTimeout(Timeout.of(Objects.requireNonNull(settings.maxWait())))
@@ -106,6 +107,7 @@ public class ClientConnectionPools implements DisposableBean {
             .setConnectionManager(poolFor(poolKey, settings))
             .setConnectionManagerShared(true)
             .addExecInterceptorFirst(ErrorBodyLimit.NAME, ERROR_BODY_LIMIT)
+            .setRequestExecutor(bodyDeadline)
             .disableAutomaticRetries()
             .disableRedirectHandling()
             .setDefaultRequestConfig(requestConfig)
@@ -115,7 +117,7 @@ public class ClientConnectionPools implements DisposableBean {
         new HttpComponentsClientHttpRequestFactory(httpClient),
         requestConfig,
         settings,
-        streamsAnswers);
+        bodyDeadline);
   }
 
   /**
@@ -143,9 +145,9 @@ public class ClientConnectionPools implements DisposableBean {
       HttpComponentsClientHttpRequestFactory requestFactory,
       RequestConfig requestConfig,
       ClientSettings settings,
-      boolean streamsAnswers) {
+      BodyDeadline bodyDeadline) {
     requestFactory.setHttpContextFactory(
-        (method, uri) -> attemptContext(requestConfig, settings, streamsAnswers));
+        (method, uri) -> attemptContext(requestConfig, settings, bodyDeadline));
     return requestFactory;
   }
 
@@ -154,9 +156,9 @@ public class ClientConnectionPools implements DisposableBean {
    * total-timeout}, or none outside a call of a client's interface, which keeps the client's own.
    */
   private @Nullable HttpContext attemptContext(
-      RequestConfig requestConfig, ClientSettings settings, boolean streamsAnswers) {
+      RequestConfig requestConfig, ClientSettings settings, BodyDeadline bodyDeadline) {
     return AttemptTimeLeft.timeLeft()
-        .map(timeLeft -> contextWithin(requestConfig, settings, timeLeft, streamsAnswers))
+        .map(timeLeft -> contextWithin(requestConfig, settings, timeLeft, bodyDeadline))
         .orElse(null);
   }
 
@@ -170,12 +172,12 @@ public class ClientConnectionPools implements DisposableBean {
       RequestConfig requestConfig,
       ClientSettings settings,
       Duration timeLeft,
-      boolean streamsAnswers) {
+      BodyDeadline bodyDeadline) {
     var attemptConfig =
         RequestConfig.copy(requestConfig)
             .setConnectionRequestTimeout(
                 within(Objects.requireNonNull(settings.maxWait()), timeLeft));
-    if (!streamsAnswers || !AttemptTimeLeft.keepsAnswerTimeout()) {
+    if (bodyDeadline.boundsAnswer()) {
       attemptConfig.setResponseTimeout(
           within(Objects.requireNonNull(settings.timeout()), timeLeft));
     }
