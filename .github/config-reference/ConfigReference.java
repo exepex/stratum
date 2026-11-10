@@ -94,8 +94,7 @@ final class ConfigReference {
       [← Documentation home](../README.md)
 
       Each module section links the module's own page, which explains its keys with examples and lists
-      the Spring Boot keys the module gives a default. A dash in the Default column means the metadata
-      holds no fixed default: the description says what applies. How to set a key is in
+      the Spring Boot keys the module gives a default. How to set a key is in
       [Configuration basics](basics.md); the instance ID and a complete example are in
       [Shared settings](shared-settings.md).
 
@@ -245,10 +244,10 @@ final class ConfigReference {
         + " |\n";
   }
 
-  /** Returns a default as code, a list joined with commas, or a dash when the metadata has none. */
+  /** Returns a default as code, a list joined with commas, or "none" when the metadata has none. */
   private String defaultValue(Object value) {
     if (value == null) {
-      return "—";
+      return "none";
     }
     if (value instanceof List<?> values) {
       String joined = values.stream().map(String::valueOf).collect(Collectors.joining(", "));

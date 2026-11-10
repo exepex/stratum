@@ -7,8 +7,7 @@ metadata the build writes, so the page always matches the code. Planned modules 
 [← Documentation home](../README.md)
 
 Each module section links the module's own page, which explains its keys with examples and lists
-the Spring Boot keys the module gives a default. A dash in the Default column means the metadata
-holds no fixed default: the description says what applies. How to set a key is in
+the Spring Boot keys the module gives a default. How to set a key is in
 [Configuration basics](basics.md); the instance ID and a complete example are in
 [Shared settings](shared-settings.md).
 
@@ -61,7 +60,7 @@ Module page: [Shared settings](shared-settings.md).
 | --- | --- | --- | --- |
 | `stratum.backward-compatible` | `Boolean` | `false` | Whether every module keeps the service's external contracts as they were before Stratum, so its consumers see no change: error bodies, statuses, time and size limits, and message formats. Internal settings, such as logs, spans and redaction, always follow Stratum. Set it to true in a running service's first release on Stratum. |
 | `stratum.context-propagation.executor-beans` | `Boolean` | `true` | Whether the pool beans the service declares as Executor, ExecutorService or ScheduledExecutorService are wrapped, so that their tasks keep the trace, correlation ID, workflow fields and the service's own MDC fields of the code that submitted them. A bean declared as a class, such as ThreadPoolExecutor, is not wrapped. Used by the logging and observability modules when they are on. |
-| `stratum.environment` | `String` | — | The environment the service runs in, such as prod. The logging module writes it as service.environment and the observability module tags every metric and span with it. |
+| `stratum.environment` | `String` | none | The environment the service runs in, such as prod. The logging module writes it as service.environment and the observability module tags every metric and span with it. |
 
 ## Web
 
@@ -77,20 +76,20 @@ Module page: [Web → Properties](../modules/web.md#properties).
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.web.body-limit.default-limit` | `DataSize` | — | How large any request's body may be, such as 256KB or 20MB. 0 means no limit. Defaults to 256KB, or to no limit while stratum.backward-compatible is true, so an existing service's requests are not refused. |
-| `stratum.web.body-limit.routes` | `Map<String, DataSize>` | — | The limit of the bodies of the requests whose path matches a pattern, such as /uploads/\*\* to 20MB. When several patterns match, the most specific one wins. 0 means no limit on those paths. Defaults to none. |
+| `stratum.web.body-limit.default-limit` | `DataSize` | none | How large any request's body may be, such as 256KB or 20MB. 0 means no limit. Defaults to 256KB, or to no limit while stratum.backward-compatible is true, so an existing service's requests are not refused. |
+| `stratum.web.body-limit.routes` | `Map<String, DataSize>` | none | The limit of the bodies of the requests whose path matches a pattern, such as /uploads/\*\* to 20MB. When several patterns match, the most specific one wins. 0 means no limit on those paths. Defaults to none. |
 
 ### `stratum.web.client-ip`
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.web.client-ip.trusted-proxies` | `List<String>` | — | The address ranges, such as 10.0.0.0/8, of the load balancers and proxies in front of the service. Their X-Forwarded-For header is read from right to left, and the first address outside these ranges is the client's. A request from any other address is taken as it arrives. Defaults to the private and loopback ranges: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 127.0.0.0/8, ::1/128 and fc00::/7. |
+| `stratum.web.client-ip.trusted-proxies` | `List<String>` | none | The address ranges, such as 10.0.0.0/8, of the load balancers and proxies in front of the service. Their X-Forwarded-For header is read from right to left, and the first address outside these ranges is the client's. A request from any other address is taken as it arrives. Defaults to the private and loopback ranges: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 127.0.0.0/8, ::1/128 and fc00::/7. |
 
 ### `stratum.web.client-location`
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.web.client-location.database` | `Path` | — | The MaxMind GeoIP2 or GeoLite2 City or Country database file, in .mmdb format, that your team provides and keeps up to date. Defaults to none, which logs no country or city. |
+| `stratum.web.client-location.database` | `Path` | none | The MaxMind GeoIP2 or GeoLite2 City or Country database file, in .mmdb format, that your team provides and keeps up to date. Defaults to none, which logs no country or city. |
 
 ### `stratum.web.correlation`
 
@@ -102,7 +101,7 @@ Module page: [Web → Properties](../modules/web.md#properties).
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.web.error.statuses` | `Map<String, Integer>` | — | The HTTP status, from 400 to 599, of each of the service's error codes that a StratumException carries, such as ORD-0001 to 409. A code with no status is answered with 500 and logged. Defaults to none. |
+| `stratum.web.error.statuses` | `Map<String, Integer>` | none | The HTTP status, from 400 to 599, of each of the service's error codes that a StratumException carries, such as ORD-0001 to 409. A code with no status is answered with 500 and logged. Defaults to none. |
 
 ### `stratum.web.request-fields`
 
@@ -114,20 +113,20 @@ Module page: [Web → Properties](../modules/web.md#properties).
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.web.request-log.denied-headers` | `List<String>` | — | More headers that are never logged, even when listed above, such as a header your platform uses for a secret. Defaults to none. |
+| `stratum.web.request-log.denied-headers` | `List<String>` | none | More headers that are never logged, even when listed above, such as a header your platform uses for a secret. Defaults to none. |
 | `stratum.web.request-log.enabled` | `Boolean` | `true` | Whether each request writes one INFO log line when it ends, with its status, how long it took and the headers named below. Requests for static files never write one. Defaults to true. |
-| `stratum.web.request-log.request-headers` | `Map<String, String>` | — | The request headers to log, each with the field name it is logged under, such as X-Tenant-Id to tenantId. A field name is a letter, then up to 63 letters, digits, \_ or . characters. Authorization, Cookie, Set-Cookie, X-Api-Key and the denied headers are never logged. Defaults to none. |
-| `stratum.web.request-log.response-headers` | `Map<String, String>` | — | The response headers to log, each with the field name it is logged under, as for the request headers. Defaults to none. |
-| `stratum.web.request-log.skip-paths` | `List<String>` | — | The path patterns whose requests write no line, such as /actuator/\*\* or /internal/\*. Setting the list replaces the default, so keep /actuator/\*\* in it. Defaults to /actuator/\*\*. |
-| `stratum.web.request-log.token-claims` | `List<String>` | — | The claims of the caller's token that are logged when token-payload is true. Setting the list replaces the default; list no claim that holds personal data, such as email or name. Defaults to sub, azp, client\_id and scope. |
+| `stratum.web.request-log.request-headers` | `Map<String, String>` | none | The request headers to log, each with the field name it is logged under, such as X-Tenant-Id to tenantId. A field name is a letter, then up to 63 letters, digits, \_ or . characters. Authorization, Cookie, Set-Cookie, X-Api-Key and the denied headers are never logged. Defaults to none. |
+| `stratum.web.request-log.response-headers` | `Map<String, String>` | none | The response headers to log, each with the field name it is logged under, as for the request headers. Defaults to none. |
+| `stratum.web.request-log.skip-paths` | `List<String>` | none | The path patterns whose requests write no line, such as /actuator/\*\* or /internal/\*. Setting the list replaces the default, so keep /actuator/\*\* in it. Defaults to /actuator/\*\*. |
+| `stratum.web.request-log.token-claims` | `List<String>` | none | The claims of the caller's token that are logged when token-payload is true. Setting the list replaces the default; list no claim that holds personal data, such as email or name. Defaults to sub, azp, client\_id and scope. |
 | `stratum.web.request-log.token-payload` | `Boolean` | `false` | Whether the claims named in token-claims, from the payload of the caller's bearer JSON Web Token, are logged as jwtClaims. They are decoded but not verified, so never trust them. The token's header, signature and other claims never are. Defaults to false. |
 
 ### `stratum.web.timeout`
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.web.timeout.default-limit` | `Duration` | — | How long any request may take until its response starts, such as 10s or 500ms. 0 means no limit. Defaults to 10s, or to no limit while stratum.backward-compatible is true, so an existing service's requests are not cut off. |
-| `stratum.web.timeout.routes` | `Map<String, Duration>` | — | The limit of the requests whose path matches a pattern, such as /reports/\*\* to 60s. When several patterns match, the most specific one wins. 0 means no limit on those paths. Defaults to none. |
+| `stratum.web.timeout.default-limit` | `Duration` | none | How long any request may take until its response starts, such as 10s or 500ms. 0 means no limit. Defaults to 10s, or to no limit while stratum.backward-compatible is true, so an existing service's requests are not cut off. |
+| `stratum.web.timeout.routes` | `Map<String, Duration>` | none | The limit of the requests whose path matches a pattern, such as /reports/\*\* to 60s. When several patterns match, the most specific one wins. 0 means no limit on those paths. Defaults to none. |
 | `stratum.web.timeout.status` | `Integer` | `503` | The HTTP status, from 400 to 599, that a request which ran out of time is answered with. Defaults to 503. |
 
 ### `stratum.web.user-agent`
@@ -215,74 +214,74 @@ Module page: [HTTP client → Properties](../modules/http-client.md#properties).
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.http-client.clients` | `Map<String, ClientSettings>` | — | The settings of each client, by the name in its `@StratumClient`, such as inventory. |
+| `stratum.http-client.clients` | `Map<String, ClientSettings>` | none | The settings of each client, by the name in its `@StratumClient`, such as inventory. |
 | `stratum.http-client.enabled` | `Boolean` | `true` | Whether the HTTP client module is on. With false, Stratum finds no @StratumClient interface and sets up nothing, and Spring Boot's clients keep Spring Boot's own defaults. |
 
 ### `stratum.http-client.defaults`
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.http-client.defaults.call-log` | `CallLog` | — | Which calls write a log line: errors, one WARN per failed call after its retries; all, also one INFO per successful call; or none. Defaults to errors. |
-| `stratum.http-client.defaults.circuit-breaker` | `Boolean` | — | Removed: whether the client has a circuit breaker. Use circuit-breaker.enabled. |
-| `stratum.http-client.defaults.connect-timeout` | `Duration` | — | The time allowed to open a connection, such as 2s. Defaults to 2s. |
-| `stratum.http-client.defaults.connection-lifetime` | `Duration` | — | How old a connection may get before it is closed instead of used again, so that calls follow changes of address. Defaults to 5m. |
-| `stratum.http-client.defaults.copy-headers` | `List<String>` | — | The names of headers copied from the request the service is answering, such as X-Tenant, onto every call made while answering it. A name the request does not have, or a call made outside a request, sends nothing. A client's names are joined with those under defaults. The same headers as in headers are refused. Defaults to none. |
-| `stratum.http-client.defaults.headers` | `Map<String, String>` | — | Headers sent on every call, by name, such as X-Partner-Id: orders. A client's are added to those under defaults; for the same name, compared without case, the client's value wins, and an empty value drops the default and sends nothing. Authorization, Cookie, Set-Cookie, Proxy-Authorization and the client's API key header are refused. Defaults to none. |
-| `stratum.http-client.defaults.idle-timeout` | `Duration` | — | How long a connection may stay unused before it is closed, such as 30s. Defaults to 30s. |
-| `stratum.http-client.defaults.interceptor-body-limit` | `DataSize` | — | The most of a request body an interceptor may read with body(), such as 1MB or 8MB, from 1B to 1GB. A call whose body is larger fails before it is sent, with SX-HTTPC-0005. Reading a body holds up to about three times this much memory while the call runs. 0 is refused. Defaults to 1MB. |
-| `stratum.http-client.defaults.interfaces` | `List<String>` | — | The full names of generated interfaces, such as com.partner.OrdersApi, that call this client's service with all of its settings, as an interface marked @StratumClient does. Only for a client; not allowed under defaults. Defaults to none. |
-| `stratum.http-client.defaults.max-connections` | `Integer` | — | The most connections the client keeps open at once, from 1 to 10000. A call that finds them all busy waits for one. Defaults to 50. |
-| `stratum.http-client.defaults.max-wait` | `Duration` | — | How long a call waits for a free connection before it fails, such as 2s or 500ms. Defaults to 2s. |
-| `stratum.http-client.defaults.mock` | `Boolean` | — | Whether the client answers from files under stratum-mocks and from test scripts instead of calling the other service, for a service that is not deployed yet and for tests. Logs a warning at every startup. Defaults to false. |
-| `stratum.http-client.defaults.response-body-limit` | `DataSize` | — | The most of a successful answer's body the client reads, such as 32MB, from 1B to 1GB, or -1 for no limit. Reading a larger body fails with SX-HTTPC-0006; a body the call does not read is dropped once it passes the limit. A method that returns an InputStream is not limited. Defaults to 32MB. |
-| `stratum.http-client.defaults.retries` | `Integer` | — | Removed: how many times a failed call is sent again. Use retry.max-retries. |
-| `stratum.http-client.defaults.retry-delay` | `Duration` | — | Removed: the wait before the first retry. Use retry.delay. |
-| `stratum.http-client.defaults.shared-pool` | `Boolean` | — | Whether the client uses the one pool shared by every client that sets it, instead of its own. That pool takes its size, connect timeout, idle timeout and lifetime from defaults. Defaults to false. |
-| `stratum.http-client.defaults.ssl-bundle` | `String` | — | The name of a spring.ssl.bundle bundle whose certificate the client presents and whose trust material it checks the other service with (mutual TLS), such as bank. Not allowed under defaults, nor with shared-pool. |
-| `stratum.http-client.defaults.timeout` | `Duration` | — | The longest wait for the first byte of an answer and between two of its bytes, such as 5s or 20s for a slow report. A slow answer whose bytes keep coming takes as long as it needs. Defaults to 5s. |
-| `stratum.http-client.defaults.total-timeout` | `Duration` | — | The time allowed for a whole call, retries, waits and the answer's body included, except a streamed download's body, such as 8s. Defaults to 8s. |
-| `stratum.http-client.defaults.trace-headers` | `Boolean` | — | Whether calls carry the correlation ID: true sends X-Correlation-Id when the call has none, beside the trace headers Spring Boot's tracing sends; false sends no trace, baggage or correlation header, such as to a third party. Defaults to true. |
-| `stratum.http-client.defaults.url` | `String` | — | The address of the other service, such as http://inventory:8080. Required for each client; not allowed under defaults. |
+| `stratum.http-client.defaults.call-log` | `CallLog` | none | Which calls write a log line: errors, one WARN per failed call after its retries; all, also one INFO per successful call; or none. Defaults to errors. |
+| `stratum.http-client.defaults.circuit-breaker` | `Boolean` | none | Removed: whether the client has a circuit breaker. Use circuit-breaker.enabled. |
+| `stratum.http-client.defaults.connect-timeout` | `Duration` | none | The time allowed to open a connection, such as 2s. Defaults to 2s. |
+| `stratum.http-client.defaults.connection-lifetime` | `Duration` | none | How old a connection may get before it is closed instead of used again, so that calls follow changes of address. Defaults to 5m. |
+| `stratum.http-client.defaults.copy-headers` | `List<String>` | none | The names of headers copied from the request the service is answering, such as X-Tenant, onto every call made while answering it. A name the request does not have, or a call made outside a request, sends nothing. A client's names are joined with those under defaults. The same headers as in headers are refused. Defaults to none. |
+| `stratum.http-client.defaults.headers` | `Map<String, String>` | none | Headers sent on every call, by name, such as X-Partner-Id: orders. A client's are added to those under defaults; for the same name, compared without case, the client's value wins, and an empty value drops the default and sends nothing. Authorization, Cookie, Set-Cookie, Proxy-Authorization and the client's API key header are refused. Defaults to none. |
+| `stratum.http-client.defaults.idle-timeout` | `Duration` | none | How long a connection may stay unused before it is closed, such as 30s. Defaults to 30s. |
+| `stratum.http-client.defaults.interceptor-body-limit` | `DataSize` | none | The most of a request body an interceptor may read with body(), such as 1MB or 8MB, from 1B to 1GB. A call whose body is larger fails before it is sent, with SX-HTTPC-0005. Reading a body holds up to about three times this much memory while the call runs. 0 is refused. Defaults to 1MB. |
+| `stratum.http-client.defaults.interfaces` | `List<String>` | none | The full names of generated interfaces, such as com.partner.OrdersApi, that call this client's service with all of its settings, as an interface marked @StratumClient does. Only for a client; not allowed under defaults. Defaults to none. |
+| `stratum.http-client.defaults.max-connections` | `Integer` | none | The most connections the client keeps open at once, from 1 to 10000. A call that finds them all busy waits for one. Defaults to 50. |
+| `stratum.http-client.defaults.max-wait` | `Duration` | none | How long a call waits for a free connection before it fails, such as 2s or 500ms. Defaults to 2s. |
+| `stratum.http-client.defaults.mock` | `Boolean` | none | Whether the client answers from files under stratum-mocks and from test scripts instead of calling the other service, for a service that is not deployed yet and for tests. Logs a warning at every startup. Defaults to false. |
+| `stratum.http-client.defaults.response-body-limit` | `DataSize` | none | The most of a successful answer's body the client reads, such as 32MB, from 1B to 1GB, or -1 for no limit. Reading a larger body fails with SX-HTTPC-0006; a body the call does not read is dropped once it passes the limit. A method that returns an InputStream is not limited. Defaults to 32MB. |
+| `stratum.http-client.defaults.retries` | `Integer` | none | Removed: how many times a failed call is sent again. Use retry.max-retries. |
+| `stratum.http-client.defaults.retry-delay` | `Duration` | none | Removed: the wait before the first retry. Use retry.delay. |
+| `stratum.http-client.defaults.shared-pool` | `Boolean` | none | Whether the client uses the one pool shared by every client that sets it, instead of its own. That pool takes its size, connect timeout, idle timeout and lifetime from defaults. Defaults to false. |
+| `stratum.http-client.defaults.ssl-bundle` | `String` | none | The name of a spring.ssl.bundle bundle whose certificate the client presents and whose trust material it checks the other service with (mutual TLS), such as bank. Not allowed under defaults, nor with shared-pool. |
+| `stratum.http-client.defaults.timeout` | `Duration` | none | The longest wait for the first byte of an answer and between two of its bytes, such as 5s or 20s for a slow report. A slow answer whose bytes keep coming takes as long as it needs. Defaults to 5s. |
+| `stratum.http-client.defaults.total-timeout` | `Duration` | none | The time allowed for a whole call, retries, waits and the answer's body included, except a streamed download's body, such as 8s. Defaults to 8s. |
+| `stratum.http-client.defaults.trace-headers` | `Boolean` | none | Whether calls carry the correlation ID: true sends X-Correlation-Id when the call has none, beside the trace headers Spring Boot's tracing sends; false sends no trace, baggage or correlation header, such as to a third party. Defaults to true. |
+| `stratum.http-client.defaults.url` | `String` | none | The address of the other service, such as http://inventory:8080. Required for each client; not allowed under defaults. |
 
 ### `stratum.http-client.defaults.auth`
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.http-client.defaults.auth.api-key` | `String` | — | An API key sent in the api-key-header header on every call, such as ${GEO\_API\_KEY}. |
-| `stratum.http-client.defaults.auth.api-key-header` | `String` | — | The header that carries the API key, such as Ocp-Apim-Subscription-Key. Only with api-key. Defaults to X-Api-Key. |
-| `stratum.http-client.defaults.auth.bearer` | `String` | — | A fixed token sent as Authorization: Bearer on every call, such as ${PARTNER\_TOKEN}. |
-| `stratum.http-client.defaults.auth.client-credentials` | `String` | — | The registration under spring.security.oauth2.client.registration whose client-credentials token the service sends as itself, such as invoices. Needs stratum-starter-oauth2-client. |
-| `stratum.http-client.defaults.auth.token-relay` | `Boolean` | — | Whether to send the caller's access token, as Spring Security's resource server verified it. A call with no such token stops before it is sent. |
+| `stratum.http-client.defaults.auth.api-key` | `String` | none | An API key sent in the api-key-header header on every call, such as ${GEO\_API\_KEY}. |
+| `stratum.http-client.defaults.auth.api-key-header` | `String` | none | The header that carries the API key, such as Ocp-Apim-Subscription-Key. Only with api-key. Defaults to X-Api-Key. |
+| `stratum.http-client.defaults.auth.bearer` | `String` | none | A fixed token sent as Authorization: Bearer on every call, such as ${PARTNER\_TOKEN}. |
+| `stratum.http-client.defaults.auth.client-credentials` | `String` | none | The registration under spring.security.oauth2.client.registration whose client-credentials token the service sends as itself, such as invoices. Needs stratum-starter-oauth2-client. |
+| `stratum.http-client.defaults.auth.token-relay` | `Boolean` | none | Whether to send the caller's access token, as Spring Security's resource server verified it. A call with no such token stops before it is sent. |
 
 ### `stratum.http-client.defaults.auth.basic`
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.http-client.defaults.auth.basic.password` | `String` | — | The password, from a placeholder such as ${PARTNER\_PASSWORD}. |
-| `stratum.http-client.defaults.auth.basic.username` | `String` | — | The user name the other service expects. |
+| `stratum.http-client.defaults.auth.basic.password` | `String` | none | The password, from a placeholder such as ${PARTNER\_PASSWORD}. |
+| `stratum.http-client.defaults.auth.basic.username` | `String` | none | The user name the other service expects. |
 
 ### `stratum.http-client.defaults.circuit-breaker`
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.http-client.defaults.circuit-breaker.enabled` | `Boolean` | — | Whether the client has a circuit breaker. Defaults to true. |
-| `stratum.http-client.defaults.circuit-breaker.failure-rate-threshold` | `Float` | — | The share of counted attempts, in percent from 1 to 100, that must fail for the breaker to open. Defaults to 50. |
-| `stratum.http-client.defaults.circuit-breaker.minimum-number-of-calls` | `Integer` | — | How many attempts the breaker must see before it may open, from 1 to 10000; above sliding-window-size, the window size is used. Defaults to 100. |
-| `stratum.http-client.defaults.circuit-breaker.permitted-number-of-calls-in-half-open-state` | `Integer` | — | How many trial calls go through after the open state, from 1 to 1000; below the threshold the breaker closes, otherwise it opens again. Defaults to 10. |
-| `stratum.http-client.defaults.circuit-breaker.sliding-window-size` | `Integer` | — | How many of the latest attempts the failure rate is taken over, from 1 to 10000. Defaults to 100. |
-| `stratum.http-client.defaults.circuit-breaker.slow-call-duration-threshold` | `Duration` | — | How long an attempt may take before it counts as slow, such as 2s. Unset, Resilience4j's 60s applies, which an attempt reaches only with a total-timeout above 60s. |
-| `stratum.http-client.defaults.circuit-breaker.slow-call-rate-threshold` | `Float` | — | The share of slow attempts, in percent from 1 to 100, that opens the breaker. Only with slow-call-duration-threshold. Unset, Resilience4j's 100 applies. |
-| `stratum.http-client.defaults.circuit-breaker.wait-duration-in-open-state` | `Duration` | — | How long every call fails at once, without being sent, while the breaker is open, such as 30s. Defaults to 60s. |
+| `stratum.http-client.defaults.circuit-breaker.enabled` | `Boolean` | none | Whether the client has a circuit breaker. Defaults to true. |
+| `stratum.http-client.defaults.circuit-breaker.failure-rate-threshold` | `Float` | none | The share of counted attempts, in percent from 1 to 100, that must fail for the breaker to open. Defaults to 50. |
+| `stratum.http-client.defaults.circuit-breaker.minimum-number-of-calls` | `Integer` | none | How many attempts the breaker must see before it may open, from 1 to 10000; above sliding-window-size, the window size is used. Defaults to 100. |
+| `stratum.http-client.defaults.circuit-breaker.permitted-number-of-calls-in-half-open-state` | `Integer` | none | How many trial calls go through after the open state, from 1 to 1000; below the threshold the breaker closes, otherwise it opens again. Defaults to 10. |
+| `stratum.http-client.defaults.circuit-breaker.sliding-window-size` | `Integer` | none | How many of the latest attempts the failure rate is taken over, from 1 to 10000. Defaults to 100. |
+| `stratum.http-client.defaults.circuit-breaker.slow-call-duration-threshold` | `Duration` | none | How long an attempt may take before it counts as slow, such as 2s. Unset, Resilience4j's 60s applies, which an attempt reaches only with a total-timeout above 60s. |
+| `stratum.http-client.defaults.circuit-breaker.slow-call-rate-threshold` | `Float` | none | The share of slow attempts, in percent from 1 to 100, that opens the breaker. Only with slow-call-duration-threshold. Unset, Resilience4j's 100 applies. |
+| `stratum.http-client.defaults.circuit-breaker.wait-duration-in-open-state` | `Duration` | none | How long every call fails at once, without being sent, while the breaker is open, such as 30s. Defaults to 60s. |
 
 ### `stratum.http-client.defaults.retry`
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.http-client.defaults.retry.backoff-policy` | `BackoffPolicy` | — | How the wait grows: exponential, where each wait is multiplier times the last, or fixed, where every wait is delay. Defaults to exponential. |
-| `stratum.http-client.defaults.retry.delay` | `Duration` | — | The wait before the first retry, such as 200ms. Defaults to 200ms. |
-| `stratum.http-client.defaults.retry.max-delay` | `Duration` | — | The longest single wait, at least delay, such as 1s. Only read with exponential; ignored with fixed. Defaults to 2s, or delay when that is longer. |
-| `stratum.http-client.defaults.retry.max-retries` | `Integer` | — | How many times a failed call is sent again, from 0 to 9, so 3 means at most 4 attempts. A POST or PATCH is sent again only when its connection failed. Defaults to 3. |
-| `stratum.http-client.defaults.retry.multiplier` | `Double` | — | How much each wait grows, from 1.0 to 10.0. Only read with exponential; ignored with fixed. Defaults to 2.0. |
+| `stratum.http-client.defaults.retry.backoff-policy` | `BackoffPolicy` | none | How the wait grows: exponential, where each wait is multiplier times the last, or fixed, where every wait is delay. Defaults to exponential. |
+| `stratum.http-client.defaults.retry.delay` | `Duration` | none | The wait before the first retry, such as 200ms. Defaults to 200ms. |
+| `stratum.http-client.defaults.retry.max-delay` | `Duration` | none | The longest single wait, at least delay, such as 1s. Only read with exponential; ignored with fixed. Defaults to 2s, or delay when that is longer. |
+| `stratum.http-client.defaults.retry.max-retries` | `Integer` | none | How many times a failed call is sent again, from 0 to 9, so 3 means at most 4 attempts. A POST or PATCH is sent again only when its connection failed. Defaults to 3. |
+| `stratum.http-client.defaults.retry.multiplier` | `Double` | none | How much each wait grows, from 1.0 to 10.0. Only read with exponential; ignored with fixed. Defaults to 2.0. |
 
 ## Data
 
@@ -302,7 +301,7 @@ Module page: [Cache → Properties](../modules/cache.md#properties).
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.cache.caches` | `Map<String, CacheSettings>` | — | Settings for one cache, by its name, which win over the settings for every cache. |
+| `stratum.cache.caches` | `Map<String, CacheSettings>` | none | Settings for one cache, by its name, which win over the settings for every cache. |
 | `stratum.cache.enabled` | `Boolean` | `true` | Whether the cache module is on. With false, the starter does not switch Spring's caching on and sets none of its defaults for Spring Boot's Redis cache and client: time to live, key prefix, statistics, timeouts, clearing with SCAN, the size limits of keys and values, and the time to live and command timeout of single caches; and none of its defaults for Spring Boot's Caffeine caches: the bound on entries, the expiry, statistics, null results and the settings of single caches. |
 | `stratum.cache.max-caches` | `Integer` | `100` | The most caches the module admits. A name beyond it runs uncached through a shared no-op cache, so no cache is created for it. From 1. Defaults to 100. |
 | `stratum.cache.max-key-size` | `DataSize` | `1KB` | The longest Redis cache key stored as it is, prefix included. A longer key is stored under its SHA-256 hash, so it still hits. Above 0. Defaults to 1KB. |
@@ -321,4 +320,4 @@ Module page: [Cache → Properties](../modules/cache.md#properties).
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.cache.serialization.allowed-packages` | `List<String>` | — | Packages whose types Redis caches read, beside the service's own packages and java, such as com.acme.shared for shared types. Each one covers its subpackages. Empty by default. |
+| `stratum.cache.serialization.allowed-packages` | `List<String>` | none | Packages whose types Redis caches read, beside the service's own packages and java, such as com.acme.shared for shared types. Each one covers its subpackages. Empty by default. |

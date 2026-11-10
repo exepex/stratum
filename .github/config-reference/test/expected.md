@@ -7,8 +7,7 @@ metadata the build writes, so the page always matches the code. Planned modules 
 [← Documentation home](../README.md)
 
 Each module section links the module's own page, which explains its keys with examples and lists
-the Spring Boot keys the module gives a default. A dash in the Default column means the metadata
-holds no fixed default: the description says what applies. How to set a key is in
+the Spring Boot keys the module gives a default. How to set a key is in
 [Configuration basics](basics.md); the instance ID and a complete example are in
 [Shared settings](shared-settings.md).
 
@@ -40,7 +39,7 @@ Module page: [Shared settings](shared-settings.md).
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `stratum.backward-compatible` | `Boolean` | `false` | Whether external contracts stay as they were. |
-| `stratum.environment` | `String` | — | The environment, such as prod. Written to logs. |
+| `stratum.environment` | `String` | none | The environment, such as prod. Written to logs. |
 
 ## Web
 
