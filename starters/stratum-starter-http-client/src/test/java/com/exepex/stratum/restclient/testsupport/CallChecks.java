@@ -10,6 +10,7 @@ import com.exepex.stratum.httpclient.HttpClientErrorCode;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 import lombok.experimental.UtilityClass;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
@@ -37,6 +38,26 @@ public class CallChecks {
         .atMost(RestClientTestData.WAIT)
         .until(() -> downstream.heldRequests() > heldRequestsBefore);
     return call;
+  }
+
+  /**
+   * Returns how many connections a check's call left the client to open: 0 when it gave its
+   * connection back, 1 when it dropped it. A call that keeps its connection runs before, so that
+   * the check's call finds one to reuse, and after, so that it shows whether that one is still
+   * there. The client needs a pool of one, so that no other idle connection hides the drop.
+   *
+   * @param connections the server's count of connections opened so far
+   * @param keepingCall a call that gives its connection back
+   * @param check the check of the call under test
+   * @return the number of connections opened after the check's call
+   */
+  public static int connectionsOpenedAfter(
+      IntSupplier connections, Runnable keepingCall, Runnable check) {
+    keepingCall.run();
+    var before = connections.getAsInt();
+    check.run();
+    keepingCall.run();
+    return connections.getAsInt() - before;
   }
 
   /**

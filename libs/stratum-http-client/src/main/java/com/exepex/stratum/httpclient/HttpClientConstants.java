@@ -236,6 +236,15 @@ public class HttpClientConstants {
   /** The largest {@code interceptor-body-limit} a client may set: 1 GiB. */
   public static final DataSize MAX_INTERCEPTOR_BODY_LIMIT = DataSize.ofGigabytes(1);
 
+  /** Stratum's default for the most of an answer's body a client reads: 32 MiB. */
+  public static final DataSize DEFAULT_RESPONSE_BODY_LIMIT = DataSize.ofMegabytes(32);
+
+  /** The largest {@code response-body-limit} a client may set: 1 GiB. */
+  public static final DataSize MAX_RESPONSE_BODY_LIMIT = DataSize.ofGigabytes(1);
+
+  /** The {@code response-body-limit} that reads an answer's body whole, however large: -1. */
+  public static final DataSize NO_RESPONSE_BODY_LIMIT = DataSize.ofBytes(-1);
+
   /**
    * The attribute that marks a call whose body an interceptor may read: it is not streamed, so it
    * can be written a second time.

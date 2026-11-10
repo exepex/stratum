@@ -50,6 +50,13 @@ public enum HttpClientErrorCode implements ErrorCode {
       "An interceptor read a request body larger than the client's interceptor-body-limit",
       ""),
 
+  /** The other service's answer is larger than the client's response-body-limit. */
+  RESPONSE_TOO_LARGE(
+      "SX-HTTPC-0006",
+      Severity.ERROR,
+      "The other service's answer is larger than the client's response-body-limit",
+      ""),
+
   /**
    * A Spring Boot setting of an HTTP service group is set for a Stratum client, which ignores it.
    */

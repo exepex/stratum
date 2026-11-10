@@ -118,6 +118,7 @@ in proxy and server logs that Stratum does not control. Send it in the request b
 | A time limit per call | The whole call, retries, waits and the answer's body included, ends within `total-timeout` (8s), except a streamed download's body. A call that does not read the body, such as a method that returns `void`, gets its status and headers, and the rest of the body is dropped. |
 | A circuit breaker | When most recent calls fail, the client stops calling the service for a while and fails at once. |
 | Clear errors | A timeout ends with `SX-HTTPC-0001` (`504`), no answer with `SX-HTTPC-0002` (`503`), an open breaker with `SX-HTTPC-0003` (`503`), and an error answer with a `DownstreamException` holding at most 64 KB of its body ([errors](http-client-errors.md)). |
+| A limit on answers | A successful answer's body is read up to `response-body-limit` (32 MB); a larger one fails with `SX-HTTPC-0006` ([errors](http-client-errors.md#the-answer-body-is-read-up-to-32-mb)). A method returning `InputStream` is not limited. |
 | No redirects | A `3xx` answer is returned as it is and never followed. |
 | Gzip | Answers compressed with gzip are accepted and unpacked. |
 | Fresh connections | A connection unused for `idle-timeout` (30s) is closed. One unused for more than about 2 seconds is checked before it is used again, so one the server or a load balancer closed meanwhile is replaced. A server's `Keep-Alive: timeout` is honoured. A connection older than `connection-lifetime` (5m) is not used again, so calls follow a change of the service's address. |
@@ -169,6 +170,7 @@ the shared default, which wins over Stratum's.
 | `auth.token-relay` | `true`/`false` | `false` | no such key | Sends the caller's access token, as Spring Security's resource server verified it. |
 | `headers` | map of header name to value | none | no such key | Headers sent on every call, such as `[X-Partner-Id]: orders`. A client's are added to those under `defaults`; for the same name the client's value wins, and an empty value drops the default ([Headers and interceptors](http-client-headers.md)). `Authorization`, `Cookie`, `Set-Cookie`, `Proxy-Authorization` and the client's API key header are refused. |
 | `interceptor-body-limit` | data size | `1MB` | no such key | The most of a request body an interceptor may read with `body()`, from `1B` to `1GB`; a larger body fails with `SX-HTTPC-0005` before it is sent ([bodies](http-client-headers.md#bodies)). `0` is refused. |
+| `response-body-limit` | data size | `32MB` | no such key | The most of a successful answer's body the client reads, after gzip is undone, from `1B` to `1GB`, or `-1` for no limit. A larger body fails with `SX-HTTPC-0006`; a body the call does not read is dropped once it passes the limit. A method returning `InputStream` is not limited; a `Resource` is ([errors](http-client-errors.md#the-answer-body-is-read-up-to-32-mb)). `0` is refused. |
 | `copy-headers` | list of header names | none | no such key | Headers copied from the request the service is answering onto each call made while answering it, such as `X-Tenant`. A client's list is joined with the one under `defaults`. Outside a request nothing is copied. The same headers as in `headers` are refused. |
 | `ssl-bundle` | text | unset | no such key | The name of a `spring.ssl.bundle.*` bundle whose certificate the client presents (mutual TLS). Not allowed under `defaults`, nor with `shared-pool`. |
 | `spring.http.clients.imperative.factory` | `http-components`, `jetty`, `reactor`, `jdk` or `simple` | `jdk` | unset: detects the engine, Apache HttpClient 5 first | The engine of the RestClients Stratum did not build. Stratum's own clients always use Apache HttpClient 5 ([Clients Stratum did not build](#clients-stratum-did-not-build)). |
@@ -248,6 +250,20 @@ stratum:
       idle-timeout: 15s
 ```
 
+A reports service whose answers can reach 100 MB reads them with a larger limit; every other client keeps 32 MB:
+
+```properties
+stratum.http-client.clients.reports.response-body-limit=128MB
+```
+
+```yaml
+stratum:
+  http-client:
+    clients:
+      reports:
+        response-body-limit: 128MB
+```
+
 > [!TIP]
 > Pick a timeout from the other service's real latency: a little above its p99 is a good start. Then make sure the
 > timeouts of your own callers are longer than yours.
@@ -272,6 +288,7 @@ public class ReportClientSettings implements HttpClientPropertiesCustomizer {
         properties.clientSettings("reports").toBuilder()
             .timeout(Duration.ofSeconds(20))
             .maxConnections(10)
+            .responseBodyLimit(DataSize.ofMegabytes(128))
             .build();
     var clients = new HashMap<>(properties.clients());
     clients.put("reports", reports);
@@ -320,9 +337,9 @@ for the clients are internal: their types may change in any release, so they are
 
 A client streams a download when its method returns `InputStream` or `ResponseEntity<InputStream>`. The method
 returns once the answer's headers arrive, and the body comes in as you read it. Every other return type, `byte[]` and
-`Resource` included, reads the whole body into memory first. `ResponseEntity<InputStreamResource>` is not supported
-by Spring as a return type. A streamed download is not cut off by `total-timeout`: only `timeout` between bytes bounds
-it, so close the stream when you are done with it.
+`Resource` included, reads the whole body into memory first, so it is limited by `response-body-limit`; a download is
+not. `ResponseEntity<InputStreamResource>` is not supported by Spring as a return type. A streamed download is not cut
+off by `total-timeout`: only `timeout` between bytes bounds it, so close the stream when you are done with it.
 
 A client streams an upload when its `@RequestBody` is a `StreamingHttpOutputMessage.Body` or an `InputStreamResource`.
 The body is sent in chunks as it is written, never held in memory.
@@ -425,7 +442,7 @@ What a failed call writes, with and without the logging starter, what its redact
 ## Errors
 
 What a failed call throws, `DownstreamException`, a `404` read as an empty `Optional`, mapping an error answer to your
-own exception, the 64 KB read of an error body and the startup errors are on
+own exception, the 64 KB read of an error body, the limit on a successful answer and the startup errors are on
 [HTTP client: errors](http-client-errors.md).
 
 ## Planned
@@ -445,5 +462,6 @@ These parts of [ADR 0011](../adr/0011-http-client-starters.md) are not built yet
 | No bean of your client interface | The interface is outside your application's packages, or `stratum.http-client.enabled=false`. |
 | Calls fail after exactly 5 s | The default `timeout`, for a call that is not sent again, such as a `POST`. Raise it for that client if the other service is slow for a reason. |
 | `GET` calls fail after about 8 s | The default `timeout` of 5 s ran out, and the retry ran out of `total-timeout`. Raise both for that client if the other service is slow for a reason. |
+| Calls fail with `SX-HTTPC-0006` | The other service's answer is larger than the client's `response-body-limit`, 32 MB by default. Raise it for that client, or return an `InputStream` to stream the answer. |
 | Calls fail at once with `SX-HTTPC-0003` | The client's circuit breaker is open: most recent calls to the service failed. Look at the service, and at the `WARN` line that names the client. |
 | Calls fail after 2 s with a connection request timeout | The client's pool is full: raise `max-connections`, or find what holds its connections. |

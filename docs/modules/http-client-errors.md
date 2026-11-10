@@ -135,18 +135,37 @@ StratumClientCustomizer stockNotFound() {
 ## The error body is read up to 64 KB
 
 Of an error answer's body, at most 64 KB is read and kept, after gzip is undone, so a huge error body never fills the
-memory. An answer that succeeds is read whole ([#236](https://github.com/exepex/stratum/issues/236)). The limit has
+memory. An answer that succeeds is read up to `response-body-limit` (below). The 64 KB limit has
 no key. When the answer closes, the rest of the body is read and dropped up to 64 KB in all, so the connection can be
 used again. A body that does not end within 64 KB, one that never ends, or one whose `Content-Length` is over 64 KB is
 not read further: its connection is closed instead of being used again, so a huge error body never holds the call. A
 body that stalls within those 64 KB is dropped, with its connection, when `total-timeout` runs out.
+
+## The answer body is read up to 32 MB
+
+Of a successful answer, status below 400, a client reads at most `response-body-limit`, 32 MB by default, after gzip
+is undone ([ADR 0017](../adr/0017-http-client-response-body-limit.md)). Set it per client or under `defaults`, from
+`1B` to `1GB`, or `-1` for no limit ([properties](http-client.md#properties)).
+
+- A read that passes the limit fails with `SX-HTTPC-0006`, status `500`, as does an answer whose `Content-Length` is
+  over the limit, at once and before a byte is read. The connection is closed, not used again.
+- The call is not retried, and the circuit breaker counts it as a success: the other service did answer.
+- The caller's error names nothing internal. The logged cause names the client and the limit in bytes, never a byte of
+  the body.
+- A body the call does not read, such as for a method returning `void`, or reads only in part, is read and dropped
+  when the answer closes, so the connection can be used again, but only up to the limit: a longer one is dropped with
+  its connection, without an error.
+- A method returning `InputStream` or `ResponseEntity<InputStream>` streams, so it is not limited; a `Resource` is read
+  whole, so it is. A client's service token is always limited.
+- The limit applies in both modes, `stratum.backward-compatible=true` included, and to a client's beans and mocks.
 
 ## Clients Stratum did not build
 
 A call through the client's `RestClient` or `RestTemplate` bean, or `stratumHttpClients.restClient("<name>")`,
 throws Spring's own exceptions, as a `RestClient` you built would, except for three Stratum codes: `SX-HTTPC-0003`
 for a call refused by an open circuit breaker, `SX-HTTPC-0002` for a service token that cannot be fetched, and
-`SX-HTTPC-0004` for a token-relay call with no verified caller
+`SX-HTTPC-0004` for a token-relay call with no verified caller (an answer over `response-body-limit` fails with
+Spring's `RestClientException`, whose cause's message starts with `SX-HTTPC-0006`)
 ([ADR 0014](../adr/0014-http-client-beans-that-retry.md)). `mapError` reaches
 interfaces only. The error body of such a call is still read up to 64 KB
 ([clients Stratum did not build](http-client-own-clients.md#what-differs-from-an-interface)).

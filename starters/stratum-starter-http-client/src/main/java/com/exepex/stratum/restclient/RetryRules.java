@@ -309,7 +309,8 @@ public class RetryRules {
    * Returns the I/O failure that ended a call, found anywhere in its causes: a call that got no
    * answer, or a body cut off while it was read, such as by a read timeout or a dropped connection.
    * A body that is not valid, such as bad JSON, JSON of the wrong type or JSON that ends too soon,
-   * is not an I/O failure, with Jackson 3 or with Jackson 2's converter.
+   * is not an I/O failure, with Jackson 3 or with Jackson 2's converter; nor is a body larger than
+   * the client's {@code response-body-limit}, which is not retried and counts as a success.
    *
    * @param failure the failure that ended the call
    * @return its I/O failure, or empty when it has none
@@ -317,19 +318,18 @@ public class RetryRules {
   public static Optional<IOException> ioFailureOf(RestClientException failure) {
     return FailureCauses.causesOf(failure)
         .filter(IOException.class::isInstance)
-        .filter(cause -> !isJackson2ReadFailure(cause))
+        .filter(cause -> !isBodyFault(cause))
         .map(IOException.class::cast)
         .findFirst();
   }
 
-  /**
-   * Returns whether a cause is Jackson 2's own failure to read a body: bad JSON, not lost bytes.
-   */
-  private static boolean isJackson2ReadFailure(Throwable cause) {
-    // By name, so that Stratum needs no Jackson 2. The walk goes on below a skipped cause, where
-    // Jackson 2 may wrap a real I/O failure, such as a read timeout inside a record.
-    return Stream.<Class<?>>iterate(cause.getClass(), Objects::nonNull, Class::getSuperclass)
-        .anyMatch(type -> JACKSON_2_READ_FAILURE.equals(type.getName()));
+  /** Returns whether a cause is the body's own fault, not lost bytes: too large, or bad JSON. */
+  private static boolean isBodyFault(Throwable cause) {
+    // Jackson 2's failure by name, so that Stratum needs no Jackson 2. The walk goes on below a
+    // skipped cause, where Jackson 2 may wrap a real I/O failure, such as a read timeout.
+    return cause instanceof ResponseBodyTooLarge
+        || Stream.<Class<?>>iterate(cause.getClass(), Objects::nonNull, Class::getSuperclass)
+            .anyMatch(type -> JACKSON_2_READ_FAILURE.equals(type.getName()));
   }
 
   /**

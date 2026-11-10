@@ -114,6 +114,12 @@ public class ClientConnectionPools implements DisposableBean {
             .setConnectionManagerShared(true)
             .addExecInterceptorFirst(ErrorBodyLimit.NAME, ERROR_BODY_LIMIT)
             .setRequestExecutor(bodyDeadline)
+            .addExecInterceptorFirst(
+                ResponseBodyLimit.NAME,
+                new ResponseBodyLimit(
+                    poolKey,
+                    Objects.requireNonNull(settings.responseBodyLimit()).toBytes(),
+                    streamsAnswers))
             .disableAutomaticRetries()
             .disableRedirectHandling()
             .setDefaultRequestConfig(requestConfig)

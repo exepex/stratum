@@ -48,7 +48,8 @@ Each call of a client interface's method gets the first of these:
    stratum-mocks/payments/createPayment.json or script it with MockClient`.
 
 Spring reads the answer as it reads a real one: your converters turn the JSON into the method's return type, and your
-status handlers see an error status. Overloaded methods share one file. Each file is read once; each call reads its
+status handlers see an error status. A successful answer over the client's `response-body-limit` fails with
+`SX-HTTPC-0006`, and an error body is cut at 64 KB, as with a real service. Overloaded methods share one file. Each file is read once; each call reads its
 answer anew, so changing a returned object never changes the next answer. The body your code sends is read and
 dropped, so a streamed upload behaves as with a real service.
 

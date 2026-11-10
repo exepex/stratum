@@ -68,6 +68,10 @@ import org.springframework.util.unit.DataSize;
  *     runs. 0 is refused. Defaults to 1MB.
  * @param callLog Which calls write a log line: errors, one WARN per failed call after its retries;
  *     all, also one INFO per successful call; or none. Defaults to errors.
+ * @param responseBodyLimit The most of a successful answer's body the client reads, such as 32MB,
+ *     from 1B to 1GB, or -1 for no limit. Reading a larger body fails with SX-HTTPC-0006; a body
+ *     the call does not read is dropped once it passes the limit. A method that returns an
+ *     InputStream is not limited. Defaults to 32MB.
  * @param traceHeaders Whether calls carry the correlation ID: true sends X-Correlation-Id when the
  *     call has none, beside the trace headers Spring Boot's tracing sends; false sends no trace,
  *     baggage or correlation header, such as to a third party. Defaults to true.
@@ -93,6 +97,7 @@ public record ClientSettings(
     List<String> copyHeaders,
     @Nullable DataSize interceptorBodyLimit,
     @Nullable CallLog callLog,
+    @Nullable DataSize responseBodyLimit,
     @Nullable Boolean traceHeaders) {
 
   /** Keeps the interfaces, headers and copied headers fixed, empty when none is named. */
@@ -133,6 +138,7 @@ public record ClientSettings(
           .mock(false)
           .interceptorBodyLimit(HttpClientConstants.DEFAULT_INTERCEPTOR_BODY_LIMIT)
           .callLog(CallLog.ERRORS)
+          .responseBodyLimit(HttpClientConstants.DEFAULT_RESPONSE_BODY_LIMIT)
           .traceHeaders(true)
           .build();
 
@@ -166,6 +172,7 @@ public record ClientSettings(
         .copyHeaders(copyHeadersAfter(fallback.copyHeaders))
         .interceptorBodyLimit(either(interceptorBodyLimit, fallback.interceptorBodyLimit))
         .callLog(either(callLog, fallback.callLog))
+        .responseBodyLimit(either(responseBodyLimit, fallback.responseBodyLimit))
         .traceHeaders(either(traceHeaders, fallback.traceHeaders))
         .build();
   }
@@ -198,6 +205,7 @@ public record ClientSettings(
             "headers=" + new TreeSet<>(headers.keySet()),
             "copyHeaders=" + copyHeaders,
             "interceptorBodyLimit=" + interceptorBodyLimit,
+            "responseBodyLimit=" + responseBodyLimit,
             "traceHeaders=" + traceHeaders)
         .collect(Collectors.joining(", ", "ClientSettings[", "]"));
   }
@@ -216,6 +224,22 @@ public record ClientSettings(
         || interceptorBodyLimit.toBytes() >= 1
             && interceptorBodyLimit.toBytes()
                 <= HttpClientConstants.MAX_INTERCEPTOR_BODY_LIMIT.toBytes();
+  }
+
+  /**
+   * Returns whether {@code response-body-limit}, when set, is -1, for no limit, or from 1 byte to 1
+   * gigabyte. Validation reports one that is not as {@code stratum.http-client.defaults
+   * .response-body-limit-in-range} or {@code stratum.http-client.clients[*]
+   * .response-body-limit-in-range breaks @AssertTrue}, without the value.
+   *
+   * @return whether the limit is in range
+   */
+  @AssertTrue
+  public boolean isResponseBodyLimitInRange() {
+    return responseBodyLimit == null
+        || responseBodyLimit.equals(HttpClientConstants.NO_RESPONSE_BODY_LIMIT)
+        || responseBodyLimit.toBytes() >= 1
+            && responseBodyLimit.toBytes() <= HttpClientConstants.MAX_RESPONSE_BODY_LIMIT.toBytes();
   }
 
   /**

@@ -1,6 +1,7 @@
 package com.exepex.stratum.restclient;
 
 import com.exepex.stratum.core.api.StratumInternal;
+import com.exepex.stratum.core.error.FailureCauses;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientErrorCode;
@@ -18,7 +19,8 @@ import org.springframework.web.service.invoker.HttpRequestValues;
  * Turns the failure that ends a call of a client's interface, after its retries, into what the
  * service sees: an error answer becomes a {@link DownstreamException}, or the team's own exception
  * thrown in {@link StratumClientCustomizer#mapError}; no answer becomes {@code SX-HTTPC-0001} after
- * a read timeout and {@code SX-HTTPC-0002} otherwise. Any other failure, such as a body that is not
+ * a read timeout and {@code SX-HTTPC-0002} otherwise; an answer larger than {@code
+ * response-body-limit} becomes {@code SX-HTTPC-0006}. Any other failure, such as a body that is not
  * valid, stays as it is. It is the outermost of Stratum's decorators, so the retries and breaker
  * see Spring's own exceptions.
  */
@@ -79,6 +81,20 @@ public class ClientErrors implements ClientExchangeDecorator {
   public Optional<StratumException> noAnswer(RestClientException failure) {
     return RetryRules.ioFailureOf(failure)
         .map(cause -> new StratumException(codeFor(cause), "", failure));
+  }
+
+  /**
+   * Returns {@code SX-HTTPC-0006} for a call whose answer's body passed the client's {@code
+   * response-body-limit}, with that failure as its cause and no detail.
+   *
+   * @param failure the failure that ended the call
+   * @return the code's exception, or empty when the body was within the limit
+   */
+  public Optional<StratumException> tooLarge(RestClientException failure) {
+    return FailureCauses.causesOf(failure)
+        .filter(ResponseBodyTooLarge.class::isInstance)
+        .findFirst()
+        .map(cause -> new StratumException(HttpClientErrorCode.RESPONSE_TOO_LARGE, "", cause));
   }
 
   /**
