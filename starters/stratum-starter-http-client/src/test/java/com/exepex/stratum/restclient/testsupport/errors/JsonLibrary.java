@@ -5,7 +5,7 @@ import org.springframework.http.converter.json.JacksonJsonHttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 
 /** The JSON libraries a client can read bodies with: Jackson 3, the default, or Jackson 2. */
-public enum JsonMapper {
+public enum JsonLibrary {
 
   /** Jackson 2, whose read failures extend {@link java.io.IOException}. */
   JACKSON_2,

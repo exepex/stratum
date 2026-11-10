@@ -11,7 +11,7 @@ import com.exepex.stratum.restclient.testsupport.CallChecks;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import com.exepex.stratum.restclient.testsupport.errors.ErrorDownstream;
 import com.exepex.stratum.restclient.testsupport.errors.ErrorsApplication;
-import com.exepex.stratum.restclient.testsupport.errors.JsonMapper;
+import com.exepex.stratum.restclient.testsupport.errors.JsonLibrary;
 import com.exepex.stratum.restclient.testsupport.errors.OrdersClient;
 import com.fasterxml.jackson.core.JsonParseException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
@@ -100,7 +100,7 @@ class Jackson2ClientIntegrationTest {
     StratumClientCustomizer jackson2Json() {
       return (client, builder) ->
           builder.configureMessageConverters(
-              converters -> converters.withJsonConverter(JsonMapper.JACKSON_2.converter()));
+              converters -> converters.withJsonConverter(JsonLibrary.JACKSON_2.converter()));
     }
   }
 }

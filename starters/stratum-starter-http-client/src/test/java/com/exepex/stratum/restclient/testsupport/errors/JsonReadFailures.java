@@ -55,14 +55,14 @@ public class JsonReadFailures {
    * Returns the failure of reading a 200 JSON answer whose body is the given text, and then either
    * ends or fails with the given I/O failure, as a read timeout would.
    *
-   * @param mapper the JSON library the client reads with
+   * @param library the JSON library the client reads with
    * @param type the type the body is read as
    * @param body the bytes the answer delivers
    * @param cutOffBy the failure after those bytes, or {@code null} for a body that just ends
    * @return Spring's failure, as the client's call throws it
    */
   public static RestClientException readFailure(
-      JsonMapper mapper,
+      JsonLibrary library,
       ParameterizedTypeReference<?> type,
       String body,
       @Nullable IOException cutOffBy) {
@@ -70,7 +70,7 @@ public class JsonReadFailures {
         RestClient.builder()
             .requestFactory((uri, method) -> answering(body, cutOffBy))
             .configureMessageConverters(
-                converters -> converters.withJsonConverter(mapper.converter()))
+                converters -> converters.withJsonConverter(library.converter()))
             .build();
     try {
       client.get().uri(ANY_URI).retrieve().body(type);

@@ -5,7 +5,7 @@ import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientErrorCode;
-import com.exepex.stratum.restclient.testsupport.errors.JsonMapper;
+import com.exepex.stratum.restclient.testsupport.errors.JsonLibrary;
 import com.exepex.stratum.restclient.testsupport.errors.JsonReadFailures;
 import java.net.SocketTimeoutException;
 import java.time.Duration;
@@ -40,10 +40,11 @@ class JsonBodyFailuresTest {
   /** Each library with each type a body cut off inside a record's list is read as. */
   private static final List<Arguments> CUT_OFF_READS =
       List.of(
-          argumentSet("Jackson 2, read as a map", JsonMapper.JACKSON_2, JsonReadFailures.MAP),
-          argumentSet("Jackson 2, read as a record", JsonMapper.JACKSON_2, JsonReadFailures.ORDER),
-          argumentSet("Jackson 3, read as a map", JsonMapper.JACKSON_3, JsonReadFailures.MAP),
-          argumentSet("Jackson 3, read as a record", JsonMapper.JACKSON_3, JsonReadFailures.ORDER));
+          argumentSet("Jackson 2, read as a map", JsonLibrary.JACKSON_2, JsonReadFailures.MAP),
+          argumentSet("Jackson 2, read as a record", JsonLibrary.JACKSON_2, JsonReadFailures.ORDER),
+          argumentSet("Jackson 3, read as a map", JsonLibrary.JACKSON_3, JsonReadFailures.MAP),
+          argumentSet(
+              "Jackson 3, read as a record", JsonLibrary.JACKSON_3, JsonReadFailures.ORDER));
 
   /** The translation, for a service with no customizers. */
   private final ClientErrors errors =
@@ -58,7 +59,7 @@ class JsonBodyFailuresTest {
     @FieldSource("com.exepex.stratum.restclient.JsonBodyFailuresTest#INVALID_BODIES")
     @DisplayName("stays Spring's exception, is never sent again and is not counted by the breaker")
     void isAnAnswer(ParameterizedTypeReference<?> type, String body) {
-      assertIsAnAnswer(JsonReadFailures.readFailure(JsonMapper.JACKSON_2, type, body, null));
+      assertIsAnAnswer(JsonReadFailures.readFailure(JsonLibrary.JACKSON_2, type, body, null));
     }
   }
 
@@ -70,7 +71,7 @@ class JsonBodyFailuresTest {
     @FieldSource("com.exepex.stratum.restclient.JsonBodyFailuresTest#INVALID_BODIES")
     @DisplayName("stays Spring's exception, is never sent again and is not counted by the breaker")
     void isAnAnswer(ParameterizedTypeReference<?> type, String body) {
-      assertIsAnAnswer(JsonReadFailures.readFailure(JsonMapper.JACKSON_3, type, body, null));
+      assertIsAnAnswer(JsonReadFailures.readFailure(JsonLibrary.JACKSON_3, type, body, null));
     }
   }
 
@@ -79,12 +80,12 @@ class JsonBodyFailuresTest {
   class EndsTooSoon {
 
     @ParameterizedTest
-    @EnumSource(JsonMapper.class)
+    @EnumSource(JsonLibrary.class)
     @DisplayName("is a body that is not valid, with either library: the service answered")
-    void isAnAnswer(JsonMapper mapper) {
+    void isAnAnswer(JsonLibrary library) {
       assertIsAnAnswer(
           JsonReadFailures.readFailure(
-              mapper, JsonReadFailures.ORDER, JsonReadFailures.ORDER_START, null));
+              library, JsonReadFailures.ORDER, JsonReadFailures.ORDER_START, null));
     }
   }
 
@@ -95,10 +96,10 @@ class JsonBodyFailuresTest {
     @ParameterizedTest
     @FieldSource("com.exepex.stratum.restclient.JsonBodyFailuresTest#CUT_OFF_READS")
     @DisplayName("ends with SX-HTTPC-0001, resends a GET but not a POST, and is counted")
-    void endsWithTimeout(JsonMapper mapper, ParameterizedTypeReference<?> type) {
+    void endsWithTimeout(JsonLibrary library, ParameterizedTypeReference<?> type) {
       var failure =
           JsonReadFailures.readFailure(
-              mapper,
+              library,
               type,
               JsonReadFailures.ORDER_START,
               new SocketTimeoutException("Read timed out"));
