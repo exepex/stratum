@@ -30,9 +30,9 @@ stratum:
 `url` stays required, so the block reads the same with the mock off. In Java, set `mock(true)` on the client's
 settings in an `HttpClientPropertiesCustomizer` ([Configure in Java](http-client.md#configure-in-java)).
 
-A mocked client opens no connection and sends no credential. Each startup logs one `WARN` per mocked client, such as
-`HTTP client payments answers from mocks and never calls its service (mock: true)`, so a mock left on in production
-is never silent.
+A mocked client opens no connection, fetches no token and sends no credential. Each startup logs one `WARN` per
+mocked client, such as `HTTP client payments answers from mocks and never calls its service (mock: true)`, so a mock
+left on in production is never silent.
 
 ## Where the answers come from
 
