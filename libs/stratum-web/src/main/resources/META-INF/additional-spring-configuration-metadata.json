@@ -5,6 +5,40 @@
       "type": "java.lang.Boolean",
       "description": "Whether the web module is on, in stratum-starter-webmvc or stratum-starter-webflux. With false, the starter only brings its Spring web stack.",
       "defaultValue": true
+    },
+    {
+      "name": "stratum.web.client-ip.trusted-proxies",
+      "defaultValue": [
+        "10.0.0.0/8",
+        "172.16.0.0/12",
+        "192.168.0.0/16",
+        "127.0.0.0/8",
+        "::1/128",
+        "fc00::/7"
+      ]
+    },
+    {
+      "name": "stratum.web.request-log.skip-paths",
+      "defaultValue": [
+        "/actuator/**"
+      ]
+    },
+    {
+      "name": "stratum.web.request-log.token-claims",
+      "defaultValue": [
+        "sub",
+        "azp",
+        "client_id",
+        "scope"
+      ]
+    },
+    {
+      "name": "stratum.web.timeout.default-limit",
+      "defaultValue": "10s"
+    },
+    {
+      "name": "stratum.web.body-limit.default-limit",
+      "defaultValue": "256KB"
     }
   ]
 }
