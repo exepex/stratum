@@ -104,7 +104,8 @@ The [property table](web.md#properties) lists every key with its type and defaul
 
 ## Configure in Java
 
-The same settings, through the `WebPropertiesCustomizer` that [Web](web.md#configure-in-java) describes:
+The same settings, through the `WebPropertiesCustomizer` that [Web](web.md#configure-in-java) describes. This
+class sets the headers and claims of the first example:
 
 ```java
 public class OrdersRequestLogSettings implements WebPropertiesCustomizer {
@@ -114,11 +115,22 @@ public class OrdersRequestLogSettings implements WebPropertiesCustomizer {
     return properties.toBuilder()
         .requestLog(
             properties.requestLog().toBuilder()
-                .enabled(false)
+                .skipPaths(List.of("/actuator/**", "/internal/**"))
+                .requestHeaders(Map.of("X-Tenant-Id", "tenantId"))
+                .responseHeaders(Map.of("X-Cache", "cacheResult"))
+                .deniedHeaders(List.of("X-Internal-Key"))
+                .tokenPayload(true)
+                .tokenClaims(List.of("sub", "azp", "tenant"))
                 .build())
         .build();
   }
 }
+```
+
+To stop the line, as in the second example, replace the settings above with `.enabled(false)`:
+
+```java
+.requestLog(properties.requestLog().toBuilder().enabled(false).build())
 ```
 
 A Java value wins over the same key in a file.
