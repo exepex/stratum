@@ -49,7 +49,7 @@ Then open a pull request. Its description and review follow
 
 GitHub Actions builds every pull request, and every push to `main`, with
 [`.github/workflows/build.yml`](../.github/workflows/build.yml). It runs one Maven command on
-JDK 25, then scans the result:
+JDK 25, then scans the result and checks the configuration reference:
 
 ```bash
 ./mvnw verify org.cyclonedx:cyclonedx-maven-plugin:<version>:makeAggregateBom
@@ -60,6 +60,7 @@ JDK 25, then scans the result:
 | `verify` | Every check that `./mvnw verify` runs on your machine | The run's log |
 | `makeAggregateBom` | Writes an SBOM (software bill of materials): a CycloneDX list of every library the build includes | The `sbom` artifact, as `bom.json` and `bom.xml` |
 | OSV-Scanner | Looks up every library in `bom.json` in the [OSV.dev](https://osv.dev) vulnerability database and fails the run if any has a known vulnerability | The log of the step "Scan the SBOM for known vulnerabilities" |
+| Configuration reference | Writes [`reference.md`](configuration/reference.md) again from the configuration metadata the build wrote, and fails the run if it differs from the committed page | The log of the step "Check the configuration reference" |
 
 An artifact is a file that a run keeps; open the run in the **Actions** tab and download it from
 the run's summary page. The SBOM is written only when the build passes, and it is uploaded before
@@ -96,6 +97,27 @@ The `security` profile (OWASP Dependency-Check) still works when you run it your
 API key; see [Optional profiles](modules/parent-and-bom.md#optional-profiles). CI does not run it,
 because its download from the US National Vulnerability Database (NVD) took from 24 minutes to over
 an hour.
+
+## The configuration reference
+
+[`docs/configuration/reference.md`](configuration/reference.md) is generated: never edit it by hand.
+[`.github/config-reference/ConfigReference.java`](../.github/config-reference/ConfigReference.java)
+reads the `target/classes/META-INF/spring-configuration-metadata.json` file that the build writes for
+each module, from the `@ConfigurationProperties` Javadoc and the module's
+`additional-spring-configuration-metadata.json`, and writes every `stratum.*` key, grouped by module
+and group. So a change to a key, its default or its Javadoc also changes the page. After building,
+write the page again and commit it with the change:
+
+```bash
+./mvnw install -DskipTests -DskipITs
+java .github/config-reference/ConfigReference.java .
+```
+
+The generator lists each module in its `MODULES` table, with the page that owns the module's keys.
+It stops, and writes nothing, when a built module has `stratum.*` keys but no entry there, when a
+listed module has not been built, or when a key does not start with its module's prefix. So a
+newly built module also needs its line in `MODULES`. To run its golden test, run
+`.github/config-reference/test.sh`; it needs a JDK.
 
 ## The wiki
 
