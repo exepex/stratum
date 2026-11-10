@@ -182,6 +182,10 @@ client: Stratum builds its client. Setting one for a Stratum client's name stops
 the Stratum key to use instead. This is the one exception to Stratum's rule of using Spring Boot's keys where they
 exist ([ADR 0011](../adr/0011-http-client-starters.md), decision 2).
 
+Spring Boot's global `spring.http.clients.connect-timeout`, `spring.http.clients.read-timeout` and
+`spring.http.clients.redirects` apply only to the RestClients Stratum did not build. A Stratum client takes its
+timeouts from `stratum.http-client.*`, and it does not follow redirects.
+
 ## Examples
 
 A fast service with the defaults, and a slow report service with a longer timeout and a smaller pool:
