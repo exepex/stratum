@@ -35,6 +35,110 @@
         "reason": "The circuit breaker settings moved into the circuit-breaker group (ADR 0013).",
         "replacement": "stratum.http-client.defaults.circuit-breaker.enabled"
       }
+    },
+    {
+      "name": "stratum.http-client.defaults.connect-timeout",
+      "defaultValue": "2s"
+    },
+    {
+      "name": "stratum.http-client.defaults.timeout",
+      "defaultValue": "5s"
+    },
+    {
+      "name": "stratum.http-client.defaults.max-connections",
+      "defaultValue": 50
+    },
+    {
+      "name": "stratum.http-client.defaults.max-wait",
+      "defaultValue": "2s"
+    },
+    {
+      "name": "stratum.http-client.defaults.idle-timeout",
+      "defaultValue": "30s"
+    },
+    {
+      "name": "stratum.http-client.defaults.connection-lifetime",
+      "defaultValue": "5m"
+    },
+    {
+      "name": "stratum.http-client.defaults.shared-pool",
+      "defaultValue": false
+    },
+    {
+      "name": "stratum.http-client.defaults.retry.max-retries",
+      "defaultValue": 3
+    },
+    {
+      "name": "stratum.http-client.defaults.retry.backoff-policy",
+      "defaultValue": "exponential"
+    },
+    {
+      "name": "stratum.http-client.defaults.retry.delay",
+      "defaultValue": "200ms"
+    },
+    {
+      "name": "stratum.http-client.defaults.retry.multiplier",
+      "defaultValue": 2.0
+    },
+    {
+      "name": "stratum.http-client.defaults.retry.max-delay",
+      "defaultValue": "2s"
+    },
+    {
+      "name": "stratum.http-client.defaults.total-timeout",
+      "defaultValue": "8s"
+    },
+    {
+      "name": "stratum.http-client.defaults.circuit-breaker.enabled",
+      "defaultValue": true
+    },
+    {
+      "name": "stratum.http-client.defaults.circuit-breaker.failure-rate-threshold",
+      "defaultValue": 50
+    },
+    {
+      "name": "stratum.http-client.defaults.circuit-breaker.sliding-window-size",
+      "defaultValue": 100
+    },
+    {
+      "name": "stratum.http-client.defaults.circuit-breaker.minimum-number-of-calls",
+      "defaultValue": 100
+    },
+    {
+      "name": "stratum.http-client.defaults.circuit-breaker.wait-duration-in-open-state",
+      "defaultValue": "60s"
+    },
+    {
+      "name": "stratum.http-client.defaults.circuit-breaker.permitted-number-of-calls-in-half-open-state",
+      "defaultValue": 10
+    },
+    {
+      "name": "stratum.http-client.defaults.mock",
+      "defaultValue": false
+    },
+    {
+      "name": "stratum.http-client.defaults.interceptor-body-limit",
+      "defaultValue": "1MB"
+    },
+    {
+      "name": "stratum.http-client.defaults.call-log",
+      "defaultValue": "errors"
+    },
+    {
+      "name": "stratum.http-client.defaults.response-body-limit",
+      "defaultValue": "32MB"
+    },
+    {
+      "name": "stratum.http-client.defaults.trace-headers",
+      "defaultValue": true
+    },
+    {
+      "name": "stratum.http-client.defaults.auth.api-key-header",
+      "defaultValue": "X-Api-Key"
+    },
+    {
+      "name": "stratum.http-client.defaults.auth.token-relay",
+      "defaultValue": false
     }
   ]
 }

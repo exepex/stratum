@@ -42,6 +42,7 @@ import org.springframework.util.unit.DataSize;
  * @param serialization How Redis cache values are stored and which types are read back.
  * @param caffeine How Caffeine caches treat a method's null result.
  * @param caches Settings for one cache, by its name, which win over the settings for every cache.
+ *     None by default.
  */
 @Builder(toBuilder = true)
 @ConfigurationProperties(prefix = CacheConstants.PREFIX)
@@ -219,7 +220,7 @@ public record StratumCacheProperties(
    *
    * @param allowedPackages Packages whose types Redis caches read, beside the service's own
    *     packages and java, such as com.acme.shared for shared types. Each one covers its
-   *     subpackages. Empty by default.
+   *     subpackages. None by default.
    */
   public record Serialization(List<@NotBlank String> allowedPackages) {
 

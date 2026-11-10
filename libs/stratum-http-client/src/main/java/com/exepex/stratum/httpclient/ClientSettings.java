@@ -21,8 +21,8 @@ import org.springframework.util.unit.DataSize;
  * unset comes from {@code defaults}, and one {@code defaults} leaves unset from Stratum. The
  * descriptions of the components are what IDEs show, so they are plain sentences.
  *
- * @param url The address of the other service, such as http://inventory:8080. Required for each
- *     client; not allowed under defaults.
+ * @param url The address of the other service, such as http://inventory:8080. Required. Set it for
+ *     each client; it is not allowed under defaults.
  * @param connectTimeout The time allowed to open a connection, such as 2s. Defaults to 2s.
  * @param timeout The longest wait for the first byte of an answer and between two of its bytes,
  *     such as 5s or 20s for a slow report. A slow answer whose bytes keep coming takes as long as
@@ -41,8 +41,8 @@ import org.springframework.util.unit.DataSize;
  * @param auth How the client proves who it is to the other service: one of api-key, bearer or
  *     basic. Not allowed under defaults, so that a secret goes only to the client it is for.
  * @param sslBundle The name of a spring.ssl.bundle bundle whose certificate the client presents and
- *     whose trust material it checks the other service with (mutual TLS), such as bank. Not allowed
- *     under defaults, nor with shared-pool.
+ *     whose trust material it checks the other service with (mutual TLS), such as bank. None by
+ *     default. Not allowed under defaults, nor with shared-pool.
  * @param retry When a failed call is sent again, and how long the client waits first.
  * @param totalTimeout The time allowed for a whole call, retries, waits and the answer's body
  *     included, except a streamed download's body, such as 8s. Defaults to 8s.
@@ -52,16 +52,15 @@ import org.springframework.util.unit.DataSize;
  *     Logs a warning at every startup. Defaults to false.
  * @param interfaces The full names of generated interfaces, such as com.partner.OrdersApi, that
  *     call this client's service with all of its settings, as an interface marked @StratumClient
- *     does. Only for a client; not allowed under defaults. Defaults to none.
+ *     does. Only for a client; not allowed under defaults. None by default.
  * @param headers Headers sent on every call, by name, such as X-Partner-Id: orders. A client's are
  *     added to those under defaults; for the same name, compared without case, the client's value
  *     wins, and an empty value drops the default and sends nothing. Authorization, Cookie,
- *     Set-Cookie, Proxy-Authorization and the client's API key header are refused. Defaults to
- *     none.
+ *     Set-Cookie, Proxy-Authorization and the client's API key header are refused. None by default.
  * @param copyHeaders The names of headers copied from the request the service is answering, such as
  *     X-Tenant, onto every call made while answering it. A name the request does not have, or a
  *     call made outside a request, sends nothing. A client's names are joined with those under
- *     defaults. The same headers as in headers are refused. Defaults to none.
+ *     defaults. The same headers as in headers are refused. None by default.
  * @param interceptorBodyLimit The most of a request body an interceptor may read with body(), such
  *     as 1MB or 8MB, from 1B to 1GB. A call whose body is larger fails before it is sent, with
  *     SX-HTTPC-0005. Reading a body holds up to about three times this much memory while the call

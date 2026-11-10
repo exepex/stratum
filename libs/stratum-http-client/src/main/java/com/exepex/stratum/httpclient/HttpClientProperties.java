@@ -22,7 +22,7 @@ import org.springframework.core.env.Environment;
  *
  * @param defaults The settings every client shares; a client's own setting wins over them.
  * @param clients The settings of each client, by the name in its {@code @StratumClient}, such as
- *     inventory.
+ *     inventory. None by default.
  */
 @Builder(toBuilder = true)
 @ConfigurationProperties(prefix = HttpClientConstants.PREFIX)
