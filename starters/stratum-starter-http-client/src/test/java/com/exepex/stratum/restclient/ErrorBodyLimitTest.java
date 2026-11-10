@@ -116,6 +116,21 @@ class ErrorBodyLimitTest {
     }
 
     @Test
+    @DisplayName("a Content-Length over 64 KB leaves Apache's stream open, unread, at once")
+    void lengthOverLimitLeftUnread() throws IOException, HttpException {
+      var answer = new BasicClassicHttpResponse(HttpStatus.SC_INTERNAL_SERVER_ERROR);
+      try (var apacheStream = new FailingStream()) {
+        answer.setEntity(new InputStreamEntity(apacheStream, LIMIT + 1L, null));
+        try (answer;
+            var entity = limited(answer);
+            var body = entity.getContent()) {
+          assertThatCode(body::close).doesNotThrowAnyException();
+          assertThat(apacheStream.closed).isFalse();
+        }
+      }
+    }
+
+    @Test
     @DisplayName("once 64 KB are read, Apache's stream is left open without another read")
     void noReadPastLimit() throws IOException, HttpException {
       try (var apacheStream = new StallingStream();
