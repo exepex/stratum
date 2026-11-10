@@ -240,7 +240,7 @@ The switch is read from properties only, not from a `StratumPropertiesCustomizer
 which beans to create before any customizer runs. To set it in Java, use the application's
 [default properties](#switches-shared-properties-and-spring-boot-properties-in-java).
 
-A module's own switches, such as `stratum.web.correlation.enabled`, apply only while the module is
+A module's own switches, such as `stratum.web.request-log.enabled`, apply only while the module is
 on. Their defaults, often `true`, mean that a module comes with all its parts.
 
 Some modules also let you switch off one part:

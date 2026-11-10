@@ -124,10 +124,9 @@ stratum-starter-http-client/
 ├── pom.xml
 └── src/
     ├── main/
-    │   ├── java/com/exepex/stratum/httpclient/
+    │   ├── java/com/exepex/stratum/restclient/
     │   │   ├── autoconfigure/                       # wiring only: @AutoConfiguration classes
-    │   │   │   └── StratumHttpClientAutoConfiguration.java
-    │   │   ├── StratumHttpClientProperties.java     # @ConfigurationProperties("stratum.http-client")
+    │   │   │   └── RestClientAutoConfiguration.java
     │   │   └── ...                                  # behaviour, testable without Spring
     │   └── resources/META-INF/
     │       ├── spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports
@@ -182,7 +181,7 @@ Micrometer's public extension points:
 | Logs show correlation IDs | Observability puts the ID in the MDC from tracing baggage, or the trace ID; logging writes it. The web starters set the baggage from the `X-Correlation-Id` header |
 | HTTP client sends tokens | A request interceptor backed by Spring Security's `OAuth2AuthorizedClientManager` |
 | HTTP client retries and circuit breaker | Resilience4j inside the HTTP client starters, without the resilience starter ([ADR 0011](../adr/0011-http-client-starters.md)) |
-| Errors from HTTP clients become `503`/`504` | The web starter handles `DownstreamUnavailableException` from the shared core |
+| Errors from HTTP clients become `503`/`504` | The HTTP client starter throws a `StratumException` with an `SX-HTTPC-*` code, and the web starters answer it with that code's status ([errors](../modules/http-client-errors.md#what-a-failed-call-throws)) |
 
 Shared names (header names, MDC keys, metric names) are constants in `stratum-core`, so every
 module uses the same spelling.

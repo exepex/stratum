@@ -1,7 +1,7 @@
 # Configuration reference
 
-**Status: Built** for the logging, observability, webmvc, webflux, data-jpa and cache modules; the others
-are planned. This page
+**Status: Built** for the logging, observability, webmvc, webflux and cache modules, and partly built for
+the data-jpa and http-client modules; the others are planned. This page
 is the map of Stratum's settings: the keys that every module shares, which belong to no module, and
 a link to each module's own table. Each module's table is the one list of its keys, `stratum.*` and
 the Spring Boot keys it gives a default, with Stratum's default and Spring Boot's side by side. This
@@ -96,13 +96,13 @@ Each module's full table, with every key it reads or gives a default:
 | `stratum.web.*` | `stratum-starter-webmvc`, `stratum-starter-webflux` | [Web → Properties](../modules/web.md#properties), for both web starters | none |
 | `stratum.logging.*` | `stratum-starter-logging` | [Logging → Properties](../../starters/stratum-starter-logging/README.md#properties) | none |
 | `stratum.observability.*` | `stratum-starter-observability` | [Observability → Properties](../../starters/stratum-starter-observability/README.md#properties) | Collector addresses |
-| `stratum.security.*` | `stratum-starter-security` | [Security → Properties](../modules/security.md#properties) | `resource-server.issuer-uri` |
+| `stratum.security.*` (planned) | `stratum-starter-security` | [Security → Properties](../modules/security.md#properties) | `resource-server.issuer-uri` |
 | `stratum.http-client.*` | `stratum-starter-http-client` | [HTTP client → Properties](../modules/http-client.md#properties) | `clients.<name>.url` |
-| `stratum.resilience.*` | `stratum-starter-resilience` | [Resilience → Properties](../modules/resilience.md#properties) | none |
+| `stratum.resilience.*` (planned) | `stratum-starter-resilience` | [Resilience → Properties](../modules/resilience.md#properties) | none |
 | `stratum.data.*` | `stratum-starter-data-jpa` | [Data → Properties](../modules/data-jpa.md#properties) | `spring.datasource.url`, `username`, `password` |
 | `stratum.cache.*` | `stratum-starter-cache` | [Cache → Properties](../modules/cache.md#properties) | `spring.application.name` with Spring Data Redis, unless you set `spring.cache.redis.key-prefix`; `spring.data.redis.*` to reach your Redis (with `spring-boot-starter-data-redis`) |
-| `stratum.kafka.*` | `stratum-starter-kafka` | [Kafka → Properties](../modules/kafka.md#properties) | `spring.kafka.bootstrap-servers` |
-| `stratum.cloud.*` | `stratum-starter-cloud-*` | [Cloud → Properties](../modules/cloud.md#properties-draft) | depends on provider |
+| `stratum.kafka.*` (planned) | `stratum-starter-kafka` | [Kafka → Properties](../modules/kafka.md#properties) | `spring.kafka.bootstrap-servers` |
+| `stratum.cloud.*` (planned) | `stratum-starter-cloud-*` | [Cloud → Properties](../modules/cloud.md#properties-draft) | depends on provider |
 
 ## On/off switches
 
@@ -116,13 +116,13 @@ switches, such as `stratum.web.request-log.enabled`, apply only while the module
 | `stratum.web.enabled` | Error format, request fields in logs, correlation ID, request log, response timeouts, body size limit |
 | `stratum.logging.enabled` | Structured format and redaction |
 | `stratum.observability.enabled` | Stratum's metrics, tracing and health settings |
-| `stratum.security.enabled` | Stratum's security chain (Spring Security's defaults then apply) |
+| `stratum.security.enabled` (planned) | Stratum's security chain (Spring Security's defaults then apply) |
 | `stratum.http-client.enabled` | Stratum's HTTP client setup |
-| `stratum.resilience.enabled` | All resilience policies |
+| `stratum.resilience.enabled` (planned) | All resilience policies |
 | `stratum.data.enabled` | Stratum's data defaults |
 | `stratum.cache.enabled` | Stratum's `@EnableCaching` and its cache and Redis defaults (TTL, prefix, statistics, timeouts, SCAN, size limits, TTL and timeout per cache), the fail-open layer and the cap on caches; a service's own `@EnableCaching` keeps caching on |
-| `stratum.kafka.enabled` | Stratum's Kafka defaults |
-| `stratum.cloud.enabled` | Cloud connectors |
+| `stratum.kafka.enabled` (planned) | Stratum's Kafka defaults |
+| `stratum.cloud.enabled` (planned) | Cloud connectors |
 
 ## Spring Boot properties Stratum sets for you
 
