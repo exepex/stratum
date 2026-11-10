@@ -146,6 +146,11 @@ public final class QueuedDownstream implements AutoCloseable {
       var number = received.size();
       var status = Optional.ofNullable(statuses.poll()).orElse(HttpURLConnection.HTTP_OK);
       var large = status != HttpURLConnection.HTTP_OK && nextErrorLarge.getAndSet(false);
+      if (large) {
+        exchange.getResponseHeaders().add(HttpHeaders.RETRY_AFTER, "1");
+      }
+      exchange.getResponseHeaders().add(HttpHeaders.CONTENT_TYPE, "text/plain");
+      exchange.getResponseHeaders().add(ANSWER_NUMBER, String.valueOf(number));
       var body =
           large
               ? new byte[LARGE_BODY_SIZE]
@@ -153,11 +158,6 @@ public final class QueuedDownstream implements AutoCloseable {
                       ? ScriptedDownstream.BODY
                       : ERROR_BODY + number)
                   .getBytes(StandardCharsets.UTF_8);
-      if (large) {
-        exchange.getResponseHeaders().add(HttpHeaders.RETRY_AFTER, "1");
-      }
-      exchange.getResponseHeaders().add(HttpHeaders.CONTENT_TYPE, "text/plain");
-      exchange.getResponseHeaders().add(ANSWER_NUMBER, String.valueOf(number));
       exchange.sendResponseHeaders(status, body.length);
       exchange.getResponseBody().write(body);
     }

@@ -194,7 +194,7 @@ final class ResilientRequestFactory implements ClientHttpRequestFactory {
 
     @Override
     public HttpHeaders getHeaders() {
-      return headers;
+      return HttpHeaders.readOnlyHttpHeaders(headers);
     }
 
     @Override
