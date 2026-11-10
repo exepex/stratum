@@ -48,8 +48,10 @@ import org.springframework.web.client.RestClientResponseException;
 @SpringBootTest(
     classes = {ClientsApplication.class, GuardRules.class},
     properties = {
-      HttpClientConstants.DEFAULTS + ".retries=" + ClientBeansResilienceIntegrationTest.RETRIES,
-      HttpClientConstants.DEFAULTS + ".retry-delay=10ms",
+      HttpClientConstants.DEFAULTS
+          + ".retry.max-retries="
+          + ClientBeansResilienceIntegrationTest.RETRIES,
+      HttpClientConstants.DEFAULTS + ".retry.delay=10ms",
       RestClientTestData.PRICING_SETTINGS + ".max-connections=1",
       RestClientTestData.PRICING_SETTINGS + ".max-wait=300ms",
       HttpClientConstants.CLIENTS + "." + GuardRules.LEDGER + ".max-connections=1",

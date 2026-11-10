@@ -44,7 +44,7 @@ import org.springframework.web.client.RestTemplate;
 
 @SpringBootTest(
     classes = {ClientsApplication.class, TeamBeans.class},
-    properties = HttpClientConstants.DEFAULTS + ".retry-delay=10ms")
+    properties = HttpClientConstants.DEFAULTS + ".retry.delay=10ms")
 @Timeout(30)
 @DisplayName("Each client is a RestClient bean and a RestTemplate bean, injected by its name")
 class ClientBeansInjectionIntegrationTest {

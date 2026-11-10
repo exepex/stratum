@@ -4,5 +4,6 @@ stratum:
     clients:
       audit:
         url: ${audit-url}
-        retries: 1
-        retry-delay: 10ms
+        retry:
+          max-retries: 1
+          delay: 10ms

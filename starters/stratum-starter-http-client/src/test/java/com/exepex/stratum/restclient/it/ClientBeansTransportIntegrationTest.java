@@ -44,7 +44,7 @@ import org.springframework.web.client.HttpServerErrorException;
 @SpringBootTest(
     classes = {ClientsApplication.class, ObservedCalls.class},
     properties = {
-      HttpClientConstants.DEFAULTS + ".retry-delay=10ms",
+      HttpClientConstants.DEFAULTS + ".retry.delay=10ms",
       RestClientTestData.INVENTORY_SETTINGS + ".auth.bearer=" + RestClientTestData.SECRET,
       RestClientTestData.PRICING_SETTINGS + ".auth.basic.username=orders",
       RestClientTestData.PRICING_SETTINGS + ".auth.basic.password=" + RestClientTestData.SECRET,

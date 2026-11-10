@@ -51,9 +51,9 @@ import org.springframework.web.client.RestClientException;
       ClientBeansTimeoutIntegrationTest.HELD_SETTINGS + ".total-timeout=1s",
       ClientBeansTimeoutIntegrationTest.HUNG_SETTINGS + ".timeout=1s",
       ClientBeansTimeoutIntegrationTest.HUNG_SETTINGS + ".total-timeout=1500ms",
-      ClientBeansTimeoutIntegrationTest.HUNG_SETTINGS + ".retry-delay=100ms",
+      ClientBeansTimeoutIntegrationTest.HUNG_SETTINGS + ".retry.delay=100ms",
       ClientBeansTimeoutIntegrationTest.STALLED_SETTINGS + ".total-timeout=300ms",
-      ClientBeansTimeoutIntegrationTest.SLOW_SETTINGS + ".retries=0",
+      ClientBeansTimeoutIntegrationTest.SLOW_SETTINGS + ".retry.max-retries=0",
       ClientBeansTimeoutIntegrationTest.SLOW_SETTINGS + ".timeout=600ms",
       "spring.http.clients.read-timeout=100ms",
       "spring.http.clients.connect-timeout=100ms"

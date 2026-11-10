@@ -116,8 +116,10 @@ stratum.http-client.clients.partner.max-connections=50
 stratum.http-client.clients.partner.auth.bearer=${PARTNER_TOKEN}
 ```
 
-`retry.max-retries: 0` sends each call once. The retry and circuit breaker keys and their defaults are on
-[retries and the circuit breaker](http-client.md#retries-and-the-circuit-breaker).
+`retry.max-retries: 0` sends each call once. Every key of the `retry` and `circuit-breaker` groups, with its default,
+is on [retries and the circuit breaker](http-client-resilience.md#the-retry-group), and setting them in Java, through
+`retry().toBuilder()` and `circuitBreaker().toBuilder()`, in its
+[Configure in Java](http-client-resilience.md#configure-in-java).
 
 ## Configure in Java
 
