@@ -66,7 +66,7 @@ Each module page follows the same layout so you always know where to look:
 | Observability known gaps, and which backends (OTLP HTTP and gRPC, Prometheus, Zipkin) are tested | [observability-known-gaps.md](modules/observability-known-gaps.md) |
 | Security (resource server, JWT) | [security.md](modules/security.md) |
 | OAuth2 client (the service's own tokens for the HTTP client) | [oauth2-client.md](modules/oauth2-client.md) |
-| HTTP client | [http-client.md](modules/http-client.md), [auth and mTLS](modules/http-client-auth.md), [errors](modules/http-client-errors.md), [mocked clients](modules/http-client-mocks.md), [retries and the circuit breaker](modules/http-client-resilience.md), [clients Stratum did not build](modules/http-client-own-clients.md), [headers and interceptors](modules/http-client-headers.md) |
+| HTTP client | [http-client.md](modules/http-client.md), [auth and mTLS](modules/http-client-auth.md), [errors](modules/http-client-errors.md), [mocked clients](modules/http-client-mocks.md), [retries and the circuit breaker](modules/http-client-resilience.md), [clients Stratum did not build](modules/http-client-own-clients.md), [headers and interceptors](modules/http-client-headers.md), [call log and meters](modules/http-client-observability.md) |
 | Resilience | [resilience.md](modules/resilience.md) |
 | Data (JPA, connection pool, transactions) | [data-jpa.md](modules/data-jpa.md) |
 | Cache | [cache.md](modules/cache.md) |
@@ -114,6 +114,7 @@ Each module page follows the same layout so you always know where to look:
 | [ADR 0013: Retry and circuit breaker keys for the HTTP client starters](adr/0013-http-client-retry-and-circuit-breaker-keys.md) | Replaces the `retries`, `retry-delay` and `circuit-breaker` keys of ADR 0011 with the `retry` and `circuit-breaker` groups, named as in Spring and Resilience4j, under `defaults` and each client; what is retried and counted stays fixed. |
 | [ADR 0014: A client's RestClient and RestTemplate are beans that retry and guard their calls](adr/0014-http-client-beans-that-retry.md) | Replaces ADR 0012 decision 3 and ADR 0011's `resilience(name)`: each client is a `RestClient` and a `RestTemplate` bean, injected by `@Qualifier("<name>")`, whose calls retry and are guarded by the client's settings within `total-timeout`; a call with a body is sent once; a client with its own engine gets `settings(name)` only, its retry and breaker in #262. |
 | [ADR 0015: A limit on the request body an HTTP client interceptor reads](adr/0015-http-client-interceptor-body-limit.md) | `OutgoingRequest.body()` reads at most `interceptor-body-limit` (1 MiB by default, 1 B to 1 GiB, in both modes); a larger body fails before sending with `SX-HTTPC-0005`, not retried and ignored by the circuit breaker. |
+| [ADR 0016: The HTTP client's call log key, its redaction signal and its meters](adr/0016-http-client-call-log-and-meters.md) | Adds the key `call-log` (`errors`, `all`, `none`); the logging starter tells the client starter its redaction runs through a marker bean, so the line carries the masked `url` only then; Stratum's own meters per client, with the pool-full counter of #237. |
 
 ## Contributing
 

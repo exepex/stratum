@@ -40,6 +40,7 @@ class HttpClientPropertiesTest {
                   .circuitBreaker(HttpClientTestData.STRATUM_CIRCUIT_BREAKER)
                   .mock(false)
                   .interceptorBodyLimit(DataSize.ofMegabytes(1))
+                  .callLog(CallLog.ERRORS)
                   .build());
     }
   }
