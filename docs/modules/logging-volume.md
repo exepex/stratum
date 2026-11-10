@@ -111,12 +111,48 @@ stratum:
         - com.acme.audit
 ```
 
-To turn the limits off, set `stratum.logging.volume.enabled=false`. The [property
-table](../../starters/stratum-starter-logging/README.md#properties) lists every key with its range.
+A busy service can also keep one in 10 INFO lines, lower the limit of WARN and ERROR lines, count more
+loggers on their own, and get the summary every 30 seconds instead of every 10, in `application.properties`:
+
+```properties
+stratum.logging.volume.warn-error-max-per-second=2000
+stratum.logging.volume.info-keep-one-in=10
+stratum.logging.volume.max-keys=4096
+stratum.logging.volume.report-interval=30s
+```
+
+or in `application.yml`:
+
+```yaml
+stratum:
+  logging:
+    volume:
+      warn-error-max-per-second: 2000
+      info-keep-one-in: 10
+      max-keys: 4096
+      report-interval: 30s
+```
+
+To turn the limits off, for example while you look for a missing line, in `application.properties`:
+
+```properties
+stratum.logging.volume.enabled=false
+```
+
+or in `application.yml`:
+
+```yaml
+stratum:
+  logging:
+    volume:
+      enabled: false
+```
+
+The [property table](../../starters/stratum-starter-logging/README.md#properties) lists every key with its range.
 
 ### Configure in Java
 
-The same settings, in the logging customizer the
+The same settings (with the limits left on), in the logging customizer the
 [starter page](../../starters/stratum-starter-logging/README.md#configure-in-java) describes:
 
 ```java
@@ -127,8 +163,13 @@ public class OrdersLoggingSettings implements LoggingPropertiesCustomizer {
     return properties.toBuilder()
         .volume(
             properties.volume().toBuilder()
+                .enabled(true)
                 .maxPerSecond(5000)
+                .warnErrorMaxPerSecond(2000)
                 .debugKeepOneIn(100)
+                .infoKeepOneIn(10)
+                .maxKeys(4096)
+                .reportInterval(Duration.ofSeconds(30))
                 .neverLimitLoggers(List.of("org.springframework.security", "com.acme.audit"))
                 .build())
         .build();

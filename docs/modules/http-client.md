@@ -252,6 +252,31 @@ stratum:
       idle-timeout: 15s
 ```
 
+The reports service fails fast, after 500 ms, when its pool is busy, and renews its connections every 10 minutes.
+The inventory and pricing services are small, so their clients share one pool:
+
+```properties
+stratum.http-client.clients.reports.max-wait=500ms
+stratum.http-client.clients.reports.connection-lifetime=10m
+stratum.http-client.clients.inventory.shared-pool=true
+stratum.http-client.clients.pricing.url=http://pricing:8080
+stratum.http-client.clients.pricing.shared-pool=true
+```
+
+```yaml
+stratum:
+  http-client:
+    clients:
+      reports:
+        max-wait: 500ms
+        connection-lifetime: 10m
+      inventory:
+        shared-pool: true
+      pricing:
+        url: http://pricing:8080
+        shared-pool: true
+```
+
 A reports service whose answers can reach 100 MB reads them with a larger limit; every other client keeps 32 MB:
 
 ```properties
@@ -290,10 +315,15 @@ public class ReportClientSettings implements HttpClientPropertiesCustomizer {
         properties.clientSettings("reports").toBuilder()
             .timeout(Duration.ofSeconds(20))
             .maxConnections(10)
+            .maxWait(Duration.ofMillis(500))
+            .connectionLifetime(Duration.ofMinutes(10))
             .responseBodyLimit(DataSize.ofMegabytes(128))
             .build();
     var clients = new HashMap<>(properties.clients());
     clients.put("reports", reports);
+    for (var name : List.of("inventory", "pricing")) {
+      clients.put(name, properties.clientSettings(name).toBuilder().sharedPool(true).build());
+    }
     return properties.toBuilder().clients(clients).build();
   }
 }

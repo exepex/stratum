@@ -161,6 +161,8 @@ stratum.cache.max-caches=200
 stratum.cache.warning-interval=5m
 stratum.cache.redis-retry-interval=2s
 stratum.cache.redis-failure-threshold=5
+stratum.cache.max-key-size=2KB
+stratum.cache.max-value-size=2MB
 stratum.cache.caches.reports.max-value-size=5MB
 stratum.cache.serialization.allowed-packages=com.acme.shared
 spring.cache.redis.time-to-live=1h
@@ -176,6 +178,8 @@ stratum:
     warning-interval: 5m
     redis-retry-interval: 2s
     redis-failure-threshold: 5
+    max-key-size: 2KB
+    max-value-size: 2MB
     caches:
       reports:
         max-value-size: 5MB
@@ -340,6 +344,8 @@ public class OrdersCacheSettings implements StratumCachePropertiesCustomizer {
         .warningInterval(Duration.ofMinutes(5))
         .redisRetryInterval(Duration.ofSeconds(2))
         .redisFailureThreshold(5)
+        .maxKeySize(DataSize.ofKilobytes(2))
+        .maxValueSize(DataSize.ofMegabytes(2))
         .caches(
             Map.of(
                 "reports",
