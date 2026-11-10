@@ -69,6 +69,11 @@ public class RetryRules {
   private static final String JACKSON_2_READ_FAILURE =
       "com.fasterxml.jackson.core.JacksonException";
 
+  /** The codes of a call that stopped before anything was sent. */
+  private static final Set<HttpClientErrorCode> NEVER_SENT_CODES =
+      Set.of(
+          HttpClientErrorCode.INTERCEPTOR_BODY_TOO_LARGE, HttpClientErrorCode.CALLER_TOKEN_MISSING);
+
   /** How far each wait is spread at random: up to half of it either way. */
   private static final double BACK_OFF_SPREAD = 0.5;
 
@@ -193,8 +198,10 @@ public class RetryRules {
 
   /**
    * Returns whether a call failed before anything was sent: an interceptor failed, or read a body
-   * larger than the client's {@code interceptor-body-limit} ({@code SX-HTTPC-0005}). The breaker
-   * ignores such a call: it is neither a success nor a failure of the other service.
+   * larger than the client's {@code interceptor-body-limit} ({@code SX-HTTPC-0005}); the service's
+   * token could not be fetched for the first send; or the call has no caller token to relay ({@code
+   * SX-HTTPC-0004}). The breaker ignores such a call: it is neither a success nor a failure of the
+   * other service.
    *
    * @param failure the failure of a call
    * @return whether nothing was sent
@@ -202,7 +209,7 @@ public class RetryRules {
   public static boolean isNeverSent(Throwable failure) {
     return failure instanceof InterceptorFailure
         || failure instanceof StratumException stratum
-            && stratum.getErrorCode() == HttpClientErrorCode.INTERCEPTOR_BODY_TOO_LARGE;
+            && NEVER_SENT_CODES.contains(stratum.getErrorCode());
   }
 
   /**

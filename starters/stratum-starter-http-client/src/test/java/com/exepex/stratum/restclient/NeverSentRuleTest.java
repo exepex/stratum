@@ -20,9 +20,17 @@ class NeverSentRuleTest {
   }
 
   @Test
-  @DisplayName("another code, such as a missing caller token (SX-HTTPC-0004), is not ignored")
-  void otherCodeNotIgnored() {
-    var failure = new StratumException(HttpClientErrorCode.CALLER_TOKEN_MISSING, "");
+  @DisplayName("a call with no caller token to relay (SX-HTTPC-0004) was never sent")
+  void callerTokenMissingNeverSent() {
+    var failure = new StratumException(HttpClientErrorCode.CALLER_TOKEN_MISSING);
+
+    assertThat(RetryRules.isNeverSent(failure)).isTrue();
+  }
+
+  @Test
+  @DisplayName("SX-HTTPC-0002 on its own, as after a 401's failed renewal, is not ignored")
+  void unavailableNotIgnored() {
+    var failure = new StratumException(HttpClientErrorCode.DOWNSTREAM_UNAVAILABLE);
 
     assertThat(RetryRules.isNeverSent(failure)).isFalse();
   }

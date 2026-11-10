@@ -4,15 +4,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.exepex.stratum.core.error.StratumException;
+import com.exepex.stratum.httpclient.HttpClientErrorCode;
 import com.exepex.stratum.restclient.ClientResilience;
 import com.exepex.stratum.restclient.DownstreamException;
 import com.exepex.stratum.restclient.StratumHttpClients;
+import com.exepex.stratum.restclient.testsupport.CallChecks;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import com.exepex.stratum.restclient.testsupport.ScriptedDownstream;
 import com.exepex.stratum.restclient.testsupport.TokenDownstream;
 import com.exepex.stratum.restclient.testsupport.TokenDownstream.TokenAnswer;
 import com.exepex.stratum.restclient.testsupport.clients.ClientsApplication;
 import com.exepex.stratum.restclient.testsupport.clients.InventoryClient;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -158,7 +161,7 @@ class ClientCredentialsIntegrationTest {
     @Test
     @DisplayName(
         "the call stops with SX-HTTPC-0002, naming nothing internal; unsent, unretried, "
-            + "not a breaker failure")
+            + "not recorded by the breaker")
     void refusedTokenStopsCall(@Autowired ClientResilience resilience) {
       REFUSING.tokenAnswer(TokenAnswer.REFUSE);
 
@@ -170,13 +173,42 @@ class ClientCredentialsIntegrationTest {
           .hasMessageNotContaining(RestClientTestData.SECRET);
       assertThat(REFUSING.authorizations()).isEmpty();
       assertThat(REFUSING.tokenRequests()).isEqualTo(1);
-      assertThat(
-              resilience
-                  .circuitBreaker(RestClientTestData.INVENTORY)
-                  .orElseThrow()
-                  .getMetrics()
-                  .getNumberOfFailedCalls())
-          .isZero();
+      CallChecks.assertNothingRecorded(
+          resilience.circuitBreaker(RestClientTestData.INVENTORY).orElseThrow(),
+          CircuitBreaker.State.CLOSED);
+    }
+  }
+
+  @Nested
+  @DisplayName("when the identity provider refuses the new token after a 401")
+  class RenewalRefused {
+
+    /** The identity provider of this group. */
+    @AutoClose private static final TokenDownstream RENEWAL_REFUSING = new TokenDownstream();
+
+    /**
+     * Points the clients at this group's server.
+     *
+     * @param registry the test's properties
+     */
+    @DynamicPropertySource
+    static void renewalRefusingServer(DynamicPropertyRegistry registry) {
+      RestClientTestData.pointClientsAtTokenServer(registry, RENEWAL_REFUSING);
+    }
+
+    @Test
+    @DisplayName("the call, sent and answered 401, ends with SX-HTTPC-0002 and counts as before")
+    void sentCallStillCounted(@Autowired ClientResilience resilience) {
+      inventory.stock();
+      RENEWAL_REFUSING.refuseIssuedTokens();
+      RENEWAL_REFUSING.tokenAnswer(TokenAnswer.REFUSE);
+
+      CallChecks.assertEndsWith(inventory::stock, HttpClientErrorCode.DOWNSTREAM_UNAVAILABLE);
+
+      assertThat(RENEWAL_REFUSING.authorizations()).hasSize(2);
+      var breaker = resilience.circuitBreaker(RestClientTestData.INVENTORY).orElseThrow();
+      assertThat(breaker.getMetrics().getNumberOfSuccessfulCalls()).isEqualTo(2);
+      assertThat(breaker.getMetrics().getNumberOfFailedCalls()).isZero();
     }
   }
 
