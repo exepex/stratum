@@ -26,7 +26,7 @@ Add a starter. Set a few properties. Write only business code.
 > **Stratum is under construction.** The parent, the BOM, the web, cache, logging and observability
 > modules are built, and the data and HTTP client modules are partly built. This README and the
 > [documentation](docs/README.md) also describe modules that are not built yet. No module is released.
-> Everything marked **Planned** is the design target and may change. The Maven `groupId` is `com.exepex.stratum`; the version
+> Everything marked **Planned** is the design target and may change. The Maven `groupId` is `io.github.exepex.stratum`; the version
 > `0.1.0-SNAPSHOT` in the examples is a **placeholder** until the first release.
 
 ## Table of contents
@@ -145,7 +145,7 @@ every step and explains each line.
 
 ```xml
 <parent>
-  <groupId>com.exepex.stratum</groupId>
+  <groupId>io.github.exepex.stratum</groupId>
   <artifactId>stratum-parent</artifactId>
   <version>0.1.0-SNAPSHOT</version>
 </parent>
@@ -161,19 +161,19 @@ as soon as its starter is on the classpath.
 ```xml
 <dependencies>
   <dependency>
-    <groupId>com.exepex.stratum</groupId>
+    <groupId>io.github.exepex.stratum</groupId>
     <artifactId>stratum-starter-webmvc</artifactId>
   </dependency>
   <dependency>
-    <groupId>com.exepex.stratum</groupId>
+    <groupId>io.github.exepex.stratum</groupId>
     <artifactId>stratum-starter-logging</artifactId>
   </dependency>
   <dependency>
-    <groupId>com.exepex.stratum</groupId>
+    <groupId>io.github.exepex.stratum</groupId>
     <artifactId>stratum-starter-observability</artifactId>
   </dependency>
   <dependency>
-    <groupId>com.exepex.stratum</groupId>
+    <groupId>io.github.exepex.stratum</groupId>
     <artifactId>stratum-test</artifactId>
     <scope>test</scope>
   </dependency>

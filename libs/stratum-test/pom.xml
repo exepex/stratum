@@ -5,7 +5,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.exepex.stratum</groupId>
+    <groupId>io.github.exepex.stratum</groupId>
     <artifactId>stratum-library-parent</artifactId>
     <version>${revision}</version>
     <relativePath>../../platform/stratum-library-parent/pom.xml</relativePath>
@@ -19,7 +19,7 @@
   <!-- Teams add this module in test scope only, so its libraries never reach a running service. -->
   <dependencies>
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-core</artifactId>
     </dependency>
     <!-- The starter architecture rules (ST-TEST-21). The parent adds ArchUnit for tests only; the

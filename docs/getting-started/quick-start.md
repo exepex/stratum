@@ -45,7 +45,7 @@ order-service/
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.exepex.stratum</groupId>
+    <groupId>io.github.exepex.stratum</groupId>
     <artifactId>stratum-parent</artifactId>
     <version>0.1.0-SNAPSHOT</version>
     <relativePath/>
@@ -57,23 +57,23 @@ order-service/
 
   <dependencies>
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-webmvc</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-logging</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-observability</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-http-client</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-test</artifactId>
       <scope>test</scope>
     </dependency>

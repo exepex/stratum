@@ -35,7 +35,7 @@ class OrderService {
 
 ```xml
 <dependency>
-  <groupId>com.exepex.stratum</groupId>
+  <groupId>io.github.exepex.stratum</groupId>
   <artifactId>stratum-starter-logging</artifactId>
 </dependency>
 ```

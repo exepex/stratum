@@ -10,7 +10,7 @@ Brings Spring Security's OAuth2 client, so that an [HTTP client](http-client.md)
 
 ```xml
 <dependency>
-  <groupId>com.exepex.stratum</groupId>
+  <groupId>io.github.exepex.stratum</groupId>
   <artifactId>stratum-starter-oauth2-client</artifactId>
 </dependency>
 ```

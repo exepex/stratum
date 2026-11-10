@@ -30,7 +30,7 @@ Spring has two web stacks, and Stratum has one starter for each. Add exactly one
 
 ```xml
 <dependency>
-  <groupId>com.exepex.stratum</groupId>
+  <groupId>io.github.exepex.stratum</groupId>
   <artifactId>stratum-starter-webmvc</artifactId>
 </dependency>
 ```

@@ -63,28 +63,28 @@ A typical REST service that calls other services and caches results, with built 
 ```xml
 <dependencies>
   <dependency>
-    <groupId>com.exepex.stratum</groupId>
+    <groupId>io.github.exepex.stratum</groupId>
     <artifactId>stratum-starter-webmvc</artifactId>
   </dependency>
   <dependency>
-    <groupId>com.exepex.stratum</groupId>
+    <groupId>io.github.exepex.stratum</groupId>
     <artifactId>stratum-starter-logging</artifactId>
   </dependency>
   <dependency>
-    <groupId>com.exepex.stratum</groupId>
+    <groupId>io.github.exepex.stratum</groupId>
     <artifactId>stratum-starter-observability</artifactId>
   </dependency>
   <dependency>
-    <groupId>com.exepex.stratum</groupId>
+    <groupId>io.github.exepex.stratum</groupId>
     <artifactId>stratum-starter-http-client</artifactId>
   </dependency>
   <dependency>
-    <groupId>com.exepex.stratum</groupId>
+    <groupId>io.github.exepex.stratum</groupId>
     <artifactId>stratum-starter-cache</artifactId>
   </dependency>
 
   <dependency>
-    <groupId>com.exepex.stratum</groupId>
+    <groupId>io.github.exepex.stratum</groupId>
     <artifactId>stratum-test</artifactId>
     <scope>test</scope>
   </dependency>

@@ -13,7 +13,7 @@ share, such as `StarterTestSupport`, `WebTestSupport`, `LogLineCapture`, `CpuCos
 
 ```xml
 <dependency>
-  <groupId>com.exepex.stratum</groupId>
+  <groupId>io.github.exepex.stratum</groupId>
   <artifactId>stratum-test</artifactId>
   <scope>test</scope>
 </dependency>

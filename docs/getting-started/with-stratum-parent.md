@@ -47,7 +47,7 @@ MVC, logging, observability, the HTTP client and the cache.
 
   <!-- Stratum's parent: Spring Boot 4.1, Java 25, Stratum's versions and its build checks. -->
   <parent>
-    <groupId>com.exepex.stratum</groupId>
+    <groupId>io.github.exepex.stratum</groupId>
     <artifactId>stratum-parent</artifactId>
     <version>0.1.0-SNAPSHOT</version>
     <relativePath/> <!-- look the parent up in the repository, not on disk -->
@@ -60,28 +60,28 @@ MVC, logging, observability, the HTTP client and the cache.
   <dependencies>
     <!-- No <version>: stratum-parent manages every Stratum module. -->
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-webmvc</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-logging</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-observability</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-http-client</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-cache</artifactId>
     </dependency>
 
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-test</artifactId>
       <scope>test</scope>
     </dependency>
