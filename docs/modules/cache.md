@@ -43,9 +43,9 @@ choose Redis; the cache starter brings no Redis client of its own:
 </dependency>
 ```
 
-Without it, Spring Boot picks its cache as it does today, such as Caffeine when Caffeine is on the
-class path, with Stratum's [Caffeine defaults](cache-caffeine.md), or else its simple in-memory
-cache, and the Redis defaults below have no effect.
+Without it, Spring Boot picks Caffeine, which the cache starter brings, with Stratum's
+[Caffeine defaults](cache-caffeine.md), and the Redis defaults below have no effect. With it,
+Spring Boot picks Redis before Caffeine ([Caffeine](cache-caffeine.md#use-it)).
 
 With Redis, the service needs a name, because every key starts with it. Set it in
 `application.properties`:

@@ -20,14 +20,10 @@
   <artifactId>stratum-starter-batch</artifactId>
 
   <name>Stratum bundle: batch</name>
-  <description>Bundle for a batch job: logging, observability and data access.</description>
+  <description>Bundle for a batch job: logging and observability.</description>
 
   <!-- Keep the starters sorted by name. -->
   <dependencies>
-    <dependency>
-      <groupId>com.exepex.stratum</groupId>
-      <artifactId>stratum-starter-data-jpa</artifactId>
-    </dependency>
     <dependency>
       <groupId>com.exepex.stratum</groupId>
       <artifactId>stratum-starter-logging</artifactId>

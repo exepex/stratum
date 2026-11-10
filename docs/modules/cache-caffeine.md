@@ -25,17 +25,12 @@ are still cached ([Reactive and async methods](cache-reactive.md#caffeine)).
 
 ## Use it
 
-Add Caffeine next to the cache starter:
+The cache starter brings Caffeine, so a service that adds only the cache starter, or the
+microservice bundle, gets Caffeine caches with these defaults and no line of configuration.
 
-```xml
-<dependency>
-  <groupId>com.github.ben-manes.caffeine</groupId>
-  <artifactId>caffeine</artifactId>
-</dependency>
-```
-
-Spring Boot then picks Caffeine, unless Redis is also present: Spring Boot picks Redis first. With
-both, set `spring.cache.type=caffeine` to use Caffeine. Byte limits (`max-key-size`,
+Once the service adds Spring Boot's Redis starter ([Cache](cache.md#add-it)), Spring Boot picks
+Redis instead: with no `spring.cache.type` set, it tries Redis before Caffeine. With both, set
+`spring.cache.type=caffeine` to use Caffeine. Byte limits (`max-key-size`,
 `max-value-size`) apply to Redis only, and `max-entries` applies to Caffeine only.
 
 ## Settings per cache
