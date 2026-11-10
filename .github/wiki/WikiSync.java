@@ -24,6 +24,12 @@ final class WikiSync {
   /** The documentation index: the source of the page list, the sidebar and the wiki's Home. */
   private static final String INDEX = "docs/README.md";
 
+  /** The project README: copied as its own page, because Home is the documentation index. */
+  private static final String ROOT_README = "README.md";
+
+  /** The wiki page of the project README. */
+  private static final String ROOT_README_PAGE = "Project-README";
+
   /** The first line of every generated page, followed by its source path. */
   private static final String MARKER = "<!-- generated from ";
 
@@ -132,6 +138,7 @@ final class WikiSync {
   /** Reads the index: each table row of a known section names a page and its sidebar group. */
   private void readIndex() {
     pageNames.put(INDEX, HOME);
+    pageNames.put(ROOT_README, ROOT_README_PAGE);
     String group = null;
     for (String line : read(INDEX).lines().toList()) {
       if (line.startsWith("## ")) {
@@ -146,7 +153,7 @@ final class WikiSync {
     }
   }
 
-  /** Adds the page that a table row links to its group, keeping the first link of the row. */
+  /** Adds the page of every relative link of a table row to its group; a page already added is kept once. */
   private void addRow(String group, String row) {
     Matcher link = LINK.matcher(row);
     while (link.find()) {
@@ -155,6 +162,9 @@ final class WikiSync {
         continue;
       }
       String source = resolve(INDEX, target.split("#", 2)[0]);
+      if (pageNames.containsKey(source)) {
+        continue;
+      }
       String name = pageName(source);
       if (pageNames.containsValue(name) && !name.equals(pageNames.get(source))) {
         throw new IllegalStateException(source + " and another page both map to " + name);
@@ -162,7 +172,6 @@ final class WikiSync {
       pageNames.put(source, name);
       String label = firstHeading(source);
       groupEntries.computeIfAbsent(group, key -> new ArrayList<>()).add("- [" + label + "](" + name + ")");
-      return;
     }
   }
 
@@ -286,6 +295,7 @@ final class WikiSync {
   /** Returns the sidebar: Home, the index groups in the owner's order, then the audit reports. */
   private String sidebar(List<String> existing) {
     var text = new StringBuilder(MARKER).append(INDEX).append(" -->\n**[Home](Home)**\n");
+    text.append("- [Project README](").append(ROOT_README_PAGE).append(")\n");
     GROUP_ORDER.forEach(
         group -> {
           text.append("\n**").append(group).append("**\n");
