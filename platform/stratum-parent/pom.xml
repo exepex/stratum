@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   The parent POM for services built on Stratum. Versions come from the root POM and build checks from
-  stratum-build-parent; this POM adds what only a service needs: the executable jar, and the
-  build-info.properties and git.properties files that /actuator/info shows. Stratum's own libraries do
+  stratum-build-parent; this POM adds what only a service needs: the executable jar, the
+  build-info.properties and git.properties files that /actuator/info shows, and SpotBugs without the
+  FindSecBugs SPRING_ENDPOINT pattern, which marks each Spring endpoint. Stratum's own libraries do
   not inherit this POM, because a library jar that carried those two files would hide the service's own.
   Services are not checked for Javadoc; that check is in stratum-library-parent.
   Keep <plugins> sorted by name.
@@ -23,10 +24,19 @@
   <packaging>pom</packaging>
 
   <name>Stratum parent</name>
-  <description>Parent POM for services: Stratum's versions from the root POM and build checks from stratum-build-parent, plus the executable jar and build info.</description>
+  <description>Parent POM for services: Stratum's versions from the root POM and build checks from stratum-build-parent, plus the executable jar, build info and SpotBugs without SPRING_ENDPOINT.</description>
 
   <build>
     <plugins>
+      <!-- FindSecBugs' SpringMvcEndpointDetector reports only SPRING_ENDPOINT, an informational marker on
+           each Spring endpoint, so a service with an endpoint would never pass. Every other detector runs. -->
+      <plugin>
+        <groupId>com.github.spotbugs</groupId>
+        <artifactId>spotbugs-maven-plugin</artifactId>
+        <configuration>
+          <omitVisitors>SpringMvcEndpointDetector</omitVisitors>
+        </configuration>
+      </plugin>
       <plugin>
         <groupId>io.github.git-commit-id</groupId>
         <artifactId>git-commit-id-maven-plugin</artifactId>

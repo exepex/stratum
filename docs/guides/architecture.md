@@ -34,7 +34,8 @@ stratum/
 │   ├── stratum-build-parent/       # the BOM and the build checks
 │   ├── stratum-build-rules/        # Checkstyle, PMD and Enforcer rules, packaged as a jar
 │   ├── stratum-library-parent/     # parent POM for libs and starters: adds Lombok and Stratum-only checks
-│   └── stratum-parent/             # parent POM for services: adds the executable jar and build info
+│   └── stratum-parent/             # parent POM for services: adds the executable jar and build info,
+│                                   # and skips FindSecBugs' SPRING_ENDPOINT pattern
 ├── libs/
 │   ├── stratum-core/               # shared internals: constants, property defaults
 │   ├── stratum-redaction/          # the masking rules that logs and span URLs share
@@ -110,7 +111,9 @@ flowchart TD
   those choices are their team's.
 - `stratum-parent` adds what only a service needs: the executable jar, `build-info.properties` and
   `git.properties`. Libraries do not inherit it, because a library jar that carried those two files
-  would hide the service's own files from `/actuator/info`.
+  would hide the service's own files from `/actuator/info`. It also turns off FindSecBugs'
+  `SPRING_ENDPOINT` pattern, which marks each Spring endpoint; Stratum's own build keeps it
+  ([Tuning the checks](../modules/parent-and-bom.md#tuning-the-checks)).
 - `stratum-bom` and `stratum-build-rules` inherit the root `pom.xml` directly: `stratum-build-parent`
   imports the BOM and loads the build rules, so neither can inherit `stratum-build-parent`. The BOM
   is installed without a parent, so it never brings Spring Boot's versions to a service.

@@ -116,10 +116,10 @@ one. With a BOM import, put it above the import to make that clear to readers:
 ## The parent POM
 
 On top of Spring Boot's parent and the BOM, `stratum-parent` sets the following. Everything except
-the build info and packaging rows comes from `stratum-build-parent`, its own parent, which Stratum's
-libraries and starters also inherit, through `stratum-library-parent`. Every version comes from
-`stratum`, the parent of `stratum-build-parent`, which is the one place Stratum sets versions
-([ADR 0005](../adr/0005-versions-in-the-root-pom.md)).
+the build info and packaging rows, and the one SpotBugs pattern that services skip, comes from
+`stratum-build-parent`, its own parent, which Stratum's libraries and starters also inherit, through
+`stratum-library-parent`. Every version comes from `stratum`, the parent of `stratum-build-parent`,
+which is the one place Stratum sets versions ([ADR 0005](../adr/0005-versions-in-the-root-pom.md)).
 
 | Area | Setting |
 | --- | --- |
@@ -127,7 +127,7 @@ libraries and starters also inherit, through `stratum-library-parent`. Every ver
 | Plugin versions | Spring Boot's parent sets the versions of the plugins it manages, such as Compiler, Surefire, Failsafe, Enforcer and the Spring Boot plugin. `stratum` sets the rest: JaCoCo, Spotless, Checkstyle, PMD, SpotBugs, FindSecBugs and OWASP Dependency-Check, one property each in `<properties>` |
 | Tests | `*Test.java` run by Surefire in `mvn test`, except `*IntegrationTest.java`, which Failsafe runs in `mvn verify` |
 | Formatting | Spotless checks Google Java Format; `mvn spotless:apply` fixes it |
-| Static analysis | Checkstyle, PMD and SpotBugs with the FindSecBugs security rules. The Checkstyle, PMD and Enforcer rule files come from `stratum-build-rules` |
+| Static analysis | Checkstyle, PMD and SpotBugs with the FindSecBugs security rules. The Checkstyle, PMD and Enforcer rule files come from `stratum-build-rules`. Services skip one FindSecBugs pattern, `SPRING_ENDPOINT`; see [Tuning the checks](#tuning-the-checks) |
 | Enforcer | Requires JDK 25 and Maven 3.9+; bans duplicate classes, version ranges and `LATEST`/`RELEASE`, a dependency declared twice, plugins without a version, and library versions with known remote code execution flaws (Log4j 1.x, Log4j 2 before 2.17.1, Commons Collections before 3.2.2, Commons Text before 1.10.0, SnakeYAML before 2.0) |
 | Build info | `/actuator/info` shows the build version and time (`build-info.properties`) and the Git commit (`git.properties`) |
 | Packaging | `spring-boot-maven-plugin` builds an executable jar; `mvn spring-boot:build-image` builds a container image |
@@ -217,6 +217,29 @@ A property a service may set in its own `pom.xml` (it can raise the bar, never l
 | Maven property | Default | Meaning |
 | --- | --- | --- |
 | `stratum.coverage.minimum` | `0.80` | Line coverage required by `coverage-gate` |
+
+Services built on `stratum-parent` skip only the `SPRING_ENDPOINT` pattern of FindSecBugs; Stratum's
+own build skips none. FindSecBugs reports `SPRING_ENDPOINT` on a class with a Spring request
+mapping, such as `@GetMapping` or `@PostMapping`, to mark it for a manual security review. It is not
+a flaw, but SpotBugs would fail the build of every service that has an endpoint. So `stratum-parent`
+turns off the one detector that reports it, `SpringMvcEndpointDetector`, with SpotBugs'
+`omitVisitors` setting. Every other FindSecBugs check still runs on your controllers, such as a file
+path built from a request parameter or a weak hash such as MD5.
+
+If your service sets its own `omitVisitors` on `spotbugs-maven-plugin`, Maven replaces Stratum's
+value with yours. Keep `SpringMvcEndpointDetector` in your list, separated by commas:
+
+```xml
+<plugin>
+  <groupId>com.github.spotbugs</groupId>
+  <artifactId>spotbugs-maven-plugin</artifactId>
+  <configuration>
+    <omitVisitors>SpringMvcEndpointDetector,FindDeadLocalStores</omitVisitors>
+  </configuration>
+</plugin>
+```
+
+Your own `excludeFilterFile` does not change this setting: Stratum's `omitVisitors` stays.
 
 ## Upgrading
 
