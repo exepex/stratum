@@ -20,7 +20,8 @@ import org.apache.hc.core5.http.io.entity.HttpEntityWrapper;
  * body is never held in memory; an answer that succeeded is untouched. It must be the first handler
  * of Apache's chain, outside the one that undoes gzip, so that it counts the bytes as read and not
  * as sent. Closing the body drains the rest, so that the connection can be used again, but no
- * further than 64 KB in all: a longer body is left unread and its connection dropped.
+ * further than 64 KB in all: a body that does not end within 64 KB is left unread and its
+ * connection dropped.
  */
 @StratumInternal
 public class ErrorBodyLimit implements ExecChainHandler {
@@ -200,9 +201,9 @@ public class ErrorBodyLimit implements ExecChainHandler {
       /**
        * Drains the rest of the body, then closes Apache's stream, so that the connection is used
        * again, but reads no more than 64 KB in all: a body whose {@code Content-Length} is over 64
-       * KB, or that passes it while drained, is left unread, so its connection is dropped, and the
-       * close does not fail. A failed read, such as a read timeout, also leaves it unread and is
-       * thrown; Spring ignores a failure to close an answer.
+       * KB, or whose end is not reached within 64 KB, is left unread, so its connection is dropped,
+       * and the close does not fail. A failed read, such as a read timeout, also leaves it unread
+       * and is thrown; Spring ignores a failure to close an answer.
        *
        * @throws IOException when the drain cannot read the body
        */
@@ -215,19 +216,20 @@ public class ErrorBodyLimit implements ExecChainHandler {
         }
         var buffer = new byte[DRAIN_BUFFER];
         try {
-          // A loop, as each read may end the drain early.
-          for (var read = in.read(buffer); read >= 0; read = in.read(buffer)) {
-            count += read;
-            if (count > HttpClientConstants.ERROR_BODY_LIMIT) {
-              limitPassed = true;
+          // A loop, as each read may end the drain early; none reads past the limit.
+          while (left() > 0) {
+            var read = in.read(buffer, 0, (int) Math.min(buffer.length, left()));
+            if (read < 0) {
+              in.close();
               return;
             }
+            count += read;
           }
         } catch (IOException failure) {
           limitPassed = true;
           throw failure;
         }
-        in.close();
+        limitPassed = true;
       }
     }
   }

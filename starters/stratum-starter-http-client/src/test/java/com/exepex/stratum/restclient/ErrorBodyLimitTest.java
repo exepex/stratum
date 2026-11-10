@@ -1,6 +1,7 @@
 package com.exepex.stratum.restclient;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.httpclient.HttpClientConstants;
@@ -78,7 +79,7 @@ class ErrorBodyLimitTest {
     @Test
     @DisplayName("a body that ends within 64 KB is drained and Apache's stream closed")
     void drainedWithinLimit() throws IOException, HttpException {
-      try (var apacheStream = new ClosingStream(LIMIT);
+      try (var apacheStream = new ClosingStream(LIMIT - 1);
           var answer = errorAnswer(apacheStream);
           var entity = limited(answer)) {
         entity.getContent().close();
@@ -105,10 +106,25 @@ class ErrorBodyLimitTest {
     void failedDrainLeftOpen() throws IOException, HttpException {
       try (var apacheStream = new FailingStream();
           var answer = errorAnswer(apacheStream);
-          var entity = limited(answer)) {
-        assertThatExceptionOfType(IOException.class).isThrownBy(() -> entity.getContent().close());
+          var entity = limited(answer);
+          var body = entity.getContent()) {
+        assertThatExceptionOfType(IOException.class).isThrownBy(body::close);
         entity.close();
 
+        assertThat(apacheStream.closed).isFalse();
+      }
+    }
+
+    @Test
+    @DisplayName("once 64 KB are read, Apache's stream is left open without another read")
+    void noReadPastLimit() throws IOException, HttpException {
+      try (var apacheStream = new StallingStream();
+          var answer = errorAnswer(apacheStream);
+          var entity = limited(answer);
+          var body = entity.getContent()) {
+        assertThat(body.readAllBytes()).hasSize(LIMIT);
+
+        assertThatCode(body::close).doesNotThrowAnyException();
         assertThat(apacheStream.closed).isFalse();
       }
     }
@@ -127,6 +143,30 @@ class ErrorBodyLimitTest {
      */
     private ClosingStream(int size) {
       super(new byte[size]);
+    }
+
+    @Override
+    public void close() {
+      closed = true;
+    }
+  }
+
+  /** A body of 64 KB that then stalls: a read past it fails, as at a read timeout. */
+  private static final class StallingStream extends InputStream {
+
+    /** The bytes still to send before the stall. */
+    private int left = LIMIT;
+
+    /** Whether the body was closed. */
+    private boolean closed;
+
+    @Override
+    public int read() throws IOException {
+      if (left <= 0) {
+        throw new IOException("read timed out");
+      }
+      left--;
+      return 0;
     }
 
     @Override
