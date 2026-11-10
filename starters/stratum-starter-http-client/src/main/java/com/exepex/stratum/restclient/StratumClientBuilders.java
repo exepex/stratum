@@ -18,10 +18,10 @@ import org.springframework.web.client.RestTemplate;
 /**
  * Sets up one Stratum client: its address, connection pool, credential and headers from {@code
  * stratum.http-client.*}, its interceptors, then the service's {@link StratumClientCustomizer}
- * beans. A client set to
- * {@code mock: true} answers from {@link MockAnswers} instead of a pool, and sends no credential.
- * The one place the client interfaces and the client's {@code RestClient} and {@code RestTemplate}
- * beans get their set-up from; the beans also get the client's retries and circuit breaker.
+ * beans. A client set to {@code mock: true} answers from {@link MockAnswers} instead of a pool, and
+ * sends no credential. The one place the client interfaces and the client's {@code RestClient} and
+ * {@code RestTemplate} beans get their set-up from; the beans also get the client's retries and
+ * circuit breaker.
  */
 @StratumInternal
 @RequiredArgsConstructor

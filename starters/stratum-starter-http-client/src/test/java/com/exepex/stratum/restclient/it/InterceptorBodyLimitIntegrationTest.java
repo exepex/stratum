@@ -15,6 +15,8 @@ import com.exepex.stratum.restclient.testsupport.headers.HeadersTestData;
 import com.exepex.stratum.restclient.testsupport.headers.SignedClient;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import java.io.ByteArrayInputStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.Collections;
 import java.util.Map;
 import java.util.stream.IntStream;
@@ -58,6 +60,9 @@ class InterceptorBodyLimitIntegrationTest {
 
   /** The text of the cause, which names the client and the limit as {@code DataSize} prints it. */
   private static final String CAUSE = "client signed, interceptor-body-limit 1024B";
+
+  /** The size of a value that takes a map body past Jackson's 8 KB write buffer. */
+  private static final int LARGE_VALUE = 9 * 1024;
 
   /** The over-limit calls the breaker test makes, one more than its window. */
   private static final int CALLS = 3;
@@ -146,6 +151,29 @@ class InterceptorBodyLimitIntegrationTest {
       assertThat(failure.getErrorDetail()).isEmpty();
       assertThat(failure.getMessage()).doesNotContain("xxxx");
       assertThat(failure.getCause()).hasMessage(CAUSE);
+    }
+  }
+
+  @Nested
+  @DisplayName("over the limit, with a map body larger than Jackson's 8 KB buffer")
+  class LargeMapBody {
+
+    /** A key that is personal data, which no log line may show. */
+    private static final String PERSONAL_KEY = "priya@example.com";
+
+    @Test
+    @DisplayName("the whole stack trace, causes included, holds no key or value of the body")
+    void stackTraceShowsNoBody() {
+      var failure =
+          CallChecks.assertEndsWith(
+                  () -> signed.send(Map.of(PERSONAL_KEY, "v".repeat(LARGE_VALUE))),
+                  HttpClientErrorCode.INTERCEPTOR_BODY_TOO_LARGE)
+              .actual();
+      var trace = new StringWriter();
+
+      failure.printStackTrace(new PrintWriter(trace));
+
+      assertThat(trace.toString()).doesNotContain(PERSONAL_KEY).doesNotContain("vvvv");
     }
   }
 

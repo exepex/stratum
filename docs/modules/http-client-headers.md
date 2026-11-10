@@ -8,7 +8,8 @@ Design: [ADR 0011](../adr/0011-http-client-starters.md), decisions 1.3, 2.1 and 
 
 ## Fixed headers
 
-`headers` sends the same headers on every call of a client. Under `defaults`, they go on every client's calls:
+`headers` sends the same headers on every call of a client: through its interfaces, `restClient(name)` and its
+`RestClient` and `RestTemplate` beans. Under `defaults`, they go on every client's calls:
 
 ```yaml
 stratum:
@@ -225,7 +226,8 @@ In Java, set `interceptorBodyLimit(DataSize.ofMegabytes(8))` on the client's `Cl
 - **Above the limit**, the call fails with `SX-HTTPC-0005` (status 500) and nothing is sent. Reading stops at the
   limit, so a larger body is never held whole. The call is not retried, the circuit breaker records it neither as
   a success nor as a failure, and the caller sees only the code. The logged cause names the client and the limit in
-  bytes, such as `client webhooks, interceptor-body-limit 8388608B`, never a byte of the body.
+  bytes, such as `client webhooks, interceptor-body-limit 8388608B`, and has no cause of its own, so it
+  holds no byte of the body.
 - **Memory:** a call whose interceptor reads its body holds up to about three times the limit while it runs: up to
   twice while the copy grows and is taken out once, plus one copy for each `body()` call. Calls running at the same
   time add up.

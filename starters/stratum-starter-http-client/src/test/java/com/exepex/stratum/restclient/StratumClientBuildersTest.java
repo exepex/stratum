@@ -31,7 +31,7 @@ class StratumClientBuildersTest {
   void noStepsWithoutCopyOrInterceptor() {
     var factory =
         buildersWith(new StaticListableBeanFactory())
-            .requestFactory(RestClientTestData.INVENTORY, plain, transport, true);
+            .requestFactory(RestClientTestData.INVENTORY, plain, transport);
 
     assertThat(factory).isInstanceOf(MockRequestFactory.class);
   }
@@ -43,7 +43,7 @@ class StratumClientBuildersTest {
 
     var factory =
         buildersWith(new StaticListableBeanFactory())
-            .requestFactory(RestClientTestData.INVENTORY, copying, transport, true);
+            .requestFactory(RestClientTestData.INVENTORY, copying, transport);
 
     assertThat(factory).isInstanceOf(OutgoingStepsRequestFactory.class);
   }
@@ -55,7 +55,7 @@ class StratumClientBuildersTest {
     beans.addBean("audit", (GlobalClientInterceptor) request -> request.setHeader("X-A", "a"));
 
     var factory =
-        buildersWith(beans).requestFactory(RestClientTestData.INVENTORY, plain, transport, true);
+        buildersWith(beans).requestFactory(RestClientTestData.INVENTORY, plain, transport);
 
     assertThat(factory).isInstanceOf(OutgoingStepsRequestFactory.class);
   }
@@ -69,6 +69,7 @@ class StratumClientBuildersTest {
         beans.getBeanProvider(StratumClientCustomizer.class),
         beans.getBeanProvider(TokenInitializers.class),
         RestClientTestData.answersWithoutMapper(),
+        Mockito.mock(ClientResilience.class),
         new ClientInterceptors(Map.of(), beans));
   }
 }

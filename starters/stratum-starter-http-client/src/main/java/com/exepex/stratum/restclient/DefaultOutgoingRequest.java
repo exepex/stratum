@@ -162,8 +162,8 @@ final class DefaultOutgoingRequest
   /**
    * Runs the interceptors. A failure of one of them, which is service-written code, is marked as an
    * {@link InterceptorFailure}, so that Stratum's retries and breaker, which every call of a client
-   * runs through, see that nothing was sent; the caller still gets the failure as thrown. A failure already marked, by a nested call, is not marked twice. An {@code Error} is
-   * never caught.
+   * runs through, see that nothing was sent; the caller still gets the failure as thrown. A failure
+   * already marked, by a nested call, is not marked twice. An {@code Error} is never caught.
    */
   private void runInterceptors() {
     try {
@@ -192,11 +192,17 @@ final class DefaultOutgoingRequest
       try {
         repeatable.writeTo(limited);
       } catch (IOException failure) {
-        throw limited.isLimitReachedIn(failure)
-            ? tooLarge(failure)
-            : new UncheckedIOException(failure);
+        if (!limited.isLimitReachedIn(failure)) {
+          throw new UncheckedIOException(failure);
+        }
       } catch (HttpMessageConversionException failure) {
-        throw limited.isLimitReachedIn(failure) ? tooLarge(failure) : failure;
+        if (!limited.isLimitReachedIn(failure)) {
+          throw failure;
+        }
+      }
+      // The converter's own failure is not kept: its message can name a part of the body.
+      if (limited.isLimitReached()) {
+        throw tooLarge();
       }
       return limited.toByteArray();
     }
@@ -205,14 +211,14 @@ final class DefaultOutgoingRequest
   /**
    * Returns the failure of a call whose body is larger than the limit. The caller sees only the
    * code; the logged cause names the client and the limit in bytes, never a byte of the body, and
-   * keeps the stream's refusal as its own cause.
+   * has no cause of its own.
    */
-  private StratumException tooLarge(Exception refusal) {
+  private StratumException tooLarge() {
     return new StratumException(
         HttpClientErrorCode.INTERCEPTOR_BODY_TOO_LARGE,
         "",
         new IllegalStateException(
-            "client " + clientName + ", interceptor-body-limit " + bodyLimit, refusal));
+            "client " + clientName + ", interceptor-body-limit " + bodyLimit));
   }
 
   /**

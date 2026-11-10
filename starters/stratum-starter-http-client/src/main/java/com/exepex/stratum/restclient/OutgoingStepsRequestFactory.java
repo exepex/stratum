@@ -42,10 +42,6 @@ final class OutgoingStepsRequestFactory implements ClientHttpRequestFactory {
   @Override
   public ClientHttpRequest createRequest(URI uri, HttpMethod method) throws IOException {
     return new DefaultOutgoingRequest(
-        client,
-        transport.createRequest(uri, method),
-        copiedHeaders,
-        interceptors.get(),
-        bodyLimit);
+        client, transport.createRequest(uri, method), copiedHeaders, interceptors.get(), bodyLimit);
   }
 }

@@ -5,6 +5,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.Serial;
+import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -21,6 +23,10 @@ final class LimitedBodyStream extends OutputStream {
 
   /** The bytes accepted so far. */
   private final ByteArrayOutputStream accepted = new ByteArrayOutputStream();
+
+  /** Whether a write was refused for passing the limit, whatever became of the refusal. */
+  @Getter(AccessLevel.PACKAGE)
+  private boolean limitReached;
 
   @Override
   public void write(int oneByte) throws IOException {
@@ -71,6 +77,7 @@ final class LimitedBodyStream extends OutputStream {
   /** Fails, before anything is accepted, when the bytes would pass the limit. */
   private void refuseBeyondLimit(int length) throws BodyLimitExceeded {
     if (accepted.size() + (long) length > limit) {
+      limitReached = true;
       throw new BodyLimitExceeded();
     }
   }

@@ -1,6 +1,5 @@
 package com.exepex.stratum.restclient;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.exepex.stratum.httpclient.ClientInterceptor;
@@ -24,15 +23,14 @@ class DefaultOutgoingRequestTest {
   private final ClientHttpRequest delegate = Mockito.mock(ClientHttpRequest.class);
 
   /** Returns the request of a call whose one interceptor throws the failure given. */
-  private DefaultOutgoingRequest requestFailingWith(Throwable failure, boolean marksFailures) {
+  private DefaultOutgoingRequest requestFailingWith(Throwable failure) {
     ClientInterceptor failing = request -> throwUnchecked(failure);
     return new DefaultOutgoingRequest(
         "orders",
         delegate,
         new CopiedHeaders(List.of()),
         List.of(failing),
-        HttpClientConstants.DEFAULT_INTERCEPTOR_BODY_LIMIT,
-        marksFailures);
+        HttpClientConstants.DEFAULT_INTERCEPTOR_BODY_LIMIT);
   }
 
   /** Throws an unchecked failure, a runtime exception or an error, as it is. */
@@ -50,7 +48,7 @@ class DefaultOutgoingRequestTest {
     @Test
     @DisplayName("the failure is carried, with the interceptor's own failure inside, unsent")
     void failureCarried() throws IOException {
-      var request = requestFailingWith(KEY_SERVICE_DOWN, true);
+      var request = requestFailingWith(KEY_SERVICE_DOWN);
 
       assertThatThrownBy(request::execute)
           .isInstanceOf(InterceptorFailure.class)
@@ -63,7 +61,7 @@ class DefaultOutgoingRequestTest {
     @DisplayName("a failure already carried, by a nested call, is not carried twice")
     void carriedOnce() {
       var nested = new InterceptorFailure(KEY_SERVICE_DOWN);
-      var request = requestFailingWith(nested, true);
+      var request = requestFailingWith(nested);
 
       assertThatThrownBy(request::execute).isSameAs(nested);
     }
@@ -72,22 +70,9 @@ class DefaultOutgoingRequestTest {
     @DisplayName("an Error is neither caught nor carried")
     void errorNotCaught() {
       var error = new AssertionError("the interceptor broke");
-      var request = requestFailingWith(error, true);
+      var request = requestFailingWith(error);
 
       assertThatThrownBy(request::execute).isSameAs(error);
-    }
-  }
-
-  @Nested
-  @DisplayName("on a call with no Stratum retries, such as restClient(name)")
-  class NotMarked {
-
-    @Test
-    @DisplayName("the interceptor's own failure is thrown as it is")
-    void failureAsThrown() {
-      var request = requestFailingWith(KEY_SERVICE_DOWN, false);
-
-      assertThat(assertThatThrownBy(request::execute).actual()).isSameAs(KEY_SERVICE_DOWN);
     }
   }
 }
