@@ -16,6 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.GZIPOutputStream;
 
 /**
@@ -29,7 +30,10 @@ import java.util.zip.GZIPOutputStream;
  *   <li>{@link #LARGE_ERROR}: 500, {@link #LARGE_SIZE} bytes;
  *   <li>{@link #LARGE_GZIP_ERROR}: 500, {@link #LARGE_SIZE} bytes once gzip is undone;
  *   <li>{@link #LARGE_ANSWER}: 200, {@link #LARGE_SIZE} bytes;
- *   <li>{@link #CUT_JSON}: 200, the start of a JSON body, then nothing until the server closes.
+ *   <li>{@link #CUT_JSON}: 200, the start of a JSON body, then nothing until the server closes;
+ *   <li>{@link #BAD_JSON}: 200, typed as JSON but not JSON, counted in {@link #badJsonRequests()};
+ *   <li>{@link #CUT_ORDER}: 200, an order that stops inside its list of lines, then nothing until
+ *       the server closes.
  * </ul>
  */
 public final class ErrorDownstream implements AutoCloseable {
@@ -58,6 +62,12 @@ public final class ErrorDownstream implements AutoCloseable {
   /** The path of a JSON answer whose body stops after its first bytes. */
   public static final String CUT_JSON = "/cut-json";
 
+  /** The path of a 200 whose JSON body is not valid. */
+  public static final String BAD_JSON = "/bad-json";
+
+  /** The path of an order whose JSON body stops inside its list of lines. */
+  public static final String CUT_ORDER = "/cut-order";
+
   /** The code in the {@link #PROBLEM} body. */
   public static final String DOWNSTREAM_CODE = "ORD-0001";
 
@@ -66,6 +76,9 @@ public final class ErrorDownstream implements AutoCloseable {
 
   /** The length a {@link #CUT_JSON} answer promises, far more than it sends. */
   private static final int CUT_JSON_LENGTH = 1000;
+
+  /** The content type of a JSON body. */
+  private static final String JSON = "application/json";
 
   /** The content type of a text body. */
   private static final String TEXT = "text/plain";
@@ -78,6 +91,9 @@ public final class ErrorDownstream implements AutoCloseable {
 
   /** Opened by {@link #close()}, so that a {@link #CUT_JSON} answer ends at once. */
   private final CountDownLatch closed = new CountDownLatch(1);
+
+  /** How many requests {@link #BAD_JSON} had. */
+  private final AtomicInteger badJsonCount = new AtomicInteger();
 
   /** The client port of each connection, one per connection opened. */
   private final Set<Integer> clientPorts = ConcurrentHashMap.newKeySet();
@@ -107,7 +123,9 @@ public final class ErrorDownstream implements AutoCloseable {
         LARGE_ERROR,
         exchange -> send(exchange, HttpURLConnection.HTTP_INTERNAL_ERROR, TEXT, large()));
     server.createContext(LARGE_GZIP_ERROR, this::sendLargeGzip);
-    server.createContext(CUT_JSON, this::sendCutJson);
+    server.createContext(CUT_JSON, exchange -> sendCut(exchange, "{\"id\":\"o-1\","));
+    server.createContext(BAD_JSON, this::sendBadJson);
+    server.createContext(CUT_ORDER, exchange -> sendCut(exchange, JsonReadFailures.ORDER_START));
     server.createContext(
         LARGE_ANSWER, exchange -> send(exchange, HttpURLConnection.HTTP_OK, TEXT, large()));
     server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
@@ -145,6 +163,15 @@ public final class ErrorDownstream implements AutoCloseable {
     return clientPorts.size();
   }
 
+  /**
+   * Returns how many requests {@link #BAD_JSON} had so far.
+   *
+   * @return the count
+   */
+  public int badJsonRequests() {
+    return badJsonCount.get();
+  }
+
   @Override
   public void close() {
     closed.countDown();
@@ -172,15 +199,21 @@ public final class ErrorDownstream implements AutoCloseable {
     send(exchange, HttpURLConnection.HTTP_INTERNAL_ERROR, TEXT, compressed.toByteArray());
   }
 
+  /** Counts a request to {@link #BAD_JSON} and sends a 200 typed as JSON that is not JSON. */
+  private void sendBadJson(HttpExchange exchange) throws IOException {
+    badJsonCount.incrementAndGet();
+    send(exchange, HttpURLConnection.HTTP_OK, JSON, bytes(JsonReadFailures.BAD_JSON));
+  }
+
   /**
-   * Sends a 200 that promises a JSON body, sends its first bytes and then nothing more until the
-   * server closes, far longer than the client's timeout.
+   * Sends a 200 that promises a JSON body, sends the given start of it and then nothing more until
+   * the server closes, far longer than the client's timeout.
    */
-  private void sendCutJson(HttpExchange exchange) throws IOException {
-    exchange.getResponseHeaders().add("Content-Type", "application/json");
+  private void sendCut(HttpExchange exchange, String start) throws IOException {
+    exchange.getResponseHeaders().add("Content-Type", JSON);
     exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, CUT_JSON_LENGTH);
     try (var out = exchange.getResponseBody()) {
-      out.write(bytes("{\"id\":\"o-1\","));
+      out.write(bytes(start));
       out.flush();
       awaitClose();
     }

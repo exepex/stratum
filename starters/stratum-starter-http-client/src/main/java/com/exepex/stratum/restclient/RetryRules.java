@@ -19,6 +19,7 @@ import java.time.format.DateTimeParseException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 import org.apache.hc.client5.http.ConnectTimeoutException;
 import org.apache.hc.core5.http.ConnectionRequestTimeoutException;
@@ -61,6 +62,10 @@ public class RetryRules {
 
   /** The most digits of a {@code Retry-After} in seconds, so that it cannot overflow. */
   private static final int MAX_RETRY_AFTER_DIGITS = 9;
+
+  /** The base class of Jackson 2's read failures, all of which extend {@link IOException}. */
+  private static final String JACKSON_2_READ_FAILURE =
+      "com.fasterxml.jackson.core.JacksonException";
 
   /** How far each wait is spread at random: up to half of it either way. */
   private static final double BACK_OFF_SPREAD = 0.5;
@@ -186,7 +191,7 @@ public class RetryRules {
   /**
    * Returns whether the circuit breaker counts a failed attempt: no answer, such as a timeout or a
    * dropped connection, an answer whose body was cut off, or an answer of 5xx or 429. Other 4xx
-   * answers and a body that is not valid are never counted.
+   * answers and a body that is not valid, with Jackson 3 or Jackson 2, are never counted.
    *
    * @param failure the attempt's failure
    * @return whether it counts as a failure
@@ -259,9 +264,8 @@ public class RetryRules {
   /**
    * Returns the I/O failure that ended a call, found anywhere in its causes: a call that got no
    * answer, or a body cut off while it was read, such as by a read timeout or a dropped connection.
-   * Spring wraps a cut-off body in a plain {@link RestClientException}, through the converter's own
-   * exceptions when the body is JSON. A body that is not valid, such as bad JSON, has no I/O
-   * failure among its causes.
+   * A body that is not valid, such as bad JSON, JSON of the wrong type or JSON that ends too soon,
+   * is not an I/O failure, with Jackson 3 or with Jackson 2's converter.
    *
    * @param failure the failure that ended the call
    * @return its I/O failure, or empty when it has none
@@ -269,8 +273,19 @@ public class RetryRules {
   public static Optional<IOException> ioFailureOf(RestClientException failure) {
     return FailureCauses.causesOf(failure)
         .filter(IOException.class::isInstance)
+        .filter(cause -> !isJackson2ReadFailure(cause))
         .map(IOException.class::cast)
         .findFirst();
+  }
+
+  /**
+   * Returns whether a cause is Jackson 2's own failure to read a body: bad JSON, not lost bytes.
+   */
+  private static boolean isJackson2ReadFailure(Throwable cause) {
+    // By name, so that Stratum needs no Jackson 2. The walk goes on below a skipped cause, where
+    // Jackson 2 may wrap a real I/O failure, such as a read timeout inside a record.
+    return Stream.<Class<?>>iterate(cause.getClass(), Objects::nonNull, Class::getSuperclass)
+        .anyMatch(type -> JACKSON_2_READ_FAILURE.equals(type.getName()));
   }
 
   /** Returns whether an answer's body was cut off while it was read, as {@link #ioFailureOf}. */

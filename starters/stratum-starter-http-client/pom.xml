@@ -101,5 +101,13 @@
       <artifactId>reactor-core</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Jackson 2, which a team can still choose for its clients' JSON, so that the tests read bad
+         and cut-off bodies with the real converter. Test scope only: Stratum's own code needs no
+         Jackson 2, and no other dependency gives its converter's real failures (ST-ENG-62). -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 </project>
