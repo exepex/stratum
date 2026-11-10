@@ -20,10 +20,14 @@
   <artifactId>stratum-starter-microservice</artifactId>
 
   <name>Stratum bundle: microservice</name>
-  <description>Bundle for a REST microservice: web MVC, logging, observability, HTTP client, resilience and security.</description>
+  <description>Bundle for a REST microservice: web MVC, logging, observability, HTTP client and caching.</description>
 
   <!-- Keep the starters sorted by name. -->
   <dependencies>
+    <dependency>
+      <groupId>com.exepex.stratum</groupId>
+      <artifactId>stratum-starter-cache</artifactId>
+    </dependency>
     <dependency>
       <groupId>com.exepex.stratum</groupId>
       <artifactId>stratum-starter-http-client</artifactId>
@@ -35,14 +39,6 @@
     <dependency>
       <groupId>com.exepex.stratum</groupId>
       <artifactId>stratum-starter-observability</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.exepex.stratum</groupId>
-      <artifactId>stratum-starter-resilience</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.exepex.stratum</groupId>
-      <artifactId>stratum-starter-security</artifactId>
     </dependency>
     <dependency>
       <groupId>com.exepex.stratum</groupId>
