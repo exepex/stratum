@@ -11,7 +11,7 @@ them in the repository's `docs/` folder, not in the wiki
 > Stratum is under construction: some modules are built, some partly built and some only planned. Each
 > module page's status line says whether it describes built or **planned** behaviour; planned behaviour is the design target and may change before the first
 > release. The `groupId` is
-> `com.exepex.stratum`; `0.1.0-SNAPSHOT` is a placeholder for the first released version.
+> `io.github.exepex.stratum` ([ADR 0018](adr/0018-group-id-io-github-exepex.md)); `0.1.0-SNAPSHOT` is a placeholder for the first released version.
 
 ## Where to start
 
@@ -120,6 +120,7 @@ Each module page follows the same layout so you always know where to look:
 | [ADR 0015: A limit on the request body an HTTP client interceptor reads](adr/0015-http-client-interceptor-body-limit.md) | `OutgoingRequest.body()` reads at most `interceptor-body-limit` (1 MiB by default, 1 B to 1 GiB, in both modes); a larger body fails before sending with `SX-HTTPC-0005`, not retried and ignored by the circuit breaker. |
 | [ADR 0016: The HTTP client's call log key, its redaction signal and its meters](adr/0016-http-client-call-log-and-meters.md) | Adds the key `call-log` (`errors`, `all`, `none`); the logging starter tells the client starter its redaction runs through a marker bean, so the line carries the masked `url` only then; Stratum's own meters per client, with the pool-full counter of #237. |
 | [ADR 0017: A limit on the body of a successful answer an HTTP client reads](adr/0017-http-client-response-body-limit.md) | A client reads at most `response-body-limit` of a successful answer (32 MB by default, `-1` for none, otherwise 1 B to 1 GiB, in both modes); a larger one fails with `SX-HTTPC-0006`, not retried and counted as a success by the circuit breaker; an `InputStream` download is not limited. |
+| [ADR 0018: The Maven groupId is `io.github.exepex.stratum`; Java packages stay under `com.exepex.stratum`](adr/0018-group-id-io-github-exepex.md) | The domain `exepex.com` is lost, so Stratum cannot prove `com.exepex` on Maven Central and a third party could claim it; every artifact moves to `io.github.exepex.stratum`, verified through the GitHub organisation `exepex`, and the Java packages do not change. |
 
 ## Contributing
 

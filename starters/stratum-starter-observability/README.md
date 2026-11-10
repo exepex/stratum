@@ -37,7 +37,7 @@ what a service with JWTs, PostgreSQL, Redis and JMS sees is on
 
 ```xml
 <dependency>
-  <groupId>com.exepex.stratum</groupId>
+  <groupId>io.github.exepex.stratum</groupId>
   <artifactId>stratum-starter-observability</artifactId>
 </dependency>
 ```

@@ -33,7 +33,7 @@ own handlers leave.
 
 ```xml
 <dependency>
-  <groupId>com.exepex.stratum</groupId>
+  <groupId>io.github.exepex.stratum</groupId>
   <artifactId>stratum-starter-webmvc</artifactId>
 </dependency>
 ```

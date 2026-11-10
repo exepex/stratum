@@ -90,7 +90,7 @@ the JDK check, `git.properties` and `build-info.properties`.
   <dependencyManagement>
     <dependencies>
       <dependency>
-        <groupId>com.exepex.stratum</groupId>
+        <groupId>io.github.exepex.stratum</groupId>
         <artifactId>stratum-bom</artifactId>
         <version>0.1.0-SNAPSHOT</version>
         <type>pom</type>
@@ -102,28 +102,28 @@ the JDK check, `git.properties` and `build-info.properties`.
   <dependencies>
     <!-- No <version>: stratum-bom manages every Stratum module. -->
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-webmvc</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-logging</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-observability</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-http-client</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-cache</artifactId>
     </dependency>
 
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-test</artifactId>
       <scope>test</scope>
     </dependency>
@@ -232,7 +232,7 @@ itself, sets Java 25 and writes the plugin versions.
       </dependency>
       <!-- Stratum's versions: its modules and the extra libraries it uses. -->
       <dependency>
-        <groupId>com.exepex.stratum</groupId>
+        <groupId>io.github.exepex.stratum</groupId>
         <artifactId>stratum-bom</artifactId>
         <version>0.1.0-SNAPSHOT</version>
         <type>pom</type>
@@ -244,28 +244,28 @@ itself, sets Java 25 and writes the plugin versions.
   <dependencies>
     <!-- No <version>: stratum-bom manages every Stratum module. -->
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-webmvc</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-logging</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-observability</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-http-client</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-cache</artifactId>
     </dependency>
 
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-test</artifactId>
       <scope>test</scope>
     </dependency>

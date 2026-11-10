@@ -203,6 +203,6 @@ planned next:
 | [0007: Warn when Spring Boot is outside the supported line](../adr/0007-spring-boot-version-warning.md) | Accepted |
 | [0008: One error format, with a backward-compatible mode on by default](../adr/0008-error-format-and-backward-compatible-mode.md) | Accepted |
 | [0009: Mark internal types with `@StratumInternal`, and keep packages free of cycles](../adr/0009-public-api-and-no-package-cycles.md) | Accepted |
-| Maven `groupId` and Java package names | Decided by the owner: `com.exepex.stratum`, and packages under `com.exepex.stratum` |
+| [0018: The Maven `groupId` is `io.github.exepex.stratum`; Java packages stay under `com.exepex.stratum`](../adr/0018-group-id-io-github-exepex.md) | Accepted |
 | Resilience4j as the resilience engine | Proposed |
 | First cloud provider | Open |

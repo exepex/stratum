@@ -5,7 +5,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.exepex.stratum</groupId>
+    <groupId>io.github.exepex.stratum</groupId>
     <artifactId>stratum-library-parent</artifactId>
     <version>${revision}</version>
     <relativePath>../../platform/stratum-library-parent/pom.xml</relativePath>
@@ -18,12 +18,12 @@
 
   <dependencies>
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-core</artifactId>
     </dependency>
     <!-- The checks and set-up that every starter's tests share. -->
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-test</artifactId>
       <scope>test</scope>
     </dependency>

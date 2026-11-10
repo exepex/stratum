@@ -43,7 +43,7 @@ No `<version>` tag: the parent or the BOM sets it.
 
 ```xml
 <dependency>
-  <groupId>com.exepex.stratum</groupId>
+  <groupId>io.github.exepex.stratum</groupId>
   <artifactId>stratum-starter-microservice</artifactId>
 </dependency>
 ```
@@ -82,11 +82,11 @@ reactive service:
 
 ```xml
 <dependency>
-  <groupId>com.exepex.stratum</groupId>
+  <groupId>io.github.exepex.stratum</groupId>
   <artifactId>stratum-starter-reactive-microservice</artifactId>
 </dependency>
 <dependency>
-  <groupId>com.exepex.stratum</groupId>
+  <groupId>io.github.exepex.stratum</groupId>
   <artifactId>stratum-starter-cache</artifactId>
 </dependency>
 ```
@@ -98,11 +98,11 @@ its company's caching and drops Stratum's:
 
 ```xml
 <dependency>
-  <groupId>com.exepex.stratum</groupId>
+  <groupId>io.github.exepex.stratum</groupId>
   <artifactId>stratum-starter-microservice</artifactId>
   <exclusions>
     <exclusion>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-cache</artifactId>
     </exclusion>
   </exclusions>

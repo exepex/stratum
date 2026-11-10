@@ -16,7 +16,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.exepex.stratum</groupId>
+    <groupId>io.github.exepex.stratum</groupId>
     <artifactId>stratum</artifactId>
     <version>${revision}</version>
     <relativePath>../../pom.xml</relativePath>
@@ -36,7 +36,7 @@
   <dependencyManagement>
     <dependencies>
       <dependency>
-        <groupId>com.exepex.stratum</groupId>
+        <groupId>io.github.exepex.stratum</groupId>
         <artifactId>stratum-bom</artifactId>
         <version>${revision}</version>
         <type>pom</type>
@@ -141,7 +141,7 @@
         </configuration>
         <dependencies>
           <dependency>
-            <groupId>com.exepex.stratum</groupId>
+            <groupId>io.github.exepex.stratum</groupId>
             <artifactId>stratum-build-rules</artifactId>
             <version>${revision}</version>
           </dependency>
@@ -166,7 +166,7 @@
         <artifactId>maven-enforcer-plugin</artifactId>
         <dependencies>
           <dependency>
-            <groupId>com.exepex.stratum</groupId>
+            <groupId>io.github.exepex.stratum</groupId>
             <artifactId>stratum-build-rules</artifactId>
             <version>${revision}</version>
           </dependency>
@@ -213,7 +213,7 @@
         </configuration>
         <dependencies>
           <dependency>
-            <groupId>com.exepex.stratum</groupId>
+            <groupId>io.github.exepex.stratum</groupId>
             <artifactId>stratum-build-rules</artifactId>
             <version>${revision}</version>
           </dependency>

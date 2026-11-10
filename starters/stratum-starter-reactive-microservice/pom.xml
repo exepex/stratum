@@ -12,7 +12,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.exepex.stratum</groupId>
+    <groupId>io.github.exepex.stratum</groupId>
     <artifactId>stratum-library-parent</artifactId>
     <version>${revision}</version>
     <relativePath>../../platform/stratum-library-parent/pom.xml</relativePath>
@@ -28,15 +28,15 @@
        WebFlux service a blocking client and Apache HttpClient 5 (ADR 0011). -->
   <dependencies>
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-logging</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-observability</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-webflux</artifactId>
     </dependency>
   </dependencies>

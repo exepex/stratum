@@ -19,7 +19,7 @@ own keys, so every value your service sets wins.
 
 ```xml
 <dependency>
-  <groupId>com.exepex.stratum</groupId>
+  <groupId>io.github.exepex.stratum</groupId>
   <artifactId>stratum-starter-data-jpa</artifactId>
 </dependency>
 <!-- plus the JDBC driver for your database; Spring Boot manages its version -->

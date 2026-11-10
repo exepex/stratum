@@ -23,7 +23,7 @@
     <relativePath/>
   </parent>
 
-  <groupId>com.exepex.stratum</groupId>
+  <groupId>io.github.exepex.stratum</groupId>
   <artifactId>stratum</artifactId>
   <version>${revision}</version>
   <packaging>pom</packaging>
