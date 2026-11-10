@@ -1,6 +1,7 @@
 package com.exepex.stratum.restclient;
 
 import com.exepex.stratum.core.api.StratumInternal;
+import java.util.Objects;
 import java.util.function.Supplier;
 import org.jspecify.annotations.Nullable;
 import org.springframework.web.service.invoker.HttpExchangeAdapter;
@@ -46,10 +47,14 @@ public class ResilientExchangeAdapter extends AroundCallExchangeAdapter {
   protected <T> @Nullable T around(
       HttpRequestValues values, boolean streamedDownload, Supplier<@Nullable T> call) {
     return resilience.callMarkingInterceptorFailures(
-        client,
-        values.getHttpMethod(),
-        StreamedBody.isStreamed(values.getBodyValue()),
-        streamedDownload,
+        ClientCall.builder()
+            .client(client)
+            .method(Objects.requireNonNull(values.getHttpMethod()))
+            .uriTemplate(values.getUriTemplate())
+            .streamedBody(StreamedBody.isStreamed(values.getBodyValue()))
+            .streamedDownload(streamedDownload)
+            .notFoundIsEmpty(isOptionalAnswer(values))
+            .build(),
         call);
   }
 }

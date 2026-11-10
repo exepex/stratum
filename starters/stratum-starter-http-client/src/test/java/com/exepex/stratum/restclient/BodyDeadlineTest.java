@@ -15,6 +15,7 @@ import java.io.UncheckedIOException;
 import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.HttpStatus;
@@ -219,6 +220,7 @@ class BodyDeadlineTest {
     return AttemptTimeLeft.runWithin(
         System.nanoTime() + timeLeft.toNanos(),
         keepsAnswerTimeout,
+        new AtomicReference<>(),
         () -> bounded(executor, response));
   }
 

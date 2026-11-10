@@ -3,6 +3,7 @@ package com.exepex.stratum.restclient;
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.httpclient.ClientSettings;
 import com.exepex.stratum.httpclient.HttpClientConstants;
+import java.net.URI;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -39,7 +40,8 @@ import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
  * than 2 seconds before using it, closes one unused for {@code idle-timeout} and does not reuse one
  * older than {@code connection-lifetime}. A client with {@code ssl-bundle} opens its TLS
  * connections with that bundle. Apache's own retries and redirects are off. Every pool closes with
- * the application.
+ * the application. A client's pool, and the shared one, show their size and use in the meters; a
+ * token pool does not.
  */
 @StratumInternal
 @RequiredArgsConstructor
@@ -65,6 +67,9 @@ public class ClientConnectionPools implements DisposableBean {
   /** Spring Boot's SSL bundles, read only for a client that names one. */
   private final ObjectProvider<SslBundles> sslBundles;
 
+  /** The meters of the clients, present with Micrometer and a registry. */
+  private final ObjectProvider<ClientMeters> meters;
+
   /** The pools made so far, by client name or {@link #SHARED_POOL}. */
   private final Map<String, PoolingHttpClientConnectionManager> pools = new ConcurrentHashMap<>();
 
@@ -89,9 +94,10 @@ public class ClientConnectionPools implements DisposableBean {
   }
 
   /**
-   * Returns the request factory of one pool. With {@code streamsAnswers}, a streamed download keeps
-   * its answer timeout; without, as for a token request, the answer and its body always end by the
-   * call's {@code total-timeout}.
+   * Returns the request factory of one pool. With {@code streamsAnswers}, the pool of a client's
+   * own calls, a streamed download keeps its answer timeout and each attempt notes its address;
+   * without, as for a token request, the answer and its body always end by the call's {@code
+   * total-timeout} and the address is not noted, so a token fetch never stands for the call.
    */
   private ClientHttpRequestFactory requestFactory(
       String poolKey, ClientSettings settings, boolean streamsAnswers) {
@@ -117,6 +123,7 @@ public class ClientConnectionPools implements DisposableBean {
         new HttpComponentsClientHttpRequestFactory(httpClient),
         requestConfig,
         settings,
+        streamsAnswers,
         bodyDeadline);
   }
 
@@ -145,18 +152,28 @@ public class ClientConnectionPools implements DisposableBean {
       HttpComponentsClientHttpRequestFactory requestFactory,
       RequestConfig requestConfig,
       ClientSettings settings,
+      boolean streamsAnswers,
       BodyDeadline bodyDeadline) {
     requestFactory.setHttpContextFactory(
-        (method, uri) -> attemptContext(requestConfig, settings, bodyDeadline));
+        (method, uri) ->
+            attemptContext(uri, requestConfig, settings, streamsAnswers, bodyDeadline));
     return requestFactory;
   }
 
   /**
    * Returns the context of one attempt of a call, whose timeouts end by the call's {@code
-   * total-timeout}, or none outside a call of a client's interface, which keeps the client's own.
+   * total-timeout}, or none outside a call of a client's interface, which keeps the client's own;
+   * notes the attempt's address for a client's own pool.
    */
   private @Nullable HttpContext attemptContext(
-      RequestConfig requestConfig, ClientSettings settings, BodyDeadline bodyDeadline) {
+      URI uri,
+      RequestConfig requestConfig,
+      ClientSettings settings,
+      boolean streamsAnswers,
+      BodyDeadline bodyDeadline) {
+    if (streamsAnswers) {
+      AttemptTimeLeft.sentTo(uri);
+    }
     return AttemptTimeLeft.timeLeft()
         .map(timeLeft -> contextWithin(requestConfig, settings, timeLeft, bodyDeadline))
         .orElse(null);
@@ -195,11 +212,24 @@ public class ClientConnectionPools implements DisposableBean {
     return Timeout.of(smaller.isZero() ? Duration.ofMillis(1) : smaller);
   }
 
-  /** Returns the client's own pool, or the shared one, made on first use. */
+  /**
+   * Returns the client's own pool, or the shared one, made on first use and shown in the meters,
+   * unless it is a token pool.
+   */
   private PoolingHttpClientConnectionManager poolFor(String client, ClientSettings settings) {
     return Boolean.TRUE.equals(settings.sharedPool())
-        ? pools.computeIfAbsent(SHARED_POOL, unused -> newPool(sharedPoolSettings))
-        : pools.computeIfAbsent(client, unused -> newPool(settings));
+        ? pools.computeIfAbsent(
+            SHARED_POOL, unused -> metered(HttpClientConstants.SHARED_POOL_TAG, sharedPoolSettings))
+        : pools.computeIfAbsent(client, unused -> metered(client, settings));
+  }
+
+  /** Makes a pool and shows it in the meters under its client's name, unless it is a token pool. */
+  private PoolingHttpClientConnectionManager metered(String name, ClientSettings settings) {
+    var pool = newPool(settings);
+    if (!name.startsWith(TOKEN_POOL)) {
+      meters.ifAvailable(clientMeters -> clientMeters.poolMade(name, pool));
+    }
+    return pool;
   }
 
   /** Closes every client, then every pool and the thread that tends them. */

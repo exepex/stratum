@@ -7,6 +7,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Pattern;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
 /**
@@ -38,6 +40,16 @@ import org.springframework.web.client.RestClientResponseException;
  */
 @RequiredArgsConstructor
 final class ResilientRequestFactory implements ClientHttpRequestFactory {
+
+  /**
+   * The attribute in which {@code RestClient} keeps a call's URI template, with the base URL in it,
+   * as Spring's own {@code DefaultRestClient.URI_TEMPLATE_ATTRIBUTE}; a {@code RestTemplate} sets
+   * none.
+   */
+  private static final String URI_TEMPLATE_ATTRIBUTE = RestClient.class.getName() + ".uriTemplate";
+
+  /** The scheme and host at the start of a template, which Spring's own metrics leave out too. */
+  private static final Pattern SCHEME_AND_HOST = Pattern.compile("^https?://[^/]+");
 
   /** The client's name. */
   private final String client;
@@ -83,10 +95,12 @@ final class ResilientRequestFactory implements ClientHttpRequestFactory {
       try {
         return Objects.requireNonNull(
             resilience.callMarkingInterceptorFailures(
-                client,
-                method,
-                body != null,
-                false,
+                ClientCall.builder()
+                    .client(client)
+                    .method(method)
+                    .uriTemplate(uriTemplate())
+                    .streamedBody(body != null)
+                    .build(),
                 () -> attempt(headers, body, lastErrorAnswer)));
       } catch (InterceptorFailure failure) {
         // The bean's exit: its caller gets the interceptor's own failure, never the carrier.
@@ -98,6 +112,16 @@ final class ResilientRequestFactory implements ClientHttpRequestFactory {
         // Spring wraps the I/O failure itself, as it does without the retries.
         throw RetryRules.ioFailureOf(noAnswer).orElseThrow(() -> noAnswer);
       }
+    }
+
+    /**
+     * Returns the call's URI template without its scheme and host, or {@code null} when it was
+     * given a whole URI or came from a {@code RestTemplate}.
+     */
+    private @Nullable String uriTemplate() {
+      return getAttributes().get(URI_TEMPLATE_ATTRIBUTE) instanceof String template
+          ? SCHEME_AND_HOST.matcher(template).replaceFirst("")
+          : null;
     }
 
     /**

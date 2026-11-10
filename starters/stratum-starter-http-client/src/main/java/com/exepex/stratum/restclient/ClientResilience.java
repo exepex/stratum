@@ -10,10 +10,10 @@ import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.event.CircuitBreakerOnStateTransitionEvent;
 import io.github.resilience4j.core.IntervalBiFunction;
-import io.github.resilience4j.core.IntervalFunction;
 import io.github.resilience4j.core.functions.Either;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
+import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Map;
@@ -23,12 +23,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 import lombok.Builder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.http.HttpMethod;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.service.invoker.HttpExchangeAdapter;
 
@@ -36,8 +36,8 @@ import org.springframework.web.service.invoker.HttpExchangeAdapter;
  * The retries and circuit breaker of each Stratum client: one Resilience4j {@link Retry} around one
  * {@link CircuitBreaker} around each attempt, made on the client's first call from its settings and
  * the service's {@link StratumClientCustomizer} beans. Every call of a client's interface runs
- * through it, and any other call can too ({@link #call}). Each change of a breaker's state is
- * logged once.
+ * through it, and any other call can too ({@link #call}). Each call that ends writes its log line
+ * and is counted in the meters once; each change of a breaker's state is logged once.
  */
 @Slf4j
 @StratumInternal
@@ -55,6 +55,12 @@ public class ClientResilience implements ClientExchangeDecorator {
 
   /** The resend after a 401 of a client with a service token, present with the OAuth2 client. */
   private final ObjectProvider<ServiceTokenResend> tokenResend;
+
+  /** The log line of each call that ends. */
+  private final ClientCallLog callLog;
+
+  /** The meters of the clients, present with Micrometer and a registry. */
+  private final ObjectProvider<ClientMeters> meters;
 
   /** The retry and breaker of each client, made on its first call. */
   private final Map<String, ClientGuards> guardsByClient = new ConcurrentHashMap<>();
@@ -105,30 +111,22 @@ public class ClientResilience implements ClientExchangeDecorator {
   /**
    * Runs one call of a client under its retries and breaker, each attempt within the time left
    * before the client's {@code total-timeout}. When no attempt succeeds, the last one's failure is
-   * thrown.
+   * thrown. When the call ends, its log line is written and it is counted in the meters.
    *
-   * @param client the client's name
-   * @param method the call's HTTP method
-   * @param streamedBody whether the request's body is streamed, which is never sent twice
-   * @param streamedDownload whether the answer is streamed, which keeps its full answer timeout
+   * @param call the call
    * @param exchange one attempt of the call
    * @param <T> what the call returns
    * @return what the last attempt returned
    * @throws RestClientException the last attempt's failure, such as an error answer
    * @throws StratumException {@code SX-HTTPC-0003} when the client's breaker is open, so the call
-   *     was not sent
+   *     was not sent, or the failure that stopped an attempt before it was sent, such as {@code
+   *     SX-HTTPC-0002} when the service token cannot be fetched
    * @throws RuntimeException an interceptor's own failure, as it threw it: the call was not sent,
    *     so it is neither retried nor counted by the breaker
    */
-  public <T> @Nullable T call(
-      String client,
-      HttpMethod method,
-      boolean streamedBody,
-      boolean streamedDownload,
-      Supplier<@Nullable T> exchange) {
+  public <T> @Nullable T call(ClientCall call, Supplier<@Nullable T> exchange) {
     try {
-      return callMarkingInterceptorFailures(
-          client, method, streamedBody, streamedDownload, exchange);
+      return callMarkingInterceptorFailures(call, exchange);
     } catch (InterceptorFailure failure) {
       failure.throwOriginal();
       throw failure;
@@ -140,48 +138,102 @@ public class ClientResilience implements ClientExchangeDecorator {
    * InterceptorFailure}, for an outer layer that unwraps it after its own rules, such as the error
    * translation of a client's interface.
    *
-   * @param client the client's name
-   * @param method the call's HTTP method
-   * @param streamedBody whether the request's body is streamed, which is never sent twice
-   * @param streamedDownload whether the answer is streamed, which keeps its full answer timeout
+   * @param call the call
    * @param exchange one attempt of the call
    * @param <T> what the call returns
    * @return what the last attempt returned
    */
-  <T> @Nullable T callMarkingInterceptorFailures(
-      String client,
-      HttpMethod method,
-      boolean streamedBody,
-      boolean streamedDownload,
-      Supplier<@Nullable T> exchange) {
-    var guards = guards(client);
+  <T> @Nullable T callMarkingInterceptorFailures(ClientCall call, Supplier<@Nullable T> exchange) {
+    var startNanos = System.nanoTime();
+    var lastResult = new AtomicReference<@Nullable T>();
+    var lastSent = new AtomicReference<@Nullable ClientAttempt>();
+    var sentAttempts = new AtomicInteger();
+    @Nullable CallOutcome notSent = null;
+    var attemptsEnded = false;
+    ClientAttempt lastAttempt;
+    try {
+      lastAttempt =
+          attempts(
+              call,
+              exchange,
+              lastResult,
+              attempt -> noteSent(call, attempt, lastSent, sentAttempts));
+      attemptsEnded = true;
+    } catch (StratumException failure) {
+      notSent = RetryRules.notSentOutcome(failure);
+      throw failure;
+    } finally {
+      var duration = Duration.ofNanos(System.nanoTime() - startNanos);
+      if (attemptsEnded) {
+        report(ClientCallOutcome.of(call, lastSent.get(), null, sentAttempts.get(), duration));
+      } else {
+        // Any other exception that escapes the attempts, such as a bug, ends the call as an error.
+        var endedAs = Objects.requireNonNullElse(notSent, CallOutcome.ERROR);
+        report(ClientCallOutcome.of(call, lastSent.get(), endedAs, sentAttempts.get(), duration));
+      }
+    }
+    lastAttempt.getFailure().ifPresent(this::rethrow);
+    return lastResult.get();
+  }
+
+  /** Runs the attempts of a call under the client's retry and returns the last one. */
+  private <T> ClientAttempt attempts(
+      ClientCall call,
+      Supplier<@Nullable T> exchange,
+      AtomicReference<@Nullable T> lastResult,
+      UnaryOperator<ClientAttempt> noteEnded) {
+    var guards = guards(call.client());
     var deadlineNanos = System.nanoTime() + guards.totalTimeout().toNanos();
     var attemptNumber = new AtomicInteger();
-    var lastResult = new AtomicReference<@Nullable T>();
     var template =
         ClientAttempt.builder()
-            .method(method)
-            .streamedBody(streamedBody)
+            .method(call.method())
+            .streamedBody(call.streamedBody())
             .timeLeft(Duration.ZERO)
             .nextWait(Duration.ZERO)
             .build();
-    var lastAttempt =
-        guards
-            .retry()
-            .executeSupplier(
-                () ->
+    return guards
+        .retry()
+        .executeSupplier(
+            () ->
+                noteEnded.apply(
                     attempt(
                         guards,
                         template,
                         attemptNumber.incrementAndGet(),
                         deadlineNanos,
-                        streamedDownload,
+                        call.streamedDownload(),
                         () ->
                             remember(
                                 lastResult,
-                                guards.protect(withResend(client, streamedBody, exchange)))));
-    lastAttempt.getFailure().ifPresent(this::rethrow);
-    return lastResult.get();
+                                guards.protect(
+                                    withResend(call.client(), call.streamedBody(), exchange))))));
+  }
+
+  /**
+   * Keeps an attempt the breaker did not refuse as the call's last sent one, counts it, and counts
+   * a full pool's refusal; returns the attempt.
+   */
+  private ClientAttempt noteSent(
+      ClientCall call,
+      ClientAttempt attempt,
+      AtomicReference<@Nullable ClientAttempt> lastSent,
+      AtomicInteger sentAttempts) {
+    var failure = attempt.getFailure();
+    if (failure.filter(CallNotPermittedException.class::isInstance).isEmpty()) {
+      lastSent.set(attempt);
+      sentAttempts.incrementAndGet();
+    }
+    if (failure.filter(RetryRules::isPoolFull).isPresent()) {
+      meters.ifAvailable(clientMeters -> clientMeters.poolRefused(call.client()));
+    }
+    return attempt;
+  }
+
+  /** Writes a call's log line and counts it in the meters. */
+  private void report(ClientCallOutcome outcome) {
+    callLog.write(outcome);
+    meters.ifAvailable(clientMeters -> clientMeters.callEnded(outcome));
   }
 
   /**
@@ -197,8 +249,9 @@ public class ClientResilience implements ClientExchangeDecorator {
       Supplier<@Nullable Object> exchange) {
     @Nullable Object result = null;
     @Nullable RuntimeException failure = null;
+    var sentTo = new AtomicReference<@Nullable URI>();
     try {
-      result = AttemptTimeLeft.runWithin(deadlineNanos, streamedDownload, exchange);
+      result = AttemptTimeLeft.runWithin(deadlineNanos, streamedDownload, sentTo, exchange);
     } catch (RestClientException | CallNotPermittedException attemptFailure) {
       failure = attemptFailure;
     }
@@ -206,6 +259,7 @@ public class ClientResilience implements ClientExchangeDecorator {
         template.toBuilder()
             .result(result)
             .failure(failure)
+            .url(sentTo.get())
             .timeLeft(Duration.ofNanos(Math.max(0, deadlineNanos - System.nanoTime())))
             .build();
     return ended.toBuilder()
@@ -259,7 +313,8 @@ public class ClientResilience implements ClientExchangeDecorator {
             .retryOnResult(RetryRules::shouldRetry)
             .retryOnException(failure -> false)
             .intervalBiFunction(
-                (attempts, outcome) -> stratumWaitMillis(attempts, outcome, backOff));
+                (attempts, outcome) ->
+                    RetryRules.stratumWaitMillis(attempts, outcome, backOff, clock));
     customizers.orderedStream().forEach(customizer -> customizer.customizeRetry(client, rules));
     var chosenRules = rules.build();
     // The wait is worked out once per attempt, so that the time-left check and the sleep agree,
@@ -267,7 +322,8 @@ public class ClientResilience implements ClientExchangeDecorator {
     IntervalBiFunction<ClientAttempt> waits = chosenRules.getIntervalBiFunction();
     var retryConfig =
         RetryConfig.<ClientAttempt>from(chosenRules)
-            .intervalBiFunction((attempts, outcome) -> carriedWaitMillis(attempts, outcome, waits))
+            .intervalBiFunction(
+                (attempts, outcome) -> RetryRules.carriedWaitMillis(attempts, outcome, waits))
             .build();
     return ClientGuards.builder()
         .retry(Retry.of(client, retryConfig))
@@ -291,34 +347,8 @@ public class ClientResilience implements ClientExchangeDecorator {
         .forEach(customizer -> customizer.customizeCircuitBreaker(client, breakerConfig));
     var breaker = CircuitBreaker.of(client, breakerConfig.build());
     breaker.getEventPublisher().onStateTransition(this::logStateChange);
+    meters.ifAvailable(clientMeters -> clientMeters.breakerMade(client, breaker));
     return breaker;
-  }
-
-  /**
-   * Returns Stratum's wait before the next attempt: the {@code Retry-After} of a 503 or 429, or
-   * else the back-off's wait, which is also the wait when a service's own rules retry after an
-   * exception.
-   */
-  private long stratumWaitMillis(
-      int attempts, Either<Throwable, ClientAttempt> outcome, IntervalFunction backOff) {
-    return outcome.isRight()
-        ? RetryRules.nextWait(
-                outcome.get().getFailure().orElse(null), attempts, backOff, clock.instant())
-            .toMillis()
-        : backOff.apply(attempts);
-  }
-
-  /**
-   * Returns the wait the last attempt carries, worked out when it ended, or the client's wait when
-   * a service's own rules retry after an exception.
-   */
-  private long carriedWaitMillis(
-      int attempts,
-      Either<Throwable, ClientAttempt> outcome,
-      IntervalBiFunction<ClientAttempt> waits) {
-    return outcome.isRight()
-        ? outcome.get().getNextWait().toMillis()
-        : waits.apply(attempts, outcome);
   }
 
   /** Logs a change of a breaker's state once, such as from closed to open. */
