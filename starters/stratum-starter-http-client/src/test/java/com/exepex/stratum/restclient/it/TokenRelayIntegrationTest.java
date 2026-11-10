@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.exepex.stratum.core.error.StratumException;
+import com.exepex.stratum.restclient.ClientResilience;
 import com.exepex.stratum.restclient.DownstreamException;
+import com.exepex.stratum.restclient.testsupport.CallChecks;
 import com.exepex.stratum.restclient.testsupport.ClientBeanCalls;
 import com.exepex.stratum.restclient.testsupport.ClientBeanCalls.ClientBean;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
@@ -12,11 +14,13 @@ import com.exepex.stratum.restclient.testsupport.ScriptedDownstream;
 import com.exepex.stratum.restclient.testsupport.TokenDownstream;
 import com.exepex.stratum.restclient.testsupport.clients.ClientsApplication;
 import com.exepex.stratum.restclient.testsupport.clients.InventoryClient;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.AutoClose;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -35,12 +39,17 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 /**
- * The inventory client relays the caller's token. Each test puts in the security context what
- * Spring Security would after its own check of the incoming request, and clears it after.
+ * The inventory client relays the caller's token, and its breaker allows 1 call when half open.
+ * Each test puts in the security context what Spring Security would after its own check of the
+ * incoming request, and clears it after.
  */
 @SpringBootTest(
     classes = ClientsApplication.class,
-    properties = RestClientTestData.INVENTORY_SETTINGS + ".auth.token-relay=true")
+    properties = {
+      RestClientTestData.INVENTORY_SETTINGS + ".auth.token-relay=true",
+      RestClientTestData.INVENTORY_SETTINGS
+          + ".circuit-breaker.permitted-number-of-calls-in-half-open-state=1"
+    })
 @DisplayName("A client with token-relay sends only the caller's verified access token")
 class TokenRelayIntegrationTest {
 
@@ -51,6 +60,8 @@ class TokenRelayIntegrationTest {
   @AutoClose private static final TokenDownstream SERVER = new TokenDownstream();
 
   @Autowired private InventoryClient inventory;
+
+  @Autowired private ClientResilience resilience;
 
   /**
    * Points the clients at the protected service.
@@ -66,6 +77,17 @@ class TokenRelayIntegrationTest {
   @AfterEach
   void clearCaller() {
     SecurityContextHolder.clearContext();
+  }
+
+  /** Puts the inventory client's breaker back to closed with no recorded call. */
+  @BeforeEach
+  void resetBreaker() {
+    breaker().reset();
+  }
+
+  /** Returns the inventory client's breaker. */
+  private CircuitBreaker breaker() {
+    return resilience.circuitBreaker(RestClientTestData.INVENTORY).orElseThrow();
   }
 
   /** Puts a caller in the security context of this thread. */
@@ -146,6 +168,29 @@ class TokenRelayIntegrationTest {
           .isInstanceOf(StratumException.class)
           .hasMessageStartingWith("SX-HTTPC-0004");
       assertThat(SERVER.authorizations()).hasSize(callsBefore);
+    }
+
+    @Test
+    @DisplayName("the breaker records neither a success nor a failure")
+    void breakerRecordsNothing() {
+      assertNothingSent(inventory::stock);
+
+      CallChecks.assertNothingRecorded(breaker(), CircuitBreaker.State.CLOSED);
+    }
+
+    @Test
+    @DisplayName(
+        "from half open, the breaker stays half open and the next real call is let through")
+    void halfOpenPermitReleased() {
+      breaker().transitionToOpenState();
+      breaker().transitionToHalfOpenState();
+
+      assertNothingSent(inventory::stock);
+
+      CallChecks.assertNothingRecorded(breaker(), CircuitBreaker.State.HALF_OPEN);
+      signIn(verifiedCaller(CALLER_TOKEN));
+      assertThat(inventory.stock()).isEqualTo(ScriptedDownstream.BODY);
+      assertThat(breaker().getState()).isEqualTo(CircuitBreaker.State.CLOSED);
     }
 
     /**

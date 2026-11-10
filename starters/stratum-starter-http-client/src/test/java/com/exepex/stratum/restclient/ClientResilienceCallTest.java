@@ -2,6 +2,7 @@ package com.exepex.stratum.restclient;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.httpclient.ClientCircuitBreaker;
@@ -98,6 +99,19 @@ class ClientResilienceCallTest {
 
       assertThat(outcome.outcome()).isEqualTo(CallOutcome.UNAVAILABLE);
       assertThat(outcome.status()).isNull();
+    }
+
+    @Test
+    @DisplayName("a token fetch marked as never sent is reported as unavailable, and thrown as is")
+    void markedTokenFetchFailure() {
+      var unavailable = new StratumException(HttpClientErrorCode.DOWNSTREAM_UNAVAILABLE, "");
+
+      assertThatThrownBy(
+              () -> resilience.call(CALL, () -> failWith(new InterceptorFailure(unavailable))))
+          .isSameAs(unavailable);
+      assertThat(meters.getCalls())
+          .singleElement()
+          .satisfies(outcome -> assertThat(outcome.outcome()).isEqualTo(CallOutcome.UNAVAILABLE));
     }
 
     @Test

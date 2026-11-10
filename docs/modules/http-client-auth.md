@@ -155,7 +155,8 @@ stratum:
 - **A fetch never blocks for long.** It waits at most the time the call has left, and the token request uses the
   client's own timeouts on a small pool of its own, without the client's `ssl-bundle`.
 - **A failed fetch fails the call with `SX-HTTPC-0002`** (status 503), when the identity provider times out, fails or
-  refuses the client. The call is not sent, not retried and not counted by the circuit breaker. The error your caller
+  refuses the client. The call is not sent, not retried, and neither a success nor a failure for the circuit breaker
+  ([what counts](http-client-resilience.md#the-circuit-breaker-group)). The error your caller
   sees names nothing internal; a warning in the log, once per client per minute, names the client and the
   registration, never the secret.
 - **A 401 gets one more try** on a call of the client's interface. When the other service refuses the token, such as
@@ -193,7 +194,8 @@ stratum:
 - Only an access token that Spring Security's OAuth2 resource server verified is sent, such as the JWT of the incoming
   request. The service needs Spring Security's resource server (`spring-boot-starter-oauth2-resource-server`); without
   it, startup stops with `SX-HTTPC-1006`.
-- Without such a token the call stops with `SX-HTTPC-0004` (status 500) and nothing is sent. That happens when no one
+- Without such a token the call stops with `SX-HTTPC-0004` (status 500) and nothing is sent, so the circuit breaker
+  records neither a success nor a failure. That happens when no one
   is signed in, as in a scheduled job, when the caller signed in another way, such as with a password, and when the
   call runs on another thread than the request, such as in `CompletableFuture.supplyAsync`, since the token is read
   from the request's thread. Use `auth.client-credentials` for calls your service makes as itself.
