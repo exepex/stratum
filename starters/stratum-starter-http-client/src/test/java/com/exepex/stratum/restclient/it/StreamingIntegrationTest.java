@@ -2,6 +2,7 @@ package com.exepex.stratum.restclient.it;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.awaitility.Awaitility.await;
 
 import com.exepex.stratum.restclient.StratumHttpClients;
 import com.exepex.stratum.restclient.testsupport.CallChecks;
@@ -26,6 +27,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.StreamingHttpOutputMessage;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.web.client.RestTemplate;
@@ -170,11 +173,29 @@ class StreamingIntegrationTest {
     void restTemplateBeanStreams(
         @Autowired @Qualifier(RestClientTestData.FILES) RestTemplate files) {
       var answer =
-          files.postForObject(
-              StreamingDownstream.UPLOAD, new InputStreamResource(uploadStream()), String.class);
+          files.execute(
+              StreamingDownstream.UPLOAD,
+              HttpMethod.POST,
+              request ->
+                  ((StreamingHttpOutputMessage) request).setBody(this::writeWhileServerReads),
+              response -> new String(response.getBody().readAllBytes(), StandardCharsets.US_ASCII));
 
       assertThat(answer).isEqualTo("ok");
       assertStreamed();
+    }
+
+    /**
+     * Writes half the upload, waits until the server has received some of it, which a body held in
+     * memory until it is written whole never lets happen, then writes the rest.
+     */
+    private void writeWhileServerReads(OutputStream body) throws IOException {
+      var receivedBefore = DOWNSTREAM.receivedBytes();
+      body.write(new byte[UPLOAD_SIZE / 2]);
+      body.flush();
+      await()
+          .atMost(RestClientTestData.WAIT)
+          .until(() -> DOWNSTREAM.receivedBytes() > receivedBefore);
+      body.write(new byte[UPLOAD_SIZE - UPLOAD_SIZE / 2]);
     }
 
     /** Checks that the last upload came chunked, with no length, and in full. */

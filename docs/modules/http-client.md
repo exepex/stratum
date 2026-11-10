@@ -8,7 +8,8 @@ planned ([Planned](#planned)).
 
 [← Documentation home](../README.md) · Property prefix: `stratum.http-client` ·
 Design: [ADR 0011](../adr/0011-http-client-starters.md), [ADR 0012](../adr/0012-http-client-changes-found-while-building.md),
-[ADR 0013](../adr/0013-http-client-retry-and-circuit-breaker-keys.md)
+[ADR 0013](../adr/0013-http-client-retry-and-circuit-breaker-keys.md),
+[ADR 0014](../adr/0014-http-client-beans-that-retry.md)
 
 ## What it does
 
@@ -292,7 +293,9 @@ StratumClientCustomizer inventoryTenantHeader() {
 }
 ```
 
-Do not put secrets in a header this way: use the [`auth` settings](http-client-auth.md).
+Do not put secrets in a header this way: use the [`auth` settings](http-client-auth.md). The same customizer
+changes the client's `RestClient` bean; its `customizeRestTemplate` changes the client's `RestTemplate` bean
+([clients Stratum did not build](http-client-own-clients.md#configure-in-java)).
 
 Spring Boot's `RestClientCustomizer` beans also apply to Stratum's clients, before Stratum's settings; a request
 factory one of them sets is replaced by Stratum's.
@@ -359,8 +362,8 @@ spring:
 ```
 
 Teams also call other services through clients they did not write: an interface an OpenAPI generator wrote, a
-generated client that takes a `RestClient`, or a vendor's SDK with its own engine. Each can join a Stratum client's
-settings, and nothing joins unless you ask.
+generated client that takes a `RestClient` or a `RestTemplate`, or a vendor's SDK with its own engine. Each can join a
+Stratum client's settings, and nothing joins unless you ask.
 
 **A generated interface** with Spring's `@GetExchange` and `@PostExchange`, but no `@StratumClient`, joins a client
 through the client's `interfaces` setting. It then gets everything a `@StratumClient` interface gets, and you inject
@@ -388,24 +391,10 @@ A name that is not an interface on the classpath stops startup with `SX-HTTPC-10
 `@StratumClient(interceptors = ...)`, so the planned per-client interceptors do not reach it; a
 `StratumClientCustomizer` does, by the client's name.
 
-**A generated client that takes a `RestClient`** gets the client's own one from the `StratumHttpClients` bean, with
-its address, timeouts, pool and your customizers. It shares the pool with the client's interfaces:
-
-```java
-@Bean
-PartnerOrdersClient partnerOrders(StratumHttpClients stratumHttpClients) {
-  // PartnerOrdersClient stands for the generated class; its constructor takes a RestClient.
-  return new PartnerOrdersClient(stratumHttpClients.restClient("partner"));
-}
-```
-
-That `RestClient` sends each call once. It does not retry, because retrying inside a `RestClient` would make Spring
-hold every request body in memory. Wrapping a call in the planned `stratumHttpClients.resilience("partner")` will
-give it the client's retry and circuit breaker. A name with no `url` fails at the first `restClient` call, with
-`SX-HTTPC-1004`.
-
-**A client with its own engine,** such as a vendor SDK, reads the client's settings, its own merged with
-`defaults`, from `stratumHttpClients.settings("partner")`, for example `settings.url()` and `settings.timeout()`.
+**A generated client that takes a `RestClient` or a `RestTemplate`** injects the client's own bean,
+`@Qualifier("partner") RestClient` or `RestTemplate`, with its address, timeouts, pool, credential, retries and circuit
+breaker; **a client with its own engine** reads `stratumHttpClients.settings("partner")`. Both are on
+[clients Stratum did not build](http-client-own-clients.md).
 
 ## How it is wired
 
@@ -427,8 +416,8 @@ These parts of [ADR 0011](../adr/0011-http-client-starters.md) are not built yet
 - `headers` and `copy-headers`;
 - one log line per call and the pool metrics;
 - `urls`;
-- `stratumHttpClients.resilience(name)`, the retry and circuit breaker for a call through a client Stratum did not
-  build;
+- the retry and circuit breaker of a client with its own engine
+  ([#262](https://github.com/exepex/stratum/issues/262));
 - `ClientInterceptor` and `GlobalClientInterceptor`;
 - the reactive starter, `stratum-starter-reactive-http-client`, on `WebClient`.
 

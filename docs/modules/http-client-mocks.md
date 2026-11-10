@@ -53,8 +53,8 @@ answer anew, so changing a returned object never changes the next answer. The bo
 dropped, so a streamed upload behaves as with a real service.
 
 Retries and the circuit breaker work on a mocked client as on a real one: a scripted `503` on a `GET` is sent again.
-Only the methods of the client's interfaces are mocked. A call through `stratumHttpClients.restClient("payments")`
-answers `501`, naming the client.
+Only the methods of the client's interfaces are mocked. A call through the client's `RestClient` or `RestTemplate`
+bean, or `stratumHttpClients.restClient("payments")`, answers `501`, naming the client.
 
 ## Script answers in a test
 

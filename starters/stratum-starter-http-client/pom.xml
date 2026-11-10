@@ -33,9 +33,9 @@
       <groupId>org.apache.httpcomponents.client5</groupId>
       <artifactId>httpclient5</artifactId>
     </dependency>
-    <!-- The one retry layer and the circuit breaker of each client (ADR 0011, decision 4.1).
-         Spring Boot does not manage Resilience4j; teams with their own engine get the same
-         objects from the planned stratumHttpClients.resilience(name). -->
+    <!-- The one retry layer and the circuit breaker of each client (ADR 0011, decision 4.1),
+         for its interfaces and its RestClient and RestTemplate beans (ADR 0014). Spring Boot does
+         not manage Resilience4j; a client with its own engine gets them in the planned #262. -->
     <dependency>
       <groupId>io.github.resilience4j</groupId>
       <artifactId>resilience4j-retry</artifactId>

@@ -8,8 +8,8 @@ service's own token, the caller's token, or a client certificate (mutual TLS). P
 ## Choose a kind
 
 Each client sets at most one kind under `auth`. A certificate (`ssl-bundle`) can be added to any of them.
-The credential and the certificate go with every call of the client's interfaces and of
-`stratumHttpClients.restClient("<name>")`.
+The credential and the certificate go with every call of the client's interfaces and of its `RestClient` and
+`RestTemplate` beans ([clients Stratum did not build](http-client-own-clients.md)), on every attempt.
 
 | Kind | Use it when | Sent on every call |
 | --- | --- | --- |
@@ -162,8 +162,8 @@ stratum:
   after its keys rotate, the token is dropped and the call is sent once more with a new one. A second 401 is thrown
   to your code as a `DownstreamException` with status 401 ([errors](http-client-errors.md)), with one warning per
   client per minute. A call with a streamed body is not sent again, as its body cannot be read twice. A call through
-  `stratumHttpClients.restClient("<name>")` gets no second try yet: its 401 is thrown as it is, and the token is kept
-  until it expires. The second try comes to it with `resilience(name)` ([Planned](http-client.md#planned)).
+  the client's `RestClient` or `RestTemplate` bean, or `stratumHttpClients.restClient("<name>")`, gets the same second
+  try when it has no body; a call with a body gets its 401, as Spring's `HttpClientErrorException.Unauthorized`.
 - A missing registration, or one whose `authorization-grant-type` is not `client_credentials`, stops startup with
   `SX-HTTPC-1005`. Without `stratum-starter-oauth2-client`, startup stops with `SX-HTTPC-1006`.
 
