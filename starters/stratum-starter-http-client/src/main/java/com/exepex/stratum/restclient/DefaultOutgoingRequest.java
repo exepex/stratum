@@ -25,12 +25,12 @@ import org.springframework.http.converter.HttpMessageConversionException;
 import org.springframework.util.unit.DataSize;
 
 /**
- * One attempt of a call of a client with copied headers or interceptors: it wraps the request of
- * the client's own factory, the pool's or the mocks', and when it is sent, copies the headers, runs
- * the interceptors and hands the body on. Its headers and attributes are the wrapped request's, so
- * what Spring sets on it, such as the mocked method, reaches that request. It holds no body in
- * memory unless an interceptor reads one that is not streamed. Its text shows the client, method
- * and path only, never a header, the query or the body.
+ * One attempt of a call of a client: it wraps the request of the client's own factory, the pool's
+ * or the mocks', and when it is sent, copies the headers, runs the interceptors, applies the
+ * client's trace headers and hands the body on. Its headers and attributes are the wrapped
+ * request's, so what Spring sets on it, such as the mocked method, reaches that request. It holds
+ * no body in memory unless an interceptor reads one that is not streamed. Its text shows the
+ * client, method and path only, never a header, the query or the body.
  */
 @RequiredArgsConstructor
 @ToString(onlyExplicitlyIncluded = true)
@@ -52,6 +52,9 @@ final class DefaultOutgoingRequest
 
   /** The most of the body {@link #body()} reads: the client's {@code interceptor-body-limit}. */
   private final DataSize bodyLimit;
+
+  /** The client's {@code trace-headers}, applied after the interceptors. */
+  private final TraceHeaders traceHeaders;
 
   /** The body Spring's converter gave, handed on when the request is sent; none until then. */
   private final AtomicReference<@Nullable Body> givenBody = new AtomicReference<>();
@@ -101,7 +104,9 @@ final class DefaultOutgoingRequest
   }
 
   /**
-   * Copies the headers, runs the interceptors, hands the body on and sends the wrapped request.
+   * Copies the headers, runs the interceptors, applies the trace headers, hands the body on and
+   * sends the wrapped request. The trace headers come last, so a correlation ID already copied or
+   * set by an interceptor is kept, and {@code trace-headers: false} removes one set by anyone.
    *
    * @return the answer
    * @throws IOException if the call fails
@@ -110,6 +115,7 @@ final class DefaultOutgoingRequest
   public ClientHttpResponse execute() throws IOException {
     copiedHeaders.copyInto(getHeaders());
     runInterceptors();
+    traceHeaders.applyTo(getHeaders());
     handOnBody();
     return delegate.execute();
   }
@@ -222,15 +228,26 @@ final class DefaultOutgoingRequest
   }
 
   /**
-   * Hands the body to the wrapped request, as an interceptor read it or as Spring gave it, through
-   * the request's own streaming, such as the pool's. The only request that does not stream is a
-   * mock's, which drops any body, so nothing is handed to it.
+   * Hands the body to the wrapped request, as an interceptor read it or as Spring gave it: through
+   * the request's own streaming, such as the pool's, or written into a request that does not
+   * stream, such as a mock's, as Spring writes it when no wrapper is there.
    */
   private void handOnBody() throws IOException {
     var given = givenBody.get();
-    if (given == null || !(delegate instanceof StreamingHttpOutputMessage streaming)) {
+    if (given == null) {
       return;
     }
+    if (delegate instanceof StreamingHttpOutputMessage streaming) {
+      streamBody(streaming, given);
+    } else if (readBody == null) {
+      given.writeTo(delegate.getBody());
+    } else {
+      delegate.getBody().write(readBody);
+    }
+  }
+
+  /** Hands the body to a request that streams it, as an interceptor read it or as given. */
+  private void streamBody(StreamingHttpOutputMessage streaming, Body given) throws IOException {
     if (readBody == null) {
       streaming.setBody(given);
     } else {

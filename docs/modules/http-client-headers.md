@@ -187,8 +187,8 @@ class PartnerOnly implements GlobalClientInterceptor {
 
 Interceptors run inside Stratum's request factory, not as Spring's `ClientHttpRequestInterceptor`, which would make
 Spring hold every request body in memory ([ADR 0012](../adr/0012-http-client-changes-found-while-building.md)). A
-`StratumClientCustomizer` that replaces a client's request factory replaces the pool, the copied headers and the
-interceptors too.
+`StratumClientCustomizer` that replaces a client's request factory replaces the pool, the copied headers, the
+interceptors and the [trace headers](http-client-observability.md#trace-headers) too.
 
 ### Bodies
 

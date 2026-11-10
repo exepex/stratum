@@ -119,6 +119,14 @@
       <artifactId>stratum-starter-logging</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- The observability starter's tracing, under which the tests in it.trace check the trace
+         headers each client sends. The default execution leaves it and its tracing and metrics
+         libraries out, so the other tests run with no tracer and no meter registry. -->
+    <dependency>
+      <groupId>com.exepex.stratum</groupId>
+      <artifactId>stratum-starter-observability</artifactId>
+      <scope>test</scope>
+    </dependency>
     <!-- Reactor, for the client with a Mono method that the blocking starter refuses at startup. -->
     <dependency>
       <groupId>io.projectreactor</groupId>
@@ -138,16 +146,40 @@
   <build>
     <plugins>
       <!-- Spring Boot keeps the console format in a JVM-wide setting, so the tests that switch the
-           logging starter on run in a second execution, in a fork of their own. -->
+           logging starter on run in a second execution, in a fork of their own. The tests of the
+           trace headers run in a third, the only one with the observability starter's tracing and
+           metrics on the classpath: the others leave those libraries out, so they run with no
+           tracer and no meter registry. -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-failsafe-plugin</artifactId>
+        <configuration>
+          <classpathDependencyExcludes>
+            <classpathDependencyExclude>com.exepex.stratum:stratum-starter-observability</classpathDependencyExclude>
+            <classpathDependencyExclude>org.springframework.boot:spring-boot-starter-actuator</classpathDependencyExclude>
+            <classpathDependencyExclude>org.springframework.boot:spring-boot-actuator</classpathDependencyExclude>
+            <classpathDependencyExclude>org.springframework.boot:spring-boot-actuator-autoconfigure</classpathDependencyExclude>
+            <classpathDependencyExclude>org.springframework.boot:spring-boot-health</classpathDependencyExclude>
+            <classpathDependencyExclude>org.springframework.boot:spring-boot-starter-micrometer-metrics</classpathDependencyExclude>
+            <classpathDependencyExclude>org.springframework.boot:spring-boot-micrometer-metrics</classpathDependencyExclude>
+            <classpathDependencyExclude>org.springframework.boot:spring-boot-micrometer-observation</classpathDependencyExclude>
+            <classpathDependencyExclude>org.springframework.boot:spring-boot-micrometer-tracing</classpathDependencyExclude>
+            <classpathDependencyExclude>org.springframework.boot:spring-boot-micrometer-tracing-opentelemetry</classpathDependencyExclude>
+            <classpathDependencyExclude>org.springframework.boot:spring-boot-starter-opentelemetry</classpathDependencyExclude>
+            <classpathDependencyExclude>org.springframework.boot:spring-boot-opentelemetry</classpathDependencyExclude>
+            <classpathDependencyExclude>io.micrometer:micrometer-tracing</classpathDependencyExclude>
+            <classpathDependencyExclude>io.micrometer:micrometer-tracing-bridge-otel</classpathDependencyExclude>
+            <classpathDependencyExclude>io.micrometer:micrometer-registry-otlp</classpathDependencyExclude>
+            <classpathDependencyExclude>io.micrometer:micrometer-jakarta9</classpathDependencyExclude>
+          </classpathDependencyExcludes>
+        </configuration>
         <executions>
           <execution>
             <id>default</id>
             <configuration>
               <excludes>
                 <exclude>**/it/redaction/**</exclude>
+                <exclude>**/it/trace/**</exclude>
               </excludes>
             </configuration>
           </execution>
@@ -162,6 +194,20 @@
                 <include>**/it/redaction/*IntegrationTest.java</include>
               </includes>
               <summaryFile>${project.build.directory}/failsafe-reports/failsafe-summary-redaction.xml</summaryFile>
+            </configuration>
+          </execution>
+          <execution>
+            <id>trace</id>
+            <goals>
+              <goal>integration-test</goal>
+              <goal>verify</goal>
+            </goals>
+            <configuration>
+              <classpathDependencyExcludes combine.self="override"/>
+              <includes>
+                <include>**/it/trace/*IntegrationTest.java</include>
+              </includes>
+              <summaryFile>${project.build.directory}/failsafe-reports/failsafe-summary-trace.xml</summaryFile>
             </configuration>
           </execution>
         </executions>

@@ -155,9 +155,9 @@ public class StratumClientBuilders {
 
   /**
    * Returns the request factory of a client's calls: its transport's, inside {@link
-   * OutgoingStepsRequestFactory} when the client copies headers or has interceptors, so that those
-   * steps run on each request the transport makes, each attempt included. A client with neither
-   * gets its transport's factory itself. Used by the interfaces and by the beans alike.
+   * OutgoingStepsRequestFactory}, so that the copied headers, the interceptors and the trace
+   * headers run on each request the transport makes, each attempt included. Every client gets it,
+   * since every client has trace headers to apply. Used by the interfaces and by the beans alike.
    *
    * @param client the client's name
    * @param settings the client's settings
@@ -166,15 +166,12 @@ public class StratumClientBuilders {
    */
   ClientHttpRequestFactory requestFactory(
       String client, ClientSettings settings, ClientTransport transport) {
-    var factory = transport.requestFactory(client, settings);
-    if (settings.copyHeaders().isEmpty() && !interceptors.hasInterceptors(client)) {
-      return factory;
-    }
     return new OutgoingStepsRequestFactory(
         client,
-        factory,
+        transport.requestFactory(client, settings),
         new CopiedHeaders(settings.copyHeaders()),
         SingletonSupplier.of(() -> interceptors.interceptorsOf(client)),
-        Objects.requireNonNull(settings.interceptorBodyLimit()));
+        Objects.requireNonNull(settings.interceptorBodyLimit()),
+        TraceHeaders.of(Objects.requireNonNull(settings.traceHeaders()), environment));
   }
 }

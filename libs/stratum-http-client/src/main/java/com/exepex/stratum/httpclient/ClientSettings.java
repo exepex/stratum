@@ -68,6 +68,9 @@ import org.springframework.util.unit.DataSize;
  *     runs. 0 is refused. Defaults to 1MB.
  * @param callLog Which calls write a log line: errors, one WARN per failed call after its retries;
  *     all, also one INFO per successful call; or none. Defaults to errors.
+ * @param traceHeaders Whether calls carry the correlation ID: true sends X-Correlation-Id when the
+ *     call has none, beside the trace headers Spring Boot's tracing sends; false sends no trace,
+ *     baggage or correlation header, such as to a third party. Defaults to true.
  */
 @Builder(toBuilder = true)
 public record ClientSettings(
@@ -89,7 +92,8 @@ public record ClientSettings(
     Map<String, String> headers,
     List<String> copyHeaders,
     @Nullable DataSize interceptorBodyLimit,
-    @Nullable CallLog callLog) {
+    @Nullable CallLog callLog,
+    @Nullable Boolean traceHeaders) {
 
   /** Keeps the interfaces, headers and copied headers fixed, empty when none is named. */
   public ClientSettings {
@@ -129,6 +133,7 @@ public record ClientSettings(
           .mock(false)
           .interceptorBodyLimit(HttpClientConstants.DEFAULT_INTERCEPTOR_BODY_LIMIT)
           .callLog(CallLog.ERRORS)
+          .traceHeaders(true)
           .build();
 
   /**
@@ -161,6 +166,7 @@ public record ClientSettings(
         .copyHeaders(copyHeadersAfter(fallback.copyHeaders))
         .interceptorBodyLimit(either(interceptorBodyLimit, fallback.interceptorBodyLimit))
         .callLog(either(callLog, fallback.callLog))
+        .traceHeaders(either(traceHeaders, fallback.traceHeaders))
         .build();
   }
 
@@ -191,7 +197,8 @@ public record ClientSettings(
             "interfaces=" + interfaces,
             "headers=" + new TreeSet<>(headers.keySet()),
             "copyHeaders=" + copyHeaders,
-            "interceptorBodyLimit=" + interceptorBodyLimit)
+            "interceptorBodyLimit=" + interceptorBodyLimit,
+            "traceHeaders=" + traceHeaders)
         .collect(Collectors.joining(", ", "ClientSettings[", "]"));
   }
 

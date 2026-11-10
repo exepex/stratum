@@ -106,6 +106,8 @@ The list applies to the propagators that Spring Boot's tracing and OpenTelemetry
 
 - Allowed entries still go to every host you call, third parties included. Sending baggage only to
   your own hosts is planned ([#171](https://github.com/exepex/stratum/issues/171)).
+- A Stratum HTTP client set to `trace-headers: false` sends that client's host no `baggage`, no
+  remote field and no trace header ([HTTP client](http-client-observability.md#trace-headers)).
 - Code that calls OpenTelemetry's `W3CBaggagePropagator` itself, and the OpenTelemetry Java agent,
   do not go through the list.
 - Reading a call or message limits all the baggage current at that moment, so an entry your code set
