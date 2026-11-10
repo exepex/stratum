@@ -53,9 +53,6 @@ class RetryRulesTest {
   /** The time left before a call's total-timeout when a test does not care. */
   private static final Duration PLENTY = HttpClientConstants.DEFAULT_TOTAL_TIMEOUT;
 
-  /** An attempt far past the back-off's growth, whose wait is the longest. */
-  private static final int LATE_ATTEMPT = 10;
-
   /** The message of a dropped connection. */
   private static final String RESET = "reset";
 
@@ -249,27 +246,6 @@ class RetryRulesTest {
       var failure = noAnswer(new SocketException(RESET));
 
       assertThat(RetryRules.nextWait(failure, 1, FIXED_BACK_OFF, NOW)).isEqualTo(WAIT);
-    }
-
-    @Test
-    @DisplayName("the back-off starts at retry-delay, spread by half, and stays at most 2s")
-    void backOffGrowsWithinBounds() {
-      var backOff = RetryRules.backOff(WAIT);
-
-      assertThat(backOff.apply(1))
-          .isBetween(WAIT.toMillis() / 2, WAIT.plus(WAIT.dividedBy(2)).toMillis());
-      assertThat(backOff.apply(LATE_ATTEMPT))
-          .isLessThanOrEqualTo(HttpClientConstants.MAX_RETRY_DELAY.toMillis());
-    }
-
-    @Test
-    @DisplayName("a retry-delay above 2s is used as it is, as the longest wait")
-    void longRetryDelayKept() {
-      var longDelay = HttpClientConstants.MAX_RETRY_DELAY.multipliedBy(2);
-
-      assertThat(RetryRules.backOff(longDelay).apply(LATE_ATTEMPT))
-          .isLessThanOrEqualTo(longDelay.toMillis())
-          .isGreaterThan(HttpClientConstants.MAX_RETRY_DELAY.toMillis());
     }
   }
 

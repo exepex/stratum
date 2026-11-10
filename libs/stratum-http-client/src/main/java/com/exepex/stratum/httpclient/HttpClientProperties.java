@@ -6,8 +6,10 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import lombok.Builder;
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.NestedConfigurationProperty;
 import org.springframework.boot.context.properties.bind.DefaultValue;
@@ -89,24 +91,147 @@ public record HttpClientProperties(
    */
   @AssertTrue
   public boolean isMaxConnectionsInRange() {
-    return allSettings()
-        .map(ClientSettings::maxConnections)
-        .filter(Objects::nonNull)
-        .allMatch(size -> size >= 1 && size <= HttpClientConstants.MAX_MAX_CONNECTIONS);
+    return allInRange(
+        allSettings().map(ClientSettings::maxConnections),
+        1,
+        HttpClientConstants.MAX_MAX_CONNECTIONS);
   }
 
   /**
-   * Returns whether every {@code retries}, shared or of one client, is from 0 to 9. Validation
-   * reports one that is not as {@code stratum.http-client.retries-in-range breaks @AssertTrue}.
+   * Returns whether every {@code retry.max-retries}, shared or of one client, is from 0 to 9.
+   * Validation reports one that is not as {@code stratum.http-client.max-retries-in-range
+   * breaks @AssertTrue}.
    *
    * @return whether every retry count is in range
    */
   @AssertTrue
-  public boolean isRetriesInRange() {
-    return allSettings()
-        .map(ClientSettings::retries)
+  public boolean isMaxRetriesInRange() {
+    return allInRange(retryValues(ClientRetry::maxRetries), 0, HttpClientConstants.MAX_RETRIES);
+  }
+
+  /**
+   * Returns whether every {@code retry.multiplier}, shared or of one client, is from 1.0 to 10.0.
+   * Validation reports one that is not as {@code stratum.http-client.multiplier-in-range
+   * breaks @AssertTrue}.
+   *
+   * @return whether every multiplier is in range
+   */
+  @AssertTrue
+  public boolean isMultiplierInRange() {
+    return allInRange(
+        retryValues(ClientRetry::multiplier),
+        HttpClientConstants.MIN_MULTIPLIER,
+        HttpClientConstants.MAX_MULTIPLIER);
+  }
+
+  /**
+   * Returns whether every client's {@code retry.max-delay} is at least its {@code retry.delay},
+   * where its {@code backoff-policy} is exponential, since fixed ignores {@code max-delay}. It
+   * reads the shared defaults and each client's merged settings, as the two keys may come from
+   * either. Validation reports one that is not as {@code
+   * stratum.http-client.max-delay-at-least-delay breaks @AssertTrue}.
+   *
+   * @return whether every exponential back-off's longest wait is not shorter than its first
+   */
+  @AssertTrue
+  public boolean isMaxDelayAtLeastDelay() {
+    return mergedSettings()
+        .map(ClientSettings::retry)
         .filter(Objects::nonNull)
-        .allMatch(count -> count >= 0 && count <= HttpClientConstants.MAX_RETRIES);
+        .filter(retry -> retry.backoffPolicy() == BackoffPolicy.EXPONENTIAL)
+        .allMatch(ClientRetry::isMaxDelayAtLeastDelay);
+  }
+
+  /**
+   * Returns whether every {@code circuit-breaker.failure-rate-threshold}, shared or of one client,
+   * is from 1 to 100. Validation reports one that is not as {@code
+   * stratum.http-client.failure-rate-threshold-in-range breaks @AssertTrue}.
+   *
+   * @return whether every failure rate is in range
+   */
+  @AssertTrue
+  public boolean isFailureRateThresholdInRange() {
+    return allInRange(
+        breakerValues(ClientCircuitBreaker::failureRateThreshold),
+        HttpClientConstants.MIN_RATE_THRESHOLD,
+        HttpClientConstants.MAX_RATE_THRESHOLD);
+  }
+
+  /**
+   * Returns whether every {@code circuit-breaker.slow-call-rate-threshold}, shared or of one
+   * client, is from 1 to 100. Validation reports one that is not as {@code
+   * stratum.http-client.slow-call-rate-threshold-in-range breaks @AssertTrue}.
+   *
+   * @return whether every slow-call rate is in range
+   */
+  @AssertTrue
+  public boolean isSlowCallRateThresholdInRange() {
+    return allInRange(
+        breakerValues(ClientCircuitBreaker::slowCallRateThreshold),
+        HttpClientConstants.MIN_RATE_THRESHOLD,
+        HttpClientConstants.MAX_RATE_THRESHOLD);
+  }
+
+  /**
+   * Returns whether every {@code circuit-breaker.sliding-window-size}, shared or of one client, is
+   * from 1 to 10000. Validation reports one that is not as {@code
+   * stratum.http-client.sliding-window-size-in-range breaks @AssertTrue}.
+   *
+   * @return whether every window size is in range
+   */
+  @AssertTrue
+  public boolean isSlidingWindowSizeInRange() {
+    return allInRange(
+        breakerValues(ClientCircuitBreaker::slidingWindowSize),
+        1,
+        HttpClientConstants.MAX_BREAKER_CALLS);
+  }
+
+  /**
+   * Returns whether every {@code circuit-breaker.minimum-number-of-calls}, shared or of one client,
+   * is from 1 to 10000. Validation reports one that is not as {@code
+   * stratum.http-client.minimum-number-of-calls-in-range breaks @AssertTrue}.
+   *
+   * @return whether every minimum is in range
+   */
+  @AssertTrue
+  public boolean isMinimumNumberOfCallsInRange() {
+    return allInRange(
+        breakerValues(ClientCircuitBreaker::minimumNumberOfCalls),
+        1,
+        HttpClientConstants.MAX_BREAKER_CALLS);
+  }
+
+  /**
+   * Returns whether every {@code circuit-breaker.permitted-number-of-calls-in-half-open-state},
+   * shared or of one client, is from 1 to 1000. Validation reports one that is not as {@code
+   * stratum.http-client.permitted-number-of-calls-in-half-open-state-in-range breaks @AssertTrue}.
+   *
+   * @return whether every number of trial calls is in range
+   */
+  @AssertTrue
+  public boolean isPermittedNumberOfCallsInHalfOpenStateInRange() {
+    return allInRange(
+        breakerValues(ClientCircuitBreaker::permittedNumberOfCallsInHalfOpenState),
+        1,
+        HttpClientConstants.MAX_HALF_OPEN_CALLS);
+  }
+
+  /**
+   * Returns whether every client sets {@code circuit-breaker.slow-call-rate-threshold} only
+   * together with {@code slow-call-duration-threshold}, so that no team thinks it changed the
+   * slow-call rule, which stays Resilience4j's own 60s without the duration. It reads the shared
+   * defaults and each client's merged settings. Validation reports one that does not as {@code
+   * stratum.http-client.slow-call-rate-with-duration breaks @AssertTrue}.
+   *
+   * @return whether every slow-call rate has its duration
+   */
+  @AssertTrue
+  public boolean isSlowCallRateWithDuration() {
+    return mergedSettings()
+        .map(ClientSettings::circuitBreaker)
+        .filter(Objects::nonNull)
+        .allMatch(ClientCircuitBreaker::isSlowCallRateWithDuration);
   }
 
   /**
@@ -228,5 +353,28 @@ public record HttpClientProperties(
   /** Returns the shared defaults and the settings of each client. */
   private Stream<ClientSettings> allSettings() {
     return Stream.concat(Stream.of(defaults), clients.values().stream());
+  }
+
+  /** Returns the shared defaults and each client's settings merged over them. */
+  private Stream<ClientSettings> mergedSettings() {
+    return Stream.concat(Stream.of(defaults), clients.keySet().stream().map(this::clientSettings));
+  }
+
+  /** Returns one {@code retry} key of the shared defaults and of each client, set or not. */
+  private <T> Stream<@Nullable T> retryValues(Function<ClientRetry, @Nullable T> key) {
+    return allSettings().map(ClientSettings::retry).filter(Objects::nonNull).map(key);
+  }
+
+  /** Returns one {@code circuit-breaker} key of the shared defaults and of each client. */
+  private <T> Stream<@Nullable T> breakerValues(Function<ClientCircuitBreaker, @Nullable T> key) {
+    return allSettings().map(ClientSettings::circuitBreaker).filter(Objects::nonNull).map(key);
+  }
+
+  /** Returns whether every value that is set lies from the least to the most, both included. */
+  private boolean allInRange(Stream<? extends @Nullable Number> values, double least, double most) {
+    return values
+        .filter(Objects::nonNull)
+        .mapToDouble(Number::doubleValue)
+        .allMatch(value -> value >= least && value <= most);
   }
 }

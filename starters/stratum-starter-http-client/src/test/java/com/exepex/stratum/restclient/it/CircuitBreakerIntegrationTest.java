@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientErrorCode;
 import com.exepex.stratum.restclient.ClientResilience;
-import com.exepex.stratum.restclient.StratumClientCustomizer;
 import com.exepex.stratum.restclient.testsupport.CallChecks;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import com.exepex.stratum.restclient.testsupport.ScriptedDownstream;
@@ -14,7 +13,6 @@ import com.exepex.stratum.restclient.testsupport.clients.ClientsApplication;
 import com.exepex.stratum.restclient.testsupport.clients.FlakyInventory;
 import com.exepex.stratum.test.LogLineCapture;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
-import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.AutoClose;
@@ -25,28 +23,28 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
 @SpringBootTest(
-    classes = {ClientsApplication.class, CircuitBreakerIntegrationTest.SmallBreakerWindow.class},
+    classes = ClientsApplication.class,
     properties = {
-      HttpClientConstants.DEFAULTS + ".retry-delay=10ms",
-      RestClientTestData.PRICING_SETTINGS + ".circuit-breaker=false"
+      HttpClientConstants.DEFAULTS + ".retry.delay=10ms",
+      RestClientTestData.INVENTORY_SETTINGS + ".circuit-breaker.failure-rate-threshold=50",
+      RestClientTestData.INVENTORY_SETTINGS + ".circuit-breaker.sliding-window-size=2",
+      RestClientTestData.INVENTORY_SETTINGS + ".circuit-breaker.minimum-number-of-calls=2",
+      RestClientTestData.PRICING_SETTINGS + ".circuit-breaker.enabled=false"
     })
 @Timeout(30)
 @DisplayName("A client's breaker opens on failures that show the downstream is down, not on 4xx")
 class CircuitBreakerIntegrationTest {
 
-  /** The calls the breaker sees before it decides, set small by the test's customizer. */
+  /** The attempts the inventory client's breaker sees before it decides, set by its keys. */
   private static final int WINDOW = 2;
 
-  /** A client with the shared settings only, whose breaker is made on first use. */
+  /** A client on Stratum's breaker settings, whose breaker is made on first use. */
   private static final String OTHER_CLIENT = "audit";
 
   /** The inventory service. */
@@ -149,7 +147,9 @@ class CircuitBreakerIntegrationTest {
   class PerClient {
 
     @Test
-    @DisplayName("each client has its own breaker: an open one leaves another client's closed")
+    @DisplayName(
+        "each client has its own breaker: the one that opens at its own threshold leaves another"
+            + " client, on Stratum's settings, closed")
     void oneBreakerPerClient() {
       failTwice(HttpStatus.INTERNAL_SERVER_ERROR);
 
@@ -157,6 +157,8 @@ class CircuitBreakerIntegrationTest {
       assertThat(breaker().getState()).isEqualTo(CircuitBreaker.State.OPEN);
       assertThat(otherBreaker.getName()).isEqualTo(OTHER_CLIENT);
       assertThat(otherBreaker.getState()).isEqualTo(CircuitBreaker.State.CLOSED);
+      assertThat(otherBreaker.getCircuitBreakerConfig().getSlidingWindowSize())
+          .isEqualTo(HttpClientConstants.DEFAULT_SLIDING_WINDOW_SIZE);
     }
 
     @Test
@@ -184,30 +186,5 @@ class CircuitBreakerIntegrationTest {
   private List<String> requests() {
     var paths = INVENTORY.paths();
     return paths.subList(requestsBefore, paths.size());
-  }
-
-  /** The service's customizer: a breaker that decides after two calls. */
-  @TestConfiguration(proxyBeanMethods = false)
-  static class SmallBreakerWindow {
-
-    /**
-     * Makes the breaker decide after {@link #WINDOW} calls.
-     *
-     * @return the customizer
-     */
-    @Bean
-    StratumClientCustomizer smallBreakerWindow() {
-      return new StratumClientCustomizer() {
-        @Override
-        public void customize(String client, RestClient.Builder builder) {
-          // The client stays as Stratum sets it.
-        }
-
-        @Override
-        public void customizeCircuitBreaker(String client, CircuitBreakerConfig.Builder breaker) {
-          breaker.slidingWindowSize(WINDOW).minimumNumberOfCalls(WINDOW);
-        }
-      };
-    }
   }
 }

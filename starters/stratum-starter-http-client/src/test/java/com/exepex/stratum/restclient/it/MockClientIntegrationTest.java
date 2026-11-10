@@ -44,9 +44,9 @@ import org.springframework.web.client.HttpServerErrorException;
     properties = {
       RestClientTestData.PAYMENTS_SETTINGS + ".mock=true",
       RestClientTestData.PAYMENTS_SETTINGS + ".auth.bearer=" + RestClientTestData.SECRET,
-      RestClientTestData.PAYMENTS_SETTINGS + ".retries=1",
-      RestClientTestData.PAYMENTS_SETTINGS + ".retry-delay=50ms",
-      RestClientTestData.PAYMENTS_SETTINGS + ".circuit-breaker=false"
+      RestClientTestData.PAYMENTS_SETTINGS + ".retry.max-retries=1",
+      RestClientTestData.PAYMENTS_SETTINGS + ".retry.delay=50ms",
+      RestClientTestData.PAYMENTS_SETTINGS + ".circuit-breaker.enabled=false"
     })
 @Timeout(30)
 @DisplayName("A client with mock: true answers from files and scripts and never calls its service")

@@ -38,7 +38,7 @@ import org.springframework.web.client.RestClientResponseException;
 @SpringBootTest(
     classes = {ClientsApplication.class, TotalTimeoutIntegrationTest.LongPricingWait.class},
     properties = {
-      HttpClientConstants.DEFAULTS + ".retry-delay=10ms",
+      HttpClientConstants.DEFAULTS + ".retry.delay=10ms",
       RestClientTestData.INVENTORY_SETTINGS + ".timeout=1s",
       RestClientTestData.INVENTORY_SETTINGS + ".total-timeout=1500ms",
       RestClientTestData.PRICING_SETTINGS + ".timeout=2s",

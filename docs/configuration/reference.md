@@ -179,7 +179,8 @@ stratum:
       payments:
         url: http://payments-service
         timeout: 10s
-        retries: 0
+        retry:
+          max-retries: 0
 ```
 
 ```properties
@@ -195,10 +196,10 @@ management.opentelemetry.tracing.export.otlp.endpoint=http://otel-collector:4318
 stratum.environment=prod
 stratum.security.resource-server.issuer-uri=https://idp.acme.com/realms/acme
 stratum.security.resource-server.audiences=order-service
-# HTTP client keys (ADR 0011): url, timeout, retries and token-relay are built
+# HTTP client keys (ADR 0011): url, timeout, retry.max-retries and token-relay are built
 stratum.http-client.clients.inventory.url=http://inventory-service
 stratum.http-client.clients.inventory.auth.token-relay=true
 stratum.http-client.clients.payments.url=http://payments-service
 stratum.http-client.clients.payments.timeout=10s
-stratum.http-client.clients.payments.retries=0
+stratum.http-client.clients.payments.retry.max-retries=0
 ```

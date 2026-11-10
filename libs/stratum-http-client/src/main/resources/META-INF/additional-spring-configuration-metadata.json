@@ -5,6 +5,36 @@
       "type": "java.lang.Boolean",
       "description": "Whether the HTTP client module is on. With false, Stratum finds no @StratumClient interface and sets up nothing, and Spring Boot's clients keep Spring Boot's own defaults.",
       "defaultValue": true
+    },
+    {
+      "name": "stratum.http-client.defaults.retries",
+      "type": "java.lang.Integer",
+      "description": "Removed: how many times a failed call is sent again. Use retry.max-retries.",
+      "deprecation": {
+        "level": "error",
+        "reason": "The retry settings moved into the retry group (ADR 0013).",
+        "replacement": "stratum.http-client.defaults.retry.max-retries"
+      }
+    },
+    {
+      "name": "stratum.http-client.defaults.retry-delay",
+      "type": "java.time.Duration",
+      "description": "Removed: the wait before the first retry. Use retry.delay.",
+      "deprecation": {
+        "level": "error",
+        "reason": "The retry settings moved into the retry group (ADR 0013).",
+        "replacement": "stratum.http-client.defaults.retry.delay"
+      }
+    },
+    {
+      "name": "stratum.http-client.defaults.circuit-breaker",
+      "type": "java.lang.Boolean",
+      "description": "Removed: whether the client has a circuit breaker. Use circuit-breaker.enabled.",
+      "deprecation": {
+        "level": "error",
+        "reason": "The circuit breaker settings moved into the circuit-breaker group (ADR 0013).",
+        "replacement": "stratum.http-client.defaults.circuit-breaker.enabled"
+      }
     }
   ]
 }

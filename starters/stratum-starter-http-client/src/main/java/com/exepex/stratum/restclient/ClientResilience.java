@@ -2,13 +2,12 @@ package com.exepex.stratum.restclient;
 
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.error.StratumException;
-import com.exepex.stratum.httpclient.ClientSettings;
+import com.exepex.stratum.httpclient.ClientCircuitBreaker;
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientErrorCode;
 import com.exepex.stratum.httpclient.HttpClientProperties;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
-import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.event.CircuitBreakerOnStateTransitionEvent;
 import io.github.resilience4j.core.IntervalBiFunction;
 import io.github.resilience4j.core.IntervalFunction;
@@ -97,7 +96,7 @@ public class ClientResilience implements ClientExchangeDecorator {
    * Returns a client's circuit breaker, made on first use.
    *
    * @param client the client's name
-   * @return the breaker, or empty when the client's {@code circuit-breaker} is off
+   * @return the breaker, or empty when the client's {@code circuit-breaker.enabled} is false
    */
   public Optional<CircuitBreaker> circuitBreaker(String client) {
     return Optional.ofNullable(guards(client).breaker());
@@ -222,10 +221,11 @@ public class ClientResilience implements ClientExchangeDecorator {
   /** Makes a client's retry, breaker and back-off from its settings and the customizers. */
   private ClientGuards newGuards(String client) {
     var settings = properties.clientSettings(client);
-    var backOff = RetryRules.backOff(Objects.requireNonNull(settings.retryDelay()));
+    var retrySettings = Objects.requireNonNull(settings.retry());
+    var backOff = RetryRules.backOff(retrySettings);
     var rules =
         RetryConfig.<ClientAttempt>custom()
-            .maxAttempts(Objects.requireNonNull(settings.retries()) + 1)
+            .maxAttempts(Objects.requireNonNull(retrySettings.maxRetries()) + 1)
             .retryOnResult(RetryRules::shouldRetry)
             .retryOnException(failure -> false)
             .intervalBiFunction(
@@ -241,19 +241,21 @@ public class ClientResilience implements ClientExchangeDecorator {
             .build();
     return ClientGuards.builder()
         .retry(Retry.of(client, retryConfig))
-        .breaker(newBreaker(client, settings))
+        .breaker(newBreaker(client, Objects.requireNonNull(settings.circuitBreaker())))
         .waits(waits)
         .totalTimeout(Objects.requireNonNull(settings.totalTimeout()))
         .build();
   }
 
-  /** Makes a client's breaker, or none when {@code circuit-breaker} is false. */
-  private @Nullable CircuitBreaker newBreaker(String client, ClientSettings settings) {
-    if (!Boolean.TRUE.equals(settings.circuitBreaker())) {
+  /**
+   * Makes a client's breaker from its settings and the customizers, or none when {@code
+   * circuit-breaker.enabled} is false.
+   */
+  private @Nullable CircuitBreaker newBreaker(String client, ClientCircuitBreaker settings) {
+    if (!Boolean.TRUE.equals(settings.enabled())) {
       return null;
     }
-    var breakerConfig =
-        CircuitBreakerConfig.custom().recordException(RetryRules::countsAsBreakerFailure);
+    var breakerConfig = RetryRules.breakerConfig(settings);
     customizers
         .orderedStream()
         .forEach(customizer -> customizer.customizeCircuitBreaker(client, breakerConfig));

@@ -315,6 +315,6 @@ Unit tests (`*Test.java`) run in the `test` phase; integration tests (`*Integrat
 ## What to read next
 
 - Add token validation to your API: [Security](../modules/security.md)
-- Tune the retries and circuit breaker of the inventory call: [HTTP client](../modules/http-client.md#retries-and-the-circuit-breaker)
+- Tune the retries and circuit breaker of the inventory call: [HTTP client: retries and the circuit breaker](../modules/http-client-resilience.md)
 - Configure per environment: [Profiles and environments](../configuration/profiles-and-environments.md)
 - Change any default: [Overriding defaults](../configuration/overriding-defaults.md)
