@@ -27,6 +27,9 @@ import org.jspecify.annotations.Nullable;
  * <ul>
  *   <li>{@link #SLOW}: 200 with {@link #SLOW_BODY}, one byte every {@link #GAP};
  *   <li>{@link #STALL}: 200 with one byte, then nothing for {@link #STALL_FOR};
+ *   <li>{@link #TRICKLE}: 200 with {@link #TRICKLE_BYTES} bytes, one every {@link #GAP};
+ *   <li>{@link #LATE_STALL}: 200 with {@link #LATE_STALL_BYTES} bytes, one every {@link #GAP}, then
+ *       nothing for {@link #STALL_FOR};
  *   <li>{@link #UPLOAD}: reads the request body and remembers how it came, in {@link
  *       #lastUpload()}.
  * </ul>
@@ -39,6 +42,12 @@ public final class StreamingDownstream implements AutoCloseable {
   /** The path of an answer that stops after its first byte. */
   public static final String STALL = "/stall";
 
+  /** The path of a long answer sent one byte at a time, 4s in all. */
+  public static final String TRICKLE = "/trickle";
+
+  /** The path of an answer that stops after a few bytes. */
+  public static final String LATE_STALL = "/late-stall";
+
   /** The path that takes uploads. */
   public static final String UPLOAD = "/upload";
 
@@ -47,6 +56,12 @@ public final class StreamingDownstream implements AutoCloseable {
 
   /** The wait before each byte of a {@link #SLOW} answer. */
   public static final Duration GAP = Duration.ofMillis(200);
+
+  /** The bytes of a {@link #TRICKLE} answer. */
+  public static final int TRICKLE_BYTES = 20;
+
+  /** The bytes a {@link #LATE_STALL} answer sends before it stops. */
+  private static final int LATE_STALL_BYTES = 4;
 
   /** How long a {@link #STALL} answer stops, far above any timeout a test sets. */
   private static final Duration STALL_FOR = Duration.ofSeconds(10);
@@ -66,8 +81,10 @@ public final class StreamingDownstream implements AutoCloseable {
   /** Opens the server on the loopback address, with a virtual thread per exchange. */
   private StreamingDownstream() throws IOException {
     server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
-    server.createContext(SLOW, this::sendSlowly);
+    server.createContext(SLOW, exchange -> sendSlowly(exchange, SLOW_BODY.length(), Duration.ZERO));
     server.createContext(STALL, this::stopAfterFirstByte);
+    server.createContext(TRICKLE, exchange -> sendSlowly(exchange, TRICKLE_BYTES, Duration.ZERO));
+    server.createContext(LATE_STALL, exchange -> sendSlowly(exchange, LATE_STALL_BYTES, STALL_FOR));
     server.createContext(UPLOAD, this::takeUpload);
     server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
     server.start();
@@ -133,16 +150,19 @@ public final class StreamingDownstream implements AutoCloseable {
     server.stop(0);
   }
 
-  /** Sends {@link #SLOW_BODY} one byte at a time, {@link #GAP} apart. */
-  private void sendSlowly(HttpExchange exchange) throws IOException {
+  /**
+   * Sends the given number of bytes of {@link #SLOW_BODY}'s kind, each after {@link #GAP}, then
+   * stops for the given time.
+   */
+  private void sendSlowly(HttpExchange exchange, int byteCount, Duration stopFor)
+      throws IOException {
     exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, 0);
     try (var body = exchange.getResponseBody()) {
-      for (var oneByte : SLOW_BODY.getBytes(StandardCharsets.US_ASCII)) {
-        if (!pause(GAP)) {
-          return;
-        }
-        sendByte(body, oneByte);
+      // A loop: each byte waits for the gap before it, until the server closes.
+      for (var sent = 0; sent < byteCount && pause(GAP); sent++) {
+        sendByte(body, SLOW_BODY.charAt(0));
       }
+      pause(stopFor);
     }
   }
 

@@ -9,7 +9,7 @@ service then gets. Part of the [HTTP client](http-client.md) page.
 
 | The call | It throws | Your caller gets, if you do not catch it |
 | --- | --- | --- |
-| Got no answer in time: the answer, or a byte of it, took longer than `timeout` | `StratumException` with `SX-HTTPC-0001` | `504` |
+| Got no answer in time: the answer, or a byte of it, took longer than `timeout`, or its body was still arriving when `total-timeout` ran out | `StratumException` with `SX-HTTPC-0001` | `504` |
 | Got no answer for another reason: the connection was refused or timed out, the host is unknown, the pool stayed full for `max-wait`, or the connection dropped; or, with `auth.client-credentials`, the client's token cannot be fetched and the call is not sent | `StratumException` with `SX-HTTPC-0002` | `503` |
 | Was not sent, as the client's circuit breaker is open | `StratumException` with `SX-HTTPC-0003` | `503` |
 | Was not sent, as a client with `auth.token-relay: true` has no verified caller token ([auth](http-client-auth.md#token-relay)) | `StratumException` with `SX-HTTPC-0004` | `500` |
@@ -138,7 +138,8 @@ Of an error answer's body, at most 64 KB is read and kept, after gzip is undone,
 memory. An answer that succeeds is read whole ([#236](https://github.com/exepex/stratum/issues/236)). The limit has
 no key. When the answer closes, the rest of the body is read and dropped up to 64 KB in all, so the connection can be
 used again. A body that does not end within 64 KB, one that never ends, or one whose `Content-Length` is over 64 KB is
-not read further: its connection is closed instead of being used again, so a huge error body never holds the call.
+not read further: its connection is closed instead of being used again, so a huge error body never holds the call. A
+body that stalls within those 64 KB is dropped, with its connection, when `total-timeout` runs out.
 
 ## Clients Stratum did not build
 
