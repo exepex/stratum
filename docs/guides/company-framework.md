@@ -258,6 +258,6 @@ scan picks up follows its module's switch, so it stays off when the module is tu
 
 | Problem | Likely cause | Fix |
 | --- | --- | --- |
-| `NoSuchMethodError` or `ClassNotFoundException` from a Spring class at startup, after an `SX-CORE-1005` warning | The company parent manages a Spring Boot version outside Stratum's line | Use the Stratum release that supports it, or wait for one. See [Versioning and upgrades](upgrading.md) |
+| `NoSuchMethodError` or `ClassNotFoundException` from a Spring class once the service starts, with an `SX-CORE-1005` warning in the log. The warning is written when startup begins, so a failure during the build, such as `repackage` failing with "Unsupported class file major version 69" under a Spring Boot 3 parent, comes with no warning | The company parent manages a Spring Boot version outside Stratum's line | Use the Stratum release that supports it, or wait for one. See [Versioning and upgrades](upgrading.md) |
 | A Stratum bean is used instead of the company's | The company bean is created later or has a different type | Order the company auto-configuration with `beforeName`, or turn the Stratum module off |
 | `NoSuchMethodError` at startup | A library's version comes from the company parent and is older than Stratum needs | Compare `mvn dependency:tree` with the release notes and align the company parent |
