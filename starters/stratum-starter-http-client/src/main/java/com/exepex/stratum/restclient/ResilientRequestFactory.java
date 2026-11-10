@@ -1,16 +1,17 @@
 package com.exepex.stratum.restclient;
 
 import com.exepex.stratum.httpclient.HttpClientConstants;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatusCode;
@@ -161,8 +162,9 @@ final class ResilientRequestFactory implements ClientHttpRequestFactory {
    * @param headers the answer's headers
    * @param body the answer's body, at most 64 KB
    */
+  @Builder
   private record CopiedAnswer(
-      HttpStatusCode statusCode, String statusText, HttpHeaders headers, byte[] body)
+      HttpStatusCode statusCode, String statusText, HttpHeaders headers, ByteArrayResource body)
       implements ClientHttpResponse {
 
     /**
@@ -174,11 +176,14 @@ final class ResilientRequestFactory implements ClientHttpRequestFactory {
      */
     static CopiedAnswer of(ClientHttpResponse answer) throws IOException {
       try (answer) {
-        return new CopiedAnswer(
-            answer.getStatusCode(),
-            answer.getStatusText(),
-            HttpHeaders.copyOf(answer.getHeaders()),
-            answer.getBody().readNBytes(HttpClientConstants.ERROR_BODY_LIMIT));
+        return CopiedAnswer.builder()
+            .statusCode(answer.getStatusCode())
+            .statusText(answer.getStatusText())
+            .headers(HttpHeaders.copyOf(answer.getHeaders()))
+            .body(
+                new ByteArrayResource(
+                    answer.getBody().readNBytes(HttpClientConstants.ERROR_BODY_LIMIT)))
+            .build();
       }
     }
 
@@ -198,8 +203,8 @@ final class ResilientRequestFactory implements ClientHttpRequestFactory {
     }
 
     @Override
-    public InputStream getBody() {
-      return new ByteArrayInputStream(body);
+    public InputStream getBody() throws IOException {
+      return body.getInputStream();
     }
 
     @Override

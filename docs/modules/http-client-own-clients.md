@@ -135,7 +135,11 @@ public class PartnerClientSettings implements HttpClientPropertiesCustomizer {
 
   @Override
   public HttpClientProperties customize(HttpClientProperties properties) {
-    var partner = properties.clientSettings("partner").toBuilder().timeout(Duration.ofSeconds(3)).build();
+    var partner =
+        properties.clientSettings("partner").toBuilder()
+            .url("https://api.partner.example")   // a client set only in Java needs its url here
+            .timeout(Duration.ofSeconds(3))
+            .build();
     var clients = new HashMap<>(properties.clients());
     clients.put("partner", partner);
     return properties.toBuilder().clients(clients).build();
