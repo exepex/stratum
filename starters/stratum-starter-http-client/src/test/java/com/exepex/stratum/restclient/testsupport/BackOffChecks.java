@@ -87,9 +87,10 @@ public class BackOffChecks {
 
   /**
    * Checks that the first wait, drawn many times, is not always the same. Only the first, because a
-   * later exponential wait may reach the longest wait, where every draw is equal. A spread of half
-   * a 200ms or longer wait gives at least 200 possible values, so a right back-off draws one value
-   * 1000 times in a row with a chance below one in 10^2000.
+   * later exponential wait may reach the longest wait, where every draw is equal. The weakest case
+   * is a longest wait equal to the delay: about half of the first waits are then cut to exactly
+   * that wait, so a right back-off draws one value 1000 times in a row with a chance of about
+   * 2^-1000, below one in 10^300.
    */
   private static void assertFirstWaitSpread(IntToLongFunction backOff) {
     assertThat(IntStream.range(0, DRAWS).mapToLong(draw -> backOff.applyAsLong(1)).distinct())

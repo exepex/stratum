@@ -268,6 +268,12 @@ class ResilienceSettingsTest {
                 "failure-rate-threshold-in-range",
                 List.of(HttpClientTestData.INVENTORY_BREAKER + ".failure-rate-threshold=101")),
             argumentSet(
+                "slow-call-rate-threshold of 0",
+                "slow-call-rate-threshold-in-range",
+                List.of(
+                    HttpClientTestData.INVENTORY_BREAKER + SLOW_CALL_OF_2S,
+                    HttpClientTestData.INVENTORY_BREAKER + ".slow-call-rate-threshold=0")),
+            argumentSet(
                 "slow-call-rate-threshold above 100",
                 "slow-call-rate-threshold-in-range",
                 List.of(

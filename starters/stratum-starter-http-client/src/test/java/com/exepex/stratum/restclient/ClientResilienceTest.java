@@ -2,6 +2,7 @@ package com.exepex.stratum.restclient;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.exepex.stratum.httpclient.BackoffPolicy;
 import com.exepex.stratum.httpclient.ClientCircuitBreaker;
 import com.exepex.stratum.httpclient.ClientRetry;
 import com.exepex.stratum.httpclient.ClientSettings;
@@ -91,6 +92,15 @@ class ClientResilienceTest {
   /** Today's attempts of a call: the first and 3 retries. */
   private static final int TODAYS_ATTEMPTS = 4;
 
+  /** A client's own first wait, longer than Stratum's 200ms. */
+  private static final Duration CLIENT_DELAY = Duration.ofMillis(500);
+
+  /** A client's own growth of each wait, faster than Stratum's doubling. */
+  private static final double CLIENT_MULTIPLIER = 3.0;
+
+  /** A client's own longest wait, shorter than Stratum's 2s. */
+  private static final Duration CLIENT_MAX_DELAY = Duration.ofSeconds(1);
+
   /** A window of two attempts, below the least number of calls Stratum asks for. */
   private static final int SMALL_WINDOW = 2;
 
@@ -148,6 +158,40 @@ class ClientResilienceTest {
           resilienceFor(inventoryWith(null, ClientRetry.builder().maxRetries(0).build()));
 
       assertThat(retryConfigOf(resilience).getMaxAttempts()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("the client's own delay, multiplier and max-delay set its waits, not the defaults")
+    void ownExponentialBackOff() {
+      var resilience =
+          resilienceFor(
+              inventoryWith(
+                  null,
+                  ClientRetry.builder()
+                      .delay(CLIENT_DELAY)
+                      .multiplier(CLIENT_MULTIPLIER)
+                      .maxDelay(CLIENT_MAX_DELAY)
+                      .build()));
+
+      BackOffChecks.assertExponentialWaits(
+          backOffOf(resilience), CLIENT_DELAY, CLIENT_MULTIPLIER, CLIENT_MAX_DELAY);
+    }
+
+    @Test
+    @DisplayName("the client's own fixed backoff-policy and delay set its waits, not the defaults")
+    void ownFixedBackOff() {
+      var resilience =
+          resilienceFor(
+              inventoryWith(
+                  null,
+                  ClientRetry.builder()
+                      .backoffPolicy(BackoffPolicy.FIXED)
+                      .delay(CLIENT_DELAY)
+                      .multiplier(CLIENT_MULTIPLIER)
+                      .maxDelay(CLIENT_MAX_DELAY)
+                      .build()));
+
+      BackOffChecks.assertFixedWaits(backOffOf(resilience), CLIENT_DELAY);
     }
 
     @Test
