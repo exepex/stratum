@@ -1,5 +1,6 @@
 package com.exepex.stratum.restclient.testsupport.errors;
 
+import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
@@ -29,6 +30,9 @@ import java.util.zip.GZIPOutputStream;
  *   <li>{@link #FAILED}: 500, a text body that holds {@link RestClientTestData#SECRET};
  *   <li>{@link #LARGE_ERROR}: 500, {@link #LARGE_SIZE} bytes;
  *   <li>{@link #LARGE_GZIP_ERROR}: 500, {@link #LARGE_SIZE} bytes once gzip is undone;
+ *   <li>{@link #ENDLESS_ERROR}: 500, a body that never ends;
+ *   <li>{@link #STALLED_ERROR}: 500, a {@code Content-Length} of 50 GB, 64 KB, then nothing until
+ *       the server closes;
  *   <li>{@link #LARGE_ANSWER}: 200, {@link #LARGE_SIZE} bytes;
  *   <li>{@link #CUT_JSON}: 200, the start of a JSON body, then nothing until the server closes;
  *   <li>{@link #BAD_JSON}: 200, typed as JSON but not JSON, counted in {@link #badJsonRequests()};
@@ -56,6 +60,12 @@ public final class ErrorDownstream implements AutoCloseable {
   /** The path of a large gzip error body. */
   public static final String LARGE_GZIP_ERROR = "/large-gzip-error";
 
+  /** The path of an error body that never ends. */
+  public static final String ENDLESS_ERROR = "/endless-error";
+
+  /** The path of an error body that promises 50 GB and stops after 64 KB. */
+  public static final String STALLED_ERROR = "/stalled-error";
+
   /** The path of a large body that succeeds. */
   public static final String LARGE_ANSWER = "/large-answer";
 
@@ -76,6 +86,15 @@ public final class ErrorDownstream implements AutoCloseable {
 
   /** The length a {@link #CUT_JSON} answer promises, far more than it sends. */
   private static final int CUT_JSON_LENGTH = 1000;
+
+  /** The length a {@link #STALLED_ERROR} answer promises: 50 GB. */
+  private static final long STALLED_LENGTH = 50L * 1024 * 1024 * 1024;
+
+  /** The size of each write of an endless body. */
+  private static final int CHUNK = 8192;
+
+  /** The name of the header that gives a body's type. */
+  private static final String CONTENT_TYPE = "Content-Type";
 
   /** The content type of a JSON body. */
   private static final String JSON = "application/json";
@@ -123,6 +142,8 @@ public final class ErrorDownstream implements AutoCloseable {
         LARGE_ERROR,
         exchange -> send(exchange, HttpURLConnection.HTTP_INTERNAL_ERROR, TEXT, large()));
     server.createContext(LARGE_GZIP_ERROR, this::sendLargeGzip);
+    server.createContext(ENDLESS_ERROR, this::sendEndlessError);
+    server.createContext(STALLED_ERROR, this::sendStalledError);
     server.createContext(CUT_JSON, exchange -> sendCut(exchange, "{\"id\":\"o-1\","));
     server.createContext(BAD_JSON, this::sendBadJson);
     server.createContext(CUT_ORDER, exchange -> sendCut(exchange, JsonReadFailures.ORDER_START));
@@ -182,7 +203,7 @@ public final class ErrorDownstream implements AutoCloseable {
   private void send(HttpExchange exchange, int status, String contentType, byte[] body)
       throws IOException {
     clientPorts.add(exchange.getRemoteAddress().getPort());
-    exchange.getResponseHeaders().add("Content-Type", contentType);
+    exchange.getResponseHeaders().add(CONTENT_TYPE, contentType);
     exchange.sendResponseHeaders(status, body.length);
     try (var out = exchange.getResponseBody()) {
       out.write(body);
@@ -199,6 +220,33 @@ public final class ErrorDownstream implements AutoCloseable {
     send(exchange, HttpURLConnection.HTTP_INTERNAL_ERROR, TEXT, compressed.toByteArray());
   }
 
+  /** Sends a 500 whose body never ends, until the client stops reading or the server closes. */
+  private void sendEndlessError(HttpExchange exchange) throws IOException {
+    clientPorts.add(exchange.getRemoteAddress().getPort());
+    exchange.getResponseHeaders().add(CONTENT_TYPE, TEXT);
+    exchange.sendResponseHeaders(HttpURLConnection.HTTP_INTERNAL_ERROR, 0);
+    var chunk = new byte[CHUNK];
+    Arrays.fill(chunk, (byte) 'x');
+    try (var out = exchange.getResponseBody()) {
+      // A loop, as the body ends only when a write fails.
+      while (closed.getCount() > 0) {
+        out.write(chunk);
+      }
+    }
+  }
+
+  /** Sends a 500 that promises 50 GB, sends 64 KB and then nothing until the server closes. */
+  private void sendStalledError(HttpExchange exchange) throws IOException {
+    clientPorts.add(exchange.getRemoteAddress().getPort());
+    exchange.getResponseHeaders().add(CONTENT_TYPE, TEXT);
+    exchange.sendResponseHeaders(HttpURLConnection.HTTP_INTERNAL_ERROR, STALLED_LENGTH);
+    try (var out = exchange.getResponseBody()) {
+      out.write(new byte[HttpClientConstants.ERROR_BODY_LIMIT]);
+      out.flush();
+      awaitClose();
+    }
+  }
+
   /** Counts a request to {@link #BAD_JSON} and sends a 200 typed as JSON that is not JSON. */
   private void sendBadJson(HttpExchange exchange) throws IOException {
     badJsonCount.incrementAndGet();
@@ -210,7 +258,7 @@ public final class ErrorDownstream implements AutoCloseable {
    * the server closes, far longer than the client's timeout.
    */
   private void sendCut(HttpExchange exchange, String start) throws IOException {
-    exchange.getResponseHeaders().add("Content-Type", JSON);
+    exchange.getResponseHeaders().add(CONTENT_TYPE, JSON);
     exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, CUT_JSON_LENGTH);
     try (var out = exchange.getResponseBody()) {
       out.write(bytes(start));
