@@ -94,7 +94,7 @@ stratum:
       partner:
         url: https://api.partner.example
         timeout: 5s                     # longest wait for the answer, and between bytes
-        total-timeout: 8s               # the whole call: attempts, waits for a connection, waits between attempts
+        total-timeout: 8s               # the whole call: attempts, the answer's body, waits for a connection and between attempts
         retry:
           max-retries: 3                # extra attempts, 0 to 9; a call with a body is sent once
           backoff-policy: exponential   # exponential or fixed
@@ -200,15 +200,16 @@ A call through either bean runs through the client's retries and circuit breaker
 | A call while the breaker is open | Refused at once with `SX-HTTPC-0003` (503) |
 | A 401 on a client with `auth.client-credentials` | Sent once more with a new token, for a call with no body; a call with a body gets its 401 |
 
-The whole call, its retries and waits included, has its answer by `total-timeout`, 8s by default: each attempt waits
-for the answer at most `timeout` or the time left, whichever is less, as an interface's call does. To call a slow
-service, raise `total-timeout` for that client or under `defaults`, for example to 30s.
+The whole call, its retries, waits and the reading of its answer's body included, ends by `total-timeout`, 8s by
+default: each attempt waits for the answer at most `timeout` or the time left, whichever is less, as an interface's
+call does. To call a slow service, raise `total-timeout` for that client or under `defaults`, for example to 30s.
 
 An error answer is read inside its attempt, at most 64 KB, and its connection freed before any wait for the next
-attempt, as an interface's is. A success answer is handed over unread after the last attempt. Each attempt's answer
-timeout also bounds the wait between bytes of its body: on the first attempt that is `timeout`, 5s by default, but an answer that comes on a late attempt has only the
-time that attempt had left. For large downloads, raise `total-timeout` for that client, or use an interface method
-that returns `InputStream`, which keeps its full `timeout`.
+attempt, as an interface's is. A success answer is handed over unread after the last attempt. A body still arriving
+when `total-timeout` runs out is cut off: `body(...)` throws Spring's `RestClientException` caused by
+`SocketTimeoutException`, and a stream you read yourself in `exchange(...)` throws the `SocketTimeoutException`.
+Neither is retried or counted. `toBodilessEntity()` returns the status and headers. For large downloads, raise
+`total-timeout` for that client, or use an interface method that returns `InputStream`.
 
 ## What differs from an interface
 
