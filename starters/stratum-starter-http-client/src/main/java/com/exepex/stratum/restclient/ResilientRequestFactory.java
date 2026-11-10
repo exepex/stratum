@@ -88,7 +88,7 @@ final class ResilientRequestFactory implements ClientHttpRequestFactory {
         return Objects.requireNonNull(
             resilience.call(
                 client, method, body != null, false, () -> attempt(headers, body, kept)));
-      } catch (RestClientResponseException errorAnswer) {
+      } catch (RestClientResponseException _) {
         return kept.handOver();
       }
     }
