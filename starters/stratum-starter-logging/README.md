@@ -436,11 +436,11 @@ with no checks and no redaction.
 
 | Feature | What it adds |
 | --- | --- |
-| Workflows across services | The workflow fields sent to the service's own downstream services, planned with the HTTP client starter |
-| Management endpoint | Secured, timed switches for DEBUG on one logger and timing lines for one workflow, each switching back by itself |
-| Sensitive data during incidents | Masked values carry a keyed fingerprint, so the same value can be matched without being shown. Unmasking stays off unless the service allows it in configuration; it is turned on through a secured endpoint, with a reason, for 15 minutes by default and never more than 1 day, for the listed fields only. Every use is recorded, and unmasked lines go only to a separate destination, never to the normal log |
+| Workflows across services | The workflow fields sent to the service's own downstream services, planned with the HTTP client starter ([issue #301](https://github.com/exepex/stratum/issues/301)) |
+| Management endpoint | Secured, timed switches for DEBUG on one logger and timing lines for one workflow, each switching back by itself ([issue #302](https://github.com/exepex/stratum/issues/302)) |
+| Sensitive data during incidents | Masked values carry a keyed fingerprint, so the same value can be matched without being shown. Unmasking stays off unless the service allows it in configuration; it is turned on through a secured endpoint, with a reason, for 15 minutes by default and never more than 1 day, for the listed fields only. Every use is recorded, and unmasked lines go only to a separate destination, never to the normal log ([issue #136](https://github.com/exepex/stratum/issues/136)) |
 | Rate limits for Log4j2 | The same limits and sampling for services on Log4j2, from the same keys ([issue #153](https://github.com/exepex/stratum/issues/153)) |
-| Body logging on demand | Request and response bodies in the logs when you need them, planned for the web and HTTP client starters rather than this one |
+| Body logging on demand | Request and response bodies in the logs when you need them, planned for the web and HTTP client starters rather than this one ([issue #203](https://github.com/exepex/stratum/issues/203), [issue #268](https://github.com/exepex/stratum/issues/268)) |
 
 ## Troubleshooting
 

@@ -449,10 +449,10 @@ own exception, the 64 KB read of an error body, the limit on a successful answer
 
 These parts of [ADR 0011](../adr/0011-http-client-starters.md) are not built yet, and none of their keys is read:
 
-- `urls`;
+- `urls` ([#308](https://github.com/exepex/stratum/issues/308));
 - the retry and circuit breaker of a client with its own engine
   ([#262](https://github.com/exepex/stratum/issues/262));
-- the reactive starter, `stratum-starter-reactive-http-client`, on `WebClient`.
+- the reactive starter, `stratum-starter-reactive-http-client`, on `WebClient` ([#269](https://github.com/exepex/stratum/issues/269)).
 
 ## Troubleshooting
 

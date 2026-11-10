@@ -1,6 +1,6 @@
 # Web: `stratum-starter-webmvc` and `stratum-starter-webflux`
 
-**Status: Partly built.** Error responses, request fields in logs, the correlation ID, the request
+**Status: Built.** Error responses, request fields in logs, the correlation ID, the request
 log, timeouts and the body size limit are built for both stacks; the error responses are described
 in the READMEs of [`stratum-starter-webmvc`](../../starters/stratum-starter-webmvc/README.md) and
 [`stratum-starter-webflux`](../../starters/stratum-starter-webflux/README.md), timeouts in
@@ -155,7 +155,7 @@ automatic context propagation, which the logging and observability starters turn
 Spring MVC request ends, the module cleans the server thread's logging context
 ([Web MVC](../../starters/stratum-starter-webmvc/README.md#a-clean-log-context-after-each-request)).
 Caller fields, such as the calling service and user, are planned for the security starter, which
-reads them from a verified token only.
+reads them from a verified token only ([issue #307](https://github.com/exepex/stratum/issues/307)).
 
 ### The client IP
 

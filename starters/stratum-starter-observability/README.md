@@ -473,10 +473,10 @@ sent, and Spring Boot's own actuator defaults apply.
 
 | Feature | What it adds |
 | --- | --- |
-| How each app type is observed | Docs for batch, command-line and reactive services |
-| Cloud queues | Traces and timings for Amazon SQS, Azure Service Bus and Google Pub/Sub, with the cloud starters |
-| Vendor and cloud recipes | Collector setups for Datadog, New Relic, Splunk, Dynatrace, AWS, Azure and Google Cloud |
-| Profiling | The Pyroscope profiler, after a licence and overhead check |
+| How each app type is observed | Docs for batch, command-line and reactive services ([issue #303](https://github.com/exepex/stratum/issues/303)) |
+| Cloud queues | Traces and timings for Amazon SQS, Azure Service Bus and Google Pub/Sub, with the cloud starters ([issue #304](https://github.com/exepex/stratum/issues/304)) |
+| Vendor and cloud recipes | Collector setups for Datadog, New Relic, Splunk, Dynatrace, AWS, Azure and Google Cloud ([issue #305](https://github.com/exepex/stratum/issues/305)) |
+| Profiling | The Pyroscope profiler, after a licence and overhead check ([issue #306](https://github.com/exepex/stratum/issues/306)) |
 
 ## Troubleshooting
 

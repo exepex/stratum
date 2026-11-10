@@ -1,6 +1,6 @@
 # Cache: `stratum-starter-cache`
 
-**Status: Partly built.** Spring's caching switched on, so `@Cacheable` works with no
+**Status: Built.** Spring's caching switched on, so `@Cacheable` works with no
 `@EnableCaching`, and safe defaults for Spring Boot's Redis cache: every entry expires, keys start
 with the service's name, hits and misses are counted, Redis commands have short timeouts and
 clearing a cache never blocks Redis. Cached calls keep working when Redis is down, with the method
