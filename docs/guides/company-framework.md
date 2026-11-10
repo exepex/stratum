@@ -118,7 +118,7 @@ starter from the bundle:
 | --- | --- | --- |
 | Security filter chain | Requests pass one chain and fail the other | `stratum.security.enabled=false` |
 | Log format and redaction | Log lines in two formats, or the company's format without Stratum's redaction | `stratum.logging.enabled=false` |
-| Correlation ID filter | Two IDs per request, under two header names | `stratum.web.enabled=false`, which also turns off the error format, the request log and the response timeouts; or `stratum.web.correlation.accept-from-caller=false` to ignore the caller's `X-Correlation-Id` and always use the trace ID |
+| Correlation ID filter | Two IDs per request, under two header names | `stratum.web.enabled=false`, which also turns off the error format, the request log and the response timeouts. There is no switch for the correlation ID alone; `stratum.web.correlation.accept-from-caller` only chooses which ID is used |
 | Metrics and tracing setup | Duplicate metric tags, or traces that do not connect | `stratum.observability.enabled=false` |
 | HTTP client defaults | Two sets of timeouts or interceptors on the same client | `stratum.http-client.enabled=false` |
 
