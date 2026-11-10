@@ -56,9 +56,10 @@ cite it.
 - **ST-ENG-10 One concern per starter.** Logging, observability, security, HTTP clients, resilience, data access,
   caching and messaging each have their own `stratum-starter-*`. A service only gets what it adds. Bundle starters,
   such as `stratum-starter-microservice`, contain no code and only list the single starters one kind of application
-  needs (ADR 0003). No single starter depends on another starter, except in test scope. Starters share code and
-  settings through a library in `libs/`, and shared code moves there only when a second starter needs it
-  (ADR 0010).
+  needs (ADR 0003). A parent per kind of application, such as `stratum-microservice-parent`, brings that kind's
+  bundle and the test starters `stratum-test` and `spring-boot-starter-test`, and nothing else (ADR 0019). No single
+  starter depends on another starter, except in test scope. Starters share code and settings through a library in
+  `libs/`, and shared code moves there only when a second starter needs it (ADR 0010).
 - **ST-ENG-11 Starters meet through Spring.** When one starter needs another's behaviour, it uses the public extension
   points of Spring and Micrometer, which the other starter configures. It never imports another starter's internal
   classes. Example: the HTTP client starter propagates traces through Micrometer's observation API, not through

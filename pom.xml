@@ -71,6 +71,7 @@
     <module>platform/stratum-build-parent</module>
     <module>platform/stratum-build-rules</module>
     <module>platform/stratum-library-parent</module>
+    <module>platform/stratum-microservice-parent</module>
     <module>platform/stratum-parent</module>
 
     <!-- Shared libraries -->
@@ -168,7 +169,8 @@
         </executions>
       </plugin>
       <!-- Writes ${revision} as a fixed version into the installed POM. stratum-parent stops it for
-           services, and stratum-bom changes its mode. -->
+           services, stratum-microservice-parent turns it back on for itself, and stratum-bom changes
+           its mode. -->
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>flatten-maven-plugin</artifactId>

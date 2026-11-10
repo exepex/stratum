@@ -29,7 +29,7 @@ them in the repository's `docs/` folder, not in the wiki
 | --- | --- |
 | [Core concepts](getting-started/concepts.md) | Starters, beans, auto-configuration, properties and profiles, explained from the beginning, plus a glossary. |
 | [Installation](getting-started/installation.md) | Adding Stratum to a service: parent POM or BOM, choosing starters, checking that it works. |
-| [Stratum as your parent POM](getting-started/with-stratum-parent.md) | A complete `pom.xml` with `stratum-parent` as the parent, and what the parent sets for you. |
+| [Stratum as your parent POM](getting-started/with-stratum-parent.md) | The complete `pom.xml` of a microservice with `stratum-microservice-parent` as the parent, `stratum-parent` for other kinds of application, and what each parent sets for you. |
 | [Stratum as a dependency, under another parent](getting-started/with-stratum-bom.md) | Complete `pom.xml` examples under `spring-boot-starter-parent` and under a company parent, the properties to set, what you lose without `stratum-parent`, and an older Spring Boot in the parent. |
 | [Quick start](getting-started/quick-start.md) | Build a small but complete service step by step: REST API, logs, tracing, a downstream call, tests. |
 
@@ -50,7 +50,7 @@ Each module page follows the same layout so you always know where to look:
 
 | Module | Page |
 | --- | --- |
-| Parent POM and BOM | [parent-and-bom.md](modules/parent-and-bom.md) |
+| Parent POMs and BOM | [parent-and-bom.md](modules/parent-and-bom.md) |
 | Bundle starters (one dependency per kind of application) | [bundles.md](modules/bundles.md) |
 | Web, for Spring MVC and WebFlux (errors, request logs, correlation IDs, timeouts, body limits) | [web.md](modules/web.md) |
 | Web backward-compatible mode, which keeps existing consumers' error bodies | [web-compatible-mode.md](modules/web-compatible-mode.md) |
@@ -105,7 +105,7 @@ Each module page follows the same layout so you always know where to look:
 | --- | --- |
 | [ADR 0001: Stratum next to a company framework](adr/0001-coexistence-with-company-frameworks.md) | The parent sets the Spring Boot version, a company's bean wins over Stratum's, and a fork under the company parent is supported but not recommended. |
 | [ADR 0002: No startup check of the Spring Boot version](adr/0002-no-startup-version-check.md) | Replaces the startup version check of ADR 0001: the parent POM alone decides the Spring Boot version. |
-| [ADR 0003: Bundle starters and module switches](adr/0003-bundle-starters-and-module-switches.md) | One bundle starter per kind of application instead of parents, and every module off until `stratum.<module>.enabled=true`. Replaced in part by ADR 0010. |
+| [ADR 0003: Bundle starters and module switches](adr/0003-bundle-starters-and-module-switches.md) | One bundle starter per kind of application instead of parents, and every module off until `stratum.<module>.enabled=true`. Replaced in part by ADR 0010. Also replaced in part by ADR 0019. |
 | [ADR 0004: Weekly dependency updates with Dependabot](adr/0004-dependency-updates.md) | Dependabot opens grouped upgrade pull requests every week, Spring upgrades together, each one runs the full build and the owner merges it. |
 | [ADR 0005: Every version in the root POM](adr/0005-versions-in-the-root-pom.md) | Replaces two parts of ADR 0004: the root `pom.xml` inherits Spring Boot's parent and sets every version Stratum chooses, so no version is copied by hand. |
 | [ADR 0006: Separate starters for Spring MVC and WebFlux](adr/0006-separate-mvc-and-webflux-starters.md) | `stratum-starter-webmvc` and `stratum-starter-webflux` share one library and one set of `stratum.web.*` keys, and a new reactive microservice bundle brings WebFlux. |
@@ -121,6 +121,7 @@ Each module page follows the same layout so you always know where to look:
 | [ADR 0016: The HTTP client's call log key, its redaction signal and its meters](adr/0016-http-client-call-log-and-meters.md) | Adds the key `call-log` (`errors`, `all`, `none`); the logging starter tells the client starter its redaction runs through a marker bean, so the line carries the masked `url` only then; Stratum's own meters per client, with the pool-full counter of #237. |
 | [ADR 0017: A limit on the body of a successful answer an HTTP client reads](adr/0017-http-client-response-body-limit.md) | A client reads at most `response-body-limit` of a successful answer (32 MB by default, `-1` for none, otherwise 1 B to 1 GiB, in both modes); a larger one fails with `SX-HTTPC-0006`, not retried and counted as a success by the circuit breaker; an `InputStream` download is not limited. |
 | [ADR 0018: The Maven groupId is `io.github.exepex.stratum`; Java packages stay under `com.exepex.stratum`](adr/0018-group-id-io-github-exepex.md) | The domain `exepex.com` is lost, so Stratum cannot prove `com.exepex` on Maven Central and a third party could claim it; every artifact moves to `io.github.exepex.stratum`, verified through the GitHub organisation `exepex`, and the Java packages do not change. |
+| [ADR 0019: One parent per kind of application, which brings its bundle; one BOM](adr/0019-one-parent-per-kind-of-application.md) | Replaces ADR 0003 decision 3: a parent per kind of application, such as `stratum-microservice-parent`, inherits `stratum-parent` and brings that kind's bundle, `stratum-test` and `spring-boot-starter-test`, so a new microservice writes only `<parent>`; `stratum-bom` stays the one BOM. |
 
 ## Contributing
 

@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The parent POM for a REST microservice (ADR 0019). It is stratum-parent, with all its build setup,
+  plus the dependencies every microservice needs: the stratum-starter-microservice bundle, and
+  stratum-test and spring-boot-starter-test for its tests. A service then writes only <parent>. It adds
+  a starter by declaring it, and drops a bundled one by declaring the bundle again with an <exclusion>.
+  Keep <dependencies> sorted by name.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>io.github.exepex.stratum</groupId>
+    <artifactId>stratum-parent</artifactId>
+    <version>${revision}</version>
+    <relativePath>../stratum-parent/pom.xml</relativePath>
+  </parent>
+
+  <artifactId>stratum-microservice-parent</artifactId>
+  <packaging>pom</packaging>
+
+  <name>Stratum microservice parent</name>
+  <description>Parent POM for a REST microservice: stratum-parent plus the stratum-starter-microservice bundle, and stratum-test and spring-boot-starter-test for tests.</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>io.github.exepex.stratum</groupId>
+      <artifactId>stratum-starter-microservice</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.github.exepex.stratum</groupId>
+      <artifactId>stratum-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!-- stratum-parent stops the root POM's flatten executions for its children, so they are bound
+           again here, with their phase and goal, or the installed POM would keep ${revision} as its
+           parent's version and no service could resolve it. A service has its own version, so they
+           stop here again. -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>flatten-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>stratum-flatten</id>
+            <phase>process-resources</phase>
+            <goals>
+              <goal>flatten</goal>
+            </goals>
+            <inherited>false</inherited>
+          </execution>
+          <execution>
+            <id>stratum-flatten-clean</id>
+            <phase>clean</phase>
+            <goals>
+              <goal>clean</goal>
+            </goals>
+            <inherited>false</inherited>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

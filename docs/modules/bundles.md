@@ -7,14 +7,16 @@ their Spring web stack, Spring MVC or WebFlux, so a bundle starts a web server. 
 resilience and data-jpa starters join no bundle until they are built.
 
 [← Documentation home](../README.md) · Decision records: [ADR 0003](../adr/0003-bundle-starters-and-module-switches.md),
-[ADR 0010](../adr/0010-modules-on-when-present-and-one-compatibility-switch.md)
+[ADR 0010](../adr/0010-modules-on-when-present-and-one-compatibility-switch.md),
+[ADR 0019](../adr/0019-one-parent-per-kind-of-application.md)
 
 ## What a bundle is
 
 A **bundle starter** is a dependency with no code of its own. It lists the single starters that one
 kind of application needs, so your service adds one dependency instead of six. It works the same
 whichever parent your service uses: `stratum-parent`, or your company's parent with `stratum-bom`
-imported ([Installation](../getting-started/installation.md)).
+imported ([Installation](../getting-started/installation.md)). `stratum-microservice-parent` brings the
+microservice bundle for you.
 
 Each bundle lists only what that kind of application needs, so nothing unwanted lands on your
 classpath. A single starter never pulls in another unrelated starter.
@@ -39,7 +41,10 @@ uses Redis instead ([Cache](cache.md#add-it)).
 
 ## Add a bundle
 
-No `<version>` tag: the parent or the BOM sets it.
+With `stratum-microservice-parent` as your parent, you do not add the microservice bundle: the parent
+already brings it, with the test libraries
+([The microservice parent](parent-and-bom.md#the-microservice-parent)). Under any other parent, add the
+bundle for your kind of application. No `<version>` tag: the parent or the BOM sets it.
 
 ```xml
 <dependency>
@@ -94,7 +99,8 @@ reactive service:
 ## Leave a starter out
 
 To keep one of a bundle's starters off your classpath entirely, exclude it. Here the service keeps
-its company's caching and drops Stratum's:
+its company's caching and drops Stratum's. With `stratum-microservice-parent`, declare the bundle
+again in the same way: your own declaration, with its exclusion, replaces the parent's.
 
 ```xml
 <dependency>

@@ -25,8 +25,12 @@ flowchart LR
 
 ## Step 1: versions
 
-Replace your parent with `stratum-parent`, or import `stratum-bom` (see
-[Installation](../getting-started/installation.md)). If your parent is your company's framework,
+Replace your parent with `stratum-microservice-parent` for a REST microservice, or `stratum-parent`
+for any other kind of application, or import `stratum-bom` (see
+[Installation](../getting-started/installation.md)). A service already on `stratum-parent` with the
+microservice bundle can move to `stratum-microservice-parent`: change the parent's `artifactId`, and
+remove the bundle, `stratum-test` and `spring-boot-starter-test` from its `<dependencies>`, which the
+new parent brings. If your parent is your company's framework,
 keep it and follow [Using Stratum with a company framework](company-framework.md). Then **remove every `<version>`** from
 dependencies the BOM manages. Run `mvn dependency:tree` before and after, and compare.
 
@@ -215,4 +219,4 @@ tests to `*IntegrationTest.java` so they run in `mvn verify`.
 | `RestTemplate` beans, interceptors, timeout config | `stratum-starter-http-client`, and the client's own `RestTemplate` or `RestClient` bean ([clients Stratum did not build](../modules/http-client-own-clients.md)) |
 | Retry loops, circuit breaker config | `stratum-starter-resilience` |
 | PostgreSQL and Redis test containers | `stratum-test` |
-| Dozens of `<version>` tags | `stratum-parent` or `stratum-bom` |
+| Dozens of `<version>` tags | `stratum-microservice-parent`, `stratum-parent` or `stratum-bom` |

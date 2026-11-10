@@ -21,7 +21,7 @@ its starters.
 
 | | Setup A: Stratum as parent | Setup B: company parent, Stratum BOM | Setup C: team fork of Stratum |
 | --- | --- | --- | --- |
-| Parent chain | Spring Boot → `stratum-parent` → service | Spring Boot → company parent → service | Spring Boot → company parent → forked `stratum-parent` → service |
+| Parent chain | Spring Boot → `stratum-parent` → service, or → `stratum-parent` → `stratum-microservice-parent` → service for a microservice | Spring Boot → company parent → service | Spring Boot → company parent → forked `stratum-parent` → service |
 | Use when | There is no company framework | The service must keep the company parent | The team wants one parent with both, and accepts maintaining a fork |
 | Who sets the Spring Boot version | Stratum | The company parent | The company parent |
 | Stratum upgrades | Change one version | Change one version | Merge each Stratum release into the fork |

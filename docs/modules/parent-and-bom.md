@@ -1,7 +1,8 @@
-# Parent POM and BOM: `stratum-parent` and `stratum-bom`
+# Parent POMs and BOM: `stratum-parent`, `stratum-microservice-parent` and `stratum-bom`
 
-**Status: Built, not released.** `stratum-parent` and `stratum-bom` exist in the repository and pass
-`mvn verify`. No release is published yet, only [snapshots](../getting-started/installation.md#using-a-snapshot).
+**Status: Built, not released.** `stratum-parent`, `stratum-microservice-parent` and `stratum-bom` exist
+in the repository and pass `mvn verify`. No release is published yet, only
+[snapshots](../getting-started/installation.md#using-a-snapshot).
 This page explains how your service gets Stratum's tested versions, Java settings and build checks.
 
 [← Documentation home](../README.md) · How to choose between them: [Installation](../getting-started/installation.md)
@@ -16,13 +17,15 @@ together and publishes it in two forms:
 | --- | --- | --- |
 | `stratum-bom` | A *bill of materials*: a POM that lists versions only | Versions of Stratum's modules and of the extra libraries Stratum uses |
 | `stratum-parent` | A parent POM that inherits Spring Boot's parent, imports the BOM and adds build settings | Spring Boot's versions, the BOM's versions, **plus** Java 25, plugin versions and quality checks |
+| `stratum-microservice-parent` | A parent POM that inherits `stratum-parent` and adds a microservice's dependencies | Everything `stratum-parent` gives, **plus** the microservice bundle and the test libraries ([The microservice parent](#the-microservice-parent)) |
 
 ```mermaid
 flowchart TD
     SB[spring-boot-starter-parent] -->|parent of, through stratum and stratum-build-parent| SP[stratum-parent]
     SB -->|parent of| CP[company parent]
     BOM[stratum-bom] -->|imported by| SP
-    SP -->|parent of| S1[order-service]
+    SP -->|parent of| MP[stratum-microservice-parent]
+    MP -->|parent of| S1[order-service]
     CP -->|parent of| S2[service with a company parent]
     BOM -->|imported by| S2
 ```
@@ -241,7 +244,29 @@ value with yours. Keep `SpringMvcEndpointDetector` in your list, separated by co
 
 Your own `excludeFilterFile` does not change this setting: Stratum's `omitVisitors` stays.
 
+## The microservice parent
+
+`stratum-microservice-parent` is the parent for a REST microservice
+([ADR 0019](../adr/0019-one-parent-per-kind-of-application.md)). It inherits `stratum-parent`, so a
+service on it gets every setting above, and it adds three dependencies, nothing else:
+
+| Dependency | Scope |
+| --- | --- |
+| `stratum-starter-microservice`, the [microservice bundle](bundles.md) | compile |
+| `stratum-test` ([Testing](test.md)) | test |
+| `spring-boot-starter-test`, for JUnit 5, AssertJ and Mockito | test |
+
+So the service's `pom.xml` holds only its `<parent>` and its own coordinates
+([the complete `pom.xml`](../getting-started/with-stratum-parent.md#the-complete-pomxml-of-a-microservice)).
+It adds a starter by declaring it, and leaves a bundled starter out by declaring the bundle again with
+an `<exclusion>`: Maven then uses the service's own declaration
+([Leave a bundled starter out](../getting-started/with-stratum-parent.md#leave-a-bundled-starter-out)).
+
+The other kinds of application (reactive microservice, web UI, batch job, command-line application)
+get their own parent once their bundle is built (**planned**). Until then, they use `stratum-parent`
+and declare their bundle.
+
 ## Upgrading
 
-Change the version of `stratum-parent` (or `stratum-bom`) in one place and run `mvn verify`. Read the
+Change the version of your Stratum parent (or `stratum-bom`) in one place and run `mvn verify`. Read the
 release notes first; see [Versioning and upgrades](../guides/upgrading.md).
