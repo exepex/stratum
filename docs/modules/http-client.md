@@ -2,9 +2,9 @@
 
 **Status: Partly built.** Calls to other services through Java interfaces marked `@StratumClient`. Each client
 gets its own address, timeouts and bounded connection pool from one settings block, and Apache HttpClient 5 sends
-its calls, with retries, a time limit for the whole call, a circuit breaker, its credential or token, and
-one exception per failure ([errors](http-client-errors.md)), one log line per failed call and its meters
-([call log and meters](http-client-observability.md)). Headers are planned ([Planned](#planned)).
+its calls, with retries, a time limit for the whole call, a circuit breaker, its credential or token, its
+[headers and interceptors](http-client-headers.md), one exception per failure ([errors](http-client-errors.md)),
+and one log line per failed call and its meters ([call log and meters](http-client-observability.md)).
 
 [← Documentation home](../README.md) · Property prefix: `stratum.http-client` ·
 Design: [ADR 0011](../adr/0011-http-client-starters.md), [ADR 0012](../adr/0012-http-client-changes-found-while-building.md),
@@ -166,11 +166,15 @@ the shared default, which wins over Stratum's.
 | `auth.basic.username`, `auth.basic.password` | text | unset | no such key | Credentials sent with HTTP Basic authentication on every call. Both are required. |
 | `auth.client-credentials` | text | unset | no such key | The `spring.security.oauth2.client.registration` whose token the service sends as itself. Needs `stratum-starter-oauth2-client`. |
 | `auth.token-relay` | `true`/`false` | `false` | no such key | Sends the caller's access token, as Spring Security's resource server verified it. |
+| `headers` | map of header name to value | none | no such key | Headers sent on every call, such as `[X-Partner-Id]: orders`. A client's are added to those under `defaults`; for the same name the client's value wins, and an empty value drops the default ([Headers and interceptors](http-client-headers.md)). `Authorization`, `Cookie`, `Set-Cookie`, `Proxy-Authorization` and the client's API key header are refused. |
+| `interceptor-body-limit` | data size | `1MB` | no such key | The most of a request body an interceptor may read with `body()`, from `1B` to `1GB`; a larger body fails with `SX-HTTPC-0005` before it is sent ([bodies](http-client-headers.md#bodies)). `0` is refused. |
+| `copy-headers` | list of header names | none | no such key | Headers copied from the request the service is answering onto each call made while answering it, such as `X-Tenant`. A client's list is joined with the one under `defaults`. Outside a request nothing is copied. The same headers as in `headers` are refused. |
 | `ssl-bundle` | text | unset | no such key | The name of a `spring.ssl.bundle.*` bundle whose certificate the client presents (mutual TLS). Not allowed under `defaults`, nor with `shared-pool`. |
 | `spring.http.clients.imperative.factory` | `http-components`, `jetty`, `reactor`, `jdk` or `simple` | `jdk` | unset: detects the engine, Apache HttpClient 5 first | The engine of the RestClients Stratum did not build. Stratum's own clients always use Apache HttpClient 5 ([Clients Stratum did not build](#clients-stratum-did-not-build)). |
 
-Every duration must be above 0, and `auth` holds exactly one kind. A setting that breaks a rule stops startup with
-`SX-CORE-1003`, naming the rule, never the value; the rules of `retry` and `circuit-breaker` are listed on
+Every duration must be above 0, `auth` holds exactly one kind, and no refused header is in `headers` or
+`copy-headers`. A setting that breaks a rule stops startup with `SX-CORE-1003`, naming the rule, never the value; the
+rules of `retry` and `circuit-breaker` are listed on
 [retries and the circuit breaker](http-client-resilience.md#startup-errors).
 
 Spring Boot's own settings of an HTTP service group, `spring.http.serviceclient.<name>.*`, do not apply to a Stratum
@@ -280,24 +284,25 @@ com.exepex.stratum.httpclient.HttpClientPropertiesCustomizer=com.acme.orders.Rep
 
 ## Customize
 
-For what has no setting, such as a request interceptor or a message converter, declare a `StratumClientCustomizer`
+For what has no setting, such as a message converter, declare a `StratumClientCustomizer`
 bean. Spring calls it once per client at startup, after Stratum has set the client's address and pool, with the
 client's name and its `RestClient.Builder`:
 
 ```java
 @Bean
-StratumClientCustomizer inventoryTenantHeader() {
+StratumClientCustomizer inventoryCsv() {
   return (client, builder) -> {
     if ("inventory".equals(client)) {
-      builder.defaultHeader("X-Tenant", "retail");
+      builder.configureMessageConverters(converters -> converters.addCustomConverter(new CsvConverter()));
     }
   };
 }
 ```
 
-Do not put secrets in a header this way: use the [`auth` settings](http-client-auth.md). The same customizer
-changes the client's `RestClient` bean; its `customizeRestTemplate` changes the client's `RestTemplate` bean
-([clients Stratum did not build](http-client-own-clients.md#configure-in-java)).
+For headers and for code that changes each call, use `headers`, `copy-headers` and interceptors instead
+([Headers and interceptors](http-client-headers.md)): a request interceptor added here makes Spring hold every request
+body in memory. The same customizer changes the client's `RestClient` bean; its `customizeRestTemplate` changes the
+client's `RestTemplate` bean ([clients Stratum did not build](http-client-own-clients.md#configure-in-java)).
 
 Spring Boot's `RestClientCustomizer` beans also apply to Stratum's clients, before Stratum's settings; a request
 factory one of them sets is replaced by Stratum's.
@@ -390,8 +395,8 @@ stratum:
 
 A name that is not an interface on the classpath stops startup with `SX-HTTPC-1007`; an interface marked
 `@StratumClient` for another client stops it with `SX-HTTPC-1008`. A generated interface cannot carry
-`@StratumClient(interceptors = ...)`, so the planned per-client interceptors do not reach it; a
-`StratumClientCustomizer` does, by the client's name.
+`@StratumClient(interceptors = ...)`, so only a `GlobalClientInterceptor` that checks `request.client()` reaches it
+([interceptors](http-client-headers.md#interceptors)).
 
 **A generated client that takes a `RestClient` or a `RestTemplate`** injects the client's own bean,
 `@Qualifier("partner") RestClient` or `RestTemplate`, with its address, timeouts, pool, credential, retries and circuit
@@ -421,12 +426,10 @@ own exception, the 64 KB read of an error body and the startup errors are on
 
 These parts of [ADR 0011](../adr/0011-http-client-starters.md) are not built yet, and none of their keys is read:
 
-- `headers` and `copy-headers`;
 - `trace-headers` ([call log and meters](http-client-observability.md#planned));
 - `urls`;
 - the retry and circuit breaker of a client with its own engine
   ([#262](https://github.com/exepex/stratum/issues/262));
-- `ClientInterceptor` and `GlobalClientInterceptor`;
 - the reactive starter, `stratum-starter-reactive-http-client`, on `WebClient`.
 
 ## Troubleshooting

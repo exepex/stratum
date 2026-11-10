@@ -94,7 +94,7 @@ final class ResilientRequestFactory implements ClientHttpRequestFactory {
       var lastErrorAnswer = new AtomicReference<@Nullable ClientHttpResponse>();
       try {
         return Objects.requireNonNull(
-            resilience.call(
+            resilience.callMarkingInterceptorFailures(
                 ClientCall.builder()
                     .client(client)
                     .method(method)
@@ -102,6 +102,10 @@ final class ResilientRequestFactory implements ClientHttpRequestFactory {
                     .streamedBody(body != null)
                     .build(),
                 () -> attempt(headers, body, lastErrorAnswer)));
+      } catch (InterceptorFailure failure) {
+        // The bean's exit: its caller gets the interceptor's own failure, never the carrier.
+        failure.throwOriginal();
+        throw failure;
       } catch (RestClientResponseException _) {
         return Objects.requireNonNull(lastErrorAnswer.get());
       } catch (ResourceAccessException noAnswer) {

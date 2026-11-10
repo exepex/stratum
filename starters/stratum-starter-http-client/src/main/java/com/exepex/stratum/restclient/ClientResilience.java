@@ -121,8 +121,29 @@ public class ClientResilience implements ClientExchangeDecorator {
    * @throws StratumException {@code SX-HTTPC-0003} when the client's breaker is open, so the call
    *     was not sent, or the failure that stopped an attempt before it was sent, such as {@code
    *     SX-HTTPC-0002} when the service token cannot be fetched
+   * @throws RuntimeException an interceptor's own failure, as it threw it: the call was not sent,
+   *     so it is neither retried nor counted by the breaker
    */
   public <T> @Nullable T call(ClientCall call, Supplier<@Nullable T> exchange) {
+    try {
+      return callMarkingInterceptorFailures(call, exchange);
+    } catch (InterceptorFailure failure) {
+      failure.throwOriginal();
+      throw failure;
+    }
+  }
+
+  /**
+   * Runs one call as {@link #call} does, but passes an interceptor's failure on as an {@link
+   * InterceptorFailure}, for an outer layer that unwraps it after its own rules, such as the error
+   * translation of a client's interface.
+   *
+   * @param call the call
+   * @param exchange one attempt of the call
+   * @param <T> what the call returns
+   * @return what the last attempt returned
+   */
+  <T> @Nullable T callMarkingInterceptorFailures(ClientCall call, Supplier<@Nullable T> exchange) {
     var startNanos = System.nanoTime();
     var lastResult = new AtomicReference<@Nullable T>();
     var lastSent = new AtomicReference<@Nullable ClientAttempt>();
@@ -139,7 +160,7 @@ public class ClientResilience implements ClientExchangeDecorator {
               attempt -> noteSent(call, attempt, lastSent, sentAttempts));
       attemptsEnded = true;
     } catch (StratumException failure) {
-      notSent = notSentOutcome(failure);
+      notSent = RetryRules.notSentOutcome(failure);
       throw failure;
     } finally {
       var duration = Duration.ofNanos(System.nanoTime() - startNanos);
@@ -207,16 +228,6 @@ public class ClientResilience implements ClientExchangeDecorator {
       meters.ifAvailable(clientMeters -> clientMeters.poolRefused(call.client()));
     }
     return attempt;
-  }
-
-  /**
-   * Returns the outcome of a failure that stopped an attempt before it was sent: unavailable when
-   * the service token could not be fetched, an error for any other.
-   */
-  private CallOutcome notSentOutcome(StratumException failure) {
-    return failure.getErrorCode() == HttpClientErrorCode.DOWNSTREAM_UNAVAILABLE
-        ? CallOutcome.UNAVAILABLE
-        : CallOutcome.ERROR;
   }
 
   /** Writes a call's log line and counts it in the meters. */

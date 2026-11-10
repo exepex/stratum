@@ -2,6 +2,7 @@ package com.exepex.stratum.restclient.autoconfigure;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientPropertiesCustomizer;
 import com.exepex.stratum.restclient.ClientConnectionPools;
@@ -12,6 +13,7 @@ import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import com.exepex.stratum.restclient.testsupport.clients.InventoryAdmin;
 import com.exepex.stratum.restclient.testsupport.clients.InventoryClient;
 import com.exepex.stratum.restclient.testsupport.clients.InventoryClients;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -19,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
@@ -189,6 +192,48 @@ class RestClientAutoConfigurationTest {
                   assertThat(context.getStartupFailure())
                       .rootCause()
                       .hasMessageContaining("SX-CORE-1004"));
+    }
+  }
+
+  @Nested
+  @DisplayName("with a refused header in the files")
+  class RefusedHeader {
+
+    @Test
+    @DisplayName("startup stops with SX-CORE-1003, naming the rule only, never the value")
+    void refusedHeaderStopsStartup() {
+      clients
+          .withPropertyValues(
+              RestClientTestData.setting(
+                  HttpClientConstants.DEFAULTS + ".headers.[Authorization]",
+                  RestClientTestData.SECRET))
+          .run(
+              context ->
+                  assertThat(context.getStartupFailure())
+                      .isInstanceOf(StratumException.class)
+                      .hasMessage(
+                          "SX-CORE-1003: Invalid settings: stratum.http-client.headers-allowed"
+                              + " breaks @AssertTrue"));
+    }
+  }
+
+  @Nested
+  @DisplayName("without the servlet API")
+  class WithoutServletApi {
+
+    @Test
+    @DisplayName("a client that copies headers starts and calls, copying nothing")
+    void copyingClientWorks() {
+      clients
+          .withClassLoader(new FilteredClassLoader(HttpServletRequest.class))
+          .withPropertyValues(
+              RestClientTestData.setting(
+                  HttpClientConstants.DEFAULTS + ".copy-headers", "X-Tenant"),
+              RestClientTestData.setting(RestClientTestData.INVENTORY_SETTINGS + ".mock", true))
+          .run(
+              context ->
+                  assertThat(context.getBean(InventoryClient.class).stock())
+                      .isEqualToIgnoringWhitespace("\"from the mock\""));
     }
   }
 

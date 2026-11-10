@@ -7,6 +7,10 @@ stratum:
         delay: 1s
       circuit-breaker:
         wait-duration-in-open-state: 30s
+      headers:
+        "[X-Partner-Id]": orders
+      copy-headers: [X-Tenant]
+      interceptor-body-limit: 2MB
     clients:
       inventory:
         url: http://inventory:8080
@@ -20,6 +24,11 @@ stratum:
           failure-rate-threshold: 10
           slow-call-duration-threshold: 2s
         mock: true
+        headers:
+          "[X-Region]": eu
+        copy-headers:
+          - X-Request-Origin
+        interceptor-body-limit: 8MB
         call-log: all
         interfaces:
           - com.partner.OrdersApi

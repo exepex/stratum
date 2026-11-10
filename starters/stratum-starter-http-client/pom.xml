@@ -44,6 +44,14 @@
       <groupId>io.github.resilience4j</groupId>
       <artifactId>resilience4j-circuitbreaker</artifactId>
     </dependency>
+    <!-- The servlet API, to read the headers that copy-headers copies from the request the service is
+         answering; Spring has no servlet-free way to read them. Optional: a service without it, such
+         as a batch job, never loads a servlet class and copies nothing. Version from Spring Boot. -->
+    <dependency>
+      <groupId>jakarta.servlet</groupId>
+      <artifactId>jakarta.servlet-api</artifactId>
+      <optional>true</optional>
+    </dependency>
     <!-- Optional: the meters of each call, retry, breaker state and pool (ADR 0016). Micrometer's
          core holds the registry and the Apache HttpClient 5 pool binder; a service gets it with
          Spring Boot's Actuator or the observability starter, and without it the starter makes no

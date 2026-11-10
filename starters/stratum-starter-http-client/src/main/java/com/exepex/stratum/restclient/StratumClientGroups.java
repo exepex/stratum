@@ -17,9 +17,10 @@ import org.springframework.web.service.registry.HttpServiceGroup;
 /**
  * Sets up the HTTP service group of each Stratum client through {@link StratumClientBuilders}, and
  * puts every {@link ClientExchangeDecorator} around its calls, such as the retries; a mocked
- * client's calls also carry their method, for {@link MockAnswers}. Groups that are not a Stratum
- * client's, such as a service's own, are left as Spring Boot set them up. Runs at startup, when
- * Spring builds the clients.
+ * client's calls also carry their method, for {@link MockAnswers}, and the calls of a client with
+ * interceptors whether their body may be read. Groups that are not a Stratum client's, such as a
+ * service's own, are left as Spring Boot set them up. Runs at startup, when Spring builds the
+ * clients.
  */
 @StratumInternal
 @RequiredArgsConstructor
@@ -43,6 +44,9 @@ public class StratumClientGroups implements RestClientHttpServiceGroupConfigurer
   /** The answers and calls of the clients set to {@code mock: true}. */
   private final MockAnswers mockAnswers;
 
+  /** The interceptors of each client, whose calls are marked when their body may be read. */
+  private final ClientInterceptors interceptors;
+
   /**
    * Sets up each Stratum client's group.
    *
@@ -56,6 +60,15 @@ public class StratumClientGroups implements RestClientHttpServiceGroupConfigurer
         .forEachClient((group, builder) -> builders.configure(group.name(), builder));
     groups.filter(this::isStratumClient).forEachProxyFactory(this::decorateCalls);
     groups.filter(this::isMockedClient).forEachProxyFactory(this::markMockedCalls);
+    groups
+        .filter(this::hasInterceptors)
+        .forEachProxyFactory(
+            (_, factory) -> factory.httpRequestValuesProcessor(new StreamedBodyMarker()));
+  }
+
+  /** Returns whether a group is a Stratum client's with at least one interceptor. */
+  private boolean hasInterceptors(HttpServiceGroup group) {
+    return isStratumClient(group) && interceptors.hasInterceptors(group.name());
   }
 
   /**

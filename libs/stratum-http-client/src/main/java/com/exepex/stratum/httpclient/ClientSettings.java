@@ -1,13 +1,20 @@
 package com.exepex.stratum.httpclient;
 
+import jakarta.validation.constraints.AssertTrue;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.Builder;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.NestedConfigurationProperty;
+import org.springframework.util.unit.DataSize;
 
 /**
  * The settings of one client, or of every client under {@code defaults}. A setting a client leaves
@@ -46,6 +53,19 @@ import org.springframework.boot.context.properties.NestedConfigurationProperty;
  * @param interfaces The full names of generated interfaces, such as com.partner.OrdersApi, that
  *     call this client's service with all of its settings, as an interface marked @StratumClient
  *     does. Only for a client; not allowed under defaults. Defaults to none.
+ * @param headers Headers sent on every call, by name, such as X-Partner-Id: orders. A client's are
+ *     added to those under defaults; for the same name, compared without case, the client's value
+ *     wins, and an empty value drops the default and sends nothing. Authorization, Cookie,
+ *     Set-Cookie, Proxy-Authorization and the client's API key header are refused. Defaults to
+ *     none.
+ * @param copyHeaders The names of headers copied from the request the service is answering, such as
+ *     X-Tenant, onto every call made while answering it. A name the request does not have, or a
+ *     call made outside a request, sends nothing. A client's names are joined with those under
+ *     defaults. The same headers as in headers are refused. Defaults to none.
+ * @param interceptorBodyLimit The most of a request body an interceptor may read with body(), such
+ *     as 1MB or 8MB, from 1B to 1GB. A call whose body is larger fails before it is sent, with
+ *     SX-HTTPC-0005. Reading a body holds up to about three times this much memory while the call
+ *     runs. 0 is refused. Defaults to 1MB.
  * @param callLog Which calls write a log line: errors, one WARN per failed call after its retries;
  *     all, also one INFO per successful call; or none. Defaults to errors.
  */
@@ -66,11 +86,16 @@ public record ClientSettings(
     @NestedConfigurationProperty @Nullable ClientCircuitBreaker circuitBreaker,
     @Nullable Boolean mock,
     List<String> interfaces,
+    Map<String, String> headers,
+    List<String> copyHeaders,
+    @Nullable DataSize interceptorBodyLimit,
     @Nullable CallLog callLog) {
 
-  /** Keeps the interfaces a fixed list, empty when none is named. */
+  /** Keeps the interfaces, headers and copied headers fixed, empty when none is named. */
   public ClientSettings {
     interfaces = interfaces == null ? List.of() : List.copyOf(interfaces);
+    headers = headers == null ? Map.of() : Map.copyOf(headers);
+    copyHeaders = copyHeaders == null ? List.of() : List.copyOf(copyHeaders);
   }
 
   /** Stratum's default for every setting but the address. */
@@ -102,6 +127,7 @@ public record ClientSettings(
                   .build())
           .sharedPool(false)
           .mock(false)
+          .interceptorBodyLimit(HttpClientConstants.DEFAULT_INTERCEPTOR_BODY_LIMIT)
           .callLog(CallLog.ERRORS)
           .build();
 
@@ -131,8 +157,96 @@ public record ClientSettings(
                 : circuitBreaker.orElse(fallback.circuitBreaker))
         .mock(either(mock, fallback.mock))
         .interfaces(interfaces.isEmpty() ? fallback.interfaces : interfaces)
+        .headers(headersOver(fallback.headers))
+        .copyHeaders(copyHeadersAfter(fallback.copyHeaders))
+        .interceptorBodyLimit(either(interceptorBodyLimit, fallback.interceptorBodyLimit))
         .callLog(either(callLog, fallback.callLog))
         .build();
+  }
+
+  /**
+   * Shows every setting, but only the names of {@code headers}, never their values, since a fixed
+   * header may hold personal data, such as an email address in {@code From}. {@code auth} shows its
+   * kind only.
+   *
+   * @return a text without header values
+   */
+  @Override
+  public String toString() {
+    return Stream.of(
+            "url=" + url,
+            "connectTimeout=" + connectTimeout,
+            "timeout=" + timeout,
+            "maxConnections=" + maxConnections,
+            "maxWait=" + maxWait,
+            "idleTimeout=" + idleTimeout,
+            "connectionLifetime=" + connectionLifetime,
+            "sharedPool=" + sharedPool,
+            "auth=" + auth,
+            "sslBundle=" + sslBundle,
+            "retry=" + retry,
+            "totalTimeout=" + totalTimeout,
+            "circuitBreaker=" + circuitBreaker,
+            "mock=" + mock,
+            "interfaces=" + interfaces,
+            "headers=" + new TreeSet<>(headers.keySet()),
+            "copyHeaders=" + copyHeaders,
+            "interceptorBodyLimit=" + interceptorBodyLimit)
+        .collect(Collectors.joining(", ", "ClientSettings[", "]"));
+  }
+
+  /**
+   * Returns whether {@code interceptor-body-limit}, when set, is from 1 byte to 1 gigabyte.
+   * Validation reports one that is not as {@code stratum.http-client.defaults
+   * .interceptor-body-limit-in-range} or {@code stratum.http-client.clients[*]
+   * .interceptor-body-limit-in-range breaks @AssertTrue}, without the value.
+   *
+   * @return whether the limit is in range
+   */
+  @AssertTrue
+  public boolean isInterceptorBodyLimitInRange() {
+    return interceptorBodyLimit == null
+        || interceptorBodyLimit.toBytes() >= 1
+            && interceptorBodyLimit.toBytes()
+                <= HttpClientConstants.MAX_INTERCEPTOR_BODY_LIMIT.toBytes();
+  }
+
+  /**
+   * Returns whether no header in {@code headers} or {@code copy-headers} is one Stratum refuses,
+   * compared without case: one that carries a user's identity or the client's API key. A header
+   * with an empty value sends nothing, so it is not checked.
+   *
+   * @return whether every header name is allowed
+   */
+  boolean isHeadersAllowed() {
+    var refused = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+    refused.addAll(HttpClientConstants.REFUSED_HEADERS);
+    Optional.ofNullable(auth).map(ClientAuth::apiKeyHeader).ifPresent(refused::add);
+    var sentHeaders =
+        headers.entrySet().stream()
+            .filter(header -> !header.getValue().isEmpty())
+            .map(Map.Entry::getKey);
+    return Stream.concat(sentHeaders, copyHeaders.stream()).noneMatch(refused::contains);
+  }
+
+  /**
+   * Returns these headers added to the fallback's: for the same name, compared without case, this
+   * value wins. An empty value is kept, so that it still drops the default when merged settings are
+   * merged again, such as after a Java customizer stored them back; it sends nothing.
+   */
+  private Map<String, String> headersOver(Map<String, String> fallback) {
+    var merged = new TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER);
+    merged.putAll(fallback);
+    // Removed first, so that the name keeps this side's spelling.
+    headers.keySet().forEach(merged::remove);
+    merged.putAll(headers);
+    return Map.copyOf(merged);
+  }
+
+  /** Returns the fallback's copied headers, then these, each name once, compared without case. */
+  private List<String> copyHeadersAfter(List<String> fallback) {
+    var names = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+    return Stream.concat(fallback.stream(), copyHeaders.stream()).filter(names::add).toList();
   }
 
   /** Returns the first value when it is set, or else the second, which may be unset too. */
