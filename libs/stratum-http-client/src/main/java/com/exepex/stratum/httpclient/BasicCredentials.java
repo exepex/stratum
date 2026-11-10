@@ -6,8 +6,8 @@ import org.jspecify.annotations.Nullable;
  * The user name and password a client sends with HTTP Basic authentication. Both are required. Take
  * them from placeholders, such as {@code ${PARTNER_PASSWORD}}, never from the file itself.
  *
- * @param username The user name the other service expects.
- * @param password The password, from a placeholder such as ${PARTNER_PASSWORD}.
+ * @param username The user name the other service expects. None by default.
+ * @param password The password, from a placeholder such as ${PARTNER_PASSWORD}. None by default.
  */
 public record BasicCredentials(@Nullable String username, @Nullable String password) {
 

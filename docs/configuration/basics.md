@@ -270,6 +270,14 @@ stratum:
     format: ecs
 ```
 
+or, in `application.properties`:
+
+```properties
+server.port=8080
+logging.level.com.acme.orders=DEBUG
+stratum.logging.format=ecs
+```
+
 Some Stratum properties are shortcuts that set Spring Boot properties for you. For example,
 `stratum.logging.format` sets Spring Boot's `logging.structured.format.console`. If you set the Spring Boot
 property directly, your value wins as long as it is one of Stratum's formats; any other value stops startup

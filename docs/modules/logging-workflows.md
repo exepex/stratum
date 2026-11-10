@@ -96,6 +96,9 @@ management:
         workflow: false
 ```
 
+This is a Spring Boot key, so it has no Stratum customizer. To set it in Java, use the application's
+[default properties](../configuration/overriding-defaults.md#switches-shared-properties-and-spring-boot-properties-in-java).
+
 A workflow lasts as long as its work. Logging adds no timeout, so work that never finishes, such
 as a remote call that hangs or a `CompletionStage` that never completes, keeps its workflow open
 and is never timed. Put a timeout on every remote call the work makes.

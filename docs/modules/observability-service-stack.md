@@ -25,7 +25,7 @@ carries the authorities granted, such as `FACTOR_BEARER`, never the token's clai
 refused with `401` before it reaches a controller has `uri=UNKNOWN`, so every refused request shares
 one series.
 
-To log who called, turn on the request log's [token claims](web.md#token-claims), which are off by
+To log who called, turn on the request log's [token claims](web-request-log.md#token-claims), which are off by
 default. To turn the Spring Security spans off, use Spring Boot's switch for every observation
 whose name starts with `spring.security` (a test of it is planned,
 [#235](https://github.com/exepex/stratum/issues/235)):

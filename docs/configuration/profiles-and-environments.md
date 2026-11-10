@@ -41,6 +41,14 @@ stratum:
         url: http://inventory-service   # name inside the cluster
 ```
 
+Or, as `application.properties`:
+
+```properties
+spring.application.name=order-service
+stratum.logging.format=ecs
+stratum.http-client.clients.inventory.url=http://inventory-service
+```
+
 `application-local.yml`:
 
 ```yaml
@@ -108,6 +116,12 @@ ConfigMaps and Secrets mounted as volumes:
 spring:
   config:
     import: "optional:configtree:/etc/config/"
+```
+
+or, in `application.properties`:
+
+```properties
+spring.config.import=optional:configtree:/etc/config/
 ```
 
 A file `/etc/config/stratum.http-client.clients.inventory.url` then sets that property.
