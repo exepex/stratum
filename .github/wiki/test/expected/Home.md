@@ -1,7 +1,7 @@
 <!-- generated from docs/README.md -->
 # Sample documentation
 
-The [project README](https://github.com/exepex/stratum/blob/main/README.md) gives the overview.
+The [project README](Project-README) gives the overview.
 
 ## Where to start
 
@@ -20,6 +20,7 @@ The [project README](https://github.com/exepex/stratum/blob/main/README.md) give
 | Module | Page |
 | --- | --- |
 | Demo starter | [stratum-starter-demo/README.md](stratum-starter-demo) |
+| Demo client | [Demo client](Modules-demo-client) with [auth](Modules-demo-client-auth), [errors](Modules-demo-client-errors) and [Spring](https://spring.io) |
 
 ## Architecture decisions
 

@@ -1,23 +1,14 @@
 # Copies the documentation into the GitHub wiki, so the wiki never goes stale. docs/ is the one
 # source: .github/wiki/WikiSync.java turns docs/README.md into the wiki's Home and sidebar, copies
-# every page the index links, rewrites their links, and never changes a page written in the wiki,
-# such as an audit report. docs/contributing.md#the-wiki describes it.
+# every page the index links and the project README, rewrites their links, and never changes a page
+# written in the wiki, such as an audit report. docs/contributing.md#the-wiki describes it.
+# It runs on every merge to main and on every pull request, with no path filter.
 name: Wiki
 
 on:
   push:
     branches: [main]
-    paths:
-      - 'docs/**'
-      - 'starters/*/README.md'
-      - '.github/wiki/**'
-      - '.github/workflows/wiki.yml'
   pull_request:
-    paths:
-      - 'docs/**'
-      - 'starters/*/README.md'
-      - '.github/wiki/**'
-      - '.github/workflows/wiki.yml'
   # A wiki edit, such as a new audit report, updates the sidebar. The sync's own push uses
   # GITHUB_TOKEN, which starts no workflow run, so it cannot loop.
   gollum:
