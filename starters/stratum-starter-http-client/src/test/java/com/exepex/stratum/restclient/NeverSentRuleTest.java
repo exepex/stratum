@@ -16,7 +16,7 @@ class NeverSentRuleTest {
   void bodyTooLargeNeverSent() {
     var failure = new StratumException(HttpClientErrorCode.INTERCEPTOR_BODY_TOO_LARGE, "");
 
-    assertThat(RetryRules.isNeverSent(failure)).isTrue();
+    assertThat(NeverSentFailures.isNeverSent(failure)).isTrue();
   }
 
   @Test
@@ -24,7 +24,7 @@ class NeverSentRuleTest {
   void callerTokenMissingNeverSent() {
     var failure = new StratumException(HttpClientErrorCode.CALLER_TOKEN_MISSING);
 
-    assertThat(RetryRules.isNeverSent(failure)).isTrue();
+    assertThat(NeverSentFailures.isNeverSent(failure)).isTrue();
   }
 
   @Test
@@ -32,12 +32,13 @@ class NeverSentRuleTest {
   void unavailableNotIgnored() {
     var failure = new StratumException(HttpClientErrorCode.DOWNSTREAM_UNAVAILABLE);
 
-    assertThat(RetryRules.isNeverSent(failure)).isFalse();
+    assertThat(NeverSentFailures.isNeverSent(failure)).isFalse();
   }
 
   @Test
   @DisplayName("a failure of the other service, such as a dropped connection, is not ignored")
   void downstreamFailureNotIgnored() {
-    assertThat(RetryRules.isNeverSent(new ResourceAccessException("connection reset"))).isFalse();
+    assertThat(NeverSentFailures.isNeverSent(new ResourceAccessException("connection reset")))
+        .isFalse();
   }
 }
