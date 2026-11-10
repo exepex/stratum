@@ -5,11 +5,9 @@ import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientErrorCode;
 import java.io.IOException;
-import java.net.SocketTimeoutException;
 import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import org.apache.hc.client5.http.ConnectTimeoutException;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
@@ -88,7 +86,7 @@ public class ClientErrors implements ClientExchangeDecorator {
    * failure to connect, which includes a connect timeout, a full pool and a dropped connection.
    */
   private HttpClientErrorCode codeFor(IOException cause) {
-    return cause instanceof SocketTimeoutException && !(cause instanceof ConnectTimeoutException)
+    return RetryRules.isAnswerTimeout(cause)
         ? HttpClientErrorCode.DOWNSTREAM_TIMEOUT
         : HttpClientErrorCode.DOWNSTREAM_UNAVAILABLE;
   }

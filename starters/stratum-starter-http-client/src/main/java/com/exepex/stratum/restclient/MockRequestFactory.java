@@ -41,6 +41,7 @@ final class MockRequestFactory implements ClientHttpRequestFactory {
 
   @Override
   public ClientHttpRequest createRequest(URI uri, HttpMethod method) {
+    AttemptTimeLeft.sentTo(uri);
     return new MockRequest(uri, method);
   }
 

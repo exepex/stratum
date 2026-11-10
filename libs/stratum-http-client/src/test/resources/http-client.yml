@@ -2,6 +2,7 @@ stratum:
   http-client:
     defaults:
       timeout: 3s
+      call-log: none
       retry:
         delay: 1s
       circuit-breaker:
@@ -28,6 +29,7 @@ stratum:
         copy-headers:
           - X-Request-Origin
         interceptor-body-limit: 8MB
+        call-log: all
         interfaces:
           - com.partner.OrdersApi
           - com.partner.CustomersApi

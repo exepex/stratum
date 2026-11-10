@@ -25,7 +25,9 @@ class ClientResilienceUnwrapTest {
           HttpClientProperties.builder().build(),
           new StaticListableBeanFactory().getBeanProvider(StratumClientCustomizer.class),
           Clock.systemUTC(),
-          new StaticListableBeanFactory().getBeanProvider(ServiceTokenResend.class));
+          new StaticListableBeanFactory().getBeanProvider(ServiceTokenResend.class),
+          new ClientCallLog(HttpClientProperties.builder().build(), null),
+          new StaticListableBeanFactory().getBeanProvider(ClientMeters.class));
 
   @Test
   @DisplayName("the caller gets the original, after one attempt, with nothing recorded")
@@ -35,10 +37,10 @@ class ClientResilienceUnwrapTest {
     assertThatThrownBy(
             () ->
                 resilience.call(
-                    RestClientTestData.INVENTORY,
-                    HttpMethod.GET,
-                    false,
-                    false,
+                    ClientCall.builder()
+                        .client(RestClientTestData.INVENTORY)
+                        .method(HttpMethod.GET)
+                        .build(),
                     () -> failOnce(attempts)))
         .isSameAs(KEY_SERVICE_DOWN);
 

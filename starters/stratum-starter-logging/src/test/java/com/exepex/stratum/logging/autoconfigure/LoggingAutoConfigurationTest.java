@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.error.CoreErrorCode;
 import com.exepex.stratum.core.error.StratumException;
+import com.exepex.stratum.core.logging.LogRedaction;
 import com.exepex.stratum.core.properties.StratumPropertiesCustomizer;
 import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.LoggingProperties;
@@ -36,6 +37,35 @@ class LoggingAutoConfigurationTest {
   private final ApplicationContextRunner contextRunner =
       new ApplicationContextRunner()
           .withConfiguration(AutoConfigurations.of(LoggingAutoConfiguration.class));
+
+  @Nested
+  @DisplayName("the marker that the redaction runs")
+  class RedactionMarker {
+
+    @Test
+    @DisplayName("with the module on, the marker exists")
+    void markerWhileModuleOn() {
+      contextRunner.run(context -> assertThat(context).hasSingleBean(LogRedaction.class));
+    }
+
+    @Test
+    @DisplayName("with the module off, there is no marker, as the redaction does not run")
+    void noMarkerWhileModuleOff() {
+      contextRunner
+          .withPropertyValues(LoggingConstants.ENABLED + "=false")
+          .run(context -> assertThat(context).doesNotHaveBean(LogRedaction.class));
+    }
+
+    @Test
+    @DisplayName("a marker the service declares replaces Stratum's")
+    void serviceMarkerWins() {
+      var serviceMarker = new LogRedaction();
+
+      contextRunner
+          .withBean(LogRedaction.class, () -> serviceMarker)
+          .run(context -> assertThat(context.getBean(LogRedaction.class)).isSameAs(serviceMarker));
+    }
+  }
 
   @Nested
   @DisplayName("with the module switched on or off")

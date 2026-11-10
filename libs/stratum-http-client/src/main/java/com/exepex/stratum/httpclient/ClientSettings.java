@@ -66,6 +66,8 @@ import org.springframework.util.unit.DataSize;
  *     as 1MB or 8MB, from 1B to 1GB. A call whose body is larger fails before it is sent, with
  *     SX-HTTPC-0005. Reading a body holds up to about three times this much memory while the call
  *     runs. 0 is refused. Defaults to 1MB.
+ * @param callLog Which calls write a log line: errors, one WARN per failed call after its retries;
+ *     all, also one INFO per successful call; or none. Defaults to errors.
  */
 @Builder(toBuilder = true)
 public record ClientSettings(
@@ -86,7 +88,8 @@ public record ClientSettings(
     List<String> interfaces,
     Map<String, String> headers,
     List<String> copyHeaders,
-    @Nullable DataSize interceptorBodyLimit) {
+    @Nullable DataSize interceptorBodyLimit,
+    @Nullable CallLog callLog) {
 
   /** Keeps the interfaces, headers and copied headers fixed, empty when none is named. */
   public ClientSettings {
@@ -125,6 +128,7 @@ public record ClientSettings(
           .sharedPool(false)
           .mock(false)
           .interceptorBodyLimit(HttpClientConstants.DEFAULT_INTERCEPTOR_BODY_LIMIT)
+          .callLog(CallLog.ERRORS)
           .build();
 
   /**
@@ -156,6 +160,7 @@ public record ClientSettings(
         .headers(headersOver(fallback.headers))
         .copyHeaders(copyHeadersAfter(fallback.copyHeaders))
         .interceptorBodyLimit(either(interceptorBodyLimit, fallback.interceptorBodyLimit))
+        .callLog(either(callLog, fallback.callLog))
         .build();
   }
 
