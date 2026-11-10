@@ -5,6 +5,7 @@ import lombok.experimental.UtilityClass;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.BeanFactoryAnnotationUtils;
 import org.springframework.context.ApplicationContext;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestTemplate;
 
@@ -46,6 +47,25 @@ public class ClientBeanCalls {
     return switch (bean) {
       case REST_CLIENT -> restClient(beans, client).get().uri(path).retrieve().body(String.class);
       case REST_TEMPLATE -> restTemplate(beans, client).getForObject(path, String.class);
+    };
+  }
+
+  /**
+   * Gets a path through one of a client's beans and drops the answer's body unread.
+   *
+   * @param beans the application's beans
+   * @param bean which of the client's beans
+   * @param client the client's name
+   * @param path the path, relative to the client's address
+   * @return the answer's status
+   */
+  public static HttpStatusCode getWithoutBody(
+      ApplicationContext beans, ClientBean bean, String client, String path) {
+    return switch (bean) {
+      case REST_CLIENT ->
+          restClient(beans, client).get().uri(path).retrieve().toBodilessEntity().getStatusCode();
+      case REST_TEMPLATE ->
+          restTemplate(beans, client).getForEntity(path, Void.class).getStatusCode();
     };
   }
 

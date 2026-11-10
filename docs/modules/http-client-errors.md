@@ -9,7 +9,7 @@ service then gets. Part of the [HTTP client](http-client.md) page.
 
 | The call | It throws | Your caller gets, if you do not catch it |
 | --- | --- | --- |
-| Got no answer in time: the answer, or a byte of it, took longer than `timeout` | `StratumException` with `SX-HTTPC-0001` | `504` |
+| Got no answer in time: the answer, or a byte of it, took longer than `timeout`, or its body was still arriving when `total-timeout` ran out | `StratumException` with `SX-HTTPC-0001` | `504` |
 | Got no answer for another reason: the connection was refused or timed out, the host is unknown, the pool stayed full for `max-wait`, or the connection dropped; or, with `auth.client-credentials`, the client's token cannot be fetched and the call is not sent | `StratumException` with `SX-HTTPC-0002` | `503` |
 | Was not sent, as the client's circuit breaker is open | `StratumException` with `SX-HTTPC-0003` | `503` |
 | Was not sent, as a client with `auth.token-relay: true` has no verified caller token ([auth](http-client-auth.md#token-relay)) | `StratumException` with `SX-HTTPC-0004` | `500` |
@@ -136,8 +136,8 @@ StratumClientCustomizer stockNotFound() {
 
 Of an error answer's body, at most 64 KB is read and kept, after gzip is undone, so a huge error body never fills the
 memory. An answer that succeeds is read whole. The limit has no key. The rest of a longer error body is read and
-dropped when the answer closes, so the connection can be used again; a body that never ends is bounded only by
-`timeout` between bytes ([#236](https://github.com/exepex/stratum/issues/236)).
+dropped when the answer closes, so the connection can be used again; a body that never ends is dropped, with its
+connection, when `total-timeout` runs out ([#236](https://github.com/exepex/stratum/issues/236)).
 
 ## Clients Stratum did not build
 
