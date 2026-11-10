@@ -32,7 +32,8 @@ jobs:
           persist-credentials: false
 
       # Writes a settings.xml server "central" that reads the token from the environment, and imports
-      # the signing key into a temporary keyring that the job's post step deletes.
+      # the signing key into a temporary keyring that the job's post step deletes. Maven 3.10 sends a
+      # server's credentials only to its own origins, so the snapshot host central.sonatype.com is listed.
       - name: Set up JDK 25, the Central token and the signing key
         uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
@@ -40,6 +41,7 @@ jobs:
           java-version: '25'
           cache: maven
           server-id: central
+          mvn-server-repository-origins: central:https://central.sonatype.com
           server-username-env-var: CENTRAL_TOKEN_USERNAME
           server-password-env-var: CENTRAL_TOKEN_PASSWORD
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
