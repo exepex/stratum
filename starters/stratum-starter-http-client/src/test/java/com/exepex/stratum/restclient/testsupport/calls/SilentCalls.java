@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.service.annotation.GetExchange;
 
 /** The silent client, whose {@code call-log: none} logs no call; it uses the shared pool. */
+@FunctionalInterface
 @StratumClient(CallsTestData.SILENT)
 public interface SilentCalls {
 

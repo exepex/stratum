@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.service.annotation.GetExchange;
 
 /** The audited client, whose {@code call-log: all} logs every call. */
+@FunctionalInterface
 @StratumClient(CallsTestData.AUDITED)
 public interface AuditedCalls {
 

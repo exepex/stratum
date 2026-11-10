@@ -16,6 +16,7 @@ import com.exepex.stratum.restclient.testsupport.calls.FragileCalls;
 import com.exepex.stratum.restclient.testsupport.calls.OrdersCalls;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
+import java.net.URI;
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -168,6 +169,6 @@ class CallMetersIntegrationTest {
         .isNotEmpty()
         .noneMatch(value -> value.contains(CallsTestData.ORDER_ID))
         .noneMatch(value -> value.contains(CallsTestData.STATUS))
-        .noneMatch(value -> value.contains("127.0.0.1"));
+        .noneMatch(value -> value.contains(URI.create(DOWNSTREAM.url()).getHost()));
   }
 }

@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.service.annotation.GetExchange;
 
 /** The fragile client, whose breaker opens after two failed attempts. */
+@FunctionalInterface
 @StratumClient(CallsTestData.FRAGILE)
 public interface FragileCalls {
 

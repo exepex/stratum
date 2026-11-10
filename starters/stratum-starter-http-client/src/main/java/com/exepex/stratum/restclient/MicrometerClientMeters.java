@@ -50,9 +50,7 @@ public class MicrometerClientMeters implements ClientMeters {
   public void callEnded(ClientCallOutcome outcome) {
     var meters = metersFor(outcome.call().client());
     meters.calls().get(outcome.outcome()).record(outcome.duration());
-    if (outcome.attempts() > 1) {
-      meters.retries().increment(outcome.attempts() - 1.0);
-    }
+    meters.retries().increment(Math.max(0, outcome.attempts() - 1));
   }
 
   @Override

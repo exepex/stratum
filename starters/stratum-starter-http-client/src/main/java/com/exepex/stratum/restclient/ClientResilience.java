@@ -127,8 +127,8 @@ public class ClientResilience implements ClientExchangeDecorator {
     var lastResult = new AtomicReference<@Nullable T>();
     var lastSent = new AtomicReference<@Nullable ClientAttempt>();
     var sentAttempts = new AtomicInteger();
-    // Any other exception that escapes the attempts, such as a bug, ends the call as an error.
-    @Nullable CallOutcome notSent = CallOutcome.ERROR;
+    @Nullable CallOutcome notSent = null;
+    var attemptsEnded = false;
     ClientAttempt lastAttempt;
     try {
       lastAttempt =
@@ -137,18 +137,19 @@ public class ClientResilience implements ClientExchangeDecorator {
               exchange,
               lastResult,
               attempt -> noteSent(call, attempt, lastSent, sentAttempts));
-      notSent = null;
+      attemptsEnded = true;
     } catch (StratumException failure) {
       notSent = notSentOutcome(failure);
       throw failure;
     } finally {
-      report(
-          ClientCallOutcome.of(
-              call,
-              lastSent.get(),
-              notSent,
-              sentAttempts.get(),
-              Duration.ofNanos(System.nanoTime() - startNanos)));
+      var duration = Duration.ofNanos(System.nanoTime() - startNanos);
+      if (attemptsEnded) {
+        report(ClientCallOutcome.of(call, lastSent.get(), null, sentAttempts.get(), duration));
+      } else {
+        // Any other exception that escapes the attempts, such as a bug, ends the call as an error.
+        var endedAs = Objects.requireNonNullElse(notSent, CallOutcome.ERROR);
+        report(ClientCallOutcome.of(call, lastSent.get(), endedAs, sentAttempts.get(), duration));
+      }
     }
     lastAttempt.getFailure().ifPresent(this::rethrow);
     return lastResult.get();

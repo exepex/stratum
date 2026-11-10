@@ -5,6 +5,7 @@ import com.exepex.stratum.restclient.testsupport.ScriptedDownstream;
 import org.springframework.web.service.annotation.GetExchange;
 
 /** The held client, with one connection, a short wait for it and a short answer timeout. */
+@FunctionalInterface
 @StratumClient(CallsTestData.HELD)
 public interface HeldCalls {
 

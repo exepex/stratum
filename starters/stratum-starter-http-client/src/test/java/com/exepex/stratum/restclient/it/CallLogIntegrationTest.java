@@ -16,6 +16,7 @@ import com.exepex.stratum.restclient.testsupport.calls.CallsApplication;
 import com.exepex.stratum.restclient.testsupport.calls.CallsTestData;
 import com.exepex.stratum.restclient.testsupport.calls.OrdersCalls;
 import com.exepex.stratum.restclient.testsupport.calls.SilentCalls;
+import java.net.URI;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.DisplayName;
@@ -141,7 +142,7 @@ class CallLogIntegrationTest {
 
       assertThat(assertCallLine(output, CallsTestData.ORDERS))
           .doesNotContain("url=")
-          .doesNotContain("127.0.0.1")
+          .doesNotContain(URI.create(DOWNSTREAM.url()).getHost())
           .doesNotContain(CallsTestData.ORDER_ID)
           .doesNotContain(CallsTestData.STATUS);
     }
