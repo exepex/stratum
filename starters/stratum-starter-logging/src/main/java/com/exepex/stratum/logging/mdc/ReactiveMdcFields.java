@@ -4,6 +4,7 @@ import com.exepex.stratum.logging.LoggingConstants;
 import io.micrometer.context.integration.Slf4jThreadLocalAccessor;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import lombok.experimental.UtilityClass;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -15,7 +16,8 @@ import reactor.util.context.Context;
  * own thread changes, but after a step that completes outside Reactor, such as a {@code
  * CompletableFuture}, Reactor resets the MDC from the subscription. These fields travel with the
  * subscription instead, together with the fields the subscribing thread holds. Fields of an
- * enclosing call are kept; a field set again takes the new value.
+ * enclosing call are kept; a field set again takes the new value, and a field set to {@code null}
+ * is left off the lines.
  */
 @UtilityClass
 public class ReactiveMdcFields {
@@ -27,7 +29,7 @@ public class ReactiveMdcFields {
   /**
    * Returns the {@code Mono} with the fields on every log line it writes.
    *
-   * @param fields the MDC field names and values
+   * @param fields the MDC field names and values; a {@code null} value leaves the field off
    * @param monoThatLogs the {@code Mono} whose log lines get the fields
    * @param <T> the result's type
    * @return the {@code Mono}, with the fields
@@ -42,7 +44,7 @@ public class ReactiveMdcFields {
   /**
    * Returns the {@code Flux} with the fields on every log line it writes.
    *
-   * @param fields the MDC field names and values
+   * @param fields the MDC field names and values; a {@code null} value leaves the field off
    * @param fluxThatLogs the {@code Flux} whose log lines get the fields
    * @param <T> the elements' type
    * @return the {@code Flux}, with the fields
@@ -72,7 +74,8 @@ public class ReactiveMdcFields {
   /**
    * Returns the context with the fields added to those the subscribing thread holds, which include
    * any put with {@code MDC.put}, and to those of any enclosing call. They also go in the whole
-   * logging context that a service may carry in Reactor, so that restoring it keeps them all.
+   * logging context that a service may carry in Reactor, so that restoring it keeps them all. A
+   * field with a {@code null} value is removed from both, hiding any earlier value.
    */
   private static Context withServiceFields(Context context, Map<String, String> fields) {
     var serviceFields = new HashMap<>(SERVICE_MDC_FIELDS_ACCESSOR.serviceFieldsOnThisThread());
@@ -87,6 +90,8 @@ public class ReactiveMdcFields {
                 .<Map<String, String>>getOrEmpty(Slf4jThreadLocalAccessor.KEY)
                 .orElseGet(Map::of));
     wholeLoggingContext.putAll(serviceFields);
+    wholeLoggingContext.values().removeIf(Objects::isNull);
+    serviceFields.values().removeIf(Objects::isNull);
     return context
         .put(LoggingConstants.SERVICE_MDC_FIELDS, Map.copyOf(serviceFields))
         .put(Slf4jThreadLocalAccessor.KEY, Map.copyOf(wholeLoggingContext));
