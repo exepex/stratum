@@ -93,10 +93,11 @@ class TraceHeadersTest {
 
     /**
      * CPU time the step may take on a 1 MB ID: 2 times M, where M = 12.016 µs is the largest best
-     * value of 45 CI runs with coverage on (smallest 1.879 µs, median 4.541 µs), CI runs
-     * 42809147469 to 42971115190 on JDK 25, 2026-11-10 and 2026-11-11. Its runners differ more than
-     * 6-fold on this call, so 2 rather than 5 times M keeps a 10-fold slowdown failing on 43 of the
-     * 45. The check stops after 129 characters; one that reads the whole value takes far longer.
+     * value of 46 CI runs with coverage on (smallest 1.879 µs, median 4.689 µs), CI runs
+     * 42809147469 to 42974791362 on JDK 25, 2026-11-10 and 2026-11-11. The runners differ
+     * several-fold, so 2 rather than 5 times M keeps a 10-fold slowdown failing on all but the 2
+     * fastest of them. The check stops after 129 characters; one that reads the whole value takes
+     * far longer.
      */
     private static final Duration ONE_MEGABYTE_LIMIT = Duration.ofNanos(24_031);
 

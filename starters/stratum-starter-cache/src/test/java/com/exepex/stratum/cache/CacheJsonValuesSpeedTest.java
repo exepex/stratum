@@ -32,18 +32,20 @@ class CacheJsonValuesSpeedTest {
       CachedValuesTestData.stored("[" + "1,".repeat(ONE_MEBIBYTE / 2) + "1]");
 
   /**
-   * CPU time one read of the 1 MiB string may take: 5 times M, where M = 4.525 ms is the largest
-   * best value of 44 CI runs with coverage on (smallest 1.828 ms, median 2.670 ms), CI runs
-   * 42809147469 to 42918242941 on JDK 25, 2026-11-10.
+   * CPU time one read of the 1 MiB string may take: 2 times M, where M = 4.525 ms is the largest
+   * best value of 46 CI runs with coverage on (smallest 1.828 ms, median 2.670 ms), CI runs
+   * 42809147469 to 42974791362 on JDK 25, 2026-11-10 and 2026-11-11. The runners differ
+   * several-fold, so 2 rather than 5 times M keeps a 10-fold slowdown failing on every one of them.
    */
-  private static final Duration LONG_STRING_LIMIT = Duration.of(22_624, ChronoUnit.MICROS);
+  private static final Duration LONG_STRING_LIMIT = Duration.of(9_050, ChronoUnit.MICROS);
 
   /**
-   * CPU time one read of the 1 MiB array may take: 5 times M, where M = 42.615 ms is the largest
-   * best value of 44 CI runs with coverage on (smallest 15.642 ms, median 29.217 ms), CI runs
-   * 42809147469 to 42918242941 on JDK 25, 2026-11-10.
+   * CPU time one read of the 1 MiB array may take: 2 times M, where M = 42.615 ms is the largest
+   * best value of 46 CI runs with coverage on (smallest 15.642 ms, median 29.361 ms), CI runs
+   * 42809147469 to 42974791362 on JDK 25, 2026-11-10 and 2026-11-11. The runners differ
+   * several-fold, so 2 rather than 5 times M keeps a 10-fold slowdown failing on every one of them.
    */
-  private static final Duration WIDE_ARRAY_LIMIT = Duration.of(213_073, ChronoUnit.MICROS);
+  private static final Duration WIDE_ARRAY_LIMIT = Duration.of(85_229, ChronoUnit.MICROS);
 
   /** The hostile values, each with its type and its CPU time limit. */
   private static final List<Arguments> HOSTILE_VALUES =
