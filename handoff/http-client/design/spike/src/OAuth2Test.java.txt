@@ -1,0 +1,152 @@
+package spike;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.client.ClientHttpRequestInterceptor;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.client.AuthorizedClientServiceOAuth2AuthorizedClientManager;
+import org.springframework.security.oauth2.client.InMemoryOAuth2AuthorizedClientService;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientProviderBuilder;
+import org.springframework.security.oauth2.client.endpoint.RestClientClientCredentialsTokenResponseClient;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
+import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
+import org.springframework.security.oauth2.client.web.client.OAuth2ClientHttpRequestInterceptor;
+import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.web.client.RestClient;
+
+/** Items 3 + 4: token relay from the security context; client credentials without a user; 401; timeouts. */
+class OAuth2Test {
+
+  @AfterEach void clear() { SecurityContextHolder.clearContext(); }
+
+  /** Stratum's own relay interceptor: only a validated access token (JwtAuthenticationToken), else fail closed. */
+  static final ClientHttpRequestInterceptor RELAY = (request, body, execution) -> {
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    if (!(auth instanceof JwtAuthenticationToken jwt)) {
+      throw new IllegalStateException("SX-HTTPC-0004 no caller token");
+    }
+    request.getHeaders().setBearerAuth(jwt.getToken().getTokenValue());
+    return execution.execute(request, body);
+  };
+
+  @Test
+  void tokenRelaySendsTheCallersAccessTokenAndFailsClosedOnAnotherThread() throws Exception {
+    try (Downstream downstream = new Downstream()) {
+      RestClient client = RestClient.builder().baseUrl(downstream.url()).requestInterceptor(RELAY).build();
+      Jwt jwt = Jwt.withTokenValue("caller-access-token").header("alg", "none").claim("sub", "u1").build();
+      SecurityContextHolder.getContext().setAuthentication(new JwtAuthenticationToken(jwt));
+      client.get().uri("/orders").retrieve().toBodilessEntity();
+      String asyncResult = CompletableFuture.supplyAsync(() -> {
+        try { client.get().uri("/orders").retrieve().toBodilessEntity(); return "sent"; }
+        catch (RuntimeException e) { return e.getMessage(); }
+      }).join();
+      System.out.println("SPIKE relay: downstream auth=" + downstream.authHeaders + " asyncThread=" + asyncResult
+          + " serverCalls=" + downstream.calls());
+      assertThat(downstream.authHeaders).containsExactly("Bearer caller-access-token");
+      assertThat(asyncResult).contains("SX-HTTPC-0004");
+    }
+  }
+
+  record Setup(RestClient client, AtomicInteger tokenCalls) {}
+
+  static Setup clientCredentials(Downstream sso, Downstream api, Duration tokenReadTimeout) {
+    AtomicInteger tokenCalls = new AtomicInteger();
+    sso.before = exchange -> {
+      int n = tokenCalls.incrementAndGet();
+      sso.body = "{\"access_token\":\"svc-" + n + "\",\"token_type\":\"Bearer\",\"expires_in\":3600}";
+    };
+    ClientRegistration registration = ClientRegistration.withRegistrationId("invoices")
+        .clientId("billing-service").clientSecret("not-a-real-secret")
+        .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
+        .tokenUri(sso.url() + "/oauth2/token").build();
+    InMemoryClientRegistrationRepository registrations = new InMemoryClientRegistrationRepository(registration);
+    InMemoryOAuth2AuthorizedClientService service = new InMemoryOAuth2AuthorizedClientService(registrations);
+    HttpComponentsClientHttpRequestFactory tokenFactory = new HttpComponentsClientHttpRequestFactory();
+    tokenFactory.setConnectionRequestTimeout(Duration.ofSeconds(2));
+    tokenFactory.setReadTimeout(tokenReadTimeout);
+    RestClientClientCredentialsTokenResponseClient tokenClient = new RestClientClientCredentialsTokenResponseClient();
+    tokenClient.setRestClient(RestClient.builder().requestFactory(tokenFactory)
+        .configureMessageConverters(c -> c.addCustomConverter(new org.springframework.http.converter.FormHttpMessageConverter())
+            .addCustomConverter(new org.springframework.security.oauth2.core.http.converter.OAuth2AccessTokenResponseHttpMessageConverter()))
+        .defaultStatusHandler(new org.springframework.security.oauth2.client.http.OAuth2ErrorResponseErrorHandler()).build());
+    AuthorizedClientServiceOAuth2AuthorizedClientManager manager =
+        new AuthorizedClientServiceOAuth2AuthorizedClientManager(registrations, service);
+    manager.setAuthorizedClientProvider(OAuth2AuthorizedClientProviderBuilder.builder()
+        .clientCredentials(c -> c.accessTokenResponseClient(tokenClient)).build());
+    OAuth2ClientHttpRequestInterceptor interceptor = new OAuth2ClientHttpRequestInterceptor(manager);
+    interceptor.setClientRegistrationIdResolver(request -> "invoices");
+    interceptor.setAuthorizationFailureHandler(OAuth2ClientHttpRequestInterceptor.authorizationFailureHandler(service));
+    RestClient client = RestClient.builder().baseUrl(api.url()).requestInterceptor(interceptor)
+        .defaultStatusHandler(status -> true, (req, res) -> {}).build();
+    return new Setup(client, tokenCalls);
+  }
+
+  @Test
+  void clientCredentialsWorksWithNoUserAndCachesTheToken() throws Exception {
+    try (Downstream sso = new Downstream(); Downstream api = new Downstream()) {
+      Setup setup = clientCredentials(sso, api, Duration.ofSeconds(5));
+      setup.client.get().uri("/invoices").retrieve().toBodilessEntity();
+      setup.client.get().uri("/invoices").retrieve().toBodilessEntity();
+      System.out.println("SPIKE client-credentials no user: tokenCalls=" + setup.tokenCalls.get()
+          + " api auth=" + api.authHeaders);
+      assertThat(setup.tokenCalls.get()).isEqualTo(1);
+      assertThat(api.authHeaders).containsExactly("Bearer svc-1", "Bearer svc-1");
+    }
+  }
+
+  @Test
+  void a401DropsTheCachedTokenOnlyWithInvalidTokenHeader() throws Exception {
+    for (String wwwAuthenticate : new String[] {null, "Bearer error=\"invalid_token\""}) {
+      try (Downstream sso = new Downstream(); Downstream api = new Downstream()) {
+        Setup setup = clientCredentials(sso, api, Duration.ofSeconds(5));
+        setup.client.get().uri("/invoices").retrieve().toBodilessEntity();
+        api.status = 401;
+        api.before = exchange -> {
+          if (wwwAuthenticate != null) exchange.getResponseHeaders().add(HttpHeaders.WWW_AUTHENTICATE, wwwAuthenticate);
+        };
+        int status = setup.client.get().uri("/invoices").retrieve().toBodilessEntity().getStatusCode().value();
+        api.status = 200;
+        api.before = exchange -> {};
+        setup.client.get().uri("/invoices").retrieve().toBodilessEntity();
+        System.out.println("SPIKE 401 (WWW-Authenticate=" + wwwAuthenticate + "): status=" + status
+            + " tokenCalls=" + setup.tokenCalls.get() + " api auth=" + api.authHeaders);
+      }
+    }
+  }
+
+  @Test
+  void tokenEndpointCallHonoursItsReadTimeout() throws Exception {
+    try (Downstream sso = new Downstream(); Downstream api = new Downstream()) {
+      Setup setup = clientCredentials(sso, api, Duration.ofMillis(300));
+      var tokenBody = sso.before;
+      sso.before = exchange -> { Downstream.sleep(2000); tokenBody.accept(exchange); };
+      long start = System.nanoTime();
+      String result;
+      try { setup.client.get().uri("/invoices").retrieve().toBodilessEntity(); result = "sent"; }
+      catch (RuntimeException e) { result = e.getClass().getSimpleName() + ": " + e.getMessage(); }
+      long tookMs = (System.nanoTime() - start) / 1_000_000;
+      System.out.println("SPIKE token endpoint timeout: took=" + tookMs + "ms result=" + result
+          + " apiCalls=" + api.calls());
+      assertThat(tookMs).isLessThan(1500);
+      assertThat(api.calls()).isZero();
+    }
+  }
+
+  @Test
+  void tokenExchangeProviderExists() throws Exception {
+    Class<?> provider = Class.forName("org.springframework.security.oauth2.client.TokenExchangeOAuth2AuthorizedClientProvider");
+    Class<?> client = Class.forName("org.springframework.security.oauth2.client.endpoint.RestClientTokenExchangeTokenResponseClient");
+    System.out.println("SPIKE token exchange classes: " + provider.getSimpleName() + ", " + client.getSimpleName()
+        + " grant=" + AuthorizationGrantType.TOKEN_EXCHANGE.getValue());
+  }
+}
