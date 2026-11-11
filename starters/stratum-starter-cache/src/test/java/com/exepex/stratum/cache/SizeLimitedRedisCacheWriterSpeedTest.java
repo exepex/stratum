@@ -23,11 +23,11 @@ class SizeLimitedRedisCacheWriterSpeedTest {
   private static final int HASHING_WARM_UP_BATCHES = 20;
 
   /**
-   * CPU time one 10 MB key may take, prefix search and SHA-256 included: 10 times M = 8.752 ms, the
-   * largest best value of 3 runs on a 4-CPU build machine (8.744, 8.752 and 8.610 ms), on JDK 25,
-   * 2026-11-04.
+   * CPU time one 10 MB key may take, prefix search and SHA-256 included: 5 times M, where M =
+   * 11.652 ms is the largest best value of 44 CI runs with coverage on (smallest 5.996 ms, median
+   * 7.203 ms), CI runs 42809147469 to 42918242941 on JDK 25, 2026-11-10.
    */
-  private static final Duration HOSTILE_KEY_LIMIT = Duration.of(88, ChronoUnit.MILLIS);
+  private static final Duration HOSTILE_KEY_LIMIT = Duration.of(58_258, ChronoUnit.MICROS);
 
   /** The size of the hostile key. */
   private static final int TEN_MEGABYTES = 10 * 1024 * 1024;

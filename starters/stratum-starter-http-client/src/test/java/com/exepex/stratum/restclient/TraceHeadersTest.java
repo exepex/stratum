@@ -92,11 +92,12 @@ class TraceHeadersTest {
     private static final String ONE_MEGABYTE_ID = "a".repeat(1024 * 1024);
 
     /**
-     * CPU time the step may take on a 1 MB ID: 10 times M = 1.134 µs, the largest best value of 3
-     * runs on a 4-CPU build machine (1.134, 1.090 and 1.134 µs), on JDK 25, 2026-11-10. The check
-     * stops after 129 characters; one that reads the whole value takes far longer.
+     * CPU time the step may take on a 1 MB ID: 5 times M, where M = 12.016 µs is the largest best
+     * value of 44 CI runs with coverage on (smallest 1.879 µs, median 4.533 µs), CI runs
+     * 42809147469 to 42918242941 on JDK 25, 2026-11-10. The check stops after 129 characters; one
+     * that reads the whole value takes far longer.
      */
-    private static final Duration ONE_MEGABYTE_LIMIT = Duration.ofNanos(11_340);
+    private static final Duration ONE_MEGABYTE_LIMIT = Duration.ofNanos(60_079);
 
     /** Calls in each timed batch, enough that a batch takes a few milliseconds. */
     private static final int CALLS_PER_BATCH = 10_000;

@@ -30,10 +30,11 @@ class CacheCommandTimeoutsSpeedTest {
   private static final int LOOKUPS_PER_ROUND = 100_000;
 
   /**
-   * CPU time 100,000 lookups of the hostile key may take: 10 times M = 3.077 ms, the largest best
-   * value of 3 runs on a 4-CPU build machine (3.077, 2.244 and 2.994 ms), on JDK 25, 2026-11-05.
+   * CPU time 100,000 lookups of the hostile key may take: 5 times M, where M = 12.105 ms is the
+   * largest best value of 44 CI runs with coverage on (smallest 3.829 ms, median 8.223 ms), CI runs
+   * 42809147469 to 42918242941 on JDK 25, 2026-11-10.
    */
-  private static final Duration HOSTILE_KEY_LIMIT = Duration.of(31, ChronoUnit.MILLIS);
+  private static final Duration HOSTILE_KEY_LIMIT = Duration.of(60_523, ChronoUnit.MICROS);
 
   /** The size of the hostile key. */
   private static final int TEN_MEGABYTES = 10 * 1024 * 1024;
