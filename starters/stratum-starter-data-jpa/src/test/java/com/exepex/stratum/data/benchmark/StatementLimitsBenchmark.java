@@ -155,7 +155,7 @@ public class StatementLimitsBenchmark {
     private boolean setsNetworkTimeout;
 
     /** Stratum's sweeper, whose registry each borrow on that side adds a slot to. */
-    private StatementSweeper sweeper;
+    private StatementSweeperModel sweeper;
 
     /** Whether each borrow registers a slot with the sweeper and releases it on return. */
     private boolean registersSlot;
@@ -172,7 +172,7 @@ public class StatementLimitsBenchmark {
               ? Pool.start("spring.datasource.hikari.leak-detection-threshold=" + LEAK_THRESHOLD)
               : Pool.start();
       setsNetworkTimeout = "network-timeout".equals(setting);
-      sweeper = StatementSweeper.start();
+      sweeper = StatementSweeperModel.start();
       registersSlot = "sweeper-slot".equals(setting);
     }
 
@@ -221,7 +221,7 @@ public class StatementLimitsBenchmark {
     private StatementTimer timer;
 
     /** Stratum's sweeper, which every thread of the fork shares. */
-    private StatementSweeper sweeper;
+    private StatementSweeperModel sweeper;
 
     /**
      * Starts the context, the timer and the sweeper.
@@ -232,7 +232,7 @@ public class StatementLimitsBenchmark {
     public void start() throws SQLException {
       pool = Pool.start();
       timer = StatementTimer.start();
-      sweeper = StatementSweeper.start();
+      sweeper = StatementSweeperModel.start();
     }
 
     /**
@@ -264,7 +264,7 @@ public class StatementLimitsBenchmark {
     private boolean armsTimer;
 
     /** Stratum's sweeper, which the fork's threads share. */
-    private StatementSweeper sweeper;
+    private StatementSweeperModel sweeper;
 
     /** This connection's slot, which the sweeper checks. */
     private AtomicLong slot;

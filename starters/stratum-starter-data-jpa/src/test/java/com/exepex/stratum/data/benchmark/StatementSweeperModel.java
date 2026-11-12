@@ -18,7 +18,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * @param slots the slots of the open connections, added on borrow and removed on return
  * @param origin the time every deadline counts from, so that a deadline is never negative
  */
-record StatementSweeper(ScheduledThreadPoolExecutor sweeper, Set<AtomicLong> slots, long origin) {
+record StatementSweeperModel(
+    ScheduledThreadPoolExecutor sweeper, Set<AtomicLong> slots, long origin) {
 
   /** How often the sweeper checks the slots, in milliseconds. */
   private static final long SWEEP_MILLIS = 50;
@@ -34,9 +35,9 @@ record StatementSweeper(ScheduledThreadPoolExecutor sweeper, Set<AtomicLong> slo
    *
    * @return the sweeper
    */
-  static StatementSweeper start() {
+  static StatementSweeperModel start() {
     var statementSweeper =
-        new StatementSweeper(
+        new StatementSweeperModel(
             new ScheduledThreadPoolExecutor(
                 1, Thread.ofPlatform().daemon().name("stratum-statement-sweeper").factory()),
             ConcurrentHashMap.newKeySet(),

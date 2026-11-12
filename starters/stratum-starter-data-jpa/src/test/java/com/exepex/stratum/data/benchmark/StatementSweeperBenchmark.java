@@ -74,12 +74,12 @@ public class StatementSweeperBenchmark {
     public String setting;
 
     /** The sweeper of this fork. */
-    private StatementSweeper sweeper;
+    private StatementSweeperModel sweeper;
 
     /** Starts the sweeper thread. */
     @Setup(Level.Trial)
     public void start() {
-      sweeper = StatementSweeper.start();
+      sweeper = StatementSweeperModel.start();
     }
 
     /** Stops the sweeper thread. */
@@ -94,7 +94,7 @@ public class StatementSweeperBenchmark {
   public static class ThreadSlot {
 
     /** The sweeper the slot belongs to. */
-    private StatementSweeper sweeper;
+    private StatementSweeperModel sweeper;
 
     /** This thread's slot. */
     private AtomicLong slot;
