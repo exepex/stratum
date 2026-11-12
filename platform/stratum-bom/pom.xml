@@ -157,6 +157,16 @@
         <version>${mapstruct.version}</version>
       </dependency>
       <dependency>
+        <groupId>org.openjdk.jmh</groupId>
+        <artifactId>jmh-core</artifactId>
+        <version>${jmh.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.openjdk.jmh</groupId>
+        <artifactId>jmh-generator-annprocess</artifactId>
+        <version>${jmh.version}</version>
+      </dependency>
+      <dependency>
         <groupId>org.projectlombok</groupId>
         <artifactId>lombok-mapstruct-binding</artifactId>
         <version>${lombok-mapstruct-binding.version}</version>

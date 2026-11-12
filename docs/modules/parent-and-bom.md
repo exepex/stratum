@@ -50,8 +50,9 @@ The BOM manages versions of:
 
 Today it lists Stratum's own modules, MapStruct (`mapstruct`, `mapstruct-processor` and
 `lombok-mapstruct-binding`), Resilience4j (`resilience4j-retry` and `resilience4j-circuitbreaker`),
-`maxmind-db`, `yauaa`, `commons-validator` and ArchUnit (`archunit`). Each other extra library is
-added together with the first starter that uses it.
+`maxmind-db`, `yauaa`, `commons-validator`, ArchUnit (`archunit`) and JMH (`jmh-core` and
+`jmh-generator-annprocess`, for Stratum's own benchmarks). Each other extra library is added
+together with the first starter that uses it.
 
 It does **not** import Spring Boot's BOM (`spring-boot-dependencies`). If your parent does not
 manage Spring Boot's versions, import `spring-boot-dependencies` yourself, at the version in the
