@@ -20,10 +20,14 @@ properties, the same way in every service.
 
 ```xml
 <dependency>
-  <groupId>com.exepex.stratum</groupId>
+  <groupId>io.github.exepex.stratum</groupId>
   <artifactId>stratum-starter-security</artifactId>
 </dependency>
 ```
+
+> [!NOTE]
+> Until this starter is built, it is not published to Maven Central or listed in `stratum-bom`, so
+> this dependency does not resolve yet ([Publishing](../contributing.md#publishing)).
 
 The starter is on as soon as it is on the classpath; no line is needed. To turn it off, set in
 `application.properties`:
@@ -199,13 +203,11 @@ truly without security, remove the starter.
 
 ## Testing secured endpoints
 
-`stratum-test` gives you a test JWT in one call, so you never need a real identity provider in tests:
+Use Spring Security's own test support, so you never need a real identity provider in tests:
 
 ```java
-mvc.get().uri("/orders/42").with(stratumJwt("orders:read"))
+mvc.get().uri("/orders/42").with(jwt().authorities(new SimpleGrantedAuthority("SCOPE_orders:read")))
 ```
-
-See [Testing](test.md#testing-secured-endpoints).
 
 ## Troubleshooting
 

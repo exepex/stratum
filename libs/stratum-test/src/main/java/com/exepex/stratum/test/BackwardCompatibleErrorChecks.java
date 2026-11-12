@@ -38,7 +38,7 @@ public class BackwardCompatibleErrorChecks {
    */
   public static void checkBootBody(int port, String unknownPath)
       throws IOException, InterruptedException {
-    var response = StarterTestSupport.getFromService(port, unknownPath, ACCEPT, JSON);
+    var response = WebTestSupport.getFromService(port, unknownPath, ACCEPT, JSON);
 
     checkBootBodyMembers(response, NOT_FOUND, "Not Found");
     assertThat(response.headers().firstValue("Content-Type"))
@@ -58,8 +58,8 @@ public class BackwardCompatibleErrorChecks {
    */
   public static void checkOptedInBody(int port, String unknownPath, String notFoundCode)
       throws IOException, InterruptedException {
-    StarterTestSupport.checkProblemDetails(
-        StarterTestSupport.getFromService(
+    WebTestSupport.checkProblemDetails(
+        WebTestSupport.getFromService(
             port, unknownPath, ACCEPT, JSON + ", application/problem+json"),
         NOT_FOUND,
         notFoundCode);
@@ -80,7 +80,7 @@ public class BackwardCompatibleErrorChecks {
   public static HttpResponse<String> checkBrowserPage(
       int port, String path, int status, String reasonPhrase)
       throws IOException, InterruptedException {
-    var response = StarterTestSupport.getFromService(port, path, ACCEPT, "text/html");
+    var response = WebTestSupport.getFromService(port, path, ACCEPT, "text/html");
 
     assertThat(response.statusCode()).isEqualTo(status);
     assertThat(response.body())
@@ -102,8 +102,8 @@ public class BackwardCompatibleErrorChecks {
    */
   public static void checkCodedFailureBody(int port, String path, int status, String code)
       throws IOException, InterruptedException {
-    StarterTestSupport.checkProblemDetails(
-        StarterTestSupport.getFromService(port, path, ACCEPT, JSON), status, code);
+    WebTestSupport.checkProblemDetails(
+        WebTestSupport.getFromService(port, path, ACCEPT, JSON), status, code);
   }
 
   /**
@@ -120,7 +120,7 @@ public class BackwardCompatibleErrorChecks {
   public static void checkBootBodyStatus(int port, String path, int status, String reasonPhrase)
       throws IOException, InterruptedException {
     checkBootBodyMembers(
-        StarterTestSupport.getFromService(port, path, ACCEPT, JSON), status, reasonPhrase);
+        WebTestSupport.getFromService(port, path, ACCEPT, JSON), status, reasonPhrase);
   }
 
   /** Checks an answer with Spring Boot's body: status line, status and error, and no code. */
@@ -150,7 +150,7 @@ public class BackwardCompatibleErrorChecks {
       throws IOException, InterruptedException {
     var before = count.getAsDouble();
 
-    StarterTestSupport.getFromService(port, path, ACCEPT, accept);
+    WebTestSupport.getFromService(port, path, ACCEPT, accept);
 
     assertThat(count.getAsDouble()).isEqualTo(before + added);
   }

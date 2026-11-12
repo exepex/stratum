@@ -1,0 +1,165 @@
+# Shared settings
+
+**Status: Built.** The settings that belong to no single module: the service's name and
+environment, the instance ID that tells running copies apart, the Spring Boot keys Stratum gives a
+default, and a complete example. Every shared `stratum.*` key, with its type and default, is listed
+in the [Configuration reference](reference.md#shared-properties), with every module's keys.
+
+[← Documentation home](../README.md)
+
+New to configuration? Read [Configuration basics](basics.md) first.
+
+## The service's name and environment
+
+Every module needs Spring Boot's `spring.application.name`: it is the service's name in logs,
+metrics, traces, cache keys and the Kafka consumer group. Stratum's `stratum.environment` names the
+environment, such as `dev`, `staging` or `prod`; it is written to logs as `service.environment` and
+to metrics as the `environment` tag. `stratum.backward-compatible` keeps a running service's
+external contracts as they were before Stratum: see
+[Backward-compatible mode](../modules/web-compatible-mode.md).
+
+```yaml
+spring:
+  application:
+    name: order-service
+stratum:
+  environment: prod
+```
+
+```properties
+spring.application.name=order-service
+stratum.environment=prod
+```
+
+## Instance ID
+
+When the logging or the observability module is on, each running copy of the service gets one
+instance ID, so you can tell its lines, spans and metrics from those of the other copies. It is
+the same in every log line and every span and metric of that copy:
+
+| Where | Field |
+| --- | --- |
+| ECS log lines | `service.node.name` |
+| Logstash log lines | `instanceId` |
+| GELF log lines | `_instanceId` |
+| Text log lines | none: text is for a person reading one copy's output |
+| Spans and metrics sent over OTLP | the OpenTelemetry resource attribute `service.instance.id` |
+
+By default Stratum makes a random ID of ten digits and lowercase letters, such as `k3x9q2m7ab`,
+once each time the service starts. Two copies on the same host get different IDs, which a host
+name cannot promise. Each restart gets a new ID. A log line written to both an ECS console and a
+Logstash or GELF file carries both fields, because Spring Boot adds `instanceId` to every JSON
+output.
+
+Stratum adds no key for it. To choose the ID yourself, set Spring Boot's
+`management.opentelemetry.resource-attributes[service.instance.id]`, or `service.instance.id` in
+OpenTelemetry's `OTEL_RESOURCE_ATTRIBUTES` environment variable. Spring Boot's key wins over the
+environment variable, as it does in Spring Boot, and both win over Stratum's random ID. Spring
+Boot's key is used as it is, even blank, such as an unset `${POD_ID:}`, because Spring Boot sends
+that value on spans and metrics; with an empty value, ECS lines leave `service.node.name` out. A
+blank value in `OTEL_RESOURCE_ATTRIBUTES` counts as not set, and a badly encoded one is skipped when
+only the logging module is on; with observability on, Spring Boot stops startup on it.
+
+```properties
+management.opentelemetry.resource-attributes[service.instance.id]=orders-blue-1
+```
+
+```yaml
+management:
+  opentelemetry:
+    resource-attributes:
+      "[service.instance.id]": orders-blue-1
+```
+
+In Java, set the same key as a default property of the application
+([Overriding defaults](overriding-defaults.md)):
+
+```java
+application.setDefaultProperties(
+    Map.of("management.opentelemetry.resource-attributes[service.instance.id]", "orders-blue-1"));
+```
+
+Where the copy runs, such as its region, zone, host or Kubernetes pod, comes from your platform,
+not from Stratum: add it with your OpenTelemetry Collector's resource detection, or as more
+`key=value` pairs in `OTEL_RESOURCE_ATTRIBUTES`, such as `k8s.pod.name`.
+
+## Spring Boot properties Stratum sets for you
+
+Where Spring Boot has a key, Stratum has no key of its own: it gives Spring Boot's key a default,
+with the lowest priority, so any value you set wins; the logging starter's format keys accept only
+[Stratum's formats](../../starters/stratum-starter-logging/README.md#what-is-masked). Each module's table lists
+the Spring Boot keys it sets, with both defaults:
+[Web](../modules/web.md#properties),
+[Logging](../../starters/stratum-starter-logging/README.md#properties),
+[Observability](../../starters/stratum-starter-observability/README.md#properties),
+[Data](../modules/data-jpa.md#properties) and [Cache](../modules/cache.md#properties). The planned
+modules' pages list theirs. The HTTP client starters are the one exception: each client's settings live
+under `stratum.http-client.clients.<name>.*`, and Spring Boot's `spring.http.serviceclient.*` keys do not apply
+([ADR 0011](../adr/0011-http-client-starters.md)).
+
+## A complete example
+
+A service that exposes a secured API, calls two services and uses a database, in both formats.
+
+```yaml
+spring:
+  application:
+    name: order-service
+  datasource:
+    url: jdbc:postgresql://orders-db:5432/orders
+    username: orders
+    password: ${ORDERS_DB_PASSWORD}
+
+# Where the observability starter sends metrics and traces: your OpenTelemetry Collector.
+# Required in every profile while the observability module is on, its default.
+management:
+  otlp:
+    metrics:
+      export:
+        url: http://otel-collector:4318/v1/metrics
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          endpoint: http://otel-collector:4318/v1/traces
+
+stratum:
+  environment: prod
+  security:                      # planned: the security starter is not built yet
+    resource-server:
+      issuer-uri: https://idp.acme.com/realms/acme
+      audiences: [order-service]
+  http-client:                   # token-relay sends the caller's verified token (ADR 0011)
+    clients:
+      inventory:
+        url: http://inventory-service
+        auth:
+          token-relay: true
+      payments:
+        url: http://payments-service
+        timeout: 10s
+        retry:
+          max-retries: 0
+```
+
+```properties
+spring.application.name=order-service
+spring.datasource.url=jdbc:postgresql://orders-db:5432/orders
+spring.datasource.username=orders
+spring.datasource.password=${ORDERS_DB_PASSWORD}
+# Where the observability starter sends metrics and traces: your OpenTelemetry Collector.
+# Required in every profile while the observability module is on, its default.
+management.otlp.metrics.export.url=http://otel-collector:4318/v1/metrics
+management.opentelemetry.tracing.export.otlp.endpoint=http://otel-collector:4318/v1/traces
+
+stratum.environment=prod
+# Planned: the security starter is not built yet
+stratum.security.resource-server.issuer-uri=https://idp.acme.com/realms/acme
+stratum.security.resource-server.audiences=order-service
+# HTTP client keys (ADR 0011): url, timeout, retry.max-retries and token-relay are built
+stratum.http-client.clients.inventory.url=http://inventory-service
+stratum.http-client.clients.inventory.auth.token-relay=true
+stratum.http-client.clients.payments.url=http://payments-service
+stratum.http-client.clients.payments.timeout=10s
+stratum.http-client.clients.payments.retry.max-retries=0
+```

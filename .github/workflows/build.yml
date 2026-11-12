@@ -1,7 +1,7 @@
 # Builds Stratum on Java 25 for every pull request and every push to main.
-# One run does three things: ./mvnw verify (every build check and test), an SBOM (a CycloneDX list
-# of every library the build includes) and an OSV-Scanner check of that SBOM for known
-# vulnerabilities. The security profile's NVD scan is not run here, because its NVD download made
+# One run does four things: ./mvnw verify (every build check and test), an SBOM (a CycloneDX list
+# of every library the build includes), an OSV-Scanner check of that SBOM for known
+# vulnerabilities, and a check that docs/configuration/reference.md matches the code. The security profile's NVD scan is not run here, because its NVD download made
 # runs take from 24 minutes to over an hour; OSV-Scanner queries only the libraries in the SBOM.
 name: Build
 
@@ -49,6 +49,7 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Build, test and write the SBOM
+        id: verify
         env:
           CYCLONEDX_VERSION: ${{ steps.sbom-plugin.outputs.version }}
         run: >-
@@ -72,3 +73,12 @@ jobs:
           scan-args: |-
             --config=osv-scanner.toml
             --lockfile=target/bom.json
+
+      # The page is generated from the configuration metadata that the build above wrote, so it must be
+      # committed as the generator writes it. Runs even when the scan fails, but only after a build that passed.
+      - name: Check the configuration reference
+        if: ${{ !cancelled() && steps.verify.outcome == 'success' }}
+        run: |
+          .github/config-reference/test.sh
+          java .github/config-reference/ConfigReference.java .
+          git diff --exit-code docs/configuration/reference.md

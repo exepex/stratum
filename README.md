@@ -23,9 +23,10 @@ Add a starter. Set a few properties. Write only business code.
 ---
 
 > [!IMPORTANT]
-> **Stratum is in the design stage.** This README and the [documentation](docs/README.md) describe what
-> Stratum will do once it is built. No module is released yet. Everything marked **Planned** is the
-> design target and may change. The Maven `groupId` is `com.exepex.stratum`; the version
+> **Stratum is under construction.** The parent, the BOM, the web, cache, logging and observability
+> modules are built, and the data and HTTP client modules are partly built. This README and the
+> [documentation](docs/README.md) also describe modules that are not built yet. No module is released.
+> Everything marked **Planned** is the design target and may change. The Maven `groupId` is `io.github.exepex.stratum`; the version
 > `0.1.0-SNAPSHOT` in the examples is a **placeholder** until the first release.
 
 ## Table of contents
@@ -81,7 +82,7 @@ many ways of doing the same thing. That freedom costs every team time:
 | **Configuration is hard to remember** | Bean definitions, property names and auto-configuration rules are easy to get wrong. Developers search the web or ask an AI assistant, and still miss a timeout or a security setting. |
 | **Services drift apart** | Each team wires logging, trace headers, error responses and client timeouts its own way. Operating, debugging and securing the platform gets harder with every service. |
 | **Upgrades are repeated everywhere** | Every service researches and performs the same Spring Boot and library upgrades on its own. |
-| **Test setup is rebuilt in each repo** | Each team re-creates database containers, HTTP stubs and security test helpers. |
+| **Test setup is rebuilt in each repo** | Each team re-creates its database and Redis containers and pins their images itself. |
 
 Stratum answers these questions **once**, centrally. Business teams extend Stratum and spend their
 time on the business problem.
@@ -130,7 +131,7 @@ beans, auto-configuration, properties and profiles from the beginning.
 | Resilience | Retry loops written by hand | Named retry, circuit breaker and bulkhead policies |
 | Data and cache | Pool and cache settings guessed | A connection pool that fails fast, schema checks, time-limited transactions, caches with TTLs |
 | Messaging | Custom error handling per consumer | Kafka with retries, dead-letter topics and trace propagation |
-| Testing | Containers and stubs rebuilt per repo | Shared Testcontainers, HTTP stubs and security test helpers |
+| Testing | Containers rebuilt per repo | Shared PostgreSQL and Redis containers with pinned images |
 | Upgrades | Every service upgrades alone | One Stratum version bump upgrades the whole stack |
 
 ## Quick start
@@ -140,12 +141,12 @@ every step and explains each line.
 
 **You need:** JDK 25 and Maven 3.9 or later.
 
-**1. Use Stratum as the parent of your service's `pom.xml`:**
+**1. Use Stratum's microservice parent as the parent of your service's `pom.xml`:**
 
 ```xml
 <parent>
-  <groupId>com.exepex.stratum</groupId>
-  <artifactId>stratum-parent</artifactId>
+  <groupId>io.github.exepex.stratum</groupId>
+  <artifactId>stratum-microservice-parent</artifactId>
   <version>0.1.0-SNAPSHOT</version>
 </parent>
 ```
@@ -153,34 +154,14 @@ every step and explains each line.
 Your service already has a parent, such as your company's? Import the Stratum BOM instead. See
 [Installation](docs/getting-started/installation.md).
 
-**2. Add the starters you need.** No `<version>` tags: Stratum manages them. This example uses
-three single starters. For a whole application, add a [bundle](#bundles) instead. Each module is on
-as soon as its starter is on the classpath.
-
-```xml
-<dependencies>
-  <dependency>
-    <groupId>com.exepex.stratum</groupId>
-    <artifactId>stratum-starter-webmvc</artifactId>
-  </dependency>
-  <dependency>
-    <groupId>com.exepex.stratum</groupId>
-    <artifactId>stratum-starter-logging</artifactId>
-  </dependency>
-  <dependency>
-    <groupId>com.exepex.stratum</groupId>
-    <artifactId>stratum-starter-observability</artifactId>
-  </dependency>
-  <dependency>
-    <groupId>com.exepex.stratum</groupId>
-    <artifactId>stratum-test</artifactId>
-    <scope>test</scope>
-  </dependency>
-</dependencies>
-```
+**2. There is no step 2 in the `pom.xml`.** The parent brings the
+[microservice bundle](#bundles) (web MVC, logging, observability, HTTP client and cache) and the test
+libraries `stratum-test` and `spring-boot-starter-test`. Each module is on as soon as its starter is on
+the classpath. To add a starter, declare it with no `<version>`; to leave a bundled one out, see
+[Stratum as your parent POM](docs/getting-started/with-stratum-parent.md#leave-a-bundled-starter-out).
 
 **3. Name your service** in `application.yml` (or `application.properties`). Every module whose
-starter you added is already on; you write no line to switch it on:
+starter is on the classpath is already on; you write no line to switch it on:
 
 ```yaml
 spring:
@@ -219,9 +200,15 @@ keep it; see [Backward-compatible mode](docs/modules/web-compatible-mode.md).
 
 ## Modules
 
-All modules are **Planned**, except two that are partly built: `stratum-starter-logging` (JSON logs
-with the service's name and environment, redaction, and named workflows) and `stratum-starter-observability`
-(metrics, traces and health sent over OTLP, with safe defaults). Each links to its full page: what it sets up,
+All modules are **Planned**, except three that are built, `stratum-starter-webmvc` and
+`stratum-starter-webflux` (error responses, request fields in logs, the correlation ID, the request log,
+timeouts and the body size limit) and `stratum-starter-cache` (caching switched on, with safe Redis
+defaults), and four that are partly built: `stratum-starter-logging` (JSON logs with the service's name
+and environment, redaction, and named workflows), `stratum-starter-observability` (metrics, traces and
+health sent over OTLP, with safe defaults), `stratum-starter-data-jpa` (pool, Hibernate and transaction
+defaults, and database errors that carry no data values) and `stratum-starter-http-client` (clients of
+other services as `@StratumClient` interfaces, with their own timeouts, pool, retries, circuit breaker
+and trace headers). Each links to its full page: what it sets up,
 every property with its default, examples in YAML and properties, how to override it and how to
 troubleshoot it.
 
@@ -230,6 +217,7 @@ troubleshoot it.
 | Module | In one sentence |
 | --- | --- |
 | [`stratum-parent`](docs/modules/parent-and-bom.md) | Parent POM: Java 25, plugin versions and the quality gates every service build runs. |
+| [`stratum-microservice-parent`](docs/modules/parent-and-bom.md#the-microservice-parent) | Parent POM for a REST microservice: `stratum-parent` plus the microservice bundle and the test libraries, so the service's `pom.xml` needs no dependency. |
 | [`stratum-bom`](docs/modules/parent-and-bom.md#the-bom) | Bill of materials (BOM): one list of tested versions, for services that keep their own parent. |
 
 ### Bundles
@@ -237,16 +225,20 @@ troubleshoot it.
 One dependency per kind of application; each lists only the single starters that kind needs. See
 [Bundle starters](docs/modules/bundles.md).
 
-The security starter is planned and brings no dependency yet. Once it is built, a bundle with
-`security` will put Spring Security on the classpath with the security module on. See
-[Security](docs/modules/security.md).
+`stratum-microservice-parent` brings the microservice bundle, so a service on it does not declare it
+([ADR 0019](docs/adr/0019-one-parent-per-kind-of-application.md)).
+
+A bundle lists only single starters that have code. The security, resilience and data-jpa
+starters join no bundle until they are built. The microservice bundle's cache starter caches
+`@Cacheable` methods in bounded Caffeine caches, or in Redis once the service adds it
+([Cache](docs/modules/cache.md)).
 
 | Bundle | Single starters it adds |
 | --- | --- |
-| `stratum-starter-microservice` | webmvc, logging, observability, http-client, resilience, security |
-| `stratum-starter-reactive-microservice` | webflux, logging, observability, http-client, resilience, security |
-| `stratum-starter-web-ui` | webmvc, logging, observability, security |
-| `stratum-starter-batch` | data-jpa, logging, observability |
+| `stratum-starter-microservice` | webmvc, logging, observability, http-client, cache |
+| `stratum-starter-reactive-microservice` | webflux, logging, observability |
+| `stratum-starter-web-ui` | webmvc, logging, observability |
+| `stratum-starter-batch` | logging, observability |
 | `stratum-starter-cli` | logging |
 
 ### Starters
@@ -261,11 +253,11 @@ Every starter's module is on when the starter is on the classpath. A service tur
 | [`stratum-starter-logging`](starters/stratum-starter-logging/README.md) | Structured JSON logs with secrets and personal data redacted, and trace IDs with observability. | `stratum.logging` |
 | [`stratum-starter-observability`](starters/stratum-starter-observability/README.md) | Metrics, traces and health, sent over OTLP to an OpenTelemetry Collector. | `stratum.observability` |
 | [`stratum-starter-security`](docs/modules/security.md) | OAuth2 resource server: JWT validation, roles, public paths, CORS. | `stratum.security` |
-| [`stratum-starter-oauth2-client`](docs/modules/oauth2-client.md) | Gets and refreshes tokens for calls to other services. | `stratum.oauth2-client` |
-| [`stratum-starter-http-client`](docs/modules/http-client.md) | Declarative HTTP clients with timeouts, tracing, tokens and retries. | `stratum.http-client` |
+| [`stratum-starter-oauth2-client`](docs/modules/oauth2-client.md) | Spring Security's OAuth2 client, without its web lock-down, for the service's own token on an HTTP client's calls. | none; Spring's `spring.security.oauth2.client` |
+| [`stratum-starter-http-client`](docs/modules/http-client.md) | Clients of other services as `@StratumClient` interfaces, each with its own timeouts, bounded connection pool, retries, circuit breaker and tokens and trace headers. | `stratum.http-client` |
 | [`stratum-starter-resilience`](docs/modules/resilience.md) | Named retry, circuit breaker, bulkhead and time limit policies. | `stratum.resilience` |
 | [`stratum-starter-data-jpa`](docs/modules/data-jpa.md) | Spring Data JPA with safe defaults for the connection pool, Hibernate and transactions, and database errors that carry no data values. | `stratum.data` |
-| [`stratum-starter-cache`](docs/modules/cache.md) | Caffeine or Redis caching with per-cache TTL and size. | `stratum.cache` |
+| [`stratum-starter-cache`](docs/modules/cache.md) | Spring's caching switched on, with a time to live, a service key prefix, statistics, short timeouts, SCAN clears, key and value size limits and plain JSON values for Redis, and bounded, expiring Caffeine caches; cached calls keep working when Redis is down. | `stratum.cache` |
 | [`stratum-starter-kafka`](docs/modules/kafka.md) | Kafka producers and consumers with retries and dead-letter topics. | `stratum.kafka` |
 | [`stratum-starter-cloud-*`](docs/modules/cloud.md) | Cloud services such as storage, queues and secrets, per provider. | `stratum.cloud` |
 
@@ -273,7 +265,7 @@ Every starter's module is on when the starter is on the classpath. A service tur
 
 | Module | In one sentence |
 | --- | --- |
-| [`stratum-test`](docs/modules/test.md) | Partly built: a PostgreSQL container for integration tests. Planned: JUnit 5, AssertJ, Mockito, more containers, HTTP stubs and JWT helpers. |
+| [`stratum-test`](docs/modules/test.md) | PostgreSQL and Redis containers for integration tests, with pinned images. |
 
 ## Configuration: YAML or properties
 
@@ -289,20 +281,20 @@ stratum:
   http-client:
     clients:
       inventory:
-        base-url: https://inventory.internal
-        read-timeout: 3s
+        url: https://inventory.internal
+        timeout: 3s
 ```
 
 ```properties
 # application.properties
-stratum.http-client.clients.inventory.base-url=https://inventory.internal
-stratum.http-client.clients.inventory.read-timeout=3s
+stratum.http-client.clients.inventory.url=https://inventory.internal
+stratum.http-client.clients.inventory.timeout=3s
 ```
 
 ```bash
 # Environment variables (for example in Kubernetes)
-STRATUM_HTTPCLIENT_CLIENTS_INVENTORY_BASEURL=https://inventory.internal
-STRATUM_HTTPCLIENT_CLIENTS_INVENTORY_READTIMEOUT=3s
+STRATUM_HTTPCLIENT_CLIENTS_INVENTORY_URL=https://inventory.internal
+STRATUM_HTTPCLIENT_CLIENTS_INVENTORY_TIMEOUT=3s
 ```
 
 Things worth knowing from day one:
@@ -327,7 +319,7 @@ You stay in control at three levels, from lightest to strongest:
 
 | You want to | Do this | Example |
 | --- | --- | --- |
-| Change a value | Set a property | `stratum.http-client.defaults.read-timeout=10s` |
+| Change a value | Set a property | `stratum.http-client.defaults.timeout=10s` |
 | Adjust a bean Stratum created | Declare a customizer bean | A `RestClientCustomizer` that adds a header |
 | Replace a bean entirely | Declare your own bean of the same type | Your own `SecurityFilterChain` |
 | Switch a whole module off | Set `enabled` to `false`; every module is on by default | `stratum.cache.enabled=false` |
@@ -342,7 +334,7 @@ against it. There are three setups:
 
 | Setup | Parent chain | When to use it |
 | --- | --- | --- |
-| A: Stratum as parent | Spring Boot → `stratum-parent` → service | There is no company framework |
+| A: Stratum as parent | Spring Boot → `stratum-parent` → service, or → `stratum-parent` → `stratum-microservice-parent` → service for a microservice | There is no company framework |
 | B: company parent, Stratum BOM | Spring Boot → company parent → service, importing `stratum-bom` | **Recommended** when a company framework exists |
 | C: team fork of Stratum | Spring Boot → company parent → forked `stratum-parent` → service | Supported, when a team wants one parent and accepts merging every Stratum release into its fork |
 
@@ -365,26 +357,23 @@ The decision behind it: [ADR 0001](docs/adr/0001-coexistence-with-company-framew
 
 ## Testing your service
 
-**Partly built.** Today `stratum-test` gives your integration tests a PostgreSQL database in Docker
-([Containers](docs/modules/test.md#containers)); add Spring Boot's `spring-boot-starter-test` with
-`<scope>test</scope>` next to it. Once complete, `stratum-test` is planned to give you everything you
-need for unit, mock and integration tests in one test dependency:
-
-- **Unit tests** (`*Test.java`) with JUnit 5, AssertJ and Mockito.
-- **Integration tests** (`*IntegrationTest.java`) that start a real PostgreSQL, Kafka or Redis in Docker with
-  Testcontainers. Image versions are pinned centrally, so every service tests against the same ones.
-- **HTTP stubs** for the services you call, so tests never depend on a real downstream service.
-- **Security helpers** to call secured endpoints with a test JWT.
+`stratum-test` gives your integration tests a PostgreSQL database and a Redis server in Docker,
+with images pinned once for every service ([Containers](docs/modules/test.md#containers)). Spring
+Boot's `spring-boot-starter-test` gives JUnit 5, AssertJ and Mockito. `stratum-microservice-parent`
+brings both in test scope; under any other parent, add both with `<scope>test</scope>`.
 
 ```java
-@StratumIntegrationTest
-class OrderApiIntegrationTest {
+@SpringBootTest
+@Import(PostgresContainerConfiguration.class)
+class OrderRepositoryIntegrationTest {
+
+  @Autowired OrderRepository repository;
 
   @Test
-  void createsAnOrder(@Autowired MockMvcTester mvc) {
-    assertThat(mvc.post().uri("/orders").with(stratumJwt("orders:write"))
-            .contentType(APPLICATION_JSON).content("{\"sku\":\"A-1\",\"quantity\":2}"))
-        .hasStatus(HttpStatus.CREATED);
+  void storesTheOrder() {
+    repository.save(new Order("A-1", 2));
+
+    assertThat(repository.count()).isEqualTo(1);
   }
 }
 ```
@@ -403,7 +392,7 @@ Full guide: [Testing with stratum-test](docs/modules/test.md).
 - Stratum follows [semantic versioning](https://semver.org): a patch release never breaks you; a major
   release may, and its release notes list the exact migration steps.
 - Each Stratum release supports one Spring Boot line, such as `4.1.x`, and is tested with one release
-  in it. With `stratum-parent`, upgrading Stratum upgrades Spring Boot and every managed library
+  in it. With a Stratum parent, upgrading Stratum upgrades Spring Boot and every managed library
   together. Under a company parent, the company parent sets the Spring Boot version. When it is
   outside the supported line, Stratum logs one `SX-CORE-1005` warning at startup and starts anyway.
 - Stratum needs Java 25 and the Spring Boot 4.1.x line. Older versions are not supported.

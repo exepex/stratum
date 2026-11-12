@@ -11,7 +11,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.exepex.stratum</groupId>
+    <groupId>io.github.exepex.stratum</groupId>
     <artifactId>stratum</artifactId>
     <version>${revision}</version>
     <relativePath>../../pom.xml</relativePath>
@@ -22,6 +22,12 @@
 
   <name>Stratum build rules</name>
   <description>Checkstyle, PMD and Maven Enforcer rules that every Stratum and service build is checked against.</description>
+
+  <!-- No Java code, so Maven Central gets an empty Javadoc jar (root POM, stratum-release). Its
+       sources jar holds the rule files. -->
+  <properties>
+    <stratum.placeholder-javadoc.phase>package</stratum.placeholder-javadoc.phase>
+  </properties>
 
   <!--
     Tests for the PMD rules in stratum/pmd-lombok.xml and for the one exception in

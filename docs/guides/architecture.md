@@ -16,7 +16,7 @@ service starts.
 | **Plain Spring** | Stratum uses Spring Boot's auto-configuration and Spring's extension points. No custom programming model. |
 | **Secure by default** | Secrets redacted, timeouts on every remote call, minimal Actuator exposure, validation of tokens. |
 | **Fail fast** | Missing or invalid configuration stops startup with a clear message. |
-| **Built for volume** | Bounded pools, queues and caches; no blocking on hot paths; retries only for idempotent operations. |
+| **Built for volume** | Bounded pools, queues and caches; no blocking on hot paths; retries only for idempotent operations, or for a write never sent or rejected before any work. |
 | **No business logic** | Stratum holds cross-cutting concerns only. |
 
 ## Repository layout
@@ -34,26 +34,30 @@ stratum/
 │   ├── stratum-build-parent/       # the BOM and the build checks
 │   ├── stratum-build-rules/        # Checkstyle, PMD and Enforcer rules, packaged as a jar
 │   ├── stratum-library-parent/     # parent POM for libs and starters: adds Lombok and Stratum-only checks
-│   └── stratum-parent/             # parent POM for services: adds the executable jar and build info
+│   ├── stratum-microservice-parent/ # parent POM for a microservice: stratum-parent plus its bundle and test libraries
+│   └── stratum-parent/             # parent POM for services: adds the executable jar and build info,
+│                                   # and skips FindSecBugs' SPRING_ENDPOINT pattern
 ├── libs/
 │   ├── stratum-core/               # shared internals: constants, property defaults
+│   ├── stratum-redaction/          # the masking rules that logs and span URLs share
+│   ├── stratum-http-client/        # what both HTTP client starters share: @StratumClient, settings, codes
 │   ├── stratum-test/               # test support for services
 │   └── stratum-web/                # what both web starters share: settings, error format
 ├── starters/
-│   ├── stratum-starter-batch/      # bundle: data-jpa, logging, observability
+│   ├── stratum-starter-batch/      # bundle: logging, observability
 │   ├── stratum-starter-cache/
 │   ├── stratum-starter-cli/        # bundle: logging
 │   ├── stratum-starter-data-jpa/
 │   ├── stratum-starter-http-client/
 │   ├── stratum-starter-kafka/
 │   ├── stratum-starter-logging/
-│   ├── stratum-starter-microservice/ # bundle: webmvc, logging, observability, http-client, resilience, security
+│   ├── stratum-starter-microservice/ # bundle: webmvc, logging, observability, http-client, cache
 │   ├── stratum-starter-oauth2-client/
 │   ├── stratum-starter-observability/
-│   ├── stratum-starter-reactive-microservice/ # bundle: webflux, logging, observability, http-client, resilience, security
+│   ├── stratum-starter-reactive-microservice/ # bundle: webflux, logging, observability
 │   ├── stratum-starter-resilience/
 │   ├── stratum-starter-security/
-│   ├── stratum-starter-web-ui/     # bundle: webmvc, logging, observability, security
+│   ├── stratum-starter-web-ui/     # bundle: webmvc, logging, observability
 │   ├── stratum-starter-webflux/
 │   └── stratum-starter-webmvc/
 └── docs/                           # this documentation
@@ -68,10 +72,10 @@ cloud provider is chosen, and `samples/`, small example services built and teste
 | --- | --- | --- |
 | Stratum's own version | `.mvn/maven.config`, as `-Drevision=...` | Every POM says `${revision}`; `flatten-maven-plugin` writes the real version into each POM it installs |
 | Spring Boot and every library and plugin it manages | The `<parent>` of the root `pom.xml`: `spring-boot-starter-parent` and its version | Stratum never overrides these versions ([ADR 0001](../adr/0001-coexistence-with-company-frameworks.md)) |
-| Java, the tools and plugins Spring Boot does not manage, and the libraries `stratum-bom` manages | The root `pom.xml`, in `<properties>` | One `*.version` property each, sorted by name ([ADR 0005](../adr/0005-versions-in-the-root-pom.md)) |
+| Java, the tools and plugins Spring Boot does not manage, the libraries `stratum-bom` manages, and the test container images (next row) | The root `pom.xml`, in `<properties>` | One property each, sorted by name ([ADR 0005](../adr/0005-versions-in-the-root-pom.md)) |
 | Which of Stratum's modules and extra libraries a service can use | `platform/stratum-bom` | One `<dependencyManagement>` list, sorted by name, with its versions from the root `pom.xml` |
 | Maven itself | `.mvn/wrapper/maven-wrapper.properties` | `./mvnw` downloads that version and checks its SHA-256 |
-| The Docker image of each test container, such as PostgreSQL's | A private constant in its container class in `stratum-test`, such as `PostgresContainerConfiguration` | Pinned to an exact tag, never `latest` (ST-TEST-32); no bot updates it, so a maintainer changes it by hand |
+| The Docker image of each test container, such as PostgreSQL's | One `testcontainers.image.<container>` property in the root `pom.xml`, holding the full image, which the build filters into `stratum-test`'s jar for the container classes to read | Pinned to an exact tag, never `latest` (ST-TEST-32); no bot updates it, so a maintainer changes it by hand |
 
 No POM other than the root `pom.xml` writes a version number. Enforcer's `requirePluginVersions`,
 run from the root `pom.xml`, fails the build if a plugin has no version.
@@ -91,7 +95,9 @@ flowchart TD
     BP -->|parent of| SP[stratum-parent]
     BP -->|parent of| LP[stratum-library-parent]
     LP -->|parent of| LIBS[libs and starters]
-    SP -->|parent of| SVC[a service]
+    SP -->|parent of| MP[stratum-microservice-parent]
+    MP -->|parent of| MSVC[a microservice]
+    SP -->|parent of| SVC[any other service]
     ROOT -->|parent of| BOM
     ROOT -->|parent of| BR
 ```
@@ -108,7 +114,12 @@ flowchart TD
   those choices are their team's.
 - `stratum-parent` adds what only a service needs: the executable jar, `build-info.properties` and
   `git.properties`. Libraries do not inherit it, because a library jar that carried those two files
-  would hide the service's own files from `/actuator/info`.
+  would hide the service's own files from `/actuator/info`. It also turns off FindSecBugs'
+  `SPRING_ENDPOINT` pattern, which marks each Spring endpoint; Stratum's own build keeps it
+  ([Tuning the checks](../modules/parent-and-bom.md#tuning-the-checks)).
+- `stratum-microservice-parent` inherits `stratum-parent` and adds a microservice's dependencies: the
+  `stratum-starter-microservice` bundle, and `stratum-test` and `spring-boot-starter-test` in test scope
+  ([ADR 0019](../adr/0019-one-parent-per-kind-of-application.md)).
 - `stratum-bom` and `stratum-build-rules` inherit the root `pom.xml` directly: `stratum-build-parent`
   imports the BOM and loads the build rules, so neither can inherit `stratum-build-parent`. The BOM
   is installed without a parent, so it never brings Spring Boot's versions to a service.
@@ -122,10 +133,9 @@ stratum-starter-http-client/
 ├── pom.xml
 └── src/
     ├── main/
-    │   ├── java/com/exepex/stratum/httpclient/
+    │   ├── java/com/exepex/stratum/restclient/
     │   │   ├── autoconfigure/                       # wiring only: @AutoConfiguration classes
-    │   │   │   └── StratumHttpClientAutoConfiguration.java
-    │   │   ├── StratumHttpClientProperties.java     # @ConfigurationProperties("stratum.http-client")
+    │   │   │   └── RestClientAutoConfiguration.java
     │   │   └── ...                                  # behaviour, testable without Spring
     │   └── resources/META-INF/
     │       ├── spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports
@@ -179,8 +189,8 @@ Micrometer's public extension points:
 | Logs show trace IDs | Micrometer Tracing puts IDs in the MDC; logging writes them |
 | Logs show correlation IDs | Observability puts the ID in the MDC from tracing baggage, or the trace ID; logging writes it. The web starters set the baggage from the `X-Correlation-Id` header |
 | HTTP client sends tokens | A request interceptor backed by Spring Security's `OAuth2AuthorizedClientManager` |
-| HTTP client uses resilience policies | The resilience starter registers a customizer when present |
-| Errors from HTTP clients become `503`/`504` | The web starter handles `DownstreamUnavailableException` from the shared core |
+| HTTP client retries and circuit breaker | Resilience4j inside the HTTP client starters, without the resilience starter ([ADR 0011](../adr/0011-http-client-starters.md)) |
+| Errors from HTTP clients become `503`/`504` | The HTTP client starter throws a `StratumException` with an `SX-HTTPC-*` code, and the web starters answer it with that code's status ([errors](../modules/http-client-errors.md#what-a-failed-call-throws)) |
 
 Shared names (header names, MDC keys, metric names) are constants in `stratum-core`, so every
 module uses the same spelling.
@@ -195,13 +205,14 @@ planned next:
 | --- | --- |
 | [0001: Stratum next to a company framework](../adr/0001-coexistence-with-company-frameworks.md) | Accepted; the startup version check in it is replaced by 0002 |
 | [0002: No startup check of the Spring Boot version](../adr/0002-no-startup-version-check.md) | Accepted; amended by 0007, which adds a startup warning |
-| [0003: Bundle starters and module switches](../adr/0003-bundle-starters-and-module-switches.md) | Accepted |
+| [0003: Bundle starters and module switches](../adr/0003-bundle-starters-and-module-switches.md) | Accepted; decision 3 replaced by 0019 |
 | [0004: Weekly dependency updates with Dependabot](../adr/0004-dependency-updates.md) | Accepted; two parts replaced by 0005 |
 | [0005: Every version in the root POM](../adr/0005-versions-in-the-root-pom.md) | Accepted |
 | [0006: Separate starters for Spring MVC and WebFlux](../adr/0006-separate-mvc-and-webflux-starters.md) | Accepted |
 | [0007: Warn when Spring Boot is outside the supported line](../adr/0007-spring-boot-version-warning.md) | Accepted |
 | [0008: One error format, with a backward-compatible mode on by default](../adr/0008-error-format-and-backward-compatible-mode.md) | Accepted |
 | [0009: Mark internal types with `@StratumInternal`, and keep packages free of cycles](../adr/0009-public-api-and-no-package-cycles.md) | Accepted |
-| Maven `groupId` and Java package names | Decided by the owner: `com.exepex.stratum`, and packages under `com.exepex.stratum` |
+| [0018: The Maven `groupId` is `io.github.exepex.stratum`; Java packages stay under `com.exepex.stratum`](../adr/0018-group-id-io-github-exepex.md) | Accepted |
+| [0019: One parent per kind of application, which brings its bundle; one BOM](../adr/0019-one-parent-per-kind-of-application.md) | Accepted |
 | Resilience4j as the resilience engine | Proposed |
 | First cloud provider | Open |

@@ -5,14 +5,19 @@
   - The Spring Boot version is the version of the parent below. Spring Boot's parent sets the
     versions of every library and plugin Spring Boot manages; Stratum never overrides them (ST-ENG-61).
   - <properties> holds every other version Stratum chooses: Java, the build tools and plugins Spring
-    Boot does not manage, and the libraries stratum-bom manages. No other POM writes a version number.
+    Boot does not manage, the libraries stratum-bom manages, and the images of the test containers.
+    No other POM writes a version number.
   - Stratum's own version is revision in .mvn/maven.config.
   - Every Stratum POM inherits this one, directly or through stratum-build-parent.
+  - Every Stratum POM inherits the project's URL, licence, developer, SCM and issue tracker below,
+    which Maven Central requires, unchanged: no child adds its own path to the URLs.
+  - The stratum-release profile signs and publishes to Maven Central (docs/contributing.md#publishing).
   Keep <properties> and <pluginManagement> sorted by name.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd"
+    child.project.url.inherit.append.path="false">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
@@ -22,13 +27,43 @@
     <relativePath/>
   </parent>
 
-  <groupId>com.exepex.stratum</groupId>
+  <groupId>io.github.exepex.stratum</groupId>
   <artifactId>stratum</artifactId>
   <version>${revision}</version>
   <packaging>pom</packaging>
 
   <name>Stratum</name>
-  <description>Builds every Stratum module and sets every version Stratum chooses.</description>
+  <description>Root POM of Stratum, an SDK of auto-configured Spring Boot starters for microservices: it builds every module and sets every version Stratum chooses.</description>
+  <url>https://github.com/exepex/stratum</url>
+
+  <licenses>
+    <license>
+      <name>Apache License, Version 2.0</name>
+      <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+    </license>
+  </licenses>
+
+  <developers>
+    <developer>
+      <id>exepex</id>
+      <name>exepex</name>
+      <organization>exepex</organization>
+      <organizationUrl>https://github.com/exepex</organizationUrl>
+    </developer>
+  </developers>
+
+  <scm child.scm.connection.inherit.append.path="false"
+      child.scm.developerConnection.inherit.append.path="false"
+      child.scm.url.inherit.append.path="false">
+    <connection>scm:git:https://github.com/exepex/stratum.git</connection>
+    <developerConnection>scm:git:ssh://git@github.com/exepex/stratum.git</developerConnection>
+    <url>https://github.com/exepex/stratum</url>
+  </scm>
+
+  <issueManagement>
+    <system>GitHub Issues</system>
+    <url>https://github.com/exepex/stratum/issues</url>
+  </issueManagement>
 
   <modules>
     <!-- Platform: versions, build rules and parent POMs -->
@@ -36,10 +71,13 @@
     <module>platform/stratum-build-parent</module>
     <module>platform/stratum-build-rules</module>
     <module>platform/stratum-library-parent</module>
+    <module>platform/stratum-microservice-parent</module>
     <module>platform/stratum-parent</module>
 
     <!-- Shared libraries -->
     <module>libs/stratum-core</module>
+    <module>libs/stratum-redaction</module>
+    <module>libs/stratum-http-client</module>
     <module>libs/stratum-test</module>
     <module>libs/stratum-web</module>
 
@@ -64,6 +102,7 @@
 
   <properties>
     <archunit.version>1.5.1</archunit.version>
+    <central-publishing-maven-plugin.version>0.12.0</central-publishing-maven-plugin.version>
     <checkstyle.version>14.3.0</checkstyle.version>
     <commons-validator.version>1.11.0</commons-validator.version>
     <dependency-check-maven.version>13.0.0</dependency-check-maven.version>
@@ -77,18 +116,32 @@
     <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
     <mapstruct.version>1.6.3</mapstruct.version>
     <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
+    <maven-gpg-plugin.version>3.2.8</maven-gpg-plugin.version>
     <maven-pmd-plugin.version>3.28.0</maven-pmd-plugin.version>
     <maven-site-plugin.version>3.22.0</maven-site-plugin.version>
     <maxmind-db.version>4.2.0</maxmind-db.version>
     <pmd.version>7.28.0</pmd.version>
+    <resilience4j.version>2.4.0</resilience4j.version>
     <spotbugs-maven-plugin.version>4.10.5.0</spotbugs-maven-plugin.version>
     <spotless-maven-plugin.version>3.10.4</spotless-maven-plugin.version>
+    <testcontainers.image.postgres>postgres:18.6-alpine</testcontainers.image.postgres>
+    <testcontainers.image.redis>redis:8.10.3-alpine</testcontainers.image.redis>
     <yauaa.version>8.3.0</yauaa.version>
   </properties>
 
   <build>
     <pluginManagement>
       <plugins>
+        <plugin>
+          <groupId>org.sonatype.central</groupId>
+          <artifactId>central-publishing-maven-plugin</artifactId>
+          <version>${central-publishing-maven-plugin.version}</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-gpg-plugin</artifactId>
+          <version>${maven-gpg-plugin.version}</version>
+        </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-site-plugin</artifactId>
@@ -117,7 +170,8 @@
         </executions>
       </plugin>
       <!-- Writes ${revision} as a fixed version into the installed POM. stratum-parent stops it for
-           services, and stratum-bom changes its mode. -->
+           services, stratum-microservice-parent turns it back on for itself, and stratum-bom changes
+           its mode. -->
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>flatten-maven-plugin</artifactId>
@@ -145,4 +199,100 @@
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <!-- Publishes to Maven Central: sources and Javadoc jars, a GPG signature on every file, and the
+         upload through the Central Portal. Only the publish workflow turns it on. Its id is not
+         "release", so that a service's own release profile does not turn it on. -->
+    <profile>
+      <id>stratum-release</id>
+      <properties>
+        <!-- Maven Central needs a sources and a Javadoc jar next to every jar. A module with no Java
+             code sets these to "package" to publish empty ones, because the source and Javadoc
+             plugins write nothing for it. -->
+        <stratum.placeholder-javadoc.phase>none</stratum.placeholder-javadoc.phase>
+        <stratum.placeholder-sources.phase>none</stratum.placeholder-sources.phase>
+      </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-gpg-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>stratum-sign</id>
+                <phase>verify</phase>
+                <goals>
+                  <goal>sign</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-jar-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>stratum-placeholder-javadoc</id>
+                <phase>${stratum.placeholder-javadoc.phase}</phase>
+                <goals>
+                  <goal>jar</goal>
+                </goals>
+                <configuration>
+                  <classifier>javadoc</classifier>
+                  <classesDirectory>${project.build.directory}/stratum-placeholder</classesDirectory>
+                </configuration>
+              </execution>
+              <execution>
+                <id>stratum-placeholder-sources</id>
+                <phase>${stratum.placeholder-sources.phase}</phase>
+                <goals>
+                  <goal>jar</goal>
+                </goals>
+                <configuration>
+                  <classifier>sources</classifier>
+                  <classesDirectory>${project.build.directory}/stratum-placeholder</classesDirectory>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-javadoc-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>stratum-javadoc</id>
+                <goals>
+                  <goal>jar</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-source-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>stratum-sources</id>
+                <goals>
+                  <goal>jar-no-fork</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <!-- Snapshots go to Central's snapshot repository; a release waits in the Central Portal
+               until the owner publishes it. -->
+          <plugin>
+            <groupId>org.sonatype.central</groupId>
+            <artifactId>central-publishing-maven-plugin</artifactId>
+            <extensions>true</extensions>
+            <configuration>
+              <autoPublish>false</autoPublish>
+              <publishingServerId>central</publishingServerId>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>

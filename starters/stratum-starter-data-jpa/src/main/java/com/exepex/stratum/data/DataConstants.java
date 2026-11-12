@@ -46,4 +46,10 @@ public class DataConstants {
 
   /** The name of the bean that wraps every data source in the JDBC boundary. */
   public static final String JDBC_BOUNDARY = "stratumJdbcBoundary";
+
+  /** The name of the bean that wraps the connection Spring Boot builds for Flyway. */
+  public static final String FLYWAY_BOUNDARY = "stratumFlywayBoundary";
+
+  /** The name of the bean that wraps the connection Spring Boot builds for Liquibase. */
+  public static final String LIQUIBASE_BOUNDARY = "stratumLiquibaseBoundary";
 }

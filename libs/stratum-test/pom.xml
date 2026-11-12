@@ -5,7 +5,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.exepex.stratum</groupId>
+    <groupId>io.github.exepex.stratum</groupId>
     <artifactId>stratum-library-parent</artifactId>
     <version>${revision}</version>
     <relativePath>../../platform/stratum-library-parent/pom.xml</relativePath>
@@ -14,12 +14,12 @@
   <artifactId>stratum-test</artifactId>
 
   <name>Stratum test</name>
-  <description>Test support: the checks every Stratum starter's tests share, a PostgreSQL container for services' integration tests, and, planned, JUnit 5, AssertJ, Mockito, more containers, HTTP stubs and JWT helpers.</description>
+  <description>Test support: the helpers and checks that several Stratum modules' tests share, and PostgreSQL and Redis containers for services' integration tests.</description>
 
   <!-- Teams add this module in test scope only, so its libraries never reach a running service. -->
   <dependencies>
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-core</artifactId>
     </dependency>
     <!-- The starter architecture rules (ST-TEST-21). The parent adds ArchUnit for tests only; the
@@ -43,9 +43,19 @@
       <groupId>com.jayway.jsonpath</groupId>
       <artifactId>json-path</artifactId>
     </dependency>
-    <!-- PostgresContainerConfiguration. Optional, so a module or service that uses stratum-test gets
-         none of them unless it tests against PostgreSQL: it then adds spring-boot-testcontainers and
-         testcontainers-postgresql itself; spring-boot-starter-test already brings spring-boot-test. -->
+    <!-- Counts the server's request timers in WebTestSupport.getAndAwaitTimer and
+         ServerRequestTelemetry. Optional: a module that calls them already has Micrometer through
+         the observability or actuator starter. -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-core</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <!-- PostgresContainerConfiguration and RedisContainerConfiguration. Optional, so a module or
+         service that uses stratum-test gets none of them unless it tests against a container: it
+         then adds spring-boot-testcontainers itself, which brings Testcontainers' GenericContainer
+         for Redis, and testcontainers-postgresql for PostgreSQL; spring-boot-starter-test already
+         brings spring-boot-test. -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-test</artifactId>
@@ -61,21 +71,23 @@
       <artifactId>testcontainers-postgresql</artifactId>
       <optional>true</optional>
     </dependency>
+    <!-- PostgresJdbcContainerConfiguration names Spring Boot's JdbcConnectionDetails. Optional for
+         the same reason: a module that tests against PostgreSQL already has it. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-jdbc</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <!-- ServerRequestTelemetry reads a web service's spans. Optional: the web modules' tests
+         already have it through the observability starter. -->
+    <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-sdk-trace</artifactId>
+      <optional>true</optional>
+    </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <!-- The data source and the PostgreSQL driver that PostgresContainerConfigurationIntegrationTest
-         connects with, as a service's data starter brings them. -->
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-jdbc</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.postgresql</groupId>
-      <artifactId>postgresql</artifactId>
       <scope>test</scope>
     </dependency>
     <!-- Loads stratum-core's OneShotContextScheduledExecutorService, whose supertype comes from this
@@ -86,4 +98,35 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+
+  <build>
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+        <excludes>
+          <exclude>META-INF/stratum/**</exclude>
+        </excludes>
+      </resource>
+      <!-- Writes the test container images, properties of the root pom.xml, into the jar, so each
+           image is written in one place (ST-ENG-60). ContainerImagesTest fails if a value is
+           left unfilled. -->
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>true</filtering>
+        <includes>
+          <include>META-INF/stratum/**</include>
+        </includes>
+      </resource>
+    </resources>
+    <plugins>
+      <!-- Lets SilentPort, and only it, open plain test sockets (spotbugs-exclude.xml). -->
+      <plugin>
+        <groupId>com.github.spotbugs</groupId>
+        <artifactId>spotbugs-maven-plugin</artifactId>
+        <configuration>
+          <excludeFilterFile>${project.basedir}/spotbugs-exclude.xml</excludeFilterFile>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
 </project>

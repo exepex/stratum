@@ -69,7 +69,7 @@ Then open a pull request. Its description and review follow
 
 GitHub Actions builds every pull request, and every push to `main`, with
 [`.github/workflows/build.yml`](../.github/workflows/build.yml). It runs one Maven command on
-JDK 25, then scans the result:
+JDK 25, then scans the result and checks the configuration reference:
 
 ```bash
 ./mvnw verify org.cyclonedx:cyclonedx-maven-plugin:<version>:makeAggregateBom
@@ -80,6 +80,7 @@ JDK 25, then scans the result:
 | `verify` | Every check that `./mvnw verify` runs on your machine | The run's log |
 | `makeAggregateBom` | Writes an SBOM (software bill of materials): a CycloneDX list of every library the build includes | The `sbom` artifact, as `bom.json` and `bom.xml` |
 | OSV-Scanner | Looks up every library in `bom.json` in the [OSV.dev](https://osv.dev) vulnerability database and fails the run if any has a known vulnerability | The log of the step "Scan the SBOM for known vulnerabilities" |
+| Configuration reference | Writes [`reference.md`](configuration/reference.md) again from the configuration metadata the build wrote, and fails the run if it differs from the committed page | The log of the step "Check the configuration reference" |
 
 An artifact is a file that a run keeps; open the run in the **Actions** tab and download it from
 the run's summary page. The SBOM is written only when the build passes, and it is uploaded before
@@ -117,6 +118,27 @@ API key; see [Optional profiles](modules/parent-and-bom.md#optional-profiles). C
 because its download from the US National Vulnerability Database (NVD) took from 24 minutes to over
 an hour.
 
+## The configuration reference
+
+[`docs/configuration/reference.md`](configuration/reference.md) is generated: never edit it by hand.
+[`.github/config-reference/ConfigReference.java`](../.github/config-reference/ConfigReference.java)
+reads the `target/classes/META-INF/spring-configuration-metadata.json` file that the build writes for
+each module, from the `@ConfigurationProperties` Javadoc and the module's
+`additional-spring-configuration-metadata.json`, and writes every `stratum.*` key, grouped by module
+and group. So a change to a key, its default or its Javadoc also changes the page. After building,
+write the page again and commit it with the change:
+
+```bash
+./mvnw install -DskipTests -DskipITs
+java .github/config-reference/ConfigReference.java .
+```
+
+The generator lists each module in its `MODULES` table, with the page that owns the module's keys.
+It stops, and writes nothing, when a built module has `stratum.*` keys but no entry there, when a
+listed module has not been built, or when a key does not start with its module's prefix. So a
+newly built module also needs its line in `MODULES`. To run its golden test, run
+`.github/config-reference/test.sh`; it needs a JDK.
+
 ## The wiki
 
 The [GitHub wiki](https://github.com/exepex/stratum/wiki) shows these pages to teams that read
@@ -124,12 +146,18 @@ Stratum's documentation there. It is a copy: `docs/` stays the one source, so ed
 `docs/`, never in the wiki. The wiki's own pages, such as audit reports, are written in the wiki.
 
 [`.github/workflows/wiki.yml`](../.github/workflows/wiki.yml) copies the pages after every merge to
-`main` that changes `docs/`, a starter's `README.md` or the sync itself, and after every edit in the
-wiki, so a new audit report reaches the sidebar. It runs
+`main`, whatever the merge changes, and after every edit in the wiki, so a new audit report reaches
+the sidebar. It runs
 [`.github/wiki/WikiSync.java`](../.github/wiki/WikiSync.java), which:
 
-- copies [`docs/README.md`](README.md) as the wiki's **Home**, and every page it links except the
-  project README; the agent rules in `docs/agents/` stay in the repository;
+- copies [`docs/README.md`](README.md) as the wiki's **Home**, and every page it links in a table row:
+  every relative link of a row becomes a page, so the HTTP client row yields all its pages. A row
+  may link only to a page in `docs/`, a starter's `README.md` or the project `README.md`; any other
+  file fails the run. The agent rules in `docs/agents/` are not in the index, so they
+  stay in the repository;
+- copies the project [`README.md`](../README.md) as the page **Project-README**, linked under Home in
+  the sidebar. Home is the documentation index; Project-README is the overview of what Stratum is.
+  Links between the two work in the wiki;
 - names each page from its path, such as `Modules-web` for `docs/modules/web.md` and
   `stratum-starter-logging` for that starter's `README.md`;
 - builds the sidebar from the tables in `docs/README.md`, in the groups Getting started,
@@ -147,10 +175,38 @@ pages get the same name, when a page written in the wiki has a copied page's nam
 needs its group in `WikiSync.java`, and a page written in the wiki needs a name no copied page has.
 A run that changes no page makes no commit.
 
-On a pull request that touches these files, the workflow runs the sync's golden test,
+On every pull request, the workflow runs the sync's golden test,
 [`.github/wiki/test.sh`](../.github/wiki/test.sh), then syncs into a throwaway copy of the wiki and
 lists the pages that would change on the run's summary page. It pushes nothing. To run the test
 yourself, run `.github/wiki/test.sh`; it needs a JDK and git.
+
+## Publishing
+
+[`.github/workflows/publish.yml`](../.github/workflows/publish.yml) publishes Stratum to Maven Central
+under the namespace `io.github.exepex`, through the Central Portal. It runs the root POM's
+`stratum-release` profile, which adds sources and Javadoc jars, signs every file with GPG, and
+uploads with Sonatype's `central-publishing-maven-plugin`. The profile is not named `release`, so a
+service's own `release` profile never turns it on. The workflow skips the tests, because the
+[Build workflow](#checks-on-every-pull-request) has run them.
+
+| When | What is published | Where |
+| --- | --- | --- |
+| A push to `main`, or **Run workflow** in the Actions tab | The `-SNAPSHOT` version in `.mvn/maven.config`. A version without `-SNAPSHOT` is not published from `main` | `https://central.sonatype.com/repository/maven-snapshots/`, which keeps a snapshot for 90 days |
+| A tag `v<version>`, such as `v0.1.0`, on a commit of `main` whose Build passed | That version; a tag that contains `SNAPSHOT` fails the run | The Central Portal, as a deployment that waits until the owner clicks **Publish** there |
+
+Snapshots are published only after the owner enables SNAPSHOTs for the `io.github.exepex` namespace
+in the Central Portal. How a service uses a snapshot is in
+[Installation](getting-started/installation.md#using-a-snapshot).
+
+The workflow needs four repository secrets: `CENTRAL_TOKEN_USERNAME` and `CENTRAL_TOKEN_PASSWORD`
+(a Central Portal user token), `GPG_PRIVATE_KEY` (the ASCII-armored private key) and
+`GPG_PASSPHRASE`. It signs with the key's primary key, as Central requires.
+
+Only built modules are published. A module that is not built yet sets `skipPublishing` to `true`
+in its `pom.xml` and is left out of `stratum-bom`. Today these are the security, resilience, Kafka
+and data JPA starters; when one is built, remove both. A module with no Java code, such as a bundle,
+sets the `stratum.placeholder-*.phase` properties to `package`, because Central needs a sources
+and a Javadoc jar next to every jar.
 
 ## Rules for a new starter
 

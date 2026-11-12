@@ -7,7 +7,7 @@ import static org.mockito.Mockito.when;
 
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.core.logging.LoggingContextConstants;
-import com.exepex.stratum.test.StarterTestSupport;
+import com.exepex.stratum.test.WebTestSupport;
 import com.maxmind.db.Reader;
 import java.io.IOException;
 import java.net.InetAddress;
@@ -23,7 +23,7 @@ class ClientLocationLookupTest {
 
   /** A client's address. */
   private static final InetAddress CLIENT =
-      InetAddress.ofLiteral(StarterTestSupport.ipAddress(198, 51, 100, 20));
+      InetAddress.ofLiteral(WebTestSupport.ipAddress(198, 51, 100, 20));
 
   @Test
   @DisplayName("reads the country's ISO code and the city's English name")

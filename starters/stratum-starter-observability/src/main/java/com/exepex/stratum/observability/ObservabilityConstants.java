@@ -3,6 +3,8 @@ package com.exepex.stratum.observability;
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import lombok.experimental.UtilityClass;
 
 /** The property keys, tag names and span attributes the observability module uses (ST-ENG-45). */
@@ -70,9 +72,38 @@ public class ObservabilityConstants {
    */
   public static final String EXPONENTIAL_HISTOGRAM = "base2-exponential-bucket-histogram";
 
+  /** Spring Boot's choice of OpenTelemetry sampler, which decides which traces are kept. */
+  public static final String TRACING_SAMPLER = "management.opentelemetry.tracing.sampler";
+
+  /**
+   * The sampler that keeps a trace only by its trace ID, so a caller's sampled flag cannot make
+   * this service keep more than the configured probability of traces.
+   */
+  public static final String TRACE_ID_RATIO_SAMPLER = "trace-id-ratio";
+
+  /** Spring Boot's key for the longest a span attribute value is kept, in characters. */
+  public static final String MAX_ATTRIBUTE_VALUE_LENGTH =
+      "management.opentelemetry.tracing.limits.max-attribute-value-length";
+
+  /** Stratum's default for {@link #MAX_ATTRIBUTE_VALUE_LENGTH}, in characters. */
+  public static final int DEFAULT_MAX_ATTRIBUTE_VALUE_LENGTH = 1024;
+
+  /**
+   * Spring Boot's span limits, set below its defaults so that each span waiting to be sent has a
+   * size bound: attribute values cut at 1,024 characters, at most 64 attributes and 16 events.
+   */
+  public static final Map<String, Integer> SPAN_LIMITS =
+      Map.of(
+          MAX_ATTRIBUTE_VALUE_LENGTH,
+          DEFAULT_MAX_ATTRIBUTE_VALUE_LENGTH,
+          "management.opentelemetry.tracing.limits.max-attributes",
+          64,
+          "management.opentelemetry.tracing.limits.max-events",
+          16);
+
   /**
    * Spring Boot's switches that trace and time Kafka and RabbitMQ messages, which it leaves off.
-   * JMS needs none: Spring Boot observes it whenever metrics or tracing are set up.
+   * JMS has none: Spring Boot observes its own JMS beans, and Stratum the ones a service declares.
    */
   public static final List<String> MESSAGING_OBSERVATION_SWITCHES =
       List.of(
@@ -115,8 +146,37 @@ public class ObservabilityConstants {
   public static final String TRACING_EXPORT_ENDPOINT =
       "management.opentelemetry.tracing.export.otlp.endpoint";
 
-  /** The span attribute in which Spring puts the full URL of an outgoing HTTP call. */
+  /** Spring Boot's baggage names that are also sent in headers of their own; always kept. */
+  public static final String BAGGAGE_REMOTE_FIELDS = "management.tracing.baggage.remote-fields";
+
+  /**
+   * The span attribute in which Spring puts the full URL of an outgoing HTTP call, or the path of a
+   * request the service receives.
+   */
   public static final String HTTP_URL = "http.url";
+
+  /** The tag in which Spring puts the host of an outgoing HTTP call on its metrics. */
+  public static final String CLIENT_NAME_TAG = "client.name";
+
+  /** Spring Boot's name of the HTTP client meters. */
+  public static final String CLIENT_REQUESTS_NAME =
+      "management.observations.http.client.requests.name";
+
+  /** Spring Boot's default name of the HTTP client meters. */
+  public static final String DEFAULT_CLIENT_REQUESTS_NAME = "http.client.requests";
+
+  /** Spring Boot's name of the HTTP server meters and observations. */
+  public static final String SERVER_REQUESTS_NAME =
+      "management.observations.http.server.requests.name";
+
+  /** Spring Boot's default name of the HTTP server meters and observations. */
+  public static final String DEFAULT_SERVER_REQUESTS_NAME = "http.server.requests";
+
+  /** The tag, on a request's timer and span, that holds the error code it failed with. */
+  public static final String ERROR_CODE_TAG = "error.code";
+
+  /** The value of {@link #ERROR_CODE_TAG} for a request that failed with no code, or succeeded. */
+  public static final String NO_ERROR_CODE = "none";
 
   /** The tag, on spans and metrics, in which Spring puts the URI template of an HTTP call. */
   public static final String URI = "uri";
@@ -128,9 +188,59 @@ public class ObservabilityConstants {
   public static final String URI_COMPONENTS_BUILDER =
       "org.springframework.web.util.UriComponentsBuilder";
 
+  /** The span event that holds an exception's type, message and stack trace. */
+  public static final String EXCEPTION_EVENT = "exception";
+
+  /**
+   * The span attributes that hold an exception's type: Spring's {@code exception} (the same name as
+   * the event) and, with its OpenTelemetry conventions, {@code error.type}. Spans never carry them;
+   * metrics keep them.
+   */
+  public static final Set<String> EXCEPTION_ATTRIBUTES = Set.of(EXCEPTION_EVENT, "error.type");
+
+  /** The bean that keeps exception data out of spans; a bean of this name replaces it. */
+  public static final String EXCEPTION_FREE_SPANS = "stratumExceptionFreeSpans";
+
   /** The name of the timer and span of every run of linked work. */
   public static final String LINKED_WORK_OBSERVATION = "stratum.linked.work";
 
   /** The tag, on the timer and span of linked work, that holds the work's fixed name. */
   public static final String LINKED_WORK_TAG = "work";
+
+  /** The counter of spans lost because OpenTelemetry's export queue was full. */
+  public static final String DROPPED_SPANS_METRIC = "stratum.observability.spans.dropped";
+
+  /** The OpenTelemetry meter that the SDK's batch span processor records its counts in. */
+  public static final String SPAN_PROCESSOR_METER = "io.opentelemetry.sdk.trace";
+
+  /** The SDK's counter of spans its batch span processor sent or dropped. */
+  public static final String PROCESSED_SPANS_INSTRUMENT = "processedSpans";
+
+  /** The attribute of {@link #PROCESSED_SPANS_INSTRUMENT} that is true for dropped spans. */
+  public static final String DROPPED_ATTRIBUTE = "dropped";
+
+  /** Spring Boot's settings of the actuator endpoints served over HTTP, such as their base path. */
+  public static final String WEB_ENDPOINTS = "management.endpoints.web";
+
+  /** Spring Boot's settings of the health endpoint, such as its groups. */
+  public static final String HEALTH_ENDPOINT = "management.endpoint.health";
+
+  /** The health endpoint's ID, which is also its path when it is not mapped to another. */
+  public static final String HEALTH_ENDPOINT_ID = "health";
+
+  /** Spring Boot's switch that also serves the liveness and readiness probes on the main port. */
+  public static final String PROBE_ADDITIONAL_PATHS =
+      "management.endpoint.health.probes.add-additional-paths";
+
+  /** The main-port paths of the liveness and readiness probes, as Spring Boot serves them. */
+  public static final List<String> PROBE_PATHS = List.of("/livez", "/readyz");
+
+  /** The base path of every request on a servlet (MVC) server. */
+  public static final String SERVLET_CONTEXT_PATH = "server.servlet.context-path";
+
+  /** The base path of every request on a reactive (WebFlux) server. */
+  public static final String WEBFLUX_BASE_PATH = "spring.webflux.base-path";
+
+  /** The base path of every request on a separate management port. */
+  public static final String MANAGEMENT_BASE_PATH = "management.server.base-path";
 }

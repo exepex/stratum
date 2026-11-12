@@ -32,17 +32,17 @@ mvn spring-boot:run -Dspring-boot.run.arguments=--debug
 java -jar order-service.jar --debug
 ```
 
-Look for `Stratum...AutoConfiguration` entries:
+Look for the entries of Stratum's auto-configurations, which carry `@ConditionalOnStratumModule`:
 
 ```text
 Positive matches:
-   StratumHttpClientAutoConfiguration matched:
-      - @ConditionalOnStratumModule http-client stratum.http-client.enabled is true
+   DataJpaAutoConfiguration matched:
+      - @ConditionalOnStratumModule data stratum.data.enabled is not false, so it is on
 
 Negative matches:
    StratumCacheAutoConfiguration:
       Did not match:
-         - @ConditionalOnStratumModule cache stratum.cache.enabled is not true, so it is off
+         - @ConditionalOnStratumModule cache stratum.cache.enabled is false
 ```
 
 ### 3. Actuator, in a safe environment
@@ -77,9 +77,9 @@ service:
 
 | Mistake | Example | Fix |
 | --- | --- | --- |
-| Tabs instead of spaces | `→read-timeout: 5s` | YAML allows spaces only. |
-| Wrong indentation | `read-timeout` at the same level as `clients` | Indent each level by 2 spaces. |
-| Missing space after `:` | `read-timeout:5s` | Write `read-timeout: 5s`. |
+| Tabs instead of spaces | `→timeout: 5s` | YAML allows spaces only. |
+| Wrong indentation | `timeout` at the same level as `clients` | Indent each level by 2 spaces. |
+| Missing space after `:` | `timeout:5s` | Write `timeout: 5s`. |
 | Unquoted special value | `version: 2.10` read as the number 2.1 | Quote it: `version: "2.10"`. |
 | `yes`, `no`, `on`, `off` read as booleans | `mode: on` | Quote it: `mode: "on"`. |
 

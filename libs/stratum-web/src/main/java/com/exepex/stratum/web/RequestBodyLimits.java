@@ -1,6 +1,8 @@
 package com.exepex.stratum.web;
 
 import java.util.Optional;
+import lombok.AccessLevel;
+import lombok.Getter;
 import org.springframework.util.unit.DataSize;
 import org.springframework.web.method.HandlerMethod;
 
@@ -14,6 +16,7 @@ public class RequestBodyLimits {
   private static final DataSize STANDARD_BODY_LIMIT = DataSize.ofKilobytes(256);
 
   /** The limit of a request whose path matches no route. */
+  @Getter(AccessLevel.PACKAGE)
   private final DataSize defaultLimit;
 
   /** The limit of each route. */
@@ -26,15 +29,15 @@ public class RequestBodyLimits {
    * @param backwardCompatible whether {@code stratum.backward-compatible} is on, which leaves a
    *     body with no limit set unlimited, so an existing service's requests are not refused;
    *     otherwise such a body may be 256KB
-   * @throws org.springframework.web.util.pattern.PatternParseException if a route is not a valid
-   *     path pattern
+   * @throws com.exepex.stratum.core.error.StratumException {@code SX-WEB-1009} if a route is not a
+   *     valid path pattern
    */
   public RequestBodyLimits(WebProperties settings, boolean backwardCompatible) {
     var bodyLimit = settings.bodyLimit();
     this.defaultLimit =
         Optional.ofNullable(bodyLimit.defaultLimit())
             .orElse(backwardCompatible ? DataSize.ofBytes(0) : STANDARD_BODY_LIMIT);
-    this.routeLimits = new RouteValues<>(bodyLimit.routes());
+    this.routeLimits = new RouteValues<>(WebConstants.BODY_LIMIT_ROUTES, bodyLimit.routes());
   }
 
   /**

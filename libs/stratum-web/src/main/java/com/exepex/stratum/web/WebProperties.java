@@ -64,7 +64,7 @@ public record WebProperties(
    *
    * @param statuses The HTTP status, from 400 to 599, of each of the service's error codes that a
    *     StratumException carries, such as ORD-0001 to 409. A code with no status is answered with
-   *     500 and logged. Defaults to none.
+   *     500 and logged. None by default.
    */
   @Builder(toBuilder = true)
   public record ErrorSettings(@DefaultValue Map<String, @Min(400) @Max(599) Integer> statuses) {
@@ -138,8 +138,8 @@ public record WebProperties(
    * Where the client's country and city come from.
    *
    * @param database The MaxMind GeoIP2 or GeoLite2 City or Country database file, in .mmdb format,
-   *     that your team provides and keeps up to date. Defaults to none, which logs no country or
-   *     city.
+   *     that your team provides and keeps up to date. None by default. Without it, no country or
+   *     city is logged.
    */
   @Builder(toBuilder = true)
   public record ClientLocationSettings(@Nullable Path database) {}
@@ -166,11 +166,11 @@ public record WebProperties(
    * @param requestHeaders The request headers to log, each with the field name it is logged under,
    *     such as X-Tenant-Id to tenantId. A field name is a letter, then up to 63 letters, digits, _
    *     or . characters. Authorization, Cookie, Set-Cookie, X-Api-Key and the denied headers are
-   *     never logged. Defaults to none.
+   *     never logged. None by default.
    * @param responseHeaders The response headers to log, each with the field name it is logged
-   *     under, as for the request headers. Defaults to none.
+   *     under, as for the request headers. None by default.
    * @param deniedHeaders More headers that are never logged, even when listed above, such as a
-   *     header your platform uses for a secret. Defaults to none.
+   *     header your platform uses for a secret. None by default.
    * @param tokenPayload Whether the claims named in token-claims, from the payload of the caller's
    *     bearer JSON Web Token, are logged as jwtClaims. They are decoded but not verified, so never
    *     trust them. The token's header, signature and other claims never are. Defaults to false.
@@ -220,7 +220,7 @@ public record WebProperties(
    *     is true, so an existing service's requests are not cut off.
    * @param routes The limit of the requests whose path matches a pattern, such as /reports/** to
    *     60s. When several patterns match, the most specific one wins. 0 means no limit on those
-   *     paths. Defaults to none.
+   *     paths. None by default.
    * @param status The HTTP status, from 400 to 599, that a request which ran out of time is
    *     answered with. Defaults to 503.
    */
@@ -246,7 +246,7 @@ public record WebProperties(
    *     existing service's requests are not refused.
    * @param routes The limit of the bodies of the requests whose path matches a pattern, such as
    *     /uploads/** to 20MB. When several patterns match, the most specific one wins. 0 means no
-   *     limit on those paths. Defaults to none.
+   *     limit on those paths. None by default.
    */
   @Builder(toBuilder = true)
   public record BodyLimitSettings(

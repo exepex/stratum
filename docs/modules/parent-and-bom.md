@@ -1,7 +1,8 @@
-# Parent POM and BOM: `stratum-parent` and `stratum-bom`
+# Parent POMs and BOM: `stratum-parent`, `stratum-microservice-parent` and `stratum-bom`
 
-**Status: Built, not released.** `stratum-parent` and `stratum-bom` exist in the repository and pass
-`mvn verify`, but no version is published yet.
+**Status: Built, not released.** `stratum-parent`, `stratum-microservice-parent` and `stratum-bom` exist
+in the repository and pass `mvn verify`. No release is published yet, only
+[snapshots](../getting-started/installation.md#using-a-snapshot).
 This page explains how your service gets Stratum's tested versions, Java settings and build checks.
 
 [← Documentation home](../README.md) · How to choose between them: [Installation](../getting-started/installation.md)
@@ -16,13 +17,15 @@ together and publishes it in two forms:
 | --- | --- | --- |
 | `stratum-bom` | A *bill of materials*: a POM that lists versions only | Versions of Stratum's modules and of the extra libraries Stratum uses |
 | `stratum-parent` | A parent POM that inherits Spring Boot's parent, imports the BOM and adds build settings | Spring Boot's versions, the BOM's versions, **plus** Java 25, plugin versions and quality checks |
+| `stratum-microservice-parent` | A parent POM that inherits `stratum-parent` and adds a microservice's dependencies | Everything `stratum-parent` gives, **plus** the microservice bundle and the test libraries ([The microservice parent](#the-microservice-parent)) |
 
 ```mermaid
 flowchart TD
     SB[spring-boot-starter-parent] -->|parent of, through stratum and stratum-build-parent| SP[stratum-parent]
     SB -->|parent of| CP[company parent]
     BOM[stratum-bom] -->|imported by| SP
-    SP -->|parent of| S1[order-service]
+    SP -->|parent of| MP[stratum-microservice-parent]
+    MP -->|parent of| S1[order-service]
     CP -->|parent of| S2[service with a company parent]
     BOM -->|imported by| S2
 ```
@@ -38,15 +41,18 @@ used next to a company framework. The reasons are in
 
 The BOM manages versions of:
 
-- every Stratum module, including the [bundle starters](bundles.md),
+- every Stratum module that is published to Maven Central, including the [bundle starters](bundles.md);
+  the security, resilience, Kafka and data JPA starters are added when they are built,
 - the extra libraries Stratum uses or recommends that Spring Boot does not manage (Resilience4j,
   cloud SDKs, and so on),
-- the container images used in tests (as Maven properties).
+- the container images used in tests, as Maven properties (`testcontainers.image.postgres` and
+  `testcontainers.image.redis`), each holding the full image, pinned and never `latest`.
 
 Today it lists Stratum's own modules, MapStruct (`mapstruct`, `mapstruct-processor` and
-`lombok-mapstruct-binding`), `maxmind-db`, `yauaa`, `commons-validator`, ArchUnit (`archunit`) and
-JMH (`jmh-core` and `jmh-generator-annprocess`, for Stratum's own benchmarks). Each other extra
-library is added together with the first starter that uses it.
+`lombok-mapstruct-binding`), Resilience4j (`resilience4j-retry` and `resilience4j-circuitbreaker`),
+`maxmind-db`, `yauaa`, `commons-validator`, ArchUnit (`archunit`) and JMH (`jmh-core` and
+`jmh-generator-annprocess`, for Stratum's own benchmarks). Each other extra library is added
+together with the first starter that uses it.
 
 It does **not** import Spring Boot's BOM (`spring-boot-dependencies`). If your parent does not
 manage Spring Boot's versions, import `spring-boot-dependencies` yourself, at the version in the
@@ -91,7 +97,7 @@ one. With a BOM import, put it above the import to make that clear to readers:
       <version>X.Y.Z</version> <!-- the patched version -->
     </dependency>
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-bom</artifactId>
       <version>0.1.0-SNAPSHOT</version>
       <type>pom</type>
@@ -114,10 +120,10 @@ one. With a BOM import, put it above the import to make that clear to readers:
 ## The parent POM
 
 On top of Spring Boot's parent and the BOM, `stratum-parent` sets the following. Everything except
-the build info and packaging rows comes from `stratum-build-parent`, its own parent, which Stratum's
-libraries and starters also inherit, through `stratum-library-parent`. Every version comes from
-`stratum`, the parent of `stratum-build-parent`, which is the one place Stratum sets versions
-([ADR 0005](../adr/0005-versions-in-the-root-pom.md)).
+the build info and packaging rows, and the one SpotBugs pattern that services skip, comes from
+`stratum-build-parent`, its own parent, which Stratum's libraries and starters also inherit, through
+`stratum-library-parent`. Every version comes from `stratum`, the parent of `stratum-build-parent`,
+which is the one place Stratum sets versions ([ADR 0005](../adr/0005-versions-in-the-root-pom.md)).
 
 | Area | Setting |
 | --- | --- |
@@ -125,7 +131,7 @@ libraries and starters also inherit, through `stratum-library-parent`. Every ver
 | Plugin versions | Spring Boot's parent sets the versions of the plugins it manages, such as Compiler, Surefire, Failsafe, Enforcer and the Spring Boot plugin. `stratum` sets the rest: JaCoCo, Spotless, Checkstyle, PMD, SpotBugs, FindSecBugs and OWASP Dependency-Check, one property each in `<properties>` |
 | Tests | `*Test.java` run by Surefire in `mvn test`, except `*IntegrationTest.java`, which Failsafe runs in `mvn verify` |
 | Formatting | Spotless checks Google Java Format; `mvn spotless:apply` fixes it |
-| Static analysis | Checkstyle, PMD and SpotBugs with the FindSecBugs security rules. The Checkstyle, PMD and Enforcer rule files come from `stratum-build-rules` |
+| Static analysis | Checkstyle, PMD and SpotBugs with the FindSecBugs security rules. The Checkstyle, PMD and Enforcer rule files come from `stratum-build-rules`. Services skip one FindSecBugs pattern, `SPRING_ENDPOINT`; see [Tuning the checks](#tuning-the-checks) |
 | Enforcer | Requires JDK 25 and Maven 3.9+; bans duplicate classes, version ranges and `LATEST`/`RELEASE`, a dependency declared twice, plugins without a version, and library versions with known remote code execution flaws (Log4j 1.x, Log4j 2 before 2.17.1, Commons Collections before 3.2.2, Commons Text before 1.10.0, SnakeYAML before 2.0) |
 | Build info | `/actuator/info` shows the build version and time (`build-info.properties`) and the Git commit (`git.properties`) |
 | Packaging | `spring-boot-maven-plugin` builds an executable jar; `mvn spring-boot:build-image` builds a container image |
@@ -216,7 +222,52 @@ A property a service may set in its own `pom.xml` (it can raise the bar, never l
 | --- | --- | --- |
 | `stratum.coverage.minimum` | `0.80` | Line coverage required by `coverage-gate` |
 
+Services built on `stratum-parent` skip only the `SPRING_ENDPOINT` pattern of FindSecBugs; Stratum's
+own build skips none. FindSecBugs reports `SPRING_ENDPOINT` on a class with a Spring request
+mapping, such as `@GetMapping` or `@PostMapping`, to mark it for a manual security review. It is not
+a flaw, but SpotBugs would fail the build of every service that has an endpoint. So `stratum-parent`
+turns off the one detector that reports it, `SpringMvcEndpointDetector`, with SpotBugs'
+`omitVisitors` setting. Every other FindSecBugs check still runs on your controllers, such as a file
+path built from a request parameter or a weak hash such as MD5.
+
+If your service sets its own `omitVisitors` on `spotbugs-maven-plugin`, Maven replaces Stratum's
+value with yours. Keep `SpringMvcEndpointDetector` in your list, separated by commas:
+
+```xml
+<plugin>
+  <groupId>com.github.spotbugs</groupId>
+  <artifactId>spotbugs-maven-plugin</artifactId>
+  <configuration>
+    <omitVisitors>SpringMvcEndpointDetector,FindDeadLocalStores</omitVisitors>
+  </configuration>
+</plugin>
+```
+
+Your own `excludeFilterFile` does not change this setting: Stratum's `omitVisitors` stays.
+
+## The microservice parent
+
+`stratum-microservice-parent` is the parent for a REST microservice
+([ADR 0019](../adr/0019-one-parent-per-kind-of-application.md)). It inherits `stratum-parent`, so a
+service on it gets every setting above, and it adds three dependencies, nothing else:
+
+| Dependency | Scope |
+| --- | --- |
+| `stratum-starter-microservice`, the [microservice bundle](bundles.md) | compile |
+| `stratum-test` ([Testing](test.md)) | test |
+| `spring-boot-starter-test`, for JUnit 5, AssertJ and Mockito | test |
+
+So the service's `pom.xml` holds only its `<parent>` and its own coordinates
+([the complete `pom.xml`](../getting-started/with-stratum-parent.md#the-complete-pomxml-of-a-microservice)).
+It adds a starter by declaring it, and leaves a bundled starter out by declaring the bundle again with
+an `<exclusion>`: Maven then uses the service's own declaration
+([Leave a bundled starter out](../getting-started/with-stratum-parent.md#leave-a-bundled-starter-out)).
+
+The other kinds of application (reactive microservice, web UI, batch job, command-line application)
+get their own parent once their bundle is built (**planned**). Until then, they use `stratum-parent`
+and declare their bundle.
+
 ## Upgrading
 
-Change the version of `stratum-parent` (or `stratum-bom`) in one place and run `mvn verify`. Read the
+Change the version of your Stratum parent (or `stratum-bom`) in one place and run `mvn verify`. Read the
 release notes first; see [Versioning and upgrades](../guides/upgrading.md).

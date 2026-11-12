@@ -1,0 +1,2 @@
+com.exepex.stratum.restclient.autoconfigure.RestClientAutoConfiguration
+com.exepex.stratum.restclient.autoconfigure.RestClientTokenAutoConfiguration

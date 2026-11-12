@@ -21,14 +21,36 @@
     The logging starter's redactor must hide any value that fails while it is masked, such as a
     toString() that throws a NullPointerException, so that a secret is never written and the rest
     of the log line is kept. The owner allowed that one method to catch RuntimeException
-    (2026-11-02); every other method is still checked.
+    (2026-11-02).
+    The cache starter's StratumCache runs a cached method's loader at most once: when the write
+    after a load fails, get catches the failure and returns the loaded value, and afterFailedWrite
+    catches the service handler's error to pass it on without a second report. Any cache failure
+    is a RuntimeException, so the owner allowed those two methods too (2026-11-04).
+    The web MVC starter's ResponseTimeoutFilter answers a request that ran out of time with the
+    timeout status whatever the rest of the chain fails with, and a filter after it, such as
+    Spring Security's or the service's own, can fail with any unchecked exception. The owner
+    allowed its doFilterInternal too (2026-11-05).
+    The HTTP client starter's DefaultOutgoingRequest.runInterceptors calls service-written
+    interceptor code on each attempt and must mark any failure of it, which can be any unchecked
+    exception, so that Stratum's retries and circuit breaker see that nothing was sent; it always
+    rethrows. Allowed by the owner's delegated panel (2026-11-10, PR #274). Every other method is
+    still checked.
   -->
   <rule ref="category/java/errorprone.xml/AvoidCatchingGenericException">
     <properties>
       <property name="violationSuppressXPath"
           value="./ancestor::MethodDeclaration[@Name='failingClosed']
               [ancestor::ClassDeclaration[@SimpleName='Redactor']]
-              [ancestor::CompilationUnit/PackageDeclaration[@Name='com.exepex.stratum.logging.redaction']]"/>
+              [ancestor::CompilationUnit/PackageDeclaration[@Name='com.exepex.stratum.logging.redaction']]
+            | ./ancestor::MethodDeclaration[@Name='get' or @Name='afterFailedWrite']
+              [ancestor::ClassDeclaration[@SimpleName='StratumCache']]
+              [ancestor::CompilationUnit/PackageDeclaration[@Name='com.exepex.stratum.cache']]
+            | ./ancestor::MethodDeclaration[@Name='doFilterInternal']
+              [ancestor::ClassDeclaration[@SimpleName='ResponseTimeoutFilter']]
+              [ancestor::CompilationUnit/PackageDeclaration[@Name='com.exepex.stratum.webmvc']]
+            | ./ancestor::MethodDeclaration[@Name='runInterceptors']
+              [ancestor::ClassDeclaration[@SimpleName='DefaultOutgoingRequest']]
+              [ancestor::CompilationUnit/PackageDeclaration[@Name='com.exepex.stratum.restclient']]"/>
     </properties>
   </rule>
   <rule ref="category/java/multithreading.xml">

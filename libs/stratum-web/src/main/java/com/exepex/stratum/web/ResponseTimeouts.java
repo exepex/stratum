@@ -3,6 +3,8 @@ package com.exepex.stratum.web;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.web.method.HandlerMethod;
@@ -20,6 +22,7 @@ public class ResponseTimeouts implements AutoCloseable {
   private static final Duration STANDARD_TIMEOUT = Duration.ofSeconds(10);
 
   /** The limit of a request whose path matches no route. */
+  @Getter(AccessLevel.PACKAGE)
   private final Duration defaultLimit;
 
   /** The limit of each route. */
@@ -38,15 +41,15 @@ public class ResponseTimeouts implements AutoCloseable {
    * @param backwardCompatible whether {@code stratum.backward-compatible} is on, which leaves a
    *     request with no limit set unlimited, so an existing service's requests are not cut off;
    *     otherwise such a request may take 10s
-   * @throws org.springframework.web.util.pattern.PatternParseException if a route is not a valid
-   *     path pattern
+   * @throws com.exepex.stratum.core.error.StratumException {@code SX-WEB-1009} if a route is not a
+   *     valid path pattern
    */
   public ResponseTimeouts(WebProperties settings, boolean backwardCompatible) {
     var timeout = settings.timeout();
     this.defaultLimit =
         Optional.ofNullable(timeout.defaultLimit())
             .orElse(backwardCompatible ? Duration.ZERO : STANDARD_TIMEOUT);
-    this.routeLimits = new RouteValues<>(timeout.routes());
+    this.routeLimits = new RouteValues<>(WebConstants.TIMEOUT_ROUTES, timeout.routes());
     this.status = HttpStatusCode.valueOf(timeout.status());
     this.timer =
         new ScheduledThreadPoolExecutor(

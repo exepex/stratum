@@ -22,7 +22,8 @@ gets ("The judge pool") and which steps each review checks ("What the judge does
   | Fix | 1: a judge checks the code |
   | Feature | 2: a judge checks the design note before any code is written; then a judge checks the code, and receives the approved note and the first verdict |
 
-- The reviews of one change rotate between models: each review runs on a different model from the one before it.
+- The reviews of one change rotate between models: each review runs on a different model from the one before it
+  ([AGENTS.md](../../AGENTS.md#ai-platforms), "AI platforms").
 - One judge per review step. Several judges work on the same step in parallel only when the owner asks.
 - A judge never reviews work it helped build, and never reads the conversation in which the work was built.
 
@@ -79,7 +80,7 @@ The pull request description contains a **Claims** section, written by the imple
 4. **Broken-code proof.** For each requirement with code, the fault the implementer planted and the test that
    caught it.
 5. **Self-review.** The evidence of ST-AG-17: each search command with its number of hits, the most-broken rules
-   checked, the rebase and the CI, Sonar and Codex results at the head, and each class or file added to fix a finding
+   checked, the rebase and the CI and review-bot results at the head, and each class or file added to fix a finding
    (ST-AG-12), with that finding.
 6. **Not done or not verified.** Anything left open, stated plainly.
 7. **Files read.** Confirmation that the implementer read `AGENTS.md` and all six topic files before starting.
@@ -129,10 +130,10 @@ skips step 4: a text-only change needs no build (AGENTS.md, Build).
 
 1. **Gate.** The Claims are complete, with the design note on Fix and Feature; for a design-note review, the note is
    complete. For a pull request, it is open ready for review, not as a draft; CI is green at the head commit; and every
-   finding from Codex, Sonar and any other review bot is answered and its thread resolved. Where the answer says the
-   finding does not apply (ST-AG-04), the judge accepts or rejects it with its own evidence. The judge reads Sonar
-   through the pull request's GitHub checks. When the gate fails, the verdict is FAIL with that one finding, and the
-   judge checks nothing else. A missing design note on Fix or Feature is a blocking finding that fails the gate.
+   finding from any review bot is answered and its thread resolved. Where the answer says the finding does not apply
+   (ST-AG-04), the judge accepts or rejects it with its own evidence. The judge reads the static-analysis bot's
+   results in the pull request's GitHub checks. When the gate fails, the verdict is FAIL with that one finding, and
+   the judge checks nothing else. A missing design note on Fix or Feature is a blocking finding that fails the gate.
 2. **Requirements and owner decisions.**
    - **Build the gap list first.** Read the owner's request and write your own list of every requirement in it,
      before reading the implementer's list. Then compare. A requirement that is neither met nor declared out of
@@ -144,7 +145,7 @@ skips step 4: a text-only change needs no build (AGENTS.md, Build).
 3. **Design, rules and documents.**
    - The code matches the design note.
    - Check the change against every rule: [AGENTS.md](../../AGENTS.md), [engineering](engineering.md) (ST-ENG-01 to
-     ST-ENG-64), [testing](testing.md), [documentation](documentation.md) and [review](review.md). Check the line
+     ST-ENG-66), [testing](testing.md), [documentation](documentation.md) and [review](review.md). Check the line
      count of every changed file against the limits in AGENTS.md.
    - Check simplicity in both directions. For each new type, method, option and branch, name its use today. One
      with no use, or Javadoc that explains internals or restates the code, is a should-fix finding (ST-ENG-05,

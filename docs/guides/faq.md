@@ -16,7 +16,7 @@ and a standard way to use them. It adds no new programming model on top of Sprin
 No. Add only what your service needs. A starter you do not add costs nothing.
 
 **Is Stratum ready to use?**
-Not yet. It is in the design stage; the documentation describes the planned behaviour.
+Not yet. No module is released. Some are built (see the status line of each [module page](../README.md)), some are partly built and some are only planned; the documentation labels what is planned.
 
 ## Configuration
 
@@ -76,4 +76,4 @@ to it. See
 Only for integration tests (`*IntegrationTest.java`). Unit and slice tests (`mvn test`) run without it.
 
 **Do I need a real identity provider in tests?**
-No. `stratumJwt(...)` creates test tokens. See [Testing secured endpoints](../modules/test.md#testing-secured-endpoints).
+No. Use Spring Security's own test support, such as `SecurityMockMvcRequestPostProcessors.jwt()`.

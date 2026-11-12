@@ -1,7 +1,10 @@
 # Overriding defaults
 
-**Status: Planned.** Only the Java configuration of [level 1](#set-the-same-values-in-java) is
-built, in `stratum-core`, and the logging and observability modules use it. Stratum's defaults suit
+**Status: Partly built.** [Level 1](#level-1-change-a-value) is built: properties, and the
+[Java configuration](#set-the-same-values-in-java) of `stratum-core`, which the logging,
+observability and web modules use. [Level 2](#level-2-adjust-a-bean-with-a-customizer) works for the
+customizers its table marks as working today. [Levels 3](#level-3-replace-a-bean) and
+[4](#level-4-turn-a-module-off) work for every built module. Stratum's defaults suit
 most services, but never all of them. This page shows the four ways to change what Stratum does,
 from the lightest touch to the strongest.
 
@@ -26,7 +29,7 @@ Every default is a property. Find it on the module page or in the
 stratum:
   http-client:
     defaults:
-      read-timeout: 10s
+      timeout: 10s
   logging:
     redaction:
       extra-keys:
@@ -35,7 +38,7 @@ stratum:
 ```
 
 ```properties
-stratum.http-client.defaults.read-timeout=10s
+stratum.http-client.defaults.timeout=10s
 stratum.logging.redaction.extra-keys=iban,date-of-birth
 ```
 
@@ -45,8 +48,8 @@ Every value you can set in a file you can also set in Java code. This suits a se
 configuration files would otherwise grow too large, or a value worked out in code. When a value is
 set in both places, **the Java value wins**.
 
-Each module binds its `stratum.<module>.*` properties to one settings type, a Java record with a
-builder, and has a customizer interface for it, such as `LoggingPropertiesCustomizer` for
+Each module with `stratum.<module>.*` settings besides its switch binds them to one settings type, a
+Java record with a builder, and has a customizer interface for it, such as `LoggingPropertiesCustomizer` for
 `LoggingProperties`. To set values in Java, write a class that implements that interface. It
 receives the settings already read from your files, with Stratum's defaults for anything you did
 not set, and returns the settings the module should use. Call `toBuilder()` on what it receives,
@@ -114,7 +117,7 @@ Rules that apply to every module:
 
 `StratumPropertiesCustomizer` is in `stratum-core`, in the package
 `com.exepex.stratum.core.properties`. Every starter brings it, and each module page names its own
-customizer interface.
+customizer interface, or says that it is planned.
 
 ### Switches, shared properties and Spring Boot properties in Java
 
@@ -163,17 +166,17 @@ class HttpClientConfig {
 }
 ```
 
-Customizers Stratum supports (all planned):
+Customizers Stratum supports:
 
-| Customizer | Adjusts | Module |
-| --- | --- | --- |
-| `RestClientCustomizer` (Spring Boot) | Every HTTP client | http-client |
-| `StratumHttpClientCustomizer` | One named client group | http-client |
-| `StratumSecurityCustomizer` | The `HttpSecurity` before Stratum's chain is built | security |
-| `StratumErrorResponseCustomizer` | Extra fields on every error response | web |
-| `MeterFilter` / `ObservationFilter` (Micrometer) | Metric names, tags and observations | observability |
-| `StratumCacheCustomizer` | Each cache before it is created | cache |
-| `StratumKafkaErrorHandlerCustomizer` | Retry and dead-letter handling | kafka |
+| Customizer | Adjusts | Module | Status |
+| --- | --- | --- | --- |
+| `RestClientCustomizer` (Spring Boot) | Every HTTP client built from Spring Boot's `RestClient.Builder` | http-client | Works today: Spring Boot applies it. On a Stratum client it runs first, and Stratum's pool replaces any request factory it sets ([HTTP client](../modules/http-client.md#customize)) |
+| `StratumClientCustomizer` | One named client's builder, for what has no key ([ADR 0011](../adr/0011-http-client-starters.md)); its keys go through `HttpClientPropertiesCustomizer` | http-client | Works today in the blocking starter |
+| `StratumSecurityCustomizer` | The `HttpSecurity` before Stratum's chain is built | security | Planned |
+| `StratumErrorResponseCustomizer` | Extra fields on every error response | web | Planned |
+| `MeterFilter` / `ObservationFilter` (Micrometer) | Metric names, tags and observations | observability | Works today: Spring Boot applies them |
+| `RedisCacheManagerBuilderCustomizer`, `CacheManagerCustomizer` (Spring Boot) | The Redis cache manager, and any cache manager, as Spring Boot builds them, after Stratum's customizer | cache | Works today, as does the module's level-1 settings customizer, `StratumCachePropertiesCustomizer` |
+| `StratumKafkaErrorHandlerCustomizer` | Retry and dead-letter handling | kafka | Planned |
 
 When several customizers of the same type exist, Spring applies them in `@Order` order.
 
@@ -237,7 +240,7 @@ The switch is read from properties only, not from a `StratumPropertiesCustomizer
 which beans to create before any customizer runs. To set it in Java, use the application's
 [default properties](#switches-shared-properties-and-spring-boot-properties-in-java).
 
-A module's own switches, such as `stratum.web.correlation.enabled`, apply only while the module is
+A module's own switches, such as `stratum.web.request-log.enabled`, apply only while the module is
 on. Their defaults, often `true`, mean that a module comes with all its parts.
 
 Some modules also let you switch off one part:

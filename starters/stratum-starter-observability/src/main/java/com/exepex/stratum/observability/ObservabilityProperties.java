@@ -1,8 +1,10 @@
 package com.exepex.stratum.observability;
 
+import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.core.properties.StratumCustomizers;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
 import java.util.List;
 import lombok.Builder;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -16,10 +18,17 @@ import org.springframework.core.env.Environment;
  * already has a key for, such as the exposed actuator endpoints, is set with Spring Boot's key.
  *
  * @param tags Which metric tags are refused.
+ * @param baggage Which baggage entries are read from callers and sent on.
+ * @param metrics How many meters the service may make.
+ * @param tracing Which requests get spans.
  */
 @Builder(toBuilder = true)
 @ConfigurationProperties(prefix = ObservabilityConstants.PREFIX)
-public record ObservabilityProperties(@DefaultValue @Valid Tags tags) {
+public record ObservabilityProperties(
+    @DefaultValue @Valid Tags tags,
+    @DefaultValue @Valid Baggage baggage,
+    @DefaultValue @Valid Metrics metrics,
+    @DefaultValue Tracing tracing) {
 
   /**
    * Returns the settings the module uses: {@code stratum.observability.*} with the defaults for
@@ -60,4 +69,44 @@ public record ObservabilityProperties(@DefaultValue @Valid Tags tags) {
       allowed = List.copyOf(allowed);
     }
   }
+
+  /**
+   * Which baggage entries are read from callers and sent on calls and messages; every other entry
+   * is dropped. Spring Boot's {@code management.tracing.baggage.remote-fields} are always kept too.
+   * Names match exactly, case included.
+   *
+   * @param allowed The baggage names that are kept. Defaults to correlationId; a list set here
+   *     replaces the default, so keep correlationId in it.
+   */
+  public record Baggage(
+      @DefaultValue(LoggingContextConstants.CORRELATION_ID) List<@NotBlank String> allowed) {
+
+    /** Keeps an unchangeable copy of the names. */
+    public Baggage {
+      allowed = List.copyOf(allowed);
+    }
+  }
+
+  /**
+   * How many meters the service may make, so a tag that holds many values cannot overload the
+   * metrics backend. Past a cap, new meters are dropped with one warning.
+   *
+   * @param maxMeters The most meters each metrics registry holds. Defaults to 10000; raise it only
+   *     after checking the backend's series budget.
+   * @param maxClientNames The most hosts that the HTTP client metrics keep in their client.name
+   *     tag. Defaults to 100.
+   */
+  @Builder(toBuilder = true)
+  public record Metrics(
+      @DefaultValue("10000") @Positive int maxMeters,
+      @DefaultValue("100") @Positive int maxClientNames) {}
+
+  /**
+   * Which requests get spans.
+   *
+   * @param healthProbes Whether health probe requests, such as Kubernetes liveness and readiness
+   *     checks, get spans. Defaults to false: probes keep their timers but make no spans.
+   */
+  @Builder(toBuilder = true)
+  public record Tracing(@DefaultValue("false") boolean healthProbes) {}
 }

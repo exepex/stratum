@@ -25,8 +25,12 @@ flowchart LR
 
 ## Step 1: versions
 
-Replace your parent with `stratum-parent`, or import `stratum-bom` (see
-[Installation](../getting-started/installation.md)). If your parent is your company's framework,
+Replace your parent with `stratum-microservice-parent` for a REST microservice, or `stratum-parent`
+for any other kind of application, or import `stratum-bom` (see
+[Installation](../getting-started/installation.md)). A service already on `stratum-parent` with the
+microservice bundle can move to `stratum-microservice-parent`: change the parent's `artifactId`, and
+remove the bundle, `stratum-test` and `spring-boot-starter-test` from its `<dependencies>`, which the
+new parent brings. If your parent is your company's framework,
 keep it and follow [Using Stratum with a company framework](company-framework.md). Then **remove every `<version>`** from
 dependencies the BOM manages. Run `mvn dependency:tree` before and after, and compare.
 
@@ -84,20 +88,33 @@ Check: your security tests pass, and health probes still answer without a token.
 
 ## Step 6: HTTP clients
 
-Add `stratum-starter-http-client` (and `stratum-starter-oauth2-client`, `stratum-starter-resilience`
-if you need them). For each downstream service:
+Add `stratum-starter-http-client` (and `stratum-starter-oauth2-client` if you need it); it gives each
+client its own timeouts, connection pool, retries and circuit breaker. A client's error answer becomes a
+`DownstreamException` instead of Spring's subtypes, such as `HttpClientErrorException.NotFound`
+([HTTP client: errors](../modules/http-client-errors.md)). A method that returns `Optional` gets an empty one for a
+`404`, so a `catch` of `NotFound` around it can go. For each downstream service:
 
-1. Turn the hand-written client class into an interface with `@GetExchange`, `@PostExchange`, ...
-2. Register it with `@ImportHttpServices(group = "<name>", ...)`.
-3. Move its URL and timeouts to `stratum.http-client.clients.<name>.*`.
-4. Delete the old `RestTemplate` or `RestClient` bean and its interceptors.
+1. Turn the hand-written client class into an interface with `@StratumClient("<name>")` and
+   Spring's `@GetExchange`, `@PostExchange`, ... Stratum finds it by scanning
+   ([ADR 0011](../adr/0011-http-client-starters.md)); remove any `@ImportHttpServices` for it.
+2. Move its URL and timeouts to `stratum.http-client.clients.<name>.*`. Move its Resilience4j settings,
+   `resilience4j.circuitbreaker.instances.<name>.*` and `resilience4j.retry.instances.<name>.*`, to the client's
+   `circuit-breaker` and `retry` groups. The breaker keys have the same names, such as `failure-rate-threshold`.
+   The retry keys are named as in Spring's `@Retryable`: Resilience4j's `max-attempts` counts the first attempt, so
+   `max-retries` is one less, and `wait-duration` becomes `delay`. A client written for an earlier Stratum moves `retries`, `retry-delay` and
+   `circuit-breaker: true|false` to `retry.max-retries`, `retry.delay` and `circuit-breaker.enabled`
+   ([retries and the circuit breaker](../modules/http-client-resilience.md#moving-from-the-old-keys)).
+3. Delete the old `RestTemplate` or `RestClient` bean and its interceptors. Code that keeps a `RestTemplate` or
+   `RestClient`, such as a generated client, injects the client's own bean instead
+   ([clients Stratum did not build](../modules/http-client-own-clients.md)).
 
-Check: calls carry `traceparent` and `X-Correlation-Id`; timeouts are what you expect.
+Check: timeouts are what you expect. Trace and correlation headers on these calls are planned
+([HTTP client → Planned](../modules/http-client.md#planned)).
 
 ## Step 7: data, cache, Kafka
 
-Add the matching starters. Compare your current `spring.datasource.hikari.*`, `spring.jpa.*` and
-`spring.kafka.*` settings with Stratum's defaults (listed on each module page) and delete those that
+Add the matching starters. Compare your current `spring.datasource.hikari.*`, `spring.jpa.*`,
+`spring.cache.redis.*`, `spring.data.redis.*` and `spring.kafka.*` settings with Stratum's defaults (listed on each module page) and delete those that
 match. Keep any value that is deliberately different, and write down why in a comment.
 
 `stratum-starter-data-jpa` sets these defaults even with `stratum.backward-compatible=true`,
@@ -130,9 +147,66 @@ column; see [Data → Schema check](../modules/data-jpa.md#schema-check).
 > returned will then fail with `LazyInitializationException`. Run your integration tests before
 > turning the mode off.
 
+`stratum-starter-cache` switches Spring's caching on. With `spring-boot-starter-data-redis`, it also
+gives Spring Boot's Redis keys these defaults, in both modes, because no caller sees them
+([Cache → An existing service](../modules/cache.md#an-existing-service)):
+
+- the 1 s command timeout and 2 s connect timeout (`spring.data.redis.timeout` and
+  `spring.data.redis.connect-timeout`) reach every Redis call of the service, `RedisTemplate`
+  included;
+- entries expire after 10 minutes by default (`spring.cache.redis.time-to-live`);
+- keys start with the service's name (`spring.cache.redis.key-prefix`), so the old keys are left
+  unread;
+- startup stops with `SX-CACHE-1001` when the service has no `spring.application.name`;
+- during a Redis outage a cached method now runs and returns its result, where the call used to
+  fail: after 3 failures in a row (`stratum.cache.redis-failure-threshold`) every Redis cache
+  skips Redis for 5 seconds, then one call tries again, so that load goes to your database or
+  downstream service
+  ([Cache → When Redis is down](../modules/cache-redis-down.md));
+- values are stored as plain JSON, read only as allowed types, so Jackson must be on the class
+  path and old Java-serialized entries are read once as a miss
+  ([Cache → Stored values](../modules/cache-values.md)).
+
+Once the new version runs, delete the old keys, which start with the cache name under Spring Boot's
+default, with SCAN by pattern, never with `FLUSHDB` on a Redis shared with other data. For the cache
+`products`:
+
+```bash
+redis-cli --scan --pattern 'products::*' | xargs -r redis-cli unlink
+```
+
+### A database that already has a schema
+
+Stratum sets no Flyway or Liquibase default for a database that already has tables. When you add
+a migration tool to such a database, mark the existing schema as the starting point once, before
+the tool's first run:
+
+- **Flyway** refuses to migrate a non-empty schema that has no history table. Let it record the
+  existing schema as version `1` and run only the scripts above it, in `application.properties`:
+
+  ```properties
+  spring.flyway.baseline-on-migrate=true
+  spring.flyway.baseline-version=1
+  ```
+
+  or in `application.yml`:
+
+  ```yaml
+  spring:
+    flyway:
+      baseline-on-migrate: true
+      baseline-version: 1
+  ```
+
+  Name your first script for the existing schema `V1__...` and new changes `V2__...` onwards.
+  Remove `baseline-on-migrate` once every environment has its history table, so that a wrong
+  database URL fails instead of being baselined.
+- **Liquibase** has no Spring Boot key for this. Run Liquibase's `changelogSync` command once
+  against each existing database: it records every change set as applied without running it.
+
 ## Step 8: tests
 
-Replace your own Testcontainers setup and JWT helpers with `stratum-test`. Rename integration
+Replace your own PostgreSQL and Redis Testcontainers setup with `stratum-test`. Rename integration
 tests to `*IntegrationTest.java` so they run in `mvn verify`.
 
 ## What a migrated service usually removes
@@ -142,7 +216,7 @@ tests to `*IntegrationTest.java` so they run in `mvn verify`.
 | Logback XML, encoders, MDC filters | `stratum-starter-logging` |
 | Error advice, correlation filter | `stratum-starter-webmvc` or `stratum-starter-webflux` |
 | `SecurityFilterChain`, `JwtDecoder`, converters | `stratum-starter-security` |
-| `RestTemplate` beans, interceptors, timeout config | `stratum-starter-http-client` |
+| `RestTemplate` beans, interceptors, timeout config | `stratum-starter-http-client`, and the client's own `RestTemplate` or `RestClient` bean ([clients Stratum did not build](../modules/http-client-own-clients.md)) |
 | Retry loops, circuit breaker config | `stratum-starter-resilience` |
-| Test containers and JWT helpers | `stratum-test` |
-| Dozens of `<version>` tags | `stratum-parent` or `stratum-bom` |
+| PostgreSQL and Redis test containers | `stratum-test` |
+| Dozens of `<version>` tags | `stratum-microservice-parent`, `stratum-parent` or `stratum-bom` |

@@ -6,7 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.exepex.stratum.core.logging.LoggingContextConstants;
-import com.exepex.stratum.test.StarterTestSupport;
+import com.exepex.stratum.test.WebTestSupport;
 import com.exepex.stratum.web.testsupport.WebTestData;
 import java.io.IOException;
 import java.net.InetAddress;
@@ -22,7 +22,7 @@ import org.springframework.http.HttpMethod;
 class RequestFieldsReaderTest {
 
   /** The address of a client that calls the service directly. */
-  private static final String CLIENT_ADDRESS = StarterTestSupport.ipAddress(198, 51, 100, 20);
+  private static final String CLIENT_ADDRESS = WebTestSupport.ipAddress(198, 51, 100, 20);
 
   /** The client, as the server sees it. */
   private static final InetAddress CLIENT = InetAddress.ofLiteral(CLIENT_ADDRESS);

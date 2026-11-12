@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   Build checks shared by services and Stratum's own modules. Services use stratum-parent, which adds
-  packaging; Stratum's libraries and starters use stratum-library-parent, which adds the Javadoc rules.
+  packaging and omits FindSecBugs' SPRING_ENDPOINT pattern; Stratum's libraries and starters use
+  stratum-library-parent, which adds the Javadoc rules and omits nothing.
 
   - Every version, Spring Boot's included, comes from the root pom.xml, this POM's parent. This POM
     writes no version number; it uses the root POM's properties.
@@ -16,7 +17,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.exepex.stratum</groupId>
+    <groupId>io.github.exepex.stratum</groupId>
     <artifactId>stratum</artifactId>
     <version>${revision}</version>
     <relativePath>../../pom.xml</relativePath>
@@ -36,7 +37,7 @@
   <dependencyManagement>
     <dependencies>
       <dependency>
-        <groupId>com.exepex.stratum</groupId>
+        <groupId>io.github.exepex.stratum</groupId>
         <artifactId>stratum-bom</artifactId>
         <version>${revision}</version>
         <type>pom</type>
@@ -141,7 +142,7 @@
         </configuration>
         <dependencies>
           <dependency>
-            <groupId>com.exepex.stratum</groupId>
+            <groupId>io.github.exepex.stratum</groupId>
             <artifactId>stratum-build-rules</artifactId>
             <version>${revision}</version>
           </dependency>
@@ -166,7 +167,7 @@
         <artifactId>maven-enforcer-plugin</artifactId>
         <dependencies>
           <dependency>
-            <groupId>com.exepex.stratum</groupId>
+            <groupId>io.github.exepex.stratum</groupId>
             <artifactId>stratum-build-rules</artifactId>
             <version>${revision}</version>
           </dependency>
@@ -213,7 +214,7 @@
         </configuration>
         <dependencies>
           <dependency>
-            <groupId>com.exepex.stratum</groupId>
+            <groupId>io.github.exepex.stratum</groupId>
             <artifactId>stratum-build-rules</artifactId>
             <version>${revision}</version>
           </dependency>

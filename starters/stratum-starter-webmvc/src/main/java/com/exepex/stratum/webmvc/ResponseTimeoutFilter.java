@@ -3,12 +3,14 @@ package com.exepex.stratum.webmvc;
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.web.RequestDeadline;
 import com.exepex.stratum.web.ResponseTimeouts;
+import io.micrometer.observation.ObservationRegistry;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.Ordered;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -37,10 +39,15 @@ public class ResponseTimeoutFilter extends OncePerRequestFilter {
   /** Decides each request's limit. */
   private final ResponseTimeouts responseTimeouts;
 
+  /** Where failures are recorded: the service's observation registry, if it has one. */
+  private final ObjectProvider<ObservationRegistry> observationRegistry;
+
   /**
    * Runs the rest of the chain within the request's limit. If the chain fails after the time ran
    * out and the response has not started, the request is answered with the timeout status instead
-   * of the failure. Spring MVC hands a handler's failure on as a {@link ServletException}.
+   * of the failure, which is recorded on the request's observation. Spring MVC hands a handler's
+   * failure on as a {@link ServletException}; a later filter, such as Spring Security's or the
+   * service's own, can also fail with an unchecked one.
    *
    * @param request the request
    * @param response the response
@@ -60,13 +67,14 @@ public class ResponseTimeoutFilter extends OncePerRequestFilter {
     request.setAttribute(DEADLINE_ATTRIBUTE, deadline);
     try {
       filterChain.doFilter(request, response);
-    } catch (ServletException | IOException failure) {
+    } catch (ServletException | IOException | RuntimeException failure) {
       endAndClearInterrupt(deadline);
       if (!deadline.hasExpired() || response.isCommitted()) {
         throw failure;
       }
       var timedOut = responseTimeouts.timedOut(deadline);
       request.setAttribute(TIMED_OUT_ATTRIBUTE, timedOut);
+      RequestFailureRecorder.recordFailure(observationRegistry, request, timedOut);
       response.resetBuffer();
       response.sendError(timedOut.getStatusCode().value());
     } finally {

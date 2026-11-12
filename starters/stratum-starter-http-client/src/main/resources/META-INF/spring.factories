@@ -1,0 +1,4 @@
+org.springframework.boot.EnvironmentPostProcessor=\
+com.exepex.stratum.restclient.RestClientEnvironmentPostProcessor
+org.springframework.test.context.TestExecutionListener=\
+com.exepex.stratum.restclient.MockClientsResetListener

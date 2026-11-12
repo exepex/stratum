@@ -1,15 +1,14 @@
 package com.exepex.stratum.webflux.it;
 
+import static com.exepex.stratum.test.WebTestSupport.getFromService;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.http.HttpHeaders.ACCEPT;
+import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
+import static org.springframework.http.MediaType.TEXT_HTML_VALUE;
 
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.test.ExistingOrderException;
 import com.exepex.stratum.test.OrderErrorCode;
-import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -50,7 +49,7 @@ class ServiceErrorHandlingIntegrationTest {
     @Test
     @DisplayName("its StratumException handler's status and body are sent, not the mapped status")
     void serviceHandlerWins() throws Exception {
-      var response = get("/orders", MediaType.APPLICATION_JSON);
+      var response = getFromService(port, "/orders", ACCEPT, APPLICATION_JSON_VALUE);
 
       assertThat(response.statusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT.value());
       assertThat(response.body()).isEqualTo("{\"failed\":\"ORD-0001\"}");
@@ -59,7 +58,7 @@ class ServiceErrorHandlingIntegrationTest {
     @Test
     @DisplayName("its handler of an exception that implements FailureWithErrorCode wins too")
     void serviceHandlerOfFailureWithErrorCodeWins() throws Exception {
-      var response = get("/orders/existing", MediaType.APPLICATION_JSON);
+      var response = getFromService(port, "/orders/existing", ACCEPT, APPLICATION_JSON_VALUE);
 
       assertThat(response.statusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT.value());
       assertThat(response.body()).isEqualTo("{\"failedExisting\":\"ORD-0001\"}");
@@ -73,7 +72,7 @@ class ServiceErrorHandlingIntegrationTest {
     @Test
     @DisplayName("its own error attributes keep their body and the plain JSON media type")
     void serviceErrorAttributesKeepTheirMediaType() throws Exception {
-      var response = get("/no-such-path", MediaType.APPLICATION_JSON);
+      var response = getFromService(port, "/no-such-path", ACCEPT, APPLICATION_JSON_VALUE);
 
       assertThat(response.statusCode()).isEqualTo(HttpStatus.NOT_FOUND.value());
       assertThat(response.headers().firstValue(HttpHeaders.CONTENT_TYPE))
@@ -84,22 +83,11 @@ class ServiceErrorHandlingIntegrationTest {
     @Test
     @DisplayName("its own error attributes give a browser Spring Boot's page, not Stratum's")
     void serviceErrorAttributesKeepBootPage() throws Exception {
-      var response = get("/no-such-path", MediaType.TEXT_HTML);
+      var response = getFromService(port, "/no-such-path", ACCEPT, TEXT_HTML_VALUE);
 
       assertThat(response.statusCode()).isEqualTo(HttpStatus.NOT_FOUND.value());
       assertThat(response.body()).contains("Whitelabel Error Page").doesNotContain("Reference:");
     }
-  }
-
-  /** Sends a GET that accepts the given media type and reads the body as text. */
-  private HttpResponse<String> get(String path, MediaType accepted)
-      throws IOException, InterruptedException {
-    return HttpClient.newHttpClient()
-        .send(
-            HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
-                .header(HttpHeaders.ACCEPT, accepted.toString())
-                .build(),
-            HttpResponse.BodyHandlers.ofString());
   }
 
   /** A service that answers every StratumException, and every other error, in its own way. */

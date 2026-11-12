@@ -85,12 +85,13 @@ line or break a response.
 With the observability module on, the correlation ID is the `correlationId` entry of the
 tracing baggage when one is set, and otherwise the trace ID, which every service in the same trace
 shares ([observability module](../modules/observability-traces.md#correlation-id)).
-Baggage is sent on every outgoing call made with Spring's HTTP clients, `WebClient` in reactive
-code included, to every host, so never put a secret or personal data in the correlation ID. With
+Only the [allowed baggage entries](../modules/observability-traces.md#baggage) are sent, but they go
+on every outgoing call made with Spring's HTTP clients, `WebClient` in reactive code included, to
+every host, so never put a secret or personal data in the correlation ID. With
 the web module on, the web module also takes the ID from the caller's `X-Correlation-Id`
 header and returns it in the response
-([web module](../modules/web.md#correlation-id)). **Planned:** the logging module will limit the
-baggage to the service's own hosts.
+([web module](../modules/web.md#correlation-id)). Sending baggage only to the service's own hosts is
+planned ([#171](https://github.com/exepex/stratum/issues/171)).
 
 ## Using codes in your service
 
@@ -137,6 +138,9 @@ log.error(exception.getMessage(), exception);
 
 With the logging module on, the line then also has the code in its own `error.code` field, which
 you can search and count by ([logging module](../../starters/stratum-starter-logging/README.md#what-you-get)).
+With the observability module and a web starter, a request that fails with it has the same code in
+the `error.code` tag of its timer and on its span
+([traces](../modules/observability-traces.md#error-codes-on-requests)).
 
 To add field details, build the report first:
 
@@ -252,13 +256,14 @@ other invalid setting. The message names the rule `stratum.logging.max-field-len
 ## stratum-starter-observability
 
 These apply only while the module is on, which it is unless `stratum.observability.enabled=false`. `SX-OBSERVABILITY-1001` is an error that
-stops the application at startup; `SX-OBSERVABILITY-1002` is a warning. See the
+stops the application at startup; `SX-OBSERVABILITY-1002` and `SX-OBSERVABILITY-1003` are warnings. See the
 [observability module](../../starters/stratum-starter-observability/README.md).
 
 | Code | Meaning | Fix |
 | --- | --- | --- |
 | `SX-OBSERVABILITY-1001` | With the module on, in any profile, metrics or traces are sent over OTLP but their address is not set, so they would be lost. The message names each missing property: `management.otlp.metrics.export.url`, `management.opentelemetry.tracing.export.otlp.endpoint` or both. | Set the named property to your OpenTelemetry Collector, such as `http://otel-collector:4318/v1/metrics`, or turn that export off with `management.otlp.metrics.export.enabled=false` or `management.tracing.export.enabled=false`, or turn the module off with `stratum.observability.enabled=false`. On a laptop without a Collector, use `http://localhost:4318/...`; the data is then dropped without a failed-send log. |
 | `SX-OBSERVABILITY-1002` | Warning, logged once per metric: a metric was dropped because one of its tags is named like an ID, such as `userId`, `trace_id`, `user.id` or a name in `stratum.observability.tags.extra-forbidden`. Each ID value would create a new time series. The message names the metric and the tag, never a value. | Remove the tag from the metric and put the ID in a log line or a span attribute instead. If the tag really holds a small, known set of values, list its name in `stratum.observability.tags.allowed`. |
+| `SX-OBSERVABILITY-1003` | Warning, logged once per cap: a new meter was dropped because the registry already holds `stratum.observability.metrics.max-meters` meters, or the HTTP client meters already have `stratum.observability.metrics.max-client-names` hosts in their `client.name` tag. A tag probably holds unbounded values. The message names the meter and the key, never a value. | Find the tag with unbounded values, such as an ID, a raw path or a host per customer, and remove it or bound it. Raise the named key only after checking that the metrics backend can store that many series ([meter caps](../modules/observability-metrics.md)). |
 
 ## stratum-starter-data-jpa
 
@@ -269,11 +274,52 @@ is unless `stratum.data.enabled=false`. See the [data module](../modules/data-jp
 | --- | --- | --- |
 | `SX-DATA-1001` | Hibernate checked the entities against the database schema at startup, which Stratum turns on with `ddl-auto=validate`, and an entity does not match it, as with a column that no migration added. The message is Hibernate's, such as `Schema validation: missing column [customer_id] in table [orders]`: it names the table and the column, never a value. | Fix the entity mapping or add the missing migration, or, to stop Hibernate checking the schema, set `spring.jpa.hibernate.ddl-auto=none`. See [Schema check](../modules/data-jpa.md#schema-check). |
 
+## stratum-starter-cache
+
+`SX-CACHE-1001`, `SX-CACHE-1007` and `SX-CACHE-1008` are errors that stop the application at startup;
+`SX-CACHE-1002` to `SX-CACHE-1006` are warnings, logged while the calls carry on. These apply only
+while the module is on, which it is unless `stratum.cache.enabled=false`. See the [cache module](../modules/cache.md).
+
+| Code | Meaning | Fix |
+| --- | --- | --- |
+| `SX-CACHE-1001` | Spring Data Redis is on the class path and the cache module would start every Redis cache key with the service's name, through Stratum's default `spring.cache.redis.key-prefix`, but `spring.application.name` is not set or is blank. Without a name, services sharing one Redis would read each other's entries. | Set `spring.application.name`, or set your own `spring.cache.redis.key-prefix`, or turn the module off with `stratum.cache.enabled=false`. A service that turns key prefixes off with `spring.cache.redis.use-key-prefix=false` needs no name. See [Cache → Key prefix](../modules/cache.md#key-prefix). |
+| `SX-CACHE-1002` | Warning, logged once per cache per `stratum.cache.warning-interval`: a cache operation failed, such as a read or write while Redis is down, and the call ran without the cache. The message names the cache and the operation, never a key or value, and the failure is counted in `stratum.cache.failures`. | Check Redis and the cache client; the method still runs, so the call did not fail. To fail the call on a cache error instead, declare a `CachingConfigurer` with an error handler that rethrows. See [Cache → When Redis is down](../modules/cache-redis-down.md). |
+| `SX-CACHE-1003` | Warning, logged once per interval: a cache name was refused because the service already uses `stratum.cache.max-caches` caches (100 by default). Calls for the refused name run uncached, and no cache is created for it; each refusal is counted in `stratum.cache.skips` under `cache=_over-limit`. | Name the service's caches explicitly, so they stay few, or raise `stratum.cache.max-caches`. See [Cache → Limits](../modules/cache.md#limits). |
+| `SX-CACHE-1004` | Warning, logged once per cache per `stratum.cache.warning-interval`: a `@Cacheable` method's return type cannot be read from a Redis cache, so the method runs without the cache and nothing is read from or written to Redis for it. The type is `Object`, an interface or an abstract class (collections and maps apart), or comes from a package that is neither the service's own, nor `java`, nor listed in `stratum.cache.serialization.allowed-packages`. The message names the cache, the type and the reason; each call is counted in `stratum.cache.skips` with `reason=type-not-concrete` or `reason=type-not-allowed`. | Return a concrete type, or add its package to `stratum.cache.serialization.allowed-packages`. See [Cache → Stored values](../modules/cache-values.md). |
+| `SX-CACHE-1008` | A Caffeine cache sets its own `stratum.cache.caches.<name>.max-entries` or `time-to-live`, which cannot apply: the Caffeine builder has no `maximumSize` (or bounds weight instead), or no `expireAfterWrite`, or `spring.cache.cache-names` lists the caches and leaves this one out. The message names the cache and the setting. | Give the Caffeine caches a `maximumSize` and an `expireAfterWrite`, such as in `spring.cache.caffeine.spec`, list the cache in `spring.cache.cache-names`, or remove the cache's own setting. See [Cache → Caffeine](../modules/cache-caffeine.md). |
+| `SX-CACHE-1005` | Warning, logged once per cache per `stratum.cache.warning-interval`: a value stored in Redis could not be read as the method's return type, usually because the class changed since it was stored, or it is larger than `stratum.cache.max-value-size`. It was treated as a miss: the method ran and its result replaced the entry. The message names the cache and the type, never a key or value; each one is counted in `stratum.cache.skips` with `reason=unreadable`. | Nothing fails. When a class change makes many entries unreadable, delete the cache's old keys or give the cache a new name, such as `orders-v2`. See [Cache → Stored values](../modules/cache-values.md). |
+| `SX-CACHE-1006` | Warning, logged at most once per `stratum.cache.warning-interval`: Redis could not be reached, or a Redis command did not answer within `spring.data.redis.timeout`, `stratum.cache.redis-failure-threshold` times in a row (3 by default), so every Redis cache of the service skips Redis for `stratum.cache.redis-retry-interval` (5 seconds by default); then one call tries again. While Redis is skipped, reads miss, so the methods run, and writes and evictions are dropped. The gauge `stratum.cache.redis.available` reads 0 from then until Redis answers again, and each time Redis starts being skipped because it could not be reached is counted in `stratum.cache.redis.connect-failures`. | Check that Redis is up and reachable from the service, or why its commands are slow. Nothing fails meanwhile: the methods still run, without the cache. See [Cache → When Redis is down](../modules/cache-redis-down.md). |
+| `SX-CACHE-1007` | Spring Boot builds its Redis cache manager, and the cache module would store its values as JSON, but Jackson (`tools.jackson.core:jackson-databind`) is not on the class path. | Add `org.springframework.boot:spring-boot-starter-json`, or declare your own `RedisCacheConfiguration` bean, or turn the module off with `stratum.cache.enabled=false`. See [Cache → Stored values](../modules/cache-values.md). |
+
+## stratum-starter-http-client
+
+The codes from `SX-HTTPC-0001` end a call of a `@StratumClient` interface, and your caller gets the status shown,
+a default in `stratum.web.error.statuses` that you can change. The codes from `SX-HTTPC-1001` stop the application at
+startup. Each is used only while the module is on, which it is unless `stratum.http-client.enabled=false`. See
+[HTTP client: errors](../modules/http-client-errors.md).
+
+| Code | Meaning | Fix |
+| --- | --- | --- |
+| `SX-HTTPC-0001` | `504`. A call got no answer in time: the answer, or a byte of it, took longer than the client's `timeout`, after the retries, or its body was still arriving when `total-timeout` ran out. The body names no other service; the logged cause carries its address. | Look at why the other service is slow. If its answers are slow by design, raise the client's `timeout` and `total-timeout`. |
+| `SX-HTTPC-0002` | `503`. A call got no answer, after the retries: the connection was refused or timed out, the host is unknown, the client's pool stayed full for `max-wait`, or the connection dropped. Or the client's own token for the other service cannot be fetched (with `auth.client-credentials`): the identity provider timed out, failed or refused the client, and the call is not sent. The message names nothing internal, as the caller sees it; for a failed token fetch, a warning in the log, once per client per minute, names the client and the registration, never a secret. | Check that the other service and the identity provider are up and reachable, and that the client's registration, such as its client secret, is current ([auth](../modules/http-client-auth.md#client-credentials)). When the pool was full, look at slow calls or raise `max-connections`. |
+| `SX-HTTPC-0003` | `503`. A call was not sent, as the client's circuit breaker is open: most recent calls to the other service failed. The breaker's change of state is logged once at `WARN` with the client's name. | Look at why the other service fails. The breaker tries again by itself after the client's `circuit-breaker.wait-duration-in-open-state`, 60 seconds by default ([resilience](../modules/http-client-resilience.md#the-circuit-breaker-group)). |
+| `SX-HTTPC-0004` | `500`. A client with `auth.token-relay: true` was called without an access token verified by Spring Security, such as from a scheduled job, another thread, or a request signed in with an ID token. Nothing is sent. The message names nothing internal, as the caller sees it; the stack trace in the log shows the call. | Call the client only while handling a request with a verified access token; use `auth.client-credentials` for calls the service makes as itself. See [HTTP client: auth](../modules/http-client-auth.md#token-relay). |
+| `SX-HTTPC-0005` | `500`. An interceptor called `request.body()` on a call whose body is larger than the client's `interceptor-body-limit` (1 MB by default). Nothing is sent, the call is not retried and the circuit breaker does not count it. The message names nothing internal, as the caller sees it; the logged cause names the client and the limit in bytes. | Raise the client's `interceptor-body-limit`, or stream the body and sign a digest of it. See [HTTP client: headers and interceptors](../modules/http-client-headers.md#bodies). |
+| `SX-HTTPC-0006` | `500`. A call read the body of a successful answer larger than the client's `response-body-limit` (32 MB by default). It fails as the limit is passed, or at once when the answer's `Content-Length` is over it; the connection is dropped. The call is not retried and the circuit breaker counts it as a success. A body the call does not read, such as for a method that returns `void`, is dropped once it passes the limit, without an error. The message names nothing internal, as the caller sees it; the logged cause names the client and the limit in bytes, never a byte of the body. | Raise the client's `response-body-limit`, or return an `InputStream` to stream the answer. See [HTTP client: errors](../modules/http-client-errors.md#the-answer-body-is-read-up-to-32-mb). |
+| `SX-HTTPC-1001` | A Spring Boot setting under `spring.http.serviceclient.<name>`, such as `base-url` or `read-timeout`, is set for the name of a Stratum client. A Stratum client does not read it, so the setting would do nothing. The message names the client, never the value. | Move the setting to `stratum.http-client.clients.<name>`, such as `url` instead of `base-url` and `timeout` instead of `read-timeout`. See [HTTP client → Properties](../modules/http-client.md#properties). |
+| `SX-HTTPC-1002` | A method of a `@StratumClient` interface returns `Mono` or `Flux`, which the blocking HTTP client starter cannot send. The message names the interface and the method. | Return the value itself, such as `Stock` instead of `Mono<Stock>`; the reactive HTTP client starter is planned. |
+| `SX-HTTPC-1003` | A `@StratumClient` name is not lowercase letters, digits and hyphens starting with a letter, so it cannot be a part of `stratum.http-client.clients.<name>`. The message names the interface. | Rename the client, such as `inventory` or `payments-v2`, and its settings with it. |
+| `SX-HTTPC-1004` | A `@StratumClient` has no address: `stratum.http-client.clients.<name>.url` is not set. The message names the key. | Set `stratum.http-client.clients.<name>.url`, such as `http://inventory:8080`. See [HTTP client → Use it](../modules/http-client.md#use-it). |
+| `SX-HTTPC-1005` | A client's `auth.client-credentials` names no registration under `spring.security.oauth2.client.registration`, or one whose `authorization-grant-type` is not `client_credentials`. The message names the client and the registration. | Add the registration with `authorization-grant-type: client_credentials`, a `client-id`, a `client-secret` and the provider's `token-uri`. See [HTTP client: auth](../modules/http-client-auth.md#client-credentials). |
+| `SX-HTTPC-1006` | A client's `auth.client-credentials` or `auth.token-relay` needs a Spring Security library the application does not have. The message names the client and the library. | For `client-credentials`, add `stratum-starter-oauth2-client`; for `token-relay`, add Spring Security's OAuth2 resource server, which verifies the caller's token. See [HTTP client: auth](../modules/http-client-auth.md). |
+| `SX-HTTPC-1007` | A client's `stratum.http-client.clients.<name>.interfaces` names a type that is not on the classpath, or that is a class rather than an interface. The message names the key and the type. | Name an interface by its full name, such as com.partner.OrdersApi, and check that its jar is on the classpath. See [HTTP client → Clients Stratum did not build](../modules/http-client.md#clients-stratum-did-not-build). |
+| `SX-HTTPC-1008` | An interface marked `@StratumClient` for one client is also named in another client's `interfaces` setting, which would make one type two clients. The message names the interface and both clients. | Keep the interface in one client: remove it from the other client's interfaces, or change its @StratumClient name. See [HTTP client → Clients Stratum did not build](../modules/http-client.md#clients-stratum-did-not-build). |
+
 ## stratum-starter-webmvc and stratum-starter-webflux
 
-These apply only while the module is on, which it is unless `stratum.web.enabled=false`. A caller gets all but `SX-WEB-1006` in the error
+These apply only while the module is on, which it is unless `stratum.web.enabled=false`. A caller gets all but `SX-WEB-1006` and `SX-WEB-1009` in the error
 body of a request that failed outside your own error handling, such as an unknown path, a request
-that broke validation or one that ran out of time. `SX-WEB-1006` stops the application at startup. Both web starters send the same
+that broke validation or one that ran out of time. `SX-WEB-1006` and `SX-WEB-1009` stop the application at startup. Both web starters send the same
 codes. See the
 [web MVC starter](../../starters/stratum-starter-webmvc/README.md) and the
 [WebFlux starter](../../starters/stratum-starter-webflux/README.md).
@@ -288,3 +334,4 @@ codes. See the
 | `SX-WEB-1006` | Startup stopped: `stratum.web.client-location.database` names a file that is missing or is not a MaxMind `.mmdb` database. | Point the property at your GeoIP2 or GeoLite2 City or Country file, or remove it to log no country or city. |
 | `SX-WEB-1007` | The request ran out of time before its response started. The status is `stratum.web.timeout.status`, `503` by default, and the service logs a warning with the limit. | The service's team finds the slow call in the trace, adds a timeout to it, or gives the API more time with `stratum.web.timeout.routes` or `@ResponseTimeout`. The caller may retry an idempotent request later. |
 | `SX-WEB-1008` | The request body is larger than the API accepts. The status is `413`, and the service logs a warning: with the limit for Stratum's own limit, or saying that one of Spring's multipart or form limits was passed. | The caller sends a smaller body. If the API should accept more, the service's team raises its limit with `stratum.web.body-limit.routes` or `@RequestBodyLimit`. |
+| `SX-WEB-1009` | Startup stopped: a path pattern in `stratum.web.timeout.routes`, `stratum.web.body-limit.routes` or `stratum.web.request-log.skip-paths` is not a valid Spring path pattern, such as `/api/{id` or `/api/**/orders`. The message names the key, the pattern and Spring's reason. | Correct the pattern; Spring's path patterns allow {name}, * and **, and ** only at the end. |

@@ -1,9 +1,10 @@
 # Web: `stratum-starter-webmvc` and `stratum-starter-webflux`
 
-**Status: Partly built.** Error responses, request fields in logs, the correlation ID, the request
+**Status: Built.** Error responses, request fields in logs, the correlation ID, the request
 log, timeouts and the body size limit are built for both stacks; the error responses are described
 in the READMEs of [`stratum-starter-webmvc`](../../starters/stratum-starter-webmvc/README.md) and
-[`stratum-starter-webflux`](../../starters/stratum-starter-webflux/README.md), timeouts in
+[`stratum-starter-webflux`](../../starters/stratum-starter-webflux/README.md), the request log in
+[Request log](web-request-log.md), timeouts in
 [Response timeouts](web-timeouts.md), backward-compatible mode in
 [Backward-compatible mode](web-compatible-mode.md), the body size limit in
 [Request body size limit](web-body-limit.md), and the rest on this page.
@@ -29,7 +30,7 @@ Spring has two web stacks, and Stratum has one starter for each. Add exactly one
 
 ```xml
 <dependency>
-  <groupId>com.exepex.stratum</groupId>
+  <groupId>io.github.exepex.stratum</groupId>
   <artifactId>stratum-starter-webmvc</artifactId>
 </dependency>
 ```
@@ -112,7 +113,8 @@ time or body size limit. A new service leaves it unset, at `false`. See
   Stratum only adds `traceId` and `correlationId` to it.
 - **`StratumException` with your own code:** you map each code to an HTTP status in
   `stratum.web.error.statuses`. A code with no status is answered with `500` and logged, so a
-  missing mapping shows up in testing. Your existing exceptions can implement
+  missing mapping shows up in testing. A Stratum starter can give its own codes a default status
+  there, such as the HTTP client's `SX-HTTPC-0001: 504`; your value wins. Your existing exceptions can implement
   [`FailureWithErrorCode`](../guides/error-codes.md#existing-exceptions-a-migration-path) to be
   answered the same way while you move them to `StratumException`. That changes what their
   consumers get, even in backward-compatible mode; see
@@ -154,7 +156,7 @@ automatic context propagation, which the logging and observability starters turn
 Spring MVC request ends, the module cleans the server thread's logging context
 ([Web MVC](../../starters/stratum-starter-webmvc/README.md#a-clean-log-context-after-each-request)).
 Caller fields, such as the calling service and user, are planned for the security starter, which
-reads them from a verified token only.
+reads them from a verified token only ([issue #307](https://github.com/exepex/stratum/issues/307)).
 
 ### The client IP
 
@@ -230,81 +232,8 @@ brings. Without that starter, requests get no correlation ID.
 ## Request log
 
 Each request writes one line at `INFO`, through the logger `com.exepex.stratum.web.request-log`, once
-it is answered:
-
-```text
-GET /orders/{orderId} answered 200 in 12 ms
-```
-
-The line carries the request fields and the IDs described above, plus `httpStatus` and
-`durationMs`. With the [logging starter](../../starters/stratum-starter-logging/README.md) the line
-is JSON, so each is a field you can search and chart.
-
-- Spring MVC writes the line once the response is written, also for a `Callable` or
-  `DeferredResult` that answers later. A request whose error no handler answered is logged with
-  `500`.
-- WebFlux writes it when the response starts, so it has the status the error handler set. For a
-  streamed response, `durationMs` is the time until the first bytes were sent. A request the caller
-  cancels before then is logged with `499`, the status nginx uses for a closed request.
-- Paths under `/actuator/**` and the static files Spring serves write no line. A path that matches
-  nothing is answered `404` and logged.
-- `skip-paths` replaces the default list, so keep `/actuator/**` in it when you add your own paths.
-  Each is a Spring path pattern, such as `/internal/**`.
-- To stop the line, set `stratum.web.request-log.enabled=false`, or set the logger above to `WARN`.
-
-### Headers in the line
-
-`request-headers` and `response-headers` map a header to the field it is written as. A field name
-starts with a letter and has up to 64 letters, digits, `_` and `.`. Header names match in any case.
-Each value is made safe for the logs, as a request field is, and several values are joined with
-`, `. `Authorization`, `Cookie`, `Set-Cookie` and `X-Api-Key` are never written, even when named,
-and neither is any header in `denied-headers`.
-
-### Token claims
-
-With `token-payload=true`, the line carries some claims of the caller's `Authorization: Bearer`
-JWT, decoded, as `jwtClaims`, such as `{"sub":"checkout-service","scope":"orders.read"}`. Only the
-claims listed in `token-claims` are written: by default `sub`, `azp`, `client_id` and `scope`, which
-say who called, through which client and with what rights. Every other claim, such as `email` or
-`name`, is left out, and so are the token's header and signature. A token that has none of the
-listed claims, an encrypted token, or one that is not a JWT, writes nothing.
-
-Stratum does not verify the token here, so the claims are what the caller says, not who the caller
-is. They are off by default. A list you set replaces the default, so list only claims that hold no
-personal data.
-
-In `application.properties`:
-
-```properties
-stratum.web.request-log.skip-paths=/actuator/**,/internal/**
-stratum.web.request-log.request-headers[X-Tenant-Id]=tenantId
-stratum.web.request-log.response-headers[X-Cache]=cacheResult
-stratum.web.request-log.denied-headers=X-Internal-Key
-stratum.web.request-log.token-payload=true
-stratum.web.request-log.token-claims=sub,azp,tenant
-```
-
-or in `application.yml`, where the brackets need quotes:
-
-```yaml
-stratum:
-  web:
-    request-log:
-      skip-paths:
-        - /actuator/**
-        - /internal/**
-      request-headers:
-        "[X-Tenant-Id]": tenantId
-      response-headers:
-        "[X-Cache]": cacheResult
-      denied-headers:
-        - X-Internal-Key
-      token-payload: true
-      token-claims:
-        - sub
-        - azp
-        - tenant
-```
+it is answered. [Request log](web-request-log.md) says what the line holds, how to add headers and
+token claims, and how to stop it with `stratum.web.request-log.enabled=false`.
 
 ## SLA dashboards
 
@@ -319,7 +248,8 @@ can work out any percentile. The timer has these tags:
 | `uri` | The route template, never the real path | `/orders/{orderId}` |
 | `status` | The response status | `503` |
 | `outcome` | The status class, such as `SUCCESS`, `CLIENT_ERROR` or `SERVER_ERROR` | `SERVER_ERROR` |
-| `exception` | The simple class name of an exception that escaped the handler, or `none` | `TimeoutException` |
+| `exception` | The simple class name of the exception the request failed with, unless your own handler answered it, or `none` | `TimeoutException` |
+| `error.code` | The [error code](../guides/error-codes.md) it failed with, or its first cause's, else `none`; its span carries it too ([traces](observability-traces.md#error-codes-on-requests)) | `ORD-0001` |
 | `application`, `environment`, `host` | The service, its environment and the pod, added by the observability starter | `orders`, `prod`, `orders-7d9f-x2k` |
 
 Any dashboard tool builds the usual SLA panels from it:
@@ -419,7 +349,7 @@ it is listed in [Configuration reference](../configuration/reference.md) and exp
 | `stratum.web.body-limit.default-limit` | data size | `256KB`, or none while `stratum.backward-compatible` is `true` | no such key | How large any request's body may be. `0` means no limit. |
 | `stratum.web.body-limit.routes` | map of path pattern to data size | empty | no such key | The limit of the bodies of the requests whose path matches a pattern, such as `/uploads/**`. The most specific pattern wins. |
 | `stratum.web.request-log.enabled` | boolean | `true` | no such key | Whether each request writes one log line when it is answered. |
-| `stratum.web.request-log.skip-paths` | list of path patterns | `/actuator/**` | no such key | Paths whose requests write no log line. Replaces the default; static files are always skipped. |
+| `stratum.web.request-log.skip-paths` | list of path patterns | `/actuator/**` | no such key | Paths whose requests write no log line. Replaces the default; static files are always skipped. A pattern that is not valid stops startup with `SX-WEB-1009`. |
 | `stratum.web.request-log.request-headers` | map of header to field name | empty | no such key | The request headers written in the line, and the field each is written as. |
 | `stratum.web.request-log.response-headers` | map of header to field name | empty | no such key | The response headers written in the line, and the field each is written as. |
 | `stratum.web.request-log.denied-headers` | list of header names | empty | no such key | Headers never written, on top of `Authorization`, `Cookie`, `Set-Cookie` and `X-Api-Key`. |
@@ -429,12 +359,17 @@ it is listed in [Configuration reference](../configuration/reference.md) and exp
 | `spring.webflux.multipart.max-disk-usage-per-part` | data size | `10MB`, or none while `stratum.backward-compatible` is `true`; WebFlux only | `-1B`, no limit | The disk each part of a multipart upload may use. |
 | `spring.webflux.multipart.max-parts` | integer | `50`, or none while `stratum.backward-compatible` is `true`; WebFlux only | `-1`, no limit | The most parts a multipart upload may have. |
 
-For a service behind a CDN, with the device fields on, in `application.properties`:
+For a service on the internet, behind a CDN, with the device fields on and a request field kept to 256
+characters, in `application.properties`:
 
 ```properties
+stratum.web.correlation.accept-from-caller=false
 stratum.web.client-ip.trusted-proxies=10.0.0.0/8,203.0.113.0/24
 stratum.web.user-agent.parse=true
+stratum.web.user-agent.cache-size=5000
+stratum.web.user-agent.request-client-hints=true
 stratum.web.client-location.database=/data/geoip/GeoLite2-City.mmdb
+stratum.web.request-fields.max-value-length=256
 ```
 
 or in `application.yml`:
@@ -442,14 +377,20 @@ or in `application.yml`:
 ```yaml
 stratum:
   web:
+    correlation:
+      accept-from-caller: false
     client-ip:
       trusted-proxies:
         - 10.0.0.0/8
         - 203.0.113.0/24
     user-agent:
       parse: true
+      cache-size: 5000
+      request-client-hints: true
     client-location:
       database: /data/geoip/GeoLite2-City.mmdb
+    request-fields:
+      max-value-length: 256
 ```
 
 ## Configure in Java
@@ -464,11 +405,18 @@ public class OrdersWebSettings implements WebPropertiesCustomizer {
   @Override
   public WebProperties customize(WebProperties properties) {
     return properties.toBuilder()
+        .correlation(properties.correlation().toBuilder().acceptFromCaller(false).build())
         .clientIp(
             properties.clientIp().toBuilder()
                 .trustedProxies(List.of("10.0.0.0/8", "203.0.113.0/24"))
                 .build())
-        .userAgent(properties.userAgent().toBuilder().parse(true).build())
+        .userAgent(
+            properties.userAgent().toBuilder()
+                .parse(true)
+                .cacheSize(5000)
+                .requestClientHints(true)
+                .build())
+        .requestFields(properties.requestFields().toBuilder().maxValueLength(256).build())
         .requestLog(
             properties.requestLog().toBuilder()
                 .requestHeaders(Map.of("X-Tenant-Id", "tenantId"))

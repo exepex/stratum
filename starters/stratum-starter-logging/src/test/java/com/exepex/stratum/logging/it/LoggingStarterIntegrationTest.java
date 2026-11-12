@@ -7,6 +7,7 @@ import static com.exepex.stratum.logging.testsupport.LoggingTestData.JWT;
 import static com.exepex.stratum.logging.testsupport.LoggingTestData.PASSWORD;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.exepex.stratum.core.logging.LogRedaction;
 import java.util.List;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
@@ -14,10 +15,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.json.WritableJson;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.context.ApplicationContext;
 import org.springframework.test.annotation.DirtiesContext;
 
 @SpringBootTest(
@@ -29,6 +32,17 @@ import org.springframework.test.annotation.DirtiesContext;
 @ExtendWith(OutputCaptureExtension.class)
 @DisplayName("A service with the logging starter switched on writes redacted ECS JSON")
 class LoggingStarterIntegrationTest {
+
+  @Autowired private ApplicationContext context;
+
+  @Test
+  @DisplayName("while lines are masked, the marker that the redaction runs exists")
+  void markerWhileLinesAreMasked(CapturedOutput output) {
+    log.atInfo().addKeyValue("password", PASSWORD).log("signed in");
+
+    assertThat(output).doesNotContain(PASSWORD).contains("\"password\":\"****\"");
+    assertThat(context.getBeansOfType(LogRedaction.class)).hasSize(1);
+  }
 
   @Test
   @DisplayName("each line is ECS JSON with the service's name and environment")

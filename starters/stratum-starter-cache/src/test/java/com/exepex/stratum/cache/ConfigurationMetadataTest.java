@@ -1,0 +1,45 @@
+package com.exepex.stratum.cache;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.jayway.jsonpath.JsonPath;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+@DisplayName("The cache starter's jar tells IDEs about every stratum.cache property")
+class ConfigurationMetadataTest {
+
+  /** The metadata IDEs read from the jar, relative to this module's directory. */
+  private static final Path METADATA =
+      Path.of("target/classes/META-INF/spring-configuration-metadata.json");
+
+  /** Every property of the module, the switch included. */
+  private static final List<String> PROPERTY_NAMES =
+      List.of(
+          CacheConstants.ENABLED,
+          CacheConstants.MAX_CACHES,
+          CacheConstants.WARNING_INTERVAL,
+          CacheConstants.MAX_KEY_SIZE,
+          CacheConstants.MAX_VALUE_SIZE,
+          CacheConstants.REDIS_RETRY_INTERVAL,
+          CacheConstants.REDIS_FAILURE_THRESHOLD,
+          CacheConstants.ALLOWED_PACKAGES,
+          CacheConstants.CAFFEINE_CACHE_NULL_VALUES,
+          CacheConstants.CACHES);
+
+  @Test
+  @DisplayName("every property is listed with a description")
+  void listsEveryProperty() throws IOException {
+    var metadata = Files.readString(METADATA);
+
+    assertThat(JsonPath.<List<String>>read(metadata, "$.properties[*].name"))
+        .containsExactlyInAnyOrderElementsOf(PROPERTY_NAMES);
+    assertThat(JsonPath.<List<String>>read(metadata, "$.properties[*].description"))
+        .hasSameSizeAs(PROPERTY_NAMES)
+        .doesNotContainNull();
+  }
+}

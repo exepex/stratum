@@ -18,8 +18,9 @@ This page says what travels, where, and the few places your code has to help.
 | `httpMethod`, `httpRoute`, `clientIp` and the other [request fields](../modules/web.md#request-fields-in-logs) | The web starters | Yes |
 | Any field your code puts with `MDC.put`, such as `customerId` | Your code | Yes, with the logging starter |
 
-Fields stay inside the service. Only `traceparent` and the correlation ID in `baggage` go to the
-services you call; your own MDC fields never do.
+Fields stay inside the service. Only `traceparent` and the
+[allowed baggage entries](../modules/observability-traces.md#baggage), such as the correlation ID,
+go to the services you call; your own MDC fields never do.
 
 When the work on another thread ends, that thread's MDC goes back to what it held before, normally
 nothing. The next request served by the same pool thread starts clean.
@@ -219,3 +220,29 @@ and [Observability](../../starters/stratum-starter-observability/README.md#prope
 starter also sets the second ([Web](../modules/web.md#properties)). The third is
 shared by both modules, so it is in the
 [configuration reference](../configuration/reference.md#shared-properties).
+
+To leave your own pool beans as they are, so their tasks do not keep the fields, set the third key to
+`false`. Spring Boot's executors and `@Async` keep them. In `application.properties`:
+
+```properties
+stratum.context-propagation.executor-beans=false
+```
+
+or in `application.yml`:
+
+```yaml
+stratum:
+  context-propagation:
+    executor-beans: false
+```
+
+This key has no Stratum customizer, because Spring reads it before any bean exists. Set it in Java as a
+default property of the application, as [Overriding
+defaults](../configuration/overriding-defaults.md#switches-shared-properties-and-spring-boot-properties-in-java)
+shows:
+
+```java
+var application = new SpringApplication(OrdersApplication.class);
+application.setDefaultProperties(Map.of("stratum.context-propagation.executor-beans", false));
+application.run(args);
+```

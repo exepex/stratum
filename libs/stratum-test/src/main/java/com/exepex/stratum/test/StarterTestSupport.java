@@ -5,43 +5,30 @@ import static com.tngtech.archunit.core.domain.JavaClass.Predicates.resideOutsid
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
-import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
-import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.core.properties.StratumPropertiesCustomizer;
-import com.jayway.jsonpath.JsonPath;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.CompositeArchRule;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.net.HttpURLConnection;
-import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 
 /**
  * The checks and set-up that the tests of every Stratum starter share, so that each starter calls
- * them instead of keeping its own copy.
+ * them instead of keeping its own copy: its customizers file and its architecture rules.
  */
 @StratumInternal
 @UtilityClass
@@ -51,23 +38,8 @@ public class StarterTestSupport {
   private static final String CONFIGURATION =
       "org.springframework.context.annotation.Configuration";
 
-  /** The media type of every error body the web starters send. */
-  private static final String PROBLEM_JSON = "application/problem+json";
-
-  /** The media type of a text body. */
-  private static final String TEXT_PLAIN = "text/plain";
-
   /** The annotation every method in a starter's autoconfigure package carries (ST-ENG-23). */
   private static final String BEAN = "org.springframework.context.annotation.Bean";
-
-  /** The address that requests sent from this machine come from. */
-  private static final String LOOPBACK_ADDRESS = ipAddress(127, 0, 0, 1);
-
-  /** Calls the services under test; one client serves every test. */
-  private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
-
-  /** The number of bytes in an IPv4 address. */
-  private static final int IPV4_BYTES = 4;
 
   /** The annotation behind every class a component scan picks up, such as {@code @Service}. */
   private static final String COMPONENT = "org.springframework.stereotype.Component";
@@ -142,171 +114,6 @@ public class StarterTestSupport {
             .and(PublicApiRule.labelledOrListed(apiTypes))
             .and(PublicApiRule.apiExposesOnlyApi()),
         classInLibraryPackage);
-  }
-
-  /**
-   * Checks an error answer of a web starter: its status, the Problem Details media type, the {@code
-   * status} and {@code code} members of the body, and a 32-hex {@code traceId}.
-   *
-   * @param response the answer
-   * @param status the HTTP status it must have
-   * @param code the error code its body must have, such as {@code SX-WEB-1003}
-   */
-  public static void checkProblemDetails(HttpResponse<String> response, int status, String code) {
-    assertThat(response.statusCode()).isEqualTo(status);
-    assertThat(response.headers().firstValue("Content-Type")).hasValue(PROBLEM_JSON);
-    assertThat(JsonPath.<String>read(response.body(), "$.code")).isEqualTo(code);
-    assertThat(JsonPath.<Integer>read(response.body(), "$.status")).isEqualTo(status);
-    assertThat(JsonPath.<String>read(response.body(), "$." + LoggingContextConstants.TRACE_ID))
-        .matches("\\p{XDigit}{32}");
-  }
-
-  /**
-   * Sends a GET request to a service running on this machine, as its integration tests do.
-   *
-   * @param port the service's port
-   * @param pathAndQuery the path and query, such as {@code /orders/42?expand=lines}
-   * @param headers header names and values, in pairs
-   * @return the response, with its body as text
-   * @throws IOException if the request cannot be sent or the response read
-   * @throws InterruptedException if the thread is interrupted while it waits
-   */
-  public static HttpResponse<String> getFromService(
-      int port, String pathAndQuery, String... headers) throws IOException, InterruptedException {
-    var request =
-        HttpRequest.newBuilder(URI.create("http://localhost:" + port + pathAndQuery)).GET();
-    if (headers.length > 0) {
-      request.headers(headers);
-    }
-    return HTTP_CLIENT.send(request.build(), HttpResponse.BodyHandlers.ofString());
-  }
-
-  /**
-   * Sends a POST request with a body of {@code byteCount} bytes to a service running on this
-   * machine, as its integration tests do.
-   *
-   * @param port the service's port
-   * @param path the path, such as {@code /orders}
-   * @param contentType the body's media type, such as {@code text/plain}
-   * @param byteCount how large the body is
-   * @param declareLength whether the request has a {@code Content-Length} header; without one the
-   *     body is sent in chunks, as a stream of unknown length is
-   * @return the response, with its body as text
-   * @throws IOException if the request cannot be sent or the response read
-   * @throws InterruptedException if the thread is interrupted while it waits
-   */
-  public static HttpResponse<String> postToService(
-      int port, String path, String contentType, int byteCount, boolean declareLength)
-      throws IOException, InterruptedException {
-    var body = "x".repeat(byteCount).getBytes(StandardCharsets.US_ASCII);
-    var publisher =
-        declareLength
-            ? HttpRequest.BodyPublishers.ofByteArray(body)
-            : HttpRequest.BodyPublishers.ofInputStream(() -> new ByteArrayInputStream(body));
-    var request =
-        HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
-            .header("Content-Type", contentType)
-            .POST(publisher)
-            .build();
-    return HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-  }
-
-  /**
-   * Sends a text body of {@code byteCount} bytes and checks that the service read all of it: the
-   * answer is {@code 200} with the number of bytes read as its body, as the body limit tests'
-   * endpoints answer.
-   *
-   * @param port the service's port
-   * @param path the path, such as {@code /uploads/raw}
-   * @param byteCount how large the body is
-   * @param declareLength whether the request has a {@code Content-Length} header
-   * @throws IOException if the request cannot be sent or the response read
-   * @throws InterruptedException if the thread is interrupted while it waits
-   */
-  public static void checkBodyAccepted(int port, String path, int byteCount, boolean declareLength)
-      throws IOException, InterruptedException {
-    var response = postToService(port, path, TEXT_PLAIN, byteCount, declareLength);
-
-    assertThat(response.statusCode()).isEqualTo(HttpURLConnection.HTTP_OK);
-    assertThat(response.body()).isEqualTo(String.valueOf(byteCount));
-  }
-
-  /**
-   * Sends a body of {@code byteCount} bytes and checks that the service refused it as too large:
-   * {@code 413} with the code, in Problem Details.
-   *
-   * @param port the service's port
-   * @param path the path, such as {@code /orders}
-   * @param contentType the body's media type, such as {@code text/plain}
-   * @param byteCount how large the body is
-   * @param declareLength whether the request has a {@code Content-Length} header
-   * @param code the error code the body must have, {@code SX-WEB-1008}
-   * @throws IOException if the request cannot be sent or the response read
-   * @throws InterruptedException if the thread is interrupted while it waits
-   */
-  public static void checkBodyRefused(
-      int port, String path, String contentType, int byteCount, boolean declareLength, String code)
-      throws IOException, InterruptedException {
-    var response = postToService(port, path, contentType, byteCount, declareLength);
-
-    checkProblemDetails(response, HttpURLConnection.HTTP_ENTITY_TOO_LARGE, code);
-  }
-
-  /**
-   * Returns an {@code Authorization} header value with a signed JWT whose payload is the given
-   * JSON. The token's header and signature are fixed test values.
-   *
-   * @param payloadJson the token's payload, such as {@code {"sub":"checkout-service"}}
-   * @return the header value, starting with {@code Bearer }
-   */
-  public static String bearerToken(String payloadJson) {
-    return "Bearer eyJhbGciOiJSUzI1NiJ9."
-        + Base64.getUrlEncoder()
-            .withoutPadding()
-            .encodeToString(payloadJson.getBytes(StandardCharsets.UTF_8))
-        + ".c2lnbmF0dXJl";
-  }
-
-  /**
-   * Checks the request fields that both web starters put in the logging context of a GET request
-   * sent from this machine, as returned by a test endpoint that answers with its logging context:
-   * the method, route, path, query, client IP and raw user agent, and none of the parsed agent or
-   * location fields, which are off by default.
-   *
-   * @param response the endpoint's response, whose body is the logging context as JSON
-   * @param route the route template, such as {@code /orders/{orderId}/fields}
-   * @param pathAndQuery the path and query sent, such as {@code /orders/42/fields?expand=lines}
-   * @param userAgent the {@code User-Agent} header sent
-   */
-  public static void checkRequestFields(
-      HttpResponse<String> response, String route, String pathAndQuery, String userAgent) {
-    var sent = URI.create(pathAndQuery);
-    Map<String, String> fields = JsonPath.read(response.body(), "$");
-    assertThat(fields)
-        .containsEntry(LoggingContextConstants.HTTP_METHOD, "GET")
-        .containsEntry(LoggingContextConstants.HTTP_ROUTE, route)
-        .containsEntry(LoggingContextConstants.HTTP_PATH, sent.getPath())
-        .containsEntry(LoggingContextConstants.HTTP_QUERY, sent.getQuery())
-        .containsEntry(LoggingContextConstants.CLIENT_IP, LOOPBACK_ADDRESS)
-        .containsEntry(LoggingContextConstants.USER_AGENT, userAgent)
-        .doesNotContainKeys(
-            LoggingContextConstants.DEVICE_CLASS, LoggingContextConstants.CLIENT_COUNTRY);
-  }
-
-  /**
-   * Returns the text of an IP address from its numbers: four decimal numbers make an IPv4 address,
-   * such as {@code ipAddress(198, 51, 100, 20)} for {@code 198.51.100.20}, and eight make an IPv6
-   * address, such as {@code ipAddress(0x2001, 0xdb8, 0, 0, 0, 0, 0, 1)} for {@code 2001:db8::1}.
-   * Tests write addresses this way because PMD's {@code AvoidUsingHardCodedIP} rule, which keeps
-   * server addresses out of code, rejects address literals.
-   *
-   * @param numbers the four bytes of an IPv4 address, or the eight groups of an IPv6 address
-   * @return the address as text, such as {@code 198.51.100.20} or {@code 2001:db8:0:0:0:0:0:1}
-   */
-  public static String ipAddress(int... numbers) {
-    return numbers.length == IPV4_BYTES
-        ? IntStream.of(numbers).mapToObj(Integer::toString).collect(Collectors.joining("."))
-        : IntStream.of(numbers).mapToObj(Integer::toHexString).collect(Collectors.joining(":"));
   }
 
   /**

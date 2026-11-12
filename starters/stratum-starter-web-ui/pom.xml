@@ -11,7 +11,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.exepex.stratum</groupId>
+    <groupId>io.github.exepex.stratum</groupId>
     <artifactId>stratum-library-parent</artifactId>
     <version>${revision}</version>
     <relativePath>../../platform/stratum-library-parent/pom.xml</relativePath>
@@ -20,24 +20,26 @@
   <artifactId>stratum-starter-web-ui</artifactId>
 
   <name>Stratum bundle: web-ui</name>
-  <description>Bundle for a server-rendered web application: web MVC, logging, observability and security.</description>
+  <description>Bundle for a server-rendered web application: web MVC, logging and observability.</description>
+
+  <!-- No Java code, so Maven Central gets empty sources and Javadoc jars (root POM, stratum-release). -->
+  <properties>
+    <stratum.placeholder-javadoc.phase>package</stratum.placeholder-javadoc.phase>
+    <stratum.placeholder-sources.phase>package</stratum.placeholder-sources.phase>
+  </properties>
 
   <!-- Keep the starters sorted by name. -->
   <dependencies>
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-logging</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-observability</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
-      <artifactId>stratum-starter-security</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-webmvc</artifactId>
     </dependency>
   </dependencies>

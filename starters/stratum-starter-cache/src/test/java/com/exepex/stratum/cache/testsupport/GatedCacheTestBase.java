@@ -1,0 +1,45 @@
+package com.exepex.stratum.cache.testsupport;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import com.exepex.stratum.cache.RedisRetryGate;
+import java.time.Duration;
+import java.time.Instant;
+import org.junit.jupiter.api.BeforeEach;
+import org.springframework.cache.Cache;
+
+/**
+ * The set-up the tests of a gated Redis cache share: a mocked Redis cache named {@code products}
+ * behind a real gate, on a clock the tests move.
+ */
+public class GatedCacheTestBase {
+
+  /** The key the tests use. */
+  protected static final String KEY = "sku-1";
+
+  /** How long Redis is skipped. */
+  protected static final Duration RETRY_INTERVAL = RedisRetryGates.RETRY_INTERVAL;
+
+  /** Skips Redis at the first failure, so each test opens the gate with one failure. */
+  protected static final int FAILURE_THRESHOLD = 1;
+
+  /** The clock of the gate. */
+  protected final AdjustableClock clock =
+      new AdjustableClock(Instant.parse("2026-11-04T08:00:00Z"));
+
+  /** The counters the gate reports to. */
+  protected final RecordingCacheCounters counters = new RecordingCacheCounters();
+
+  /** The gate in front of Redis. */
+  protected final RedisRetryGate gate = RedisRetryGates.gate(FAILURE_THRESHOLD, clock, counters);
+
+  /** The Redis cache behind the gate. */
+  protected final Cache redis = mock(Cache.class);
+
+  /** Gives the Redis cache its name, as every cache has one. */
+  @BeforeEach
+  void nameTheCache() {
+    when(redis.getName()).thenReturn("products");
+  }
+}

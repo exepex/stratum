@@ -31,6 +31,12 @@ public class ReactiveOrdersApplication {
   /** The path of the reactive handler. */
   static final String PLACE_ORDER_PATH = "/orders/reactive";
 
+  /** The path of a handler that always fails. */
+  static final String FAILING_ORDER_PATH = "/orders/failing";
+
+  /** The failing handler's exception message, with personal data that spans must never carry. */
+  static final String FAILURE_MESSAGE = "order of jane@example.com failed";
+
   /** The query parameter that names the order, so that concurrent requests can be told apart. */
   static final String ORDER_NUMBER_PARAMETER = "orderNumber";
 
@@ -104,6 +110,16 @@ public class ReactiveOrdersApplication {
           .map(this::rememberLoggingContextAfterThreadChange)
           .flatMap(this::runBlockingWorkOnSpringExecutor)
           .flatMap(this::callDownstream);
+    }
+
+    /**
+     * Fails, as a handler whose exception message holds a customer's email address would.
+     *
+     * @return never a value: the error
+     */
+    @GetMapping(FAILING_ORDER_PATH)
+    Mono<String> failOrder() {
+      return Mono.error(new IllegalStateException(FAILURE_MESSAGE));
     }
 
     /**

@@ -8,8 +8,8 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * The codes of the web module, each listed with its fix in {@code docs/guides/error-codes.md}. A
- * caller sees all but {@code SX-WEB-1006} in the error body of a request that failed outside the
- * service's own error handling; {@code SX-WEB-1006} stops the service at startup.
+ * caller sees all but {@code SX-WEB-1006} and {@code SX-WEB-1009} in the error body of a request
+ * that failed outside the service's own error handling; those two stop the service at startup.
  */
 @StratumInternal
 @Getter
@@ -48,7 +48,15 @@ public enum WebErrorCode implements ErrorCode {
 
   /** The request body is larger than the API accepts. */
   REQUEST_BODY_TOO_LARGE(
-      "SX-WEB-1008", Severity.ERROR, "The request body is larger than this API accepts", "");
+      "SX-WEB-1008", Severity.ERROR, "The request body is larger than this API accepts", ""),
+
+  /** A path pattern in the web settings, such as a route of a time or body size limit, is wrong. */
+  INVALID_PATH_PATTERN(
+      "SX-WEB-1009",
+      Severity.ERROR,
+      "A path pattern in the web settings is not valid",
+      "Correct the pattern; Spring's path patterns allow {name}, * and **, and ** only at the"
+          + " end.");
 
   /** The code, such as {@code SX-WEB-1001}. */
   private final String code;

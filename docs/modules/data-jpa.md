@@ -1,9 +1,9 @@
 # Data: `stratum-starter-data-jpa`
 
 **Status: Partly built.** Spring Data JPA, with safe defaults for Spring Boot's connection pool
-(HikariCP), Hibernate and transactions, and database errors that carry no data values. Query
-timeouts, a default fetch size, Stratum's connection leak alarm and the clean errors of Flyway's and
-Liquibase's own connections are **planned**.
+(HikariCP), Hibernate and transactions, and database errors that carry no data values, from your
+code and from Flyway and Liquibase. Query timeouts, a default fetch size and Stratum's connection
+leak alarm are **planned**.
 
 [← Documentation home](../README.md) · Property prefix: `stratum.data`
 
@@ -19,7 +19,7 @@ own keys, so every value your service sets wins.
 
 ```xml
 <dependency>
-  <groupId>com.exepex.stratum</groupId>
+  <groupId>io.github.exepex.stratum</groupId>
   <artifactId>stratum-starter-data-jpa</artifactId>
 </dependency>
 <!-- plus the JDBC driver for your database; Spring Boot manages its version -->
@@ -30,9 +30,15 @@ own keys, so every value your service sets wins.
 </dependency>
 ```
 
+> [!NOTE]
+> Until this starter is fully built, it is not published to Maven Central or listed in `stratum-bom`, so
+> this dependency does not resolve yet ([Publishing](../contributing.md#publishing)).
+
 The starter brings Spring Boot's `spring-boot-starter-data-jpa`: HikariCP, Hibernate and Spring
 Data JPA. It brings no migration tool: add `spring-boot-starter-flyway` or
-`spring-boot-starter-liquibase` yourself, and Spring Boot runs it before Hibernate starts.
+`spring-boot-starter-liquibase` yourself, and Spring Boot runs it before Hibernate starts. Their
+errors are clean too; see [Migrations](#migrations). For a database that already has a schema, see
+[Migrating a service](../guides/migrating-a-service.md#a-database-that-already-has-a-schema).
 
 The module is on as soon as the starter is on the classpath; no line is needed. To turn it off,
 set in `application.properties`:
@@ -201,11 +207,11 @@ To run the benchmark yourself, see
 - Stratum sets no driver-specific error setting, such as PostgreSQL's `logServerErrorDetail`: only
   standard JDBC. The boundary already drops the driver's message.
 - Code that calls `unwrap()` to reach the driver's own classes, such as PostgreSQL's `COPY`,
-  driver metrics or Flyway's internals, bypasses the boundary and handles that driver's errors
+  driver metrics or Flyway's internals (its PostgreSQL support does so for a `COPY` statement in a
+  migration), bypasses the boundary and handles that driver's errors
   itself. The driver's own logging, off by default, is outside the boundary too.
-- R2DBC is not covered. A `DataSource` built outside Spring, not as a bean, is not wrapped. The
-  connections Flyway and Liquibase open for `spring.flyway.url` or `spring.flyway.user` are
-  **planned**.
+- R2DBC is not covered. A `DataSource` built outside Spring, not as a bean, is not wrapped, except
+  the connection Spring Boot builds for Flyway or Liquibase ([Migrations](#migrations)).
 - On a database other than PostgreSQL, `getConstraintName()` is `null`. The error is still clean.
 - The wrappers are generated when the application starts, which a GraalVM native image does not
   support.
@@ -226,6 +232,34 @@ To run the benchmark yourself, see
   contains `Timeout`, so it now carries on. This happens only with the PostgreSQL driver setting
   `readOnlyMode=always`, not with its default.
 - The boundary is tested on PostgreSQL only.
+
+## Migrations
+
+Flyway and Liquibase run your migrations at startup, and their errors are clean in the same way.
+They reach the database in one of two ways:
+
+- **Through your `DataSource` bean**, when you set no connection of their own. The bean already
+  has the boundary.
+- **Through a connection of their own** that Spring Boot builds when you set
+  `spring.flyway.url` or `spring.flyway.user` (or `spring.liquibase.url` or
+  `spring.liquibase.user`), or when `@ServiceConnection` or Docker Compose supplies the database.
+  Stratum wraps that connection too: with a Flyway customizer, and with a bean post-processor that
+  runs before Liquibase applies its changes. It sets no query timeout on it.
+
+Stratum defines no `@FlywayDataSource` or `@LiquibaseDataSource` bean, so your
+`spring.flyway.user` and `spring.liquibase.user` keep working, and it sets no `baseline-on-migrate`
+default.
+
+**Limits:**
+
+- Stratum wraps only the connection Spring Boot builds, a `SimpleDriverDataSource`. A data source of
+  another type that your own `FlywayConfigurationCustomizer` sets is not wrapped, such as the one
+  Flyway builds itself for `configuration.dataSource(url, user, password)`. Stratum's customizer
+  has no order of its own.
+- A `SimpleDriverDataSource` bean that you declare with `@FlywayDataSource` or
+  `@LiquibaseDataSource` is wrapped as a bean. When your `stratumJdbcBoundary` filter skips it, the
+  migration tool still uses it with the boundary, because the migration wrapping looks at the type
+  only.
 
 ## Bind parameters
 
@@ -360,6 +394,14 @@ after Stratum's and wins.
   A data source you leave out has **no** boundary: its errors can carry data values into your
   logs, traces and responses. The filter sees bean names only. The method is `static` because the
   bean processes other beans.
+- Flyway's and Liquibase's own connections ([Migrations](#migrations)) get the boundary of the one
+  `JdbcBoundaryPostProcessor` bean that Spring would inject. Stratum's is a fallback bean, so one
+  `JdbcBoundaryPostProcessor` bean of yours is the one used. When Spring finds no single one, these
+  connections get **no** boundary: with none, such as when your `stratumJdbcBoundary` bean is of
+  another type, with two or more of your own, or with two or more fallback beans and none of
+  yours.
+- A bean named `stratumFlywayBoundary`, of any type, replaces the customizer that wraps Flyway's own
+  connection; a bean named `stratumLiquibaseBoundary` does the same for Liquibase.
 
 ## Switch it on or off
 

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SilentPort is a test helper that opens plain loopback sockets on purpose, to fake a host that
+     never accepts a connection. It sends no data. The owner approved this one exclusion
+     (2026-11-09, PR #242); every other class keeps the check. -->
+<FindBugsFilter>
+  <Match>
+    <Class name="com.exepex.stratum.test.SilentPort"/>
+    <Bug pattern="UNENCRYPTED_SOCKET,UNENCRYPTED_SERVER_SOCKET"/>
+  </Match>
+</FindBugsFilter>

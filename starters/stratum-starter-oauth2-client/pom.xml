@@ -5,7 +5,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.exepex.stratum</groupId>
+    <groupId>io.github.exepex.stratum</groupId>
     <artifactId>stratum-library-parent</artifactId>
     <version>${revision}</version>
     <relativePath>../../platform/stratum-library-parent/pom.xml</relativePath>
@@ -14,5 +14,45 @@
   <artifactId>stratum-starter-oauth2-client</artifactId>
 
   <name>Stratum starter: OAuth2 client</name>
-  <description>Planned: Gets and refreshes tokens for calls to other services.</description>
+  <description>Spring Security's OAuth2 client, without its web lock-down, for the service token of an HTTP client's auth.client-credentials.</description>
+
+  <dependencies>
+    <!-- Marks the starter's one class as internal. -->
+    <dependency>
+      <groupId>io.github.exepex.stratum</groupId>
+      <artifactId>stratum-core</artifactId>
+    </dependency>
+    <!-- The registrations under spring.security.oauth2.client.registration and the store of
+         fetched tokens. spring-boot-security is left out: it would lock down every endpoint of the
+         service with a generated password, which calling another service never needs. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-security-oauth2-client</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-security</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <!-- Spring Boot reads the registrations with Spring Security's list of known providers, which
+         comes in this jar; spring-boot-security brings it otherwise. With it, Boot's login chain for
+         OAuth2 clients would load and stop a servlet service, so LoginChainImportFilter leaves that
+         chain out while spring-boot-security is absent. -->
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-config</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- A servlet service, to check that the starter adds no login chain to it. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-webmvc</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
 </project>

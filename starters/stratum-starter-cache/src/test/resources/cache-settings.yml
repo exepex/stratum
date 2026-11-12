@@ -1,0 +1,19 @@
+stratum:
+  cache:
+    max-caches: 7
+    warning-interval: 5m
+    redis-retry-interval: 2s
+    redis-failure-threshold: 5
+    max-value-size: 2MB
+    caches:
+      reports:
+        max-value-size: 5MB
+        time-to-live: 1h
+        command-timeout: 3s
+        max-entries: 500
+    caffeine:
+      cache-null-values: true
+    serialization:
+      allowed-packages:
+        - com.acme.shared
+        - com.acme.billing

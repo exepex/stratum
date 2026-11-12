@@ -7,6 +7,7 @@ import com.exepex.stratum.web.RequestTimedOutException;
 import com.exepex.stratum.web.ResponseTimeouts;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebProperties;
+import io.micrometer.observation.ObservationRegistry;
 import jakarta.servlet.ServletException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.env.MockEnvironment;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -38,7 +40,9 @@ class ResponseTimeoutFilterTest {
           false);
 
   /** The filter. */
-  private final ResponseTimeoutFilter filter = new ResponseTimeoutFilter(timeouts);
+  private final ResponseTimeoutFilter filter =
+      new ResponseTimeoutFilter(
+          timeouts, new StaticListableBeanFactory().getBeanProvider(ObservationRegistry.class));
 
   /** The request. */
   private final MockHttpServletRequest request = new MockHttpServletRequest("GET", "/orders/42");
@@ -61,10 +65,34 @@ class ResponseTimeoutFilterTest {
     filter.doFilter(
         request, response, (blockedRequest, blockedResponse) -> blockUntilInterrupted());
 
-    assertThat(response.getStatus()).isEqualTo(HttpStatus.GATEWAY_TIMEOUT.value());
-    assertThat(request.getAttribute(ResponseTimeoutFilter.TIMED_OUT_ATTRIBUTE))
-        .isInstanceOf(RequestTimedOutException.class);
-    assertThat(Thread.currentThread().isInterrupted()).isFalse();
+    assertAnsweredWithTimeout();
+  }
+
+  @Test
+  @Timeout(TEST_TIMEOUT_SECONDS)
+  @DisplayName(
+      "a later filter that fails with an unchecked exception after the limit is answered with"
+          + " the status")
+  void lateUncheckedFailure() throws Exception {
+    filter.doFilter(
+        request, response, (slowRequest, slowResponse) -> failUncheckedOnceInterrupted());
+
+    assertAnsweredWithTimeout();
+  }
+
+  @Test
+  @DisplayName("a later filter that fails with an unchecked exception in time keeps its failure")
+  void uncheckedFailureInTime() {
+    assertThatThrownBy(
+            () ->
+                filter.doFilter(
+                    request,
+                    response,
+                    (failedRequest, failedResponse) -> {
+                      throw new IllegalStateException("the token store is down");
+                    }))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessage("the token store is down");
   }
 
   @Test
@@ -94,6 +122,30 @@ class ResponseTimeoutFilterTest {
 
     assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
     assertThat(Thread.currentThread().isInterrupted()).isFalse();
+  }
+
+  /**
+   * Checks that the request was answered with the timeout status, through the timeout, and that the
+   * thread is not left interrupted.
+   */
+  private void assertAnsweredWithTimeout() {
+    assertThat(response.getStatus()).isEqualTo(HttpStatus.GATEWAY_TIMEOUT.value());
+    assertThat(request.getAttribute(ResponseTimeoutFilter.TIMED_OUT_ATTRIBUTE))
+        .isInstanceOf(RequestTimedOutException.class);
+    assertThat(Thread.currentThread().isInterrupted()).isFalse();
+  }
+
+  /**
+   * Blocks as a slow security check does, and fails with an unchecked exception once interrupted,
+   * as a filter that is not a Spring MVC handler does.
+   */
+  private void failUncheckedOnceInterrupted() {
+    try {
+      new CountDownLatch(1).await();
+    } catch (InterruptedException interrupted) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("the token lookup was interrupted", interrupted);
+    }
   }
 
   /**

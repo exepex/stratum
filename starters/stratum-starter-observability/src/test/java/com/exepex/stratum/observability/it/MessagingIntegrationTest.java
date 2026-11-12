@@ -1,20 +1,22 @@
 package com.exepex.stratum.observability.it;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
 
 import com.exepex.stratum.core.logging.LoggingContextConstants;
+import com.exepex.stratum.observability.testsupport.BaggageTestData;
+import com.exepex.stratum.observability.testsupport.MessageTraceChecks;
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
 import io.micrometer.tracing.Tracer;
-import java.util.Map;
-import java.util.function.Consumer;
-import org.jspecify.annotations.Nullable;
+import jakarta.jms.JMSException;
+import java.util.Arrays;
+import java.util.Objects;
 import org.junit.jupiter.api.AutoClose;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jms.core.JmsTemplate;
 import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -38,6 +40,9 @@ import org.springframework.test.context.DynamicPropertySource;
 @DisplayName("Kafka and JMS messages in an application with the observability starter")
 class MessagingIntegrationTest {
 
+  /** The JMS queue that no listener reads, so the test reads the sent message itself. */
+  private static final String AUDIT_QUEUE = "order-audit";
+
   /** Takes the spans at once, so the application closes without retrying a failed send. */
   @AutoClose private static final CollectorStub COLLECTOR = new CollectorStub();
 
@@ -52,15 +57,6 @@ class MessagingIntegrationTest {
     COLLECTOR.receiveSpans(registry);
   }
 
-  /** The correlation ID the sender puts in baggage. */
-  private static final String ORDER_CORRELATION_ID = "order-42-c7d1";
-
-  /** The event sent in each test. */
-  private static final String ORDER_PLACED = "order-placed";
-
-  /** The MDC key in which Spring Boot puts the trace ID. */
-  private static final String TRACE_ID = "traceId";
-
   /** Sends the order events and keeps what each receiver saw. */
   @Autowired private OrderEvents orderEvents;
 
@@ -70,63 +66,58 @@ class MessagingIntegrationTest {
   /** Holds the timers of the senders and receivers. */
   @Autowired private MeterRegistry meterRegistry;
 
-  /**
-   * Sends an event inside a span whose baggage holds the correlation ID, and returns the trace ID.
-   */
-  private String sendInTrace(Consumer<String> sender) {
-    var span = tracer.nextSpan().name("place-order").start();
-    try (var _ = tracer.withSpan(span);
-        var _ =
-            tracer.createBaggageInScope(
-                LoggingContextConstants.CORRELATION_ID, ORDER_CORRELATION_ID)) {
-      sender.accept(ORDER_PLACED);
-      return span.context().traceId();
-    } finally {
-      span.end();
-    }
+  /** Spring Boot's JMS sender, which also reads the audit queue. */
+  @Autowired private JmsTemplate jmsTemplate;
+
+  /** Sends inside a trace and checks the receiver's trace and the timers. */
+  private MessageTraceChecks checks;
+
+  /** Builds the checks on the application's tracer and timers. */
+  @BeforeEach
+  void createChecks() {
+    checks = new MessageTraceChecks(tracer, meterRegistry);
   }
 
-  /** Checks that the receiver logged with the sender's trace ID and correlation ID. */
-  private void assertReceivedInSameTrace(
-      @Nullable Map<String, String> loggingContext, String traceId) {
-    assertThat(loggingContext)
-        .containsEntry(TRACE_ID, traceId)
-        .containsEntry(LoggingContextConstants.CORRELATION_ID, ORDER_CORRELATION_ID);
-  }
-
-  /**
-   * Waits until the timers with these names each recorded one duration; a receiver's timer stops
-   * just after the event is handled. It uses {@code find}, whose missing timer fails the assertion
-   * and is retried, because {@code get} throws an exception that Awaitility does not retry.
-   */
+  /** Waits until the timers with these names each recorded one duration. */
   private void assertTimedOnce(String... timerNames) {
-    await()
-        .untilAsserted(
-            () ->
-                assertThat(timerNames)
-                    .allSatisfy(
-                        timerName ->
-                            assertThat(meterRegistry.find(timerName).timer())
-                                .as(timerName)
-                                .extracting(Timer::count)
-                                .isEqualTo(1L)));
+    Arrays.stream(timerNames).forEach(timerName -> checks.assertTimerCount(timerName, 1));
   }
 
   @Test
   @DisplayName("a Kafka consumer joins the sender's trace, logs its correlation ID and is timed")
   void kafkaMessageCarriesTraceAndCorrelationId() throws InterruptedException {
-    var traceId = sendInTrace(orderEvents::sendToKafka);
+    var traceId = checks.sendInTrace(orderEvents::sendToKafka);
 
-    assertReceivedInSameTrace(orderEvents.nextReceivedLoggingContext(), traceId);
+    checks.assertReceivedInSameTrace(orderEvents.getReceivedLoggingContexts().next(), traceId);
     assertTimedOnce("spring.kafka.template", "spring.kafka.listener");
   }
 
   @Test
   @DisplayName("a JMS consumer joins the sender's trace, logs its correlation ID and is timed")
   void jmsMessageCarriesTraceAndCorrelationId() throws InterruptedException {
-    var traceId = sendInTrace(orderEvents::sendToJms);
+    var traceId = checks.sendInTrace(orderEvents::sendToJms);
 
-    assertReceivedInSameTrace(orderEvents.nextReceivedLoggingContext(), traceId);
-    assertTimedOnce("jms.message.publish", "jms.message.process");
+    checks.assertReceivedInSameTrace(orderEvents.getReceivedLoggingContexts().next(), traceId);
+    assertTimedOnce(MessageTraceChecks.JMS_PUBLISH_TIMER, MessageTraceChecks.JMS_PROCESS_TIMER);
+  }
+
+  @Test
+  @DisplayName("a JMS message carries the correlation ID and none of the sender's other baggage")
+  void jmsMessageCarriesOnlyAllowedBaggage() throws JMSException {
+    var span = tracer.nextSpan().name("audit-order").start();
+    try (var _ = tracer.withSpan(span);
+        var _ =
+            tracer.createBaggageInScope(
+                LoggingContextConstants.CORRELATION_ID, MessageTraceChecks.ORDER_CORRELATION_ID);
+        var _ = tracer.createBaggageInScope("evil", "SECRET");
+        var _ = tracer.createBaggageInScope("CORRELATIONID", "leak")) {
+      jmsTemplate.convertAndSend(AUDIT_QUEUE, MessageTraceChecks.ORDER_PLACED);
+    } finally {
+      span.end();
+    }
+
+    var auditMessage = Objects.requireNonNull(jmsTemplate.receive(AUDIT_QUEUE));
+    assertThat(auditMessage.getStringProperty(BaggageTestData.BAGGAGE_HEADER))
+        .isEqualTo(BaggageTestData.CORRELATION_ID_ENTRY);
   }
 }

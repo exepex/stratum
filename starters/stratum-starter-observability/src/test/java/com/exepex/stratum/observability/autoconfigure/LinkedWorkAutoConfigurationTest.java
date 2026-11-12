@@ -6,6 +6,7 @@ import com.exepex.stratum.observability.ObservabilityConstants;
 import com.exepex.stratum.observability.linkedwork.LinkedWork;
 import com.exepex.stratum.observability.linkedwork.LinkedWorkTracingHandler;
 import com.exepex.stratum.observability.linkedwork.ReactiveLinkedWork;
+import com.exepex.stratum.observability.testsupport.ObservabilityTestData;
 import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.tracing.Tracer;
 import org.junit.jupiter.api.DisplayName;
@@ -23,11 +24,7 @@ import reactor.core.publisher.Mono;
 @DisplayName("ObservabilityAutoConfiguration creates the linked-work helpers, and each backs off")
 class LinkedWorkAutoConfigurationTest {
 
-  private final ApplicationContextRunner contextRunner =
-      new ApplicationContextRunner()
-          .withConfiguration(
-              AutoConfigurations.of(
-                  ValidationAutoConfiguration.class, ObservabilityAutoConfiguration.class));
+  private final ApplicationContextRunner contextRunner = ObservabilityTestData.contextRunner();
 
   @Test
   @DisplayName("with the module on, the handler and both helpers are created")

@@ -1,0 +1,40 @@
+{
+  "groups": [
+    {"name": "stratum.web", "type": "com.exepex.stratum.web.WebProperties"},
+    {"name": "stratum.web.request-log", "type": "com.exepex.stratum.web.WebProperties$RequestLogSettings"},
+    {"name": "stratum.web.request-log.headers", "type": "com.exepex.stratum.web.WebProperties$Headers"},
+    {"name": "stratum.web.empty", "type": "com.exepex.stratum.web.WebProperties$Empty"}
+  ],
+  "properties": [
+    {
+      "name": "stratum.web.request-log.skip-paths",
+      "type": "java.util.List<java.lang.String>",
+      "description": "Paths with no line, such as /actuator/** or /internal/*, and client_id | x < y [z] \\ `t`.",
+      "defaultValue": ["/actuator/**", "/health"]
+    },
+    {
+      "name": "stratum.web.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether the web module is on.",
+      "defaultValue": true
+    },
+    {
+      "name": "stratum.web.request-log.headers.names",
+      "type": "java.util.Map<java.lang.String,com.exepex.stratum.web.WebProperties$HeaderSettings>",
+      "description": "The headers, by the name in its {@code @StratumClient} or {@link Foo#bar()}.",
+      "defaultValue": []
+    },
+    {
+      "name": "stratum.web.request-log.max-length",
+      "type": "java.lang.Integer",
+      "description": "The longest line, from 1 to 10000. Caf\u00e9 \"quoted\" tab\there.",
+      "defaultValue": 512
+    },
+    {
+      "name": "server.port",
+      "type": "java.lang.Integer",
+      "description": "A Spring Boot key the page leaves out."
+    }
+  ],
+  "hints": []
+}

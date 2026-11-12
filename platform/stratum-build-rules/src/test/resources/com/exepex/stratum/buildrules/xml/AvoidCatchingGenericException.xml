@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Cases for AvoidCatchingGenericException in stratum/pmd-ruleset.xml: the one method allowed to catch
+  Cases for AvoidCatchingGenericException in stratum/pmd-ruleset.xml: the methods allowed to catch
   RuntimeException, then the same catch in every other place, which must still be reported.
 -->
 <test-data
@@ -80,6 +80,155 @@ final class Redactor {
   </test-code>
 
   <test-code>
+    <description>the cache layer's StratumCache may catch RuntimeException in get and afterFailedWrite</description>
+    <expected-problems>0</expected-problems>
+    <code><![CDATA[
+package com.exepex.stratum.cache;
+public class StratumCache {
+  public Object get(Object key, java.util.function.Supplier<Object> loader) {
+    try {
+      return loader.get();
+    } catch (RuntimeException e) {
+      return afterFailedWrite(key);
+    }
+  }
+  private Object afterFailedWrite(Object key) {
+    try {
+      return key.toString();
+    } catch (RuntimeException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+}
+]]></code>
+  </test-code>
+
+  <test-code>
+    <description>another method of StratumCache is reported</description>
+    <expected-problems>1</expected-problems>
+    <expected-linenumbers>6</expected-linenumbers>
+    <code><![CDATA[
+package com.exepex.stratum.cache;
+public class StratumCache {
+  public void put(Object key, java.util.function.Supplier<Object> value) {
+    try {
+      value.get();
+    } catch (RuntimeException e) {
+      return;
+    }
+  }
+}
+]]></code>
+  </test-code>
+
+  <test-code>
+    <description>a get method of another cache class in the same package is reported</description>
+    <expected-problems>1</expected-problems>
+    <expected-linenumbers>6</expected-linenumbers>
+    <code><![CDATA[
+package com.exepex.stratum.cache;
+public class StratumCacheResolver {
+  public Object get(java.util.function.Supplier<Object> value) {
+    try {
+      return value.get();
+    } catch (RuntimeException e) {
+      return null;
+    }
+  }
+}
+]]></code>
+  </test-code>
+
+  <test-code>
+    <description>a class named StratumCache in another package, such as a service's, is reported</description>
+    <expected-problems>1</expected-problems>
+    <expected-linenumbers>6</expected-linenumbers>
+    <code><![CDATA[
+package com.acme.orders;
+public class StratumCache {
+  public Object get(java.util.function.Supplier<Object> value) {
+    try {
+      return value.get();
+    } catch (RuntimeException e) {
+      return null;
+    }
+  }
+}
+]]></code>
+  </test-code>
+
+  <test-code>
+    <description>the web MVC starter's ResponseTimeoutFilter may catch RuntimeException in doFilterInternal</description>
+    <expected-problems>0</expected-problems>
+    <code><![CDATA[
+package com.exepex.stratum.webmvc;
+public class ResponseTimeoutFilter {
+  protected void doFilterInternal(Runnable filterChain) {
+    try {
+      filterChain.run();
+    } catch (RuntimeException e) {
+      return;
+    }
+  }
+}
+]]></code>
+  </test-code>
+
+  <test-code>
+    <description>another method of ResponseTimeoutFilter is reported</description>
+    <expected-problems>1</expected-problems>
+    <expected-linenumbers>6</expected-linenumbers>
+    <code><![CDATA[
+package com.exepex.stratum.webmvc;
+public class ResponseTimeoutFilter {
+  private void interruptUnlessStarted(Runnable interrupt) {
+    try {
+      interrupt.run();
+    } catch (RuntimeException e) {
+      return;
+    }
+  }
+}
+]]></code>
+  </test-code>
+
+  <test-code>
+    <description>the doFilterInternal of another filter in the same package is reported</description>
+    <expected-problems>1</expected-problems>
+    <expected-linenumbers>6</expected-linenumbers>
+    <code><![CDATA[
+package com.exepex.stratum.webmvc;
+public class RequestLogFilter {
+  protected void doFilterInternal(Runnable filterChain) {
+    try {
+      filterChain.run();
+    } catch (RuntimeException e) {
+      return;
+    }
+  }
+}
+]]></code>
+  </test-code>
+
+  <test-code>
+    <description>a class named ResponseTimeoutFilter in another package, such as a service's, is reported</description>
+    <expected-problems>1</expected-problems>
+    <expected-linenumbers>6</expected-linenumbers>
+    <code><![CDATA[
+package com.acme.orders;
+public class ResponseTimeoutFilter {
+  protected void doFilterInternal(Runnable filterChain) {
+    try {
+      filterChain.run();
+    } catch (RuntimeException e) {
+      return;
+    }
+  }
+}
+]]></code>
+  </test-code>
+
+  <test-code>
     <description>a catch of NullPointerException is reported too</description>
     <expected-problems>1</expected-problems>
     <expected-linenumbers>6</expected-linenumbers>
@@ -96,4 +245,39 @@ final class Orders {
 }
 ]]></code>
   </test-code>
+  <test-code>
+    <description>the HTTP client's DefaultOutgoingRequest.runInterceptors may catch RuntimeException</description>
+    <expected-problems>0</expected-problems>
+    <code><![CDATA[
+package com.exepex.stratum.restclient;
+final class DefaultOutgoingRequest {
+  private void runInterceptors(Runnable interceptors) {
+    try {
+      interceptors.run();
+    } catch (RuntimeException failure) {
+      throw new IllegalStateException(failure);
+    }
+  }
+}
+]]></code>
+  </test-code>
+
+  <test-code>
+    <description>another method of DefaultOutgoingRequest is reported</description>
+    <expected-problems>1</expected-problems>
+    <expected-linenumbers>6</expected-linenumbers>
+    <code><![CDATA[
+package com.exepex.stratum.restclient;
+final class DefaultOutgoingRequest {
+  private void execute(Runnable interceptors) {
+    try {
+      interceptors.run();
+    } catch (RuntimeException failure) {
+      throw new IllegalStateException(failure);
+    }
+  }
+}
+]]></code>
+  </test-code>
+
 </test-data>

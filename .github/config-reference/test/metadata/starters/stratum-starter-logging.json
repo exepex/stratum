@@ -1,0 +1,10 @@
+{
+  "properties": [
+    {
+      "name": "stratum.logging.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether the module is on.",
+      "defaultValue": true
+    }
+  ]
+}

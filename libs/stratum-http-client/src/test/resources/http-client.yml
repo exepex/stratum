@@ -1,0 +1,48 @@
+stratum:
+  http-client:
+    defaults:
+      timeout: 3s
+      call-log: none
+      trace-headers: false
+      retry:
+        delay: 1s
+      circuit-breaker:
+        wait-duration-in-open-state: 30s
+      headers:
+        "[X-Partner-Id]": orders
+      copy-headers: [X-Tenant]
+      interceptor-body-limit: 2MB
+    clients:
+      inventory:
+        url: http://inventory:8080
+        timeout: 10s
+        total-timeout: 25s
+        retry:
+          max-retries: 5
+          backoff-policy: fixed
+        circuit-breaker:
+          enabled: false
+          failure-rate-threshold: 10
+          slow-call-duration-threshold: 2s
+        mock: true
+        headers:
+          "[X-Region]": eu
+        copy-headers:
+          - X-Request-Origin
+        interceptor-body-limit: 8MB
+        call-log: all
+        response-body-limit: 64MB
+        trace-headers: true
+        interfaces:
+          - com.partner.OrdersApi
+          - com.partner.CustomersApi
+      partner:
+        url: http://partner:8080
+        auth:
+          basic:
+            username: orders
+            password: not-a-real-secret-4f2a
+      billing:
+        url: http://billing:8080
+        auth:
+          client-credentials: invoices

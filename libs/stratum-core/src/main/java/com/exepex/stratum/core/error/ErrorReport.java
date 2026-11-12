@@ -15,7 +15,7 @@ import org.slf4j.MDC;
 
 /**
  * Everything known about one error or warning, for the application's own logs: the {@linkplain
- * #getExternal() external error} that a caller may see, plus the span ID and the cause with its
+ * ExternalError external error} that a caller may see, plus the span ID and the cause with its
  * stack trace, which stay inside the application.
  *
  * <p>Make one with {@link #of}, which reads the trace, span and correlation IDs from the logging

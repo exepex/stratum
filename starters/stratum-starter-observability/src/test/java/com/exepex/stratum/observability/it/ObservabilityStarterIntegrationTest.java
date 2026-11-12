@@ -21,6 +21,7 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.mock.env.MockEnvironment;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.reactive.function.client.WebClient;
 
 // Each test starts and stops the application itself, because it checks what happens at startup or
 // at shutdown (ST-TEST-31).
@@ -31,8 +32,17 @@ class ObservabilityStarterIntegrationTest {
   /** The path the test application calls, as if it were a partner's service. */
   private static final String PARTNER_PATH = "/rates";
 
-  /** A query string, which the span keeps and the metrics leave out. */
-  private static final String QUERY = "?currency=EUR-7f3";
+  /** The path the test application calls through WebClient, as if it were a partner's service. */
+  private static final String REACTIVE_PARTNER_PATH = "/fx-rates";
+
+  /** An API key in the partner's query, which the span masks. */
+  private static final String API_KEY = "LEAK-key-9d1";
+
+  /** A query string, which the span keeps masked and the metrics leave out. */
+  private static final String QUERY = "?currency=EUR-7f3&api_key=" + API_KEY;
+
+  /** The query as the span keeps it: the ordinary value as it is, the API key masked. */
+  private static final String MASKED_QUERY = "?currency=EUR-7f3&api_key=****";
 
   /** A password in the partner's URL, which must not reach spans or metrics. */
   private static final String PASSWORD = "LEAK-password-7c2";
@@ -60,17 +70,32 @@ class ObservabilityStarterIntegrationTest {
         .run(args);
   }
 
-  /** Calls the partner with a password and a query in the URL, through Spring's RestClient. */
+  /**
+   * Calls the partner with a password and a query in the URL, through Spring's RestClient and its
+   * WebClient.
+   */
   private void callPartner(ConfigurableApplicationContext context) {
-    var partnerUrl =
-        collector.url(PARTNER_PATH + QUERY).replace("://", "://user:" + PASSWORD + "@");
+    var observationRegistry = context.getBean(ObservationRegistry.class);
     RestClient.builder()
-        .observationRegistry(context.getBean(ObservationRegistry.class))
+        .observationRegistry(observationRegistry)
         .build()
         .get()
-        .uri(partnerUrl)
+        .uri(partnerUrlWithPassword(PARTNER_PATH))
         .retrieve()
         .toBodilessEntity();
+    WebClient.builder()
+        .observationRegistry(observationRegistry)
+        .build()
+        .get()
+        .uri(partnerUrlWithPassword(REACTIVE_PARTNER_PATH))
+        .retrieve()
+        .toBodilessEntity()
+        .block();
+  }
+
+  /** Returns the partner's URL for the path, with a password and the query. */
+  private String partnerUrlWithPassword(String path) {
+    return collector.url(path + QUERY).replace("://", "://user:" + PASSWORD + "@");
   }
 
   @Test
@@ -94,10 +119,17 @@ class ObservabilityStarterIntegrationTest {
         .anySatisfy(
             spans ->
                 assertThat(spans)
-                    .contains(collector.url(PARTNER_PATH + QUERY))
+                    .contains(collector.url(PARTNER_PATH + MASKED_QUERY))
                     .doesNotContain(PASSWORD)
+                    .doesNotContain(API_KEY)
                     .contains("deployment.environment.name")
                     .contains(instanceId));
+    assertThat(collector.bodiesOf(CollectorStub.TRACES_PATH))
+        .anySatisfy(
+            spans ->
+                assertThat(spans)
+                    .contains(collector.url(REACTIVE_PARTNER_PATH + MASKED_QUERY))
+                    .doesNotContain(API_KEY));
     assertThat(collector.bodiesOf(CollectorStub.METRICS_PATH))
         .anySatisfy(
             metrics ->

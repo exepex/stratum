@@ -18,12 +18,12 @@ import org.springframework.util.StringUtils;
 /**
  * Gives Spring Boot's actuator, metrics and tracing Stratum's defaults before the application
  * starts. With the module on, its default, it applies the module's settings, which by default
- * expose only {@code health} and {@code info}, store timings as histograms, trace Kafka and
- * RabbitMQ messages and carry traces into Spring Boot's executors, and it tags every metric and
- * names the service's instance in every span and metric; with the module off, it turns export off,
- * so the starter sends nothing. Every value the service sets for those Spring Boot properties wins,
- * Java default properties included. {@link ObservabilityExportAddressCheck} checks the export
- * addresses.
+ * expose only {@code health} and {@code info}, store timings as histograms, keep traces by trace ID
+ * rather than by the caller's sampled flag, bound the size of each span, trace Kafka and RabbitMQ
+ * messages and carry traces into Spring Boot's executors, and it tags every metric and names the
+ * service's instance in every span and metric; with the module off, it turns export off, so the
+ * starter sends nothing. Every value the service sets for those Spring Boot properties wins, Java
+ * default properties included. {@link ObservabilityExportAddressCheck} checks the export addresses.
  */
 @StratumInternal
 public class ObservabilityEnvironmentPostProcessor implements EnvironmentPostProcessor, Ordered {
@@ -64,7 +64,10 @@ public class ObservabilityEnvironmentPostProcessor implements EnvironmentPostPro
     StratumDefaults.addBelowServiceValues(environment, defaultsWithModuleOn(environment));
   }
 
-  /** Returns the exposure, histogram, executor, messaging, tag and resource defaults. */
+  /**
+   * Returns the exposure, histogram, sampler, span limit, executor, messaging, tag and resource
+   * defaults.
+   */
   private Map<String, Object> defaultsWithModuleOn(ConfigurableEnvironment environment) {
     var serviceEnvironment = environment.getProperty(StratumModuleConstants.SERVICE_ENVIRONMENT);
     var defaults = new HashMap<String, Object>();
@@ -88,6 +91,9 @@ public class ObservabilityEnvironmentPostProcessor implements EnvironmentPostPro
     defaults.put(ObservabilityConstants.HISTOGRAM_FOR_EVERY_TIMING, true);
     defaults.put(
         ObservabilityConstants.HISTOGRAM_FLAVOR, ObservabilityConstants.EXPONENTIAL_HISTOGRAM);
+    defaults.put(
+        ObservabilityConstants.TRACING_SAMPLER, ObservabilityConstants.TRACE_ID_RATIO_SAMPLER);
+    defaults.putAll(ObservabilityConstants.SPAN_LIMITS);
     ObservabilityConstants.MESSAGING_OBSERVATION_SWITCHES.forEach(
         observationSwitch -> defaults.put(observationSwitch, true));
     defaults.putAll(StratumDefaults.CONTEXT_PROPAGATION);

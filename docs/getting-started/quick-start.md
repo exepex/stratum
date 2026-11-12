@@ -45,8 +45,8 @@ order-service/
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.exepex.stratum</groupId>
-    <artifactId>stratum-parent</artifactId>
+    <groupId>io.github.exepex.stratum</groupId>
+    <artifactId>stratum-microservice-parent</artifactId>
     <version>0.1.0-SNAPSHOT</version>
     <relativePath/>
   </parent>
@@ -54,36 +54,13 @@ order-service/
   <groupId>com.acme.orders</groupId>
   <artifactId>order-service</artifactId>
   <version>1.0.0-SNAPSHOT</version>
-
-  <dependencies>
-    <dependency>
-      <groupId>com.exepex.stratum</groupId>
-      <artifactId>stratum-starter-webmvc</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.exepex.stratum</groupId>
-      <artifactId>stratum-starter-logging</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.exepex.stratum</groupId>
-      <artifactId>stratum-starter-observability</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.exepex.stratum</groupId>
-      <artifactId>stratum-starter-http-client</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.exepex.stratum</groupId>
-      <artifactId>stratum-test</artifactId>
-      <scope>test</scope>
-    </dependency>
-  </dependencies>
 </project>
 ```
 
-**What Stratum did:** the parent set Java 25, every plugin version and the quality checks. The
-starters brought Spring MVC, Actuator, Micrometer, OpenTelemetry, structured logging and an HTTP
-client library, all at versions tested together.
+**What Stratum did:** the parent set Java 25, every plugin version and the quality checks. It also
+brought the [microservice bundle](../modules/bundles.md), whose starters bring Spring MVC, Actuator,
+Micrometer, OpenTelemetry, structured logging, an HTTP client library and caching, and the test
+libraries, all at versions tested together.
 
 ## Step 2: the application class
 
@@ -119,16 +96,16 @@ stratum:
   http-client:
     clients:
       inventory:
-        base-url: http://localhost:8081
-        read-timeout: 2s
+        url: http://localhost:8081
+        timeout: 2s
 ```
 
 The same in `src/main/resources/application.properties` (use one file, not both):
 
 ```properties
 spring.application.name=order-service
-stratum.http-client.clients.inventory.base-url=http://localhost:8081
-stratum.http-client.clients.inventory.read-timeout=2s
+stratum.http-client.clients.inventory.url=http://localhost:8081
+stratum.http-client.clients.inventory.timeout=2s
 ```
 
 The observability module also needs your OpenTelemetry Collector's addresses, in
@@ -137,9 +114,9 @@ every profile, or it stops at startup. To try it without a Collector, point both
 without a failed-send log ([Observability](../../starters/stratum-starter-observability/README.md#running-without-a-collector)).
 
 **What Stratum did:** it switched on the four modules (each is on because its starter is on the
-classpath) and registered an HTTP client group named `inventory`. Everything you did not
-set (connect timeout, trace propagation, correlation header, logging) uses Stratum's defaults. See
-[HTTP client](../modules/http-client.md#properties).
+classpath) and set up the `inventory` client as its own HTTP service group, with its own connection
+pool. Everything you did not set (connect timeout, pool size, wait for a free connection) uses
+Stratum's defaults. See [HTTP client](../modules/http-client.md#properties).
 
 Every error gets Stratum's standard body and every request the standard time and body size limits,
 because `stratum.backward-compatible` is `false` by default. A new service leaves it unset, because
@@ -149,17 +126,20 @@ it has no consumers that read an older error body. A running service that adds S
 
 ## Step 4: declare the downstream client
 
-You describe the remote API as a Java interface. Spring generates the implementation, and Stratum
-configures it.
+You describe the remote API as a Java interface with `@StratumClient("inventory")`. Spring generates
+the implementation, and Stratum finds the interface by scanning and configures it from the
+`inventory` block above ([HTTP client](../modules/http-client.md#use-it)).
 
 `src/main/java/com/acme/orders/inventory/InventoryClient.java`:
 
 ```java
 package com.acme.orders.inventory;
 
+import com.exepex.stratum.httpclient.StratumClient;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.service.annotation.GetExchange;
 
+@StratumClient("inventory")
 public interface InventoryClient {
 
   @GetExchange("/stock/{sku}")
@@ -169,13 +149,7 @@ public interface InventoryClient {
 }
 ```
 
-Register it under the `inventory` group, for example on the application class:
-
-```java
-@SpringBootApplication
-@ImportHttpServices(group = "inventory", types = InventoryClient.class)
-public class OrderServiceApplication { ... }
-```
+No other registration is needed.
 
 ## Step 5: business code
 
@@ -237,8 +211,8 @@ class OutOfStockException extends RuntimeException {
 | Invalid input returns `400` with a list of field errors | `stratum-starter-webmvc` validation and error handling |
 | `OutOfStockException` returns `409` as Problem Details JSON | `stratum-starter-webmvc` error handling |
 | Every log line written inside a traced operation carries `traceId`, `spanId` and `correlationId` | `stratum-starter-observability`, written as JSON by `stratum-starter-logging` |
-| The call to inventory carries the trace and correlation headers | `stratum-starter-http-client` |
-| The call to inventory times out after 2 s instead of hanging | Your `read-timeout` plus Stratum's connect timeout |
+| The call to inventory carries the trace and correlation headers (`trace-headers`, on by default) | `stratum-starter-http-client` |
+| The call to inventory times out after 2 s instead of hanging | Your `timeout` plus Stratum's connect timeout |
 | `http.server.requests` and `http.client.requests` metrics | `stratum-starter-observability` |
 
 ## Step 6: run it
@@ -279,17 +253,16 @@ in this request.
 ```java
 package com.acme.orders;
 
-@StratumIntegrationTest
-@StubHttpClient("inventory")              // replaces inventory with a local HTTP stub
+@SpringBootTest
+@AutoConfigureMockMvc
 class OrderApiIntegrationTest {
 
   @Autowired MockMvcTester mvc;
-  @Autowired HttpStub inventory;
+  @MockitoBean InventoryClient inventory;   // stands in for the inventory service
 
   @Test
   void acceptsAnOrderWhenStockIsAvailable() {
-    inventory.stubGet("/stock/A-1", """
-        {"sku":"A-1","available":5}""");
+    when(inventory.stockFor("A-1")).thenReturn(new InventoryClient.Stock("A-1", 5));
 
     assertThat(mvc.post().uri("/orders").contentType(APPLICATION_JSON)
             .content("{\"sku\":\"A-1\",\"quantity\":2}"))
@@ -298,8 +271,7 @@ class OrderApiIntegrationTest {
 
   @Test
   void rejectsAnOrderWhenStockIsShort() {
-    inventory.stubGet("/stock/A-1", """
-        {"sku":"A-1","available":1}""");
+    when(inventory.stockFor("A-1")).thenReturn(new InventoryClient.Stock("A-1", 1));
 
     assertThat(mvc.post().uri("/orders").contentType(APPLICATION_JSON)
             .content("{\"sku\":\"A-1\",\"quantity\":2}"))
@@ -320,6 +292,6 @@ Unit tests (`*Test.java`) run in the `test` phase; integration tests (`*Integrat
 ## What to read next
 
 - Add token validation to your API: [Security](../modules/security.md)
-- Add retries and a circuit breaker to the inventory call: [Resilience](../modules/resilience.md)
+- Tune the retries and circuit breaker of the inventory call: [HTTP client: retries and the circuit breaker](../modules/http-client-resilience.md)
 - Configure per environment: [Profiles and environments](../configuration/profiles-and-environments.md)
 - Change any default: [Overriding defaults](../configuration/overriding-defaults.md)

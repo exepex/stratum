@@ -1,7 +1,8 @@
 # Using Stratum with a company framework
 
-**Status: Planned.** How to use Stratum when your company already has its own framework built on
-Spring Boot, and how to make the two work together without conflicts.
+**Status: Partly built.** How to use Stratum when your company already has its own framework built on
+Spring Boot, and how to make the two work together without conflicts. The parent, the BOM and the
+module switches described here are built.
 
 [← Documentation home](../README.md) · Decision record: [ADR 0001](../adr/0001-coexistence-with-company-frameworks.md)
 
@@ -20,7 +21,7 @@ its starters.
 
 | | Setup A: Stratum as parent | Setup B: company parent, Stratum BOM | Setup C: team fork of Stratum |
 | --- | --- | --- | --- |
-| Parent chain | Spring Boot → `stratum-parent` → service | Spring Boot → company parent → service | Spring Boot → company parent → forked `stratum-parent` → service |
+| Parent chain | Spring Boot → `stratum-parent` → service, or → `stratum-parent` → `stratum-microservice-parent` → service for a microservice | Spring Boot → company parent → service | Spring Boot → company parent → forked `stratum-parent` → service |
 | Use when | There is no company framework | The service must keep the company parent | The team wants one parent with both, and accepts maintaining a fork |
 | Who sets the Spring Boot version | Stratum | The company parent | The company parent |
 | Stratum upgrades | Change one version | Change one version | Merge each Stratum release into the fork |
@@ -96,7 +97,7 @@ module page says so. In that case the company orders its auto-configuration befo
 
 A company auto-configuration that sets its own late order can still run before Stratum's by naming
 it, for example
-`@AutoConfiguration(beforeName = "com.exepex.stratum.web.autoconfigure.StratumCorrelationAutoConfiguration")`.
+`@AutoConfiguration(beforeName = "com.exepex.stratum.webmvc.autoconfigure.WebMvcRequestFieldsAutoConfiguration")`.
 Using `beforeName` avoids a compile-time dependency on Stratum. Stratum's auto-configuration class
 names may change between minor versions, and the release notes list every rename.
 
@@ -117,7 +118,7 @@ starter from the bundle:
 | --- | --- | --- |
 | Security filter chain | Requests pass one chain and fail the other | `stratum.security.enabled=false` |
 | Log format and redaction | Log lines in two formats, or the company's format without Stratum's redaction | `stratum.logging.enabled=false` |
-| Correlation ID filter | Two IDs per request, under two header names | `stratum.web.correlation.enabled=false` when `stratum.web` is on |
+| Correlation ID filter | Two IDs per request, under two header names | `stratum.web.enabled=false`, which also turns off the error format, the request log and the response timeouts. There is no switch for the correlation ID alone; `stratum.web.correlation.accept-from-caller` only chooses which ID is used |
 | Metrics and tracing setup | Duplicate metric tags, or traces that do not connect | `stratum.observability.enabled=false` |
 | HTTP client defaults | Two sets of timeouts or interceptors on the same client | `stratum.http-client.enabled=false` |
 
@@ -152,41 +153,10 @@ with the company framework's beans. More ways to switch parts off are in
 This is the recommended setup when a company framework exists. The service keeps its parent and
 uses Stratum's starters through the BOM.
 
-**Step 1.** Import `stratum-bom` in the service's `pom.xml`:
-
-```xml
-<project>
-  <modelVersion>4.0.0</modelVersion>
-
-  <parent>
-    <groupId>com.acme.platform</groupId>      <!-- your company parent -->
-    <artifactId>acme-parent</artifactId>
-    <version>7.3.0</version>
-    <relativePath/>
-  </parent>
-
-  <groupId>com.acme.orders</groupId>
-  <artifactId>order-service</artifactId>
-  <version>1.0.0-SNAPSHOT</version>
-
-  <dependencyManagement>
-    <dependencies>
-      <dependency>
-        <groupId>com.exepex.stratum</groupId>
-        <artifactId>stratum-bom</artifactId>
-        <version>0.1.0-SNAPSHOT</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
-</project>
-```
-
-If the company parent does not extend `spring-boot-starter-parent` and does not manage Spring Boot's
-versions, also import `spring-boot-dependencies` at the version in the
-[compatibility table](upgrading.md#compatibility). The two BOMs do not overlap, so their order does
-not matter.
+**Step 1.** Import `stratum-bom` in the service's `pom.xml`, set Java 25 and add back the build
+plugins that `stratum-parent` would give. The complete `pom.xml` under a company parent, the
+properties to set and what to do when the company parent pins an older Spring Boot are in
+[Stratum as a dependency, under another parent](../getting-started/with-stratum-bom.md#example-2-under-a-company-parent).
 
 **Step 2.** Add only the Stratum starters for concerns the company framework does not cover, or
 covers less well. The [starter table](../getting-started/installation.md#step-2-add-the-starters-you-need)
@@ -204,8 +174,9 @@ as shown in Rule 3.
   Stratum bean the company replaced is listed with `@ConditionalOnMissingBean` and the bean that
   was found. See [Troubleshooting](troubleshooting.md).
 
-The company parent keeps setting Java, plugins and build checks. `stratum-parent`'s build checks do
-not apply in this setup; the company parent's apply instead.
+The company parent keeps setting plugins and build checks, but the service must build with Java 25.
+`stratum-parent`'s build checks do not apply in this setup; the company parent's apply instead
+([what you lose without `stratum-parent`](../getting-started/with-stratum-bom.md#what-you-lose-without-stratum-parent)).
 
 ## Setup C: fork Stratum under the company parent
 
@@ -257,6 +228,6 @@ scan picks up follows its module's switch, so it stays off when the module is tu
 
 | Problem | Likely cause | Fix |
 | --- | --- | --- |
-| `NoSuchMethodError` or `ClassNotFoundException` from a Spring class at startup, after an `SX-CORE-1005` warning | The company parent manages a Spring Boot version outside Stratum's line | Use the Stratum release that supports it, or wait for one. See [Versioning and upgrades](upgrading.md) |
+| `NoSuchMethodError` or `ClassNotFoundException` from a Spring class once the service starts, with an `SX-CORE-1005` warning in the log. The warning is written when startup begins, so a failure during the build, such as `repackage` failing with "Unsupported class file major version 69" under a Spring Boot 3 parent, comes with no warning | The company parent manages a Spring Boot version outside Stratum's line | Use the Stratum release that supports it, or wait for one. See [Versioning and upgrades](upgrading.md) |
 | A Stratum bean is used instead of the company's | The company bean is created later or has a different type | Order the company auto-configuration with `beforeName`, or turn the Stratum module off |
 | `NoSuchMethodError` at startup | A library's version comes from the company parent and is older than Stratum needs | Compare `mvn dependency:tree` with the release notes and align the company parent |

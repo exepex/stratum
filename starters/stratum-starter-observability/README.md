@@ -28,13 +28,16 @@ slow or fast. Dashboards and alerts decide that.
 **OTLP** is OpenTelemetry's protocol for sending metrics and traces. An **OpenTelemetry
 Collector** is a small service, usually run once per cluster or next to each pod, that receives OTLP
 and forwards it to the backends your company uses. Changing backend then means changing the
-Collector's configuration, not your service.
+Collector's configuration, not your service. Which backends and transports Stratum tests, and every
+known gap of this module, are on [known gaps and backends](../../docs/modules/observability-known-gaps.md);
+what a service with JWTs, PostgreSQL, Redis and JMS sees is on
+[observing your service's stack](../../docs/modules/observability-service-stack.md).
 
 ## Add it
 
 ```xml
 <dependency>
-  <groupId>com.exepex.stratum</groupId>
+  <groupId>io.github.exepex.stratum</groupId>
   <artifactId>stratum-starter-observability</artifactId>
 </dependency>
 ```
@@ -92,17 +95,22 @@ and installs the OpenTelemetry appender itself.
 
 | Feature | Behaviour |
 | --- | --- |
-| Metrics | Spring Boot's metrics (HTTP server and client, JVM, connection pools, caches, `@Scheduled` jobs, Spring Batch jobs), pushed over OTLP every minute |
+| Metrics | Spring Boot's metrics (HTTP server and client, JVM, connection pools, caches, including those made on their first use ([Cache → Metrics](../../docs/modules/cache.md#metrics)), `@Scheduled` jobs, Spring Batch jobs), pushed over OTLP every minute |
 | Tags on every metric | `application` from `spring.application.name`, `environment` from [`stratum.environment`](../../docs/configuration/reference.md#shared-properties), and `host` from the `HOSTNAME` environment variable, which in Kubernetes is the pod's name. Each is left out when its value is not set |
 | Timings as histograms | Every timer, such as HTTP server and client calls, `@Scheduled` jobs and Spring Batch steps, is sent as a base-2 exponential histogram ([below](#timings)) |
 | Tag guard | A metric with a tag named like an ID, such as `userId`, is dropped with one warning; the RabbitMQ routing key is removed from send timers ([below](#tag-guard)) |
+| Meter caps | At most 10,000 meters and 100 HTTP client hosts; past a cap, new meters are dropped with one warning ([meter caps](../../docs/modules/observability-metrics.md)) |
 | Correlation ID | In the logging context of every traced operation, so log lines and error reports carry it ([traces](../../docs/modules/observability-traces.md#correlation-id)) |
 | Other threads | `@Async` methods and Spring Boot's executors keep the caller's trace and correlation ID ([below](#threads-and-reactive-code)). `@Scheduled` jobs start clean, and `LinkedWork` links work that a request saves for a later job back to that request ([guide](../../docs/guides/linking-later-work.md)) |
 | Messages | Kafka, JMS (IBM MQ, ActiveMQ) and RabbitMQ: sending and handling a message are timed and traced, and the consumer joins the sender's trace and correlation ID ([below](#messages)) |
-| Traces | OpenTelemetry traces. A request joins the caller's trace from its W3C `traceparent`, B3 `b3` or B3 multi `X-B3-*` header; calls made with Spring's HTTP clients send W3C `traceparent` only. To send B3 as well, set Spring Boot's `management.tracing.propagation.produce` ([examples](#examples)). Spring Boot keeps 10% of new traces, and always follows the caller's decision, so a trace is never half kept |
-| Trace and metric resource | `service.name` from `spring.application.name` (set by Spring Boot), `deployment.environment.name` from `stratum.environment`, and `service.instance.id`, the [instance ID](../../docs/configuration/reference.md#instance-id) of this running copy, which its log lines carry too |
-| URLs on spans | The full URL of each HTTP client call, query string included, is kept on its span; only the user info is removed. Metrics never carry the query ([traces](../../docs/modules/observability-traces.md#urls-on-spans-and-metrics)) |
-| Health | `/actuator/health`, with Spring Boot's Kubernetes `liveness` and `readiness` groups |
+| Traces | OpenTelemetry traces. A request joins the caller's trace from its W3C `traceparent`, B3 `b3` or B3 multi `X-B3-*` header; calls made with Spring's HTTP clients send W3C `traceparent` only. To send B3 as well, set Spring Boot's `management.tracing.propagation.produce` ([examples](#examples)). Spring Boot keeps 10% of traces. Stratum makes each service choose by trace ID, so a caller's sampled flag cannot make it keep more, and services with the same probability keep the same traces ([sampling](../../docs/modules/observability-traces.md#sampling)). With the cache starter, Redis cache command spans carry `cache.name` ([Cache → Traces](../../docs/modules/cache-traces.md)) |
+| Trace and metric resource | `service.name` from `spring.application.name` (set by Spring Boot), `deployment.environment.name` from `stratum.environment`, and `service.instance.id`, the [instance ID](../../docs/configuration/shared-settings.md#instance-id) of this running copy, which its log lines carry too |
+| Baggage | Only `correlationId` and Spring Boot's remote fields are read from callers and sent on; other entries are dropped ([baggage](../../docs/modules/observability-traces.md#baggage)) |
+| Errors on spans | A failed span keeps its `ERROR` status but carries no exception type, message or stack trace, which belong in the logs; metrics keep their `exception` tag ([traces](../../docs/modules/observability-traces.md#errors-on-spans)) |
+| Error codes | With a web starter, each request's timer has an `error.code` tag, the code it failed with or `none`, and its span carries the code when there is one ([traces](../../docs/modules/observability-traces.md#error-codes-on-requests)) |
+| URLs on spans | Each HTTP client call's URL is kept on its span up to 1,024 characters ([span size](../../docs/modules/observability-traces.md#span-size)), without its user info and with its query values masked like log lines, such as `api_key=****`. Metrics never carry the query ([traces](../../docs/modules/observability-traces.md#urls-on-spans-and-metrics)) |
+| Dropped spans | Spans lost because the export queue was full are counted in `stratum.observability.spans.dropped`, with the alert to set ([traces](../../docs/modules/observability-traces.md#dropped-spans)) |
+| Health | `/actuator/health`, with Spring Boot's Kubernetes `liveness` and `readiness` groups; probes are timed but not traced ([traces](../../docs/modules/observability-traces.md#health-probes)) |
 | Safe exposure | Only `health` and `info` are reachable over HTTP |
 | Startup check | With the module on, startup stops if an export address is missing, in every profile ([below](#startup-check)) |
 | No Collector on your laptop | With an address on `localhost`, metrics and spans that cannot be sent are dropped without a failed-send log; a full span queue still logs a warning ([below](#running-without-a-collector)) |
@@ -114,7 +122,9 @@ Spring Boot sends the last metrics and traces when the application stops.
 
 Every metric carries the `host` tag, so a dashboard can show one pod alone or all pods together. If
 one pod out of ten is slow, filter on `host` to see it. Outside Kubernetes, set `HOSTNAME` in the
-service's environment to get the tag.
+service's environment to get the tag. A new pod has a new `host` and a new `service.instance.id`, so
+each rollout starts new series for every metric. This is by design: sum by `application` to see one
+line across rollouts.
 
 ### Timings
 
@@ -191,7 +201,8 @@ Reactor's context propagation, even without WebFlux or WebClient. Every line in 
 any operator carries the request's trace and correlation ID, never another request's, and `WebClient`
 sends `baggage` like `RestClient`. Setting `spring.reactor.context-propagation=limited` keeps
 Spring Boot's own mode, where only `handle` and `tap` lines carry them. The same setting carries the logging
-starter's [workflow fields](../../docs/modules/logging-workflows.md#async-and-reactive-work).
+starter's [workflow fields](../../docs/modules/logging-workflows.md#async-and-reactive-work). What
+`auto` costs per operator is not measured yet ([#131](https://github.com/exepex/stratum/issues/131)).
 
 ### Startup check
 
@@ -227,7 +238,8 @@ of which would otherwise print a stack trace at every attempt. The data is dropp
 logs. One warning stays, at any address: when spans are made faster than they can be sent,
 OpenTelemetry keeps at most 2048 waiting by default (Spring Boot's
 `management.opentelemetry.tracing.export.max-queue-size`), and at each export after a drop it logs
-`BatchSpanProcessor dropped <n> span(s) since the last export because the queue is full`.
+`BatchSpanProcessor dropped <n> span(s) since the last export because the queue is full`. Each
+dropped span is also counted ([dropped spans](../../docs/modules/observability-traces.md#dropped-spans)).
 
 To see the failed sends again, set the two log levels, in `application.properties`:
 
@@ -249,7 +261,16 @@ With the gRPC transport, the second logger is `io.opentelemetry.exporter.interna
 Any other address, such as `http://otel-collector:4318`, keeps both: a warning with a stack trace at
 every metrics push, every minute by default, and an error with a stack trace for each batch of
 spans that cannot be sent, so a broken Collector in a shared environment is noticed. The service
-keeps running.
+keeps running. When it stops, it sends the spans still queued and waits for the Collector up to
+Spring Boot's `management.opentelemetry.tracing.export.timeout`, 30 s by default, so a Collector that
+never answers can slow shutdown by that much ([#227](https://github.com/exepex/stratum/issues/227)).
+
+A batch of spans whose connection fails or times out, or that the Collector refuses with HTTP 429,
+502, 503 or 504, or over gRPC with `UNAVAILABLE`, `RESOURCE_EXHAUSTED` or another retryable status,
+is sent again: up to 5 attempts, waiting about 1 s, then up to 5 s, between them. This is
+OpenTelemetry's default retry, which Spring Boot keeps; Stratum does not test it. Metrics are not
+sent again: a push that fails is lost, and the next push, a minute later, sends every meter's
+current value.
 
 ## Properties
 
@@ -262,6 +283,10 @@ value you set wins, from any file, the environment, the command line or Java def
 | `stratum.observability.enabled` | boolean | `true` | no such key | Whether the starter is on. With `false`, the starter sets up nothing and turns export off. |
 | `stratum.observability.tags.extra-forbidden` | list of strings | empty | no such key | More tag names the [tag guard](#tag-guard) refuses, added to the built-in ones. Case, `_`, `-` and `.` are ignored. A blank name stops startup with `SX-CORE-1003`. |
 | `stratum.observability.tags.allowed` | list of strings | empty | no such key | Tag names the [tag guard](#tag-guard) keeps even though they are refused by default, such as `customerId`. Compared like `extra-forbidden`. A blank name stops startup with `SX-CORE-1003`. |
+| `stratum.observability.baggage.allowed` | list of strings | `correlationId` | no such key | The [baggage](../../docs/modules/observability-traces.md#baggage) names read from callers and sent on calls and messages; every other entry is dropped. Spring Boot's `management.tracing.baggage.remote-fields` are always kept too. Names match exactly, case included. A list you set replaces the default, so keep `correlationId` in it. A blank name stops startup with `SX-CORE-1003`. |
+| `stratum.observability.metrics.max-meters` | integer | `10000` | no such key | The most meters each metrics registry holds; past it, new meters are dropped with one `SX-OBSERVABILITY-1003` warning ([meter caps](../../docs/modules/observability-metrics.md)). Zero or less stops startup with `SX-CORE-1003`. |
+| `stratum.observability.metrics.max-client-names` | integer | `100` | no such key | The most hosts the HTTP client metrics keep in their `client.name` tag; past it, calls to new hosts are not timed, with one `SX-OBSERVABILITY-1003` warning ([meter caps](../../docs/modules/observability-metrics.md)). Zero or less stops startup with `SX-CORE-1003`. |
+| `stratum.observability.tracing.health-probes` | boolean | `false` | no such key | Whether health probe requests, such as Kubernetes liveness and readiness checks, get spans. With `false`, probes keep their timers but make no spans ([traces](../../docs/modules/observability-traces.md#health-probes)). |
 | `management.otlp.metrics.export.enabled` | boolean | `false` while the module is off | `true` | Whether metrics are sent. |
 | `management.tracing.export.enabled` | boolean | `false` while the module is off | `true` | Whether spans are sent. |
 | `management.endpoints.web.exposure.include` | list of endpoint IDs | `health,info` | `health` | The actuator endpoints served over HTTP. Add other endpoints only behind authentication. |
@@ -269,9 +294,13 @@ value you set wins, from any file, the environment, the command line or Java def
 | `management.metrics.tags.environment` | string | value of `stratum.environment` | none | The `environment` tag on every metric. |
 | `management.metrics.tags.host` | string | value of the `HOSTNAME` environment variable | none | The `host` tag on every metric, the pod's name on Kubernetes. |
 | `management.opentelemetry.resource-attributes[deployment.environment.name]` | string | value of `stratum.environment` | none | The environment on every span. |
-| `management.opentelemetry.resource-attributes[service.instance.id]` | string | `service.instance.id` from `OTEL_RESOURCE_ATTRIBUTES`, else a random [instance ID](../../docs/configuration/reference.md#instance-id) | none, so no instance ID | The running copy on every span and metric. |
+| `management.opentelemetry.resource-attributes[service.instance.id]` | string | `service.instance.id` from `OTEL_RESOURCE_ATTRIBUTES`, else a random [instance ID](../../docs/configuration/shared-settings.md#instance-id) | none, so no instance ID | The running copy on every span and metric. |
 | `management.metrics.distribution.percentiles-histogram.all` | boolean | `true` | none, so no histogram | Every timing is a [histogram](#timings). `false` keeps only count, sum and max. |
 | `management.otlp.metrics.export.histogram-flavor` | `explicit-bucket-histogram` or `base2-exponential-bucket-histogram` | `base2-exponential-bucket-histogram` | `explicit-bucket-histogram` | How histograms are sent. |
+| `management.opentelemetry.tracing.sampler` | `always-on`, `always-off`, `trace-id-ratio`, `parent-based-always-on`, `parent-based-always-off` or `parent-based-trace-id-ratio` | `trace-id-ratio` | `parent-based-trace-id-ratio` | How each service chooses the traces it keeps: by trace ID, so a caller cannot ask for more ([sampling](../../docs/modules/observability-traces.md#sampling)). |
+| `management.opentelemetry.tracing.limits.max-attribute-value-length` | int | `1024` | no limit | The longest attribute value on a span, in characters; longer values are cut ([span size](../../docs/modules/observability-traces.md#span-size)). |
+| `management.opentelemetry.tracing.limits.max-attributes` | int | `64` | `128` | The most attributes one span keeps. |
+| `management.opentelemetry.tracing.limits.max-events` | int | `16` | `128` | The most events one span keeps. |
 | `spring.task.execution.propagate-context` | boolean | `true` | `false` | Whether `@Async` methods and Spring Boot's executors keep the trace ([threads](#threads-and-reactive-code)). |
 | `spring.reactor.context-propagation` | `limited` or `auto` | `auto` | `limited` | Whether every Reactor operator keeps the trace, not only `handle` and `tap` ([threads](#threads-and-reactive-code)). |
 | `spring.kafka.template.observation-enabled`, `spring.kafka.listener.observation-enabled` | boolean | `true` | `false` | Whether Kafka sends and listeners are traced and timed ([messages](#messages)). |
@@ -388,7 +417,8 @@ public class OrdersObservabilitySettings implements ObservabilityPropertiesCusto
   @Override
   public ObservabilityProperties customize(ObservabilityProperties properties) {
     var tags = properties.tags().toBuilder().extraForbidden(List.of("tenantId")).build();
-    return properties.toBuilder().tags(tags).build();
+    var tracing = properties.tracing().toBuilder().healthProbes(true).build();
+    return properties.toBuilder().tags(tags).tracing(tracing).build();
   }
 }
 ```
@@ -415,6 +445,11 @@ The switch and the Spring Boot properties above are set in Java through
 - **Your own tag rule:** declare a `MetricTagGuard` bean; Stratum's then backs off.
 - **Your own correlation ID handling:** declare a `CorrelationIdRecorder` bean; Stratum's then
   backs off.
+- **Exception data on spans:** a bean named `stratumExceptionFreeSpans` replaces the
+  post-processor that keeps exception data off your spans
+  ([errors on spans](../../docs/modules/observability-traces.md#errors-on-spans)); declare it
+  `static`, as any `BeanPostProcessor`. Your spans then carry the exception's message, which can
+  hold personal data.
 - **Not replaceable:** the Spring Boot defaults and the export address check run before any bean
   exists, so no bean of yours replaces them. `stratum.observability.enabled` turns them all off;
   turning an export off also satisfies the check for that export ([startup check](#startup-check)).
@@ -438,10 +473,10 @@ sent, and Spring Boot's own actuator defaults apply.
 
 | Feature | What it adds |
 | --- | --- |
-| How each app type is observed | Docs for batch, command-line and reactive services |
-| Cloud queues | Traces and timings for Amazon SQS, Azure Service Bus and Google Pub/Sub, with the cloud starters |
-| Vendor and cloud recipes | Collector setups for Datadog, New Relic, Splunk, Dynatrace, AWS, Azure and Google Cloud |
-| Profiling | The Pyroscope profiler, after a licence and overhead check |
+| How each app type is observed | Docs for batch, command-line and reactive services ([issue #303](https://github.com/exepex/stratum/issues/303)) |
+| Cloud queues | Traces and timings for Amazon SQS, Azure Service Bus and Google Pub/Sub, with the cloud starters ([issue #304](https://github.com/exepex/stratum/issues/304)) |
+| Vendor and cloud recipes | Collector setups for Datadog, New Relic, Splunk, Dynatrace, AWS, Azure and Google Cloud ([issue #305](https://github.com/exepex/stratum/issues/305)) |
+| Profiling | The Pyroscope profiler, after a licence and overhead check ([issue #306](https://github.com/exepex/stratum/issues/306)) |
 
 ## Troubleshooting
 
@@ -450,9 +485,11 @@ sent, and Spring Boot's own actuator defaults apply.
 | Startup stops with `SX-OBSERVABILITY-1001` | Set the property the message names to your Collector's address, turn that export off, or turn the module off with `stratum.observability.enabled=false`. |
 | No metrics or traces arrive | `stratum.observability.enabled` is not `true`, or the Collector is not reachable at the configured address. Look for export errors in the log. |
 | Traces break between two services | The caller does not use Spring's `RestClient`, `WebClient` or `RestTemplate` from Spring Boot's builder, so no `traceparent` header is sent. |
+| A trace has spans from only some services | The services have different `management.tracing.sampling.probability` values, so each keeps a different set of traces. Give every service in the chain the same probability ([sampling](../../docs/modules/observability-traces.md#sampling)). |
 | A message's trace ends at the sender | The consumer service does not have this module on, or sets its listener's `observation-enabled` switch to `false` ([messages](#messages)). |
 | No `host` tag | `HOSTNAME` is not set in the service's environment. |
 | A metric is missing and the log shows `SX-OBSERVABILITY-1002` | One of its tags is named like an ID. Remove the tag, or rename it if it holds only a few fixed values. |
+| A metric is missing and the log shows `SX-OBSERVABILITY-1003` | A meter cap is reached, usually because a tag holds unbounded values ([meter caps](../../docs/modules/observability-metrics.md)). |
 | No percentiles in the metrics backend | It does not accept OTLP exponential histograms; see [Timings](#timings). |
 | `/actuator/prometheus` returns 404 | Prometheus is not set up; see the [example](#examples). |
 | Readiness stays `DOWN` | Open `/actuator/health/readiness` as an authorised caller to see which component fails. |

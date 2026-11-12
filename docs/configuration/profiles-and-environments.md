@@ -38,7 +38,15 @@ stratum:
   http-client:
     clients:
       inventory:
-        base-url: http://inventory-service   # name inside the cluster
+        url: http://inventory-service   # name inside the cluster
+```
+
+Or, as `application.properties`:
+
+```properties
+spring.application.name=order-service
+stratum.logging.format=ecs
+stratum.http-client.clients.inventory.url=http://inventory-service
 ```
 
 `application-local.yml`:
@@ -54,7 +62,7 @@ stratum:
   http-client:
     clients:
       inventory:
-        base-url: http://localhost:8081
+        url: http://localhost:8081
 ```
 
 Or, as `application-local.properties`:
@@ -62,7 +70,7 @@ Or, as `application-local.properties`:
 ```properties
 stratum.logging.format=text
 management.tracing.sampling.probability=1.0
-stratum.http-client.clients.inventory.base-url=http://localhost:8081
+stratum.http-client.clients.inventory.url=http://localhost:8081
 ```
 
 ### Switching a profile on
@@ -95,7 +103,7 @@ In containers, set properties with environment variables. Kubernetes example:
 env:
   - name: SPRING_PROFILES_ACTIVE
     value: prod
-  - name: STRATUM_HTTPCLIENT_CLIENTS_INVENTORY_BASEURL
+  - name: STRATUM_HTTPCLIENT_CLIENTS_INVENTORY_URL
     value: http://inventory-service.prod.svc.cluster.local
   - name: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
     value: "0.05"
@@ -110,7 +118,13 @@ spring:
     import: "optional:configtree:/etc/config/"
 ```
 
-A file `/etc/config/stratum.http-client.clients.inventory.base-url` then sets that property.
+or, in `application.properties`:
+
+```properties
+spring.config.import=optional:configtree:/etc/config/
+```
+
+A file `/etc/config/stratum.http-client.clients.inventory.url` then sets that property.
 
 The rules for converting a property name into an environment variable are in
 [Configuration basics](basics.md#environment-variables-and-command-line-arguments).
@@ -155,7 +169,7 @@ Reading secrets straight from a cloud secret manager is covered in [Cloud connec
 
 - [ ] `spring.application.name` set (it should be the same in every environment)
 - [ ] Profile chosen and activated with `SPRING_PROFILES_ACTIVE`
-- [ ] Every downstream `base-url` points at the right environment
+- [ ] Every downstream `url` points at the right environment
 - [ ] Issuer URI for token validation points at the right identity provider
 - [ ] Secrets come from the platform's secret store, not from files
 - [ ] Tracing sampling rate suits the traffic (lower for high volume)

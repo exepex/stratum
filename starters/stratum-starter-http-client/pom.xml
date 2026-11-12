@@ -5,7 +5,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.exepex.stratum</groupId>
+    <groupId>io.github.exepex.stratum</groupId>
     <artifactId>stratum-library-parent</artifactId>
     <version>${revision}</version>
     <relativePath>../../platform/stratum-library-parent/pom.xml</relativePath>
@@ -14,5 +14,204 @@
   <artifactId>stratum-starter-http-client</artifactId>
 
   <name>Stratum starter: HTTP client</name>
-  <description>Planned: Declarative HTTP clients with timeouts, tracing, tokens and retries.</description>
+  <description>Blocking clients of other services: @StratumClient interfaces on RestClient and Apache HttpClient 5, each with its own timeouts and bounded connection pool.</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>io.github.exepex.stratum</groupId>
+      <artifactId>stratum-http-client</artifactId>
+    </dependency>
+    <!-- Spring Boot's RestClient set-up and Spring's HTTP service groups, which turn each
+         @StratumClient interface into a client. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-restclient</artifactId>
+    </dependency>
+    <!-- Sends the calls of Stratum's clients. Unlike Java's own client, it has a connection pool per
+         client that can be bounded, a wait for a free connection and a connection lifetime. -->
+    <dependency>
+      <groupId>org.apache.httpcomponents.client5</groupId>
+      <artifactId>httpclient5</artifactId>
+    </dependency>
+    <!-- The one retry layer and the circuit breaker of each client (ADR 0011, decision 4.1),
+         for its interfaces and its RestClient and RestTemplate beans (ADR 0014). Spring Boot does
+         not manage Resilience4j; a client with its own engine gets them in the planned #262. -->
+    <dependency>
+      <groupId>io.github.resilience4j</groupId>
+      <artifactId>resilience4j-retry</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.github.resilience4j</groupId>
+      <artifactId>resilience4j-circuitbreaker</artifactId>
+    </dependency>
+    <!-- The servlet API, to read the headers that copy-headers copies from the request the service is
+         answering; Spring has no servlet-free way to read them. Optional: a service without it, such
+         as a batch job, never loads a servlet class and copies nothing. Version from Spring Boot. -->
+    <dependency>
+      <groupId>jakarta.servlet</groupId>
+      <artifactId>jakarta.servlet-api</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <!-- Optional: the meters of each call, retry, breaker state and pool (ADR 0016). Micrometer's
+         core holds the registry and the Apache HttpClient 5 pool binder; a service gets it with
+         Spring Boot's Actuator or the observability starter, and without it the starter makes no
+         meters. Spring Boot manages its version. -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-core</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <!-- Spring's test framework, for the listener that clears the mocks of MockClient after each
+         test. Optional: a running service never loads the listener, and a team's tests already
+         have it through spring-boot-starter-test. -->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-test</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <!-- The web starter's error answers, to check the statuses this starter gives its codes. -->
+    <dependency>
+      <groupId>io.github.exepex.stratum</groupId>
+      <artifactId>stratum-web</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Optional: the service token of auth.client-credentials, which a team gets by adding
+         stratum-starter-oauth2-client, and the caller's verified token of auth.token-relay, which
+         Spring Security's resource server puts in the security context. Stratum's OAuth parts load
+         only when these are present. -->
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-oauth2-client</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-oauth2-resource-server</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <!-- The checks and set-up that every starter's tests share. -->
+    <dependency>
+      <groupId>io.github.exepex.stratum</groupId>
+      <artifactId>stratum-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- The registrations of client-credentials, as a team gets them with the starter. -->
+    <dependency>
+      <groupId>io.github.exepex.stratum</groupId>
+      <artifactId>stratum-starter-oauth2-client</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- A verified JWT in the security context, as the resource server leaves it, for relay. -->
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-oauth2-jose</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- The logging starter's redaction, under which the call log writes the called URL. The shared
+         test settings switch it off; the tests in it.redaction switch it on in their own fork. -->
+    <dependency>
+      <groupId>io.github.exepex.stratum</groupId>
+      <artifactId>stratum-starter-logging</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- The observability starter's tracing, under which the tests in it.trace check the trace
+         headers each client sends. The default execution leaves it and its tracing and metrics
+         libraries out, so the other tests run with no tracer and no meter registry. -->
+    <dependency>
+      <groupId>io.github.exepex.stratum</groupId>
+      <artifactId>stratum-starter-observability</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Reactor, for the client with a Mono method that the blocking starter refuses at startup. -->
+    <dependency>
+      <groupId>io.projectreactor</groupId>
+      <artifactId>reactor-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Jackson 2, which a team can still choose for its clients' JSON, so that the tests read bad
+         and cut-off bodies with the real converter. Test scope only: Stratum's own code needs no
+         Jackson 2, and no other dependency gives its converter's real failures (ST-ENG-62). -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!-- Spring Boot keeps the console format in a JVM-wide setting, so the tests that switch the
+           logging starter on run in a second execution, in a fork of their own. The tests of the
+           trace headers run in a third, the only one with the observability starter's tracing and
+           metrics on the classpath: the others leave those libraries out, so they run with no
+           tracer and no meter registry. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <configuration>
+          <classpathDependencyExcludes>
+            <classpathDependencyExclude>io.github.exepex.stratum:stratum-starter-observability</classpathDependencyExclude>
+            <classpathDependencyExclude>org.springframework.boot:spring-boot-starter-actuator</classpathDependencyExclude>
+            <classpathDependencyExclude>org.springframework.boot:spring-boot-actuator</classpathDependencyExclude>
+            <classpathDependencyExclude>org.springframework.boot:spring-boot-actuator-autoconfigure</classpathDependencyExclude>
+            <classpathDependencyExclude>org.springframework.boot:spring-boot-health</classpathDependencyExclude>
+            <classpathDependencyExclude>org.springframework.boot:spring-boot-starter-micrometer-metrics</classpathDependencyExclude>
+            <classpathDependencyExclude>org.springframework.boot:spring-boot-micrometer-metrics</classpathDependencyExclude>
+            <classpathDependencyExclude>org.springframework.boot:spring-boot-micrometer-observation</classpathDependencyExclude>
+            <classpathDependencyExclude>org.springframework.boot:spring-boot-micrometer-tracing</classpathDependencyExclude>
+            <classpathDependencyExclude>org.springframework.boot:spring-boot-micrometer-tracing-opentelemetry</classpathDependencyExclude>
+            <classpathDependencyExclude>org.springframework.boot:spring-boot-starter-opentelemetry</classpathDependencyExclude>
+            <classpathDependencyExclude>org.springframework.boot:spring-boot-opentelemetry</classpathDependencyExclude>
+            <classpathDependencyExclude>io.micrometer:micrometer-tracing</classpathDependencyExclude>
+            <classpathDependencyExclude>io.micrometer:micrometer-tracing-bridge-otel</classpathDependencyExclude>
+            <classpathDependencyExclude>io.micrometer:micrometer-registry-otlp</classpathDependencyExclude>
+            <classpathDependencyExclude>io.micrometer:micrometer-jakarta9</classpathDependencyExclude>
+          </classpathDependencyExcludes>
+        </configuration>
+        <executions>
+          <execution>
+            <id>default</id>
+            <configuration>
+              <excludes>
+                <exclude>**/it/redaction/**</exclude>
+                <exclude>**/it/trace/**</exclude>
+              </excludes>
+            </configuration>
+          </execution>
+          <execution>
+            <id>redaction</id>
+            <goals>
+              <goal>integration-test</goal>
+              <goal>verify</goal>
+            </goals>
+            <configuration>
+              <includes>
+                <include>**/it/redaction/*IntegrationTest.java</include>
+              </includes>
+              <summaryFile>${project.build.directory}/failsafe-reports/failsafe-summary-redaction.xml</summaryFile>
+            </configuration>
+          </execution>
+          <execution>
+            <id>trace</id>
+            <goals>
+              <goal>integration-test</goal>
+              <goal>verify</goal>
+            </goals>
+            <configuration>
+              <classpathDependencyExcludes combine.self="override"/>
+              <includes>
+                <include>**/it/trace/*IntegrationTest.java</include>
+              </includes>
+              <summaryFile>${project.build.directory}/failsafe-reports/failsafe-summary-trace.xml</summaryFile>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 </project>

@@ -5,7 +5,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.exepex.stratum</groupId>
+    <groupId>io.github.exepex.stratum</groupId>
     <artifactId>stratum-library-parent</artifactId>
     <version>${revision}</version>
     <relativePath>../../platform/stratum-library-parent/pom.xml</relativePath>
@@ -18,8 +18,14 @@
 
   <dependencies>
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-core</artifactId>
+    </dependency>
+    <!-- Masks the query values of each HTTP client call's URL on its span with the same rules the
+         logging starter uses on log lines. -->
+    <dependency>
+      <groupId>io.github.exepex.stratum</groupId>
+      <artifactId>stratum-redaction</artifactId>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -49,6 +55,13 @@
       <artifactId>spring-web</artifactId>
       <optional>true</optional>
     </dependency>
+    <!-- Gives the observation registry to the JMS senders and listeners a service declares itself.
+         Optional: only a service that uses JMS has it. -->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-jms</artifactId>
+      <optional>true</optional>
+    </dependency>
     <!-- Runs a Mono or Flux as linked work. Optional: only a service that uses Reactor has it. -->
     <dependency>
       <groupId>io.projectreactor</groupId>
@@ -57,7 +70,7 @@
     </dependency>
     <!-- The checks and set-up that every starter's tests share. -->
     <dependency>
-      <groupId>com.exepex.stratum</groupId>
+      <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-test</artifactId>
       <scope>test</scope>
     </dependency>
