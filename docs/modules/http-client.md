@@ -114,10 +114,10 @@ in proxy and server logs that Stratum does not control. Send it in the request b
 
 | What | Behaviour |
 | --- | --- |
-| Timeouts | A connection must open within `connect-timeout` (2s). The first byte of an answer, and each byte after it, must come within `timeout` (5s). An answer whose body keeps coming is cut off when `total-timeout` runs out, except a streamed download ([Streaming](#streaming)). |
+| Timeouts | A connection must open within `connect-timeout` (2s). The first byte of an answer, and each byte after it, must come within `timeout` (5s). An answer whose status line, headers or body keep coming is cut off when `total-timeout` runs out, except a streamed download ([Streaming](#streaming)). |
 | A pool per client | At most `max-connections` (50) connections. A call that finds them all busy waits at most `max-wait` (2s), then fails. A slow service fills only its own client's pool. |
 | Safe retries | A call is sent again only when that is safe ([retries and the circuit breaker](http-client-resilience.md)). Apache HttpClient 5's own retries are off. |
-| A time limit per call | The whole call, retries, waits and the answer's body included, ends within `total-timeout` (8s), except a streamed download's body. A call that does not read the body, such as a method that returns `void`, gets its status and headers, and the rest of the body is dropped. |
+| A time limit per call | The whole call, retries, waits and the answer's head and body included, ends within `total-timeout` (8s), except a streamed download's answer. A call that does not read the body, such as a method that returns `void`, gets its status and headers, and the rest of the body is dropped. |
 | A circuit breaker | When most recent calls fail, the client stops calling the service for a while and fails at once. |
 | Clear errors | A timeout ends with `SX-HTTPC-0001` (`504`), no answer with `SX-HTTPC-0002` (`503`), an open breaker with `SX-HTTPC-0003` (`503`), and an error answer with a `DownstreamException` holding at most 64 KB of its body ([errors](http-client-errors.md)). |
 | A limit on answers | A successful answer's body is read up to `response-body-limit` (32 MB); a larger one fails with `SX-HTTPC-0006` ([errors](http-client-errors.md#the-answer-body-is-read-up-to-32-mb)). A method returning `InputStream` is not limited. |
@@ -150,7 +150,7 @@ the shared default, which wins over Stratum's.
 | `retry.delay` | duration | `200ms` | no such key | The wait before the first retry. |
 | `retry.multiplier` | number | `2.0` | no such key | How much each wait grows, from 1.0 to 10.0. Only with `exponential`. |
 | `retry.max-delay` | duration | `2s`, or `delay` when longer | no such key | The longest single wait, at least `delay`. Only with `exponential`. |
-| `total-timeout` | duration | `8s` | no such key | The time allowed for a whole call: every attempt, its wait for a connection, the waits between attempts and its answer's body, except a streamed download's. |
+| `total-timeout` | duration | `8s` | no such key | The time allowed for a whole call: every attempt, its wait for a connection, the waits between attempts and its answer's head and body, except a streamed download's. |
 | `circuit-breaker.enabled` | boolean | `true` | no such key | Whether the client has a circuit breaker. |
 | `circuit-breaker.failure-rate-threshold` | percent | `50` | no such key | The share of counted attempts, from 1 to 100, that must fail for the breaker to open. |
 | `circuit-breaker.sliding-window-size` | int | `100` | no such key | How many of the latest attempts the failure rate is taken over, from 1 to 10000. |

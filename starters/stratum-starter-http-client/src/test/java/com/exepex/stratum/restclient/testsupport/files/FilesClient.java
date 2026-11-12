@@ -3,6 +3,7 @@ package com.exepex.stratum.restclient.testsupport.files;
 import com.exepex.stratum.httpclient.StratumClient;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import com.exepex.stratum.restclient.testsupport.StreamingDownstream;
+import com.exepex.stratum.restclient.testsupport.TricklingHeadDownstream;
 import java.io.InputStream;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
@@ -83,6 +84,48 @@ public interface FilesClient {
    */
   @GetExchange(StreamingDownstream.LATE_STALL)
   String lateStallText();
+
+  /**
+   * Gets an answer sent at once, from a {@link TricklingHeadDownstream}.
+   *
+   * @return the body
+   */
+  @GetExchange(TricklingHeadDownstream.OK)
+  String headOk();
+
+  /**
+   * Gets an answer whose head comes one byte at a time, from a {@link TricklingHeadDownstream}.
+   *
+   * @return the body
+   */
+  @GetExchange(TricklingHeadDownstream.TRICKLED_HEAD)
+  String trickledHead();
+
+  /**
+   * Downloads an answer whose head comes one byte at a time, from a {@link
+   * TricklingHeadDownstream}.
+   *
+   * @return the body, as it arrives
+   */
+  @GetExchange(TricklingHeadDownstream.TRICKLED_HEAD)
+  InputStream trickledHeadDownload();
+
+  /**
+   * Gets an answer that stops after its status line, from a {@link TricklingHeadDownstream}.
+   *
+   * @return the body
+   */
+  @GetExchange(TricklingHeadDownstream.STALLED_HEAD)
+  String stalledHead();
+
+  /**
+   * Gets an answer with a line of junk before its status line, from a {@link
+   * TricklingHeadDownstream}.
+   *
+   * @return the body
+   */
+  @GetExchange(TricklingHeadDownstream.JUNK_FIRST)
+  String junkFirst();
 
   /**
    * Uploads a body that the caller writes.
