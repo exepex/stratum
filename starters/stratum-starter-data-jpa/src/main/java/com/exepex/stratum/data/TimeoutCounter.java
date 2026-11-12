@@ -9,7 +9,13 @@ import com.exepex.stratum.data.StatementLimitRule.LimitSource;
 public interface TimeoutCounter {
 
   /** Counts nothing, for a service without Micrometer. */
-  TimeoutCounter NONE = (pool, source) -> {};
+  TimeoutCounter NONE =
+      new TimeoutCounter() {
+        @Override
+        public void count(String pool, LimitSource source) {
+          // Without Micrometer there is no counter to add to.
+        }
+      };
 
   /**
    * Counts one cancelled statement.

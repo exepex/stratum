@@ -55,6 +55,13 @@ class StatementSlotTest {
     return slot.start(statement, now.get(), ONE_SECOND);
   }
 
+  /** Ends a statement and records whether the thread is still interrupted afterwards. */
+  private void endKeepingInterrupt(
+      long running, CompletableFuture<Outcome> outcome, AtomicBoolean stillInterrupted) {
+    outcome.complete(slot.end(running, LONG_WAIT_MILLIS));
+    stillInterrupted.set(Thread.currentThread().isInterrupted());
+  }
+
   /** Ends a statement on a virtual thread, which may wait for its cancel. */
   private CompletableFuture<Outcome> endOnVirtualThread(long running, long maxWaitMillis) {
     var outcome = new CompletableFuture<Outcome>();
@@ -154,12 +161,7 @@ class StatementSlotTest {
       var stillInterrupted = new AtomicBoolean();
       var outcome = new CompletableFuture<Outcome>();
       var waiter =
-          Thread.ofPlatform()
-              .start(
-                  () -> {
-                    outcome.complete(slot.end(running, LONG_WAIT_MILLIS));
-                    stillInterrupted.set(Thread.currentThread().isInterrupted());
-                  });
+          Thread.ofPlatform().start(() -> endKeepingInterrupt(running, outcome, stillInterrupted));
 
       await().until(() -> waiter.getState() == Thread.State.TIMED_WAITING);
       waiter.interrupt();

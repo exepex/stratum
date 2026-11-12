@@ -38,7 +38,7 @@ class StatementTimeoutAnswerIntegrationTest {
    * Checks Stratum's body: the code and only its fixed description, with no limit, data source or
    * SQL.
    */
-  private static void checkStratumBody(int port) throws IOException, InterruptedException {
+  private void checkStratumBody(int port) throws IOException, InterruptedException {
     var response = WebTestSupport.getFromService(port, SlowOrdersApplication.SLOW_ORDERS);
     assertThat(response.statusCode()).isEqualTo(STATUS);
     assertThat(response.headers().firstValue("Content-Type"))
@@ -53,7 +53,7 @@ class StatementTimeoutAnswerIntegrationTest {
   }
 
   /** Checks Spring Boot's own body, with no code, as the service answered before Stratum. */
-  private static void checkBootBody(int port) throws IOException, InterruptedException {
+  private void checkBootBody(int port) throws IOException, InterruptedException {
     BackwardCompatibleErrorChecks.checkBootBodyStatus(
         port,
         SlowOrdersApplication.SLOW_ORDERS,

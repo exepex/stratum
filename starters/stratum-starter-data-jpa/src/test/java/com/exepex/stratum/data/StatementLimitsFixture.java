@@ -107,7 +107,7 @@ final class StatementLimitsFixture {
    * @param source what set the limit
    * @return the expected entry
    */
-  static String countOf(LimitSource source) {
+  String countOf(LimitSource source) {
     return POOL + "/" + source.getTag();
   }
 }

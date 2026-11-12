@@ -147,12 +147,12 @@ public class StatementLimits {
   }
 
   /** Returns the network timeout for a limit: 30 seconds longer, at most the largest int. */
-  private static int networkTimeoutFor(long limitMillis) {
+  private int networkTimeoutFor(long limitMillis) {
     return (int) Math.min(limitMillis + NETWORK_MARGIN_MILLIS, Integer.MAX_VALUE);
   }
 
   /** Returns whether a failure is the driver's report of a cancelled statement. */
-  private static boolean isCancelled(@Nullable Throwable thrown) {
+  private boolean isCancelled(@Nullable Throwable thrown) {
     return thrown instanceof SQLException failure
         && StatementTimeoutException.CANCELLED.equals(failure.getSQLState());
   }

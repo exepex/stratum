@@ -123,7 +123,7 @@ public class StatementSweeper implements AutoCloseable {
   }
 
   /** Cancels a claimed statement; a cancel that fails leaves it to the network timeout. */
-  private static void cancel(StatementSlot.Claim claim) {
+  private void cancel(StatementSlot.Claim claim) {
     try {
       claim.statement().cancel();
     } catch (SQLException ignored) {

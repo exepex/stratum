@@ -55,6 +55,13 @@ class LimitedConnectionTest {
    */
   LimitedConnectionTest() throws SQLException {}
 
+  /** Borrows a connection and returns it. */
+  private void borrowAndReturn() throws SQLException {
+    try (var connection = fixture.dataSource.getConnection()) {
+      assertThat(connection).isNotNull();
+    }
+  }
+
   /** Stops the sweeper's thread, if it started one. */
   @AfterEach
   void stopSweeper() {
@@ -181,13 +188,7 @@ class LimitedConnectionTest {
     void brokenConnectionReturned() throws SQLException {
       doThrow(postgresFailure(CONNECTION_FAILURE)).when(fixture.driverConnection).close();
       var failure =
-          catchThrowableOfType(
-              SQLException.class,
-              () -> {
-                try (var connection = fixture.dataSource.getConnection()) {
-                  assertThat(connection).isNotNull();
-                }
-              });
+          catchThrowableOfType(SQLException.class, LimitedConnectionTest.this::borrowAndReturn);
 
       assertThat(failure.getSQLState()).isEqualTo(CONNECTION_FAILURE);
       assertThat(fixture.sweeper.size()).isZero();

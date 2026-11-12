@@ -171,17 +171,17 @@ public final class StatementSlot {
   }
 
   /** Returns the deadline part of a running statement's value. */
-  private static long deadlineOf(long running) {
+  private long deadlineOf(long running) {
     return running >>> GENERATION_BITS;
   }
 
   /** Returns the value of the sweeper's claim on a running statement. */
-  private static long claimedValue(long running) {
+  private long claimedValue(long running) {
     return CLAIMED_ZERO - (running & GENERATION_MASK);
   }
 
   /** Returns the value of a claimed statement whose cancel has ended. */
-  private static long doneValue(long running) {
+  private long doneValue(long running) {
     return Long.MIN_VALUE + (running & GENERATION_MASK);
   }
 

@@ -292,6 +292,7 @@ Module page: [Data → Properties](../modules/data-jpa.md#properties).
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `stratum.data.enabled` | `Boolean` | `true` | Whether the data module is on. With false, the starter sets none of its defaults for the connection pool, Hibernate and transactions, and wraps no data source in the boundary that cleans database errors. |
+| `stratum.data.query-timeout` | `Duration` | none | How long one SQL statement may run before Stratum cancels it, when the code that runs it sets no time limit of its own. A statement in a transaction with a time limit ends by that limit too. 0 means no limit. Defaults to 30s, or to 0 with stratum.backward-compatible=true. |
 
 ## Cache
 

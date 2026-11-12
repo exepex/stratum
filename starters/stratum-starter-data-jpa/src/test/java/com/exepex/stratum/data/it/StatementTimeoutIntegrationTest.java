@@ -79,14 +79,14 @@ class StatementTimeoutIntegrationTest {
   }
 
   /** Runs a query and returns whether it gave a row. */
-  private static boolean returnsRow(PreparedStatement statement) throws SQLException {
+  private boolean returnsRow(PreparedStatement statement) throws SQLException {
     try (var resultSet = statement.executeQuery()) {
       return resultSet.next();
     }
   }
 
   /** Checks that a failure is Stratum's cancel, with the code and the pool's limit. */
-  private static void assertStratumTimeout(Throwable failure, String source) {
+  private void assertStratumTimeout(Throwable failure, String source) {
     assertThat(FailureCauses.causesOf(failure))
         .anySatisfy(
             cause ->

@@ -195,7 +195,7 @@ public final class JdbcWrapperClasses {
   }
 
   /** Returns the base class of a JDBC type's wrapper. */
-  private static Class<? extends JdbcWrapper> baseOf(Class<?> type) {
+  private Class<? extends JdbcWrapper> baseOf(Class<?> type) {
     if (Statement.class.isAssignableFrom(type)) {
       return StatementWrapper.class;
     }
@@ -203,12 +203,12 @@ public final class JdbcWrapperClasses {
   }
 
   /** Returns whether a method runs under the statement's time limit: a statement's execute. */
-  private static boolean isLimited(Class<?> base, Method method) {
+  private boolean isLimited(Class<?> base, Method method) {
     return base == StatementWrapper.class && method.getName().startsWith(EXECUTE);
   }
 
   /** Returns the advice of a class, which can replace what the call throws. */
-  private static Advice adviceOf(Class<?> adviceClass) {
+  private Advice adviceOf(Class<?> adviceClass) {
     return Advice.withCustomMapping().with(new Advice.AssignReturned.Factory()).to(adviceClass);
   }
 
@@ -227,7 +227,7 @@ public final class JdbcWrapperClasses {
   }
 
   /** Returns whether the base class implements a method itself, so it is not generated. */
-  private static boolean isImplementedBy(Class<?> base, Method method) {
+  private boolean isImplementedBy(Class<?> base, Method method) {
     try {
       var own = base.getMethod(method.getName(), method.getParameterTypes());
       return !Modifier.isAbstract(own.getModifiers())

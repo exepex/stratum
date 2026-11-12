@@ -38,6 +38,21 @@ class StatementSweeperTest {
 
   private StatementSweeper sweeper = sweeperStartingWith(startedCancels::add);
 
+  /** How many cancels the refusing starter was given. */
+  private final AtomicLong offeredCancels = new AtomicLong();
+
+  /** How many cancels the refusing starter ran. */
+  private final AtomicLong ranCancels = new AtomicLong();
+
+  /** Refuses the first cancel, as a scheduler with no carrier thread does, and runs the others. */
+  private void refuseFirstThenRun(Runnable cancel) {
+    if (offeredCancels.getAndIncrement() == 0) {
+      throw new RejectedExecutionException("no carrier thread");
+    }
+    ranCancels.incrementAndGet();
+    cancel.run();
+  }
+
   /** Returns a sweeper on the test's clock that starts each cancel with the given starter. */
   private StatementSweeper sweeperStartingWith(Consumer<Runnable> starter) {
     return new StatementSweeper(now::get, starter);
@@ -131,18 +146,8 @@ class StatementSweeperTest {
   @Test
   @DisplayName("a cancel that cannot start frees its statement at once, and the sweeps go on")
   void cancelThatCannotStart() throws SQLException {
-    var refused = new AtomicLong();
-    var ran = new AtomicLong();
     sweeper.close();
-    sweeper =
-        sweeperStartingWith(
-            cancel -> {
-              if (refused.getAndIncrement() == 0) {
-                throw new RejectedExecutionException("no carrier thread");
-              }
-              ran.incrementAndGet();
-              cancel.run();
-            });
+    sweeper = sweeperStartingWith(this::refuseFirstThenRun);
     var first = new StatementSlot();
     final long firstRunning = startIn(first, mock(Statement.class));
     var second = new StatementSlot();
@@ -157,7 +162,7 @@ class StatementSweeperTest {
 
     assertThat(first.end(firstRunning, WAIT_MILLIS)).isEqualTo(Outcome.CLAIMED);
     assertThat(second.end(secondRunning, WAIT_MILLIS)).isEqualTo(Outcome.CLAIMED);
-    assertThat(ran).hasValue(2);
+    assertThat(ranCancels).hasValue(2);
     verify(later).cancel();
   }
 

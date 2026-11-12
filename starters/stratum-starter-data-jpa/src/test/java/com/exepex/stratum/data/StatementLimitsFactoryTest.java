@@ -34,7 +34,7 @@ class StatementLimitsFactoryTest {
           Arguments.of(false, "3650d", Integer.MAX_VALUE));
 
   /** Returns the network timeout a borrow gets, which is the pool's limit plus 30 seconds. */
-  private static int borrowNetworkTimeoutWith(MockEnvironment environment) {
+  private int borrowNetworkTimeoutWith(MockEnvironment environment) {
     try (var factory =
         new StatementLimitsFactory(
             environment, mock(BeanFactory.class), Thread.currentThread().getContextClassLoader())) {
