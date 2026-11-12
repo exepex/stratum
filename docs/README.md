@@ -16,7 +16,7 @@ them in the repository's `docs/` folder, not in the wiki
 > Examples use the latest released version, `0.1.0`. These pages describe Stratum's `main` branch, which
 > may hold changes made after 0.1.0: the [0.1.0 release notes](releases/0.1.0.md) say what 0.1.0
 > contains, and [Using a snapshot](getting-started/installation.md#using-a-snapshot) shows how to try
-> `main`'s build, `0.2.0-SNAPSHOT`.
+> the latest published snapshot of `main`, `0.2.0-SNAPSHOT`.
 
 ## Where to start
 
@@ -129,6 +129,7 @@ Each module page follows the same layout so you always know where to look:
 | [ADR 0018: The Maven groupId is `io.github.exepex.stratum`; Java packages stay under `com.exepex.stratum`](adr/0018-group-id-io-github-exepex.md) | The domain `exepex.com` is lost, so Stratum cannot prove `com.exepex` on Maven Central and a third party could claim it; every artifact moves to `io.github.exepex.stratum`, verified through the GitHub organisation `exepex`, and the Java packages do not change. |
 | [ADR 0019: One parent per kind of application, which brings its bundle; one BOM](adr/0019-one-parent-per-kind-of-application.md) | Replaces ADR 0003 decision 3: a parent per kind of application, such as `stratum-microservice-parent`, inherits `stratum-parent` and brings that kind's bundle, `stratum-test` and `spring-boot-starter-test`, so a new microservice writes only `<parent>`; `stratum-bom` stays the one BOM. |
 | [ADR 0020: Version numbers and releases](adr/0020-version-numbers-and-releases.md) | What a minor and a patch release may change before 1.0, `main` on the next minor's `-SNAPSHOT`, fixes forward with a patch branch only for an urgent security fix, the owner tags and releases, and at most one planned release a month because of Maven Central's publishing limits. |
+| [ADR 0021: Publish to Maven Central only when the owner runs it](adr/0021-publish-only-when-the-owner-runs-it.md) | Replaces ADR 0020's statement that each push to `main` deploys a snapshot: the Publish workflow runs only for a tag `v<version>` the owner creates, or when the owner runs it on `main` or a `release/*` branch. |
 
 ## Contributing
 

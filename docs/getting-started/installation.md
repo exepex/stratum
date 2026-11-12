@@ -20,9 +20,10 @@ the BOM and the starters used below are on Maven Central from version 0.1.0
 
 ### Using a snapshot
 
-Each push to Stratum's `main` branch publishes the next version, today `0.2.0-SNAPSHOT`, to Maven
-Central's snapshot repository. Use it to try a change made after the latest release. A *snapshot* is a build that changes with each push, and the
-repository deletes it after 90 days. Maven does not look there by default, so add the repository
+Stratum's owner publishes `main`'s next version, today `0.2.0-SNAPSHOT`, to Maven Central's
+snapshot repository from time to time, not on each push, so it may not hold the latest changes on
+`main`. Use it to try a change made after the latest release. A *snapshot* is a build that changes
+each time it is published, and the repository deletes it after 90 days. Maven does not look there by default, so add the repository
 to your `pom.xml`. The plugin repository is needed too, because `stratum-parent`'s build checks load
 `stratum-build-rules` as a plugin dependency:
 
