@@ -44,20 +44,25 @@ time, add `-T 1`.
 
 ### Benchmarking the JDBC boundary
 
-The data starter's `benchmark` profile measures what the
-[JDBC boundary](modules/data-jpa.md#clean-database-errors) adds to each JDBC call, with
-[JMH](https://github.com/openjdk/jmh). It needs Docker, because each JMH fork starts its own
-PostgreSQL container, and it takes about 10 to 15 minutes:
+The data starter's `benchmark` profile measures, with [JMH](https://github.com/openjdk/jmh), what
+the [JDBC boundary](modules/data-jpa.md#clean-database-errors) adds to each JDBC call
+(`JdbcBoundaryBenchmark`), and what three pool and driver settings cost on the raw pool
+(`StatementLimitsBenchmark`): HikariCP's [leak alarm](modules/data-jpa.md#leak-alarm) and a network
+timeout on every borrow, and pgjdbc's query timeout on every statement, each on one thread and on 16.
+It needs Docker, because each JMH fork starts its own PostgreSQL container. `JdbcBoundaryBenchmark`
+takes about 10 to 15 minutes and `StatementLimitsBenchmark` about 12:
 
 ```bash
 ./mvnw -pl starters/stratum-starter-data-jpa -am -Pbenchmark clean integration-test
 ```
 
+To run one of them, add `-Djmh.benchmarks=StatementLimitsBenchmark` (or `JdbcBoundaryBenchmark`).
+
 The command starts with `clean`, because test classes an earlier build compiled count as up to
 date, and the compiler would then skip JMH's generator. The run builds the module and runs its
-tests first. JMH then compares the raw connection pool with the boundary on the same calls, and
-writes its result to `starters/stratum-starter-data-jpa/target/jmh-result.json`. A plain build
-never runs it.
+tests first. JMH then compares the two sides of each measurement on the same calls, and writes
+its result to `starters/stratum-starter-data-jpa/target/jmh-result.json`. A plain build never runs
+it.
 
 The run leaves JMH's generated sources in the module's `target` folder, where PMD would check them.
 So run `./mvnw clean verify`, with `clean`, as the next build.

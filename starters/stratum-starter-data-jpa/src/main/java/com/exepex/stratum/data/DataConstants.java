@@ -27,6 +27,13 @@ public class DataConstants {
   /** How long a caller waits for a free connection from the pool, in milliseconds. */
   public static final String CONNECTION_TIMEOUT = "spring.datasource.hikari.connection-timeout";
 
+  /** How long a connection may be held before HikariCP logs a leak warning, in milliseconds. */
+  public static final String LEAK_DETECTION_THRESHOLD =
+      "spring.datasource.hikari.leak-detection-threshold";
+
+  /** How long HikariCP keeps a connection before it closes and replaces it, in milliseconds. */
+  public static final String MAX_LIFETIME = "spring.datasource.hikari.max-lifetime";
+
   /** Whether a web request keeps its database connection until the response is written. */
   public static final String OPEN_IN_VIEW = "spring.jpa.open-in-view";
 
