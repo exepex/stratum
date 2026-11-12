@@ -59,6 +59,14 @@ public interface AnswersClient {
   String gzipped(@PathVariable int size);
 
   /**
+   * Reads a gzip JSON value followed by bytes that are not gzip and never end.
+   *
+   * @return the value
+   */
+  @GetExchange(LargeAnswerDownstream.GZIP_THEN_GARBAGE)
+  Map<String, Integer> gzipThenGarbage();
+
+  /**
    * Reads a JSON value followed by the given number of spaces.
    *
    * @param spaces the number of spaces after the value

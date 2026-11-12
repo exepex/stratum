@@ -26,6 +26,22 @@ class ErrorBodyLimitTest {
   /** The limit on an error body. */
   private static final int LIMIT = HttpClientConstants.ERROR_BODY_LIMIT;
 
+  /** The bytes left within the limit when a read asks for more. */
+  private static final int BYTES_LEFT = 100;
+
+  /** A read size that does not divide 64 KB, and more than {@link #BYTES_LEFT}. */
+  private static final int UNEVEN_READ = 1000;
+
+  /** Reads a body to its end in reads of the size given, and returns how many bytes it gave. */
+  private long bytesReadIn(InputStream body, int readSize) throws IOException {
+    var buffer = new byte[readSize];
+    long total = 0;
+    for (var read = body.read(buffer); read >= 0; read = body.read(buffer)) {
+      total += read;
+    }
+    return total;
+  }
+
   /** Returns a 500 whose body, of unknown length, is the given stream. */
   private ClassicHttpResponse errorAnswer(InputStream apacheStream) {
     var answer = new BasicClassicHttpResponse(HttpStatus.SC_INTERNAL_SERVER_ERROR);
@@ -56,6 +72,31 @@ class ErrorBodyLimitTest {
         assertThat(body.read()).isEqualTo(-1);
         assertThat(body.skip(1)).isZero();
         assertThat(body.available()).isZero();
+      }
+    }
+
+    @Test
+    @DisplayName("one read asking for more than is left gets only what is left")
+    void oneReadStopsAtLimit() throws IOException, HttpException {
+      try (var apacheStream = new ClosingStream(LIMIT * 2);
+          var answer = errorAnswer(apacheStream);
+          var entity = limited(answer);
+          var body = entity.getContent()) {
+        body.skipNBytes(LIMIT - BYTES_LEFT);
+
+        assertThat(body.read(new byte[UNEVEN_READ], 0, UNEVEN_READ)).isEqualTo(BYTES_LEFT);
+        assertThat(body.read(new byte[1], 0, 1)).isEqualTo(-1);
+      }
+    }
+
+    @Test
+    @DisplayName("reads of a size that does not divide 64 KB stop at exactly 64 KB")
+    void unevenReadsStopAtLimit() throws IOException, HttpException {
+      try (var apacheStream = new ClosingStream(LIMIT * 2);
+          var answer = errorAnswer(apacheStream);
+          var entity = limited(answer);
+          var body = entity.getContent()) {
+        assertThat(bytesReadIn(body, UNEVEN_READ)).isEqualTo(LIMIT);
       }
     }
 

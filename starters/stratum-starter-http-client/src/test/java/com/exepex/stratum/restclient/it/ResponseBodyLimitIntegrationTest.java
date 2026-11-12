@@ -14,20 +14,26 @@ import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import com.exepex.stratum.restclient.testsupport.answers.AnswerChecks;
 import com.exepex.stratum.restclient.testsupport.answers.AnswersApplication;
 import com.exepex.stratum.restclient.testsupport.answers.AnswersClient;
+import com.exepex.stratum.restclient.testsupport.calls.CallLines;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import java.io.IOException;
+import java.time.Duration;
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.web.client.RestClientException;
 
 @SpringBootTest(
@@ -105,6 +111,16 @@ class ResponseBodyLimitIntegrationTest {
     }
 
     @Test
+    @DisplayName("a gzip body within the limit is read whole, and its connection used again")
+    void gzipWithinLimitReused() {
+      var opened =
+          AnswerChecks.connectionsOpenedAfter(
+              answers, DOWNSTREAM, () -> assertThat(answers.gzipped(LIMIT / 2)).hasSize(LIMIT / 2));
+
+      assertThat(opened).isZero();
+    }
+
+    @Test
     @DisplayName("a Resource is read whole, so it is limited")
     void resourceLimited() {
       AnswerChecks.assertTooLarge(() -> answers.resource(OVER_LIMIT));
@@ -137,6 +153,15 @@ class ResponseBodyLimitIntegrationTest {
       assertThat(breaker().getMetrics().getNumberOfFailedCalls()).isEqualTo(failedBefore);
       assertThat(breaker().getMetrics().getNumberOfSuccessfulCalls())
           .isEqualTo(succeededBefore + 1);
+    }
+
+    @Test
+    @ExtendWith(OutputCaptureExtension.class)
+    @DisplayName("the call writes one WARN line with outcome=ERROR, as a body that cannot be read")
+    void loggedAsError(CapturedOutput output) {
+      AnswerChecks.assertTooLarge(() -> answers.chunked(OVER_LIMIT));
+
+      CallLines.assertCallLine(output, RestClientTestData.INVENTORY, "WARN", "outcome=ERROR");
     }
 
     @Test
@@ -177,6 +202,28 @@ class ResponseBodyLimitIntegrationTest {
                       .anySatisfy(
                           cause -> assertThat(cause).hasMessageStartingWith("SX-HTTPC-0006")));
       assertThat(DOWNSTREAM.requests(path)).isEqualTo(requestsBefore + 1);
+    }
+  }
+
+  @Nested
+  @TestPropertySource(properties = RestClientTestData.INVENTORY_SETTINGS + ".total-timeout=1s")
+  @DisplayName("a gzip body followed by bytes that never end")
+  class GzipThenGarbage {
+
+    @Test
+    @DisplayName("gives its value; the rest is read only until total-timeout, then dropped")
+    void boundedByTotalTimeout() {
+      assertThat(AnswerChecks.connectionsOpenedAfter(answers, DOWNSTREAM, this::valueByDeadline))
+          .isOne();
+    }
+
+    /** Reads the value, and checks that the call ended soon after the 1s total-timeout. */
+    private void valueByDeadline() {
+      var startedAt = System.nanoTime();
+
+      assertThat(answers.gzipThenGarbage()).containsEntry("stock", 1);
+      assertThat(Duration.ofNanos(System.nanoTime() - startedAt))
+          .isLessThan(RestClientTestData.FAILS_WITHIN);
     }
   }
 

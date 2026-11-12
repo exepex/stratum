@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Timeout;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.web.client.HttpServerErrorException;
@@ -28,7 +29,9 @@ import org.springframework.web.client.HttpServerErrorException;
  * The orders client has a pool of one and keeps its 5s timeout, far above {@link
  * RestClientTestData#FAILS_WITHIN}, so that a drain that reads past 64 KB, or waits for bytes that
  * never come, shows as a slow call or a held connection. A drain with no bound blocks in a socket
- * read, which only a timeout on a separate thread can end.
+ * read, which only a timeout on a separate thread can end. Each test gets its own application, and
+ * so its own pool: a drain stuck in a broken build then fails its own test only, and closing its
+ * application closes the connection the stuck thread holds.
  */
 @SpringBootTest(
     classes = ErrorsApplication.class,
@@ -37,6 +40,7 @@ import org.springframework.web.client.HttpServerErrorException;
       HttpClientConstants.CLIENTS + "." + RestClientTestData.ORDERS + ".max-wait=300ms"
     })
 @Timeout(value = 30, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 @DisplayName("Closing an error answer drains its body only up to 64 KB")
 class ErrorBodyDrainIntegrationTest {
 

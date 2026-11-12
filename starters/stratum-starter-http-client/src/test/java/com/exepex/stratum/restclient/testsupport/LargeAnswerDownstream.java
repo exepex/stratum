@@ -2,6 +2,7 @@ package com.exepex.stratum.restclient.testsupport;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
@@ -30,6 +31,8 @@ import java.util.zip.GZIPOutputStream;
  *   <li>{@link #SIZED}: 200 with that many bytes and their {@code Content-Length};
  *   <li>{@link #CHUNKED}: 200 with that many bytes, starting with {@link #MARKER}, chunked;
  *   <li>{@link #GZIPPED}: 200 with that many spaces, compressed with gzip;
+ *   <li>{@link #GZIP_THEN_GARBAGE}: 200 with {@link #JSON_VALUE} compressed with gzip, then bytes
+ *       that are not gzip and never end;
  *   <li>{@link #TRAILING}: 200 with {@link #JSON_VALUE} and then that many spaces;
  *   <li>{@link #ENDLESS}: 200 with spaces that never end;
  *   <li>{@link #STALLED}: 200 with a {@code Content-Length} of 50 GB, then nothing.
@@ -48,6 +51,9 @@ public final class LargeAnswerDownstream implements AutoCloseable {
 
   /** The start of the paths of a gzip body of the size that follows, once decoded. */
   public static final String GZIPPED = "/gzipped/";
+
+  /** The path of a gzip JSON value followed by bytes that are not gzip and never end. */
+  public static final String GZIP_THEN_GARBAGE = "/gzip-then-garbage";
 
   /** The start of the paths of a JSON value followed by the number of spaces that follows. */
   public static final String TRAILING = "/trailing/";
@@ -158,6 +164,7 @@ public final class LargeAnswerDownstream implements AutoCloseable {
       switch (path) {
         case ENDLESS -> sendEndless(exchange);
         case STALLED -> stall(exchange);
+        case GZIP_THEN_GARBAGE -> sendGzipThenGarbage(exchange);
         case String sized when sized.startsWith(SIZED) ->
             send(exchange, HttpURLConnection.HTTP_OK, spaces(sizeIn(sized)), true);
         case String chunked when chunked.startsWith(CHUNKED) ->
@@ -227,16 +234,36 @@ public final class LargeAnswerDownstream implements AutoCloseable {
     }
   }
 
+  /** Sends {@link #JSON_VALUE} compressed with gzip, then spaces, which are not gzip, endlessly. */
+  private void sendGzipThenGarbage(HttpExchange exchange) throws IOException {
+    exchange.getResponseHeaders().add("Content-Encoding", "gzip");
+    exchange.getResponseHeaders().add(CONTENT_TYPE, JSON);
+    exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, 0);
+    var compressed = new ByteArrayOutputStream();
+    try (var gzip = new GZIPOutputStream(compressed)) {
+      gzip.write(JSON_VALUE.getBytes(StandardCharsets.US_ASCII));
+    }
+    try (OutputStream body = exchange.getResponseBody()) {
+      compressed.writeTo(body);
+      writeEndlessly(body);
+    }
+  }
+
   /** Sends spaces until the client stops reading or the server closes. */
   private void sendEndless(HttpExchange exchange) throws IOException {
     exchange.getResponseHeaders().add(CONTENT_TYPE, JSON);
     exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, 0);
-    var chunk = spaces(CHUNK);
     try (OutputStream body = exchange.getResponseBody()) {
-      // A loop, as the body ends only when a write fails.
-      while (closed.getCount() > 0) {
-        body.write(chunk);
-      }
+      writeEndlessly(body);
+    }
+  }
+
+  /** Writes spaces to a body until a write fails or the server closes. */
+  private void writeEndlessly(OutputStream body) throws IOException {
+    var chunk = spaces(CHUNK);
+    // A loop, as the body ends only when a write fails.
+    while (closed.getCount() > 0) {
+      body.write(chunk);
     }
   }
 
