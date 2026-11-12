@@ -4,9 +4,7 @@ import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.SocketTimeoutException;
 import java.time.Duration;
-import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.ClassicHttpResponse;
@@ -17,35 +15,40 @@ import org.apache.hc.core5.http.io.HttpClientConnection;
 import org.apache.hc.core5.http.io.HttpResponseInformationCallback;
 import org.apache.hc.core5.http.io.entity.HttpEntityWrapper;
 import org.apache.hc.core5.http.protocol.HttpContext;
-import org.apache.hc.core5.util.Timeout;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Ends the reading of an answer's body, and the reading of its rest when the answer is closed, when
- * the call's {@code total-timeout} runs out, however slowly the body comes. A streamed download
- * through a pool that streams answers keeps only its {@code timeout} between bytes.
+ * Ends the reading of an answer, its status line and headers, its body, and the reading of its rest
+ * when the answer is closed, when the call's {@code total-timeout} runs out, however slowly it
+ * comes. A streamed download through a pool that streams answers keeps only its {@code timeout}
+ * between bytes.
  */
 @RequiredArgsConstructor
-class BodyDeadline extends HttpRequestExecutor {
+class AnswerDeadline extends HttpRequestExecutor {
 
   /** The message of the failure when the body is still arriving at the deadline. */
   private static final String TOO_SLOW = "The answer's body did not arrive within total-timeout";
 
-  /** The client's {@code timeout}, the longest wait for one read of the body. */
+  /** The message of the failure when the status line and headers are still arriving. */
+  private static final String HEAD_TOO_SLOW =
+      "The answer's status line and headers did not arrive within total-timeout";
+
+  /** The client's {@code timeout}, the longest wait for one read of the answer. */
   private final Duration timeout;
 
   /** Whether a streamed download through this pool keeps its {@code timeout}. */
   private final boolean streamsAnswers;
 
   /**
-   * Sends the request and reads the answer's head, then bounds its body by the call's deadline.
+   * Sends the request and reads the answer's head by the call's deadline, then bounds its body by
+   * it too; a streamed download, or a call outside an attempt, keeps Apache's own reads.
    *
    * @param request the request
    * @param connection the connection it is sent on
    * @param informationCallback what is told of each 1xx answer
    * @param context the request's context
    * @return the answer, whose body ends by the deadline
-   * @throws IOException when the request fails
+   * @throws IOException when the request fails, or its head does not arrive in time
    * @throws HttpException when the answer breaks the protocol
    */
   @Override
@@ -55,7 +58,17 @@ class BodyDeadline extends HttpRequestExecutor {
       @Nullable HttpResponseInformationCallback informationCallback,
       HttpContext context)
       throws IOException, HttpException {
-    return bounded(super.execute(request, connection, informationCallback, context), connection);
+    var timeLeft = AttemptTimeLeft.timeLeft();
+    if (timeLeft.isEmpty() || !boundsAnswer()) {
+      return super.execute(request, connection, informationCallback, context);
+    }
+    var head =
+        new ReadDeadline(
+            connection, System.nanoTime() + timeLeft.get().toNanos(), timeout, HEAD_TOO_SLOW);
+    return bounded(
+        HeadDeadlineParser.within(
+            head, () -> super.execute(request, connection, informationCallback, context)),
+        connection);
   }
 
   /**
@@ -82,14 +95,16 @@ class BodyDeadline extends HttpRequestExecutor {
       throws IOException {
     var timeLeft = AttemptTimeLeft.timeLeft();
     if (response.getEntity() != null && timeLeft.isPresent() && boundsAnswer()) {
-      var deadlineNanos = System.nanoTime() + timeLeft.get().toNanos();
-      response.setEntity(new DeadlineEntity(response.getEntity(), connection, deadlineNanos));
+      var deadline =
+          new ReadDeadline(
+              connection, System.nanoTime() + timeLeft.get().toNanos(), timeout, TOO_SLOW);
+      response.setEntity(new DeadlineEntity(response.getEntity(), deadline));
     }
     return response;
   }
 
   /** A body whose every read goes through one stream that ends by the deadline. */
-  private final class DeadlineEntity extends HttpEntityWrapper {
+  private static final class DeadlineEntity extends HttpEntityWrapper {
 
     /** The body's one stream. */
     private final DeadlineStream body;
@@ -98,14 +113,12 @@ class BodyDeadline extends HttpRequestExecutor {
      * Wraps the body.
      *
      * @param entity the answer's body
-     * @param connection the connection it comes on
-     * @param deadlineNanos the call's deadline, in {@link System#nanoTime()}
+     * @param deadline the deadline of its reads
      * @throws IOException when the body cannot be opened
      */
-    private DeadlineEntity(HttpEntity entity, HttpClientConnection connection, long deadlineNanos)
-        throws IOException {
+    private DeadlineEntity(HttpEntity entity, ReadDeadline deadline) throws IOException {
       super(entity);
-      body = new DeadlineStream(entity.getContent(), connection, deadlineNanos);
+      body = new DeadlineStream(entity.getContent(), deadline);
     }
 
     /**
@@ -136,16 +149,10 @@ class BodyDeadline extends HttpRequestExecutor {
    * A body that fails each read once the deadline has passed, and sets the socket timeout of each
    * read to the time left, so that no read waits past the deadline.
    */
-  private final class DeadlineStream extends FilterInputStream {
+  private static final class DeadlineStream extends FilterInputStream {
 
-    /** The connection the body comes on. */
-    private final HttpClientConnection connection;
-
-    /** The call's deadline, in {@link System#nanoTime()}. */
-    private final long deadlineNanos;
-
-    /** The socket timeout set last, in milliseconds, so that it is set only when it changes. */
-    private long socketTimeoutMillis = -1;
+    /** The deadline of the body's reads. */
+    private final ReadDeadline deadline;
 
     /** Whether the body was read to its end and closed, as Apache and then Spring both close it. */
     private boolean closed;
@@ -154,14 +161,11 @@ class BodyDeadline extends HttpRequestExecutor {
      * Wraps the body.
      *
      * @param content the answer's body as Apache reads it
-     * @param connection the connection it comes on
-     * @param deadlineNanos the call's deadline, in {@link System#nanoTime()}
+     * @param deadline the deadline of its reads
      */
-    private DeadlineStream(
-        InputStream content, HttpClientConnection connection, long deadlineNanos) {
+    private DeadlineStream(InputStream content, ReadDeadline deadline) {
       super(content);
-      this.connection = connection;
-      this.deadlineNanos = deadlineNanos;
+      this.deadline = deadline;
     }
 
     /**
@@ -172,7 +176,7 @@ class BodyDeadline extends HttpRequestExecutor {
      */
     @Override
     public int read() throws IOException {
-      beforeRead();
+      deadline.beforeRead();
       return super.read();
     }
 
@@ -187,7 +191,7 @@ class BodyDeadline extends HttpRequestExecutor {
      */
     @Override
     public int read(byte[] buffer, int offset, int length) throws IOException {
-      beforeRead();
+      deadline.beforeRead();
       return super.read(buffer, offset, length);
     }
 
@@ -200,7 +204,7 @@ class BodyDeadline extends HttpRequestExecutor {
      */
     @Override
     public long skip(long count) throws IOException {
-      beforeRead();
+      deadline.beforeRead();
       return super.skip(count);
     }
 
@@ -218,21 +222,6 @@ class BodyDeadline extends HttpRequestExecutor {
         transferTo(OutputStream.nullOutputStream());
         super.close();
         closed = true;
-      }
-    }
-
-    /** Fails once the deadline has passed, else cuts the next read's wait to the time left. */
-    private void beforeRead() throws SocketTimeoutException {
-      var nanosLeft = deadlineNanos - System.nanoTime();
-      if (nanosLeft <= 0) {
-        throw new SocketTimeoutException(TOO_SLOW);
-      }
-      // At least 1ms, as Apache reads 0 as no limit.
-      var millis =
-          Math.max(1, Math.min(timeout.toMillis(), TimeUnit.NANOSECONDS.toMillis(nanosLeft)));
-      if (millis != socketTimeoutMillis) {
-        connection.setSocketTimeout(Timeout.ofMilliseconds(millis));
-        socketTimeoutMillis = millis;
       }
     }
   }

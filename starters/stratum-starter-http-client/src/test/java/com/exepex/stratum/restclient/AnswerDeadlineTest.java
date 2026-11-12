@@ -28,8 +28,8 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
-@DisplayName("BodyDeadline ends an answer's body by the deadline of the call's attempt")
-class BodyDeadlineTest {
+@DisplayName("AnswerDeadline ends an answer's body by the deadline of the call's attempt")
+class AnswerDeadlineTest {
 
   /** The client's timeout, below the time left of an attempt with {@link #TEN_SECONDS} left. */
   private static final Duration TIMEOUT = Duration.ofSeconds(5);
@@ -47,7 +47,7 @@ class BodyDeadlineTest {
   private final HttpClientConnection connection = mock(HttpClientConnection.class);
 
   /** The executor of a pool that streams answers, as each client's own pool does. */
-  private final BodyDeadline bodyDeadline = new BodyDeadline(TIMEOUT, true);
+  private final AnswerDeadline answerDeadline = new AnswerDeadline(TIMEOUT, true);
 
   @Nested
   @DisplayName("with no time left")
@@ -58,7 +58,7 @@ class BodyDeadlineTest {
 
     /** The answer, bounded inside an attempt whose time is up. */
     private final ClassicHttpResponse response =
-        boundedWithin(bodyDeadline, Duration.ZERO, false, answerOf(socketBody));
+        boundedWithin(answerDeadline, Duration.ZERO, false, answerOf(socketBody));
 
     @Test
     @DisplayName("a read fails with SocketTimeoutException and reads nothing")
@@ -92,7 +92,7 @@ class BodyDeadlineTest {
     @Test
     @DisplayName("a read waits at most the time left when it is below timeout")
     void readWaitsAtMostTimeLeft() throws IOException {
-      var longTimeout = new BodyDeadline(LONG_TIMEOUT, true);
+      var longTimeout = new AnswerDeadline(LONG_TIMEOUT, true);
       var response =
           boundedWithin(longTimeout, TEN_SECONDS, false, answerOf(new ByteArrayInputStream(BODY)));
 
@@ -106,7 +106,8 @@ class BodyDeadlineTest {
     @DisplayName("a read waits at most timeout, set once while it stays the same")
     void socketTimeoutSetOnlyWhenItChanges() throws IOException {
       var response =
-          boundedWithin(bodyDeadline, TEN_SECONDS, false, answerOf(new ByteArrayInputStream(BODY)));
+          boundedWithin(
+              answerDeadline, TEN_SECONDS, false, answerOf(new ByteArrayInputStream(BODY)));
       try (var content = response.getEntity().getContent()) {
         content.read();
         content.read();
@@ -120,7 +121,7 @@ class BodyDeadlineTest {
     void closeDrainsThenCloses() throws IOException {
       var socketBody = spy(new ByteArrayInputStream(BODY));
 
-      boundedWithin(bodyDeadline, TEN_SECONDS, false, answerOf(socketBody))
+      boundedWithin(answerDeadline, TEN_SECONDS, false, answerOf(socketBody))
           .getEntity()
           .getContent()
           .close();
@@ -133,7 +134,7 @@ class BodyDeadlineTest {
     @DisplayName("closing the body again, as Apache and Spring each do, reads and closes nothing")
     void secondCloseDoesNothing() throws IOException {
       var socketBody = spy(new ByteArrayInputStream(BODY));
-      var response = boundedWithin(bodyDeadline, TEN_SECONDS, false, answerOf(socketBody));
+      var response = boundedWithin(answerDeadline, TEN_SECONDS, false, answerOf(socketBody));
 
       try (var content = response.getEntity().getContent()) {
         content.close();
@@ -146,7 +147,8 @@ class BodyDeadlineTest {
     @DisplayName("writing the body out writes it whole")
     void writeToWritesWholeBody() throws IOException {
       var response =
-          boundedWithin(bodyDeadline, TEN_SECONDS, false, answerOf(new ByteArrayInputStream(BODY)));
+          boundedWithin(
+              answerDeadline, TEN_SECONDS, false, answerOf(new ByteArrayInputStream(BODY)));
       var out = new ByteArrayOutputStream();
 
       response.getEntity().writeTo(out);
@@ -163,7 +165,7 @@ class BodyDeadlineTest {
     @DisplayName("outside a call's attempt")
     void outsideAnAttempt() throws IOException {
       assertThat(
-              bodyDeadline
+              answerDeadline
                   .bounded(answerOf(new ByteArrayInputStream(BODY)), connection)
                   .getEntity())
           .isInstanceOf(InputStreamEntity.class);
@@ -174,7 +176,7 @@ class BodyDeadlineTest {
     void withoutBody() {
       assertThat(
               boundedWithin(
-                      bodyDeadline,
+                      answerDeadline,
                       TEN_SECONDS,
                       false,
                       new BasicClassicHttpResponse(HttpStatus.SC_NO_CONTENT))
@@ -187,7 +189,7 @@ class BodyDeadlineTest {
     void streamedDownload() {
       assertThat(
               boundedWithin(
-                      bodyDeadline, TEN_SECONDS, true, answerOf(new ByteArrayInputStream(BODY)))
+                      answerDeadline, TEN_SECONDS, true, answerOf(new ByteArrayInputStream(BODY)))
                   .getEntity())
           .isInstanceOf(InputStreamEntity.class);
     }
@@ -195,7 +197,7 @@ class BodyDeadlineTest {
     @Test
     @DisplayName("but not for a streamed download through a token pool, which bounds every answer")
     void tokenPoolBoundsStreamedDownload() {
-      var tokenPool = new BodyDeadline(TIMEOUT, false);
+      var tokenPool = new AnswerDeadline(TIMEOUT, false);
 
       assertThat(
               boundedWithin(tokenPool, TEN_SECONDS, true, answerOf(new ByteArrayInputStream(BODY)))
@@ -213,7 +215,7 @@ class BodyDeadlineTest {
 
   /** Bounds the answer inside an attempt with the given time left. */
   private ClassicHttpResponse boundedWithin(
-      BodyDeadline executor,
+      AnswerDeadline executor,
       Duration timeLeft,
       boolean keepsAnswerTimeout,
       ClassicHttpResponse response) {
@@ -225,7 +227,7 @@ class BodyDeadlineTest {
   }
 
   /** Bounds the answer, as the executor does once its head is read. */
-  private ClassicHttpResponse bounded(BodyDeadline executor, ClassicHttpResponse response) {
+  private ClassicHttpResponse bounded(AnswerDeadline executor, ClassicHttpResponse response) {
     try {
       return executor.bounded(response, connection);
     } catch (IOException failure) {

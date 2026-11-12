@@ -19,6 +19,7 @@ import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.io.ManagedHttpClientConnectionFactory;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
 import org.apache.hc.client5.http.protocol.HttpClientContext;
@@ -61,6 +62,12 @@ public class ClientConnectionPools implements DisposableBean {
   /** The connections of a client's token pool: one fetch runs at a time per registration. */
   private static final int TOKEN_POOL_CONNECTIONS = 2;
 
+  /** Makes each pool's connections, whose answer heads are read by the attempt's deadline. */
+  private static final ManagedHttpClientConnectionFactory HEAD_DEADLINE_CONNECTIONS =
+      ManagedHttpClientConnectionFactory.builder()
+          .responseParserFactory(HeadDeadlineParser.FACTORY)
+          .build();
+
   /** The settings of the shared pool: the shared defaults under {@code defaults}. */
   private final ClientSettings sharedPoolSettings;
 
@@ -101,7 +108,8 @@ public class ClientConnectionPools implements DisposableBean {
    */
   private ClientHttpRequestFactory requestFactory(
       String poolKey, ClientSettings settings, boolean streamsAnswers) {
-    var bodyDeadline = new BodyDeadline(Objects.requireNonNull(settings.timeout()), streamsAnswers);
+    var answerDeadline =
+        new AnswerDeadline(Objects.requireNonNull(settings.timeout()), streamsAnswers);
     var requestConfig =
         RequestConfig.custom()
             .setConnectionRequestTimeout(Timeout.of(Objects.requireNonNull(settings.maxWait())))
@@ -113,7 +121,7 @@ public class ClientConnectionPools implements DisposableBean {
             .setConnectionManager(poolFor(poolKey, settings))
             .setConnectionManagerShared(true)
             .addExecInterceptorFirst(ErrorBodyLimit.NAME, ERROR_BODY_LIMIT)
-            .setRequestExecutor(bodyDeadline)
+            .setRequestExecutor(answerDeadline)
             .addExecInterceptorFirst(
                 ResponseBodyLimit.NAME,
                 new ResponseBodyLimit(
@@ -130,7 +138,7 @@ public class ClientConnectionPools implements DisposableBean {
         requestConfig,
         settings,
         streamsAnswers,
-        bodyDeadline);
+        answerDeadline);
   }
 
   /**
@@ -159,10 +167,10 @@ public class ClientConnectionPools implements DisposableBean {
       RequestConfig requestConfig,
       ClientSettings settings,
       boolean streamsAnswers,
-      BodyDeadline bodyDeadline) {
+      AnswerDeadline answerDeadline) {
     requestFactory.setHttpContextFactory(
         (method, uri) ->
-            attemptContext(uri, requestConfig, settings, streamsAnswers, bodyDeadline));
+            attemptContext(uri, requestConfig, settings, streamsAnswers, answerDeadline));
     return requestFactory;
   }
 
@@ -176,12 +184,12 @@ public class ClientConnectionPools implements DisposableBean {
       RequestConfig requestConfig,
       ClientSettings settings,
       boolean streamsAnswers,
-      BodyDeadline bodyDeadline) {
+      AnswerDeadline answerDeadline) {
     if (streamsAnswers) {
       AttemptTimeLeft.sentTo(uri);
     }
     return AttemptTimeLeft.timeLeft()
-        .map(timeLeft -> contextWithin(requestConfig, settings, timeLeft, bodyDeadline))
+        .map(timeLeft -> contextWithin(requestConfig, settings, timeLeft, answerDeadline))
         .orElse(null);
   }
 
@@ -195,12 +203,12 @@ public class ClientConnectionPools implements DisposableBean {
       RequestConfig requestConfig,
       ClientSettings settings,
       Duration timeLeft,
-      BodyDeadline bodyDeadline) {
+      AnswerDeadline answerDeadline) {
     var attemptConfig =
         RequestConfig.copy(requestConfig)
             .setConnectionRequestTimeout(
                 within(Objects.requireNonNull(settings.maxWait()), timeLeft));
-    if (bodyDeadline.boundsAnswer()) {
+    if (answerDeadline.boundsAnswer()) {
       attemptConfig.setResponseTimeout(
           within(Objects.requireNonNull(settings.timeout()), timeLeft));
     }
@@ -267,6 +275,7 @@ public class ClientConnectionPools implements DisposableBean {
             .useSystemProperties()
             .setMaxConnTotal(maxConnections)
             .setMaxConnPerRoute(maxConnections)
+            .setConnectionFactory(HEAD_DEADLINE_CONNECTIONS)
             .setConnectionConfigResolver(route -> connectionConfig(poolConfig))
             .build();
     var idleTimeout = Objects.requireNonNull(settings.idleTimeout());
