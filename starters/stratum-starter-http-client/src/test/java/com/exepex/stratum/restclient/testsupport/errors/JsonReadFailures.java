@@ -40,6 +40,9 @@ public class JsonReadFailures {
   public static final String ORDER_START =
       "{\"id\":\"o-1\",\"lines\":[{\"sku\":\"a\",\"quantity\":1},{\"sku\":\"";
 
+  /** The start of an order that stops right after the start of its list of lines. */
+  public static final String ORDER_OPEN_LIST = "{\"id\":\"o-1\",\"lines\":[";
+
   /** A body read as a map. */
   public static final ParameterizedTypeReference<Map<String, Object>> MAP =
       new ParameterizedTypeReference<>() {};

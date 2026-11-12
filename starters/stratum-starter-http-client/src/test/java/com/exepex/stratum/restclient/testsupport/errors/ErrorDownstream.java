@@ -174,7 +174,7 @@ public final class ErrorDownstream implements AutoCloseable {
     server.createContext(
         CUT_ORDER, exchange -> sendCut(exchange, JSON, bytes(JsonReadFailures.ORDER_START)));
     server.createContext(
-        SHORT_JSON, exchange -> sendBad(exchange, JSON, bytes(JsonReadFailures.ORDER_START)));
+        SHORT_JSON, exchange -> sendBad(exchange, JSON, bytes(JsonReadFailures.ORDER_OPEN_LIST)));
     server.createContext(BAD_PROTOBUF, exchange -> sendBad(exchange, PROTOBUF, NOT_PROTOBUF));
     server.createContext(CUT_PROTOBUF, exchange -> sendCut(exchange, PROTOBUF, PROTOBUF_START));
     server.createContext(

@@ -38,11 +38,16 @@ class JsonBodyFailuresTest {
 
   /**
    * The bodies that are not valid as Gson reads them, each with the type it is read as. Gson reads
-   * leniently, so a word without quotes is a string to it.
+   * leniently, so a word without quotes is a string to it, and JSON that ends between two values is
+   * the end of its input, not malformed JSON.
    */
   private static final List<Arguments> GSON_INVALID_BODIES =
       List.of(
           argumentSet("bad JSON, read as a map", JsonReadFailures.MAP, JsonReadFailures.BAD_JSON),
+          argumentSet(
+              "JSON that ends right after a record's list opens",
+              JsonReadFailures.ORDER,
+              JsonReadFailures.ORDER_OPEN_LIST),
           argumentSet(
               "JSON of the wrong type inside a record's list",
               JsonReadFailures.ORDER,
