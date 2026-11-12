@@ -19,7 +19,7 @@
   included), size and number of releases. Exceeding one starts a 30-day grace period. Sonatype publishes no fixed
   numbers: its Usage Center holds them, and its table of the top 10% of publishers shows about 1,167 files, 78 MB and
   7 releases a month ([Sonatype: Maven Central Publishing Limits](https://central.sonatype.org/publish/maven-central-publishing-limits/),
-  read 2026-11-12). Release 0.1.0 is 444 files and 4.6 MB on Central, so files limit Stratum first.
+  read 2026-11-12). Release 0.1.0 is 468 files and 4.7 MB on Central, so files limit Stratum first.
 
 ## Decision
 
