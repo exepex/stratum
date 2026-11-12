@@ -35,10 +35,16 @@ import java.util.zip.GZIPOutputStream;
  *       the server closes;
  *   <li>{@link #LARGE_ANSWER}: 200, {@link #LARGE_SIZE} bytes;
  *   <li>{@link #CUT_JSON}: 200, the start of a JSON body, then nothing until the server closes;
- *   <li>{@link #BAD_JSON}: 200, typed as JSON but not JSON, counted in {@link #badJsonRequests()};
+ *   <li>{@link #BAD_JSON}: 200, typed as JSON but not JSON;
  *   <li>{@link #CUT_ORDER}: 200, an order that stops inside its list of lines, then nothing until
- *       the server closes.
+ *       the server closes;
+ *   <li>{@link #SHORT_JSON}: 200, a whole JSON body that ends right after a list starts;
+ *   <li>{@link #BAD_PROTOBUF}: 200, typed as protobuf but not protobuf;
+ *   <li>{@link #CUT_PROTOBUF}: 200, the start of a protobuf body, then nothing until the server
+ *       closes.
  * </ul>
+ *
+ * <p>The requests to the last five are counted in {@link #bodyRequests()}.
  */
 public final class ErrorDownstream implements AutoCloseable {
 
@@ -78,17 +84,32 @@ public final class ErrorDownstream implements AutoCloseable {
   /** The path of an order whose JSON body stops inside its list of lines. */
   public static final String CUT_ORDER = "/cut-order";
 
+  /** The path of a 200 whose whole JSON body ends right after its list of lines starts. */
+  public static final String SHORT_JSON = "/short-json";
+
+  /** The path of a 200 whose protobuf body is not valid. */
+  public static final String BAD_PROTOBUF = "/bad-protobuf";
+
+  /** The path of a protobuf answer whose body stops after its first bytes. */
+  public static final String CUT_PROTOBUF = "/cut-protobuf";
+
   /** The code in the {@link #PROBLEM} body. */
   public static final String DOWNSTREAM_CODE = "ORD-0001";
 
   /** The size of each large body, 1 MB, far over the 64 KB read of an error body. */
   public static final int LARGE_SIZE = 1024 * 1024;
 
-  /** The length a {@link #CUT_JSON} answer promises, far more than it sends. */
-  private static final int CUT_JSON_LENGTH = 1000;
+  /** The length a cut-off answer promises, far more than it sends. */
+  private static final int CUT_LENGTH = 1000;
 
   /** The length a {@link #STALLED_ERROR} answer promises: 50 GB. */
   private static final long STALLED_LENGTH = 50L * 1024 * 1024 * 1024;
+
+  /** Bytes that are not protobuf: a field's number whose varint never ends. */
+  private static final byte[] NOT_PROTOBUF = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+
+  /** The start of a protobuf message: a field of 5 bytes, of which none follows. */
+  private static final byte[] PROTOBUF_START = {0x0a, 0x05};
 
   /** The size of each write of an endless body. */
   private static final int CHUNK = 8192;
@@ -98,6 +119,9 @@ public final class ErrorDownstream implements AutoCloseable {
 
   /** The content type of a JSON body. */
   private static final String JSON = "application/json";
+
+  /** The content type of a protobuf body. */
+  private static final String PROTOBUF = "application/x-protobuf";
 
   /** The content type of a text body. */
   private static final String TEXT = "text/plain";
@@ -111,8 +135,8 @@ public final class ErrorDownstream implements AutoCloseable {
   /** Opened by {@link #close()}, so that a {@link #CUT_JSON} answer ends at once. */
   private final CountDownLatch closed = new CountDownLatch(1);
 
-  /** How many requests {@link #BAD_JSON} had. */
-  private final AtomicInteger badJsonCount = new AtomicInteger();
+  /** How many requests the paths of bad and cut-off bodies had. */
+  private final AtomicInteger bodyCount = new AtomicInteger();
 
   /** The client port of each connection, one per connection opened. */
   private final Set<Integer> clientPorts = ConcurrentHashMap.newKeySet();
@@ -144,9 +168,15 @@ public final class ErrorDownstream implements AutoCloseable {
     server.createContext(LARGE_GZIP_ERROR, this::sendLargeGzip);
     server.createContext(ENDLESS_ERROR, this::sendEndlessError);
     server.createContext(STALLED_ERROR, this::sendStalledError);
-    server.createContext(CUT_JSON, exchange -> sendCut(exchange, "{\"id\":\"o-1\","));
-    server.createContext(BAD_JSON, this::sendBadJson);
-    server.createContext(CUT_ORDER, exchange -> sendCut(exchange, JsonReadFailures.ORDER_START));
+    server.createContext(CUT_JSON, exchange -> sendCut(exchange, JSON, bytes("{\"id\":\"o-1\",")));
+    server.createContext(
+        BAD_JSON, exchange -> sendBad(exchange, JSON, bytes(JsonReadFailures.BAD_JSON)));
+    server.createContext(
+        CUT_ORDER, exchange -> sendCut(exchange, JSON, bytes(JsonReadFailures.ORDER_START)));
+    server.createContext(
+        SHORT_JSON, exchange -> sendBad(exchange, JSON, bytes(JsonReadFailures.ORDER_OPEN_LIST)));
+    server.createContext(BAD_PROTOBUF, exchange -> sendBad(exchange, PROTOBUF, NOT_PROTOBUF));
+    server.createContext(CUT_PROTOBUF, exchange -> sendCut(exchange, PROTOBUF, PROTOBUF_START));
     server.createContext(
         LARGE_ANSWER, exchange -> send(exchange, HttpURLConnection.HTTP_OK, TEXT, large()));
     server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
@@ -185,12 +215,13 @@ public final class ErrorDownstream implements AutoCloseable {
   }
 
   /**
-   * Returns how many requests {@link #BAD_JSON} had so far.
+   * Returns how many requests the paths of bad and cut-off bodies, such as {@link #BAD_JSON} and
+   * {@link #CUT_ORDER}, had so far.
    *
    * @return the count
    */
-  public int badJsonRequests() {
-    return badJsonCount.get();
+  public int bodyRequests() {
+    return bodyCount.get();
   }
 
   @Override
@@ -247,21 +278,22 @@ public final class ErrorDownstream implements AutoCloseable {
     }
   }
 
-  /** Counts a request to {@link #BAD_JSON} and sends a 200 typed as JSON that is not JSON. */
-  private void sendBadJson(HttpExchange exchange) throws IOException {
-    badJsonCount.incrementAndGet();
-    send(exchange, HttpURLConnection.HTTP_OK, JSON, bytes(JsonReadFailures.BAD_JSON));
+  /** Counts the request and sends a 200 whose whole body is not valid for its type. */
+  private void sendBad(HttpExchange exchange, String contentType, byte[] body) throws IOException {
+    bodyCount.incrementAndGet();
+    send(exchange, HttpURLConnection.HTTP_OK, contentType, body);
   }
 
   /**
-   * Sends a 200 that promises a JSON body, sends the given start of it and then nothing more until
-   * the server closes, far longer than the client's timeout.
+   * Counts the request and sends a 200 that promises a body, sends the given start of it and then
+   * nothing more until the server closes, far longer than the client's timeout.
    */
-  private void sendCut(HttpExchange exchange, String start) throws IOException {
-    exchange.getResponseHeaders().add(CONTENT_TYPE, JSON);
-    exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, CUT_JSON_LENGTH);
+  private void sendCut(HttpExchange exchange, String contentType, byte[] start) throws IOException {
+    bodyCount.incrementAndGet();
+    exchange.getResponseHeaders().add(CONTENT_TYPE, contentType);
+    exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, CUT_LENGTH);
     try (var out = exchange.getResponseBody()) {
-      out.write(bytes(start));
+      out.write(start);
       out.flush();
       awaitClose();
     }

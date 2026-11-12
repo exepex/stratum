@@ -2,6 +2,7 @@ package com.exepex.stratum.restclient.testsupport.errors;
 
 import com.exepex.stratum.httpclient.StratumClient;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
+import com.google.protobuf.Struct;
 import java.net.URI;
 import java.util.Map;
 import java.util.Optional;
@@ -105,6 +106,30 @@ public interface OrdersClient {
    */
   @GetExchange(ErrorDownstream.CUT_ORDER)
   Order cutOrder();
+
+  /**
+   * Reads an order whose whole JSON body ends right after its list of lines starts.
+   *
+   * @return never, as the body is not valid
+   */
+  @GetExchange(ErrorDownstream.SHORT_JSON)
+  Order shortJson();
+
+  /**
+   * Reads a stock count whose 200 body is typed as protobuf but is not protobuf.
+   *
+   * @return never, as the body is not valid
+   */
+  @GetExchange(ErrorDownstream.BAD_PROTOBUF)
+  Struct badProtobuf();
+
+  /**
+   * Reads a stock count whose protobuf body stops after its first bytes.
+   *
+   * @return never, as the body is cut off by the timeout
+   */
+  @GetExchange(ErrorDownstream.CUT_PROTOBUF)
+  Struct cutProtobuf();
 
   /**
    * Reads an answer that succeeds with a body far over 64 KB.
