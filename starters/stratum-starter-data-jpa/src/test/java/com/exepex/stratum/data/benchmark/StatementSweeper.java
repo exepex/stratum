@@ -1,8 +1,8 @@
 package com.exepex.stratum.data.benchmark;
 
 import java.sql.SQLException;
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -15,10 +15,10 @@ import java.util.concurrent.atomic.AtomicLong;
  * statement.
  *
  * @param sweeper the one thread that checks the slots
- * @param slots the slots of the open connections
+ * @param slots the slots of the open connections, added on borrow and removed on return
  * @param origin the time every deadline counts from, so that a deadline is never negative
  */
-record StatementSweeper(ScheduledThreadPoolExecutor sweeper, List<AtomicLong> slots, long origin) {
+record StatementSweeper(ScheduledThreadPoolExecutor sweeper, Set<AtomicLong> slots, long origin) {
 
   /** How often the sweeper checks the slots, in milliseconds. */
   private static final long SWEEP_MILLIS = 50;
@@ -39,7 +39,7 @@ record StatementSweeper(ScheduledThreadPoolExecutor sweeper, List<AtomicLong> sl
         new StatementSweeper(
             new ScheduledThreadPoolExecutor(
                 1, Thread.ofPlatform().daemon().name("stratum-statement-sweeper").factory()),
-            new CopyOnWriteArrayList<>(),
+            ConcurrentHashMap.newKeySet(),
             System.nanoTime());
     statementSweeper
         .sweeper()
@@ -57,6 +57,15 @@ record StatementSweeper(ScheduledThreadPoolExecutor sweeper, List<AtomicLong> sl
     var slot = new AtomicLong(IDLE);
     slots.add(slot);
     return slot;
+  }
+
+  /**
+   * Removes the slot of a connection being returned, which the sweeper then no longer checks.
+   *
+   * @param slot the connection's slot
+   */
+  void close(AtomicLong slot) {
+    slots.remove(slot);
   }
 
   /**

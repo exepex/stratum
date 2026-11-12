@@ -145,7 +145,7 @@ public class StatementLimitsBenchmark {
   public static class BorrowPool {
 
     /** What a borrow does besides taking the connection: nothing, or one of the settings. */
-    @Param({"none", "leak-detection", "network-timeout"})
+    @Param({"none", "leak-detection", "network-timeout", "sweeper-slot"})
     public String setting;
 
     /** The context and pool of this fork. */
@@ -153,6 +153,12 @@ public class StatementLimitsBenchmark {
 
     /** Whether each borrow sets the network timeout, which HikariCP resets on return. */
     private boolean setsNetworkTimeout;
+
+    /** Stratum's sweeper, whose registry each borrow on that side adds a slot to. */
+    private StatementSweeper sweeper;
+
+    /** Whether each borrow registers a slot with the sweeper and releases it on return. */
+    private boolean registersSlot;
 
     /**
      * Starts the context, with leak detection on for that side.
@@ -166,10 +172,13 @@ public class StatementLimitsBenchmark {
               ? Pool.start("spring.datasource.hikari.leak-detection-threshold=" + LEAK_THRESHOLD)
               : Pool.start();
       setsNetworkTimeout = "network-timeout".equals(setting);
+      sweeper = StatementSweeper.start();
+      registersSlot = "sweeper-slot".equals(setting);
     }
 
     /**
-     * Takes a connection, sets its network timeout on that side, and returns it.
+     * Takes a connection, sets its network timeout or registers its sweeper slot on that side, and
+     * returns it.
      *
      * @return the returned connection
      * @throws SQLException if the pool fails
@@ -179,13 +188,17 @@ public class StatementLimitsBenchmark {
         if (setsNetworkTimeout) {
           connection.setNetworkTimeout(CALLING_THREAD, NETWORK_TIMEOUT_MILLIS);
         }
+        if (registersSlot) {
+          sweeper.close(sweeper.open());
+        }
         return connection;
       }
     }
 
-    /** Closes the context, and with it the pool and the container. */
+    /** Stops the sweeper and closes the context, and with it the pool and the container. */
     @TearDown(Level.Trial)
     public void stop() {
+      sweeper.stop();
       pool.context().close();
     }
   }
