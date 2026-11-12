@@ -3,8 +3,11 @@ package com.exepex.stratum.restclient.it;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.exepex.stratum.httpclient.HttpClientConstants;
+import com.exepex.stratum.httpclient.HttpClientErrorCode;
 import com.exepex.stratum.restclient.ClientResilience;
 import com.exepex.stratum.restclient.StratumHttpClients;
+import com.exepex.stratum.restclient.testsupport.CallChecks;
 import com.exepex.stratum.restclient.testsupport.EchoDownstream;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import com.exepex.stratum.restclient.testsupport.TokenDownstream;
@@ -30,6 +33,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 
@@ -90,12 +94,6 @@ class InterceptorFailureIntegrationTest {
     return Collections.frequency(log.starts(), AuditInterceptor.NAME);
   }
 
-  /** Checks that a client's breaker recorded neither a success nor a failure. */
-  private void assertNothingRecorded(String client) {
-    assertThat(breaker(client).getMetrics().getNumberOfSuccessfulCalls()).isZero();
-    assertThat(breaker(client).getMetrics().getNumberOfFailedCalls()).isZero();
-  }
-
   @Nested
   @DisplayName("on a call of an interface")
   class OnInterface {
@@ -111,8 +109,7 @@ class InterceptorFailureIntegrationTest {
 
       assertThat(attempts()).isEqualTo(1);
       assertThat(DOWNSTREAM.requestCount()).isEqualTo(before);
-      assertThat(breaker(HeadersTestData.PLAIN).getState()).isEqualTo(CircuitBreaker.State.CLOSED);
-      assertNothingRecorded(HeadersTestData.PLAIN);
+      CallChecks.assertNothingRecorded(breaker(HeadersTestData.PLAIN), CircuitBreaker.State.CLOSED);
     }
 
     @Test
@@ -124,7 +121,7 @@ class InterceptorFailureIntegrationTest {
       assertThatThrownBy(plain::echo).isSameAs(failure);
 
       assertThat(attempts()).isEqualTo(1);
-      assertNothingRecorded(HeadersTestData.PLAIN);
+      CallChecks.assertNothingRecorded(breaker(HeadersTestData.PLAIN), CircuitBreaker.State.CLOSED);
     }
 
     @Test
@@ -137,9 +134,8 @@ class InterceptorFailureIntegrationTest {
 
       assertThatThrownBy(plain::echo).isSameAs(failure);
 
-      assertThat(breaker(HeadersTestData.PLAIN).getState())
-          .isEqualTo(CircuitBreaker.State.HALF_OPEN);
-      assertNothingRecorded(HeadersTestData.PLAIN);
+      CallChecks.assertNothingRecorded(
+          breaker(HeadersTestData.PLAIN), CircuitBreaker.State.HALF_OPEN);
       assertThat(plain.echo()).isEqualTo(EchoDownstream.BODY);
     }
 
@@ -201,8 +197,35 @@ class InterceptorFailureIntegrationTest {
 
       assertThatThrownBy(signed::echo).isSameAs(failure);
 
-      assertNothingRecorded(HeadersTestData.SIGNED);
+      CallChecks.assertNothingRecorded(
+          breaker(HeadersTestData.SIGNED), CircuitBreaker.State.CLOSED);
       assertThat(attempts()).isEqualTo(1);
+    }
+  }
+
+  @Nested
+  @TestPropertySource(properties = HttpClientConstants.DEFAULTS + ".retry.delay=10ms")
+  @DisplayName("when the other service cannot be reached")
+  class Unreachable {
+
+    /**
+     * Points the clients at a port that refuses connections.
+     *
+     * @param registry the test's properties
+     */
+    @DynamicPropertySource
+    static void addresses(DynamicPropertyRegistry registry) {
+      HeadersTestData.pointClientsAt(registry, () -> RestClientTestData.UNUSED_URL);
+    }
+
+    @Test
+    @DisplayName("the failed send, after the interceptors ran, is retried, counted, SX-HTTPC-0002")
+    void sendFailureRetried(@Autowired SignedClient signed) {
+      CallChecks.assertEndsWith(signed::echo, HttpClientErrorCode.DOWNSTREAM_UNAVAILABLE);
+
+      assertThat(attempts()).isEqualTo(HttpClientConstants.DEFAULT_RETRIES + 1);
+      assertThat(breaker(HeadersTestData.SIGNED).getMetrics().getNumberOfFailedCalls())
+          .isEqualTo(HttpClientConstants.DEFAULT_RETRIES + 1);
     }
   }
 

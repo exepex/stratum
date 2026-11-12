@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientErrorCode;
+import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.ConnectException;
@@ -20,8 +21,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.FieldSource;
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.mock.http.MockHttpInputMessage;
 import org.springframework.web.client.ResourceAccessException;
@@ -44,7 +43,7 @@ class ClientErrorsTest {
   private static final String READ_TIMEOUT = "read timed out";
 
   /** The translation. */
-  private final ClientErrors errors = new ClientErrors(noCustomizers());
+  private final ClientErrors errors = new ClientErrors(RestClientTestData.noCustomizers());
 
   @Nested
   @DisplayName("a call that got no answer")
@@ -126,10 +125,5 @@ class ClientErrorsTest {
   /** Returns a check of the code a call that got no answer ends with. */
   private ObjectAssert<?> assertCode(RestClientException failure) {
     return assertThat(errors.noAnswer(failure).orElseThrow().getErrorCode());
-  }
-
-  /** Returns the customizers of a service that has none. */
-  private ObjectProvider<StratumClientCustomizer> noCustomizers() {
-    return new DefaultListableBeanFactory().getBeanProvider(StratumClientCustomizer.class);
   }
 }

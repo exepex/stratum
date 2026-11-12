@@ -9,6 +9,8 @@ import com.exepex.stratum.restclient.ClientResilience;
 import com.exepex.stratum.restclient.DownstreamException;
 import com.exepex.stratum.restclient.StratumHttpClients;
 import com.exepex.stratum.restclient.testsupport.CallChecks;
+import com.exepex.stratum.restclient.testsupport.ClientBeanCalls;
+import com.exepex.stratum.restclient.testsupport.ClientBeanCalls.ClientBean;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import com.exepex.stratum.restclient.testsupport.ScriptedDownstream;
 import com.exepex.stratum.restclient.testsupport.TokenDownstream;
@@ -28,8 +30,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -164,6 +169,7 @@ class ClientCredentialsIntegrationTest {
             + "not recorded by the breaker")
     void refusedTokenStopsCall(@Autowired ClientResilience resilience) {
       REFUSING.tokenAnswer(TokenAnswer.REFUSE);
+      var tokenRequestsBefore = REFUSING.tokenRequests();
 
       assertThatThrownBy(inventory::stock)
           .isInstanceOf(StratumException.class)
@@ -172,7 +178,27 @@ class ClientCredentialsIntegrationTest {
           .hasMessageNotContaining(RestClientTestData.REGISTRATION)
           .hasMessageNotContaining(RestClientTestData.SECRET);
       assertThat(REFUSING.authorizations()).isEmpty();
-      assertThat(REFUSING.tokenRequests()).isEqualTo(1);
+      assertThat(REFUSING.tokenRequests()).isEqualTo(tokenRequestsBefore + 1);
+      CallChecks.assertNothingRecorded(
+          resilience.circuitBreaker(RestClientTestData.INVENTORY).orElseThrow(),
+          CircuitBreaker.State.CLOSED);
+    }
+
+    @ParameterizedTest
+    @FieldSource(ClientBeanCalls.BOTH_BEANS)
+    @DisplayName("a call of a client's bean also stops with SX-HTTPC-0002, unsent, not recorded")
+    void refusedTokenStopsBeanCall(
+        ClientBean bean,
+        @Autowired ApplicationContext context,
+        @Autowired ClientResilience resilience) {
+      REFUSING.tokenAnswer(TokenAnswer.REFUSE);
+
+      CallChecks.assertEndsWith(
+          () ->
+              ClientBeanCalls.get(
+                  context, bean, RestClientTestData.INVENTORY, ScriptedDownstream.STOCK),
+          HttpClientErrorCode.DOWNSTREAM_UNAVAILABLE);
+      assertThat(REFUSING.authorizations()).isEmpty();
       CallChecks.assertNothingRecorded(
           resilience.circuitBreaker(RestClientTestData.INVENTORY).orElseThrow(),
           CircuitBreaker.State.CLOSED);

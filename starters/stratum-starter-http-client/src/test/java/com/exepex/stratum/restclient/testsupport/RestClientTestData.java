@@ -2,14 +2,19 @@ package com.exepex.stratum.restclient.testsupport;
 
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientProperties;
+import com.exepex.stratum.restclient.ClientAttempt;
 import com.exepex.stratum.restclient.ClientConnectionPools;
 import com.exepex.stratum.restclient.ClientMeters;
 import com.exepex.stratum.restclient.MockAnswers;
+import com.exepex.stratum.restclient.StratumClientCustomizer;
 import com.exepex.stratum.restclient.autoconfigure.RestClientAutoConfiguration;
 import com.exepex.stratum.restclient.autoconfigure.RestClientTokenAutoConfiguration;
 import com.exepex.stratum.restclient.testsupport.clients.ClientsApplication;
 import java.time.Duration;
 import lombok.experimental.UtilityClass;
+import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -22,6 +27,7 @@ import org.springframework.boot.security.oauth2.client.autoconfigure.OAuth2Clien
 import org.springframework.boot.ssl.SslBundles;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.http.HttpMethod;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -255,5 +261,30 @@ public class RestClientTestData {
         .web(WebApplicationType.NONE)
         .properties(settings)
         .run();
+  }
+
+  /**
+   * Returns an attempt of the method that ended with the failure, with time to spare and no wait.
+   *
+   * @param method the attempt's method
+   * @param failure how it failed, or {@code null} when it got an answer
+   * @return the attempt
+   */
+  public static ClientAttempt attempt(HttpMethod method, @Nullable RuntimeException failure) {
+    return ClientAttempt.builder()
+        .method(method)
+        .failure(failure)
+        .timeLeft(HttpClientConstants.DEFAULT_TOTAL_TIMEOUT)
+        .nextWait(Duration.ZERO)
+        .build();
+  }
+
+  /**
+   * Returns the customizers of a service that has none.
+   *
+   * @return an empty provider
+   */
+  public static ObjectProvider<StratumClientCustomizer> noCustomizers() {
+    return new DefaultListableBeanFactory().getBeanProvider(StratumClientCustomizer.class);
   }
 }

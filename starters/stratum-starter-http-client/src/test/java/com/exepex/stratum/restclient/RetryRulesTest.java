@@ -3,6 +3,7 @@ package com.exepex.stratum.restclient;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.httpclient.HttpClientConstants;
+import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.core.IntervalFunction;
@@ -50,9 +51,6 @@ class RetryRulesTest {
   /** Just enough time left after {@link #WAIT} for one more attempt of at least 100ms. */
   private static final Duration JUST_ENOUGH = WAIT.plus(HttpClientConstants.MIN_ATTEMPT_TIME);
 
-  /** The time left before a call's total-timeout when a test does not care. */
-  private static final Duration PLENTY = HttpClientConstants.DEFAULT_TOTAL_TIMEOUT;
-
   /** The message of a dropped connection. */
   private static final String RESET = "reset";
 
@@ -89,7 +87,8 @@ class RetryRulesTest {
     @DisplayName("an idempotent call is sent again after 502, 503, 504 or 429")
     void idempotentRetried(HttpStatus status) {
       for (var method : List.of(HttpMethod.GET, HttpMethod.PUT, HttpMethod.DELETE)) {
-        assertThat(RetryRules.isRetryable(attempt(method, answer(status)))).isTrue();
+        assertThat(RetryRules.isRetryable(RestClientTestData.attempt(method, answer(status))))
+            .isTrue();
       }
     }
 
@@ -97,14 +96,15 @@ class RetryRulesTest {
     @FieldSource("NOT_RETRIED")
     @DisplayName("no call is sent again after any other error answer")
     void otherStatusesNotRetried(HttpStatus status) {
-      assertThat(RetryRules.isRetryable(attempt(HttpMethod.GET, answer(status)))).isFalse();
+      assertThat(RetryRules.isRetryable(RestClientTestData.attempt(HttpMethod.GET, answer(status))))
+          .isFalse();
     }
 
     @ParameterizedTest
     @FieldSource("WRITES")
     @DisplayName("a POST or PATCH is never sent again after an answer, as the service got it")
     void writesNotRetried(HttpMethod method) {
-      var attempt = attempt(method, answer(HttpStatus.SERVICE_UNAVAILABLE));
+      var attempt = RestClientTestData.attempt(method, answer(HttpStatus.SERVICE_UNAVAILABLE));
 
       assertThat(RetryRules.isRetryable(attempt)).isFalse();
     }
@@ -130,29 +130,41 @@ class RetryRulesTest {
     @FieldSource("CONNECT_FAILURES")
     @DisplayName("a POST is sent again after a failed connection, as nothing was sent")
     void connectFailureRetriedForPost(IOException cause) {
-      assertThat(RetryRules.isRetryable(attempt(HttpMethod.POST, noAnswer(cause)))).isTrue();
+      assertThat(
+              RetryRules.isRetryable(RestClientTestData.attempt(HttpMethod.POST, noAnswer(cause))))
+          .isTrue();
     }
 
     @ParameterizedTest
     @FieldSource("FAILURES_AFTER_SENDING")
     @DisplayName("a timeout or a dropped connection resends a GET but never a POST")
     void failureAfterSendingRetriedOnlyWhenIdempotent(IOException cause) {
-      assertThat(RetryRules.isRetryable(attempt(HttpMethod.GET, noAnswer(cause)))).isTrue();
-      assertThat(RetryRules.isRetryable(attempt(HttpMethod.POST, noAnswer(cause)))).isFalse();
+      assertThat(
+              RetryRules.isRetryable(RestClientTestData.attempt(HttpMethod.GET, noAnswer(cause))))
+          .isTrue();
+      assertThat(
+              RetryRules.isRetryable(RestClientTestData.attempt(HttpMethod.POST, noAnswer(cause))))
+          .isFalse();
     }
 
     @ParameterizedTest
     @FieldSource("FAILURES_AFTER_SENDING")
     @DisplayName("a body cut off after the headers resends a GET but never a POST")
     void bodyCutOffRetriedOnlyWhenIdempotent(IOException cause) {
-      assertThat(RetryRules.isRetryable(attempt(HttpMethod.GET, bodyCutOff(cause)))).isTrue();
-      assertThat(RetryRules.isRetryable(attempt(HttpMethod.POST, bodyCutOff(cause)))).isFalse();
+      assertThat(
+              RetryRules.isRetryable(RestClientTestData.attempt(HttpMethod.GET, bodyCutOff(cause))))
+          .isTrue();
+      assertThat(
+              RetryRules.isRetryable(
+                  RestClientTestData.attempt(HttpMethod.POST, bodyCutOff(cause))))
+          .isFalse();
     }
 
     @Test
     @DisplayName("a body that is not valid is never sent again: the service answered")
     void invalidBodyNotRetried() {
-      assertThat(RetryRules.isRetryable(attempt(HttpMethod.GET, invalidBody()))).isFalse();
+      assertThat(RetryRules.isRetryable(RestClientTestData.attempt(HttpMethod.GET, invalidBody())))
+          .isFalse();
     }
 
     @Test
@@ -160,7 +172,8 @@ class RetryRulesTest {
     void fullPoolNotRetried() {
       var fullPool = noAnswer(new ConnectionRequestTimeoutException("pool full"));
 
-      assertThat(RetryRules.isRetryable(attempt(HttpMethod.GET, fullPool))).isFalse();
+      assertThat(RetryRules.isRetryable(RestClientTestData.attempt(HttpMethod.GET, fullPool)))
+          .isFalse();
     }
   }
 
@@ -172,7 +185,8 @@ class RetryRulesTest {
     @DisplayName("a call with a streamed body, which cannot be sent twice")
     void streamedBody() {
       var attempt =
-          attempt(HttpMethod.GET, answer(HttpStatus.SERVICE_UNAVAILABLE)).toBuilder()
+          RestClientTestData.attempt(HttpMethod.GET, answer(HttpStatus.SERVICE_UNAVAILABLE))
+              .toBuilder()
               .streamedBody(true)
               .build();
 
@@ -182,7 +196,8 @@ class RetryRulesTest {
     @Test
     @DisplayName("a call that succeeded")
     void success() {
-      assertThat(RetryRules.isRetryable(attempt(HttpMethod.GET, null))).isFalse();
+      assertThat(RetryRules.isRetryable(RestClientTestData.attempt(HttpMethod.GET, null)))
+          .isFalse();
     }
 
     @Test
@@ -192,7 +207,8 @@ class RetryRulesTest {
           CallNotPermittedException.createCallNotPermittedException(
               CircuitBreaker.ofDefaults("inventory"));
 
-      assertThat(RetryRules.isRetryable(attempt(HttpMethod.GET, refused))).isFalse();
+      assertThat(RetryRules.isRetryable(RestClientTestData.attempt(HttpMethod.GET, refused)))
+          .isFalse();
     }
   }
 
@@ -317,19 +333,10 @@ class RetryRulesTest {
 
   /** Returns a retryable attempt whose wait is {@link #WAIT}, with the given time left. */
   private ClientAttempt retryableWithTimeLeft(Duration timeLeft) {
-    return attempt(HttpMethod.GET, answer(HttpStatus.SERVICE_UNAVAILABLE)).toBuilder()
+    return RestClientTestData.attempt(HttpMethod.GET, answer(HttpStatus.SERVICE_UNAVAILABLE))
+        .toBuilder()
         .timeLeft(timeLeft)
         .nextWait(WAIT)
-        .build();
-  }
-
-  /** Returns an attempt of the method that ended with the failure, with time to spare. */
-  private ClientAttempt attempt(HttpMethod method, @Nullable RuntimeException failure) {
-    return ClientAttempt.builder()
-        .method(method)
-        .failure(failure)
-        .timeLeft(PLENTY)
-        .nextWait(Duration.ZERO)
         .build();
   }
 

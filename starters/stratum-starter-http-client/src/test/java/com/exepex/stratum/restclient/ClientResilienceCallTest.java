@@ -115,6 +115,20 @@ class ClientResilienceCallTest {
     }
 
     @Test
+    @DisplayName("an interceptor's own failure, marked as never sent, is an error, thrown as is")
+    void markedOtherFailure() {
+      var interceptorFailure = new IllegalStateException("no signing key");
+
+      assertThatThrownBy(
+              () ->
+                  resilience.call(CALL, () -> failWith(new InterceptorFailure(interceptorFailure))))
+          .isSameAs(interceptorFailure);
+      assertThat(meters.getCalls())
+          .singleElement()
+          .satisfies(outcome -> assertThat(outcome.outcome()).isEqualTo(CallOutcome.ERROR));
+    }
+
+    @Test
     @DisplayName("any other code, such as a missing caller token, is reported as an error")
     void otherCode() {
       var outcome =

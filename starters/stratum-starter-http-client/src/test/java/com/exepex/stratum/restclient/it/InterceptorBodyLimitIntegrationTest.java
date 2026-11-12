@@ -212,9 +212,7 @@ class InterceptorBodyLimitIntegrationTest {
       IntStream.range(0, CALLS).forEach(call -> sendOverLimit());
 
       assertThat(Collections.frequency(log.starts(), AuditInterceptor.NAME)).isEqualTo(CALLS);
-      assertThat(breaker().getState()).isEqualTo(CircuitBreaker.State.CLOSED);
-      assertThat(breaker().getMetrics().getNumberOfSuccessfulCalls()).isZero();
-      assertThat(breaker().getMetrics().getNumberOfFailedCalls()).isZero();
+      CallChecks.assertNothingRecorded(breaker(), CircuitBreaker.State.CLOSED);
     }
 
     @Test
@@ -225,9 +223,7 @@ class InterceptorBodyLimitIntegrationTest {
 
       sendOverLimit();
 
-      assertThat(breaker().getState()).isEqualTo(CircuitBreaker.State.HALF_OPEN);
-      assertThat(breaker().getMetrics().getNumberOfSuccessfulCalls()).isZero();
-      assertThat(breaker().getMetrics().getNumberOfFailedCalls()).isZero();
+      CallChecks.assertNothingRecorded(breaker(), CircuitBreaker.State.HALF_OPEN);
     }
   }
 
