@@ -66,12 +66,12 @@ class Jackson2ClientIntegrationTest {
   @Test
   @DisplayName("bad JSON stays Spring's exception, sent once and not counted by the breaker")
   void badJsonIsAnAnswer() {
-    var requestsBefore = DOWNSTREAM.badJsonRequests();
+    var requestsBefore = DOWNSTREAM.bodyRequests();
 
     assertThatExceptionOfType(RestClientException.class)
         .isThrownBy(orders::badJson)
         .withRootCauseInstanceOf(JsonParseException.class);
-    assertThat(DOWNSTREAM.badJsonRequests() - requestsBefore).isEqualTo(1);
+    assertThat(DOWNSTREAM.bodyRequests() - requestsBefore).isEqualTo(1);
     assertThat(breaker().getMetrics().getNumberOfFailedCalls()).isZero();
   }
 

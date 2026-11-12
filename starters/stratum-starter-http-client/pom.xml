@@ -141,6 +141,28 @@
       <artifactId>jackson-databind</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Gson and protobuf, which a team can give its clients as converters, so that the tests read
+         bad and cut-off bodies with the real converters. Test scope only: Stratum's own code knows
+         their failures by name (ST-ENG-62). Versions from Spring Boot's dependency management. -->
+    <dependency>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- A plain embedded Jetty, so that copied headers are read from a request a real servlet
+         container parsed. Not Tomcat, whose jar holds its own copy of the servlet API that the
+         build's duplicate class check refuses. Test scope only; no web server module, so no other
+         test context changes. -->
+    <dependency>
+      <groupId>org.eclipse.jetty.ee11</groupId>
+      <artifactId>jetty-ee11-servlet</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>

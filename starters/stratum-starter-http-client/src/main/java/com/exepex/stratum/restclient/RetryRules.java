@@ -23,7 +23,6 @@ import java.time.format.DateTimeParseException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 import org.apache.hc.client5.http.ConnectTimeoutException;
 import org.apache.hc.core5.http.ConnectionRequestTimeoutException;
@@ -66,10 +65,6 @@ public class RetryRules {
 
   /** The most digits of a {@code Retry-After} in seconds, so that it cannot overflow. */
   private static final int MAX_RETRY_AFTER_DIGITS = 9;
-
-  /** The base class of Jackson 2's read failures, all of which extend {@link IOException}. */
-  private static final String JACKSON_2_READ_FAILURE =
-      "com.fasterxml.jackson.core.JacksonException";
 
   /** How far each wait is spread at random: up to half of it either way. */
   private static final double BACK_OFF_SPREAD = 0.5;
@@ -308,28 +303,21 @@ public class RetryRules {
   /**
    * Returns the I/O failure that ended a call, found anywhere in its causes: a call that got no
    * answer, or a body cut off while it was read, such as by a read timeout or a dropped connection.
-   * A body that is not valid, such as bad JSON, JSON of the wrong type or JSON that ends too soon,
-   * is not an I/O failure, with Jackson 3 or with Jackson 2's converter; nor is a body larger than
-   * the client's {@code response-body-limit}, which is not retried and counts as a success.
+   * A body that is not valid is not an I/O failure: bad JSON, JSON of the wrong type or JSON that
+   * ends too soon, with Jackson 3, Jackson 2's converter or Gson's; bytes that are not valid
+   * protobuf; or a body larger than the client's {@code response-body-limit}, which is not retried
+   * and counts as a success.
    *
    * @param failure the failure that ended the call
    * @return its I/O failure, or empty when it has none
    */
   public static Optional<IOException> ioFailureOf(RestClientException failure) {
     return FailureCauses.causesOf(failure)
+        .takeWhile(cause -> !BodyFaults.isGsonEndOfJson(cause))
         .filter(IOException.class::isInstance)
-        .filter(cause -> !isBodyFault(cause))
+        .filter(cause -> !BodyFaults.isBodyFault(cause))
         .map(IOException.class::cast)
         .findFirst();
-  }
-
-  /** Returns whether a cause is the body's own fault, not lost bytes: too large, or bad JSON. */
-  private static boolean isBodyFault(Throwable cause) {
-    // Jackson 2's failure by name, so that Stratum needs no Jackson 2. The walk goes on below a
-    // skipped cause, where Jackson 2 may wrap a real I/O failure, such as a read timeout.
-    return cause instanceof ResponseBodyTooLarge
-        || Stream.<Class<?>>iterate(cause.getClass(), Objects::nonNull, Class::getSuperclass)
-            .anyMatch(type -> JACKSON_2_READ_FAILURE.equals(type.getName()));
   }
 
   /**

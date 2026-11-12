@@ -19,7 +19,8 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
 import org.springframework.web.client.RestClientException;
 
-@DisplayName("A JSON body read with Jackson 3 or Jackson 2's converter: bad JSON is an answer")
+@DisplayName(
+    "A JSON body read with Jackson 3, Jackson 2 or Gson's converter: bad JSON is an answer")
 class JsonBodyFailuresTest {
 
   /** The bodies that are not valid, each with the type it is read as. */
@@ -30,6 +31,18 @@ class JsonBodyFailuresTest {
               "bad JSON inside a record's list",
               JsonReadFailures.ORDER,
               JsonReadFailures.BAD_JSON_IN_LINES),
+          argumentSet(
+              "JSON of the wrong type inside a record's list",
+              JsonReadFailures.ORDER,
+              JsonReadFailures.WRONG_TYPE_IN_LINES));
+
+  /**
+   * The bodies that are not valid as Gson reads them, each with the type it is read as. Gson reads
+   * leniently, so a word without quotes is a string to it.
+   */
+  private static final List<Arguments> GSON_INVALID_BODIES =
+      List.of(
+          argumentSet("bad JSON, read as a map", JsonReadFailures.MAP, JsonReadFailures.BAD_JSON),
           argumentSet(
               "JSON of the wrong type inside a record's list",
               JsonReadFailures.ORDER,
@@ -63,12 +76,24 @@ class JsonBodyFailuresTest {
   }
 
   @Nested
+  @DisplayName("with Gson's converter, a body that is not valid")
+  class GsonInvalidBody {
+
+    @ParameterizedTest
+    @FieldSource("com.exepex.stratum.restclient.JsonBodyFailuresTest#GSON_INVALID_BODIES")
+    @DisplayName("stays Spring's exception, is never sent again and is not counted by the breaker")
+    void isAnAnswer(ParameterizedTypeReference<?> type, String body) {
+      assertIsAnAnswer(JsonReadFailures.readFailure(JsonLibrary.GSON, type, body, null));
+    }
+  }
+
+  @Nested
   @DisplayName("a JSON body that ends inside a record's list, with no I/O failure")
   class EndsTooSoon {
 
     @ParameterizedTest
     @EnumSource(JsonLibrary.class)
-    @DisplayName("is a body that is not valid, with either library: the service answered")
+    @DisplayName("is a body that is not valid, with each library: the service answered")
     void isAnAnswer(JsonLibrary library) {
       assertIsAnAnswer(
           JsonReadFailures.readFailure(
@@ -88,7 +113,9 @@ class JsonBodyFailuresTest {
                 "Jackson 2, read as a record", JsonLibrary.JACKSON_2, JsonReadFailures.ORDER),
             argumentSet("Jackson 3, read as a map", JsonLibrary.JACKSON_3, JsonReadFailures.MAP),
             argumentSet(
-                "Jackson 3, read as a record", JsonLibrary.JACKSON_3, JsonReadFailures.ORDER));
+                "Jackson 3, read as a record", JsonLibrary.JACKSON_3, JsonReadFailures.ORDER),
+            argumentSet("Gson, read as a map", JsonLibrary.GSON, JsonReadFailures.MAP),
+            argumentSet("Gson, read as a record", JsonLibrary.GSON, JsonReadFailures.ORDER));
 
     @ParameterizedTest
     @FieldSource("CUT_OFF_READS")
