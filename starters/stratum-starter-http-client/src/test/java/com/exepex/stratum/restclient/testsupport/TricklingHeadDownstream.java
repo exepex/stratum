@@ -145,7 +145,7 @@ public final class TricklingHeadDownstream implements AutoCloseable {
       while (true) {
         respond(nextPath(in), out);
       }
-    } catch (IOException | InterruptedException closedOrDropped) {
+    } catch (IOException | InterruptedException _) {
       // The server closed, or the client dropped the connection, as a cut call does.
       connections.removeIf(Socket::isClosed);
     }
