@@ -127,7 +127,7 @@
     <profile>
       <id>benchmark</id>
       <properties>
-        <jmh.benchmarks>JdbcBoundaryBenchmark|StatementLimitsBenchmark|StatementTimerBenchmark</jmh.benchmarks>
+        <jmh.benchmarks>JdbcBoundaryBenchmark|StatementLimitsBenchmark|StatementTimerBenchmark|StatementSweeperBenchmark</jmh.benchmarks>
       </properties>
       <build>
         <plugins>

@@ -7,6 +7,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import javax.sql.DataSource;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -27,10 +28,11 @@ import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
 
 /**
- * Measures, on the raw HikariCP pool and a PostgreSQL container, what each of three settings costs
+ * Measures, on the raw HikariCP pool and a PostgreSQL container, what each of these settings costs
  * before Stratum turns it on: HikariCP's leak detection and a network timeout on every borrow, and
- * pgjdbc's query timeout on every statement, and Stratum's own statement timer in its place. Each
- * runs once without the setting and once with it, on one thread and on 16, in separate forks.
+ * pgjdbc's query timeout on every statement, and Stratum's own statement timer or sweeper in its
+ * place. Each runs once without the setting and once with it, on one thread and on 16, in separate
+ * forks.
  */
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
@@ -48,7 +50,7 @@ public class StatementLimitsBenchmark {
   /** The query timeout a statement sets, in seconds: Stratum's planned default. */
   private static final int QUERY_TIMEOUT_SECONDS = 30;
 
-  /** The limit Stratum's own timer arms, in milliseconds: the same 30s. */
+  /** The limit Stratum's own timer or sweeper applies, in milliseconds: the same 30s. */
   private static final long TIMER_LIMIT_MILLIS = 30_000;
 
   /** The leak alarm's threshold, in milliseconds: the 60s transaction timeout plus 10s. */
@@ -189,14 +191,14 @@ public class StatementLimitsBenchmark {
   }
 
   /**
-   * The pool of the query benchmarks, with nothing, pgjdbc's query timeout or Stratum's own timer
-   * on each statement.
+   * The pool of the query benchmarks, with nothing, pgjdbc's query timeout, or Stratum's own timer
+   * or sweeper on each statement.
    */
   @State(Scope.Benchmark)
   public static class QueryPool {
 
-    /** What each statement does besides running: nothing, or one of the two timers. */
-    @Param({"none", "query-timeout", "stratum-timer"})
+    /** What each statement does besides running: nothing, or one of the three limits. */
+    @Param({"none", "query-timeout", "stratum-timer", "stratum-sweeper"})
     public String setting;
 
     /** The context and pool of this fork. */
@@ -205,8 +207,11 @@ public class StatementLimitsBenchmark {
     /** Stratum's timer, which every thread of the fork shares. */
     private StatementTimer timer;
 
+    /** Stratum's sweeper, which every thread of the fork shares. */
+    private StatementSweeper sweeper;
+
     /**
-     * Starts the context and the timer.
+     * Starts the context, the timer and the sweeper.
      *
      * @throws SQLException if the pool cannot be reached behind the bean
      */
@@ -214,12 +219,17 @@ public class StatementLimitsBenchmark {
     public void start() throws SQLException {
       pool = Pool.start();
       timer = StatementTimer.start();
+      sweeper = StatementSweeper.start();
     }
 
-    /** Stops the timer and closes the context, and with it the pool and the container. */
+    /**
+     * Stops the timer and the sweeper and closes the context, and with it the pool and the
+     * container.
+     */
     @TearDown(Level.Trial)
     public void stop() {
       timer.stop();
+      sweeper.stop();
       pool.context().close();
     }
   }
@@ -240,6 +250,15 @@ public class StatementLimitsBenchmark {
     /** Whether each execute runs with Stratum's timer armed. */
     private boolean armsTimer;
 
+    /** Stratum's sweeper, which the fork's threads share. */
+    private StatementSweeper sweeper;
+
+    /** This connection's slot, which the sweeper checks. */
+    private AtomicLong slot;
+
+    /** Whether each execute runs with its deadline in the connection's slot. */
+    private boolean usesSweeper;
+
     /**
      * Borrows this thread's connection.
      *
@@ -252,11 +271,14 @@ public class StatementLimitsBenchmark {
       setsQueryTimeout = "query-timeout".equals(pool.setting);
       timer = pool.timer;
       armsTimer = "stratum-timer".equals(pool.setting);
+      sweeper = pool.sweeper;
+      slot = sweeper.open();
+      usesSweeper = "stratum-sweeper".equals(pool.setting);
     }
 
     /**
-     * Prepares the query, sets its timeout or arms Stratum's timer on that side, runs it and reads
-     * its value.
+     * Prepares the query, sets its timeout, arms Stratum's timer or writes the sweeper's deadline
+     * on that side, runs it and reads its value.
      *
      * @return the value read
      * @throws SQLException if the database fails
@@ -266,8 +288,11 @@ public class StatementLimitsBenchmark {
         if (setsQueryTimeout) {
           statement.setQueryTimeout(QUERY_TIMEOUT_SECONDS);
         }
-        return armsTimer
-            ? timer.around(TIMER_LIMIT_MILLIS, () -> readOne(statement))
+        if (armsTimer) {
+          return timer.around(TIMER_LIMIT_MILLIS, () -> readOne(statement));
+        }
+        return usesSweeper
+            ? sweeper.around(slot, TIMER_LIMIT_MILLIS, () -> readOne(statement))
             : readOne(statement);
       }
     }
