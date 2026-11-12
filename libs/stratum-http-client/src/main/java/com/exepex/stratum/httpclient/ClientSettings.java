@@ -23,14 +23,15 @@ import org.springframework.util.unit.DataSize;
  *
  * @param url The address of the other service, such as http://inventory:8080. Required. Set it for
  *     each client; it is not allowed under defaults.
- * @param connectTimeout The time allowed to open a connection, such as 2s. Defaults to 2s.
+ * @param connectTimeout The time allowed to open a connection, such as 2s. A value below 1ms is
+ *     used as 1ms. Defaults to 2s.
  * @param timeout The longest wait for the first byte of an answer and between two of its bytes,
  *     such as 5s or 20s for a slow report. A slow answer whose bytes keep coming takes as long as
- *     it needs. Defaults to 5s.
+ *     it needs. A value below 1ms is used as 1ms. Defaults to 5s.
  * @param maxConnections The most connections the client keeps open at once, from 1 to 10000. A call
  *     that finds them all busy waits for one. Defaults to 50.
  * @param maxWait How long a call waits for a free connection before it fails, such as 2s or 500ms.
- *     Defaults to 2s.
+ *     A value below 1ms is used as 1ms. Defaults to 2s.
  * @param idleTimeout How long a connection may stay unused before it is closed, such as 30s.
  *     Defaults to 30s.
  * @param connectionLifetime How old a connection may get before it is closed instead of used again,
@@ -44,8 +45,8 @@ import org.springframework.util.unit.DataSize;
  *     whose trust material it checks the other service with (mutual TLS), such as bank. None by
  *     default. Not allowed under defaults, nor with shared-pool.
  * @param retry When a failed call is sent again, and how long the client waits first.
- * @param totalTimeout The time allowed for a whole call, retries, waits and the answer's body
- *     included, except a streamed download's body, such as 8s. Defaults to 8s.
+ * @param totalTimeout The time allowed for a whole call, retries, waits and the answer's head and
+ *     body included, except a streamed download's body, such as 8s. Defaults to 8s.
  * @param circuitBreaker When calls stop for a while, failing at once, after many of them fail.
  * @param mock Whether the client answers from files under stratum-mocks and from test scripts
  *     instead of calling the other service, for a service that is not deployed yet and for tests.

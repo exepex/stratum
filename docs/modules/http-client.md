@@ -139,10 +139,10 @@ the shared default, which wins over Stratum's.
 | --- | --- | --- | --- | --- |
 | `stratum.http-client.enabled` | boolean | `true` | no such key | Whether the starter is on. With `false`, it sets up nothing. |
 | `url` | URL | **required** per client | no such key | The address of the other service, such as `http://inventory:8080`. Not allowed under `defaults`, since each client calls its own service. |
-| `connect-timeout` | duration | `2s` | no such key | The time allowed to open a connection. |
-| `timeout` | duration | `5s` | no such key | The longest wait for the first byte of an answer and between two of its bytes. It does not limit the whole call. |
+| `connect-timeout` | duration | `2s` | no such key | The time allowed to open a connection. A value below 1 ms is used as 1 ms. |
+| `timeout` | duration | `5s` | no such key | The longest wait for the first byte of an answer and between two of its bytes. It does not limit the whole call. A value below 1 ms is used as 1 ms. |
 | `max-connections` | int | `50` | no such key | The most connections the client keeps open at once, from 1 to 10000. |
-| `max-wait` | duration | `2s` | no such key | How long a call waits for a free connection before it fails. |
+| `max-wait` | duration | `2s` | no such key | How long a call waits for a free connection before it fails. A value below 1 ms is used as 1 ms. |
 | `idle-timeout` | duration | `30s` | no such key | How long a connection may stay unused before it is closed. |
 | `connection-lifetime` | duration | `5m` | no such key | How old a connection may get before it is closed instead of used again. |
 | `retry.max-retries` | int | `3` | no such key | How many times a failed call may be sent again, from 0 to 9. `0` sends each call once ([retries and the circuit breaker](http-client-resilience.md)). |

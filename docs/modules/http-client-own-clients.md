@@ -94,7 +94,7 @@ stratum:
       partner:
         url: https://api.partner.example
         timeout: 5s                     # longest wait for the answer, and between bytes
-        total-timeout: 8s               # the whole call: attempts, the answer's body, waits for a connection and between attempts
+        total-timeout: 8s               # the whole call: attempts, the answer's head and body, waits for a connection and between attempts
         retry:
           max-retries: 3                # extra attempts, 0 to 9; a call with a body is sent once
           backoff-policy: exponential   # exponential or fixed
@@ -200,9 +200,10 @@ A call through either bean runs through the client's retries and circuit breaker
 | A call while the breaker is open | Refused at once with `SX-HTTPC-0003` (503) |
 | A 401 on a client with `auth.client-credentials` | Sent once more with a new token, for a call with no body; a call with a body gets its 401 |
 
-The whole call, its retries, waits and the reading of its answer's body included, ends by `total-timeout`, 8s by
-default: each attempt waits for the answer at most `timeout` or the time left, whichever is less, as an interface's
-call does. To call a slow service, raise `total-timeout` for that client or under `defaults`, for example to 30s.
+The whole call, its retries, waits and the reading of its answer's head and body included, ends by `total-timeout`,
+8s by default: each attempt waits for the answer at most `timeout` or the time left, whichever is less, as an
+interface's call does. To call a slow service, raise `total-timeout` for that client or under `defaults`, for example
+to 30s.
 
 An error answer is read inside its attempt, at most 64 KB, and its connection freed before any wait for the next
 attempt, as an interface's is. A success answer is handed over unread after the last attempt, and read up to

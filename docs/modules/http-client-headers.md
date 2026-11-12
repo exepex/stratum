@@ -162,6 +162,14 @@ public interface PartnerClient {
   the interceptor threw it, type unchanged: a `503` the interceptor got from another service stays that exception,
   and a `404` on an `Optional` method is thrown, not read as empty. The call is neither retried, nor sent again with
   a new token, nor recorded by the circuit breaker. An `Error` is not caught.
+- **Where the failure is wrapped:** until the call's outermost layer throws it to your code, the failure travels in an
+  internal Stratum wrapper, `InterceptorFailure`, whose cause is the exception the interceptor threw. Three things see
+  the wrapper, not your exception:
+  - a rule your `customizeRetry` gives to `retryOnException`; give rules to `retryOnResult` instead
+    ([resilience](http-client-resilience.md#rules-the-keys-cannot-express));
+  - an `ObservationHandler`, so Spring Boot's `http.client.requests` timer is tagged `exception=InterceptorFailure`;
+  - a decorator of the client's interfaces you add with Spring's `RestClientHttpServiceGroupConfigurer`, when that
+    configurer is ordered before Stratum's.
 - **Named and global:** a bean that is a `GlobalClientInterceptor` and is also named in `interceptors` runs once, as
   a global one. A `ClientInterceptor` that no client names never runs.
 - **Missing bean:** each type named in `interceptors` needs exactly one bean; with none, or two, startup stops with

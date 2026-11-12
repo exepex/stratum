@@ -32,7 +32,8 @@ Baggage travels with the trace: Spring's HTTP clients, `WebClient` in reactive c
 [allowed entries](#baggage) in the W3C `baggage` header on every outgoing call, to every host, third
 parties included, and Kafka, JMS and RabbitMQ senders put them in a `baggage` message header
 ([messages](../../starters/stratum-starter-observability/README.md#messages)). So the correlation ID
-set in baggage reaches every service you call or send a message to.
+set in baggage reaches every service you call or send a message to. A Stratum HTTP client can send its host none of
+it ([`trace-headers: false`](http-client-observability.md#trace-headers)).
 
 > [!WARNING]
 > Never put a secret or personal data, such as a customer's name or email address, in the

@@ -46,7 +46,10 @@ class HeadDeadlineParserTest {
   /** The size of Apache's buffer of a connection, its default. */
   private static final int BUFFER_SIZE = 8192;
 
-  /** A head of the largest size Apache's default limits allow: 100 headers of about 80 bytes. */
+  /**
+   * A head with as many lines as Apache's default limit of 100 headers allows, each of about 80
+   * bytes, so about 8 KB. Apache lets each line be up to 8192 characters, so a head may be larger.
+   */
   private static final String LARGE_HEAD =
       "HTTP/1.1 200 OK\r\n"
           + ("X-Filler: " + "a".repeat(FILLER_LENGTH) + "\r\n").repeat(99)

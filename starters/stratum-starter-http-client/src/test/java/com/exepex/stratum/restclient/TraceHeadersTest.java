@@ -133,7 +133,7 @@ class TraceHeadersTest {
 
       step.applyTo(headers);
 
-      assertThat(headers.isEmpty()).isTrue();
+      assertThat(headers.headerNames()).isEmpty();
     }
 
     @Test

@@ -221,6 +221,8 @@ does not read baggage still gets the ID.
 
 The headers are set or removed when each attempt is sent, after the copied headers and your interceptors, so they
 apply to every way of calling the client and to each retry. The small pools that fetch service tokens get neither.
+Headers added below Stratum's request factory, such as by the OpenTelemetry Java agent inside Apache's client, are
+not removed.
 
 ## The meters
 
@@ -243,6 +245,8 @@ same and makes no meters. Each meter is tagged `client`, the client's name.
   `shared-pool: true` reports the shared pool under `client=_shared`; the small pools that fetch service tokens report
   nothing.
 - No tag ever holds a path value, a query value or a header: `outcome` and `state` have the fixed values above.
+- The state gauge shows the three states a breaker goes through by itself. Resilience4j's other states, `DISABLED`,
+  `FORCED_OPEN` and `METRICS_ONLY`, are set only by your own code, and show 0 on all three.
 - Spring Boot's own `http.client.requests` timer stays as it is: one per attempt, tagged with the template.
 - How long a call waits for a free connection is not measured yet
   ([#237](https://github.com/exepex/stratum/issues/237)).
