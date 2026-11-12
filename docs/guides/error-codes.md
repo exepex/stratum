@@ -87,7 +87,9 @@ tracing baggage when one is set, and otherwise the trace ID, which every service
 shares ([observability module](../modules/observability-traces.md#correlation-id)).
 Only the [allowed baggage entries](../modules/observability-traces.md#baggage) are sent, but they go
 on every outgoing call made with Spring's HTTP clients, `WebClient` in reactive code included, to
-every host, so never put a secret or personal data in the correlation ID. With
+every host, so never put a secret or personal data in the correlation ID. A Stratum HTTP client
+set to [`trace-headers: false`](../modules/http-client-observability.md#trace-headers) sends its
+host none of them. With
 the web module on, the web module also takes the ID from the caller's `X-Correlation-Id`
 header and returns it in the response
 ([web module](../modules/web.md#correlation-id)). Sending baggage only to the service's own hosts is

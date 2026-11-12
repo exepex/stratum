@@ -25,7 +25,7 @@ the service sends the same OTLP whatever the backend.
 | --- | --- | --- |
 | Database queries make no spans yet; until then, use the pool and repository metrics | [Observing your service's stack](observability-service-stack.md#postgresql) | [#225](https://github.com/exepex/stratum/issues/225) |
 | A caller that chooses its own trace IDs can force sampling | [Sampling](observability-traces.md#how-a-service-chooses) | [#162](https://github.com/exepex/stratum/issues/162) |
-| Allowed baggage entries go to every host called, third parties included | [Baggage](observability-traces.md#baggage) | [#171](https://github.com/exepex/stratum/issues/171) |
+| Allowed baggage entries go to every host called, third parties included, except a Stratum HTTP client's host with [`trace-headers: false`](http-client-observability.md#trace-headers) | [Baggage](observability-traces.md#baggage) | [#171](https://github.com/exepex/stratum/issues/171) |
 | JMS connection pools have no metrics, and TIBCO EMS is not tested | [Messages](observability-messages.md#not-covered-yet) | [#226](https://github.com/exepex/stratum/issues/226) |
 | JMS templates and containers made outside beans, and listeners registered after startup, are not observed | [Messages](observability-messages.md#jms-senders-and-listeners-you-set-up) | none: Stratum cannot reach them |
 | Two health-probe cases still make spans: a span a health check starts with the tracer or the OpenTelemetry API, and, on Spring MVC with a separate management port, timed work inside a health check | [Health probes](observability-traces.md#health-probes) | none: stated |

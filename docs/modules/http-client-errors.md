@@ -141,6 +141,13 @@ used again. A body that does not end within 64 KB, one that never ends, or one w
 not read further: its connection is closed instead of being used again, so a huge error body never holds the call. A
 body that stalls within those 64 KB is dropped, with its connection, when `total-timeout` runs out.
 
+The 64 KB are counted after gzip is undone, so the memory a body takes stays bounded whatever it unzips to. Two cases
+lose their connection without an error, and are accepted as they are:
+
+- A gzip error body that unzips to 64 KB or more, even when few bytes were sent.
+- A body of exactly 64 KB with no `Content-Length`, as when it is sent in chunks or with gzip: the drain would need one
+  more read to see its end.
+
 ## The answer body is read up to 32 MB
 
 Of a successful answer, status below 400, a client reads at most `response-body-limit`, 32 MB by default, after gzip
@@ -154,9 +161,14 @@ is undone ([ADR 0017](../adr/0017-http-client-response-body-limit.md)). Set it p
   the body.
 - A body the call does not read, such as for a method returning `void`, or reads only in part, is read and dropped
   when the answer closes, so the connection can be used again, but only up to the limit: a longer one is dropped with
-  its connection, without an error.
+  its connection, without an error. So is one of exactly the limit with no `Content-Length`, as the 64 KB error body
+  above is.
+- The limit counts bytes after gzip is undone. Bytes a service sends after the end of its gzip data are not counted;
+  `total-timeout` ends them.
 - A method returning `InputStream` or `ResponseEntity<InputStream>` streams, so it is not limited; a `Resource` is read
-  whole, so it is. A client's service token is always limited.
+  whole, so it is. A client's service token is limited by the client's `response-body-limit` too, unless it is `-1`.
+  For a token, the logged cause names the client as `token:<name>`, such as `token:payments`: that is its token pool,
+  so you can tell a token that is too large from an answer that is.
 - The limit applies in both modes, `stratum.backward-compatible=true` included, and to a client's beans and mocks.
 
 ## Clients Stratum did not build

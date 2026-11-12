@@ -157,8 +157,7 @@ class InterceptorFailureIntegrationTest {
       assertThat(signed.flaky()).isEqualTo(EchoDownstream.BODY);
 
       assertThat(attempts()).isEqualTo(2);
-      assertThat(breaker(HeadersTestData.SIGNED).getMetrics().getNumberOfFailedCalls())
-          .isEqualTo(1);
+      assertThat(CallChecks.failedCalls(resilience, HeadersTestData.SIGNED)).isEqualTo(1);
     }
   }
 
@@ -224,7 +223,7 @@ class InterceptorFailureIntegrationTest {
       CallChecks.assertEndsWith(signed::echo, HttpClientErrorCode.DOWNSTREAM_UNAVAILABLE);
 
       assertThat(attempts()).isEqualTo(HttpClientConstants.DEFAULT_RETRIES + 1);
-      assertThat(breaker(HeadersTestData.SIGNED).getMetrics().getNumberOfFailedCalls())
+      assertThat(CallChecks.failedCalls(resilience, HeadersTestData.SIGNED))
           .isEqualTo(HttpClientConstants.DEFAULT_RETRIES + 1);
     }
   }
