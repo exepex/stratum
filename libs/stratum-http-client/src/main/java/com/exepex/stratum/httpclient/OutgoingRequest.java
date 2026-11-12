@@ -46,7 +46,9 @@ public interface OutgoingRequest {
   /**
    * Returns the body the call sends, read once and then sent as read. It is empty when the call has
    * no body, when the body is streamed, such as a file or an {@code InputStream}, which is never
-   * read here, and on calls through {@code stratumHttpClients.restClient(name)}.
+   * read here, and on calls through {@code stratumHttpClients.restClient(name)}. A body larger than
+   * the client's {@code interceptor-body-limit} (1 MB by default) is not read: the call fails with
+   * {@code SX-HTTPC-0005} and is not sent.
    *
    * @return a copy of the body, or empty
    */

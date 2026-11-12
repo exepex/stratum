@@ -2,7 +2,6 @@ package com.exepex.stratum.restclient;
 
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.httpclient.HttpClientErrorCode;
-import java.util.Set;
 import lombok.experimental.UtilityClass;
 
 /**
@@ -12,17 +11,12 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 class NeverSentFailures {
 
-  /** The codes of a call that stopped before anything was sent. */
-  private static final Set<HttpClientErrorCode> NEVER_SENT_CODES =
-      Set.of(
-          HttpClientErrorCode.INTERCEPTOR_BODY_TOO_LARGE, HttpClientErrorCode.CALLER_TOKEN_MISSING);
-
   /**
    * Returns whether a call failed before anything was sent: an interceptor failed, or read a body
-   * larger than the client's {@code interceptor-body-limit} ({@code SX-HTTPC-0005}); the service's
-   * token could not be fetched for the first send; or the call has no caller token to relay ({@code
-   * SX-HTTPC-0004}). The breaker ignores such a call: it is neither a success nor a failure of the
-   * other service.
+   * larger than the client's {@code interceptor-body-limit} ({@code SX-HTTPC-0005}), or the
+   * service's token could not be fetched for the first send, each marked as an {@link
+   * InterceptorFailure}; or the call has no caller token to relay ({@code SX-HTTPC-0004}). The
+   * breaker ignores such a call: it is neither a success nor a failure of the other service.
    *
    * @param failure the failure of a call
    * @return whether nothing was sent
@@ -30,7 +24,7 @@ class NeverSentFailures {
   static boolean isNeverSent(Throwable failure) {
     return failure instanceof InterceptorFailure
         || failure instanceof StratumException stratum
-            && NEVER_SENT_CODES.contains(stratum.getErrorCode());
+            && stratum.getErrorCode() == HttpClientErrorCode.CALLER_TOKEN_MISSING;
   }
 
   /**

@@ -79,20 +79,19 @@ class ErrorBodyDrainIntegrationTest {
   @Test
   @DisplayName("a bean's call on an endless error body fails at once, dropping its connection")
   void endlessErrorBodyOnBean() {
-    var restClient = ClientBeanCalls.restClient(beans, RestClientTestData.ORDERS);
+    // Nothing is sent until the body is asked for.
+    var answer =
+        ClientBeanCalls.restClient(beans, RestClientTestData.ORDERS)
+            .get()
+            .uri(ErrorDownstream.ENDLESS_ERROR)
+            .retrieve();
     var started = System.nanoTime();
 
     var opened =
         connectionsOpenedAfter(
             () ->
                 assertThatExceptionOfType(HttpServerErrorException.class)
-                    .isThrownBy(
-                        () ->
-                            restClient
-                                .get()
-                                .uri(ErrorDownstream.ENDLESS_ERROR)
-                                .retrieve()
-                                .body(String.class)));
+                    .isThrownBy(() -> answer.body(String.class)));
 
     assertThat(Duration.ofNanos(System.nanoTime() - started))
         .isLessThan(RestClientTestData.FAILS_WITHIN);

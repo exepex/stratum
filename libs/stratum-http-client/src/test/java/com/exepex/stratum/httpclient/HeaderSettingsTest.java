@@ -183,6 +183,19 @@ class HeaderSettingsTest {
           .doesNotContain("priya@example.com");
       assertThat(properties.toString()).doesNotContain("priya@example.com");
     }
+
+    @Test
+    @DisplayName("every setting of a client is shown by its name")
+    void everySettingShown() {
+      var text =
+          HttpClientProperties.resolve(new MockEnvironment())
+              .clientSettings(HttpClientTestData.INVENTORY)
+              .toString();
+
+      assertThat(ClientSettings.class.getRecordComponents())
+          .isNotEmpty()
+          .allSatisfy(setting -> assertThat(text).contains(setting.getName() + "="));
+    }
   }
 
   @Nested

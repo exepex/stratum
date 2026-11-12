@@ -58,6 +58,9 @@ public class ClientConnectionPools implements DisposableBean {
    */
   private static final String TOKEN_POOL = "token:";
 
+  /** The shortest timeout Apache keeps: it reads a shorter one as 0, which means no limit. */
+  private static final Duration ONE_MILLISECOND = Duration.ofMillis(1);
+
   /** The connections of a client's token pool: one fetch runs at a time per registration. */
   private static final int TOKEN_POOL_CONNECTIONS = 2;
 
@@ -104,8 +107,9 @@ public class ClientConnectionPools implements DisposableBean {
     var bodyDeadline = new BodyDeadline(Objects.requireNonNull(settings.timeout()), streamsAnswers);
     var requestConfig =
         RequestConfig.custom()
-            .setConnectionRequestTimeout(Timeout.of(Objects.requireNonNull(settings.maxWait())))
-            .setResponseTimeout(Timeout.of(Objects.requireNonNull(settings.timeout())))
+            .setConnectionRequestTimeout(
+                atLeastOneMillisecond(Objects.requireNonNull(settings.maxWait())))
+            .setResponseTimeout(atLeastOneMillisecond(Objects.requireNonNull(settings.timeout())))
             .build();
     var httpClient =
         HttpClients.custom()
@@ -209,13 +213,14 @@ public class ClientConnectionPools implements DisposableBean {
     return context;
   }
 
-  /**
-   * Returns the smaller of a timeout and the time left, at least 1ms, as Apache reads 0 as no
-   * limit.
-   */
+  /** Returns the smaller of a timeout and the time left, at least 1ms. */
   private Timeout within(Duration timeout, Duration timeLeft) {
-    var smaller = timeout.compareTo(timeLeft) < 0 ? timeout : timeLeft;
-    return Timeout.of(smaller.isZero() ? Duration.ofMillis(1) : smaller);
+    return atLeastOneMillisecond(timeout.compareTo(timeLeft) < 0 ? timeout : timeLeft);
+  }
+
+  /** Returns a timeout of at least 1ms, as Apache reads a time under 1ms as 0, its "no limit". */
+  private Timeout atLeastOneMillisecond(Duration timeout) {
+    return Timeout.of(timeout.compareTo(ONE_MILLISECOND) < 0 ? ONE_MILLISECOND : timeout);
   }
 
   /**
@@ -254,7 +259,8 @@ public class ClientConnectionPools implements DisposableBean {
     var maxConnections = Objects.requireNonNull(settings.maxConnections());
     var poolConfig =
         ConnectionConfig.custom()
-            .setConnectTimeout(Timeout.of(Objects.requireNonNull(settings.connectTimeout())))
+            .setConnectTimeout(
+                atLeastOneMillisecond(Objects.requireNonNull(settings.connectTimeout())))
             .setValidateAfterInactivity(TimeValue.of(HttpClientConstants.STALE_CHECK_AFTER))
             .setTimeToLive(TimeValue.of(Objects.requireNonNull(settings.connectionLifetime())))
             .build();
