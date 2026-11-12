@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientErrorCode;
+import com.exepex.stratum.restclient.ClientCallReports;
 import com.exepex.stratum.restclient.ClientResilience;
 import com.exepex.stratum.restclient.testsupport.CallChecks;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
@@ -51,7 +52,7 @@ class CircuitBreakerIntegrationTest {
   @AutoClose private static final ScriptedDownstream INVENTORY = ScriptedDownstream.start();
 
   /** The breaker's log lines. */
-  private final LogLineCapture breakerLog = new LogLineCapture(ClientResilience.class.getName());
+  private final LogLineCapture breakerLog = new LogLineCapture(ClientCallReports.class.getName());
 
   @Autowired private FlakyInventory inventory;
 

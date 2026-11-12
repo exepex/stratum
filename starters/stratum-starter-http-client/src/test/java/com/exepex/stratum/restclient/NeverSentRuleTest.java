@@ -12,9 +12,12 @@ import org.springframework.web.client.ResourceAccessException;
 class NeverSentRuleTest {
 
   @Test
-  @DisplayName("a body above interceptor-body-limit (SX-HTTPC-0005) was never sent")
+  @DisplayName(
+      "a body above interceptor-body-limit (SX-HTTPC-0005), marked by the interceptors' run")
   void bodyTooLargeNeverSent() {
-    var failure = new StratumException(HttpClientErrorCode.INTERCEPTOR_BODY_TOO_LARGE, "");
+    var failure =
+        new InterceptorFailure(
+            new StratumException(HttpClientErrorCode.INTERCEPTOR_BODY_TOO_LARGE, ""));
 
     assertThat(NeverSentFailures.isNeverSent(failure)).isTrue();
   }

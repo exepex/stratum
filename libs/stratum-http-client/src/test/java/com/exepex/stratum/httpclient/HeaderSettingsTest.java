@@ -10,6 +10,7 @@ import com.exepex.stratum.httpclient.testsupport.TenantHeaderSettings;
 import com.exepex.stratum.test.StarterTestSupport;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -182,6 +183,18 @@ class HeaderSettingsTest {
           .contains("headers=[From]")
           .doesNotContain("priya@example.com");
       assertThat(properties.toString()).doesNotContain("priya@example.com");
+    }
+
+    @Test
+    @DisplayName("every setting of a client is shown by its name")
+    void everySettingShown() {
+      var text =
+          HttpClientProperties.resolve(new MockEnvironment())
+              .clientSettings(HttpClientTestData.INVENTORY)
+              .toString();
+
+      assertThat(Arrays.stream(ClientSettings.class.getRecordComponents()))
+          .allSatisfy(setting -> assertThat(text).contains(setting.getName() + "="));
     }
   }
 

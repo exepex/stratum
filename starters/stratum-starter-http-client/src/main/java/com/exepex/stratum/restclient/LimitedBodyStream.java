@@ -56,15 +56,6 @@ final class LimitedBodyStream extends OutputStream {
   }
 
   /**
-   * Returns the number of bytes accepted so far.
-   *
-   * @return the count, never more than the limit
-   */
-  int size() {
-    return accepted.size();
-  }
-
-  /**
    * Returns whether a failure, or one of its causes, is this stream refusing to pass its limit.
    *
    * @param failure the failure of a write to this stream

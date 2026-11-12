@@ -205,7 +205,8 @@ public record ClientSettings(
             "copyHeaders=" + copyHeaders,
             "interceptorBodyLimit=" + interceptorBodyLimit,
             "responseBodyLimit=" + responseBodyLimit,
-            "traceHeaders=" + traceHeaders)
+            "traceHeaders=" + traceHeaders,
+            "callLog=" + callLog)
         .collect(Collectors.joining(", ", "ClientSettings[", "]"));
   }
 

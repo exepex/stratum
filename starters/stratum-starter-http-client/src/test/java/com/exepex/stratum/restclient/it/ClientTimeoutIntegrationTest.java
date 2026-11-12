@@ -22,6 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.TestPropertySource;
 
 @SpringBootTest(
     classes = ClientsApplication.class,
@@ -82,6 +83,18 @@ class ClientTimeoutIntegrationTest {
         "a service that takes no connection fails the call after the client's connect-timeout")
     void connectTimeout() {
       CallChecks.assertFailsFast(pricingClient::price, ConnectTimeoutException.class);
+    }
+  }
+
+  @Nested
+  @TestPropertySource(properties = RestClientTestData.INVENTORY_SETTINGS + ".timeout=500us")
+  @DisplayName("a timeout under 1ms")
+  class SubMillisecondTimeout {
+
+    @Test
+    @DisplayName("is kept as 1ms, never read by Apache as no limit at all")
+    void keptAsOneMillisecond() {
+      CallChecks.assertFailsFast(inventoryClient::held, SocketTimeoutException.class);
     }
   }
 

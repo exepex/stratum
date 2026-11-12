@@ -8,7 +8,6 @@ import com.exepex.stratum.httpclient.HttpClientErrorCode;
 import com.exepex.stratum.httpclient.HttpClientProperties;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
-import io.github.resilience4j.circuitbreaker.event.CircuitBreakerOnStateTransitionEvent;
 import io.github.resilience4j.core.IntervalBiFunction;
 import io.github.resilience4j.core.functions.Either;
 import io.github.resilience4j.retry.Retry;
@@ -26,7 +25,6 @@ import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import lombok.Builder;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.web.client.RestClientException;
@@ -36,10 +34,9 @@ import org.springframework.web.service.invoker.HttpExchangeAdapter;
  * The retries and circuit breaker of each Stratum client: one Resilience4j {@link Retry} around one
  * {@link CircuitBreaker} around each attempt, made on the client's first call from its settings and
  * the service's {@link StratumClientCustomizer} beans. Every call of a client's interface runs
- * through it, and any other call can too ({@link #call}). Each call that ends writes its log line
- * and is counted in the meters once; each change of a breaker's state is logged once.
+ * through it, and any other call can too ({@link #call}). Each call that ends is reported once
+ * ({@link ClientCallReports}).
  */
-@Slf4j
 @StratumInternal
 @RequiredArgsConstructor
 public class ClientResilience implements ClientExchangeDecorator {
@@ -56,11 +53,8 @@ public class ClientResilience implements ClientExchangeDecorator {
   /** The resend after a 401 of a client with a service token, present with the OAuth2 client. */
   private final ObjectProvider<ServiceTokenResend> tokenResend;
 
-  /** The log line of each call that ends. */
-  private final ClientCallLog callLog;
-
-  /** The meters of the clients, present with Micrometer and a registry. */
-  private final ObjectProvider<ClientMeters> meters;
+  /** The log line and meters of each call, and the breakers' state changes. */
+  private final ClientCallReports reports;
 
   /** The retry and breaker of each client, made on its first call. */
   private final Map<String, ClientGuards> guardsByClient = new ConcurrentHashMap<>();
@@ -168,11 +162,13 @@ public class ClientResilience implements ClientExchangeDecorator {
     } finally {
       var duration = Duration.ofNanos(System.nanoTime() - startNanos);
       if (attemptsEnded) {
-        report(ClientCallOutcome.of(call, lastSent.get(), null, sentAttempts.get(), duration));
+        reports.callEnded(
+            ClientCallOutcome.of(call, lastSent.get(), null, sentAttempts.get(), duration));
       } else {
         // Any other exception that escapes the attempts, such as a bug, ends the call as an error.
         var endedAs = Objects.requireNonNullElse(notSent, CallOutcome.ERROR);
-        report(ClientCallOutcome.of(call, lastSent.get(), endedAs, sentAttempts.get(), duration));
+        reports.callEnded(
+            ClientCallOutcome.of(call, lastSent.get(), endedAs, sentAttempts.get(), duration));
       }
     }
     lastAttempt.getFailure().ifPresent(this::rethrow);
@@ -228,15 +224,9 @@ public class ClientResilience implements ClientExchangeDecorator {
       sentAttempts.incrementAndGet();
     }
     if (failure.filter(RetryRules::isPoolFull).isPresent()) {
-      meters.ifAvailable(clientMeters -> clientMeters.poolRefused(call.client()));
+      reports.poolRefused(call.client());
     }
     return attempt;
-  }
-
-  /** Writes a call's log line and counts it in the meters. */
-  private void report(ClientCallOutcome outcome) {
-    callLog.write(outcome);
-    meters.ifAvailable(clientMeters -> clientMeters.callEnded(outcome));
   }
 
   /**
@@ -349,25 +339,8 @@ public class ClientResilience implements ClientExchangeDecorator {
         .orderedStream()
         .forEach(customizer -> customizer.customizeCircuitBreaker(client, breakerConfig));
     var breaker = CircuitBreaker.of(client, breakerConfig.build());
-    breaker.getEventPublisher().onStateTransition(this::logStateChange);
-    meters.ifAvailable(clientMeters -> clientMeters.breakerMade(client, breaker));
+    reports.breakerMade(client, breaker);
     return breaker;
-  }
-
-  /** Logs a change of a breaker's state once, such as from closed to open. */
-  private void logStateChange(CircuitBreakerOnStateTransitionEvent event) {
-    if (!log.isWarnEnabled()) {
-      return;
-    }
-    var line =
-        "The circuit breaker of HTTP client "
-            + event.getCircuitBreakerName()
-            + " went from "
-            + event.getStateTransition().getFromState()
-            + " to "
-            + event.getStateTransition().getToState();
-    // A client's name is checked at startup and holds no line break; SpotBugs only sees this.
-    log.warn(line.replaceAll("[\r\n]", " "));
   }
 
   /**

@@ -9,7 +9,9 @@ import org.springframework.util.ReflectionUtils;
  * of the service's token before the first send, so that Stratum's retries and circuit breaker see
  * that nothing was sent: it is never retried, and the breaker ignores it. It never reaches the
  * service: the outermost layer of the call throws the original failure, type unchanged ({@link
- * #throwOriginal()}). It has no message and no stack trace of its own.
+ * #throwOriginal()}). It has no message and no stack trace of its own. Spring's observation of the
+ * call ends before that layer, so a service's {@code ObservationHandler} sees this carrier as the
+ * call's error, and {@code http.client.requests} is tagged {@code exception=InterceptorFailure}.
  */
 @StratumInternal
 final class InterceptorFailure extends RuntimeException {

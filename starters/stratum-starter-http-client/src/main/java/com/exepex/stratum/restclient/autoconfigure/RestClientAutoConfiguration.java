@@ -8,6 +8,7 @@ import com.exepex.stratum.core.properties.StratumCustomizers;
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientProperties;
 import com.exepex.stratum.restclient.ClientCallLog;
+import com.exepex.stratum.restclient.ClientCallReports;
 import com.exepex.stratum.restclient.ClientConnectionPools;
 import com.exepex.stratum.restclient.ClientErrors;
 import com.exepex.stratum.restclient.ClientExchangeDecorator;
@@ -230,8 +231,7 @@ public final class RestClientAutoConfiguration {
         customizers,
         Clock.systemUTC(),
         tokenResend,
-        callLog,
-        meters);
+        new ClientCallReports(callLog, meters));
   }
 
   /**

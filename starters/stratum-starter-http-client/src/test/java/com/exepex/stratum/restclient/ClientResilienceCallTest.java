@@ -69,8 +69,8 @@ class ClientResilienceCallTest {
           new StaticListableBeanFactory().getBeanProvider(StratumClientCustomizer.class),
           Clock.systemUTC(),
           new StaticListableBeanFactory().getBeanProvider(ServiceTokenResend.class),
-          new ClientCallLog(HttpClientProperties.builder().build(), null),
-          meters.provider());
+          new ClientCallReports(
+              new ClientCallLog(HttpClientProperties.builder().build(), null), meters.provider()));
 
   /** Runs the call with the attempt given, and returns the one outcome it reported. */
   private ClientCallOutcome reported(

@@ -255,8 +255,8 @@ class ClientResilienceTest {
         beans.getBeanProvider(StratumClientCustomizer.class),
         Clock.systemUTC(),
         beans.getBeanProvider(ServiceTokenResend.class),
-        new ClientCallLog(properties, null),
-        beans.getBeanProvider(ClientMeters.class));
+        new ClientCallReports(
+            new ClientCallLog(properties, null), beans.getBeanProvider(ClientMeters.class)));
   }
 
   /** Returns settings in which the inventory client sets only the given groups. */

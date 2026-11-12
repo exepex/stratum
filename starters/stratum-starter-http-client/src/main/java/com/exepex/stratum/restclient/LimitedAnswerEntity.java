@@ -115,30 +115,11 @@ final class LimitedAnswerEntity extends HttpEntityWrapper {
     }
   }
 
-  /** Returns how many bytes may still be read within the limit. */
-  private long left() {
-    return Math.max(0, limit - count);
-  }
-
-  /** Returns whether a read reached the end of the body, or every byte its length gives. */
-  private boolean isEnded() {
-    var length = super.getContentLength();
-    return ended || length >= 0 && count >= length;
-  }
-
-  /** Returns whether the body's {@code Content-Length} is over the limit. */
-  private boolean lengthOverLimit() {
-    return super.getContentLength() > limit;
-  }
-
-  /** Returns the failure of a successful body that passes the limit. */
-  private ResponseBodyTooLarge tooLarge() {
-    limitPassed = true;
-    return new ResponseBodyTooLarge(Objects.requireNonNull(client), limit);
-  }
-
   /** A stream of the body that counts every byte read against the limit. */
   private final class CountedStream extends FilterInputStream {
+
+    /** The buffer of a one-byte read, kept so that such reads allocate nothing. */
+    private final byte[] oneByte = new byte[1];
 
     /**
      * Wraps Apache's stream.
@@ -157,7 +138,6 @@ final class LimitedAnswerEntity extends HttpEntityWrapper {
      */
     @Override
     public int read() throws IOException {
-      var oneByte = new byte[1];
       return read(oneByte, 0, 1) < 0 ? -1 : Byte.toUnsignedInt(oneByte[0]);
     }
 
@@ -246,6 +226,28 @@ final class LimitedAnswerEntity extends HttpEntityWrapper {
       } else {
         limitPassed = true;
       }
+    }
+
+    /** Returns how many bytes may still be read within the limit. */
+    private long left() {
+      return Math.max(0, limit - count);
+    }
+
+    /** Returns whether a read reached the end of the body, or every byte its length gives. */
+    private boolean isEnded() {
+      var length = LimitedAnswerEntity.super.getContentLength();
+      return ended || length >= 0 && count >= length;
+    }
+
+    /** Returns whether the body's {@code Content-Length} is over the limit. */
+    private boolean lengthOverLimit() {
+      return LimitedAnswerEntity.super.getContentLength() > limit;
+    }
+
+    /** Returns the failure of a successful body that passes the limit. */
+    private ResponseBodyTooLarge tooLarge() {
+      limitPassed = true;
+      return new ResponseBodyTooLarge(Objects.requireNonNull(client), limit);
     }
 
     /** Fails a read of a successful body known to pass the limit, by its count or its length. */
