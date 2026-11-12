@@ -66,6 +66,9 @@ class HeadDeadlineParserTest {
   /** The connection the answer comes on, Apache's boundary to the socket. */
   private final HttpClientConnection connection = mock(HttpClientConnection.class);
 
+  /** The executor that binds the head's deadline, as each pool's is. */
+  private final AnswerDeadline answerDeadline = new AnswerDeadline(TIMEOUT, true);
+
   /** The parser of one connection, as the pool makes it. */
   private final HeadDeadlineParser parser =
       (HeadDeadlineParser) HeadDeadlineParser.FACTORY.create(null);
@@ -101,7 +104,7 @@ class HeadDeadlineParserTest {
     @DisplayName("each read waits at most the timeout, and the head is read")
     void readsWithinTimeout() throws IOException, HttpException {
       try (var answer =
-          HeadDeadlineParser.within(
+          answerDeadline.readHead(
               deadlineIn(TEN_SECONDS), () -> parsed(streamOf("HTTP/1.1 200 OK\r\n\r\n")))) {
         assertThat(answer.getCode()).isEqualTo(HttpStatus.SC_OK);
       }
@@ -124,7 +127,7 @@ class HeadDeadlineParserTest {
       try (var head = streamOf("HTTP/1.1 200 OK\r\n\r\n")) {
         assertThatExceptionOfType(SocketTimeoutException.class)
             .isThrownBy(
-                () -> HeadDeadlineParser.within(deadlineIn(Duration.ZERO), () -> parsed(head)))
+                () -> answerDeadline.readHead(deadlineIn(Duration.ZERO), () -> parsed(head)))
             .withMessage(TOO_SLOW);
         assertThat(head.available()).isPositive();
       }
@@ -135,7 +138,7 @@ class HeadDeadlineParserTest {
     void protocolFailureKept() {
       assertThatThrownBy(
               () ->
-                  HeadDeadlineParser.within(
+                  answerDeadline.readHead(
                       deadlineIn(TEN_SECONDS),
                       () -> parsed(streamOf("HTTP/1.1 200 OK\r\nno colon\r\n\r\n"))))
           .isInstanceOf(ProtocolException.class);
@@ -152,7 +155,7 @@ class HeadDeadlineParserTest {
     /** Parses {@link #LARGE_HEAD}, one byte per read, with a deadline bound. */
     private void parseLarge() {
       try {
-        HeadDeadlineParser.within(deadlineIn(TEN_SECONDS), () -> parsed(oneBytePerRead()));
+        answerDeadline.readHead(deadlineIn(TEN_SECONDS), () -> parsed(oneBytePerRead()));
       } catch (IOException failure) {
         throw new UncheckedIOException(failure);
       } catch (HttpException failure) {
