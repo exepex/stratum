@@ -54,10 +54,28 @@ Other databases are checked once Stratum has a reader for them.
 
 ## Turn it off
 
-- Set its logger to `error`: `logging.level.com.exepex.stratum.data.DatabaseTlsCheck=error`, in the
-  profile where you want it quiet, such as your `local` profile's file. This logger name is stable.
+- Set its logger to `error` in the profile where you want it quiet, such as your `local` profile's
+  file. This logger name is stable.
 - Declare your own bean named `stratumDatabaseTlsCheck` to replace the check.
 - `stratum.data.enabled=false` turns the whole data module off, the check included.
+
+```properties
+# Silences the check only
+logging.level.com.exepex.stratum.data.DatabaseTlsCheck=error
+# Turns the whole data module off
+stratum.data.enabled=false
+```
+
+```yaml
+logging:
+  level:
+    # Silences the check only
+    com.exepex.stratum.data.DatabaseTlsCheck: error
+stratum:
+  data:
+    # Turns the whole data module off
+    enabled: false
+```
 
 ## How long a check takes
 
