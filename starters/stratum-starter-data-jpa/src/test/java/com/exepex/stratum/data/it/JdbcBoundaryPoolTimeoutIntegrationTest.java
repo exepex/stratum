@@ -1,5 +1,6 @@
 package com.exepex.stratum.data.it;
 
+import static com.exepex.stratum.data.testsupport.DataAssertions.awaitTlsCheckDone;
 import static com.exepex.stratum.data.testsupport.DataAssertions.hibernateTranslationOf;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
@@ -33,6 +34,7 @@ class JdbcBoundaryPoolTimeoutIntegrationTest {
   @Test
   @DisplayName("the pool's timeout says so, and Spring and Hibernate translate it as before")
   void keepsPoolTimeout() throws SQLException {
+    awaitTlsCheckDone();
     try (var _ = dataSource.getConnection()) {
       var failure = catchThrowableOfType(SQLException.class, dataSource::getConnection);
 

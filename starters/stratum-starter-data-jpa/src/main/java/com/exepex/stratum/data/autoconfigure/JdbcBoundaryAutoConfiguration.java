@@ -5,17 +5,20 @@ import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.properties.StratumCustomizers;
 import com.exepex.stratum.data.DataConstants;
+import com.exepex.stratum.data.DatabaseTlsCheck;
 import com.exepex.stratum.data.JdbcBoundaryPostProcessor;
 import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureOrder;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Fallback;
 
 /**
  * Creates the JDBC boundary around every data source bean, with the time limits of their
- * statements, unless {@code stratum.data.enabled=false}.
+ * statements, and the check of their connections' encryption, unless {@code
+ * stratum.data.enabled=false}.
  */
 @StratumInternal
 @AutoConfiguration
@@ -45,5 +48,19 @@ public final class JdbcBoundaryAutoConfiguration {
   @ConditionalOnMissingBean(name = DataConstants.JDBC_BOUNDARY)
   public static JdbcBoundaryPostProcessor stratumJdbcBoundary() {
     return new JdbcBoundaryPostProcessor(beanName -> true);
+  }
+
+  /**
+   * Checks, once the application is ready, whether each data source's connection is encrypted. A
+   * service replaces it with a bean of the same name.
+   *
+   * @param context the application whose data sources are checked
+   * @return the check
+   */
+  @Bean(DataConstants.TLS_CHECK)
+  @Fallback
+  @ConditionalOnMissingBean(name = DataConstants.TLS_CHECK)
+  public DatabaseTlsCheck stratumDatabaseTlsCheck(ConfigurableApplicationContext context) {
+    return DatabaseTlsCheck.forClassPath(context);
   }
 }

@@ -1,5 +1,6 @@
 package com.exepex.stratum.data.it;
 
+import static com.exepex.stratum.data.testsupport.DataAssertions.awaitTlsCheckDone;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.data.JdbcWrapper;
@@ -31,6 +32,7 @@ class JdbcBoundaryLazyFetchIntegrationTest {
   @Test
   @DisplayName("no pooled connection is taken until the first statement")
   void takesNoConnectionBeforeFirstStatement() throws SQLException {
+    awaitTlsCheckDone();
     var pool = dataSource.unwrap(HikariDataSource.class).getHikariPoolMXBean();
     try (var connection = dataSource.getConnection()) {
       assertThat(pool.getActiveConnections()).isZero();
