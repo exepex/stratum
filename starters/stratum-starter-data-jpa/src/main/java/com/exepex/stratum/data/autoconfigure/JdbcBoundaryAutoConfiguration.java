@@ -29,7 +29,7 @@ public final class JdbcBoundaryAutoConfiguration {
    *
    * @param beanFactory the service's beans
    */
-  public JdbcBoundaryAutoConfiguration(ListableBeanFactory beanFactory) {
+  JdbcBoundaryAutoConfiguration(ListableBeanFactory beanFactory) {
     StratumCustomizers.rejectBeans(beanFactory);
   }
 
