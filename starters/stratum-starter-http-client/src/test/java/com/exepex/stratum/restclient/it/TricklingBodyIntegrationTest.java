@@ -13,7 +13,9 @@ import com.exepex.stratum.restclient.testsupport.files.FilesApplication;
 import com.exepex.stratum.restclient.testsupport.files.FilesClient;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.concurrent.locks.LockSupport;
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -25,8 +27,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.web.client.RestClientException;
 
 @SpringBootTest(
@@ -53,6 +57,9 @@ class TricklingBodyIntegrationTest {
    * when its last read keeps the 1s socket timeout set when the attempt began.
    */
   private static final Duration STALL_CUT_BY = Duration.ofMillis(1300);
+
+  /** How long a slow reader waits between its first read and the rest: past total-timeout. */
+  private static final Duration READ_PAUSE = TOTAL_TIMEOUT.plusMillis(100);
 
   /** The server the files client calls. */
   @AutoClose private static final StreamingDownstream DOWNSTREAM = StreamingDownstream.start();
@@ -124,6 +131,46 @@ class TricklingBodyIntegrationTest {
   }
 
   @Nested
+  @DisplayName("a body still being read when total-timeout passes")
+  class ReadPastDeadline {
+
+    @Test
+    @DisplayName("fails its next read with a timeout, never ends early as if whole")
+    void nextReadFails() {
+      var restClient = ClientBeanCalls.restClient(context, RestClientTestData.FILES);
+
+      assertThatThrownBy(
+              () ->
+                  restClient
+                      .get()
+                      .uri(StreamingDownstream.SLOW)
+                      .exchange((request, answer) -> readAfterDeadline(answer)))
+          .hasRootCauseInstanceOf(SocketTimeoutException.class);
+    }
+  }
+
+  @Nested
+  @TestPropertySource(
+      properties = {
+        RestClientTestData.FILES_SETTINGS + ".timeout=300ms",
+        RestClientTestData.FILES_SETTINGS + ".total-timeout=5s",
+        RestClientTestData.NO_RETRIES
+      })
+  @DisplayName("with timeout shorter than the total-timeout left, and no retry")
+  class ShortTimeout {
+
+    @Test
+    @DisplayName("a body that stops is cut at timeout, not at total-timeout")
+    void stallCutAtTimeout() {
+      var startedAt = System.nanoTime();
+
+      CallChecks.assertEndsWith(filesClient::lateStallText, HttpClientErrorCode.DOWNSTREAM_TIMEOUT)
+          .withRootCauseInstanceOf(SocketTimeoutException.class);
+      assertEndedWithin(startedAt, CUT_BY);
+    }
+  }
+
+  @Nested
   @DisplayName("a body that is not read")
   class BodyNotRead {
 
@@ -165,6 +212,18 @@ class TricklingBodyIntegrationTest {
         assertThat(download.readAllBytes()).hasSize(StreamingDownstream.TRICKLE_BYTES);
       }
       assertThat(Duration.ofNanos(System.nanoTime() - startedAt)).isGreaterThan(TOTAL_TIMEOUT);
+    }
+  }
+
+  /**
+   * Reads the first byte of an answer, waits past total-timeout, then reads the rest, as a service
+   * that reads a body slowly does.
+   */
+  private String readAfterDeadline(ClientHttpResponse answer) throws IOException {
+    try (var body = answer.getBody()) {
+      var first = body.read();
+      LockSupport.parkNanos(READ_PAUSE.toNanos());
+      return (char) first + new String(body.readAllBytes(), StandardCharsets.US_ASCII);
     }
   }
 
