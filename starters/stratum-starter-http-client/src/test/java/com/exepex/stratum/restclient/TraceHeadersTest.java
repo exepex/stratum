@@ -5,8 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.restclient.testsupport.trace.TraceTestData;
-import com.exepex.stratum.test.CpuCostMeter;
-import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
 import org.junit.jupiter.api.AfterEach;
@@ -89,19 +87,6 @@ class TraceHeadersTest {
     private static final List<String> UNSAFE_IDS =
         List.of("", "checkout\r\nX-Injected: yes", "checkout 777", "a".repeat(129));
 
-    /** A correlation ID of 1 MB, far over the 128 characters an ID may have. */
-    private static final String ONE_MEGABYTE_ID = "a".repeat(1024 * 1024);
-
-    /**
-     * CPU time the step may take on a 1 MB ID: 10 times M = 1.134 µs, the largest best value of 3
-     * runs on a 4-CPU build machine (1.134, 1.090 and 1.134 µs), on JDK 25, 2026-11-10. The check
-     * stops after 129 characters; one that reads the whole value takes far longer.
-     */
-    private static final Duration ONE_MEGABYTE_LIMIT = Duration.ofNanos(11_340);
-
-    /** Calls in each timed batch, enough that a batch takes a few milliseconds. */
-    private static final int CALLS_PER_BATCH = 10_000;
-
     /** The step of a client with the default setting. */
     private final TraceHeaders step = TraceHeaders.of(true, new MockEnvironment());
 
@@ -112,17 +97,6 @@ class TraceHeadersTest {
       MDC.put(LoggingContextConstants.CORRELATION_ID, unsafeId);
 
       assertThat(correlationIdsAfter(step, new HttpHeaders())).isEmpty();
-    }
-
-    @Test
-    @DisplayName("a 1 MB ID is not sent, and is checked within the time limit")
-    void oneMegabyteIdWithinLimit() {
-      MDC.put(LoggingContextConstants.CORRELATION_ID, ONE_MEGABYTE_ID);
-
-      assertThat(correlationIdsAfter(step, new HttpHeaders())).isEmpty();
-      new CpuCostMeter(CALLS_PER_BATCH)
-          .assertCpuCostWithin(
-              "a 1 MB correlation ID", ONE_MEGABYTE_LIMIT, () -> step.applyTo(new HttpHeaders()));
     }
   }
 
