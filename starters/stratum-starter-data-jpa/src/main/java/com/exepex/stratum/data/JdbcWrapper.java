@@ -68,8 +68,10 @@ public abstract class JdbcWrapper implements Wrapper {
    * @param returned the object the call returned
    * @param type the JDBC type the call declares
    * @return the wrapper, or {@code null} for a {@code null} result
+   * @throws SQLException the clean copy of the driver's error when a connection's network timeout
+   *     cannot be set
    */
-  @Nullable Object wrapped(@Nullable Object returned, Class<?> type) {
+  @Nullable Object wrapped(@Nullable Object returned, Class<?> type) throws SQLException {
     if (returned == null || returned instanceof JdbcWrapper) {
       return returned;
     }
@@ -89,8 +91,10 @@ public abstract class JdbcWrapper implements Wrapper {
    *
    * @param returned the object the call returned
    * @return the wrapper, the object itself, or {@code null}
+   * @throws SQLException the clean copy of the driver's error when a connection's network timeout
+   *     cannot be set
    */
-  @Nullable Object wrappedObject(@Nullable Object returned) {
+  @Nullable Object wrappedObject(@Nullable Object returned) throws SQLException {
     var type = returned == null ? null : boundary.wrappedTypeOf(returned);
     return type == null ? returned : wrapped(returned, type);
   }

@@ -8,7 +8,8 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * The codes of the data module, each listed with its fix in {@code docs/guides/error-codes.md}.
- * Every error here stops the application at startup.
+ * {@code SX-DATA-1001} and {@code SX-DATA-1002} stop the application at startup; {@code
+ * SX-DATA-1003} fails one statement.
  */
 @StratumInternal
 @Getter
@@ -36,7 +37,18 @@ public enum DataErrorCode implements ErrorCode {
       "HikariCP would turn its connection leak alarm off",
       "Set spring.datasource.hikari.leak-detection-threshold to at least 2000 and at most"
           + " spring.datasource.hikari.max-lifetime, or raise max-lifetime above it, or set the"
-          + " threshold to 0 to turn the alarm off.");
+          + " threshold to 0 to turn the alarm off."),
+
+  /**
+   * Stratum cancelled a SQL statement that ran past its time limit. The answer carries no detail;
+   * the exception's message names the limit, what set it, the run time and the data source bean.
+   */
+  STATEMENT_TIMED_OUT(
+      "SX-DATA-1003",
+      Severity.ERROR,
+      "A SQL statement ran past its time limit and was cancelled",
+      "Make the statement faster, or give it more time: stratum.data.query-timeout, the time limit"
+          + " the code sets on the statement, or the transaction's timeout.");
 
   /** The code, such as {@code SX-DATA-1001}. */
   private final String code;

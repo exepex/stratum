@@ -4,6 +4,7 @@ import static com.exepex.stratum.data.testsupport.SqlFailureTestData.CONSTRAINT;
 import static com.exepex.stratum.data.testsupport.SqlFailureTestData.postgresFailure;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -11,6 +12,7 @@ import com.exepex.stratum.data.DataConstants;
 import com.exepex.stratum.data.JdbcBoundaryPostProcessor;
 import com.exepex.stratum.data.JdbcWrapper;
 import java.sql.SQLException;
+import java.time.Duration;
 import javax.sql.DataSource;
 import org.hibernate.dialect.PostgreSQLDialect;
 import org.junit.jupiter.api.DisplayName;
@@ -159,6 +161,35 @@ class JdbcBoundaryAutoConfigurationTest {
       assertThatThrownBy(() -> new JdbcBoundaryPostProcessor(null))
           .isInstanceOf(NullPointerException.class)
           .hasMessage("wrapsBean must not be null");
+    }
+  }
+
+  @Nested
+  @DisplayName("the thread that cancels statements past their limit")
+  class SweeperThread {
+
+    /** The name of the thread. */
+    private static final String SWEEPER = "stratum-statement-sweeper";
+
+    /** How long the thread may take to stop once the application has stopped. */
+    private static final Duration STOP_WAIT = Duration.ofSeconds(5);
+
+    /** Returns whether a sweeper thread is alive. */
+    private boolean sweeperAlive() {
+      return Thread.getAllStackTraces().keySet().stream()
+          .anyMatch(thread -> SWEEPER.equals(thread.getName()) && thread.isAlive());
+    }
+
+    @Test
+    @DisplayName("starts with the first wrapped data source and stops with the application")
+    void stopsWithApplication() {
+      contextRunner.run(
+          context -> {
+            context.getBean(PRIMARY);
+            assertThat(sweeperAlive()).isTrue();
+          });
+
+      await().atMost(STOP_WAIT).until(() -> !sweeperAlive());
     }
   }
 

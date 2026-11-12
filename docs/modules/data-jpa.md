@@ -2,7 +2,8 @@
 
 **Status: Partly built.** Spring Data JPA, with safe defaults for Spring Boot's connection pool
 (HikariCP), Hibernate and transactions, and database errors that carry no data values, from your
-code and from Flyway and Liquibase. Query timeouts and a default fetch size are **planned**.
+code and from Flyway and Liquibase, and a time limit on every SQL statement. A default fetch size
+is **planned**.
 
 [← Documentation home](../README.md) · Property prefix: `stratum.data`
 
@@ -77,6 +78,8 @@ spring:
 | Feature | Behaviour | Applies |
 | --- | --- | --- |
 | Clean database errors | No value from a database error, such as a duplicate email address, reaches a log, a span or a response; see [Clean database errors](#clean-database-errors) | Always |
+| Statement time limits | Every SQL statement ends by its code's own limit and its transaction's deadline, and Stratum cancels it with `SX-DATA-1003`; see [Statement time limits](data-jpa-statement-limits.md) | Always |
+| Pool statement limit | A statement whose code sets no limit of its own may run 30 seconds (`stratum.data.query-timeout`) | Strict mode |
 | Short pool wait | A caller waits at most 3 seconds for a free connection, then gets an error, instead of 30 seconds | Always |
 | Schema check | Hibernate checks at startup that your entities match the schema, and never changes the schema (`validate`) | Always |
 | Batched writes | Hibernate sends inserts and updates in ordered batches of 50 rows | Always |
@@ -98,6 +101,7 @@ change nothing a caller sees and apply in both modes
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
 | `stratum.data.enabled` | boolean | `true` | Whether the module is on. With `false`, the starter sets none of the defaults below, and Spring Boot's own apply, and it wraps no data source in the [clean errors boundary](#clean-database-errors). |
+| `stratum.data.query-timeout` | duration | `30s`, or `0` with `stratum.backward-compatible=true` | How long one SQL statement may run when the code that runs it sets no time limit of its own; `0` for none. See [Statement time limits](data-jpa-statement-limits.md). |
 
 Spring Boot properties this module gives a default (your values win):
 
@@ -281,10 +285,17 @@ jdbcClient.sql("SELECT id FROM customers WHERE email = :email")
 
 Stratum has no runtime check for SQL built from input, because no cheap one exists.
 
+## Statement time limits
+
+Every SQL statement runs under a time limit, which Stratum enforces itself and cancels with
+`SX-DATA-1003`: the pool's `stratum.data.query-timeout`, the code's own limit, and the
+transaction's deadline. How the limit is chosen, what a cancelled request answers, the counter,
+the cost and the limits are in [Statement time limits](data-jpa-statement-limits.md).
+
 ## Transactions
 
 In strict mode, every transaction run by Spring Boot's transaction manager that sets no limit of
-its own ends after 60 seconds with an error. Give one method more time with
+its own ends after 60 seconds with an error. Its statements end by its deadline too. Give one method more time with
 `@Transactional(timeout = 300)`, in seconds, or change the default:
 
 ```properties
@@ -380,9 +391,24 @@ such as `hikaricp.connections.pending`, come from Spring Boot.
 
 ## Configure in Java
 
-This module has no `stratum.data.*` setting besides its switch, so there is no customizer yet; a
-`DataPropertiesCustomizer` is **planned** for the settings to come. Set any Spring Boot key above
-in Java as a default property, which wins over Stratum's default:
+`stratum.data.query-timeout` can also be set in Java, through a `DataPropertiesCustomizer` class,
+and Java wins over the files:
+
+```java
+public class OrdersDataSettings implements DataPropertiesCustomizer {
+
+  @Override
+  public DataProperties customize(DataProperties properties) {
+    return properties.toBuilder().queryTimeout(Duration.ofSeconds(10)).build();
+  }
+}
+```
+
+The customizer is not a bean: list the class in the service's `META-INF/spring.factories` under
+`com.exepex.stratum.data.DataPropertiesCustomizer`. A customizer declared as a bean stops startup
+with `SX-CORE-1004`.
+
+Set any Spring Boot key above in Java as a default property, which wins over Stratum's default:
 
 ```java
 var application = new SpringApplication(OrdersApplication.class);
@@ -439,4 +465,5 @@ wrapped, so database errors keep the driver's text.
 | Startup fails with `SX-DATA-1002` | `spring.datasource.hikari.leak-detection-threshold` is under 2000 or above `max-lifetime`; see [Leak alarm](#leak-alarm). |
 | `LazyInitializationException` | With open-in-view off, load what the response needs inside the `@Transactional` service method (fetch join or DTO projection). |
 | `HibernateException: setFirstResult() or setMaxResults() specified with collection fetch join` | Page the parent rows first, then fetch their collections, or use a DTO projection. |
+| `QueryTimeoutException` with `SX-DATA-1003`, or status 500 with `SX-DATA-1003` | A statement ran past its limit and Stratum cancelled it; the log's message names the limit and what set it. Make the statement faster, or give it more time; see [Statement time limits](data-jpa-statement-limits.md). |
 | `TransactionTimedOutException`, or a query timeout inside a transaction | A transaction ran longer than 60 seconds. Make it shorter, or give it a longer `@Transactional(timeout = ...)`. |

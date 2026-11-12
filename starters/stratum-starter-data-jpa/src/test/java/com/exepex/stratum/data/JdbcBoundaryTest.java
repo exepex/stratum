@@ -112,11 +112,19 @@ class JdbcBoundaryTest {
         || JdbcWrapperClasses.WRAPPED_TYPES.contains(parameterType);
   }
 
-  /** Returns the wrapper of a mock of a type, as the boundary hands it out. */
+  /**
+   * Returns the wrapper of a mock of a type, as the boundary hands it out. This boundary has no
+   * statement limits, so wrapping a connection sets no network timeout and cannot fail.
+   */
   private Object wrapperOf(Class<?> type, Object delegate) {
-    return type == DataSource.class
-        ? boundary.wrap((DataSource) delegate)
-        : boundary.wrapResult(delegate, type, dataSource);
+    if (type == DataSource.class) {
+      return boundary.wrap((DataSource) delegate);
+    }
+    try {
+      return boundary.wrapResult(delegate, type, dataSource);
+    } catch (SQLException unexpected) {
+      throw new IllegalStateException("A boundary without limits failed to wrap", unexpected);
+    }
   }
 
   /** Returns arguments a method accepts: zero, empty or {@code null}, by parameter type. */
