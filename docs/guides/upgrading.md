@@ -18,7 +18,8 @@ tracks two: the company parent sets the Spring Boot version, and Stratum must su
 
 | Stratum | Java | Supported Spring Boot line | Tested with | Spring Framework | Status |
 | --- | --- | --- | --- | --- | --- |
-| 0.1.x | 25 | 4.1.x | 4.1.2 | 7.x | Planned |
+| 0.1.x | 25 | 4.1.x | 4.1.2 | 7.x | Released ([0.1.0](../releases/0.1.0.md)) |
+| 0.2.x | 25 | 4.1.x | 4.1.2 | 7.x | In development (`0.2.0-SNAPSHOT`) |
 
 Stratum supports Java 25 and one Spring Boot line per release, nothing older. Your parent POM sets
 the Spring Boot version. With `stratum-parent` it is always the tested version. Under a company
@@ -58,7 +59,7 @@ in `stratum-test` is internal today except `PostgresContainerConfiguration` and
 
 ## How to upgrade a service
 
-1. **Read the release notes** for every version between yours and the target. Look at "Breaking
+1. **Read the [release notes](../README.md#guides)** for every version between yours and the target. Look at "Breaking
    changes" and "Deprecations".
 2. **Change the version** in one place: the `<parent>` (or the BOM import). Under a company parent,
    check first that the Spring Boot version it sets is in the new release's supported line.

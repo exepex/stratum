@@ -1,8 +1,7 @@
 # Parent POMs and BOM: `stratum-parent`, `stratum-microservice-parent` and `stratum-bom`
 
-**Status: Built, not released.** `stratum-parent`, `stratum-microservice-parent` and `stratum-bom` exist
-in the repository and pass `mvn verify`. No release is published yet, only
-[snapshots](../getting-started/installation.md#using-a-snapshot).
+**Status: Built, released in 0.1.0.** `stratum-parent`, `stratum-microservice-parent` and `stratum-bom`
+are on Maven Central from version 0.1.0 ([release notes](../releases/0.1.0.md)).
 This page explains how your service gets Stratum's tested versions, Java settings and build checks.
 
 [← Documentation home](../README.md) · How to choose between them: [Installation](../getting-started/installation.md)
@@ -99,7 +98,7 @@ one. With a BOM import, put it above the import to make that clear to readers:
     <dependency>
       <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-bom</artifactId>
-      <version>0.1.0-SNAPSHOT</version>
+      <version>0.1.0</version>
       <type>pom</type>
       <scope>import</scope>
     </dependency>

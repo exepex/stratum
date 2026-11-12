@@ -25,9 +25,10 @@ Add a starter. Set a few properties. Write only business code.
 > [!IMPORTANT]
 > **Stratum is under construction.** The parent, the BOM, the web, cache, logging and observability
 > modules are built, and the data and HTTP client modules are partly built. This README and the
-> [documentation](docs/README.md) also describe modules that are not built yet. No module is released.
-> Everything marked **Planned** is the design target and may change. The Maven `groupId` is `io.github.exepex.stratum`; the version
-> `0.1.0-SNAPSHOT` in the examples is a **placeholder** until the first release.
+> [documentation](docs/README.md) also describe modules that are not built yet. Version 0.1.0 is on
+> Maven Central ([release notes](docs/releases/0.1.0.md)). Everything marked **Planned** is the design
+> target and may change. The Maven `groupId` is `io.github.exepex.stratum`; the
+> [documentation home](docs/README.md) says which version the examples use.
 
 ## Table of contents
 
@@ -147,7 +148,7 @@ every step and explains each line.
 <parent>
   <groupId>io.github.exepex.stratum</groupId>
   <artifactId>stratum-microservice-parent</artifactId>
-  <version>0.1.0-SNAPSHOT</version>
+  <version>0.1.0</version>
 </parent>
 ```
 
@@ -382,7 +383,7 @@ Full guide: [Testing with stratum-test](docs/modules/test.md).
 
 ## Upgrades and versions
 
-| Component | Version in Stratum 0.1 (planned) |
+| Component | Version in Stratum 0.1 |
 | --- | --- |
 | Java | 25 |
 | Spring Boot | 4.1.2, the latest stable release on 27 October 2026 |
@@ -390,7 +391,8 @@ Full guide: [Testing with stratum-test](docs/modules/test.md).
 | Maven | 3.9 or later |
 
 - Stratum follows [semantic versioning](https://semver.org): a patch release never breaks you; a major
-  release may, and its release notes list the exact migration steps.
+  release may, and so may a minor release before 1.0 ([Versioning and upgrades](docs/guides/upgrading.md#semantic-versioning)).
+  The release notes list the exact migration steps.
 - Each Stratum release supports one Spring Boot line, such as `4.1.x`, and is tested with one release
   in it. With a Stratum parent, upgrading Stratum upgrades Spring Boot and every managed library
   together. Under a company parent, the company parent sets the Spring Boot version. When it is

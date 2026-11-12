@@ -1,7 +1,7 @@
 # Bundle starters: one dependency per kind of application
 
-**Status: Built as POMs, not released.** The five bundles exist and pass `mvn verify`. A bundle
-lists only single starters that have code: the web and cache starters are built, and the logging,
+**Status: Built as POMs, released in 0.1.0.** The five bundles are on Maven Central from version 0.1.0.
+A bundle lists only single starters that have code: the web and cache starters are built, and the logging,
 observability and HTTP client starters are partly built, as their pages say. The web starters bring
 their Spring web stack, Spring MVC or WebFlux, so a bundle starts a web server. The security,
 resilience and data-jpa starters join no bundle until they are built.

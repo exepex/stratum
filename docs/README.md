@@ -9,9 +9,14 @@ them in the repository's `docs/` folder, not in the wiki
 
 > [!NOTE]
 > Stratum is under construction: some modules are built, some partly built and some only planned. Each
-> module page's status line says whether it describes built or **planned** behaviour; planned behaviour is the design target and may change before the first
-> release. The `groupId` is
-> `io.github.exepex.stratum` ([ADR 0018](adr/0018-group-id-io-github-exepex.md)); `0.1.0-SNAPSHOT` is a placeholder for the first released version.
+> module page's status line says whether it describes built or **planned** behaviour; planned behaviour is
+> the design target and may change in a later release. The `groupId` is `io.github.exepex.stratum`
+> ([ADR 0018](adr/0018-group-id-io-github-exepex.md)).
+>
+> Examples use the latest released version, `0.1.0`. These pages describe Stratum's `main` branch, which
+> may hold changes made after 0.1.0: the [0.1.0 release notes](releases/0.1.0.md) say what 0.1.0
+> contains, and [Using a snapshot](getting-started/installation.md#using-a-snapshot) shows how to try
+> `main`'s build, `0.2.0-SNAPSHOT`.
 
 ## Where to start
 
@@ -98,6 +103,7 @@ Each module page follows the same layout so you always know where to look:
 | [Error and warning codes](guides/error-codes.md) | What Stratum's codes look like, the internal and external error objects, using codes in your service, and every code with its fix. |
 | [Troubleshooting](guides/troubleshooting.md) | Finding out what Stratum configured, and fixes for common problems. |
 | [FAQ](guides/faq.md) | Short answers to common questions. |
+| [Release notes for 0.1.0](releases/0.1.0.md) | What Stratum's first release contains, the modules left out of it and its known gaps. |
 
 ## Architecture decisions
 
@@ -122,6 +128,7 @@ Each module page follows the same layout so you always know where to look:
 | [ADR 0017: A limit on the body of a successful answer an HTTP client reads](adr/0017-http-client-response-body-limit.md) | A client reads at most `response-body-limit` of a successful answer (32 MB by default, `-1` for none, otherwise 1 B to 1 GiB, in both modes); a larger one fails with `SX-HTTPC-0006`, not retried and counted as a success by the circuit breaker; an `InputStream` download is not limited. |
 | [ADR 0018: The Maven groupId is `io.github.exepex.stratum`; Java packages stay under `com.exepex.stratum`](adr/0018-group-id-io-github-exepex.md) | The domain `exepex.com` is lost, so Stratum cannot prove `com.exepex` on Maven Central and a third party could claim it; every artifact moves to `io.github.exepex.stratum`, verified through the GitHub organisation `exepex`, and the Java packages do not change. |
 | [ADR 0019: One parent per kind of application, which brings its bundle; one BOM](adr/0019-one-parent-per-kind-of-application.md) | Replaces ADR 0003 decision 3: a parent per kind of application, such as `stratum-microservice-parent`, inherits `stratum-parent` and brings that kind's bundle, `stratum-test` and `spring-boot-starter-test`, so a new microservice writes only `<parent>`; `stratum-bom` stays the one BOM. |
+| [ADR 0020: Version numbers and releases](adr/0020-version-numbers-and-releases.md) | What a minor and a patch release may change before 1.0, `main` on the next minor's `-SNAPSHOT`, fixes forward with a patch branch only for an urgent security fix, the owner tags and releases, and at most one planned release a month because of Maven Central's publishing limits. |
 
 ## Contributing
 

@@ -1,8 +1,8 @@
 # Stratum as a dependency, under another parent
 
-**Status: Built, not released.** `stratum-bom` exists and builds both examples below. No release is
-published yet, only [snapshots](installation.md#using-a-snapshot). `0.1.0-SNAPSHOT` is a placeholder
-for the first released version.
+**Status: Built, released in 0.1.0.** `stratum-bom` exists and builds both examples below. The examples
+use the latest released version, `0.1.0`; the [documentation home](../README.md) says what that means
+for the pages you read.
 
 This guide sets up a service that keeps its own parent POM and gets Stratum through `stratum-bom`.
 Use it when your `pom.xml` must keep `spring-boot-starter-parent` or your company's parent. If your
@@ -95,7 +95,7 @@ section adds back what `stratum-parent` would have given: the JDK check, `git.pr
       <dependency>
         <groupId>io.github.exepex.stratum</groupId>
         <artifactId>stratum-bom</artifactId>
-        <version>0.1.0-SNAPSHOT</version>
+        <version>0.1.0</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -228,7 +228,7 @@ itself, sets Java 25 and writes the plugin versions.
       <dependency>
         <groupId>io.github.exepex.stratum</groupId>
         <artifactId>stratum-bom</artifactId>
-        <version>0.1.0-SNAPSHOT</version>
+        <version>0.1.0</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
