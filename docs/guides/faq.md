@@ -16,7 +16,7 @@ and a standard way to use them. It adds no new programming model on top of Sprin
 No. Add only what your service needs. A starter you do not add costs nothing.
 
 **Is Stratum ready to use?**
-Not yet. No module is released. Some are built (see the status line of each [module page](../README.md)), some are partly built and some are only planned; the documentation labels what is planned.
+In part. Version 0.1.0 is on Maven Central, and before 1.0 a minor release may still bring breaking changes ([Versioning and upgrades](upgrading.md#semantic-versioning)). Some modules are built (see the status line of each [module page](../README.md)), some are partly built and some are only planned; the documentation labels what is planned.
 
 ## Configuration
 

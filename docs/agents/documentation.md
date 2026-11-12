@@ -21,7 +21,7 @@ the documentation must work for both. Documentation is part of every change and 
 | The GitHub wiki | A copy of `docs/README.md` (as Home), the pages it links, the project `README.md` (as Project-README) and a sidebar, made on every merge by the sync in [contributing](../contributing.md#the-wiki). Edit `docs/`, never a copied wiki page. Audit reports live only in the wiki. |
 | `docs/adr/` | Architecture decision records, numbered in order. An accepted record is never edited, which is the one exception to ST-DOC-03; a new record replaces it. Each is linked from `docs/README.md`. |
 | `docs/guides/` | Topics that span modules: architecture, migrating a service, upgrading, troubleshooting, FAQ. |
-| Release notes | What changed in each release, breaking changes and the steps to migrate. |
+| `docs/releases/<version>.md` | The release notes: what changed in each release, breaking changes and the steps to migrate. Each is linked from `docs/README.md`. |
 | `AGENTS.md` and `docs/agents/` | The rules for agents. `AGENTS.md` links every file in `docs/agents/`. |
 
 ## Rules
@@ -47,7 +47,9 @@ the documentation must work for both. Documentation is part of every change and 
   section showing the same settings through the module's customizer or builder (ST-ENG-34). Until a module's Java API
   is designed, that section is marked as planned (ST-DOC-08) rather than inventing an API.
 - **ST-DOC-06 Examples that work.** Code and configuration examples compile and run against the current version.
-  Where possible, take them from a sample or a test so they cannot drift from the code.
+  Where possible, take them from a sample or a test so they cannot drift from the code. An example that shows how to
+  depend on Stratum may name the latest released version when `docs/README.md` says that pages on `main` may describe
+  later changes and links the release notes.
 - **ST-DOC-07 Written for every reader.** Short sentences and plain words. Explain each term a developer new to Spring
   Boot may not know, the first time it appears on a page. Show complete steps, not fragments that assume knowledge.
 - **ST-DOC-08 Planned is labelled.** Anything not built yet is marked as planned. Never describe planned behaviour as
@@ -55,8 +57,9 @@ the documentation must work for both. Documentation is part of every change and 
   feature.
 - **ST-DOC-09 Size.** No document over 500 lines. Split a long document by topic and link the parts from
   `docs/README.md` or a section index.
-- **ST-DOC-10 Breaking changes.** Every breaking change has a migration note in the release notes: what changed, who
-  is affected and the exact steps. Until Stratum's first release, no change needs a migration note.
+- **ST-DOC-10 Breaking changes.** From 0.1.0 on, every breaking change (to API, a `stratum.*` key or a default) has a
+  migration note in the release notes of the version that ships it: what changed, who is affected and the exact
+  steps.
 
 ## How documentation is checked
 

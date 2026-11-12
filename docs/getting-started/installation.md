@@ -1,8 +1,8 @@
 # Installation
 
-**Status: Built, not released.** How to add Stratum to a service, new or existing. The parent POM, the
-BOM and the starters used below exist. No release is published yet; snapshots are
-([Using a snapshot](#using-a-snapshot)).
+**Status: Built, released in 0.1.0.** How to add Stratum to a service, new or existing. The parent POM,
+the BOM and the starters used below are on Maven Central from version 0.1.0
+([release notes](../releases/0.1.0.md)).
 
 [← Documentation home](../README.md)
 
@@ -15,12 +15,13 @@ BOM and the starters used below exist. No release is published yet; snapshots ar
 | Docker | Any recent version (only for integration tests) | `docker info` |
 
 > [!NOTE]
-> `0.1.0-SNAPSHOT` below is a placeholder for the first released version.
+> Examples use the latest released version, `0.1.0`; the [documentation home](../README.md) says what
+> that means for the pages you read.
 
 ### Using a snapshot
 
-Until the first release, each push to Stratum's `main` branch publishes `0.1.0-SNAPSHOT` to Maven
-Central's snapshot repository, once snapshots are enabled for the `io.github.exepex` namespace. A *snapshot* is a build that changes with each push, and the
+Each push to Stratum's `main` branch publishes the next version, today `0.2.0-SNAPSHOT`, to Maven
+Central's snapshot repository. Use it to try a change made after the latest release. A *snapshot* is a build that changes with each push, and the
 repository deletes it after 90 days. Maven does not look there by default, so add the repository
 to your `pom.xml`. The plugin repository is needed too, because `stratum-parent`'s build checks load
 `stratum-build-rules` as a plugin dependency:

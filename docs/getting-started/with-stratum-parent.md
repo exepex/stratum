@@ -1,8 +1,8 @@
 # Stratum as your parent POM
 
-**Status: Built, not released.** `stratum-microservice-parent` and `stratum-parent` exist and build the
-examples below. No release is published yet, only [snapshots](installation.md#using-a-snapshot).
-`0.1.0-SNAPSHOT` is a placeholder for the first released version.
+**Status: Built, released in 0.1.0.** `stratum-microservice-parent` and `stratum-parent` exist and build
+the examples below. The examples use the latest released version, `0.1.0`; the
+[documentation home](../README.md) says what that means for the pages you read.
 
 This guide sets up a service whose `pom.xml` inherits a Stratum parent. Use it for a new service, or
 for a service whose `pom.xml` has no parent yet. If your service must keep another parent, such as
@@ -59,7 +59,7 @@ services over HTTP, caches results and has tests:
   <parent>
     <groupId>io.github.exepex.stratum</groupId>
     <artifactId>stratum-microservice-parent</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0</version>
     <relativePath/> <!-- look the parent up in the repository, not on disk -->
   </parent>
 
@@ -133,7 +133,7 @@ is the complete `pom.xml` of a batch job:
   <parent>
     <groupId>io.github.exepex.stratum</groupId>
     <artifactId>stratum-parent</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0</version>
     <relativePath/> <!-- look the parent up in the repository, not on disk -->
   </parent>
 
