@@ -232,7 +232,7 @@ public final class JdbcWrapperClasses {
       var own = base.getMethod(method.getName(), method.getParameterTypes());
       return !Modifier.isAbstract(own.getModifiers())
           && JdbcWrapper.class.isAssignableFrom(own.getDeclaringClass());
-    } catch (NoSuchMethodException notImplemented) {
+    } catch (NoSuchMethodException _) {
       return false;
     }
   }

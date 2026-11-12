@@ -115,7 +115,7 @@ public class StatementSweeper implements AutoCloseable {
       if (claim != null) {
         try {
           cancelStarter.accept(() -> cancel(claim));
-        } catch (RejectedExecutionException notStarted) {
+        } catch (RejectedExecutionException _) {
           slot.cancelEnded(claim.running());
         }
       }

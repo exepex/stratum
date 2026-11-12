@@ -129,7 +129,7 @@ public abstract class ConnectionWrapper extends JdbcWrapper {
     }
     try {
       setNetworkTimeout(CALLING_THREAD, milliseconds);
-    } catch (SQLFeatureNotSupportedException unsupported) {
+    } catch (SQLFeatureNotSupportedException _) {
       networkTimeoutMillis = UNSUPPORTED;
     }
   }
