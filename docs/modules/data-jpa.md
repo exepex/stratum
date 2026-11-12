@@ -2,8 +2,7 @@
 
 **Status: Partly built.** Spring Data JPA, with safe defaults for Spring Boot's connection pool
 (HikariCP), Hibernate and transactions, and database errors that carry no data values, from your
-code and from Flyway and Liquibase, and a time limit on every SQL statement. A default fetch size
-is **planned**.
+code and from Flyway and Liquibase, and a time limit on every SQL statement.
 
 [← Documentation home](../README.md) · Property prefix: `stratum.data`
 
@@ -374,11 +373,21 @@ alarm on, set its threshold to that plus 10 seconds, and raise `max-lifetime` ab
 
 - Export many rows with `JdbcClient` or a DTO projection, never as managed entities, which
   Hibernate keeps in memory until the transaction ends.
-- PostgreSQL streams rows only inside a transaction, with a fetch size set; otherwise the driver
-  reads every row into memory first. MySQL also needs `useCursorFetch=true` in the URL.
-- Set the fetch size with Spring Boot's `spring.jdbc.template.fetch-size` for `JdbcTemplate` and
-  `JdbcClient`, and with `spring.jpa.properties.hibernate.jdbc.fetch_size` for Hibernate. Stratum's
-  own default fetch size is **planned**.
+- Stratum sets no fetch size, in either mode. A query reads its result as the driver does by
+  default: the PostgreSQL driver reads every row into memory before the first `next()`.
+- To stream, set a fetch size yourself, only where you need it:
+  - `spring.jdbc.template.fetch-size` for `JdbcTemplate` and `JdbcClient` (Spring Boot's default,
+    `-1`, sets none);
+  - `spring.jpa.properties.hibernate.jdbc.fetch_size` for every Hibernate query, or the
+    `org.hibernate.fetchSize` hint on one JPA query;
+  - `Statement.setFetchSize` in your own JDBC code.
+- The PostgreSQL driver streams only when the fetch size is above 0, the result set is
+  forward-only and not holdable, and a transaction is open. MySQL also needs
+  `useCursorFetch=true` in the URL.
+- With a fetch size, the rows after the first batch are read in `ResultSet.next()`, after the
+  statement returned. Those reads are outside `stratum.data.query-timeout` and the transaction's
+  deadline, and only the network timeout bounds each one
+  ([Statement time limits](data-jpa-statement-limits.md#limits)).
 - Stratum leaves Spring Data's page size as it is: at most 2000 rows a page
   (`spring.data.web.pageable.max-page-size`).
 
