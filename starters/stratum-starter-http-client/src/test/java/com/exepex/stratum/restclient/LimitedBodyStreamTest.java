@@ -47,7 +47,7 @@ class LimitedBodyStreamTest {
       var refusal = assertThatIOException().isThrownBy(() -> stream.write(0)).actual();
 
       assertThat(stream.isLimitReachedIn(refusal)).isTrue();
-      assertThat(stream.toByteArray().length).isEqualTo(LIMIT);
+      assertThat(stream.toByteArray()).hasSize(LIMIT);
     }
   }
 
@@ -63,7 +63,7 @@ class LimitedBodyStreamTest {
 
       assertThatIOException().isThrownBy(() -> writeLargeBody(written));
 
-      assertThat(stream.toByteArray().length).isLessThanOrEqualTo(LIMIT);
+      assertThat(stream.toByteArray()).hasSizeLessThanOrEqualTo(LIMIT);
       assertThat(written).hasValueLessThanOrEqualTo(LIMIT + CHUNK);
     }
 

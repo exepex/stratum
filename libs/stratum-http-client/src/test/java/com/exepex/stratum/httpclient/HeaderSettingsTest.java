@@ -10,7 +10,6 @@ import com.exepex.stratum.httpclient.testsupport.TenantHeaderSettings;
 import com.exepex.stratum.test.StarterTestSupport;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -193,7 +192,8 @@ class HeaderSettingsTest {
               .clientSettings(HttpClientTestData.INVENTORY)
               .toString();
 
-      assertThat(Arrays.stream(ClientSettings.class.getRecordComponents()))
+      assertThat(ClientSettings.class.getRecordComponents())
+          .isNotEmpty()
           .allSatisfy(setting -> assertThat(text).contains(setting.getName() + "="));
     }
   }
