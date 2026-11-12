@@ -17,6 +17,7 @@ import lombok.experimental.UtilityClass;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.assertj.core.api.ThrowableAssertAlternative;
 import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClientException;
 
 /** Checks of calls that fail, or that hold a connection, shared by the integration tests. */
 @UtilityClass
@@ -116,5 +117,28 @@ public class CallChecks {
    */
   public static int failedCalls(ClientResilience resilience, String client) {
     return resilience.circuitBreaker(client).orElseThrow().getMetrics().getNumberOfFailedCalls();
+  }
+
+  /**
+   * Checks that a call whose 200 body is not valid fails with Spring's exception, caused by its
+   * parser's failure, after one request, and that the client's breaker counted no failure.
+   *
+   * @param call the call
+   * @param parserFailure the parser's failure at the root of Spring's exception
+   * @param requests the server's count of requests to the call's path so far
+   * @param breaker the client's breaker, reset before the call
+   */
+  public static void assertBadBodyIsAnswer(
+      ThrowingCallable call,
+      Class<? extends Throwable> parserFailure,
+      IntSupplier requests,
+      CircuitBreaker breaker) {
+    var requestsBefore = requests.getAsInt();
+
+    assertThatExceptionOfType(RestClientException.class)
+        .isThrownBy(call)
+        .withRootCauseInstanceOf(parserFailure);
+    assertThat(requests.getAsInt() - requestsBefore).isEqualTo(1);
+    assertThat(breaker.getMetrics().getNumberOfFailedCalls()).isZero();
   }
 }

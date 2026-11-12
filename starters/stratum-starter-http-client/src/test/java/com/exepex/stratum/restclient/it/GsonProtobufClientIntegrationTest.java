@@ -1,7 +1,6 @@
 package com.exepex.stratum.restclient.it;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientErrorCode;
@@ -32,7 +31,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.http.converter.protobuf.ProtobufHttpMessageConverter;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.web.client.RestClientException;
 
 @SpringBootTest(
     classes = {ErrorsApplication.class, GsonProtobufClientIntegrationTest.GsonAndProtobuf.class},
@@ -116,13 +114,7 @@ class GsonProtobufClientIntegrationTest {
 
   /** Checks that a call's bad body is Spring's exception, sent once and not counted. */
   private void assertIsAnAnswer(ThrowingCallable call, Class<? extends Throwable> parserFailure) {
-    var requestsBefore = DOWNSTREAM.bodyRequests();
-
-    assertThatExceptionOfType(RestClientException.class)
-        .isThrownBy(call)
-        .withRootCauseInstanceOf(parserFailure);
-    assertThat(DOWNSTREAM.bodyRequests() - requestsBefore).isEqualTo(1);
-    assertThat(breaker().getMetrics().getNumberOfFailedCalls()).isZero();
+    CallChecks.assertBadBodyIsAnswer(call, parserFailure, DOWNSTREAM::bodyRequests, breaker());
   }
 
   /** Checks that a call's cut-off body ends with 0001, each attempt sent and counted. */

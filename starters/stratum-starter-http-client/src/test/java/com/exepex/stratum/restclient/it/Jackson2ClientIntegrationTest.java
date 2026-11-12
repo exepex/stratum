@@ -1,8 +1,5 @@
 package com.exepex.stratum.restclient.it;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientErrorCode;
 import com.exepex.stratum.restclient.ClientResilience;
@@ -27,7 +24,6 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.web.client.RestClientException;
 
 @SpringBootTest(
     classes = {ErrorsApplication.class, Jackson2ClientIntegrationTest.Jackson2Json.class},
@@ -66,13 +62,8 @@ class Jackson2ClientIntegrationTest {
   @Test
   @DisplayName("bad JSON stays Spring's exception, sent once and not counted by the breaker")
   void badJsonIsAnAnswer() {
-    var requestsBefore = DOWNSTREAM.bodyRequests();
-
-    assertThatExceptionOfType(RestClientException.class)
-        .isThrownBy(orders::badJson)
-        .withRootCauseInstanceOf(JsonParseException.class);
-    assertThat(DOWNSTREAM.bodyRequests() - requestsBefore).isEqualTo(1);
-    assertThat(breaker().getMetrics().getNumberOfFailedCalls()).isZero();
+    CallChecks.assertBadBodyIsAnswer(
+        orders::badJson, JsonParseException.class, DOWNSTREAM::bodyRequests, breaker());
   }
 
   @Test
