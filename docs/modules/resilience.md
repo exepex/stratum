@@ -62,22 +62,50 @@ stratum:
 ## Use it
 
 **On an HTTP client:** the HTTP client starters set up their own retries and circuit breaker, with their own
-keys, and do not use this starter's policies ([ADR 0011](../adr/0011-http-client-starters.md)).
-
-**On any method**, with Resilience4j's annotations; the `name` is the policy name:
+keys, and do not use this starter's policies ([ADR 0011](../adr/0011-http-client-starters.md)). Do not put
+`@Retry` or `@CircuitBreaker` around a call of a `@StratumClient` interface: each of your attempts would run all of
+the client's own retries, and your breaker would also count the client's open-breaker refusals (`SX-HTTPC-0003`). To
+return something else when the call fails, catch the client's failures in plain Java. Here `RatesClient` is a
+`@StratumClient` interface:
 
 ```java
 @Service
+@RequiredArgsConstructor
 class ExchangeRateService {
 
-  @CircuitBreaker(name = "rates", fallbackMethod = "lastKnownRate")
-  @Retry(name = "rates")
+  private final RatesClient ratesClient;
+  private final RateCache rateCache;
+
   BigDecimal rate(String currency) {
-    return ratesClient.current(currency);
+    try {
+      return ratesClient.current(currency);
+    } catch (StratumException | DownstreamException failure) {
+      return rateCache.lastKnown(currency);
+    }
+  }
+}
+```
+
+`StratumException` carries the client's `SX-HTTPC-` code, such as `SX-HTTPC-0003` for an open breaker, and
+`DownstreamException` is an error answer ([HTTP client: errors](http-client-errors.md)).
+
+**On any other method**, with Resilience4j's annotations; the `name` is the policy name:
+
+```java
+@Service
+@RequiredArgsConstructor
+class ReportService {
+
+  private final ReportStore reportStore;
+
+  @CircuitBreaker(name = "reports", fallbackMethod = "emptyReport")
+  @Retry(name = "reports")
+  Report monthly(YearMonth month) {
+    return reportStore.monthly(month);
   }
 
-  private BigDecimal lastKnownRate(String currency, Throwable cause) {
-    return rateCache.lastKnown(currency);
+  private Report emptyReport(YearMonth month, Throwable cause) {
+    return Report.empty(month);
   }
 }
 ```

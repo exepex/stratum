@@ -122,6 +122,7 @@ in proxy and server logs that Stratum does not control. Send it in the request b
 | Clear errors | A timeout ends with `SX-HTTPC-0001` (`504`), no answer with `SX-HTTPC-0002` (`503`), an open breaker with `SX-HTTPC-0003` (`503`), and an error answer with a `DownstreamException` holding at most 64 KB of its body ([errors](http-client-errors.md)). |
 | A limit on answers | A successful answer's body is read up to `response-body-limit` (32 MB); a larger one fails with `SX-HTTPC-0006` ([errors](http-client-errors.md#the-answer-body-is-read-up-to-32-mb)). A method returning `InputStream` is not limited. |
 | No redirects | A `3xx` answer is returned as it is and never followed. |
+| No answer cache | A client never caches answers. To reuse one, put `@Cacheable` from the [cache starter](cache.md#use-it) on the service method that calls the client. |
 | Gzip | Answers compressed with gzip are accepted and unpacked. |
 | Fresh connections | A connection unused for `idle-timeout` (30s) is closed. One unused for more than about 2 seconds is checked before it is used again, so one the server or a load balancer closed meanwhile is replaced. A server's `Keep-Alive: timeout` is honoured. A connection older than `connection-lifetime` (5m) is not used again, so calls follow a change of the service's address. |
 | Nothing at startup | Startup opens no connection, so the application starts and is ready while a downstream service is down. |

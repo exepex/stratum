@@ -49,6 +49,11 @@ return properties.toBuilder().error(properties.error().toBuilder().statuses(stat
 Even in [backward-compatible mode](web-compatible-mode.md), a call that ends with a code is answered with Stratum's
 error body, as every `StratumException` is.
 
+What your service returns instead when a call fails, such as the last value it read, is your own business logic:
+catch the failure, as [resilience: use it](resilience.md#use-it) shows. The resilience starter is **Planned**. Do not
+add a second retry layer, such as Resilience4j's `@Retry`, around a client: the client already retries
+([ADR 0011](../adr/0011-http-client-starters.md), decision 4.1).
+
 ## `DownstreamException`
 
 It extends Spring's `RestClientResponseException`, so `getStatusCode()`, `getResponseHeaders()`,
