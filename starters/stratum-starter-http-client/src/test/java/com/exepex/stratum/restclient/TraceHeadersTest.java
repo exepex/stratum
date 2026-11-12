@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.httpclient.HttpClientConstants;
+import com.exepex.stratum.restclient.testsupport.trace.TraceTestData;
 import com.exepex.stratum.test.CpuCostMeter;
 import java.time.Duration;
 import java.util.List;
@@ -148,6 +149,17 @@ class TraceHeadersTest {
       step.applyTo(headers);
 
       assertThat(headers.headerNames()).containsExactly(TENANT);
+    }
+
+    @Test
+    @DisplayName("removes the W3C, baggage, B3 and correlation headers, each named on its own")
+    void removesEachNamedHeader() {
+      var headers = new HttpHeaders();
+      TraceTestData.STRIPPED_HEADERS.forEach(name -> headers.set(name, "set by anyone"));
+
+      step.applyTo(headers);
+
+      assertThat(headers.isEmpty()).isTrue();
     }
 
     @Test

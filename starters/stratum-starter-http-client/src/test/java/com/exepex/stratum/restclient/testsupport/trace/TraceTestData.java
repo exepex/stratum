@@ -1,6 +1,7 @@
 package com.exepex.stratum.restclient.testsupport.trace;
 
 import com.exepex.stratum.httpclient.HttpClientConstants;
+import java.util.List;
 import java.util.function.Supplier;
 import lombok.experimental.UtilityClass;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -20,6 +21,23 @@ public class TraceTestData {
 
   /** The prefix of the third party's settings. */
   public static final String THIRD_PARTY_SETTINGS = HttpClientConstants.CLIENTS + "." + THIRD_PARTY;
+
+  /**
+   * The headers {@code trace-headers: false} removes, named here rather than read from Stratum's
+   * list, so that a name dropped from that list fails a test.
+   */
+  public static final List<String> STRIPPED_HEADERS =
+      List.of(
+          "traceparent",
+          "tracestate",
+          "baggage",
+          "b3",
+          "X-B3-TraceId",
+          "X-B3-SpanId",
+          "X-B3-ParentSpanId",
+          "X-B3-Sampled",
+          "X-B3-Flags",
+          "X-Correlation-Id");
 
   /** The correlation ID the service's own code sets. */
   public static final String CORRELATION_ID = "checkout-777";

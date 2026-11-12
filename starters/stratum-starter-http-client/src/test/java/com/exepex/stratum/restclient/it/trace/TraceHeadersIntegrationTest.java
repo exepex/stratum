@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.httpclient.HttpClientConstants;
+import com.exepex.stratum.restclient.testsupport.ClientBeanCalls;
+import com.exepex.stratum.restclient.testsupport.ClientBeanCalls.ClientBean;
 import com.exepex.stratum.restclient.testsupport.EchoDownstream;
 import com.exepex.stratum.restclient.testsupport.headers.HeadersTestData;
 import com.exepex.stratum.restclient.testsupport.trace.ThirdPartyClient;
@@ -22,23 +24,28 @@ import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.web.context.request.RequestContextHolder;
 
 /**
- * With the observability starter's tracing, each call runs in a trace whose baggage holds a
- * correlation ID and a {@code region} entry, which Spring Boot sends as a header of its own. The
- * traced client copies {@code X-Correlation-Id} from the request the service answers; the third
- * party's client is set to {@code trace-headers: false} and its interceptor sets trace headers.
+ * With the observability starter's tracing, producing the W3C, B3 single and B3 multi formats, each
+ * call runs in a trace whose baggage holds a correlation ID and a {@code Region} entry, which
+ * Spring Boot sends as a header of its own. The traced client copies {@code X-Correlation-Id} from
+ * the request the service answers; the third party's client is set to {@code trace-headers: false}
+ * and its interceptor sets trace headers.
  */
 @SpringBootTest(
     classes = TraceApplication.class,
     properties = {
       "spring.main.web-application-type=none",
       "management.tracing.sampling.probability=1.0",
+      "management.tracing.propagation.produce=W3C,B3,B3_MULTI",
       // Stratum's startup check needs an address before @DynamicPropertySource runs; the spans
       // server's address then replaces this one.
       "management.opentelemetry.tracing.export.otlp.endpoint=http://localhost:1/v1/traces",
@@ -52,8 +59,8 @@ import org.springframework.web.context.request.RequestContextHolder;
 @DisplayName("A client sends the trace and correlation headers, or none of them with false")
 class TraceHeadersIntegrationTest {
 
-  /** The baggage entry Spring Boot sends as a header of its own. */
-  static final String REGION = "region";
+  /** The baggage entry Spring Boot sends as a header of its own, in mixed case. */
+  static final String REGION = "Region";
 
   /** The value of the region entry. */
   private static final String REGION_VALUE = "eu";
@@ -73,6 +80,8 @@ class TraceHeadersIntegrationTest {
   @Autowired private Tracer tracer;
 
   @Autowired private MeterRegistry meters;
+
+  @Autowired private ApplicationContext context;
 
   /**
    * Points the clients and the span export at the servers.
@@ -132,6 +141,15 @@ class TraceHeadersIntegrationTest {
     }
 
     @Test
+    @DisplayName("the B3 single and multi headers arrive")
+    void b3HeadersSent() {
+      inTrace(traced::echo);
+
+      assertThat(Stream.of("b3", "X-B3-TraceId", "X-B3-SpanId", "X-B3-Sampled"))
+          .allSatisfy(header -> assertThat(sent(header)).as(header).hasSize(1));
+    }
+
+    @Test
     @DisplayName("a team's own X-Correlation-Id wins: one value is sent")
     void teamValueWins() {
       inTrace(() -> traced.echoWith(TraceTestData.TEAM_CORRELATION_ID));
@@ -153,9 +171,24 @@ class TraceHeadersIntegrationTest {
 
       inTrace(thirdParty::echo);
 
-      assertThat(Stream.concat(HttpClientConstants.TRACE_HEADERS.stream(), Stream.of(REGION)))
-          .allSatisfy(header -> assertThat(sent(header)).as(header).isEmpty());
+      assertNoneSent();
       assertThat(observedCalls()).isEqualTo(observedBefore + 1);
+    }
+
+    @ParameterizedTest
+    @FieldSource(ClientBeanCalls.BOTH_BEANS)
+    @DisplayName("none of the trace headers arrive from the client's RestClient or RestTemplate")
+    void noneSentByBeans(ClientBean bean) {
+      inTrace(
+          () -> ClientBeanCalls.get(context, bean, TraceTestData.THIRD_PARTY, EchoDownstream.ECHO));
+
+      assertNoneSent();
+    }
+
+    /** Checks that the last call sent no trace header, B3 included, and not the remote field. */
+    private void assertNoneSent() {
+      assertThat(Stream.concat(TraceTestData.STRIPPED_HEADERS.stream(), Stream.of(REGION)))
+          .allSatisfy(header -> assertThat(sent(header)).as(header).isEmpty());
     }
 
     /** Returns how many calls Spring's client observation has recorded. */
