@@ -9,6 +9,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.exepex.stratum.data.DataConstants;
+import com.exepex.stratum.data.DataPropertiesCustomizer;
 import com.exepex.stratum.data.JdbcBoundaryPostProcessor;
 import com.exepex.stratum.data.JdbcWrapper;
 import java.sql.SQLException;
@@ -153,6 +154,18 @@ class JdbcBoundaryAutoConfigurationTest {
           .withBean(
               PRIMARY, DataSource.class, JdbcBoundaryAutoConfigurationTest.this::failingDataSource)
           .run(context -> assertNoDataSourceWrapped(context, JdbcBoundaryPostProcessor.class));
+    }
+
+    @Test
+    @DisplayName("a customizer declared as a bean stops startup with SX-CORE-1004")
+    void customizerAsBeanStopsStartup() {
+      contextRunner
+          .withBean(DataPropertiesCustomizer.class, () -> properties -> properties)
+          .run(
+              context ->
+                  assertThat(context.getStartupFailure())
+                      .rootCause()
+                      .hasMessageContaining("SX-CORE-1004"));
     }
 
     @Test
