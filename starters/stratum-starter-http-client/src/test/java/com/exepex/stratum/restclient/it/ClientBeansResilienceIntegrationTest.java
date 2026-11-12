@@ -2,7 +2,6 @@ package com.exepex.stratum.restclient.it;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientErrorCode;
@@ -17,9 +16,7 @@ import com.exepex.stratum.restclient.testsupport.ScriptedDownstream;
 import com.exepex.stratum.restclient.testsupport.beans.GuardRules;
 import com.exepex.stratum.restclient.testsupport.clients.ClientsApplication;
 import com.exepex.stratum.restclient.testsupport.clients.FlakyInventory;
-import com.exepex.stratum.restclient.testsupport.errors.ErrorDownstream;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.stream.IntStream;
@@ -36,17 +33,16 @@ import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
-import org.springframework.web.client.RestClientResponseException;
 
 /**
- * The inventory client calls a server whose answer changes per attempt, pricing and ledger a
- * scripted one through a pool of one connection, and orders a server of large error bodies.
+ * The inventory client calls a server whose answer changes per attempt, and pricing and ledger a
+ * scripted one through a pool of one connection. The error answers are in {@link
+ * ClientBeansErrorAnswersIntegrationTest}.
  */
 @SpringBootTest(
     classes = {ClientsApplication.class, GuardRules.class},
@@ -58,8 +54,7 @@ import org.springframework.web.client.RestClientResponseException;
       RestClientTestData.PRICING_SETTINGS + ".max-connections=1",
       RestClientTestData.PRICING_SETTINGS + ".max-wait=300ms",
       HttpClientConstants.CLIENTS + "." + GuardRules.LEDGER + ".max-connections=1",
-      HttpClientConstants.CLIENTS + "." + GuardRules.LEDGER + ".max-wait=1s",
-      HttpClientConstants.CLIENTS + "." + RestClientTestData.ORDERS + ".max-connections=1"
+      HttpClientConstants.CLIENTS + "." + GuardRules.LEDGER + ".max-wait=1s"
     })
 @Timeout(60)
 @DisplayName("A client's beans retry calls without a body and share the client's circuit breaker")
@@ -77,20 +72,11 @@ class ClientBeansResilienceIntegrationTest {
   /** A 404, neither retried nor counted. */
   private static final int NOT_FOUND = HttpStatus.NOT_FOUND.value();
 
-  /** A server error status Spring has no name for. */
-  private static final int UNKNOWN_SERVER_ERROR = 599;
-
-  /** A client error status Spring has no name for. */
-  private static final int UNKNOWN_CLIENT_ERROR = 499;
-
   /** The inventory service, whose answer changes per attempt. */
   @AutoClose private static final QueuedDownstream QUEUED = QueuedDownstream.start();
 
   /** The pricing and ledger service. */
   @AutoClose private static final ScriptedDownstream SCRIPTED = ScriptedDownstream.start();
-
-  /** The orders service, which answers with large error bodies. */
-  @AutoClose private static final ErrorDownstream ERRORS = ErrorDownstream.start();
 
   @Autowired private ApplicationContext context;
 
@@ -106,7 +92,6 @@ class ClientBeansResilienceIntegrationTest {
     registry.add(RestClientTestData.INVENTORY_URL, QUEUED::url);
     registry.add(RestClientTestData.PRICING_URL, SCRIPTED::url);
     registry.add(HttpClientConstants.CLIENTS + "." + GuardRules.LEDGER + ".url", SCRIPTED::url);
-    registry.add(RestClientTestData.ORDERS_URL, ERRORS::url);
   }
 
   /** Closes every breaker and empties the queued answers, so each test starts afresh. */
@@ -289,95 +274,6 @@ class ClientBeansResilienceIntegrationTest {
     }
   }
 
-  @Nested
-  @DisplayName("error answers")
-  class ErrorAnswers {
-
-    @ParameterizedTest
-    @FieldSource(ClientBeanCalls.BOTH_BEANS)
-    @DisplayName("the service's own handling gets the last 503, with its headers and body")
-    void lastAnswerHandedOver(ClientBean bean) {
-      var lastNumber = String.valueOf(QUEUED.requests().size() + RETRIES + 1);
-      QUEUED.answerNext(UNAVAILABLE, UNAVAILABLE, UNAVAILABLE);
-
-      var seen = lastErrorAnswer(bean);
-
-      assertThat(seen.getStatusCode().value()).isEqualTo(UNAVAILABLE);
-      assertThat(seen.getResponseHeaders().getFirst(QueuedDownstream.ANSWER_NUMBER))
-          .isEqualTo(lastNumber);
-      assertThat(seen.getResponseBodyAsString())
-          .isEqualTo(QueuedDownstream.ERROR_BODY + lastNumber);
-    }
-
-    @ParameterizedTest
-    @FieldSource(ClientBeanCalls.BOTH_BEANS)
-    @DisplayName("a 1 MB error body: the service reads 64 KB, and its connection is dropped")
-    void largeErrorBodyCapped(ClientBean bean) {
-      assertLargeErrorBodyCapped(bean);
-      var connectionsBefore = ERRORS.connections();
-
-      assertLargeErrorBodyCapped(bean);
-
-      assertThat(ERRORS.connections() - connectionsBefore).isOne();
-    }
-
-    /** Calls the 1 MB error body through a bean and checks that 64 KB of it was read. */
-    private void assertLargeErrorBodyCapped(ClientBean bean) {
-      assertThatExceptionOfType(HttpServerErrorException.class)
-          .isThrownBy(
-              () ->
-                  ClientBeanCalls.get(
-                      context, bean, RestClientTestData.ORDERS, ErrorDownstream.LARGE_ERROR))
-          .satisfies(
-              failure ->
-                  assertThat(failure.getResponseBodyAsByteArray())
-                      .hasSize(HttpClientConstants.ERROR_BODY_LIMIT));
-    }
-
-    @ParameterizedTest
-    @FieldSource(ClientBeanCalls.BOTH_BEANS)
-    @DisplayName("an unknown 599 is counted by the breaker, an unknown 499 is not")
-    void unknownStatusesCarried(ClientBean bean) {
-      QUEUED.answerNext(UNKNOWN_SERVER_ERROR);
-      assertThatExceptionOfType(HttpServerErrorException.class)
-          .isThrownBy(() -> inventoryGet(bean));
-      assertThat(inventoryFailedCalls()).isEqualTo(1);
-
-      QUEUED.answerNext(UNKNOWN_CLIENT_ERROR);
-      assertThatExceptionOfType(HttpClientErrorException.class)
-          .isThrownBy(() -> inventoryGet(bean));
-      assertThat(inventoryFailedCalls()).isEqualTo(1);
-    }
-
-    /**
-     * Returns the error answer the service's own code sees: the RestClient's {@code exchange} reads
-     * the answer itself; the RestTemplate's error handler, Spring's default, turns it into an
-     * exception.
-     */
-    private RestClientResponseException lastErrorAnswer(ClientBean bean) {
-      return switch (bean) {
-        case REST_CLIENT ->
-            ClientBeanCalls.restClient(context, RestClientTestData.INVENTORY)
-                .get()
-                .uri(ScriptedDownstream.STOCK)
-                .exchange(
-                    (request, response) ->
-                        HttpServerErrorException.create(
-                            response.getStatusCode(),
-                            response.getStatusText(),
-                            response.getHeaders(),
-                            response.getBody().readAllBytes(),
-                            StandardCharsets.UTF_8));
-        case REST_TEMPLATE ->
-            catchThrowableOfType(
-                HttpServerErrorException.class,
-                () ->
-                    ClientBeanCalls.restTemplate(context, RestClientTestData.INVENTORY)
-                        .execute(ScriptedDownstream.STOCK, HttpMethod.GET, null, null));
-      };
-    }
-  }
-
   /** Gets the inventory service's stock through one of its client's beans. */
   private String inventoryGet(ClientBean bean) {
     return ClientBeanCalls.get(
@@ -391,10 +287,6 @@ class ClientBeansResilienceIntegrationTest {
 
   /** Returns the failed calls the inventory client's breaker counts now. */
   private int inventoryFailedCalls() {
-    return resilience
-        .circuitBreaker(RestClientTestData.INVENTORY)
-        .orElseThrow()
-        .getMetrics()
-        .getNumberOfFailedCalls();
+    return CallChecks.failedCalls(resilience, RestClientTestData.INVENTORY);
   }
 }

@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.exepex.stratum.httpclient.HttpClientProperties;
+import com.exepex.stratum.restclient.testsupport.CallChecks;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import java.time.Clock;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.DisplayName;
@@ -45,9 +47,9 @@ class ClientResilienceUnwrapTest {
         .isSameAs(KEY_SERVICE_DOWN);
 
     assertThat(attempts).hasValue(1);
-    var breaker = resilience.circuitBreaker(RestClientTestData.INVENTORY).orElseThrow();
-    assertThat(breaker.getMetrics().getNumberOfSuccessfulCalls()).isZero();
-    assertThat(breaker.getMetrics().getNumberOfFailedCalls()).isZero();
+    CallChecks.assertNothingRecorded(
+        resilience.circuitBreaker(RestClientTestData.INVENTORY).orElseThrow(),
+        CircuitBreaker.State.CLOSED);
   }
 
   /** Counts an attempt and fails it as a marked interceptor failure. */

@@ -16,6 +16,10 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.micrometer.metrics.autoconfigure.CompositeMeterRegistryAutoConfiguration;
+import org.springframework.boot.micrometer.metrics.autoconfigure.MetricsAutoConfiguration;
+import org.springframework.boot.micrometer.metrics.autoconfigure.export.simple.SimpleMetricsExportAutoConfiguration;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
@@ -51,6 +55,22 @@ class CallObservationAutoConfigurationTest {
     void registryGivesMeters() {
       clients
           .withBean(MeterRegistry.class, SimpleMeterRegistry::new)
+          .run(
+              context ->
+                  assertThat(context)
+                      .getBean(ClientMeters.class)
+                      .isInstanceOf(MicrometerClientMeters.class));
+    }
+
+    @Test
+    @DisplayName("with Spring Boot's own metrics set-up making the registry, the meters are made")
+    void bootRegistryGivesMeters() {
+      clients
+          .withConfiguration(
+              AutoConfigurations.of(
+                  MetricsAutoConfiguration.class,
+                  CompositeMeterRegistryAutoConfiguration.class,
+                  SimpleMetricsExportAutoConfiguration.class))
           .run(
               context ->
                   assertThat(context)

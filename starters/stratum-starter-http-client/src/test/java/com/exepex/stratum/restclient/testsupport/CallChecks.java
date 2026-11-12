@@ -7,6 +7,7 @@ import static org.awaitility.Awaitility.await;
 
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.httpclient.HttpClientErrorCode;
+import com.exepex.stratum.restclient.ClientResilience;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
@@ -104,5 +105,16 @@ public class CallChecks {
     assertThat(breaker.getState()).isEqualTo(state);
     assertThat(breaker.getMetrics().getNumberOfSuccessfulCalls()).isZero();
     assertThat(breaker.getMetrics().getNumberOfFailedCalls()).isZero();
+  }
+
+  /**
+   * Returns the failed calls a client's breaker counts now.
+   *
+   * @param resilience the clients' retries and breakers
+   * @param client the client's name
+   * @return the failed calls in the breaker's window
+   */
+  public static int failedCalls(ClientResilience resilience, String client) {
+    return resilience.circuitBreaker(client).orElseThrow().getMetrics().getNumberOfFailedCalls();
   }
 }
