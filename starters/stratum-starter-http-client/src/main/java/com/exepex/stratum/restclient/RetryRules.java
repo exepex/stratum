@@ -231,7 +231,8 @@ public class RetryRules {
   /**
    * Returns whether the circuit breaker counts a failed attempt: no answer, such as a timeout or a
    * dropped connection, an answer whose body was cut off, or an answer of 5xx or 429. Other 4xx
-   * answers and a body that is not valid, with Jackson 3 or Jackson 2, are never counted.
+   * answers and a body that is not valid, with Jackson 3, Jackson 2, Gson or protobuf, are never
+   * counted.
    *
    * @param failure the attempt's failure
    * @return whether it counts as a failure
