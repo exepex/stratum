@@ -18,14 +18,14 @@ class ConfigurationMetadataTest {
       Path.of("target/classes/META-INF/spring-configuration-metadata.json");
 
   @Test
-  @DisplayName("the module switch is listed with a description")
+  @DisplayName("the module switch and the statement time limit are listed with a description")
   void listsEveryProperty() throws IOException {
     var metadata = Files.readString(METADATA);
 
     assertThat(JsonPath.<List<String>>read(metadata, "$.properties[*].name"))
-        .containsExactly(DataConstants.ENABLED);
+        .containsExactlyInAnyOrder(DataConstants.ENABLED, DataConstants.QUERY_TIMEOUT);
     assertThat(JsonPath.<List<String>>read(metadata, "$.properties[*].description"))
-        .hasSize(1)
+        .hasSize(2)
         .doesNotContainNull();
   }
 }

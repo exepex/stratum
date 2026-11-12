@@ -51,6 +51,12 @@ public class DataConstants {
   /** The name of the bean that gives Hibernate's schema setting Stratum's default. */
   public static final String SCHEMA_VALIDATION_DEFAULT = "stratumSchemaValidationDefault";
 
+  /** The property that limits how long one statement may run. */
+  public static final String QUERY_TIMEOUT = PREFIX + ".query-timeout";
+
+  /** The counter of the statements Stratum cancelled because they ran past their limit. */
+  public static final String TIMEOUTS_METER = "stratum.data.timeouts";
+
   /** The name of the bean that wraps every data source in the JDBC boundary. */
   public static final String JDBC_BOUNDARY = "stratumJdbcBoundary";
 

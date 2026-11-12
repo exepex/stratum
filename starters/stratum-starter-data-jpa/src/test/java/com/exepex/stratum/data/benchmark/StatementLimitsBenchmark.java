@@ -7,6 +7,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import javax.sql.DataSource;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -27,10 +28,11 @@ import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
 
 /**
- * Measures, on the raw HikariCP pool and a PostgreSQL container, what each of three settings costs
+ * Measures, on the raw HikariCP pool and a PostgreSQL container, what each of these settings costs
  * before Stratum turns it on: HikariCP's leak detection and a network timeout on every borrow, and
- * pgjdbc's query timeout on every statement. Each runs once without the setting and once with it,
- * on one thread and on 16, in separate forks.
+ * pgjdbc's query timeout on every statement, and Stratum's own statement timer or sweeper in its
+ * place. Each runs once without the setting and once with it, on one thread and on 16, in separate
+ * forks.
  */
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
@@ -47,6 +49,9 @@ public class StatementLimitsBenchmark {
 
   /** The query timeout a statement sets, in seconds: Stratum's planned default. */
   private static final int QUERY_TIMEOUT_SECONDS = 30;
+
+  /** The limit Stratum's own timer or sweeper applies, in milliseconds: the same 30s. */
+  private static final long TIMER_LIMIT_MILLIS = 30_000;
 
   /** The leak alarm's threshold, in milliseconds: the 60s transaction timeout plus 10s. */
   private static final String LEAK_THRESHOLD = "70000";
@@ -140,7 +145,7 @@ public class StatementLimitsBenchmark {
   public static class BorrowPool {
 
     /** What a borrow does besides taking the connection: nothing, or one of the settings. */
-    @Param({"none", "leak-detection", "network-timeout"})
+    @Param({"none", "leak-detection", "network-timeout", "sweeper-slot"})
     public String setting;
 
     /** The context and pool of this fork. */
@@ -148,6 +153,12 @@ public class StatementLimitsBenchmark {
 
     /** Whether each borrow sets the network timeout, which HikariCP resets on return. */
     private boolean setsNetworkTimeout;
+
+    /** Stratum's sweeper, whose registry each borrow on that side adds a slot to. */
+    private StatementSweeperModel sweeper;
+
+    /** Whether each borrow registers a slot with the sweeper and releases it on return. */
+    private boolean registersSlot;
 
     /**
      * Starts the context, with leak detection on for that side.
@@ -161,10 +172,13 @@ public class StatementLimitsBenchmark {
               ? Pool.start("spring.datasource.hikari.leak-detection-threshold=" + LEAK_THRESHOLD)
               : Pool.start();
       setsNetworkTimeout = "network-timeout".equals(setting);
+      sweeper = StatementSweeperModel.start();
+      registersSlot = "sweeper-slot".equals(setting);
     }
 
     /**
-     * Takes a connection, sets its network timeout on that side, and returns it.
+     * Takes a connection, sets its network timeout or registers its sweeper slot on that side, and
+     * returns it.
      *
      * @return the returned connection
      * @throws SQLException if the pool fails
@@ -174,41 +188,61 @@ public class StatementLimitsBenchmark {
         if (setsNetworkTimeout) {
           connection.setNetworkTimeout(CALLING_THREAD, NETWORK_TIMEOUT_MILLIS);
         }
+        if (registersSlot) {
+          sweeper.close(sweeper.open());
+        }
         return connection;
       }
     }
 
-    /** Closes the context, and with it the pool and the container. */
+    /** Stops the sweeper and closes the context, and with it the pool and the container. */
     @TearDown(Level.Trial)
     public void stop() {
+      sweeper.stop();
       pool.context().close();
     }
   }
 
-  /** The pool of the query benchmarks, with or without a query timeout on each statement. */
+  /**
+   * The pool of the query benchmarks, with nothing, pgjdbc's query timeout, or Stratum's own timer
+   * or sweeper on each statement.
+   */
   @State(Scope.Benchmark)
   public static class QueryPool {
 
-    /** Whether each statement sets a query timeout, which starts pgjdbc's timer task. */
-    @Param({"none", "query-timeout"})
+    /** What each statement does besides running: nothing, or one of the three limits. */
+    @Param({"none", "query-timeout", "stratum-timer", "stratum-sweeper"})
     public String setting;
 
     /** The context and pool of this fork. */
     private Pool pool;
 
+    /** Stratum's timer, which every thread of the fork shares. */
+    private StatementTimer timer;
+
+    /** Stratum's sweeper, which every thread of the fork shares. */
+    private StatementSweeperModel sweeper;
+
     /**
-     * Starts the context.
+     * Starts the context, the timer and the sweeper.
      *
      * @throws SQLException if the pool cannot be reached behind the bean
      */
     @Setup(Level.Trial)
     public void start() throws SQLException {
       pool = Pool.start();
+      timer = StatementTimer.start();
+      sweeper = StatementSweeperModel.start();
     }
 
-    /** Closes the context, and with it the pool and the container. */
+    /**
+     * Stops the timer and the sweeper and closes the context, and with it the pool and the
+     * container.
+     */
     @TearDown(Level.Trial)
     public void stop() {
+      timer.stop();
+      sweeper.stop();
       pool.context().close();
     }
   }
@@ -223,6 +257,21 @@ public class StatementLimitsBenchmark {
     /** Whether each statement sets a query timeout. */
     private boolean setsQueryTimeout;
 
+    /** Stratum's timer, which the fork's threads share. */
+    private StatementTimer timer;
+
+    /** Whether each execute runs with Stratum's timer armed. */
+    private boolean armsTimer;
+
+    /** Stratum's sweeper, which the fork's threads share. */
+    private StatementSweeperModel sweeper;
+
+    /** This connection's slot, which the sweeper checks. */
+    private AtomicLong slot;
+
+    /** Whether each execute runs with its deadline in the connection's slot. */
+    private boolean usesSweeper;
+
     /**
      * Borrows this thread's connection.
      *
@@ -233,10 +282,16 @@ public class StatementLimitsBenchmark {
     public void open(QueryPool pool) throws SQLException {
       connection = pool.pool.dataSource().getConnection();
       setsQueryTimeout = "query-timeout".equals(pool.setting);
+      timer = pool.timer;
+      armsTimer = "stratum-timer".equals(pool.setting);
+      sweeper = pool.sweeper;
+      slot = sweeper.open();
+      usesSweeper = "stratum-sweeper".equals(pool.setting);
     }
 
     /**
-     * Prepares the query, sets its timeout on that side, runs it and reads its value.
+     * Prepares the query, sets its timeout, arms Stratum's timer or writes the sweeper's deadline
+     * on that side, runs it and reads its value.
      *
      * @return the value read
      * @throws SQLException if the database fails
@@ -246,9 +301,25 @@ public class StatementLimitsBenchmark {
         if (setsQueryTimeout) {
           statement.setQueryTimeout(QUERY_TIMEOUT_SECONDS);
         }
-        try (ResultSet resultSet = statement.executeQuery()) {
-          return resultSet.next() ? resultSet.getInt(1) : 0;
+        if (armsTimer) {
+          return timer.around(TIMER_LIMIT_MILLIS, () -> readOne(statement));
         }
+        return usesSweeper
+            ? sweeper.around(slot, TIMER_LIMIT_MILLIS, () -> readOne(statement))
+            : readOne(statement);
+      }
+    }
+
+    /**
+     * Runs the query and reads its value.
+     *
+     * @param statement the prepared query
+     * @return the value read
+     * @throws SQLException if the database fails
+     */
+    private int readOne(PreparedStatement statement) throws SQLException {
+      try (ResultSet resultSet = statement.executeQuery()) {
+        return resultSet.next() ? resultSet.getInt(1) : 0;
       }
     }
 

@@ -92,6 +92,7 @@ service:
 | `CallNotPermittedException` | [Resilience → Troubleshooting](../modules/resilience.md#troubleshooting) |
 | No trace IDs in logs, or traces broken between services | [Observability → Troubleshooting](../../starters/stratum-starter-observability/README.md#troubleshooting) |
 | Connection pool exhausted | [Data → Troubleshooting](../modules/data-jpa.md#troubleshooting) |
+| A statement cancelled with `SX-DATA-1003` | [Data → Statement time limits](../modules/data-jpa-statement-limits.md) |
 | Messages in a dead-letter topic | [Kafka → Troubleshooting](../modules/kafka.md#troubleshooting) |
 
 ### Change a log level without a redeploy

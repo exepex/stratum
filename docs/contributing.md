@@ -46,17 +46,21 @@ time, add `-T 1`.
 
 The data starter's `benchmark` profile measures, with [JMH](https://github.com/openjdk/jmh), what
 the [JDBC boundary](modules/data-jpa.md#clean-database-errors) adds to each JDBC call
-(`JdbcBoundaryBenchmark`), and what three pool and driver settings cost on the raw pool
-(`StatementLimitsBenchmark`): HikariCP's [leak alarm](modules/data-jpa.md#leak-alarm) and a network
-timeout on every borrow, and pgjdbc's query timeout on every statement, each on one thread and on 16.
-It needs Docker, because each JMH fork starts its own PostgreSQL container. `JdbcBoundaryBenchmark`
-takes about 10 to 15 minutes and `StatementLimitsBenchmark` about 12:
+(`JdbcBoundaryBenchmark`), what pool and driver settings cost on the raw pool
+(`StatementLimitsBenchmark`): HikariCP's [leak alarm](modules/data-jpa.md#leak-alarm), a network
+timeout and a [statement limit](modules/data-jpa-statement-limits.md) slot on every borrow, and
+pgjdbc's query timeout, Stratum's sweeper or a per-statement timer on every statement; and what the
+sweeper (`StatementSweeperBenchmark`) and the per-statement timer it replaced
+(`StatementTimerBenchmark`) cost with no database. Each runs on one thread and on 16. It needs
+Docker, because each JMH fork of the pool measurements starts its own PostgreSQL container.
+`JdbcBoundaryBenchmark` takes about 10 to 15 minutes and `StatementLimitsBenchmark` about 20:
 
 ```bash
 ./mvnw -pl starters/stratum-starter-data-jpa -am -Pbenchmark clean integration-test
 ```
 
-To run one of them, add `-Djmh.benchmarks=StatementLimitsBenchmark` (or `JdbcBoundaryBenchmark`).
+To run some of them, add a regular expression of their names, such as
+`-Djmh.benchmarks=StatementSweeperBenchmark` or `-Djmh.benchmarks=StatementLimitsBenchmark.borrow`.
 
 The command starts with `clean`, because test classes an earlier build compiled count as up to
 date, and the compiler would then skip JMH's generator. The run builds the module and runs its

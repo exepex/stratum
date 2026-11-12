@@ -7,10 +7,16 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import javax.sql.DataSource;
+import lombok.Setter;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.BeanClassLoaderAware;
+import org.springframework.beans.factory.BeanFactory;
+import org.springframework.beans.factory.BeanFactoryAware;
+import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.config.BeanPostProcessor;
+import org.springframework.context.EnvironmentAware;
 import org.springframework.core.Ordered;
+import org.springframework.core.env.Environment;
 import org.springframework.jdbc.datasource.SimpleDriverDataSource;
 import org.springframework.util.ClassUtils;
 
@@ -19,7 +25,9 @@ import org.springframework.util.ClassUtils;
  * database error reaches a log, a span or a response. Every library that reaches the database
  * through a data source bean is covered, such as Hibernate, {@code JdbcClient} and {@code
  * JdbcTemplate}. The errors keep their standard {@code java.sql} class, SQLState and vendor code;
- * on PostgreSQL, {@code getConstraintName()} keeps working.
+ * on PostgreSQL, {@code getConstraintName()} keeps working. Each statement of a data source bean
+ * also runs under a time limit ({@code stratum.data.query-timeout}, the code's own limit, and the
+ * transaction's deadline), and its connection under a network timeout above it.
  *
  * <p>To skip a data source, declare your own bean named {@code stratumJdbcBoundary} with a filter
  * of bean names. A skipped data source has <strong>no</strong> boundary: its errors may carry data
@@ -27,7 +35,12 @@ import org.springframework.util.ClassUtils;
  * beans are not wrapped by it.
  */
 public final class JdbcBoundaryPostProcessor
-    implements BeanPostProcessor, Ordered, BeanClassLoaderAware {
+    implements BeanPostProcessor,
+        Ordered,
+        BeanClassLoaderAware,
+        BeanFactoryAware,
+        EnvironmentAware,
+        DisposableBean {
 
   /** A class of the PostgreSQL driver, whose presence turns on the PostgreSQL reader. */
   private static final String POSTGRES_EXCEPTION = "org.postgresql.util.PSQLException";
@@ -40,6 +53,18 @@ public final class JdbcBoundaryPostProcessor
 
   /** The boundary, built once Spring gives the class loader, before any bean is processed. */
   private @Nullable JdbcBoundary boundary;
+
+  /** The class loader of the application's beans, which shows whether Micrometer is present. */
+  private @Nullable ClassLoader classLoader;
+
+  /** Finds the data source beans and the meter registry, for the statement limits. */
+  @Setter private @Nullable BeanFactory beanFactory;
+
+  /** The application's environment, which holds {@code stratum.data.query-timeout} and the mode. */
+  @Setter private @Nullable Environment environment;
+
+  /** Builds each data source bean's statement limits; {@code null} until the first bean. */
+  private @Nullable StatementLimitsFactory limitsFactory;
 
   /**
    * Creates the post-processor.
@@ -62,7 +87,16 @@ public final class JdbcBoundaryPostProcessor
         ClassUtils.isPresent(POSTGRES_EXCEPTION, classLoader)
             ? List.of(new PostgresConstraintNameReader())
             : List.of();
+    this.classLoader = classLoader;
     boundary = new JdbcBoundary(new JdbcWrapperClasses(), readers);
+  }
+
+  /** Stops the thread that cancels statements past their limit, when the application stops. */
+  @Override
+  public void destroy() {
+    if (limitsFactory != null) {
+      limitsFactory.close();
+    }
   }
 
   /**
@@ -77,9 +111,24 @@ public final class JdbcBoundaryPostProcessor
     if (bean instanceof DataSource dataSource
         && !(bean instanceof JdbcWrapper)
         && wrapsBean.test(beanName)) {
-      return readyBoundary().wrap(dataSource);
+      return boundaryFor(beanName).wrap(dataSource);
     }
     return bean;
+  }
+
+  /**
+   * Returns the boundary of a data source bean, with the time limits of its statements once Spring
+   * has given the bean factory and the environment.
+   */
+  private JdbcBoundary boundaryFor(String beanName) {
+    var shared = readyBoundary();
+    if (beanFactory == null || environment == null || classLoader == null) {
+      return shared;
+    }
+    if (limitsFactory == null) {
+      limitsFactory = new StatementLimitsFactory(environment, beanFactory, classLoader);
+    }
+    return shared.withLimits(limitsFactory.forPool(beanName));
   }
 
   /**

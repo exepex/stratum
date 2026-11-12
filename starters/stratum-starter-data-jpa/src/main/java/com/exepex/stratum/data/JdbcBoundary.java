@@ -8,6 +8,8 @@ import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import javax.sql.DataSource;
+import lombok.AccessLevel;
+import lombok.Getter;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -28,6 +30,10 @@ public class JdbcBoundary {
 
   /** Builds the clean copy of each error. */
   private final SqlExceptionCleaner cleaner;
+
+  /** The time limits of the data source's statements, or {@code null} when it has none. */
+  @Getter(AccessLevel.PACKAGE)
+  private final @Nullable StatementLimits limits;
 
   /** The wrapped JDBC type a driver class implements, worked out once per class. */
   private final ClassValue<Optional<Class<?>>> wrappedTypeByClass =
@@ -53,6 +59,27 @@ public class JdbcBoundary {
     this.factories = wrapperClasses.wrapperFactories();
     this.wrappedTypes = JdbcWrapperClasses.WRAPPED_TYPES;
     this.cleaner = new SqlExceptionCleaner(constraintReaders);
+    this.limits = null;
+  }
+
+  /** Creates a boundary that shares another's wrappers and cleaner, with statement limits. */
+  private JdbcBoundary(JdbcBoundary shared, StatementLimits limits) {
+    this.wrapperClasses = shared.wrapperClasses;
+    this.factories = shared.factories;
+    this.wrappedTypes = shared.wrappedTypes;
+    this.cleaner = shared.cleaner;
+    this.limits = limits;
+  }
+
+  /**
+   * Returns a boundary for one data source bean, which also limits how long each of its statements
+   * runs.
+   *
+   * @param statementLimits the time limits of the data source's statements
+   * @return the boundary, which shares this one's wrappers and cleaner
+   */
+  public JdbcBoundary withLimits(StatementLimits statementLimits) {
+    return new JdbcBoundary(this, statementLimits);
   }
 
   /**
@@ -76,15 +103,22 @@ public class JdbcBoundary {
   }
 
   /**
-   * Wraps an object a JDBC call returned in the generated wrapper of its type.
+   * Wraps an object a JDBC call returned in the generated wrapper of its type; a connection gets
+   * its data source's network timeout.
    *
    * @param returned the driver's or pool's object
    * @param type the JDBC type to wrap it as
    * @param parent the wrapper whose call returned it
    * @return the wrapper
+   * @throws SQLException the clean copy of the driver's error when the network timeout cannot be
+   *     set; the connection is then returned
    */
-  JdbcWrapper wrapResult(Object returned, Class<?> type, JdbcWrapper parent) {
-    return factories.get(type).apply(returned, parent);
+  JdbcWrapper wrapResult(Object returned, Class<?> type, JdbcWrapper parent) throws SQLException {
+    var wrapper = factories.get(type).apply(returned, parent);
+    if (wrapper instanceof ConnectionWrapper connection) {
+      connection.onBorrow();
+    }
+    return wrapper;
   }
 
   /**

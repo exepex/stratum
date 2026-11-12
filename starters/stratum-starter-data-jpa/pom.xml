@@ -39,6 +39,13 @@
       <groupId>net.bytebuddy</groupId>
       <artifactId>byte-buddy</artifactId>
     </dependency>
+    <!-- Micrometer, optional: the boundary counts the statements it cancels in
+         stratum.data.timeouts when a service has a meter registry. -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-core</artifactId>
+      <optional>true</optional>
+    </dependency>
     <!-- The PostgreSQL driver, optional: the boundary reads the violated constraint's name from its
          errors when a service brings it. -->
     <dependency>
@@ -59,6 +66,18 @@
       <groupId>org.liquibase</groupId>
       <artifactId>liquibase-core</artifactId>
       <optional>true</optional>
+    </dependency>
+    <!-- The two web starters, for the tests of the answer to a request whose statement Stratum
+         cancelled, on both stacks (ADR 0006). -->
+    <dependency>
+      <groupId>io.github.exepex.stratum</groupId>
+      <artifactId>stratum-starter-webmvc</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.github.exepex.stratum</groupId>
+      <artifactId>stratum-starter-webflux</artifactId>
+      <scope>test</scope>
     </dependency>
     <!-- The checks and set-up that every starter's tests share, and the PostgreSQL container that
          stratum-test declares optional. -->
@@ -127,7 +146,7 @@
     <profile>
       <id>benchmark</id>
       <properties>
-        <jmh.benchmarks>JdbcBoundaryBenchmark|StatementLimitsBenchmark</jmh.benchmarks>
+        <jmh.benchmarks>JdbcBoundaryBenchmark|StatementLimitsBenchmark|StatementTimerBenchmark|StatementSweeperBenchmark</jmh.benchmarks>
       </properties>
       <build>
         <plugins>

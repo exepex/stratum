@@ -6,6 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.exepex.stratum.core.api.StratumInternal;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.sql.Array;
 import java.sql.Blob;
 import java.sql.CallableStatement;
@@ -76,6 +77,9 @@ public final class JdbcWrapperClasses {
           Savepoint.class,
           Ref.class,
           Struct.class);
+
+  /** The start of the name of every statement method that runs SQL. */
+  private static final String EXECUTE = "execute";
 
   /** The name ending of every generated class, so that a stack trace shows where it came from. */
   private static final String SUFFIX = "$StratumBoundary$";
@@ -161,11 +165,16 @@ public final class JdbcWrapperClasses {
     }
   }
 
-  /** Generates the wrapper class of a JDBC type: every method of the type goes to the delegate. */
+  /**
+   * Generates the wrapper class of a JDBC type: every method of the type goes to the delegate,
+   * except those its base class implements, and a statement's {@code execute} methods run under its
+   * time limit.
+   */
   private Class<? extends JdbcWrapper> wrapperOf(Class<?> type) {
-    DynamicType.Builder<JdbcWrapper> builder =
+    var base = baseOf(type);
+    DynamicType.Builder<? extends JdbcWrapper> builder =
         byteBuddy
-            .subclass(JdbcWrapper.class, ConstructorStrategy.Default.IMITATE_SUPER_CLASS_OPENING)
+            .subclass(base, ConstructorStrategy.Default.IMITATE_SUPER_CLASS_OPENING)
             .name(
                 JdbcWrapper.class.getName()
                     + "$"
@@ -173,27 +182,59 @@ public final class JdbcWrapperClasses {
                     + SUFFIX
                     + RandomString.make())
             .implement(type);
-    var advice =
-        Advice.withCustomMapping()
-            .with(new Advice.AssignReturned.Factory())
-            .to(CleanErrorsAdvice.class);
-    for (var method : delegatedMethods(type)) {
+    var advice = adviceOf(CleanErrorsAdvice.class);
+    var limitAdvice = adviceOf(StatementLimitAdvice.class);
+    for (var method : delegatedMethods(type, base)) {
+      var cleaned = advice.wrap(callOf(method));
       builder =
           builder
               .method(named(method.getName()).and(takesArguments(method.getParameterTypes())))
-              .intercept(advice.wrap(callOf(method)));
+              .intercept(isLimited(base, method) ? limitAdvice.wrap(cleaned) : cleaned);
     }
     return load(builder).asSubclass(JdbcWrapper.class);
   }
 
-  /** Returns the type's methods, once per signature, without those of {@link Wrapper}. */
-  private List<Method> delegatedMethods(Class<?> type) {
+  /** Returns the base class of a JDBC type's wrapper. */
+  private Class<? extends JdbcWrapper> baseOf(Class<?> type) {
+    if (Statement.class.isAssignableFrom(type)) {
+      return StatementWrapper.class;
+    }
+    return type == Connection.class ? ConnectionWrapper.class : JdbcWrapper.class;
+  }
+
+  /** Returns whether a method runs under the statement's time limit: a statement's execute. */
+  private boolean isLimited(Class<?> base, Method method) {
+    return base == StatementWrapper.class && method.getName().startsWith(EXECUTE);
+  }
+
+  /** Returns the advice of a class, which can replace what the call throws. */
+  private Advice adviceOf(Class<?> adviceClass) {
+    return Advice.withCustomMapping().with(new Advice.AssignReturned.Factory()).to(adviceClass);
+  }
+
+  /**
+   * Returns the type's methods, once per signature, without those of {@link Wrapper} and those the
+   * base class implements itself.
+   */
+  private List<Method> delegatedMethods(Class<?> type, Class<?> base) {
     return Arrays.stream(type.getMethods())
         .filter(method -> method.getDeclaringClass() != Wrapper.class)
+        .filter(method -> !isImplementedBy(base, method))
         .collect(Collectors.toMap(this::signatureOf, Function.identity(), (first, second) -> first))
         .values()
         .stream()
         .toList();
+  }
+
+  /** Returns whether the base class implements a method itself, so it is not generated. */
+  private boolean isImplementedBy(Class<?> base, Method method) {
+    try {
+      var own = base.getMethod(method.getName(), method.getParameterTypes());
+      return !Modifier.isAbstract(own.getModifiers())
+          && JdbcWrapper.class.isAssignableFrom(own.getDeclaringClass());
+    } catch (NoSuchMethodException _) {
+      return false;
+    }
   }
 
   /** Returns a method's name and parameter types, which identify it within a type. */
