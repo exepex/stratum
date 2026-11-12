@@ -121,10 +121,14 @@
   </dependencies>
 
   <profiles>
-    <!-- Measures what the JDBC boundary adds to each JDBC call, against the raw pool, on a
-         PostgreSQL container. Run on demand only; docs/contributing.md gives the command. -->
+    <!-- Measures what the JDBC boundary adds to each JDBC call, and what the statement limits'
+         pool and driver settings cost, against the raw pool, on a PostgreSQL container. Run on
+         demand only; docs/contributing.md gives the command, and jmh.benchmarks picks one. -->
     <profile>
       <id>benchmark</id>
+      <properties>
+        <jmh.benchmarks>JdbcBoundaryBenchmark|StatementLimitsBenchmark</jmh.benchmarks>
+      </properties>
       <build>
         <plugins>
           <!-- JMH's generator, added to the processors the library parent lists, so that the test
@@ -164,7 +168,7 @@
                       <arg value="json"/>
                       <arg value="-rff"/>
                       <arg value="${project.build.directory}/jmh-result.json"/>
-                      <arg value="JdbcBoundaryBenchmark"/>
+                      <arg value="${jmh.benchmarks}"/>
                     </java>
                   </target>
                 </configuration>

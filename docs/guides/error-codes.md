@@ -267,12 +267,13 @@ stops the application at startup; `SX-OBSERVABILITY-1002` and `SX-OBSERVABILITY-
 
 ## stratum-starter-data-jpa
 
-This is an error that stops the application at startup, and only while the module is on, which it
+These are errors that stop the application at startup, and only while the module is on, which it
 is unless `stratum.data.enabled=false`. See the [data module](../modules/data-jpa.md).
 
 | Code | Meaning | Fix |
 | --- | --- | --- |
 | `SX-DATA-1001` | Hibernate checked the entities against the database schema at startup, which Stratum turns on with `ddl-auto=validate`, and an entity does not match it, as with a column that no migration added. The message is Hibernate's, such as `Schema validation: missing column [customer_id] in table [orders]`: it names the table and the column, never a value. | Fix the entity mapping or add the missing migration, or, to stop Hibernate checking the schema, set `spring.jpa.hibernate.ddl-auto=none`. See [Schema check](../modules/data-jpa.md#schema-check). |
+| `SX-DATA-1002` | HikariCP would turn its connection leak alarm off, and only log a warning: `spring.datasource.hikari.leak-detection-threshold` is under 2000 milliseconds, or more than `spring.datasource.hikari.max-lifetime`. HikariCP's default `max-lifetime` is 30 minutes (`1800000`). The message names the keys, never their values. | Set `spring.datasource.hikari.leak-detection-threshold` to at least 2000 and at most `spring.datasource.hikari.max-lifetime`, or raise max-lifetime above it, or set the threshold to 0 to turn the alarm off. See [Leak alarm](../modules/data-jpa.md#leak-alarm). |
 
 ## stratum-starter-cache
 

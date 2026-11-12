@@ -2,8 +2,7 @@
 
 **Status: Partly built.** Spring Data JPA, with safe defaults for Spring Boot's connection pool
 (HikariCP), Hibernate and transactions, and database errors that carry no data values, from your
-code and from Flyway and Liquibase. Query timeouts, a default fetch size and Stratum's connection
-leak alarm are **planned**.
+code and from Flyway and Liquibase. Query timeouts and a default fetch size are **planned**.
 
 [← Documentation home](../README.md) · Property prefix: `stratum.data`
 
@@ -81,6 +80,7 @@ spring:
 | Short pool wait | A caller waits at most 3 seconds for a free connection, then gets an error, instead of 30 seconds | Always |
 | Schema check | Hibernate checks at startup that your entities match the schema, and never changes the schema (`validate`) | Always |
 | Batched writes | Hibernate sends inserts and updates in ordered batches of 50 rows | Always |
+| Leak alarm check | A `leak-detection-threshold` that HikariCP would silently turn off stops startup with `SX-DATA-1002`; the alarm itself stays off, see [Leak alarm](#leak-alarm) | Always |
 | Padded `IN` lists | `IN (...)` lists are padded to the next power of two, so the database reuses fewer query plans | Always |
 | No open-in-view | A web request releases its connection when your service method ends, not when the response is written | Strict mode |
 | Safe paging | A query that pages a fetch join over a collection fails, instead of loading every row and paging in memory | Strict mode |
@@ -316,9 +316,22 @@ are not in a database transaction.
 
 ## Long work: batch jobs and exports
 
+### Leak alarm
+
 HikariCP can log a warning, "Apparent connection leak detected", with the stack trace of the code
-that took a connection and held it too long. Stratum's own default for it is **planned** and off
-today; until then, set HikariCP's key yourself, in milliseconds:
+that took a connection and held it longer than a threshold. Stratum leaves it **off**, HikariCP's
+default, because of what it costs: HikariCP builds an exception, with its stack trace, and
+schedules a task on every borrow of a connection. Stratum's limit for such a cost is 1 µs per
+borrow. Measured on the raw HikariCP pool, with a 70-second threshold, on an Intel Xeon at
+2.10 GHz with 4 cores, JDK 25.0.5 and PostgreSQL 18.6 in a container
+([Benchmarking](../contributing.md#benchmarking-the-jdbc-boundary)):
+
+| Borrow and return a connection | Without the alarm | With the alarm |
+| --- | --- | --- |
+| On 1 thread | about 0.20 µs | about 1.46 µs |
+| On 16 threads at once | about 0.86 µs | about 26.8 µs |
+
+To turn it on, for example while you look for a leak, set HikariCP's key, in milliseconds:
 
 ```properties
 spring.datasource.hikari.leak-detection-threshold=70000
@@ -331,14 +344,20 @@ spring:
       leak-detection-threshold: 70000
 ```
 
-- It must be at least `2000` and at most `spring.datasource.hikari.max-lifetime`. Otherwise
-  HikariCP turns it off when the pool starts and logs one warning: "leakDetectionThreshold is less
-  than 2000ms or more than maxLifetime, disabling it".
+- It must be at least `2000` and at most `spring.datasource.hikari.max-lifetime` (30 minutes,
+  `1800000`, unless you set it), or `0`, which turns it off. HikariCP would turn any other value
+  off when the pool starts and log only a warning, so Stratum stops startup with `SX-DATA-1002`
+  instead, naming both keys. A `max-lifetime` of `0` means no limit.
+- Choose a threshold above your longest transaction, such as the transaction time limit plus 10
+  seconds: 70 seconds with Stratum's 60-second default.
 - It applies to the whole pool. A long report that holds a connection outside a transaction logs
   the warning too. Raise the threshold, or run the report as a batch job, below.
-- **A pool for batch jobs:** run the jobs in their own application, or with their own profile, and
-  set `spring.transaction.default-timeout` to the longest chunk, such as `30m`, and the leak
-  threshold to that plus 10 seconds, raising `max-lifetime` above it.
+
+### A pool for batch jobs
+
+Run the jobs in their own application, or with their own profile, and set
+`spring.transaction.default-timeout` to the longest chunk, such as `30m`. If you turn the leak
+alarm on, set its threshold to that plus 10 seconds, and raise `max-lifetime` above it.
 
 ### Streaming and fetch size
 
@@ -417,6 +436,7 @@ wrapped, so database errors keep the driver's text.
 | Startup fails with `SX-DATA-1001`: "Schema validation: missing column" | An entity changed without a migration. Add the migration, or fix the mapping. |
 | `Connection is not available, request timed out after 3000ms` | The pool is exhausted: look for long transactions or slow queries first, then consider `spring.datasource.hikari.maximum-pool-size`. |
 | "Apparent connection leak detected" in logs | A connection was held longer than `leak-detection-threshold`. The stack trace in the log shows where it was taken. |
+| Startup fails with `SX-DATA-1002` | `spring.datasource.hikari.leak-detection-threshold` is under 2000 or above `max-lifetime`; see [Leak alarm](#leak-alarm). |
 | `LazyInitializationException` | With open-in-view off, load what the response needs inside the `@Transactional` service method (fetch join or DTO projection). |
 | `HibernateException: setFirstResult() or setMaxResults() specified with collection fetch join` | Page the parent rows first, then fetch their collections, or use a DTO projection. |
 | `TransactionTimedOutException`, or a query timeout inside a transaction | A transaction ran longer than 60 seconds. Make it shorter, or give it a longer `@Transactional(timeout = ...)`. |
