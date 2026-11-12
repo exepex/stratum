@@ -29,8 +29,8 @@ import org.springframework.context.ConfigurableApplicationContext;
 /**
  * Measures, on the raw HikariCP pool and a PostgreSQL container, what each of three settings costs
  * before Stratum turns it on: HikariCP's leak detection and a network timeout on every borrow, and
- * pgjdbc's query timeout on every statement. Each runs once without the setting and once with it,
- * on one thread and on 16, in separate forks.
+ * pgjdbc's query timeout on every statement, and Stratum's own statement timer in its place. Each
+ * runs once without the setting and once with it, on one thread and on 16, in separate forks.
  */
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
@@ -47,6 +47,9 @@ public class StatementLimitsBenchmark {
 
   /** The query timeout a statement sets, in seconds: Stratum's planned default. */
   private static final int QUERY_TIMEOUT_SECONDS = 30;
+
+  /** The limit Stratum's own timer arms, in milliseconds: the same 30s. */
+  private static final long TIMER_LIMIT_MILLIS = 30_000;
 
   /** The leak alarm's threshold, in milliseconds: the 60s transaction timeout plus 10s. */
   private static final String LEAK_THRESHOLD = "70000";
@@ -185,30 +188,38 @@ public class StatementLimitsBenchmark {
     }
   }
 
-  /** The pool of the query benchmarks, with or without a query timeout on each statement. */
+  /**
+   * The pool of the query benchmarks, with nothing, pgjdbc's query timeout or Stratum's own timer
+   * on each statement.
+   */
   @State(Scope.Benchmark)
   public static class QueryPool {
 
-    /** Whether each statement sets a query timeout, which starts pgjdbc's timer task. */
-    @Param({"none", "query-timeout"})
+    /** What each statement does besides running: nothing, or one of the two timers. */
+    @Param({"none", "query-timeout", "stratum-timer"})
     public String setting;
 
     /** The context and pool of this fork. */
     private Pool pool;
 
+    /** Stratum's timer, which every thread of the fork shares. */
+    private StatementTimer timer;
+
     /**
-     * Starts the context.
+     * Starts the context and the timer.
      *
      * @throws SQLException if the pool cannot be reached behind the bean
      */
     @Setup(Level.Trial)
     public void start() throws SQLException {
       pool = Pool.start();
+      timer = StatementTimer.start();
     }
 
-    /** Closes the context, and with it the pool and the container. */
+    /** Stops the timer and closes the context, and with it the pool and the container. */
     @TearDown(Level.Trial)
     public void stop() {
+      timer.stop();
       pool.context().close();
     }
   }
@@ -223,6 +234,12 @@ public class StatementLimitsBenchmark {
     /** Whether each statement sets a query timeout. */
     private boolean setsQueryTimeout;
 
+    /** Stratum's timer, which the fork's threads share. */
+    private StatementTimer timer;
+
+    /** Whether each execute runs with Stratum's timer armed. */
+    private boolean armsTimer;
+
     /**
      * Borrows this thread's connection.
      *
@@ -233,10 +250,13 @@ public class StatementLimitsBenchmark {
     public void open(QueryPool pool) throws SQLException {
       connection = pool.pool.dataSource().getConnection();
       setsQueryTimeout = "query-timeout".equals(pool.setting);
+      timer = pool.timer;
+      armsTimer = "stratum-timer".equals(pool.setting);
     }
 
     /**
-     * Prepares the query, sets its timeout on that side, runs it and reads its value.
+     * Prepares the query, sets its timeout or arms Stratum's timer on that side, runs it and reads
+     * its value.
      *
      * @return the value read
      * @throws SQLException if the database fails
@@ -246,9 +266,22 @@ public class StatementLimitsBenchmark {
         if (setsQueryTimeout) {
           statement.setQueryTimeout(QUERY_TIMEOUT_SECONDS);
         }
-        try (ResultSet resultSet = statement.executeQuery()) {
-          return resultSet.next() ? resultSet.getInt(1) : 0;
-        }
+        return armsTimer
+            ? timer.around(TIMER_LIMIT_MILLIS, () -> readOne(statement))
+            : readOne(statement);
+      }
+    }
+
+    /**
+     * Runs the query and reads its value.
+     *
+     * @param statement the prepared query
+     * @return the value read
+     * @throws SQLException if the database fails
+     */
+    private int readOne(PreparedStatement statement) throws SQLException {
+      try (ResultSet resultSet = statement.executeQuery()) {
+        return resultSet.next() ? resultSet.getInt(1) : 0;
       }
     }
 
