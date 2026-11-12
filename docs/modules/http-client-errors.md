@@ -166,9 +166,11 @@ is undone ([ADR 0017](../adr/0017-http-client-response-body-limit.md)). Set it p
 - The limit counts bytes after gzip is undone. Bytes a service sends after the end of its gzip data are not counted;
   `total-timeout` ends them.
 - A method returning `InputStream` or `ResponseEntity<InputStream>` streams, so it is not limited; a `Resource` is read
-  whole, so it is. A client's service token is limited by the client's `response-body-limit` too, unless it is `-1`.
-  For a token, the logged cause names the client as `token:<name>`, such as `token:payments`: that is its token pool,
-  so you can tell a token that is too large from an answer that is.
+  whole, so it is.
+- A client's service token is limited by the client's `response-body-limit` too, unless it is `-1`. A token answer
+  over the limit is a token that cannot be fetched: the call ends with `SX-HTTPC-0002`, like any failed token fetch,
+  not with `SX-HTTPC-0006`. Its logged cause ends with the `SX-HTTPC-0006` line, which names the client as
+  `token:<name>`, such as `token:payments`, its token pool.
 - The limit applies in both modes, `stratum.backward-compatible=true` included, and to a client's beans and mocks.
 
 ## Clients Stratum did not build

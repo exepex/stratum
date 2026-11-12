@@ -168,8 +168,8 @@ public interface PartnerClient {
   - a rule your `customizeRetry` gives to `retryOnException`; give rules to `retryOnResult` instead
     ([resilience](http-client-resilience.md#rules-the-keys-cannot-express));
   - an `ObservationHandler`, so Spring Boot's `http.client.requests` timer is tagged `exception=InterceptorFailure`;
-  - a decorator of the client's interfaces you add with Spring's `RestClientHttpServiceGroupConfigurer`, when it runs
-    inside Stratum's (read from the code, not run).
+  - a decorator of the client's interfaces you add with Spring's `RestClientHttpServiceGroupConfigurer`, when that
+    configurer is ordered before Stratum's.
 - **Named and global:** a bean that is a `GlobalClientInterceptor` and is also named in `interceptors` runs once, as
   a global one. A `ClientInterceptor` that no client names never runs.
 - **Missing bean:** each type named in `interceptors` needs exactly one bean; with none, or two, startup stops with
