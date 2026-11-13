@@ -50,7 +50,7 @@ public final class PostgresLoginTimeoutPostProcessor implements BeanPostProcesso
       pool.addDataSourceProperty(
           PostgresLoginTimeout.LOGIN_TIMEOUT,
           PostgresLoginTimeout.seconds(pool.getConnectionTimeout()));
-    } catch (IllegalStateException started) {
+    } catch (IllegalStateException _) {
       if (log.isDebugEnabled()) {
         log.debug(
             "The pool '{}' has already started, so it gets no login limit from Stratum",

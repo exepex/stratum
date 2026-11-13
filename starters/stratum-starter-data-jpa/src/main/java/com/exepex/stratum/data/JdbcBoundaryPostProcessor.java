@@ -144,7 +144,7 @@ public final class JdbcBoundaryPostProcessor
     if (!(migrationDataSource instanceof SimpleDriverDataSource connection)) {
       return migrationDataSource;
     }
-    PostgresLoginTimeout.limit(connection, environment);
+    new MigrationLoginTimeout(environment).limit(connection);
     return readyBoundary().wrap(connection);
   }
 
