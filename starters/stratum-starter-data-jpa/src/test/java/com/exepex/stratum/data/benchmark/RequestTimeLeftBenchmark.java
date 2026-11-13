@@ -45,6 +45,9 @@ import reactor.core.publisher.Mono;
 @Measurement(iterations = 10, time = 1)
 public class RequestTimeLeftBenchmark {
 
+  /** The side with a deadline on the thread and its accessor registered. */
+  private static final String DEADLINE = "deadline";
+
   /**
    * Reads the time left of the request on this thread, on one thread.
    *
@@ -106,7 +109,7 @@ public class RequestTimeLeftBenchmark {
     /** Registers the accessor on the deadline side, and turns on Reactor's propagation. */
     @Setup(Level.Trial)
     public void start() {
-      if ("deadline".equals(setting)) {
+      if (DEADLINE.equals(setting)) {
         new RequestDeadlinePropagation().afterSingletonsInstantiated();
       } else {
         ContextRegistry.getInstance()
@@ -166,7 +169,7 @@ public class RequestTimeLeftBenchmark {
               .map(this::next)
               .contextWrite(
                   context -> context.put(WebConstants.REQUEST_DEADLINE_CONTEXT_KEY, deadline));
-      if ("deadline".equals(carrying.setting)) {
+      if (DEADLINE.equals(carrying.setting)) {
         deadlines.setValue(deadline);
       }
     }
