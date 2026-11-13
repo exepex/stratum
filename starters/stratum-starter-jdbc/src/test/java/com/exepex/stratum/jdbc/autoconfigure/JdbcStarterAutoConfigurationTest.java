@@ -31,6 +31,7 @@ class JdbcStarterAutoConfigurationTest {
   /**
    * The names of every bean the shared configurations create with Flyway, Liquibase and PostgreSQL.
    */
+  // Copied from DataJpaBoundaryAutoConfigurationTest; the owner allowed it (ST-ENG-06).
   private static final List<String> BOUNDARY_BEANS =
       List.of(
           DataConstants.JDBC_BOUNDARY,
@@ -180,6 +181,7 @@ class JdbcStarterAutoConfigurationTest {
   }
 
   /** A company framework's auto-configuration that declares no order and its own post-processor. */
+  // A copy of DataJpaBoundaryAutoConfigurationTest's fixture, kept by the owner's decision.
   @AutoConfiguration
   static class CompanyBoundaryAutoConfiguration {
 

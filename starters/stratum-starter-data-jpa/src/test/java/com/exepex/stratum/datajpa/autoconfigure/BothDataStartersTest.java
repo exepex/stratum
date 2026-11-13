@@ -87,6 +87,7 @@ class BothDataStartersTest {
       var postProcessors =
           SpringFactoriesLoader.forDefaultResourceLocation()
               // Spring Boot's own post-processors need constructor arguments; they are skipped.
+              // The same loading as JdbcClassPathTest's, kept by the owner's decision.
               .load(
                   EnvironmentPostProcessor.class,
                   null,
