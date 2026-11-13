@@ -52,6 +52,10 @@ expect_failure "unmarked sidebar" "printf '**Menu**\n' > wiki/_Sidebar.md"
 expect_failure "relative image" "touch repo/docs/getting-started/diagram.png && printf '![Diagram](diagram.png)\n' >> $intro"
 expect_failure "link out of the repository" "touch outside.md && printf '[Out](../../../outside.md)\n' >> $intro"
 expect_failure "link to a missing file" "printf '[Gone](missing.md)\n' >> $intro"
+expect_failure "page missing from the index" "printf '# Orphan\n' > repo/docs/orphan.md"
+expect_failure "anchor to a missing heading in another page" "printf '[Gone](../contributing.md#nowhere)\n' >> $intro"
+expect_failure "same-page anchor to a missing heading" "printf '[Gone](#nowhere)\n' >> $intro"
+expect_failure "anchor to a heading inside a code fence" "printf '\x60\x60\x60\n# Fenced\n\x60\x60\x60\n[Fenced](#fenced)\n' >> $intro"
 expect_failure "index section without a group" "printf '## Extra\n' >> repo/docs/README.md"
 # Adds a table row under the index's "Getting started" section.
 add_row() { sed -i "s#^| \\[Intro\\](getting-started/intro.md) | The first steps. |#&\\n$1#" repo/docs/README.md; }
