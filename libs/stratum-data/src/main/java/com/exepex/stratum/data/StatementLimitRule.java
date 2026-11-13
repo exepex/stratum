@@ -47,12 +47,7 @@ public class StatementLimitRule {
 
   /** Returns whether one of the deadlines is a transaction's. */
   private boolean inTransaction(List<TimeLeft> deadlines) {
-    for (var deadline : deadlines) {
-      if (deadline.source() == LimitSource.TRANSACTION) {
-        return true;
-      }
-    }
-    return false;
+    return deadlines.stream().anyMatch(deadline -> deadline.source() == LimitSource.TRANSACTION);
   }
 
   /** What set a statement's limit, as the timeout counter's {@code cause} tag names it. */

@@ -153,6 +153,7 @@ public class DeadlineOrdersApplication {
       var until = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(millis);
       var neverReleased = new CountDownLatch(1);
       var interrupted = false;
+      // A loop, not a stream: it waits until a point in time, which no stream expresses.
       while (System.nanoTime() < until) {
         try {
           neverReleased.await(until - System.nanoTime(), TimeUnit.NANOSECONDS);
