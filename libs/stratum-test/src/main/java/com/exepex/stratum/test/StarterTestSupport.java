@@ -150,7 +150,9 @@ public class StarterTestSupport {
                 .areDeclaredInClassesThat()
                 .resideInAPackage(autoconfigurePackage)
                 .should()
-                .beAnnotatedWith(BEAN))
+                .beAnnotatedWith(BEAN)
+                // An auto-configuration that only imports configurations declares no method.
+                .allowEmptyShould(true))
         .and(
             classes()
                 .should()

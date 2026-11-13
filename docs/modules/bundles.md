@@ -4,7 +4,7 @@
 A bundle lists only single starters that have code: the web and cache starters are built, and the logging,
 observability and HTTP client starters are partly built, as their pages say. The web starters bring
 their Spring web stack, Spring MVC or WebFlux, so a bundle starts a web server. The security,
-resilience and data-jpa starters join no bundle until they are built.
+resilience, data-jpa and jdbc starters join no bundle until they are built.
 
 [← Documentation home](../README.md) · Decision records: [ADR 0003](../adr/0003-bundle-starters-and-module-switches.md),
 [ADR 0010](../adr/0010-modules-on-when-present-and-one-compatibility-switch.md),

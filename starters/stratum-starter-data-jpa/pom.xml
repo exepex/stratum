@@ -53,6 +53,14 @@
       <artifactId>stratum-starter-webflux</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- The JDBC starter, to prove that a service with both data starters gets each bean and
+         default once. -->
+    <dependency>
+      <groupId>io.github.exepex.stratum</groupId>
+      <artifactId>stratum-starter-jdbc</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
     <!-- The checks and set-up that every starter's tests share, and the PostgreSQL container that
          stratum-test declares optional. -->
     <dependency>

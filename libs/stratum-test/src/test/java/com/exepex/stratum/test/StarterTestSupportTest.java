@@ -7,6 +7,7 @@ import com.exepex.stratum.core.properties.StratumPropertiesCustomizer;
 import com.exepex.stratum.test.fixture.UnswitchedGreeter;
 import com.exepex.stratum.test.fixture.autoconfigure.GreetingAutoConfiguration;
 import com.exepex.stratum.test.fixture.autoconfigure.GreetingFormatter;
+import com.exepex.stratum.test.fixture.autoconfigure.ImportingAutoConfiguration;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -66,6 +67,16 @@ class StarterTestSupportTest {
       var result =
           StarterTestSupport.starterArchitecture(FIXTURE_STARTER_PACKAGE, FIXTURE_API_TYPES)
               .evaluate(new ClassFileImporter().importClasses(GreetingAutoConfiguration.class));
+
+      assertThat(result.hasViolation()).isFalse();
+    }
+
+    @Test
+    @DisplayName("pass for an autoconfigure package whose auto-configuration only imports others")
+    void passForImportingConfigurationClass() {
+      var result =
+          StarterTestSupport.starterArchitecture(FIXTURE_STARTER_PACKAGE, FIXTURE_API_TYPES)
+              .evaluate(new ClassFileImporter().importClasses(ImportingAutoConfiguration.class));
 
       assertThat(result.hasViolation()).isFalse();
     }

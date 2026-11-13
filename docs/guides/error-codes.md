@@ -267,11 +267,13 @@ stops the application at startup; `SX-OBSERVABILITY-1002` and `SX-OBSERVABILITY-
 | `SX-OBSERVABILITY-1002` | Warning, logged once per metric: a metric was dropped because one of its tags is named like an ID, such as `userId`, `trace_id`, `user.id` or a name in `stratum.observability.tags.extra-forbidden`. Each ID value would create a new time series. The message names the metric and the tag, never a value. | Remove the tag from the metric and put the ID in a log line or a span attribute instead. If the tag really holds a small, known set of values, list its name in `stratum.observability.tags.allowed`. |
 | `SX-OBSERVABILITY-1003` | Warning, logged once per cap: a new meter was dropped because the registry already holds `stratum.observability.metrics.max-meters` meters, or the HTTP client meters already have `stratum.observability.metrics.max-client-names` hosts in their `client.name` tag. A tag probably holds unbounded values. The message names the meter and the key, never a value. | Find the tag with unbounded values, such as an ID, a raw path or a host per customer, and remove it or bound it. Raise the named key only after checking that the metrics backend can store that many series ([meter caps](../modules/observability-metrics.md)). |
 
-## stratum-starter-data-jpa
+## stratum-starter-data-jpa and stratum-starter-jdbc
 
 `SX-DATA-1001` and `SX-DATA-1002` are errors that stop the application at startup; `SX-DATA-1003`
 fails one statement. All three happen only while the module is on, which it is unless
-`stratum.data.enabled=false`. See the [data module](../modules/data.md) and the [data JPA starter](../modules/data-jpa.md).
+`stratum.data.enabled=false`. `SX-DATA-1001` comes from Hibernate's schema check, so only with the
+data JPA starter. See the [data module](../modules/data.md), the [data JPA starter](../modules/data-jpa.md)
+and the [JDBC starter](../modules/jdbc.md).
 
 | Code | Meaning | Fix |
 | --- | --- | --- |

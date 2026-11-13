@@ -14,9 +14,10 @@ seconds for a busy pool, transactions with no time limit, and database errors th
 data that caused them. `stratum-data` sets these the safe way for every service that reaches its
 database through JDBC. It sets only Spring Boot's own keys, so every value your service sets wins.
 
-You do not add `stratum-data` yourself: a data starter brings it. Today that is
-[`stratum-starter-data-jpa`](data-jpa.md), whose page shows how to add it and what it adds for
-Hibernate. R2DBC is not covered.
+You do not add `stratum-data` yourself: a data starter brings it. Two do:
+[`stratum-starter-data-jpa`](data-jpa.md) for Spring Data JPA and Hibernate, and
+[`stratum-starter-jdbc`](jdbc.md) for plain JDBC with `JdbcClient` or `JdbcTemplate`. Each page
+shows how to add it. R2DBC is not covered.
 
 ## What you get
 
