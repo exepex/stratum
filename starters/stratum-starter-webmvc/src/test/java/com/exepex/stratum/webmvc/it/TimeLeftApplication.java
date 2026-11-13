@@ -219,7 +219,7 @@ public class TimeLeftApplication {
       while (System.nanoTime() < answerAt) {
         try {
           neverReleased.await(answerAt - System.nanoTime(), TimeUnit.NANOSECONDS);
-        } catch (InterruptedException ignored) {
+        } catch (InterruptedException _) {
           interrupted = true;
         }
       }

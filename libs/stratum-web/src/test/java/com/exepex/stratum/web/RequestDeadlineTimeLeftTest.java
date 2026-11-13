@@ -196,7 +196,7 @@ class RequestDeadlineTimeLeftTest {
   private Duration timeLeftAfter(CountDownLatch signal, RequestDeadline deadline) {
     try {
       signal.await(WAIT.toSeconds(), TimeUnit.SECONDS);
-    } catch (InterruptedException interrupted) {
+    } catch (InterruptedException _) {
       Thread.currentThread().interrupt();
     }
     return deadline.timeLeft().orElseThrow();
