@@ -53,8 +53,8 @@
       <artifactId>stratum-starter-webflux</artifactId>
       <scope>test</scope>
     </dependency>
-    <!-- The JDBC starter, to prove that a service with both data starters gets each bean and
-         default once. -->
+    <!-- The JDBC starter, for the unit test that proves a service with both data starters gets
+         each bean and default once. Failsafe leaves it out, below. -->
     <dependency>
       <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-jdbc</artifactId>
@@ -132,6 +132,22 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+
+  <build>
+    <plugins>
+      <!-- The integration tests run without the JDBC starter, so that its spring.factories and
+           auto-configuration imports cannot stand in for this starter's own. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <configuration>
+          <classpathDependencyExcludes>
+            <classpathDependencyExclude>io.github.exepex.stratum:stratum-starter-jdbc</classpathDependencyExclude>
+          </classpathDependencyExcludes>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
 
   <profiles>
     <!-- Measures what reading a web request's time left costs, with no database. The JDBC
