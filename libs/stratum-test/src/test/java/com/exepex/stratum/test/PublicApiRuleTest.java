@@ -14,6 +14,7 @@ import com.exepex.stratum.core.error.Severity;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.core.executor.OneShotContextScheduledExecutorService;
 import com.exepex.stratum.core.properties.StratumPropertiesCustomizer;
+import com.exepex.stratum.core.request.RequestTimeLeft;
 import com.exepex.stratum.test.fixture.BoundLeakingGreeter;
 import com.exepex.stratum.test.fixture.ExtensibleGreeter;
 import com.exepex.stratum.test.fixture.InheritingGreeter;
@@ -146,7 +147,8 @@ class PublicApiRuleTest {
             Severity.class,
             StratumException.class,
             OneShotContextScheduledExecutorService.class,
-            StratumPropertiesCustomizer.class);
+            StratumPropertiesCustomizer.class,
+            RequestTimeLeft.class);
 
     /** The types of stratum-test that services may use, nested ones too; the rest are labelled. */
     private static final Set<Class<?>> TEST_API_TYPES =

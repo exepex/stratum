@@ -19,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import lombok.experimental.UtilityClass;
@@ -54,6 +55,9 @@ public class WebTestSupport {
 
   /** How long a test waits for a service to time a request. */
   private static final Duration TIMER_WAIT = Duration.ofSeconds(5);
+
+  /** What a time-left test endpoint answers when the request has no limit. */
+  public static final String NO_TIME_LIMIT = "none";
 
   /**
    * Checks an error answer of a web starter: its status, the Problem Details media type, the {@code
@@ -247,5 +251,36 @@ public class WebTestSupport {
     return numbers.length == IPV4_BYTES
         ? IntStream.of(numbers).mapToObj(Integer::toString).collect(Collectors.joining("."))
         : IntStream.of(numbers).mapToObj(Integer::toHexString).collect(Collectors.joining(":"));
+  }
+
+  /**
+   * Returns a request's time left as the time-left test endpoints of both web starters answer it.
+   *
+   * @param timeLeft the time left, from {@code RequestTimeLeft}
+   * @return the milliseconds left, or {@value #NO_TIME_LIMIT}
+   */
+  public static String describeTimeLeft(Optional<Duration> timeLeft) {
+    return timeLeft.map(Duration::toMillis).map(String::valueOf).orElse(NO_TIME_LIMIT);
+  }
+
+  /**
+   * Checks that a time-left endpoint answered with a time above zero and at most the limit.
+   *
+   * @param answer the answer
+   * @param limitMillis the request's limit, in milliseconds
+   */
+  public static void checkTimeLeftUpTo(HttpResponse<String> answer, long limitMillis) {
+    assertThat(answer.statusCode()).isEqualTo(HttpURLConnection.HTTP_OK);
+    assertThat(Long.parseLong(answer.body())).isPositive().isLessThanOrEqualTo(limitMillis);
+  }
+
+  /**
+   * Checks that a time-left endpoint answered that the request has no limit.
+   *
+   * @param answer the answer
+   */
+  public static void checkNoTimeLimit(HttpResponse<String> answer) {
+    assertThat(answer.statusCode()).isEqualTo(HttpURLConnection.HTTP_OK);
+    assertThat(answer.body()).isEqualTo(NO_TIME_LIMIT);
   }
 }

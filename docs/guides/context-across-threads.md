@@ -205,6 +205,13 @@ each run starts its own trace with an empty MDC. Work a request saves for a job 
 such as a report written to S3, is linked back to the request with the observability starter's
 `LinkedWork`; [linking work that runs later](linking-later-work.md) says when to link and how.
 
+## The request's time limit
+
+The same mechanism carries each web request's time limit, so `RequestTimeLeft` reads it on the
+threads the request's work runs on, wherever the fields above are carried. Where they are not, it
+reads no limit. [Read the time left](../modules/web-timeouts.md#read-the-time-left) lists each
+place.
+
 ## Settings
 
 Three keys decide what carries the fields:

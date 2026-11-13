@@ -154,6 +154,53 @@ is, `500`, and not as a time limit.
 On both stacks, work already done stays done. A request that saved an order before its time ran out
 has saved it, and its caller sees `503`. Make the requests a caller retries idempotent.
 
+## Read the time left
+
+To fit your own remote calls within the request's limit, inject `RequestTimeLeft`, from
+`stratum-core`. It tells how long the request whose work runs on the calling thread may still run,
+counted live: a method's `@ResponseTimeout` is seen as soon as it applies.
+
+```java
+@Service
+@RequiredArgsConstructor
+public class StockService {
+
+  private final RequestTimeLeft requestTimeLeft;
+  private final StockClient stockClient;
+
+  public Stock stockOf(String sku) {
+    var timeout = requestTimeLeft.timeLeft().orElse(Duration.ofSeconds(2));
+    return stockClient.stockOf(sku, timeout);
+  }
+}
+```
+
+`timeLeft()` returns:
+
+- the time left, while the request runs;
+- zero or less, once the limit has passed and until the request ends;
+- empty, which means **no limit**, when there is no limit to read: a route or method with a limit of
+  `0`, a request that has ended, and any work that is not part of a web request, such as a Kafka
+  listener, a batch job or a scheduled task.
+
+Empty never means that no time is left. Where the deadline does not reach, `timeLeft()` says there
+is no limit, so keep each remote call's own timeout as well.
+
+The deadline reaches these places, and no others:
+
+| Where the code runs | What it reads |
+|---|---|
+| The request's own thread, on Spring MVC | The time left |
+| A WebFlux request's operators, on whatever thread runs them | The time left, with `spring.reactor.context-propagation=auto`, which the web module sets on WebFlux |
+| A blocking call moved to `Schedulers.boundedElastic()` | The time left with `auto`. With Spring Boot's `limited`, only `handle` and `tap` read it; a `Mono.fromCallable` there reads no limit |
+| `@Async` methods and the executor beans of your service | The time left, while the request runs, when the executors carry the context: the [logging](../../starters/stratum-starter-logging/README.md) and [observability](../../starters/stratum-starter-observability/README.md) starters turn that on. With a web starter alone, no limit, as such work has no logging context either |
+| A pool that is not a bean, `CompletableFuture`'s common pool, or a thread you start | No limit |
+| A `Callable` or `DeferredResult` handler | No limit once the handler method has returned, because the limit ends then; a `Callable` that starts before that can read the time left for that moment |
+| Any of these, once the request has ended | No limit. On WebFlux the request ends when its response starts. On Spring MVC it ends when the handler returns, so a handler that starts its response itself, with `flushBuffer()` or by writing to the output stream, still reads its time left until it returns, and that can go below zero |
+
+To read the time left in your own way, declare a bean of type `RequestTimeLeft`; Stratum's backs off.
+Stratum's other modules then read yours.
+
 ## What the caller and the logs see
 
 The caller gets the [error body](../../starters/stratum-starter-webmvc/README.md#the-error-body) every

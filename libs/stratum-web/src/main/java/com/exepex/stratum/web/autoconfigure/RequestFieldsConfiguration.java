@@ -3,8 +3,11 @@ package com.exepex.stratum.web.autoconfigure;
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.condition.ConditionalOnStratumModule;
 import com.exepex.stratum.core.properties.BackwardCompatibleMode;
+import com.exepex.stratum.core.request.RequestTimeLeft;
 import com.exepex.stratum.web.CorrelationIdChooser;
+import com.exepex.stratum.web.CurrentRequestTimeLeft;
 import com.exepex.stratum.web.RequestBodyLimits;
+import com.exepex.stratum.web.RequestDeadlinePropagation;
 import com.exepex.stratum.web.RequestFieldsPropagation;
 import com.exepex.stratum.web.RequestFieldsReader;
 import com.exepex.stratum.web.RequestLogWriter;
@@ -24,7 +27,8 @@ import org.springframework.core.env.Environment;
 /**
  * Creates what both web starters use to give every log line of a request its fields, the request
  * its correlation ID, its one closing log line, its time limit and its body size limit, and the
- * startup line of standard mode. The web MVC and WebFlux auto-configurations import it.
+ * startup line of standard mode. Other threads can read the time limit through {@link
+ * RequestTimeLeft}. The web MVC and WebFlux auto-configurations import it.
  */
 @StratumInternal
 @Configuration(proxyBeanMethods = false)
@@ -101,6 +105,31 @@ public class RequestFieldsConfiguration {
   @ConditionalOnMissingBean
   public ResponseTimeouts responseTimeouts(WebProperties webProperties, Environment environment) {
     return new ResponseTimeouts(webProperties, BackwardCompatibleMode.isOn(environment));
+  }
+
+  /**
+   * Tells the service and Stratum's other modules how long the request whose work runs on the
+   * calling thread has left.
+   *
+   * @return the time left of the current request
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean
+  public RequestTimeLeft requestTimeLeft() {
+    return new CurrentRequestTimeLeft();
+  }
+
+  /**
+   * Carries each request's deadline to the threads its work moves to.
+   *
+   * @return the registration, kept for the rest of the JVM
+   */
+  @Bean
+  @Fallback
+  @ConditionalOnMissingBean
+  public RequestDeadlinePropagation requestDeadlinePropagation() {
+    return new RequestDeadlinePropagation();
   }
 
   /**
