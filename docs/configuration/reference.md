@@ -291,6 +291,7 @@ Module page: [Data → Properties](../modules/data.md#properties).
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
+| `stratum.data.deadline-margin` | `Duration` | none | How much earlier than the web request's time limit its statements and connection borrows must end, so that a slow statement is cancelled and answered before the web module has to interrupt the request. A statement in a web request with a time limit ends by that limit minus this margin. Defaults to 150ms. |
 | `stratum.data.enabled` | `Boolean` | `true` | Whether the data module is on. With false, Stratum sets none of its defaults for the connection pool and transactions, nor a data starter's own, and wraps no data source in the boundary that cleans database errors. |
 | `stratum.data.query-timeout` | `Duration` | none | How long one SQL statement may run before Stratum cancels it, when the code that runs it sets no time limit of its own. A statement in a transaction with a time limit ends by that limit too. 0 means no limit. Defaults to 30s, or to 0 with stratum.backward-compatible=true. |
 

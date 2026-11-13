@@ -15,8 +15,9 @@ a request whose response has not started when its time is up is answered with `5
 act on, and a slow call can no longer hold a server thread, or a caller, for minutes.
 
 The limit counts from when the request reaches the service, so the time Spring Security takes counts
-too, until the first byte of the response is sent. A response that has started, such as a stream or
-a large download, is never cut off.
+too, until the first byte of the response is sent. The web module never cuts off a response that
+has started, such as a stream or a large download. On Spring MVC with a data starter, though, the
+response's SQL statements still end by the limit; see [Downloads and streams](#downloads-and-streams).
 
 ## Set the limits
 
@@ -98,9 +99,32 @@ DocumentId upload(InputStream body) {
 }
 ```
 
-or by path, `stratum.web.timeout.routes[/uploads/**]=0`. A download, or any response that streams
-while it works, needs nothing: once its response has started, it is never cut off. An upload larger
-than 256KB also needs a larger [body size limit](web-body-limit.md#uploads-of-5-to-20-mb).
+or by path, `stratum.web.timeout.routes[/uploads/**]=0`. An upload larger than 256KB also needs a
+larger [body size limit](web-body-limit.md#uploads-of-5-to-20-mb).
+
+## Downloads and streams
+
+The web module never cuts off a response that has started: once the first byte is sent, the limit
+no longer answers it with `503`. Its database work is another matter. With the data starter, every
+SQL statement of a Spring MVC request ends by the limit minus `stratum.data.deadline-margin`, 150ms
+by default, and a statement that starts within that margin of the limit fails at once with
+`SX-DATA-1003`, even when the response has started. Only once the limit has passed does a started
+response read no limit. So a paged download that runs across a 10 second limit fails at about 9.85
+seconds, with part of its rows sent. On WebFlux the request's deadline ends when its response
+starts, so the statements that run after that have no request limit.
+
+Give each download or stream that reads the database for longer than the limit its own limit, or
+none:
+
+```java
+@ResponseTimeout(0)
+@GetMapping("/exports/orders")
+void exportOrders(HttpServletResponse response) throws IOException {
+  exports.writeOrders(response.getOutputStream());
+}
+```
+
+or by path, `stratum.web.timeout.routes[/exports/**]=0`.
 
 ## Configure in Java
 
@@ -135,8 +159,10 @@ When the time is up, Stratum interrupts the request's thread, as Tomcat's stuck 
   writes on virtual threads.
 - A call that ignores interrupts runs on until it ends, and the caller then gets `503`, as late as
   that. Socket reads on ordinary platform threads ignore interrupts, so a database query waiting
-  on its socket usually runs on. Give every remote call its own timeout, shorter than the
-  request's, such as a query timeout on the database and a read timeout on the HTTP client.
+  on its socket would run on. The data starter ends each statement before that: by the request's
+  limit minus `stratum.data.deadline-margin`, as [Statement time limits](data-statement-limits.md#in-a-web-request)
+  describes. Give every other remote call its own timeout, shorter than the request's, such as a
+  read timeout on the HTTP client.
 - Whatever your code answers or throws after the time is up, from the handler, from your own
   `@ExceptionHandler` or from a filter such as Spring Security's or your own, the caller gets `503`,
   as on WebFlux. Only a response that started in time is sent as it is.
@@ -190,7 +216,8 @@ counts it in milliseconds. Keep the call's own timeout as an upper bound, as `ST
 `timeLeft()` returns:
 
 - the time left, while the request runs;
-- zero or less, once the limit has passed and until the request ends;
+- zero or less, once the limit has passed and until the request ends, unless its response has
+  started: such a request reads no limit by then, as the table below shows;
 - empty, which means **no limit**, when there is no limit to read: a route or method with a limit of
   `0`, a request that has ended, and any work that is not part of a web request, such as a Kafka
   listener, a batch job or a scheduled task.
@@ -208,9 +235,13 @@ The deadline reaches these places, and no others:
 | `@Async` methods and the executor beans of your service | The time left, while the request runs, when the executors carry the context: the [logging](../../starters/stratum-starter-logging/README.md) and [observability](../../starters/stratum-starter-observability/README.md) starters turn that on. With a web starter alone, no limit, as such work has no logging context either |
 | A pool that is not a bean, `CompletableFuture`'s common pool, or a thread you start | No limit |
 | A `Callable` or `DeferredResult` handler | No limit once the handler method has returned, because the limit ends then; a `Callable` that starts before that can read the time left for that moment |
-| Any of these, once the request has ended | No limit. On WebFlux the request ends when its response starts. On Spring MVC it ends when the handler returns, so a handler that starts its response itself, with `flushBuffer()` or by writing to the output stream, still reads its time left until it returns, and that can go below zero |
+| Any of these, once the request has ended | No limit. On WebFlux the request ends when its response starts. On Spring MVC it ends when the handler returns, or when its limit passes after its response has started: a handler that starts its response itself, with `flushBuffer()` or by writing to the output stream, reads its time left until the limit, and no limit after it |
 
-To read the time left in your own way, declare a bean of type `RequestTimeLeft`; Stratum's backs off.
+Stratum's data module reads it to end each SQL statement before the request's limit, and to fail a
+connection borrow, before and after the pool's wait, once no time is left; see
+[Statement time limits](data-statement-limits.md#in-a-web-request).
+To read the time left in your own way, declare a bean of type `RequestTimeLeft`; Stratum's backs
+off, and the data module reads yours.
 
 ## What the caller and the logs see
 

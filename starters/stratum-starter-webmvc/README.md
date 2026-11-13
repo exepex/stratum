@@ -226,7 +226,9 @@ Jetty that line has no request fields; nothing leaks there either.
 
 By default, each request has 10 seconds until its response starts, unless you set another limit.
 While `stratum.backward-compatible` is `true`, a request has no time limit unless you set one. A request that runs out of time is answered with `503` and `SX-WEB-1007`, and the
-service logs a WARN line. A response that has started, such as a stream, is never cut off. Change
+service logs a WARN line. A response that has started, such as a stream, is never cut off, though
+with a data starter its SQL statements still end by the limit
+([downloads and streams](../../docs/modules/web-timeouts.md#downloads-and-streams)). Change
 the limits in `application.properties`:
 
 ```properties
@@ -391,7 +393,7 @@ Each bean below is Stratum's only until you declare your own:
 | `RequestBodyLimits`, a bean named `stratumRequestBodyLimitFilter`, or `RequestBodyLimitInterceptor` | How each request's body size limit is chosen, the filter that counts the body, or what applies `@RequestBodyLimit` and checks `Content-Length` |
 | `ResponseTimeouts`, a bean named `stratumResponseTimeoutFilter`, or `ResponseTimeoutInterceptor` | How each request's time limit is chosen, the filter that answers a request that ran out of time, or what applies `@ResponseTimeout` |
 | `RequestFieldsReader`, `CorrelationIdChooser` or `RequestFieldsPropagation` | How the fields are read, how the correlation ID is chosen, or how the fields follow the request across threads |
-| `RequestTimeLeft` | How the time left of the current request is read ([read the time left](../../docs/modules/web-timeouts.md#read-the-time-left)) |
+| `RequestTimeLeft` | How the time left of the current request is read; the data starter reads it to end statements before the request's limit ([read the time left](../../docs/modules/web-timeouts.md#read-the-time-left)) |
 
 Stratum's error auto-configuration is ordered before Spring Boot's `ErrorMvcAutoConfiguration`, because its
 error attributes and HTML error page replace Spring Boot's. Your own beans, and those of a company framework whose

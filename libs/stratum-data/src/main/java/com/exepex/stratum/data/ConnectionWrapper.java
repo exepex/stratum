@@ -95,10 +95,12 @@ public abstract class ConnectionWrapper extends JdbcWrapper {
   }
 
   /**
-   * Gives a just borrowed connection the pool's network timeout; when that fails, the connection is
-   * returned before the error is thrown.
+   * Gives a just borrowed connection the pool's network timeout, and fails the borrow when the web
+   * request it serves ran out of time while it waited for the pool; on either failure, the
+   * connection is returned before the error is thrown, so no SQL is sent.
    *
-   * @throws SQLException the clean copy of the driver's error
+   * @throws SQLException {@code SX-DATA-1003} when no time is left, or the clean copy of the
+   *     driver's error
    */
   void onBorrow() throws SQLException {
     var limits = boundary.getLimits();
@@ -106,6 +108,7 @@ public abstract class ConnectionWrapper extends JdbcWrapper {
       return;
     }
     try {
+      limits.checkAfterBorrow();
       raiseNetworkTimeout(limits.borrowNetworkTimeout());
     } catch (SQLException failure) {
       close();

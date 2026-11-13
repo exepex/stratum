@@ -36,12 +36,18 @@ class StatementLimitRuleTest {
   private static final List<TimeLeft> ONE_MINUTE_LEFT =
       List.of(new TimeLeft(60_000, LimitSource.TRANSACTION));
 
+  /** A web request with an hour left, after the margin: longer than every other limit. */
+  private static final TimeLeft HOUR_OF_REQUEST = new TimeLeft(3_600_000, LimitSource.REQUEST);
+
+  /** A web request with 3 seconds left, after the margin. */
+  private static final TimeLeft THREE_SECONDS_OF_REQUEST = new TimeLeft(3_000, LimitSource.REQUEST);
+
   /** A transaction whose deadline passed 10 milliseconds ago. */
   private static final List<TimeLeft> PASSED_DEADLINE =
       List.of(new TimeLeft(-10, LimitSource.TRANSACTION));
 
   @Nested
-  @DisplayName("outside any deadline")
+  @DisplayName("outside a transaction's deadline")
   class OutsideDeadline {
 
     @Test
@@ -102,6 +108,49 @@ class StatementLimitRuleTest {
     void passedDeadline() {
       assertThat(StatementLimitRule.limitOf(0, PASSED_DEADLINE, POOL_MILLIS))
           .contains(new Limit(PASSED_DEADLINE.getFirst().millis(), LimitSource.TRANSACTION));
+    }
+  }
+
+  @Nested
+  @DisplayName("inside a web request's deadline")
+  class InsideRequest {
+
+    @Test
+    @DisplayName("without a transaction, the code's own limit still replaces the pool's")
+    void callerReplacesPoolWithoutTransaction() {
+      assertThat(
+              StatementLimitRule.limitOf(
+                  LONG_CALLER_SECONDS, List.of(HOUR_OF_REQUEST), POOL_MILLIS))
+          .contains(new Limit(LONG_CALLER_MILLIS, LimitSource.CALLER));
+    }
+
+    @Test
+    @DisplayName("with a transaction, the pool's limit applies again beside the code's own")
+    void poolBackInsideTransaction() {
+      assertThat(
+              StatementLimitRule.limitOf(
+                  LONG_CALLER_SECONDS,
+                  List.of(ONE_MINUTE_LEFT.getFirst(), HOUR_OF_REQUEST),
+                  POOL_MILLIS))
+          .contains(new Limit(POOL_MILLIS, LimitSource.QUERY_TIMEOUT));
+    }
+
+    @Test
+    @DisplayName("the request's deadline wins when it ends before the transaction's")
+    void requestBeforeTransaction() {
+      assertThat(
+              StatementLimitRule.limitOf(
+                  0, List.of(FIVE_SECONDS_LEFT.getFirst(), THREE_SECONDS_OF_REQUEST), POOL_MILLIS))
+          .contains(new Limit(THREE_SECONDS_OF_REQUEST.millis(), LimitSource.REQUEST));
+    }
+
+    @Test
+    @DisplayName("the transaction's deadline wins when it ends before the request's")
+    void transactionBeforeRequest() {
+      assertThat(
+              StatementLimitRule.limitOf(
+                  0, List.of(FIVE_SECONDS_LEFT.getFirst(), HOUR_OF_REQUEST), POOL_MILLIS))
+          .contains(new Limit(FIVE_SECONDS_LEFT.getFirst().millis(), LimitSource.TRANSACTION));
     }
   }
 }

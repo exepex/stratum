@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.exepex.stratum.web.CurrentRequestTimeLeft;
+import com.exepex.stratum.web.RequestDeadline;
 import com.exepex.stratum.web.RequestDeadlineAccessor;
 import com.exepex.stratum.web.RequestTimedOutException;
 import com.exepex.stratum.web.ResponseTimeouts;
@@ -158,7 +159,7 @@ class ResponseTimeoutFilterTest {
 
   @Test
   @DisplayName(
-      "a handler that started its response itself still reads its time left until it returns")
+      "a handler that started its response itself still reads its time left before the limit")
   void startedResponseKeepsTimeLeft() throws Exception {
     var seen = new ArrayList<Optional<Duration>>();
 
@@ -168,6 +169,111 @@ class ResponseTimeoutFilterTest {
         (streamingRequest, streamingResponse) -> seen.add(timeLeftAfterFlush(streamingResponse)));
 
     assertThat(seen).singleElement().satisfies(left -> assertThat(left).isPresent());
+  }
+
+  @Test
+  @Timeout(TEST_TIMEOUT_SECONDS)
+  @DisplayName(
+      "a handler that started its response reads no limit once the limit has passed, and is not"
+          + " interrupted")
+  void startedResponseHasNoLimitPastIt() throws Exception {
+    var seen = new ArrayList<Optional<Duration>>();
+
+    filter.doFilter(
+        request,
+        response,
+        (streamingRequest, streamingResponse) ->
+            seen.add(timeLeftPastLimitOfStarted(streamingResponse)));
+
+    assertThat(seen).containsExactly(Optional.empty());
+    assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
+    assertThat(Thread.currentThread().isInterrupted()).isFalse();
+  }
+
+  @Test
+  @Timeout(TEST_TIMEOUT_SECONDS)
+  @DisplayName("a handler whose response has not started still reads zero or less past the limit")
+  void unstartedResponseKeepsPassedLimit() throws Exception {
+    var seen = new ArrayList<Optional<Duration>>();
+
+    filter.doFilter(
+        request, response, (slowRequest, slowResponse) -> seen.add(timeLeftAfterInterrupt()));
+
+    assertThat(seen)
+        .singleElement()
+        .satisfies(
+            left ->
+                assertThat(left)
+                    .hasValueSatisfying(passed -> assertThat(passed.isPositive()).isFalse()));
+  }
+
+  /**
+   * Starts the response, runs past the limit without being interrupted, and returns the time left
+   * then.
+   */
+  private Optional<Duration> timeLeftPastLimitOfStarted(ServletResponse streamingResponse)
+      throws IOException, ServletException {
+    streamingResponse.flushBuffer();
+    assertThat(blockWithoutInterrupt()).isFalse();
+    return timeLeft.timeLeft();
+  }
+
+  /** Waits for the filter's interrupt, then returns the time left. */
+  private Optional<Duration> timeLeftAfterInterrupt() {
+    awaitInterrupt();
+    return timeLeft.timeLeft();
+  }
+
+  /** Waits for the filter's interrupt, and keeps the thread's interrupted state. */
+  private void awaitInterrupt() {
+    try {
+      new CountDownLatch(1).await(BLOCKED_MILLIS, TimeUnit.MILLISECONDS);
+    } catch (InterruptedException _) {
+      Thread.currentThread().interrupt();
+    }
+  }
+
+  @Test
+  @DisplayName(
+      "a limit that runs out before the filter has the deadline interrupts the request, and the"
+          + " request still runs")
+  void expiryBeforeDeadlineIsKnown() throws Exception {
+    var interrupted = new ArrayList<Boolean>();
+    try (var expiringAtStart = new ExpiringAtStart()) {
+      var expiringFilter =
+          new ResponseTimeoutFilter(
+              expiringAtStart,
+              new StaticListableBeanFactory().getBeanProvider(ObservationRegistry.class));
+
+      expiringFilter.doFilter(
+          request,
+          response,
+          (earlyRequest, earlyResponse) -> interrupted.add(Thread.interrupted()));
+    }
+
+    assertThat(interrupted).containsExactly(true);
+    assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
+  }
+
+  /**
+   * Time limits whose action runs before {@code start} returns the deadline, as the timer can when
+   * the limit has already run out: the filter's callback then has no deadline yet.
+   */
+  private static final class ExpiringAtStart extends ResponseTimeouts {
+
+    /** Builds the limits of the other tests. */
+    ExpiringAtStart() {
+      super(
+          WebProperties.resolve(
+              new MockEnvironment().withProperty(WebConstants.TIMEOUT_DEFAULT_LIMIT, "100ms")),
+          false);
+    }
+
+    @Override
+    public RequestDeadline start(String pathWithinApplication, Runnable onExpiry) {
+      onExpiry.run();
+      return super.start(pathWithinApplication, onExpiry);
+    }
   }
 
   /**

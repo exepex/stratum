@@ -59,6 +59,9 @@ public class StatementLimitsBenchmark {
   /** Connections in the pool: one per thread of the 16-thread runs, so no thread waits. */
   private static final String POOL_SIZE = "16";
 
+  /** Reads the request's time left, as the web module's bean does. */
+  private static final ThreadDeadline REQUEST = new ThreadDeadline();
+
   /** Runs the network timeout's work on the calling thread, as HikariCP's own executor does. */
   private static final Executor CALLING_THREAD = Runnable::run;
 
@@ -145,7 +148,7 @@ public class StatementLimitsBenchmark {
   public static class BorrowPool {
 
     /** What a borrow does besides taking the connection: nothing, or one of the settings. */
-    @Param({"none", "leak-detection", "network-timeout", "sweeper-slot"})
+    @Param({"none", "leak-detection", "network-timeout", "sweeper-slot", "sweeper-slot-request"})
     public String setting;
 
     /** The context and pool of this fork. */
@@ -160,6 +163,9 @@ public class StatementLimitsBenchmark {
     /** Whether each borrow registers a slot with the sweeper and releases it on return. */
     private boolean registersSlot;
 
+    /** Whether each borrow checks the request's time left before and after, as Stratum does. */
+    private boolean readsRequest;
+
     /**
      * Starts the context, with leak detection on for that side.
      *
@@ -173,7 +179,8 @@ public class StatementLimitsBenchmark {
               : Pool.start();
       setsNetworkTimeout = "network-timeout".equals(setting);
       sweeper = StatementSweeperModel.start();
-      registersSlot = "sweeper-slot".equals(setting);
+      registersSlot = setting.startsWith("sweeper-slot");
+      readsRequest = "sweeper-slot-request".equals(setting);
     }
 
     /**
@@ -184,7 +191,13 @@ public class StatementLimitsBenchmark {
      * @throws SQLException if the pool fails
      */
     Connection borrowAndReturn() throws SQLException {
+      if (readsRequest) {
+        REQUEST.checkTimeLeft();
+      }
       try (Connection connection = pool.dataSource().getConnection()) {
+        if (readsRequest) {
+          REQUEST.checkTimeLeft();
+        }
         if (setsNetworkTimeout) {
           connection.setNetworkTimeout(CALLING_THREAD, NETWORK_TIMEOUT_MILLIS);
         }
@@ -211,7 +224,7 @@ public class StatementLimitsBenchmark {
   public static class QueryPool {
 
     /** What each statement does besides running: nothing, or one of the three limits. */
-    @Param({"none", "query-timeout", "stratum-timer", "stratum-sweeper"})
+    @Param({"none", "query-timeout", "stratum-timer", "stratum-sweeper", "stratum-sweeper-request"})
     public String setting;
 
     /** The context and pool of this fork. */
@@ -272,6 +285,9 @@ public class StatementLimitsBenchmark {
     /** Whether each execute runs with its deadline in the connection's slot. */
     private boolean usesSweeper;
 
+    /** Whether each execute's limit is cut to the request's time left, as Stratum does. */
+    private boolean readsRequest;
+
     /**
      * Borrows this thread's connection.
      *
@@ -286,7 +302,8 @@ public class StatementLimitsBenchmark {
       armsTimer = "stratum-timer".equals(pool.setting);
       sweeper = pool.sweeper;
       slot = sweeper.open();
-      usesSweeper = "stratum-sweeper".equals(pool.setting);
+      usesSweeper = pool.setting.startsWith("stratum-sweeper");
+      readsRequest = "stratum-sweeper-request".equals(pool.setting);
     }
 
     /**
@@ -304,8 +321,10 @@ public class StatementLimitsBenchmark {
         if (armsTimer) {
           return timer.around(TIMER_LIMIT_MILLIS, () -> readOne(statement));
         }
+        var limit =
+            readsRequest ? Math.min(TIMER_LIMIT_MILLIS, REQUEST.millisLeft()) : TIMER_LIMIT_MILLIS;
         return usesSweeper
-            ? sweeper.around(slot, TIMER_LIMIT_MILLIS, () -> readOne(statement))
+            ? sweeper.around(slot, limit, () -> readOne(statement))
             : readOne(statement);
       }
     }

@@ -24,7 +24,7 @@ shows how to add it. R2DBC is not covered.
 | Feature | Behaviour | Applies |
 | --- | --- | --- |
 | Clean database errors | No value from a database error, such as a duplicate email address, reaches a log, a span or a response; see [Clean database errors](#clean-database-errors) | Always |
-| Statement time limits | Every SQL statement ends by its code's own limit and its transaction's deadline, and Stratum cancels it with `SX-DATA-1003`; see [Statement time limits](data-statement-limits.md) | Always |
+| Statement time limits | Every SQL statement ends by its code's own limit, its transaction's deadline and its web request's deadline, and Stratum cancels it with `SX-DATA-1003`; see [Statement time limits](data-statement-limits.md) | Always |
 | TLS check | Shortly after startup, one WARN for each data source whose connection to the database is not encrypted; see [The database TLS check](data-tls-check.md) | Always |
 | Pool statement limit | A statement whose code sets no limit of its own may run 30 seconds (`stratum.data.query-timeout`) | Strict mode |
 | Short pool wait | A caller waits at most 3 seconds for a free connection, then gets an error, instead of 30 seconds | Always |
@@ -45,6 +45,7 @@ sees and apply in both modes
 | --- | --- | --- | --- |
 | `stratum.data.enabled` | boolean | `true` | Whether the module is on. With `false`, Stratum sets none of the defaults below, nor a data starter's own, and Spring Boot's own apply, and it wraps no data source in the [clean errors boundary](#clean-database-errors). |
 | `stratum.data.query-timeout` | duration | `30s`, or `0` with `stratum.backward-compatible=true` | How long one SQL statement may run when the code that runs it sets no time limit of its own; `0` for none. See [Statement time limits](data-statement-limits.md). |
+| `stratum.data.deadline-margin` | duration | `150ms` | How much earlier than its web request's time limit a statement or connection borrow must end; `0` for none. See [In a web request](data-statement-limits.md#in-a-web-request). |
 
 Spring Boot properties this module and the data JPA starter give a default (your values win):
 
@@ -205,8 +206,8 @@ Stratum has no runtime check for SQL built from input, because no cheap one exis
 ## Statement time limits
 
 Every SQL statement runs under a time limit, which Stratum enforces itself and cancels with
-`SX-DATA-1003`: the pool's `stratum.data.query-timeout`, the code's own limit, and the
-transaction's deadline. How the limit is chosen, what a cancelled request answers, the counter,
+`SX-DATA-1003`: the pool's `stratum.data.query-timeout`, the code's own limit, the
+transaction's deadline and the web request's. How the limit is chosen, what a cancelled request answers, the counter,
 the cost and the limits are in [Statement time limits](data-statement-limits.md).
 
 ## The database TLS check
@@ -332,15 +333,18 @@ such as `hikaricp.connections.pending`, come from Spring Boot.
 
 ## Configure in Java
 
-`stratum.data.query-timeout` can also be set in Java, through a `DataPropertiesCustomizer` class,
-and Java wins over the files:
+`stratum.data.query-timeout` and `stratum.data.deadline-margin` can also be set in Java, through a
+`DataPropertiesCustomizer` class, and Java wins over the files:
 
 ```java
 public class OrdersDataSettings implements DataPropertiesCustomizer {
 
   @Override
   public DataProperties customize(DataProperties properties) {
-    return properties.toBuilder().queryTimeout(Duration.ofSeconds(10)).build();
+    return properties.toBuilder()
+        .queryTimeout(Duration.ofSeconds(10))
+        .deadlineMargin(Duration.ofMillis(300))
+        .build();
   }
 }
 ```

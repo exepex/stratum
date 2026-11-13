@@ -10,7 +10,9 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.Ordered;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -65,10 +67,12 @@ public class ResponseTimeoutFilter extends OncePerRequestFilter {
       HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
       throws ServletException, IOException {
     var requestThread = Thread.currentThread();
+    var started = new AtomicReference<@Nullable RequestDeadline>();
     var deadline =
         responseTimeouts.start(
             request.getRequestURI().substring(request.getContextPath().length()),
-            () -> interruptUnlessStarted(requestThread, response));
+            () -> onExpiry(requestThread, response, started.get()));
+    started.set(deadline);
     request.setAttribute(DEADLINE_ATTRIBUTE, deadline);
     deadlines.setValue(deadline);
     try {
@@ -90,10 +94,19 @@ public class ResponseTimeoutFilter extends OncePerRequestFilter {
     }
   }
 
-  /** Interrupts the request's thread, unless its response has started. */
-  private void interruptUnlessStarted(Thread requestThread, HttpServletResponse response) {
-    if (!response.isCommitted()) {
+  /**
+   * Interrupts the request's thread, unless its response has started. A started response is never
+   * cut off, so its deadline then ends: its time left reads no limit from then on, and statements
+   * it still runs are not failed for the passed limit. The deadline is not known yet when the time
+   * ran out before the filter got it back, and the response cannot have started then, so the thread
+   * is interrupted.
+   */
+  private void onExpiry(
+      Thread requestThread, HttpServletResponse response, @Nullable RequestDeadline deadline) {
+    if (deadline == null || !response.isCommitted()) {
       requestThread.interrupt();
+    } else {
+      deadline.end();
     }
   }
 

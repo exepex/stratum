@@ -31,9 +31,10 @@ import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Import;
 
 /**
- * Measures what the JDBC boundary adds to JDBC calls. Each benchmark runs once on the raw HikariCP
- * pool and once on the data source bean that wraps it, on a PostgreSQL container. JMH runs the two
- * sides in separate forks, each with its own context, pool and container.
+ * Measures what the JDBC boundary adds to JDBC calls. Each benchmark runs on the raw HikariCP pool,
+ * on the data source bean that wraps it, and on that bean inside a web request with a time limit,
+ * on a PostgreSQL container. JMH runs the three sides in separate forks, each with its own context,
+ * pool and container.
  */
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
@@ -41,6 +42,9 @@ import org.springframework.context.annotation.Import;
 @Warmup(iterations = 5, time = 1)
 @Measurement(iterations = 10, time = 1)
 public class JdbcBoundaryBenchmark {
+
+  /** The side inside a web request with a time limit. */
+  private static final String REQUEST_SIDE = "boundary-request";
 
   /** The query roundTrip runs and OpenRow fetches: one row, one column, no data value. */
   private static final String QUERY = "SELECT 1";
@@ -94,8 +98,11 @@ public class JdbcBoundaryBenchmark {
   @State(Scope.Benchmark)
   public static class Pool {
 
-    /** The side this fork measures: the raw pool or the boundary around it. */
-    @Param({"raw", "boundary"})
+    /**
+     * The side this fork measures: the raw pool, the boundary around it, or the boundary in a web
+     * request with a time limit, which Stratum then reads before each borrow and statement.
+     */
+    @Param({"raw", "boundary", "boundary-request"})
     public String side;
 
     /** The context of this fork, with its PostgreSQL container. */
@@ -111,10 +118,16 @@ public class JdbcBoundaryBenchmark {
      */
     @Setup(Level.Trial)
     public void start() throws SQLException {
-      context =
-          new SpringApplicationBuilder(BenchmarkApplication.class)
-              .web(WebApplicationType.NONE)
-              .run();
+      var builder =
+          new SpringApplicationBuilder(BenchmarkApplication.class).web(WebApplicationType.NONE);
+      if (REQUEST_SIDE.equals(side)) {
+        builder.initializers(
+            started ->
+                started
+                    .getBeanFactory()
+                    .registerSingleton("requestTimeLeft", new ThreadDeadline()));
+      }
+      context = builder.run();
       DataSource bean = context.getBean(DataSource.class);
       dataSource = "raw".equals(side) ? bean.unwrap(HikariDataSource.class) : bean;
     }

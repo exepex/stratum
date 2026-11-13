@@ -10,9 +10,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.UtilityClass;
 
 /**
- * Decides how long one statement may run. Outside any deadline, the time limit the code set on the
- * statement wins, and otherwise the pool's {@code stratum.data.query-timeout}. Inside a deadline,
- * such as a transaction's, the statement ends by the earliest of the deadline and those limits.
+ * Decides how long one statement may run. Outside a transaction's deadline, the time limit the code
+ * set on the statement wins, and otherwise the pool's {@code stratum.data.query-timeout}. Inside a
+ * transaction's deadline, the statement ends by the earliest of the deadline and both limits. A web
+ * request's deadline is one more limit and never brings the pool's back.
  */
 @StratumInternal
 @UtilityClass
@@ -25,8 +26,8 @@ public class StatementLimitRule {
    * Returns the statement's limit, or none.
    *
    * @param callerSeconds the time limit the code set on the statement, in seconds; 0 for none
-   * @param deadlines the time left before each deadline the statement runs under, such as its
-   *     transaction's; may be 0 or less once a deadline has passed
+   * @param deadlines the time left before each deadline the statement runs under: its transaction's
+   *     and its web request's; may be 0 or less once a deadline has passed
    * @param poolMillis the pool's {@code query-timeout}, in milliseconds; 0 for none
    * @return the limit and what set it, or empty when nothing limits the statement
    */
@@ -36,11 +37,17 @@ public class StatementLimitRule {
     if (callerSeconds > 0) {
       limits.add(new Limit(callerSeconds * MILLIS_PER_SECOND, LimitSource.CALLER));
     }
-    // Outside a deadline the code's own limit replaces the pool's; inside one, both apply.
-    if (poolMillis > 0 && (callerSeconds <= 0 || !deadlines.isEmpty())) {
+    // Outside a transaction's deadline the code's own limit replaces the pool's; inside one, both
+    // apply.
+    if (poolMillis > 0 && (callerSeconds <= 0 || inTransaction(deadlines))) {
       limits.add(new Limit(poolMillis, LimitSource.QUERY_TIMEOUT));
     }
     return limits.stream().min(Comparator.comparingLong(Limit::millis));
+  }
+
+  /** Returns whether one of the deadlines is a transaction's. */
+  private boolean inTransaction(List<TimeLeft> deadlines) {
+    return deadlines.stream().anyMatch(deadline -> deadline.source() == LimitSource.TRANSACTION);
   }
 
   /** What set a statement's limit, as the timeout counter's {@code cause} tag names it. */
@@ -56,7 +63,10 @@ public class StatementLimitRule {
     QUERY_TIMEOUT("query-timeout"),
 
     /** The time limit the code set on the statement, such as {@code setQueryTimeout}. */
-    CALLER("caller");
+    CALLER("caller"),
+
+    /** The web request's time left, minus {@code stratum.data.deadline-margin}. */
+    REQUEST("request");
 
     /** The name the counter's tag and the exception's message use. */
     private final String tag;
