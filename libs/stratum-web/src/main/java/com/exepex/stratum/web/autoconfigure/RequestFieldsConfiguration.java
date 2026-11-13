@@ -108,8 +108,7 @@ public class RequestFieldsConfiguration {
   }
 
   /**
-   * Tells the service and Stratum's other modules how long the request whose work runs on the
-   * calling thread has left.
+   * Tells the service how long the request whose work runs on the calling thread has left.
    *
    * @return the time left of the current request
    */

@@ -165,15 +165,27 @@ counted live: a method's `@ResponseTimeout` is seen as soon as it applies.
 @RequiredArgsConstructor
 public class StockService {
 
+  private static final Duration STOCK_TIMEOUT = Duration.ofSeconds(2);
+
   private final RequestTimeLeft requestTimeLeft;
   private final StockClient stockClient;
 
   public Stock stockOf(String sku) {
-    var timeout = requestTimeLeft.timeLeft().orElse(Duration.ofSeconds(2));
+    var left = requestTimeLeft.timeLeft().orElse(STOCK_TIMEOUT);
+    if (left.toMillis() < 1) {
+      throw new IllegalStateException("No time is left to look up the stock");
+    }
+    var timeout = left.compareTo(STOCK_TIMEOUT) < 0 ? left : STOCK_TIMEOUT;
     return stockClient.stockOf(sku, timeout);
   }
 }
 ```
+
+Check that at least a millisecond is left before you pass the time to a client. Once the limit has
+passed, the time left is zero or less, and clients disagree on what such a timeout means: the JDK's
+`HttpClient` rejects it with an `IllegalArgumentException`, and `HttpURLConnection` takes a timeout
+of `0` milliseconds as no timeout at all. A time left under one millisecond becomes `0` when a client
+counts it in milliseconds. Keep the call's own timeout as an upper bound, as `STOCK_TIMEOUT` is here.
 
 `timeLeft()` returns:
 
@@ -199,7 +211,6 @@ The deadline reaches these places, and no others:
 | Any of these, once the request has ended | No limit. On WebFlux the request ends when its response starts. On Spring MVC it ends when the handler returns, so a handler that starts its response itself, with `flushBuffer()` or by writing to the output stream, still reads its time left until it returns, and that can go below zero |
 
 To read the time left in your own way, declare a bean of type `RequestTimeLeft`; Stratum's backs off.
-Stratum's other modules then read yours.
 
 ## What the caller and the logs see
 
