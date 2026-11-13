@@ -4,8 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.test.WebTestSupport;
 import com.exepex.stratum.web.WebConstants;
-import com.exepex.stratum.webmvc.it.TimeLeftApplication.Answers;
-import java.net.http.HttpResponse;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -55,7 +53,8 @@ class RequestTimeLeftIntegrationTest {
     @Test
     @DisplayName("the time left is the route's limit minus the time the request has run")
     void routeLimit() throws Exception {
-      assertTimeLeftUpTo(WebTestSupport.getFromService(port, "/time-left"), ROUTE_LIMIT_MILLIS);
+      WebTestSupport.checkTimeLeftUpTo(
+          WebTestSupport.getFromService(port, "/time-left"), ROUTE_LIMIT_MILLIS);
     }
 
     @Test
@@ -63,14 +62,14 @@ class RequestTimeLeftIntegrationTest {
     void ownLimit() throws Exception {
       var answer = WebTestSupport.getFromService(port, "/time-left/own-limit");
 
-      assertTimeLeftUpTo(answer, OWN_LIMIT_MILLIS);
+      WebTestSupport.checkTimeLeftUpTo(answer, OWN_LIMIT_MILLIS);
       assertThat(Long.parseLong(answer.body())).isGreaterThan(ROUTE_LIMIT_MILLIS);
     }
 
     @Test
     @DisplayName("a route with a limit of 0 has no limit")
     void unlimitedRoute() throws Exception {
-      assertNoLimit(WebTestSupport.getFromService(port, "/unlimited/time-left"));
+      WebTestSupport.checkNoTimeLimit(WebTestSupport.getFromService(port, "/unlimited/time-left"));
     }
 
     @Test
@@ -95,7 +94,7 @@ class RequestTimeLeftIntegrationTest {
     @Test
     @DisplayName("@Async work during the request sees the request's time left")
     void asyncDuringRequest() throws Exception {
-      assertTimeLeftUpTo(
+      WebTestSupport.checkTimeLeftUpTo(
           WebTestSupport.getFromService(port, "/time-left/async"), ROUTE_LIMIT_MILLIS);
     }
 
@@ -109,19 +108,19 @@ class RequestTimeLeftIntegrationTest {
               asyncWork
                   .releaseAfterResponse()
                   .get(TimeLeftApplication.WAIT.toSeconds(), TimeUnit.SECONDS))
-          .isEqualTo(Answers.NO_LIMIT);
+          .isEqualTo(WebTestSupport.NO_TIME_LIMIT);
     }
 
     @Test
     @DisplayName("a Callable sees no limit once its handler has returned")
     void callable() throws Exception {
-      assertNoLimit(WebTestSupport.getFromService(port, "/time-left/callable"));
+      WebTestSupport.checkNoTimeLimit(WebTestSupport.getFromService(port, "/time-left/callable"));
     }
 
     @Test
     @DisplayName("a thread of the service's own, which completes a DeferredResult, sees no limit")
     void deferredResult() throws Exception {
-      assertNoLimit(WebTestSupport.getFromService(port, "/time-left/deferred"));
+      WebTestSupport.checkNoTimeLimit(WebTestSupport.getFromService(port, "/time-left/deferred"));
     }
 
     @Test
@@ -131,19 +130,7 @@ class RequestTimeLeftIntegrationTest {
 
       assertThat(
               asyncWork.timeLeftNow().get(TimeLeftApplication.WAIT.toSeconds(), TimeUnit.SECONDS))
-          .isEqualTo(Answers.NO_LIMIT);
+          .isEqualTo(WebTestSupport.NO_TIME_LIMIT);
     }
-  }
-
-  /** Checks that the answer is a time left above zero and at most the limit. */
-  private void assertTimeLeftUpTo(HttpResponse<String> answer, long limitMillis) {
-    assertThat(answer.statusCode()).isEqualTo(HttpStatus.OK.value());
-    assertThat(Long.parseLong(answer.body())).isPositive().isLessThanOrEqualTo(limitMillis);
-  }
-
-  /** Checks that the answer says there is no limit. */
-  private void assertNoLimit(HttpResponse<String> answer) {
-    assertThat(answer.statusCode()).isEqualTo(HttpStatus.OK.value());
-    assertThat(answer.body()).isEqualTo(Answers.NO_LIMIT);
   }
 }

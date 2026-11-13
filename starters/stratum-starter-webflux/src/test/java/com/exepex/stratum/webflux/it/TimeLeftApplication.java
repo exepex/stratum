@@ -1,15 +1,13 @@
 package com.exepex.stratum.webflux.it;
 
 import com.exepex.stratum.core.request.RequestTimeLeft;
+import com.exepex.stratum.test.WebTestSupport;
 import com.exepex.stratum.web.ResponseTimeout;
 import com.exepex.stratum.web.WebConstants;
-import java.time.Duration;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.experimental.UtilityClass;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.context.annotation.Import;
@@ -21,30 +19,13 @@ import reactor.util.context.ContextView;
 
 /**
  * A reactive service that reads how long its requests have left, on the threads Reactor runs their
- * work on. Each endpoint answers the time left in milliseconds, or {@value Answers#NO_LIMIT}.
+ * work on. Each endpoint answers the time left in milliseconds, or {@value
+ * WebTestSupport#NO_TIME_LIMIT}.
  */
 @SpringBootConfiguration
 @EnableAutoConfiguration
 @Import(TimeLeftApplication.TimeLeftController.class)
 public class TimeLeftApplication {
-
-  /** How the endpoints answer the time left. */
-  @UtilityClass
-  static class Answers {
-
-    /** The answer when there is no limit. */
-    static final String NO_LIMIT = "none";
-
-    /**
-     * Returns the time left as an endpoint answers it.
-     *
-     * @param timeLeft the time left
-     * @return the milliseconds left, or {@value #NO_LIMIT}
-     */
-    String describe(Optional<Duration> timeLeft) {
-      return timeLeft.map(Duration::toMillis).map(String::valueOf).orElse(NO_LIMIT);
-    }
-  }
 
   /** The endpoints. */
   @RestController
@@ -86,7 +67,7 @@ public class TimeLeftApplication {
      */
     @GetMapping("/time-left/publish-on")
     Mono<String> afterPublishOn() {
-      return Mono.just(Answers.NO_LIMIT)
+      return Mono.just(WebTestSupport.NO_TIME_LIMIT)
           .publishOn(Schedulers.parallel())
           .map(ignored -> timeLeftNow());
     }
@@ -105,7 +86,7 @@ public class TimeLeftApplication {
     /**
      * Reads the time left on a route with no limit.
      *
-     * @return {@value Answers#NO_LIMIT}
+     * @return {@value WebTestSupport#NO_TIME_LIMIT}
      */
     @GetMapping("/unlimited/time-left")
     Mono<String> unlimited() {
@@ -131,7 +112,7 @@ public class TimeLeftApplication {
 
     /** Returns the time left on the calling thread, as an endpoint answers it. */
     private String timeLeftNow() {
-      return Answers.describe(requestTimeLeft.timeLeft());
+      return WebTestSupport.describeTimeLeft(requestTimeLeft.timeLeft());
     }
   }
 }

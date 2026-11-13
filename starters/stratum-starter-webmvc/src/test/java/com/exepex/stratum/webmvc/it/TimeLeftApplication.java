@@ -3,6 +3,7 @@ package com.exepex.stratum.webmvc.it;
 import static org.awaitility.Awaitility.await;
 
 import com.exepex.stratum.core.request.RequestTimeLeft;
+import com.exepex.stratum.test.WebTestSupport;
 import com.exepex.stratum.web.ResponseTimeout;
 import java.time.Duration;
 import java.util.Optional;
@@ -13,7 +14,6 @@ import java.util.concurrent.TimeUnit;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.experimental.UtilityClass;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.context.annotation.Import;
@@ -27,7 +27,7 @@ import org.springframework.web.context.request.async.DeferredResult;
 /**
  * A service that reads how long its requests have left: on the request's thread, in its {@code
  * Async} work and in its Spring MVC async handlers. Each endpoint answers the time left in
- * milliseconds, or {@value Answers#NO_LIMIT}.
+ * milliseconds, or {@value WebTestSupport#NO_TIME_LIMIT}.
  */
 @SpringBootConfiguration
 @EnableAutoConfiguration
@@ -40,24 +40,6 @@ public class TimeLeftApplication {
 
   /** How long work waits for the test to let it go on. */
   static final Duration WAIT = Duration.ofSeconds(5);
-
-  /** How the endpoints answer the time left. */
-  @UtilityClass
-  static class Answers {
-
-    /** The answer when there is no limit. */
-    static final String NO_LIMIT = "none";
-
-    /**
-     * Returns the time left as an endpoint answers it.
-     *
-     * @param timeLeft the time left
-     * @return the milliseconds left, or {@value #NO_LIMIT}
-     */
-    String describe(Optional<Duration> timeLeft) {
-      return timeLeft.map(Duration::toMillis).map(String::valueOf).orElse(NO_LIMIT);
-    }
-  }
 
   /** The service's async work, which reads the time left on the executor's thread. */
   @Component
@@ -80,7 +62,8 @@ public class TimeLeftApplication {
      */
     @Async
     public CompletableFuture<String> timeLeftNow() {
-      return CompletableFuture.completedFuture(Answers.describe(requestTimeLeft.timeLeft()));
+      return CompletableFuture.completedFuture(
+          WebTestSupport.describeTimeLeft(requestTimeLeft.timeLeft()));
     }
 
     /**
@@ -91,7 +74,7 @@ public class TimeLeftApplication {
     @Async
     public void timeLeftAfterResponse() throws InterruptedException {
       responseSent.await(WAIT.toSeconds(), TimeUnit.SECONDS);
-      seenAfterResponse.complete(Answers.describe(requestTimeLeft.timeLeft()));
+      seenAfterResponse.complete(WebTestSupport.describeTimeLeft(requestTimeLeft.timeLeft()));
     }
 
     /**
@@ -127,7 +110,7 @@ public class TimeLeftApplication {
      */
     @GetMapping("/time-left")
     String onRequestThread() {
-      return Answers.describe(requestTimeLeft.timeLeft());
+      return WebTestSupport.describeTimeLeft(requestTimeLeft.timeLeft());
     }
 
     /**
@@ -138,17 +121,17 @@ public class TimeLeftApplication {
     @ResponseTimeout(20)
     @GetMapping("/time-left/own-limit")
     String ownLimit() {
-      return Answers.describe(requestTimeLeft.timeLeft());
+      return WebTestSupport.describeTimeLeft(requestTimeLeft.timeLeft());
     }
 
     /**
      * Reads the time left on a route with no limit.
      *
-     * @return {@value Answers#NO_LIMIT}
+     * @return {@value WebTestSupport#NO_TIME_LIMIT}
      */
     @GetMapping("/unlimited/time-left")
     String unlimited() {
-      return Answers.describe(requestTimeLeft.timeLeft());
+      return WebTestSupport.describeTimeLeft(requestTimeLeft.timeLeft());
     }
 
     /**
@@ -182,7 +165,7 @@ public class TimeLeftApplication {
     @GetMapping("/time-left/callable")
     Callable<String> inCallable() {
       return () ->
-          Answers.describe(
+          WebTestSupport.describeTimeLeft(
               await().atMost(WAIT).until(requestTimeLeft::timeLeft, Optional::isEmpty));
     }
 
@@ -195,7 +178,8 @@ public class TimeLeftApplication {
     DeferredResult<String> inDeferredResult() {
       var answer = new DeferredResult<String>();
       Thread.ofPlatform()
-          .start(() -> answer.setResult(Answers.describe(requestTimeLeft.timeLeft())));
+          .start(
+              () -> answer.setResult(WebTestSupport.describeTimeLeft(requestTimeLeft.timeLeft())));
       return answer;
     }
 
@@ -207,7 +191,7 @@ public class TimeLeftApplication {
     @GetMapping("/late/time-left")
     String late() {
       runPastTheLimit();
-      seenWhenLate.complete(Answers.describe(requestTimeLeft.timeLeft()));
+      seenWhenLate.complete(WebTestSupport.describeTimeLeft(requestTimeLeft.timeLeft()));
       return "late";
     }
 

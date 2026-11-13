@@ -7,8 +7,10 @@ import static org.mockito.Mockito.when;
 
 import java.net.http.HttpHeaders;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -130,6 +132,55 @@ class WebTestSupportTest {
       when(response.headers())
           .thenReturn(
               HttpHeaders.of(Map.of("Content-Type", List.of(mediaType)), (name, value) -> true));
+      when(response.body()).thenReturn(body);
+      return response;
+    }
+  }
+
+  @Nested
+  @DisplayName("the time-left answers")
+  class TimeLeft {
+
+    /** The status of an answer that worked. */
+    private static final int OK = 200;
+
+    /** The time a request has left, in milliseconds. */
+    private static final long LEFT_MILLIS = 1500;
+
+    /** A request's limit, in milliseconds. */
+    private static final long LIMIT_MILLIS = 2000;
+
+    @Test
+    @DisplayName("describeTimeLeft writes the milliseconds left, or none for no limit")
+    void describesTimeLeft() {
+      assertThat(WebTestSupport.describeTimeLeft(Optional.of(Duration.ofMillis(LEFT_MILLIS))))
+          .isEqualTo("1500");
+      assertThat(WebTestSupport.describeTimeLeft(Optional.empty()))
+          .isEqualTo(WebTestSupport.NO_TIME_LIMIT);
+    }
+
+    @Test
+    @DisplayName("checkTimeLeftUpTo passes a time within the limit and fails one above it")
+    void checksTimeLeft() {
+      WebTestSupport.checkTimeLeftUpTo(answer("1500"), LIMIT_MILLIS);
+
+      assertThatExceptionOfType(AssertionError.class)
+          .isThrownBy(() -> WebTestSupport.checkTimeLeftUpTo(answer("2500"), LIMIT_MILLIS));
+    }
+
+    @Test
+    @DisplayName("checkNoTimeLimit passes no limit and fails a time")
+    void checksNoLimit() {
+      WebTestSupport.checkNoTimeLimit(answer(WebTestSupport.NO_TIME_LIMIT));
+
+      assertThatExceptionOfType(AssertionError.class)
+          .isThrownBy(() -> WebTestSupport.checkNoTimeLimit(answer("1500")));
+    }
+
+    /** Returns an answer with status 200 and the body. */
+    private HttpResponse<String> answer(String body) {
+      HttpResponse<String> response = mock();
+      when(response.statusCode()).thenReturn(OK);
       when(response.body()).thenReturn(body);
       return response;
     }

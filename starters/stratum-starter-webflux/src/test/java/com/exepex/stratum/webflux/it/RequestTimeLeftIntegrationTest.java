@@ -5,8 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.exepex.stratum.core.request.RequestTimeLeft;
 import com.exepex.stratum.test.WebTestSupport;
 import com.exepex.stratum.web.WebConstants;
-import com.exepex.stratum.webflux.it.TimeLeftApplication.Answers;
-import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.DisplayName;
@@ -55,20 +53,21 @@ class RequestTimeLeftIntegrationTest {
     @Test
     @DisplayName("the handler's work sees the route's limit minus the time the request has run")
     void routeLimit() throws Exception {
-      assertTimeLeftUpTo(WebTestSupport.getFromService(port, "/time-left"), ROUTE_LIMIT_MILLIS);
+      WebTestSupport.checkTimeLeftUpTo(
+          WebTestSupport.getFromService(port, "/time-left"), ROUTE_LIMIT_MILLIS);
     }
 
     @Test
     @DisplayName("a blocking call on the bounded elastic scheduler sees the time left")
     void blockingCall() throws Exception {
-      assertTimeLeftUpTo(
+      WebTestSupport.checkTimeLeftUpTo(
           WebTestSupport.getFromService(port, "/time-left/blocking"), ROUTE_LIMIT_MILLIS);
     }
 
     @Test
     @DisplayName("work moved to another scheduler with publishOn sees the time left")
     void publishOn() throws Exception {
-      assertTimeLeftUpTo(
+      WebTestSupport.checkTimeLeftUpTo(
           WebTestSupport.getFromService(port, "/time-left/publish-on"), ROUTE_LIMIT_MILLIS);
     }
 
@@ -77,7 +76,7 @@ class RequestTimeLeftIntegrationTest {
     void ownLimit() throws Exception {
       var answer = WebTestSupport.getFromService(port, "/time-left/own-limit");
 
-      assertTimeLeftUpTo(answer, OWN_LIMIT_MILLIS);
+      WebTestSupport.checkTimeLeftUpTo(answer, OWN_LIMIT_MILLIS);
       assertThat(Long.parseLong(answer.body())).isGreaterThan(ROUTE_LIMIT_MILLIS);
     }
 
@@ -87,7 +86,7 @@ class RequestTimeLeftIntegrationTest {
       var answer = WebTestSupport.getFromService(port, "/unlimited/time-left");
 
       assertThat(answer.statusCode()).isEqualTo(HttpStatus.OK.value());
-      assertThat(answer.body()).isEqualTo(Answers.NO_LIMIT);
+      assertThat(answer.body()).isEqualTo(WebTestSupport.NO_TIME_LIMIT);
     }
   }
 
@@ -117,11 +116,5 @@ class RequestTimeLeftIntegrationTest {
 
       assertThat(seen).isEmpty();
     }
-  }
-
-  /** Checks that the answer is a time left above zero and at most the limit. */
-  private void assertTimeLeftUpTo(HttpResponse<String> answer, long limitMillis) {
-    assertThat(answer.statusCode()).isEqualTo(HttpStatus.OK.value());
-    assertThat(Long.parseLong(answer.body())).isPositive().isLessThanOrEqualTo(limitMillis);
   }
 }

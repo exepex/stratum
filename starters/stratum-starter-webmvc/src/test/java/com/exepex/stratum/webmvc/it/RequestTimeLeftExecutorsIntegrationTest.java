@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.test.WebTestSupport;
 import com.exepex.stratum.web.WebConstants;
-import com.exepex.stratum.webmvc.it.TimeLeftApplication.Answers;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -47,7 +46,7 @@ class RequestTimeLeftExecutorsIntegrationTest {
       var answer = WebTestSupport.getFromService(port, "/time-left/async");
 
       assertThat(answer.statusCode()).isEqualTo(HttpStatus.OK.value());
-      assertThat(answer.body()).isEqualTo(Answers.NO_LIMIT);
+      assertThat(answer.body()).isEqualTo(WebTestSupport.NO_TIME_LIMIT);
     }
   }
 
