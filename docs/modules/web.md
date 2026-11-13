@@ -122,9 +122,10 @@ time or body size limit. A new service leaves it unset, at `false`. See
   [Marking an existing exception](web-compatible-mode.md#marking-an-existing-exception).
 - **An exception annotated `@ResponseStatus`** gets that status, with Spring Boot's body in
   [backward-compatible mode](web-compatible-mode.md) and Stratum's body once it is off.
-- **A database failure** that is a timeout, a wait for a connection, a lock timeout or a deadlock
-  is answered with `503` and `SX-WEB-1010`; a duplicate key or a row changed meanwhile with `409`
-  and `SX-WEB-1011`. See [Database failures](web-database-errors.md).
+- **Outside backward-compatible mode, a database failure** that is a timeout, a wait for a
+  connection, a lock timeout or a deadlock is answered with `503` and `SX-WEB-1010`; a duplicate
+  key or a row changed meanwhile with `409` and `SX-WEB-1011`. See
+  [Database failures](web-database-errors.md).
 - **Anything else** is answered with `500`. Stratum's body has a fixed message, and the real error
   goes to the log only.
 

@@ -21,7 +21,6 @@ import org.springframework.http.HttpStatus;
  * Spring's and Hibernate's exception classes, so the web module needs neither library.
  */
 @StratumInternal
-@Getter
 @RequiredArgsConstructor
 public enum DatabaseFailure {
 
@@ -48,10 +47,10 @@ public enum DatabaseFailure {
       Set.of(WebConstants.UNIQUE_VIOLATION));
 
   /** The code the caller gets. */
-  private final WebErrorCode code;
+  @Getter private final WebErrorCode code;
 
   /** The status the caller gets unless {@code stratum.web.error.statuses} maps the code. */
-  private final HttpStatus defaultStatus;
+  @Getter private final HttpStatus defaultStatus;
 
   /** The JDK exception types of this kind, matched with their subclasses. */
   private final Set<Class<? extends SQLException>> sqlTypes;

@@ -192,7 +192,7 @@ public class ErrorResponseFactory {
    * Returns whether the failure carries an error code, itself or in one of its causes.
    *
    * @param failure what the request failed with
-   * @return whether {@link #forFailureWithErrorCode} would answer it
+   * @return whether the failure or one of its causes carries an error code
    */
   public boolean carriesErrorCode(Throwable failure) {
     return FailureCauses.findFailureWithErrorCode(failure).isPresent();
