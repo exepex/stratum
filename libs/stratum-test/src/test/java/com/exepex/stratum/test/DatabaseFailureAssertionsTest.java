@@ -92,8 +92,7 @@ class DatabaseFailureAssertionsTest {
       var database = new SQLException(CLEAN);
 
       assertThat(
-              DatabaseFailureAssertions.sqlExceptionIn(
-                  new IllegalStateException("top", database)))
+              DatabaseFailureAssertions.sqlExceptionIn(new IllegalStateException("top", database)))
           .isSameAs(database);
     }
 
