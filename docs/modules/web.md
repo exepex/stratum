@@ -75,7 +75,7 @@ Every feature works the same on both stacks.
 | Headers in logs (built) | The request and response headers a team names are logged as fields. `Authorization`, `Cookie`, `Set-Cookie` and `X-Api-Key` never are |
 | Token claims in logs (built) | When a team turns it on, the claims it lists from the caller's JWT, such as `sub` and `scope`, are logged. Other claims, the token's header and its signature never are |
 | Correlation ID (built) | Taken from the caller's `X-Correlation-Id` header when it has a safe format, otherwise the trace ID; returned in the response header. Needs the observability starter |
-| Timeouts (built) | A request whose response has not started within its limit, 10 seconds by default, or none while `stratum.backward-compatible=true`, is answered with `503`. One API can have its own limit. See [Response timeouts](web-timeouts.md) |
+| Timeouts (built) | A request whose response has not started within its limit, 10 seconds by default, or none while `stratum.backward-compatible=true`, is answered with `503`. One API can have its own limit, and your code can [read the time left](web-timeouts.md#read-the-time-left). See [Response timeouts](web-timeouts.md) |
 | Body size limit (built) | A request body larger than its limit, 256KB by default, or none while `stratum.backward-compatible=true`, is refused with `413`. One path or API can have its own limit. See [Request body size limit](web-body-limit.md) |
 
 Response times and error counts per API come from the

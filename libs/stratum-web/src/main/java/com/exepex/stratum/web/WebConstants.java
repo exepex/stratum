@@ -114,6 +114,9 @@ public class WebConstants {
   /** The key under which a request's log fields travel, such as in Reactor's context. */
   public static final String REQUEST_FIELDS_CONTEXT_KEY = "stratum.web.request-fields";
 
+  /** The key under which a request's deadline travels, such as in Reactor's context. */
+  public static final String REQUEST_DEADLINE_CONTEXT_KEY = "stratum.web.request-deadline";
+
   /** The W3C header that carries the tracing baggage, and the correlation ID in it. */
   public static final String BAGGAGE_HEADER = LoggingContextConstants.BAGGAGE_HEADER;
 

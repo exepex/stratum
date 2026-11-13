@@ -3,6 +3,7 @@ package com.exepex.stratum.webflux;
 import com.exepex.stratum.web.RequestDeadline;
 import com.exepex.stratum.web.ResponseTimeout;
 import com.exepex.stratum.web.ResponseTimeouts;
+import com.exepex.stratum.web.WebConstants;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +19,9 @@ import reactor.core.scheduler.Schedulers;
  * Answers a reactive request that ran out of time before its response started with the timeout
  * status, through Spring Boot's error handling. When the time is up, the request's work is
  * cancelled. A response that has started, such as a stream, is not cut off. It also gives the
- * request the limit of its handler's {@link ResponseTimeout} just before the handler runs.
+ * request the limit of its handler's {@link ResponseTimeout} just before the handler runs. The
+ * deadline travels in the request's Reactor context, so that its time left can be read on the
+ * threads the request's work runs on.
  */
 @RequiredArgsConstructor
 public class ResponseTimeoutWebFilter implements WebFilter, HandlerStartListener, Ordered {
@@ -105,6 +108,7 @@ public class ResponseTimeoutWebFilter implements WebFilter, HandlerStartListener
         .onErrorMap(
             failure -> failure instanceof TimeoutException && deadline.hasExpired(),
             failure -> responseTimeouts.timedOut(deadline))
-        .doFinally(signal -> deadline.end());
+        .doFinally(signal -> deadline.end())
+        .contextWrite(context -> context.put(WebConstants.REQUEST_DEADLINE_CONTEXT_KEY, deadline));
   }
 }

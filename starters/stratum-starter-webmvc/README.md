@@ -391,6 +391,7 @@ Each bean below is Stratum's only until you declare your own:
 | `RequestBodyLimits`, a bean named `stratumRequestBodyLimitFilter`, or `RequestBodyLimitInterceptor` | How each request's body size limit is chosen, the filter that counts the body, or what applies `@RequestBodyLimit` and checks `Content-Length` |
 | `ResponseTimeouts`, a bean named `stratumResponseTimeoutFilter`, or `ResponseTimeoutInterceptor` | How each request's time limit is chosen, the filter that answers a request that ran out of time, or what applies `@ResponseTimeout` |
 | `RequestFieldsReader`, `CorrelationIdChooser` or `RequestFieldsPropagation` | How the fields are read, how the correlation ID is chosen, or how the fields follow the request across threads |
+| `RequestTimeLeft` | How the time left of the current request is read, which Stratum's other modules also read ([read the time left](../../docs/modules/web-timeouts.md#read-the-time-left)) |
 
 Stratum's error auto-configuration is ordered before Spring Boot's `ErrorMvcAutoConfiguration`, because its
 error attributes and HTML error page replace Spring Boot's. Your own beans, and those of a company framework whose
