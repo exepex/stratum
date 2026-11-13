@@ -134,15 +134,18 @@ public final class JdbcBoundaryPostProcessor
   /**
    * Returns the boundary around the connection Spring Boot builds for Flyway or Liquibase, from
    * their own {@code url} or {@code user} or from their connection details, and any other data
-   * source as it is, such as a data source bean, which already has its boundary.
+   * source as it is, such as a data source bean, which already has its boundary. On PostgreSQL,
+   * that connection also gets the login limit of Boot's pool.
    *
    * @param migrationDataSource the data source the migration tool will use
    * @return the wrapped connection, or the data source itself
    */
   DataSource migrationDataSource(DataSource migrationDataSource) {
-    return migrationDataSource instanceof SimpleDriverDataSource
-        ? readyBoundary().wrap(migrationDataSource)
-        : migrationDataSource;
+    if (!(migrationDataSource instanceof SimpleDriverDataSource connection)) {
+      return migrationDataSource;
+    }
+    PostgresLoginTimeout.limit(connection, environment);
+    return readyBoundary().wrap(connection);
   }
 
   /** Returns the boundary, which Spring builds through the class loader before any bean exists. */

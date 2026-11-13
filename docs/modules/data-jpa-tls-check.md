@@ -80,17 +80,16 @@ stratum:
 ## How long a check takes
 
 A check of a database that answers takes one borrow and one short query, limited to 5 seconds.
-For a database that does not answer, Stratum promises no bound: the check's thread waits as long as
-the pool and the driver wait, and the service is up all the while.
+For a database that does not answer, the check's thread waits as long as the pool and the driver
+wait, and the service is up all the while.
 
 - On a pool that has already started, the wait is the pool's `connection-timeout`: 3 seconds for
   Spring Boot's `dataSource`, which Stratum sets, and HikariCP's own 30 seconds for a pool not bound
   to `spring.datasource.hikari.*`.
-- On a pool the check starts, as at startup, the PostgreSQL driver's `loginTimeout` decides, and
-  its default is no limit: a server that accepts the connection and never answers holds the
-  check's thread until the connection closes. Set `loginTimeout` in the URL, such as
-  `?loginTimeout=10`. With `loginTimeout=2`, the check of a server that never answers took about
-  3 seconds in Stratum's tests.
+- On a pool the check starts, as at startup, the PostgreSQL driver's `loginTimeout` decides:
+  Stratum's [login limit](data-jpa-login-limit.md), 3 seconds for Spring Boot's pool, or your own.
+  With Stratum's limit, the check of a server that never answers took about 4 seconds in Stratum's
+  tests.
 - With `spring.datasource.connection-fetch=lazy`, the first borrow can take that time twice.
 - A data source that is not a HikariCP pool waits as long as it waits.
 

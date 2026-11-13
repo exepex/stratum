@@ -63,6 +63,9 @@ public class DataConstants {
   /** The name of the bean that checks whether each data source's connection is encrypted. */
   public static final String TLS_CHECK = "stratumDatabaseTlsCheck";
 
+  /** The name of the bean that gives each PostgreSQL pool bean a login limit. */
+  public static final String LOGIN_TIMEOUT = "stratumPostgresLoginTimeout";
+
   /** The name of the bean that wraps the connection Spring Boot builds for Flyway. */
   public static final String FLYWAY_BOUNDARY = "stratumFlywayBoundary";
 

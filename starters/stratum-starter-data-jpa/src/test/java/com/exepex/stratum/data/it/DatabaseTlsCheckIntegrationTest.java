@@ -4,10 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 import com.exepex.stratum.data.it.boundary.BoundaryApplication;
+import com.exepex.stratum.data.testsupport.SilentDatabase;
 import com.exepex.stratum.test.PostgresContainerConfiguration;
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.ServerSocket;
 import java.time.Duration;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.DisplayName;
@@ -29,19 +28,6 @@ class DatabaseTlsCheckIntegrationTest {
 
   /** How long a test waits for the check's line. */
   private static final Duration LINE_WAIT = Duration.ofSeconds(60);
-
-  /**
-   * The driver's own login limit, in seconds. Without it a database that never answers holds the
-   * check for as long as the connection stays open: the driver's {@code loginTimeout} defaults to
-   * 0, which it reads before HikariCP's login timeout.
-   */
-  private static final int LOGIN_TIMEOUT_SECONDS = 2;
-
-  /** How many connections the hung database's system accepts without anyone reading them. */
-  private static final int BACKLOG = 50;
-
-  /** The host of the database that never answers: this machine's own loopback address. */
-  private static final InetAddress HUNG_HOST = InetAddress.getLoopbackAddress();
 
   /** The thread the check runs on, as Logback's console line shortens it. */
   private static final String THREAD = "abase-tls-check]";
@@ -84,32 +70,22 @@ class DatabaseTlsCheckIntegrationTest {
   }
 
   @Test
-  @DisplayName("a database that never answers, with the driver's login limit, gives one WARN")
+  @DisplayName("a database that never answers, with Stratum's login limit, gives one WARN")
   void warnsAboutHungDatabase(CapturedOutput output) throws IOException {
-    // The system accepts the connections into the backlog; nothing ever reads or answers them.
-    try (var hungDatabase = new ServerSocket(0, BACKLOG, HUNG_HOST)) {
-      var took = runAgainstHungDatabase(output, hungDatabase.getLocalPort());
+    try (var hungDatabase = new SilentDatabase()) {
+      var took = runAgainstHungDatabase(output, hungDatabase);
 
       assertThat(took).isLessThan(LINE_WAIT);
     }
   }
 
-  /** Starts the service on the hung database and waits for the check's WARN. */
-  private Duration runAgainstHungDatabase(CapturedOutput output, int port) {
+  /** Starts the service on the hung database, with no login limit of its own, and waits. */
+  private Duration runAgainstHungDatabase(CapturedOutput output, SilentDatabase hungDatabase) {
     var application =
         new SpringApplicationBuilder(BoundaryApplication.class)
             .web(WebApplicationType.NONE)
-            .properties(
-                "spring.datasource.url=jdbc:postgresql://"
-                    + HUNG_HOST.getHostAddress()
-                    + ":"
-                    + port
-                    + "/orders?loginTimeout="
-                    + LOGIN_TIMEOUT_SECONDS,
-                "spring.sql.init.mode=never",
-                "spring.jpa.hibernate.ddl-auto=none",
-                "spring.jpa.properties.hibernate.boot.allow_jdbc_metadata_access=false",
-                "spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect");
+            .properties("spring.datasource.url=" + hungDatabase.url())
+            .properties(SilentDatabase.STARTUP_PROPERTIES.toArray(String[]::new));
 
     try (var context = application.run()) {
       long ready = System.nanoTime();
@@ -126,7 +102,7 @@ class DatabaseTlsCheckIntegrationTest {
       assertThat(output.getOut().lines().filter(line -> line.contains(NOT_CHECKED)))
           .singleElement()
           .asString()
-          .doesNotContain(HUNG_HOST.getHostAddress(), String.valueOf(port));
+          .doesNotContain(hungDatabase.host(), String.valueOf(hungDatabase.port()));
       return took;
     }
   }
