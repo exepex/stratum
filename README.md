@@ -204,10 +204,11 @@ keep it; see [Backward-compatible mode](docs/modules/web-compatible-mode.md).
 All modules are **Planned**, except three that are built, `stratum-starter-webmvc` and
 `stratum-starter-webflux` (error responses, request fields in logs, the correlation ID, the request log,
 timeouts and the body size limit) and `stratum-starter-cache` (caching switched on, with safe Redis
-defaults), and four that are partly built: `stratum-starter-logging` (JSON logs with the service's name
+defaults), and five that are partly built: `stratum-starter-logging` (JSON logs with the service's name
 and environment, redaction, and named workflows), `stratum-starter-observability` (metrics, traces and
 health sent over OTLP, with safe defaults), `stratum-starter-data-jpa` (pool, Hibernate and transaction
-defaults, and database errors that carry no data values) and `stratum-starter-http-client` (clients of
+defaults, and database errors that carry no data values), `stratum-starter-jdbc` (the same pool,
+transaction and error defaults for plain JDBC) and `stratum-starter-http-client` (clients of
 other services as `@StratumClient` interfaces, with their own timeouts, pool, retries, circuit breaker
 and trace headers). Each links to its full page: what it sets up,
 every property with its default, examples in YAML and properties, how to override it and how to
@@ -229,8 +230,8 @@ One dependency per kind of application; each lists only the single starters that
 `stratum-microservice-parent` brings the microservice bundle, so a service on it does not declare it
 ([ADR 0019](docs/adr/0019-one-parent-per-kind-of-application.md)).
 
-A bundle lists only single starters that have code. The security, resilience and data-jpa
-starters join no bundle until they are built. The microservice bundle's cache starter caches
+A bundle lists only single starters that have code. The security, resilience, data-jpa and
+jdbc starters join no bundle until they are built. The microservice bundle's cache starter caches
 `@Cacheable` methods in bounded Caffeine caches, or in Redis once the service adds it
 ([Cache](docs/modules/cache.md)).
 
@@ -258,6 +259,7 @@ Every starter's module is on when the starter is on the classpath. A service tur
 | [`stratum-starter-http-client`](docs/modules/http-client.md) | Clients of other services as `@StratumClient` interfaces, each with its own timeouts, bounded connection pool, retries, circuit breaker and tokens and trace headers. | `stratum.http-client` |
 | [`stratum-starter-resilience`](docs/modules/resilience.md) | Named retry, circuit breaker, bulkhead and time limit policies. | `stratum.resilience` |
 | [`stratum-starter-data-jpa`](docs/modules/data-jpa.md) | Spring Data JPA with safe defaults for the connection pool, Hibernate and transactions, and database errors that carry no data values. | `stratum.data` |
+| [`stratum-starter-jdbc`](docs/modules/jdbc.md) | Plain JDBC (`JdbcClient`, `JdbcTemplate`) with the same safe defaults for the connection pool and transactions, and database errors that carry no data values, with no ORM. | `stratum.data` |
 | [`stratum-starter-cache`](docs/modules/cache.md) | Spring's caching switched on, with a time to live, a service key prefix, statistics, short timeouts, SCAN clears, key and value size limits and plain JSON values for Redis, and bounded, expiring Caffeine caches; cached calls keep working when Redis is down. | `stratum.cache` |
 | [`stratum-starter-kafka`](docs/modules/kafka.md) | Kafka producers and consumers with retries and dead-letter topics. | `stratum.kafka` |
 | [`stratum-starter-cloud-*`](docs/modules/cloud.md) | Cloud services such as storage, queues and secrets, per provider. | `stratum.cloud` |

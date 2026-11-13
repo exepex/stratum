@@ -117,8 +117,9 @@ Add the matching starters. Compare your current `spring.datasource.hikari.*`, `s
 `spring.cache.redis.*`, `spring.data.redis.*` and `spring.kafka.*` settings with Stratum's defaults (listed on each module page) and delete those that
 match. Keep any value that is deliberately different, and write down why in a comment.
 
-`stratum-starter-data-jpa` sets these defaults even with `stratum.backward-compatible=true`,
-because no caller sees them:
+`stratum-starter-data-jpa` and `stratum-starter-jdbc` set these defaults even with
+`stratum.backward-compatible=true`, because no caller sees them; the three about Hibernate come
+with the data JPA starter only:
 
 - a caller waits at most 3 seconds for a free connection
   (`spring.datasource.hikari.connection-timeout=3000`), so a pool that was often exhausted now

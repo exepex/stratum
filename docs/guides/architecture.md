@@ -50,6 +50,7 @@ stratum/
 │   ├── stratum-starter-cli/        # bundle: logging
 │   ├── stratum-starter-data-jpa/
 │   ├── stratum-starter-http-client/
+│   ├── stratum-starter-jdbc/
 │   ├── stratum-starter-kafka/
 │   ├── stratum-starter-logging/
 │   ├── stratum-starter-microservice/ # bundle: webmvc, logging, observability, http-client, cache

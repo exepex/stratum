@@ -41,7 +41,7 @@ used next to a company framework. The reasons are in
 The BOM manages versions of:
 
 - every Stratum module that is published to Maven Central, including the [bundle starters](bundles.md);
-  the security, resilience, Kafka and data JPA starters are added when they are built,
+  the security, resilience, Kafka, data JPA and JDBC starters are added when they are built,
 - the extra libraries Stratum uses or recommends that Spring Boot does not manage (Resilience4j,
   cloud SDKs, and so on),
 - the container images used in tests, as Maven properties (`testcontainers.image.postgres` and

@@ -1,0 +1,3 @@
+stratum:
+  data:
+    query-timeout: 5s

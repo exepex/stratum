@@ -68,7 +68,7 @@ every error gets, with the trace ID to quote to support:
 
 The service logs the failure once, with its stack trace: a `503` at ERROR and a `409` at WARN. Any
 caller can cause a `409`, such as by sending the same new order twice, so each one writes a WARN
-line. With the data JPA starter, the logged exception has no values from the database; see
+line. With the data JPA or JDBC starter, the logged exception has no values from the database; see
 [Clean database errors](data.md#clean-database-errors).
 
 ## Change a status

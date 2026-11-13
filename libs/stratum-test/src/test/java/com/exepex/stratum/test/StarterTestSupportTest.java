@@ -3,10 +3,12 @@ package com.exepex.stratum.test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
+import com.exepex.stratum.core.condition.EarlyModuleSwitches;
 import com.exepex.stratum.core.properties.StratumPropertiesCustomizer;
 import com.exepex.stratum.test.fixture.UnswitchedGreeter;
 import com.exepex.stratum.test.fixture.autoconfigure.GreetingAutoConfiguration;
 import com.exepex.stratum.test.fixture.autoconfigure.GreetingFormatter;
+import com.exepex.stratum.test.fixture.autoconfigure.ImportingAutoConfiguration;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -17,6 +19,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.boot.context.config.ConfigDataEnvironmentPostProcessor;
 
 @DisplayName("StarterTestSupport gives every starter's tests the same checks and set-up")
 class StarterTestSupportTest {
@@ -30,6 +33,22 @@ class StarterTestSupportTest {
 
   /** How the API list rule reports a class, after the class name. */
   private static final String NOT_LISTED = "> is not on the module's API list";
+
+  @Nested
+  @DisplayName("environmentPostProcessors")
+  class EnvironmentPostProcessors {
+
+    @Test
+    @DisplayName(
+        "creates the listed post-processors and skips those needing Boot's start-up objects")
+    void createsPostProcessorsWithoutArguments() {
+      var postProcessors = StarterTestSupport.environmentPostProcessors();
+
+      assertThat(postProcessors)
+          .hasAtLeastOneElementOfType(EarlyModuleSwitches.class)
+          .noneMatch(ConfigDataEnvironmentPostProcessor.class::isInstance);
+    }
+  }
 
   @Nested
   @DisplayName("withCustomizers")
@@ -66,6 +85,16 @@ class StarterTestSupportTest {
       var result =
           StarterTestSupport.starterArchitecture(FIXTURE_STARTER_PACKAGE, FIXTURE_API_TYPES)
               .evaluate(new ClassFileImporter().importClasses(GreetingAutoConfiguration.class));
+
+      assertThat(result.hasViolation()).isFalse();
+    }
+
+    @Test
+    @DisplayName("pass for an autoconfigure package whose auto-configuration only imports others")
+    void passForImportingConfigurationClass() {
+      var result =
+          StarterTestSupport.starterArchitecture(FIXTURE_STARTER_PACKAGE, FIXTURE_API_TYPES)
+              .evaluate(new ClassFileImporter().importClasses(ImportingAutoConfiguration.class));
 
       assertThat(result.hasViolation()).isFalse();
     }
