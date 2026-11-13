@@ -51,9 +51,7 @@ the [JDBC boundary](modules/data.md#clean-database-errors) adds to each JDBC cal
 timeout and a [statement limit](modules/data-statement-limits.md) slot on every borrow, and
 pgjdbc's query timeout, Stratum's sweeper or a per-statement timer on every statement; and what the
 sweeper (`StatementSweeperBenchmark`) and the per-statement timer it replaced
-(`StatementTimerBenchmark`) cost with no database; and what reading a web request's time left costs,
-and what carrying its deadline adds to each Reactor operator and each executor task
-(`RequestTimeLeftBenchmark`), also with no database. Each runs on one thread, and most also on 16. It needs
+(`StatementTimerBenchmark`) cost with no database. Each runs on one thread and on 16. It needs
 Docker, because each JMH fork of the pool measurements starts its own PostgreSQL container.
 `JdbcBoundaryBenchmark` takes about 10 to 15 minutes and `StatementLimitsBenchmark` about 20:
 
@@ -64,10 +62,18 @@ Docker, because each JMH fork of the pool measurements starts its own PostgreSQL
 To run some of them, add a regular expression of their names, such as
 `-Djmh.benchmarks=StatementSweeperBenchmark` or `-Djmh.benchmarks=StatementLimitsBenchmark.borrow`.
 
-The command starts with `clean`, because test classes an earlier build compiled count as up to
+The data JPA starter's `benchmark` profile measures what reading a web request's time left costs,
+and what carrying its deadline adds to each Reactor operator and each executor task
+(`RequestTimeLeftBenchmark`), with no database, on one thread and most also on 16:
+
+```bash
+./mvnw -pl starters/stratum-starter-data-jpa -am -Pbenchmark clean integration-test
+```
+
+Each command starts with `clean`, because test classes an earlier build compiled count as up to
 date, and the compiler would then skip JMH's generator. The run builds the module and runs its
 tests first. JMH then compares the two sides of each measurement on the same calls, and writes
-its result to `libs/stratum-data/target/jmh-result.json`. A plain build never runs
+its result to the module's `target/jmh-result.json`. A plain build never runs
 it.
 
 The run leaves JMH's generated sources in the module's `target` folder, where PMD would check them.
