@@ -31,8 +31,8 @@ class StatementTimeoutAnswerIntegrationTest {
   /** The code of a cancelled statement. */
   private static final String CODE = "SX-DATA-1003";
 
-  /** The status of a request that failed with it. */
-  private static final int STATUS = HttpStatus.INTERNAL_SERVER_ERROR.value();
+  /** The status of a request that failed with it, which the data starter maps to the code. */
+  private static final int STATUS = HttpStatus.SERVICE_UNAVAILABLE.value();
 
   /**
    * Checks Stratum's body: the code and only its fixed description, with no limit, data source or
@@ -57,7 +57,7 @@ class StatementTimeoutAnswerIntegrationTest {
     BackwardCompatibleErrorChecks.checkBootBodyStatus(
         port,
         SlowOrdersApplication.SLOW_ORDERS,
-        STATUS,
+        HttpStatus.INTERNAL_SERVER_ERROR.value(),
         HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase());
     assertThat(WebTestSupport.getFromService(port, SlowOrdersApplication.SLOW_ORDERS).body())
         .doesNotContain(CODE);
@@ -71,7 +71,7 @@ class StatementTimeoutAnswerIntegrationTest {
     @LocalServerPort private int port;
 
     @Test
-    @DisplayName("with status 500, SX-DATA-1003 and no detail")
+    @DisplayName("with status 503, SX-DATA-1003 and no detail")
     void answersWithCode() throws IOException, InterruptedException {
       checkStratumBody(port);
     }
@@ -100,7 +100,7 @@ class StatementTimeoutAnswerIntegrationTest {
     @LocalServerPort private int port;
 
     @Test
-    @DisplayName("with status 500, SX-DATA-1003 and no detail")
+    @DisplayName("with status 503, SX-DATA-1003 and no detail")
     void answersWithCode() throws IOException, InterruptedException {
       checkStratumBody(port);
     }

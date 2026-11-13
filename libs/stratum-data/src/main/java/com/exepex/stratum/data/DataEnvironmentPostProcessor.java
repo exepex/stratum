@@ -1,6 +1,7 @@
 package com.exepex.stratum.data;
 
 import com.exepex.stratum.core.api.StratumInternal;
+import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.condition.StratumModuleSwitch;
 import com.exepex.stratum.core.properties.BackwardCompatibleMode;
 import com.exepex.stratum.core.properties.StratumDefaults;
@@ -16,9 +17,10 @@ import org.springframework.util.ClassUtils;
  * Gives Spring Boot's pool and transaction settings Stratum's defaults unless {@code
  * stratum.data.enabled=false}. In both modes, a caller waits at most 3 seconds for a connection.
  * With {@code stratum.backward-compatible=false}, its default, every transaction has 60 seconds,
- * except when Spring Batch is present, whose jobs run longer. Every value the service sets for
- * these Spring Boot keys wins. In both modes, startup stops when the service sets a leak alarm
- * threshold that HikariCP would turn off.
+ * except when Spring Batch is present, whose jobs run longer, and a web request whose statement
+ * Stratum cancelled ({@code SX-DATA-1003}) is answered with 503 through {@code
+ * stratum.web.error.statuses}. Every value the service sets for these keys wins. In both modes,
+ * startup stops when the service sets a leak alarm threshold that HikariCP would turn off.
  */
 @StratumInternal
 public class DataEnvironmentPostProcessor implements EnvironmentPostProcessor, Ordered {
@@ -26,6 +28,13 @@ public class DataEnvironmentPostProcessor implements EnvironmentPostProcessor, O
   /** The default that changes nothing a consumer of the service sees, so applies in both modes. */
   private static final Map<String, Object> INTERNAL_DEFAULTS =
       Map.of(DataConstants.CONNECTION_TIMEOUT, 3000);
+
+  /** The defaults that can change what a consumer sees, so apply only outside compatible mode. */
+  private static final Map<String, Object> EXTERNAL_DEFAULTS =
+      Map.of(
+          StratumModuleConstants.mapEntry(
+              DataConstants.WEB_ERROR_STATUSES, DataErrorCode.STATEMENT_TIMED_OUT.getCode()),
+          DataConstants.STATEMENT_TIMED_OUT_STATUS);
 
   /** The transaction time limit, external too, which Spring Batch jobs would outlive. */
   private static final Map<String, Object> TRANSACTION_TIMEOUT =
@@ -47,8 +56,8 @@ public class DataEnvironmentPostProcessor implements EnvironmentPostProcessor, O
 
   /**
    * Adds the defaults below the service's own values: the pool wait when the module is on, and the
-   * transaction limit when {@code stratum.backward-compatible} is off too. Then it checks the leak
-   * alarm threshold the service set.
+   * statement timeout's status and the transaction limit when {@code stratum.backward-compatible}
+   * is off too. Then it checks the leak alarm threshold the service set.
    *
    * @param environment the application's environment
    * @param application the application being started, whose class loader shows Spring Batch
@@ -62,10 +71,20 @@ public class DataEnvironmentPostProcessor implements EnvironmentPostProcessor, O
       return;
     }
     StratumDefaults.addBelowServiceValues(environment, INTERNAL_DEFAULTS);
-    if (!BackwardCompatibleMode.isOn(environment)
-        && !ClassUtils.isPresent(DataConstants.SPRING_BATCH_JOB, application.getClassLoader())) {
-      StratumDefaults.addBelowServiceValues(environment, TRANSACTION_TIMEOUT);
+    if (!BackwardCompatibleMode.isOn(environment)) {
+      addExternalDefaults(environment, application);
     }
     leakAlarmCheck.check(environment);
+  }
+
+  /**
+   * Adds the defaults a consumer can see, and the transaction limit unless Spring Batch is present.
+   */
+  private void addExternalDefaults(
+      ConfigurableEnvironment environment, SpringApplication application) {
+    StratumDefaults.addBelowServiceValues(environment, EXTERNAL_DEFAULTS);
+    if (!ClassUtils.isPresent(DataConstants.SPRING_BATCH_JOB, application.getClassLoader())) {
+      StratumDefaults.addBelowServiceValues(environment, TRANSACTION_TIMEOUT);
+    }
   }
 }

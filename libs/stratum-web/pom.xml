@@ -84,5 +84,18 @@
       <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Test only: the database failures are matched by the names of Spring's and Hibernate's
+         exception classes, and the tests check each name against the real class, so a rename in
+         an upgrade fails the build. Services get neither library from this module. -->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-tx</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.hibernate.orm</groupId>
+      <artifactId>hibernate-core</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 </project>

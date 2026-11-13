@@ -108,6 +108,8 @@ failure comes from a controller or a `WebFilter`.
 | A body that is not valid JSON, a parameter of the wrong type, or a multipart upload Spring cannot read, such as one with too many parts | `400` | `SX-WEB-1002` |
 | A path nothing answers | `404` | `SX-WEB-1003` |
 | Any other status, such as `405`, a `ResponseStatusException` or an exception annotated `@ResponseStatus` | that status | `SX-WEB-1004` |
+| A database that is busy or too slow, such as a statement timeout, a wait for a pooled connection or a deadlock, outside backward-compatible mode ([details](../../docs/modules/web-database-errors.md)) | `503` | `SX-WEB-1010` |
+| A request that conflicts with the stored data, outside backward-compatible mode: a duplicate key, or an `@Version` row changed meanwhile | `409` | `SX-WEB-1011` |
 | Any other exception | `500` | `SX-WEB-1005`, with a fixed message |
 | A request whose response had not started within its [time limit](#timeouts) | `stratum.web.timeout.status`, `503` by default | `SX-WEB-1007` |
 | A request whose body is larger than its [limit](#body-size-limit), or a multipart part over Spring's disk limit | `413` | `SX-WEB-1008` |
@@ -121,6 +123,8 @@ The codes, with how to fix each, are in [Error and warning codes](../../docs/gui
 - A `StratumException` with a `5xx` status: one ERROR line with its stack trace. When its code has
   no status in `stratum.web.error.statuses`, the line says so, so a missing mapping shows up in
   testing. Spring Boot's own line for the same failure is left out, so it is logged once.
+- A database failure answered with `503` or `409`: one line with its stack trace, ERROR for the
+  `503` and WARN for the `409`.
 - Any other exception answered with `500`: Spring Boot logs it at ERROR with its stack trace, as
   without Stratum.
 - Other failures, such as `400` and `404`, are not logged, as in Spring Boot.
@@ -334,7 +338,7 @@ Each bean below is Stratum's only until you declare your own:
 | `CorrelationIdBaggageDecorator` | What writes a caller's correlation ID into the request's baggage before tracing reads it |
 | `RequestLogWebFilter` or `RequestLogWriter` | The filter that writes each request's log line, or what the line holds |
 | `RequestFieldsReader`, `CorrelationIdChooser` or `RequestFieldsPropagation` | How the fields are read, how the correlation ID is chosen, or how the fields follow the request across threads |
-| `RequestTimeLeft` | How the time left of the current request is read, which Stratum's other modules also read ([read the time left](../../docs/modules/web-timeouts.md#read-the-time-left)) |
+| `RequestTimeLeft` | How the time left of the current request is read ([read the time left](../../docs/modules/web-timeouts.md#read-the-time-left)) |
 
 Stratum's error auto-configuration is ordered before Spring Boot's `ErrorWebFluxAutoConfiguration`, because its
 error attributes and error handler replace Spring Boot's. Your own beans, and those of a company framework whose

@@ -394,7 +394,7 @@ starter's own defaults too.
 | `Connection is not available, request timed out after 3000ms` | The pool is exhausted: look for long transactions or slow queries first, then consider `spring.datasource.hikari.maximum-pool-size`. |
 | "Apparent connection leak detected" in logs | A connection was held longer than `leak-detection-threshold`. The stack trace in the log shows where it was taken. |
 | Startup fails with `SX-DATA-1002` | `spring.datasource.hikari.leak-detection-threshold` is under 2000 or above `max-lifetime`; see [Leak alarm](#leak-alarm). |
-| `QueryTimeoutException` with `SX-DATA-1003`, or status 500 with `SX-DATA-1003` | A statement ran past its limit and Stratum cancelled it; the log's message names the limit and what set it. Make the statement faster, or give it more time; see [Statement time limits](data-statement-limits.md). |
+| `QueryTimeoutException` with `SX-DATA-1003`, or status 503 with `SX-DATA-1003` | A statement ran past its limit and Stratum cancelled it; the log's message names the limit and what set it. Make the statement faster, or give it more time; see [Statement time limits](data-statement-limits.md). |
 | `PSQLException: Connection attempt timed out.` | The database accepted the connection and did not answer within the login limit; see [The PostgreSQL login limit](data-login-limit.md). |
 | WARN "connects to the database without TLS" or "Could not check whether the data source ... uses TLS" | The connection is not encrypted, or the check could not ask the database; see [The database TLS check](data-tls-check.md). |
 | `TransactionTimedOutException`, or a query timeout inside a transaction | A transaction ran longer than 60 seconds. Make it shorter, or give it a longer `@Transactional(timeout = ...)`. |
