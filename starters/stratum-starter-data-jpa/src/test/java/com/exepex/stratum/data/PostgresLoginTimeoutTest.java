@@ -188,7 +188,7 @@ class PostgresLoginTimeoutTest {
     void getsPoolLimit() {
       var connection = migrationConnection(POSTGRES_URL);
 
-      PostgresLoginTimeout.limit(connection, poolWait(STRATUM_WAIT));
+      new MigrationLoginTimeout(poolWait(STRATUM_WAIT)).limit(connection);
 
       assertThat(connection.getConnectionProperties())
           .isNotNull()
@@ -201,8 +201,8 @@ class PostgresLoginTimeoutTest {
       var unset = migrationConnection(POSTGRES_URL);
       var noEnvironment = migrationConnection(POSTGRES_URL);
 
-      PostgresLoginTimeout.limit(unset, new MockEnvironment());
-      PostgresLoginTimeout.limit(noEnvironment, null);
+      new MigrationLoginTimeout(new MockEnvironment()).limit(unset);
+      new MigrationLoginTimeout(null).limit(noEnvironment);
 
       assertThat(unset.getConnectionProperties()).containsEntry(LOGIN_TIMEOUT, "30");
       assertThat(noEnvironment.getConnectionProperties()).containsEntry(LOGIN_TIMEOUT, "30");
@@ -220,8 +220,8 @@ class PostgresLoginTimeoutTest {
       otherProperty.setProperty("ApplicationName", "orders");
       other.setConnectionProperties(otherProperty);
 
-      PostgresLoginTimeout.limit(own, poolWait(STRATUM_WAIT));
-      PostgresLoginTimeout.limit(other, poolWait(STRATUM_WAIT));
+      new MigrationLoginTimeout(poolWait(STRATUM_WAIT)).limit(own);
+      new MigrationLoginTimeout(poolWait(STRATUM_WAIT)).limit(other);
 
       assertThat(own.getConnectionProperties()).containsOnly(entry(LOGIN_TIMEOUT, "10"));
       assertThat(other.getConnectionProperties())
@@ -234,8 +234,8 @@ class PostgresLoginTimeoutTest {
       var unlimited = migrationConnection(POSTGRES_URL);
       var other = migrationConnection("jdbc:h2:mem:orders");
 
-      PostgresLoginTimeout.limit(unlimited, poolWait("0"));
-      PostgresLoginTimeout.limit(other, poolWait(STRATUM_WAIT));
+      new MigrationLoginTimeout(poolWait("0")).limit(unlimited);
+      new MigrationLoginTimeout(poolWait(STRATUM_WAIT)).limit(other);
 
       assertThat(unlimited.getConnectionProperties()).isNull();
       assertThat(other.getConnectionProperties()).isNull();

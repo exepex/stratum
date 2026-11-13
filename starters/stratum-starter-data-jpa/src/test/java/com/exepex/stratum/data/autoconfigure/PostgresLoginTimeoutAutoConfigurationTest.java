@@ -5,11 +5,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.exepex.stratum.data.DataConstants;
 import com.exepex.stratum.data.PostgresLoginTimeoutPostProcessor;
 import com.zaxxer.hikari.HikariDataSource;
+import java.sql.SQLException;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.FilteredClassLoader;
+import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 @DisplayName("JdbcBoundaryAutoConfiguration gives every PostgreSQL pool a login limit")
@@ -36,18 +38,22 @@ class PostgresLoginTimeoutAutoConfigurationTest {
   @DisplayName("the post-processor is a bean named stratumPostgresLoginTimeout and limits the pool")
   void limitsPool() {
     contextRunner.run(
-        context -> {
-          assertThat(context)
-              .hasNotFailed()
-              .getBean(DataConstants.LOGIN_TIMEOUT)
-              .isInstanceOf(PostgresLoginTimeoutPostProcessor.class);
-          assertThat(
-                  context
-                      .getBean("dataSource", DataSource.class)
-                      .unwrap(HikariDataSource.class)
-                      .getDataSourceProperties())
-              .containsEntry("loginTimeout", "3");
-        });
+        context ->
+            assertThat(context)
+                .hasNotFailed()
+                .getBean(DataConstants.LOGIN_TIMEOUT)
+                .isInstanceOf(PostgresLoginTimeoutPostProcessor.class));
+    contextRunner.run(this::assertPoolLimited);
+  }
+
+  /** Checks that the pool, behind the JDBC boundary, got the login limit. */
+  private void assertPoolLimited(AssertableApplicationContext context) throws SQLException {
+    assertThat(
+            context
+                .getBean("dataSource", DataSource.class)
+                .unwrap(HikariDataSource.class)
+                .getDataSourceProperties())
+        .containsEntry("loginTimeout", "3");
   }
 
   @Test

@@ -254,7 +254,7 @@ class PostgresLoginTimeoutIntegrationTest {
     /** Returns the median of the measured times. */
     private double median(long... nanos) {
       var sorted = LongStream.of(nanos).sorted().toArray();
-      return sorted[sorted.length / 2];
+      return (double) sorted[sorted.length / 2];
     }
   }
 }
