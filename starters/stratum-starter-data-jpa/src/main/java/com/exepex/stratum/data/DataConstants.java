@@ -60,6 +60,9 @@ public class DataConstants {
   /** The name of the bean that wraps every data source in the JDBC boundary. */
   public static final String JDBC_BOUNDARY = "stratumJdbcBoundary";
 
+  /** The name of the bean that checks whether each data source's connection is encrypted. */
+  public static final String TLS_CHECK = "stratumDatabaseTlsCheck";
+
   /** The name of the bean that wraps the connection Spring Boot builds for Flyway. */
   public static final String FLYWAY_BOUNDARY = "stratumFlywayBoundary";
 

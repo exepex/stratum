@@ -2,7 +2,8 @@
 
 **Status: Partly built.** Spring Data JPA, with safe defaults for Spring Boot's connection pool
 (HikariCP), Hibernate and transactions, and database errors that carry no data values, from your
-code and from Flyway and Liquibase, and a time limit on every SQL statement.
+code and from Flyway and Liquibase, a time limit on every SQL statement, and a check that the
+connection to the database is encrypted.
 
 [← Documentation home](../README.md) · Property prefix: `stratum.data`
 
@@ -78,6 +79,7 @@ spring:
 | --- | --- | --- |
 | Clean database errors | No value from a database error, such as a duplicate email address, reaches a log, a span or a response; see [Clean database errors](#clean-database-errors) | Always |
 | Statement time limits | Every SQL statement ends by its code's own limit and its transaction's deadline, and Stratum cancels it with `SX-DATA-1003`; see [Statement time limits](data-jpa-statement-limits.md) | Always |
+| TLS check | Shortly after startup, one WARN for each data source whose connection to the database is not encrypted; see [The database TLS check](data-jpa-tls-check.md) | Always |
 | Pool statement limit | A statement whose code sets no limit of its own may run 30 seconds (`stratum.data.query-timeout`) | Strict mode |
 | Short pool wait | A caller waits at most 3 seconds for a free connection, then gets an error, instead of 30 seconds | Always |
 | Schema check | Hibernate checks at startup that your entities match the schema, and never changes the schema (`validate`) | Always |
@@ -291,6 +293,13 @@ Every SQL statement runs under a time limit, which Stratum enforces itself and c
 transaction's deadline. How the limit is chosen, what a cancelled request answers, the counter,
 the cost and the limits are in [Statement time limits](data-jpa-statement-limits.md).
 
+## The database TLS check
+
+Shortly after startup, Stratum checks on its own thread whether each data source bean's connection
+to PostgreSQL is encrypted, and logs one WARN for each that is not, in every profile. How to
+encrypt the connection, how to silence the check, and its limits are in
+[The database TLS check](data-jpa-tls-check.md).
+
 ## Transactions
 
 In strict mode, every transaction run by Spring Boot's transaction manager that sets no limit of
@@ -434,6 +443,7 @@ after Stratum's and wins.
 - Your own `DataSource` bean replaces Spring Boot's pool, and with it the
   `spring.datasource.hikari.*` defaults.
 - A bean named `stratumSchemaValidationDefault` replaces Stratum's schema default.
+- A bean named `stratumDatabaseTlsCheck` replaces the [TLS check](data-jpa-tls-check.md).
 - A bean named `stratumJdbcBoundary` replaces the post-processor that wraps every data source bean
   in the [clean errors boundary](#clean-database-errors). To leave one of your own data sources
   out, by its bean name, declare it with Stratum's `com.exepex.stratum.data.JdbcBoundaryPostProcessor` and a filter:
@@ -475,4 +485,5 @@ wrapped, so database errors keep the driver's text.
 | `LazyInitializationException` | With open-in-view off, load what the response needs inside the `@Transactional` service method (fetch join or DTO projection). |
 | `HibernateException: setFirstResult() or setMaxResults() specified with collection fetch join` | Page the parent rows first, then fetch their collections, or use a DTO projection. |
 | `QueryTimeoutException` with `SX-DATA-1003`, or status 500 with `SX-DATA-1003` | A statement ran past its limit and Stratum cancelled it; the log's message names the limit and what set it. Make the statement faster, or give it more time; see [Statement time limits](data-jpa-statement-limits.md). |
+| WARN "connects to the database without TLS" or "Could not check whether the data source ... uses TLS" | The connection is not encrypted, or the check could not ask the database; see [The database TLS check](data-jpa-tls-check.md). |
 | `TransactionTimedOutException`, or a query timeout inside a transaction | A transaction ran longer than 60 seconds. Make it shorter, or give it a longer `@Transactional(timeout = ...)`. |

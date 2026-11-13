@@ -1,6 +1,7 @@
 package com.exepex.stratum.data.testsupport;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import jakarta.persistence.EntityManagerFactory;
 import java.io.PrintWriter;
@@ -22,6 +23,23 @@ import org.springframework.boot.test.system.CapturedOutput;
 @Slf4j
 @UtilityClass
 public class DataAssertions {
+
+  /** The thread of the TLS check, which borrows one connection shortly after startup. */
+  private static final String TLS_CHECK_THREAD = "stratum-database-tls-check";
+
+  /**
+   * Waits until the TLS check has finished, so that a test that counts or exhausts the pool's
+   * connections counts only its own.
+   */
+  public static void awaitTlsCheckDone() {
+    await().until(DataAssertions::tlsCheckDone);
+  }
+
+  /** Returns whether no TLS check thread is running. */
+  private static boolean tlsCheckDone() {
+    return Thread.getAllStackTraces().keySet().stream()
+        .noneMatch(thread -> TLS_CHECK_THREAD.equals(thread.getName()));
+  }
 
   /**
    * Logs a failure as a service would, then checks that a value appears neither in the log nor
