@@ -82,6 +82,7 @@ spring:
 | TLS check | Shortly after startup, one WARN for each data source whose connection to the database is not encrypted; see [The database TLS check](data-jpa-tls-check.md) | Always |
 | Pool statement limit | A statement whose code sets no limit of its own may run 30 seconds (`stratum.data.query-timeout`) | Strict mode |
 | Short pool wait | A caller waits at most 3 seconds for a free connection, then gets an error, instead of 30 seconds | Always |
+| Login limit | A new connection to a PostgreSQL database that never answers fails after about 3 seconds, instead of waiting for good; see [The PostgreSQL login limit](data-jpa-login-limit.md) | Always |
 | Schema check | Hibernate checks at startup that your entities match the schema, and never changes the schema (`validate`) | Always |
 | Batched writes | Hibernate sends inserts and updates in ordered batches of 50 rows | Always |
 | Leak alarm check | A `leak-detection-threshold` that HikariCP would silently turn off stops startup with `SX-DATA-1002`; the alarm itself stays off, see [Leak alarm](#leak-alarm) | Always |
@@ -300,6 +301,13 @@ to PostgreSQL is encrypted, and logs one WARN for each that is not, in every pro
 encrypt the connection, how to silence the check, and its limits are in
 [The database TLS check](data-jpa-tls-check.md).
 
+## The PostgreSQL login limit
+
+Every new connection to PostgreSQL, from a pool or from Flyway's or Liquibase's own connection, gets
+the driver's `loginTimeout` from the pool's wait: 3 seconds by default. How to set your own, what
+it costs and what happens against a database that never answers are in
+[The PostgreSQL login limit](data-jpa-login-limit.md).
+
 ## Transactions
 
 In strict mode, every transaction run by Spring Boot's transaction manager that sets no limit of
@@ -444,6 +452,7 @@ after Stratum's and wins.
   `spring.datasource.hikari.*` defaults.
 - A bean named `stratumSchemaValidationDefault` replaces Stratum's schema default.
 - A bean named `stratumDatabaseTlsCheck` replaces the [TLS check](data-jpa-tls-check.md).
+- A bean named `stratumPostgresLoginTimeout` replaces the [login limit](data-jpa-login-limit.md) of the pools.
 - A bean named `stratumJdbcBoundary` replaces the post-processor that wraps every data source bean
   in the [clean errors boundary](#clean-database-errors). To leave one of your own data sources
   out, by its bean name, declare it with Stratum's `com.exepex.stratum.data.JdbcBoundaryPostProcessor` and a filter:
@@ -485,5 +494,6 @@ wrapped, so database errors keep the driver's text.
 | `LazyInitializationException` | With open-in-view off, load what the response needs inside the `@Transactional` service method (fetch join or DTO projection). |
 | `HibernateException: setFirstResult() or setMaxResults() specified with collection fetch join` | Page the parent rows first, then fetch their collections, or use a DTO projection. |
 | `QueryTimeoutException` with `SX-DATA-1003`, or status 500 with `SX-DATA-1003` | A statement ran past its limit and Stratum cancelled it; the log's message names the limit and what set it. Make the statement faster, or give it more time; see [Statement time limits](data-jpa-statement-limits.md). |
+| `PSQLException: Connection attempt timed out.` | The database accepted the connection and did not answer within the login limit; see [The PostgreSQL login limit](data-jpa-login-limit.md). |
 | WARN "connects to the database without TLS" or "Could not check whether the data source ... uses TLS" | The connection is not encrypted, or the check could not ask the database; see [The database TLS check](data-jpa-tls-check.md). |
 | `TransactionTimedOutException`, or a query timeout inside a transaction | A transaction ran longer than 60 seconds. Make it shorter, or give it a longer `@Transactional(timeout = ...)`. |

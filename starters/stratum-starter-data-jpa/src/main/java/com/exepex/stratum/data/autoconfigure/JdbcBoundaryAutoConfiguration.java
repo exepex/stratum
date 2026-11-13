@@ -7,9 +7,11 @@ import com.exepex.stratum.core.properties.StratumCustomizers;
 import com.exepex.stratum.data.DataConstants;
 import com.exepex.stratum.data.DatabaseTlsCheck;
 import com.exepex.stratum.data.JdbcBoundaryPostProcessor;
+import com.exepex.stratum.data.PostgresLoginTimeoutPostProcessor;
 import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureOrder;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
@@ -17,8 +19,8 @@ import org.springframework.context.annotation.Fallback;
 
 /**
  * Creates the JDBC boundary around every data source bean, with the time limits of their
- * statements, and the check of their connections' encryption, unless {@code
- * stratum.data.enabled=false}.
+ * statements, the login limit of every PostgreSQL pool, and the check of their connections'
+ * encryption, unless {@code stratum.data.enabled=false}.
  */
 @StratumInternal
 @AutoConfiguration
@@ -48,6 +50,21 @@ public final class JdbcBoundaryAutoConfiguration {
   @ConditionalOnMissingBean(name = DataConstants.JDBC_BOUNDARY)
   public static JdbcBoundaryPostProcessor stratumJdbcBoundary() {
     return new JdbcBoundaryPostProcessor(beanName -> true);
+  }
+
+  /**
+   * Gives every HikariCP pool bean that connects to PostgreSQL a login limit from its own {@code
+   * connection-timeout}. A service replaces it with a bean of the same name. Static, because Spring
+   * creates bean post-processors before the other beans.
+   *
+   * @return the post-processor, which sets the driver's {@code loginTimeout}
+   */
+  @Bean(DataConstants.LOGIN_TIMEOUT)
+  @Fallback
+  @ConditionalOnClass(name = {"org.postgresql.Driver", "com.zaxxer.hikari.HikariDataSource"})
+  @ConditionalOnMissingBean(name = DataConstants.LOGIN_TIMEOUT)
+  public static PostgresLoginTimeoutPostProcessor stratumPostgresLoginTimeout() {
+    return new PostgresLoginTimeoutPostProcessor();
   }
 
   /**
