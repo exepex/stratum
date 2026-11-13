@@ -181,11 +181,8 @@ class ResponseTimeoutFilterTest {
     filter.doFilter(
         request,
         response,
-        (streamingRequest, streamingResponse) -> {
-          streamingResponse.flushBuffer();
-          assertThat(blockWithoutInterrupt()).isFalse();
-          seen.add(timeLeft.timeLeft());
-        });
+        (streamingRequest, streamingResponse) ->
+            seen.add(timeLeftPastLimitOfStarted(streamingResponse)));
 
     assertThat(seen).containsExactly(Optional.empty());
     assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
@@ -199,12 +196,7 @@ class ResponseTimeoutFilterTest {
     var seen = new ArrayList<Optional<Duration>>();
 
     filter.doFilter(
-        request,
-        response,
-        (slowRequest, slowResponse) -> {
-          awaitInterrupt();
-          seen.add(timeLeft.timeLeft());
-        });
+        request, response, (slowRequest, slowResponse) -> seen.add(timeLeftAfterInterrupt()));
 
     assertThat(seen)
         .singleElement()
@@ -212,6 +204,23 @@ class ResponseTimeoutFilterTest {
             left ->
                 assertThat(left)
                     .hasValueSatisfying(passed -> assertThat(passed.isPositive()).isFalse()));
+  }
+
+  /**
+   * Starts the response, runs past the limit without being interrupted, and returns the time left
+   * then.
+   */
+  private Optional<Duration> timeLeftPastLimitOfStarted(ServletResponse streamingResponse)
+      throws IOException, ServletException {
+    streamingResponse.flushBuffer();
+    assertThat(blockWithoutInterrupt()).isFalse();
+    return timeLeft.timeLeft();
+  }
+
+  /** Waits for the filter's interrupt, then returns the time left. */
+  private Optional<Duration> timeLeftAfterInterrupt() {
+    awaitInterrupt();
+    return timeLeft.timeLeft();
   }
 
   /** Waits for the filter's interrupt, and keeps the thread's interrupted state. */

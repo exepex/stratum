@@ -67,27 +67,6 @@ public class DeadlineOrdersApplication {
     return new SimpleMeterRegistry();
   }
 
-  /**
-   * Waits without being cut short, as code that ignores interrupts does.
-   *
-   * @param millis how long to wait, in milliseconds
-   */
-  static void waitIgnoringInterrupt(long millis) {
-    var until = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(millis);
-    var neverReleased = new CountDownLatch(1);
-    var interrupted = false;
-    while (System.nanoTime() < until) {
-      try {
-        neverReleased.await(until - System.nanoTime(), TimeUnit.NANOSECONDS);
-      } catch (InterruptedException _) {
-        interrupted = true;
-      }
-    }
-    if (interrupted) {
-      Thread.currentThread().interrupt();
-    }
-  }
-
   /** The service's async work, which runs a slow query on the executor's thread. */
   @Component
   @RequiredArgsConstructor
@@ -163,6 +142,27 @@ public class DeadlineOrdersApplication {
       response.flushBuffer();
       waitIgnoringInterrupt(PAST_LIMIT_MILLIS);
       writer.write(jdbcTemplate.queryForObject(ANSWER, String.class));
+    }
+
+    /**
+     * Waits without being cut short, as code that ignores interrupts does.
+     *
+     * @param millis how long to wait, in milliseconds
+     */
+    private void waitIgnoringInterrupt(long millis) {
+      var until = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(millis);
+      var neverReleased = new CountDownLatch(1);
+      var interrupted = false;
+      while (System.nanoTime() < until) {
+        try {
+          neverReleased.await(until - System.nanoTime(), TimeUnit.NANOSECONDS);
+        } catch (InterruptedException _) {
+          interrupted = true;
+        }
+      }
+      if (interrupted) {
+        Thread.currentThread().interrupt();
+      }
     }
   }
 }

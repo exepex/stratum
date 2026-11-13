@@ -9,10 +9,13 @@ import static org.mockito.Mockito.when;
 
 import com.exepex.stratum.core.error.FailureCauses;
 import com.exepex.stratum.data.StatementLimitRule.LimitSource;
+import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -61,13 +64,33 @@ class RequestDeadlineLimitsTest {
 
   /** Runs the query through the boundary and returns what it threw. */
   private Throwable failureOfQuery() {
-    return catchThrowable(
-        () -> {
-          try (var connection = fixture.dataSource.getConnection();
-              var statement = connection.prepareStatement(QUERY)) {
-            statement.executeQuery();
-          }
-        });
+    return catchThrowable(this::runQuery);
+  }
+
+  /** Runs the query through the boundary, closing the statement and the connection. */
+  private void runQuery() throws SQLException {
+    try (var connection = fixture.dataSource.getConnection();
+        var statement = connection.prepareStatement(QUERY)) {
+      statement.executeQuery();
+    }
+  }
+
+  /** Lets the request's limit pass and the sweeper cancel, then fails as the driver does. */
+  private ResultSet passLimitThenFail() throws SQLException {
+    fixture.passLimitAndSweep(LIMIT_IN_ONE_SECOND);
+    throw CANCELLED;
+  }
+
+  /** Lets the time of a statement with that limit pass, then returns no rows. */
+  private @Nullable ResultSet passLimitThenReturn() {
+    fixture.passLimitAndSweep(LIMIT_IN_ONE_SECOND);
+    return null;
+  }
+
+  /** Hands out the connection after the request's time ran out during the wait. */
+  private Connection handOutLate() {
+    fixture.requestLeft.set(Optional.of(Duration.ofMillis(MARGIN_MILLIS - 1)));
+    return fixture.driverConnection;
   }
 
   /** Borrows a connection through the boundary and returns what the borrow threw. */
@@ -92,12 +115,7 @@ class RequestDeadlineLimitsTest {
     @DisplayName("is cancelled at the request's time left minus the margin, counted as request")
     void cancelledAtRequestLimit() throws SQLException {
       fixture.requestLeft.set(Optional.of(ONE_SECOND));
-      when(fixture.driverStatement.executeQuery())
-          .thenAnswer(
-              invocation -> {
-                fixture.passLimitAndSweep(LIMIT_IN_ONE_SECOND);
-                throw CANCELLED;
-              });
+      when(fixture.driverStatement.executeQuery()).thenAnswer(invocation -> passLimitThenFail());
 
       assertRequestTimeout(
           failureOfQuery(), "past its limit of " + LIMIT_IN_ONE_SECOND + " ms set by request");
@@ -120,12 +138,7 @@ class RequestDeadlineLimitsTest {
     @Test
     @DisplayName("has no request limit outside a request with a limit")
     void noRequestLimit() throws SQLException {
-      when(fixture.driverStatement.executeQuery())
-          .thenAnswer(
-              invocation -> {
-                fixture.passLimitAndSweep(LIMIT_IN_ONE_SECOND);
-                return null;
-              });
+      when(fixture.driverStatement.executeQuery()).thenAnswer(invocation -> passLimitThenReturn());
 
       assertThat(failureOfQuery()).isNull();
       assertThat(fixture.counted).isEmpty();
@@ -150,12 +163,7 @@ class RequestDeadlineLimitsTest {
     @DisplayName("that ran out of time while waiting returns the connection and sends no SQL")
     void returnsConnectionWhenLate() throws SQLException {
       fixture.requestLeft.set(Optional.of(ONE_SECOND));
-      when(fixture.pool.getConnection())
-          .thenAnswer(
-              invocation -> {
-                fixture.requestLeft.set(Optional.of(Duration.ofMillis(MARGIN_MILLIS - 1)));
-                return fixture.driverConnection;
-              });
+      when(fixture.pool.getConnection()).thenAnswer(invocation -> handOutLate());
 
       assertRequestTimeout(failureOfBorrow(), "no time was left to use a connection");
       verify(fixture.driverConnection).close();

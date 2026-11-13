@@ -17,6 +17,7 @@ import com.exepex.stratum.test.StarterTestSupport;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.sql.SQLException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
@@ -60,6 +61,13 @@ class StatementLimitsFactoryRequestTest {
     when(beanFactory.getBeanProvider(MeterRegistry.class)).thenReturn(meterRegistries);
     when(beanFactory.getBeanProvider(RequestTimeLeft.class)).thenReturn(requestTimeLeft);
     when(requestTimeLeft.getIfAvailable()).thenReturn(present ? () -> left : null);
+  }
+
+  /** Checks three borrows, before and after the pool, as three statements' borrows do. */
+  private void borrowThreeTimes(StatementLimits limits) throws SQLException {
+    limits.checkBorrow(false);
+    limits.checkBorrow(true);
+    limits.checkBorrow(false);
   }
 
   /** Returns what a borrow with the given time left throws, or {@code null}. */
@@ -145,13 +153,7 @@ class StatementLimitsFactoryRequestTest {
           new StatementLimitsFactory(
               new MockEnvironment(), beanFactory, Thread.currentThread().getContextClassLoader())) {
         var limits = factory.forPool("ordersDataSource");
-        assertThatCode(
-                () -> {
-                  limits.checkBorrow(false);
-                  limits.checkBorrow(true);
-                  limits.checkBorrow(false);
-                })
-            .doesNotThrowAnyException();
+        assertThatCode(() -> borrowThreeTimes(limits)).doesNotThrowAnyException();
       }
 
       verify(requestTimeLeft, times(1)).getIfAvailable();

@@ -62,9 +62,6 @@ public class StatementLimitsBenchmark {
   /** Reads the request's time left, as the web module's bean does. */
   private static final ThreadDeadline REQUEST = new ThreadDeadline();
 
-  /** The deadline margin Stratum takes off the request's time left, by default. */
-  private static final long MARGIN_MILLIS = 150;
-
   /** Runs the network timeout's work on the calling thread, as HikariCP's own executor does. */
   private static final Executor CALLING_THREAD = Runnable::run;
 
@@ -118,22 +115,6 @@ public class StatementLimitsBenchmark {
   @Threads(16)
   public int queryConcurrently(QueryConnection connection) throws SQLException {
     return connection.runQuery();
-  }
-
-  /** Returns the request's time left minus the margin, in milliseconds, as Stratum reads it. */
-  private static long requestMillis() {
-    return REQUEST.timeLeft().map(left -> left.toMillis() - MARGIN_MILLIS).orElse(Long.MAX_VALUE);
-  }
-
-  /**
-   * Fails when the request has no time left, as Stratum does before and after a borrow.
-   *
-   * @throws SQLException when no time is left, which never happens here
-   */
-  private static void checkRequest() throws SQLException {
-    if (requestMillis() <= 0) {
-      throw new SQLException("No time is left");
-    }
   }
 
   /**
@@ -211,11 +192,11 @@ public class StatementLimitsBenchmark {
      */
     Connection borrowAndReturn() throws SQLException {
       if (readsRequest) {
-        checkRequest();
+        REQUEST.checkTimeLeft();
       }
       try (Connection connection = pool.dataSource().getConnection()) {
         if (readsRequest) {
-          checkRequest();
+          REQUEST.checkTimeLeft();
         }
         if (setsNetworkTimeout) {
           connection.setNetworkTimeout(CALLING_THREAD, NETWORK_TIMEOUT_MILLIS);
@@ -341,7 +322,7 @@ public class StatementLimitsBenchmark {
           return timer.around(TIMER_LIMIT_MILLIS, () -> readOne(statement));
         }
         var limit =
-            readsRequest ? Math.min(TIMER_LIMIT_MILLIS, requestMillis()) : TIMER_LIMIT_MILLIS;
+            readsRequest ? Math.min(TIMER_LIMIT_MILLIS, REQUEST.millisLeft()) : TIMER_LIMIT_MILLIS;
         return usesSweeper
             ? sweeper.around(slot, limit, () -> readOne(statement))
             : readOne(statement);

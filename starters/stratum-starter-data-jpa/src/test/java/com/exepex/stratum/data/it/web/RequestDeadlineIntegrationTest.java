@@ -48,7 +48,7 @@ class RequestDeadlineIntegrationTest {
   private static final String WEB_TIMEOUT_CODE = "SX-WEB-1007";
 
   /** Returns the count of {@code stratum.data.timeouts} for one cause. */
-  private static double timeouts(MeterRegistry meterRegistry, String cause) {
+  private double timeouts(MeterRegistry meterRegistry, String cause) {
     var counter = meterRegistry.find(DataConstants.TIMEOUTS_METER).tag("cause", cause).counter();
     return counter == null ? 0 : counter.count();
   }
@@ -57,8 +57,7 @@ class RequestDeadlineIntegrationTest {
    * Calls an endpoint and checks it was answered with 503 and SX-DATA-1003, counted with the cause,
    * and not with the web module's own timeout.
    */
-  private static void checkDataTimeout(
-      int port, MeterRegistry meterRegistry, String path, String cause)
+  private void checkDataTimeout(int port, MeterRegistry meterRegistry, String path, String cause)
       throws IOException, InterruptedException {
     var before = timeouts(meterRegistry, cause);
 
