@@ -114,7 +114,8 @@ public final class RequestDeadline implements RequestTimeLeft {
 
   /**
    * Ends the request's time limit: the action never runs after this returns, and the time left is
-   * reported as no limit. Call it on the request's own thread when the request ends.
+   * reported as no limit. Call it on the request's own thread when the request ends, or from the
+   * action, once the response has started and so is never cut off.
    */
   @Synchronized
   public void end() {

@@ -109,6 +109,8 @@ public class RequestFieldsConfiguration {
 
   /**
    * Tells the service how long the request whose work runs on the calling thread has left.
+   * Stratum's data module reads it to end statements and connection borrows before the request's
+   * limit.
    *
    * @return the time left of the current request
    */

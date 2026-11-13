@@ -40,6 +40,9 @@ public class DataConstants {
   /** The property that limits how long one statement may run. */
   public static final String QUERY_TIMEOUT = PREFIX + ".query-timeout";
 
+  /** The property that keeps statements and borrows ahead of the web request's own limit. */
+  public static final String DEADLINE_MARGIN = PREFIX + ".deadline-margin";
+
   /**
    * The web module's map of error codes to HTTP statuses, where this module gives its own code a
    * default.
@@ -49,7 +52,7 @@ public class DataConstants {
   /** The HTTP status of a request whose statement Stratum cancelled: 503, Service Unavailable. */
   public static final int STATEMENT_TIMED_OUT_STATUS = 503;
 
-  /** The counter of the statements Stratum cancelled because they ran past their limit. */
+  /** The counter of the statements Stratum cancelled and the borrows it failed, out of time. */
   public static final String TIMEOUTS_METER = "stratum.data.timeouts";
 
   /** The name of the bean that wraps every data source in the JDBC boundary. */

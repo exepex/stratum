@@ -3,7 +3,7 @@ package com.exepex.stratum.data;
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.data.StatementLimitRule.LimitSource;
 
-/** Counts the statements Stratum cancelled, by data source bean and by what set the limit. */
+/** Counts the statements Stratum cancelled and the borrows it failed, by data source and cause. */
 @StratumInternal
 @FunctionalInterface
 public interface TimeoutCounter {
@@ -18,7 +18,7 @@ public interface TimeoutCounter {
       };
 
   /**
-   * Counts one cancelled statement.
+   * Counts one cancelled statement or failed borrow.
    *
    * @param pool the data source bean's name
    * @param source what set the limit

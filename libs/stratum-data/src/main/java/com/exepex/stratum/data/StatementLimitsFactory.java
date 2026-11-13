@@ -2,6 +2,7 @@ package com.exepex.stratum.data;
 
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.properties.BackwardCompatibleMode;
+import com.exepex.stratum.core.request.RequestTimeLeft;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Optional;
@@ -27,6 +28,9 @@ public class StatementLimitsFactory implements AutoCloseable {
 
   /** How long a statement may run when nothing sets a limit, outside backward-compatible mode. */
   private static final Duration STANDARD_QUERY_TIMEOUT = Duration.ofSeconds(30);
+
+  /** How much earlier than the web request's limit statements and borrows end, by default. */
+  private static final Duration STANDARD_DEADLINE_MARGIN = Duration.ofMillis(150);
 
   /** The longest limit kept, in milliseconds; a longer one is cut to it. */
   private static final Duration LONGEST_LIMIT = Duration.ofMillis(StatementSlot.MAX_DEADLINE);
@@ -91,6 +95,15 @@ public class StatementLimitsFactory implements AutoCloseable {
                 ? MeterTimeoutCounter.of(beanFactory)
                 : TimeoutCounter.NONE)
         .wallClock(Clock.systemUTC())
+        .requestTimeLeft(
+            SingletonSupplier.of(
+                () ->
+                    Optional.ofNullable(
+                        beanFactory.getBeanProvider(RequestTimeLeft.class).getIfAvailable())))
+        .marginMillis(
+            Optional.ofNullable(settings.obtain().deadlineMargin())
+                .orElse(STANDARD_DEADLINE_MARGIN)
+                .toMillis())
         .build();
   }
 

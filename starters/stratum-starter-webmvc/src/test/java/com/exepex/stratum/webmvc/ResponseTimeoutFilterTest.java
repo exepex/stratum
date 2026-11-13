@@ -158,7 +158,7 @@ class ResponseTimeoutFilterTest {
 
   @Test
   @DisplayName(
-      "a handler that started its response itself still reads its time left until it returns")
+      "a handler that started its response itself still reads its time left before the limit")
   void startedResponseKeepsTimeLeft() throws Exception {
     var seen = new ArrayList<Optional<Duration>>();
 
@@ -168,6 +168,59 @@ class ResponseTimeoutFilterTest {
         (streamingRequest, streamingResponse) -> seen.add(timeLeftAfterFlush(streamingResponse)));
 
     assertThat(seen).singleElement().satisfies(left -> assertThat(left).isPresent());
+  }
+
+  @Test
+  @Timeout(TEST_TIMEOUT_SECONDS)
+  @DisplayName(
+      "a handler that started its response reads no limit once the limit has passed, and is not"
+          + " interrupted")
+  void startedResponseHasNoLimitPastIt() throws Exception {
+    var seen = new ArrayList<Optional<Duration>>();
+
+    filter.doFilter(
+        request,
+        response,
+        (streamingRequest, streamingResponse) -> {
+          streamingResponse.flushBuffer();
+          assertThat(blockWithoutInterrupt()).isFalse();
+          seen.add(timeLeft.timeLeft());
+        });
+
+    assertThat(seen).containsExactly(Optional.empty());
+    assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
+    assertThat(Thread.currentThread().isInterrupted()).isFalse();
+  }
+
+  @Test
+  @Timeout(TEST_TIMEOUT_SECONDS)
+  @DisplayName("a handler whose response has not started still reads zero or less past the limit")
+  void unstartedResponseKeepsPassedLimit() throws Exception {
+    var seen = new ArrayList<Optional<Duration>>();
+
+    filter.doFilter(
+        request,
+        response,
+        (slowRequest, slowResponse) -> {
+          awaitInterrupt();
+          seen.add(timeLeft.timeLeft());
+        });
+
+    assertThat(seen)
+        .singleElement()
+        .satisfies(
+            left ->
+                assertThat(left)
+                    .hasValueSatisfying(passed -> assertThat(passed.isPositive()).isFalse()));
+  }
+
+  /** Waits for the filter's interrupt, and keeps the thread's interrupted state. */
+  private void awaitInterrupt() {
+    try {
+      new CountDownLatch(1).await(BLOCKED_MILLIS, TimeUnit.MILLISECONDS);
+    } catch (InterruptedException _) {
+      Thread.currentThread().interrupt();
+    }
   }
 
   /**

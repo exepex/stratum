@@ -4,13 +4,16 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.exepex.stratum.core.request.RequestTimeLeft;
 import com.exepex.stratum.data.StatementLimitRule.LimitSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -18,9 +21,9 @@ import javax.sql.DataSource;
 
 /**
  * A data source with statement limits around mocks of a pool, a connection and a statement, on a
- * clock the test moves, with a sweeper that runs each cancel at once. It sits in the boundary's
- * package, since the limits and the sweeper are built there, and is shared by the tests of the
- * limits and of the connection.
+ * clock the test moves, with a sweeper that runs each cancel at once, and a web request whose time
+ * left the test sets: none until then. It sits in the boundary's package, since the limits and the
+ * sweeper are built there, and is shared by the tests of the limits and of the connection.
  */
 final class StatementLimitsFixture {
 
@@ -29,6 +32,15 @@ final class StatementLimitsFixture {
 
   /** The pool's query-timeout: 30 seconds. */
   static final long POOL_MILLIS = 30_000;
+
+  /** The deadline margin: 150 milliseconds, the default. */
+  static final long MARGIN_MILLIS = 150;
+
+  /** The time left of the web request on the thread; empty for no request limit. */
+  final AtomicReference<Optional<Duration>> requestLeft = new AtomicReference<>(Optional.empty());
+
+  /** The pool, which hands out the connection. */
+  final DataSource pool = mock(DataSource.class);
 
   /** The sweeper's clock, which only moves when a test moves it. */
   final AtomicLong now = new AtomicLong(1_000);
@@ -71,7 +83,6 @@ final class StatementLimitsFixture {
       boolean backwardCompatible, long cancelWaitMillis, Consumer<Runnable> cancelStarter)
       throws SQLException {
     sweeper = new StatementSweeper(now::get, cancelStarter);
-    var pool = mock(DataSource.class);
     when(pool.getConnection()).thenReturn(driverConnection);
     when(driverConnection.prepareStatement(anyString())).thenReturn(driverStatement);
     var wrapped = new AtomicReference<DataSource>();
@@ -85,6 +96,8 @@ final class StatementLimitsFixture {
             .counter((name, source) -> counted.add(name + "/" + source.getTag()))
             .wallClock(Clock.systemUTC())
             .cancelWaitMillis(cancelWaitMillis)
+            .requestTimeLeft(() -> Optional.<RequestTimeLeft>of(requestLeft::get))
+            .marginMillis(MARGIN_MILLIS)
             .build();
     dataSource =
         new JdbcBoundary(new JdbcWrapperClasses(), List.of()).withLimits(limits).wrap(pool);

@@ -338,7 +338,7 @@ Each bean below is Stratum's only until you declare your own:
 | `CorrelationIdBaggageDecorator` | What writes a caller's correlation ID into the request's baggage before tracing reads it |
 | `RequestLogWebFilter` or `RequestLogWriter` | The filter that writes each request's log line, or what the line holds |
 | `RequestFieldsReader`, `CorrelationIdChooser` or `RequestFieldsPropagation` | How the fields are read, how the correlation ID is chosen, or how the fields follow the request across threads |
-| `RequestTimeLeft` | How the time left of the current request is read ([read the time left](../../docs/modules/web-timeouts.md#read-the-time-left)) |
+| `RequestTimeLeft` | How the time left of the current request is read; the data starter reads it to end statements before the request's limit ([read the time left](../../docs/modules/web-timeouts.md#read-the-time-left)) |
 
 Stratum's error auto-configuration is ordered before Spring Boot's `ErrorWebFluxAutoConfiguration`, because its
 error attributes and error handler replace Spring Boot's. Your own beans, and those of a company framework whose

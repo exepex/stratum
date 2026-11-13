@@ -17,10 +17,14 @@ import org.springframework.core.env.Environment;
  *     that runs it sets no time limit of its own. A statement in a transaction with a time limit
  *     ends by that limit too. 0 means no limit. Defaults to 30s, or to 0 with
  *     stratum.backward-compatible=true.
+ * @param deadlineMargin How much earlier than the web request's time limit its statements and
+ *     connection borrows must end, so that a slow statement is cancelled and answered before the
+ *     web module has to interrupt the request. A statement in a web request with a time limit ends
+ *     by that limit minus this margin. Defaults to 150ms.
  */
 @Builder(toBuilder = true)
 @ConfigurationProperties(prefix = DataConstants.PREFIX)
-public record DataProperties(@Nullable Duration queryTimeout) {
+public record DataProperties(@Nullable Duration queryTimeout, @Nullable Duration deadlineMargin) {
 
   /**
    * Returns the settings the module uses: {@code stratum.data.*} with the defaults for anything
@@ -46,5 +50,16 @@ public record DataProperties(@Nullable Duration queryTimeout) {
   @AssertTrue
   public boolean isQueryTimeoutNotNegative() {
     return queryTimeout == null || !queryTimeout.isNegative();
+  }
+
+  /**
+   * Returns whether {@code deadline-margin}, when set, is 0 or more. Validation reports a negative
+   * value as {@code stratum.data.deadline-margin-not-negative breaks @AssertTrue}.
+   *
+   * @return whether the margin is not negative
+   */
+  @AssertTrue
+  public boolean isDeadlineMarginNotNegative() {
+    return deadlineMargin == null || !deadlineMargin.isNegative();
   }
 }

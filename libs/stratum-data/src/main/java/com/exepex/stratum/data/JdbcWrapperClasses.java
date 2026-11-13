@@ -81,6 +81,9 @@ public final class JdbcWrapperClasses {
   /** The start of the name of every statement method that runs SQL. */
   private static final String EXECUTE = "execute";
 
+  /** The name of the data source methods that borrow a connection. */
+  private static final String GET_CONNECTION = "getConnection";
+
   /** The name ending of every generated class, so that a stack trace shows where it came from. */
   private static final String SUFFIX = "$StratumBoundary$";
 
@@ -184,12 +187,18 @@ public final class JdbcWrapperClasses {
             .implement(type);
     var advice = adviceOf(CleanErrorsAdvice.class);
     var limitAdvice = adviceOf(StatementLimitAdvice.class);
+    var borrowAdvice = adviceOf(BorrowLimitAdvice.class);
     for (var method : delegatedMethods(type, base)) {
-      var cleaned = advice.wrap(callOf(method));
+      Implementation call = advice.wrap(callOf(method));
+      if (isLimited(base, method)) {
+        call = limitAdvice.wrap(call);
+      } else if (isBorrow(base, method)) {
+        call = borrowAdvice.wrap(call);
+      }
       builder =
           builder
               .method(named(method.getName()).and(takesArguments(method.getParameterTypes())))
-              .intercept(isLimited(base, method) ? limitAdvice.wrap(cleaned) : cleaned);
+              .intercept(call);
     }
     return load(builder).asSubclass(JdbcWrapper.class);
   }
@@ -199,12 +208,20 @@ public final class JdbcWrapperClasses {
     if (Statement.class.isAssignableFrom(type)) {
       return StatementWrapper.class;
     }
+    if (type == DataSource.class) {
+      return DataSourceWrapper.class;
+    }
     return type == Connection.class ? ConnectionWrapper.class : JdbcWrapper.class;
   }
 
   /** Returns whether a method runs under the statement's time limit: a statement's execute. */
   private boolean isLimited(Class<?> base, Method method) {
     return base == StatementWrapper.class && method.getName().startsWith(EXECUTE);
+  }
+
+  /** Returns whether a method borrows a connection: a data source's {@code getConnection}. */
+  private boolean isBorrow(Class<?> base, Method method) {
+    return base == DataSourceWrapper.class && GET_CONNECTION.equals(method.getName());
   }
 
   /** Returns the advice of a class, which can replace what the call throws. */

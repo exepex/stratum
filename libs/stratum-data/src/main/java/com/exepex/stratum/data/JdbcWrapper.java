@@ -121,12 +121,17 @@ public abstract class JdbcWrapper implements Wrapper {
   }
 
   /**
-   * Returns the clean copy of what a call threw, for the generated code to rethrow.
+   * Returns the clean copy of what a call threw, for the generated code to rethrow. Stratum's own
+   * {@link StatementTimeoutException}, such as a borrow that ran out of time, is clean already and
+   * keeps its type and its code.
    *
    * @param failure what the call threw
    * @return the clean copy of an {@code SQLException}, or the failure itself
    */
   Throwable cleanedFailure(Throwable failure) {
+    if (failure instanceof StatementTimeoutException) {
+      return failure;
+    }
     return failure instanceof SQLException sqlFailure ? boundary.cleaned(sqlFailure) : failure;
   }
 }

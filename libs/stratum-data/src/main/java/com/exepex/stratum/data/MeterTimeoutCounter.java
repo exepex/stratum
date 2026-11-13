@@ -8,10 +8,10 @@ import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.ObjectProvider;
 
 /**
- * Counts the cancelled statements in the counter {@code stratum.data.timeouts}, tagged with {@code
- * pool}, the data source bean, and {@code cause}: {@code transaction}, {@code query-timeout} or
- * {@code caller}. The registry is looked up at the first count, since the boundary is set up before
- * any meter registry exists.
+ * Counts the cancelled statements and the failed borrows in the counter {@code
+ * stratum.data.timeouts}, tagged with {@code pool}, the data source bean, and {@code cause}: {@code
+ * transaction}, {@code query-timeout}, {@code caller} or {@code request}. The registry is looked up
+ * at the first count, since the boundary is set up before any meter registry exists.
  */
 @StratumInternal
 @RequiredArgsConstructor
@@ -32,7 +32,7 @@ public class MeterTimeoutCounter implements TimeoutCounter {
   }
 
   /**
-   * Counts one cancelled statement, when the application has a meter registry.
+   * Counts one cancelled statement or failed borrow, when the application has a meter registry.
    *
    * @param pool the data source bean's name
    * @param source what set the limit

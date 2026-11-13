@@ -3,13 +3,16 @@ package com.exepex.stratum.data;
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.error.ErrorReport;
 import com.exepex.stratum.core.error.StratumException;
+import com.exepex.stratum.core.request.RequestTimeLeft;
 import com.exepex.stratum.data.StatementLimitRule.Limit;
 import com.exepex.stratum.data.StatementLimitRule.LimitSource;
 import com.exepex.stratum.data.StatementLimitRule.TimeLeft;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Clock;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Supplier;
 import javax.sql.DataSource;
 import lombok.AccessLevel;
@@ -19,9 +22,10 @@ import org.springframework.jdbc.datasource.ConnectionHolder;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
- * The time limits of one data source bean's statements: it decides each statement's limit, writes
- * its deadline into the connection's slot for the {@link StatementSweeper}, and turns a statement
- * the sweeper cancelled into a {@link StatementTimeoutException}. It never logs.
+ * The time limits of one data source bean's statements and borrows: it decides each statement's
+ * limit, writes its deadline into the connection's slot for the {@link StatementSweeper}, turns a
+ * statement the sweeper cancelled into a {@link StatementTimeoutException}, and fails a borrow once
+ * the web request it serves has no time left. It never logs.
  */
 @StratumInternal
 @Builder(access = AccessLevel.PACKAGE)
@@ -53,6 +57,16 @@ public class StatementLimits {
 
   /** The wall clock a transaction's deadline is set on. */
   private final Clock wallClock;
+
+  /**
+   * Reads the time left of the web request on the calling thread; looked up once, on first use, and
+   * empty without the web module.
+   */
+  @Builder.Default
+  private final Supplier<Optional<RequestTimeLeft>> requestTimeLeft = Optional::empty;
+
+  /** How much earlier than the web request's limit its statements and borrows must end, in ms. */
+  private final long marginMillis;
 
   /**
    * How long a statement the sweeper cancelled waits for the cancel to end before it fails anyway:
@@ -88,6 +102,32 @@ public class StatementLimits {
    */
   int borrowNetworkTimeout() {
     return poolMillis > 0 ? networkTimeoutFor(poolMillis) : 0;
+  }
+
+  /**
+   * Fails a borrow when the web request it serves has no time left: its time left minus the margin
+   * is 0 or less. Called before the pool is asked, and again once it has handed out the connection,
+   * so a connection borrowed too late is returned before any SQL is sent.
+   *
+   * @param borrowed whether the pool has already handed out the connection
+   * @throws SQLException {@code SX-DATA-1003} when no time is left
+   */
+  void checkBorrow(boolean borrowed) throws SQLException {
+    var left = requestDeadline();
+    if (left == null || left.millis() > 0) {
+      return;
+    }
+    counter.count(pool, LimitSource.REQUEST);
+    throw timedOut(
+        ("%s: no time was left %s a connection: the request's time left minus the margin of %d ms"
+                + " was %d ms, on data source %s")
+            .formatted(
+                DataErrorCode.STATEMENT_TIMED_OUT.getCode(),
+                borrowed ? "to use" : "to borrow",
+                marginMillis,
+                left.millis(),
+                pool),
+        null);
   }
 
   /**
@@ -157,10 +197,31 @@ public class StatementLimits {
         && StatementTimeoutException.CANCELLED.equals(failure.getSQLState());
   }
 
-  /** Returns the time left before the deadline of the transaction the statement runs in. */
+  /**
+   * Returns the time left before each deadline the statement runs under: the transaction's and the
+   * web request's, each when there is one.
+   */
   private List<TimeLeft> deadlines() {
+    var transaction = transactionDeadline();
+    var request = requestDeadline();
+    if (transaction == null || request == null) {
+      return transaction != null ? List.of(transaction) : listOf(request);
+    }
+    var both = new ArrayList<TimeLeft>(2);
+    both.add(transaction);
+    both.add(request);
+    return both;
+  }
+
+  /** Returns a list of the one deadline, or an empty list. */
+  private static List<TimeLeft> listOf(@Nullable TimeLeft deadline) {
+    return deadline == null ? List.of() : List.of(deadline);
+  }
+
+  /** Returns the time left before the deadline of the transaction the statement runs in. */
+  private @Nullable TimeLeft transactionDeadline() {
     if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-      return List.of();
+      return null;
     }
     var deadline =
         TransactionSynchronizationManager.getResource(outermost.get())
@@ -168,26 +229,43 @@ public class StatementLimits {
             ? holder.getDeadline()
             : null;
     return deadline == null
-        ? List.of()
-        : List.of(new TimeLeft(deadline.getTime() - wallClock.millis(), LimitSource.TRANSACTION));
+        ? null
+        : new TimeLeft(deadline.getTime() - wallClock.millis(), LimitSource.TRANSACTION);
   }
 
-  /**
-   * Returns the exception of a statement past its limit. Outside compatible mode its cause is a
-   * {@code StratumException} with {@code SX-DATA-1003} and no detail, which the web starters answer
-   * with; a {@code SQLException} cannot carry the code itself, since its {@code getErrorCode()} is
-   * the vendor's number.
-   */
+  /** Returns the web request's time left minus the margin, or none outside a limited request. */
+  private @Nullable TimeLeft requestDeadline() {
+    var reader = requestTimeLeft.get();
+    if (reader.isEmpty()) {
+      return null;
+    }
+    var left = reader.get().timeLeft();
+    return left.isEmpty()
+        ? null
+        : new TimeLeft(left.get().toMillis() - marginMillis, LimitSource.REQUEST);
+  }
+
+  /** Returns the exception of a statement past its limit. */
   private StatementTimeoutException timedOut(
       Limit limit, long runMillis, @Nullable Throwable driverFailure) {
-    var message =
+    return timedOut(
         "%s: the statement ran %d ms, past its limit of %d ms set by %s, on data source %s"
             .formatted(
                 DataErrorCode.STATEMENT_TIMED_OUT.getCode(),
                 runMillis,
                 Math.max(limit.millis(), 0),
                 limit.source().getTag(),
-                pool);
+                pool),
+        driverFailure);
+  }
+
+  /**
+   * Returns the exception of a statement or borrow out of time. Outside compatible mode its cause
+   * is a {@code StratumException} with {@code SX-DATA-1003} and no detail, which the web starters
+   * answer with; a {@code SQLException} cannot carry the code itself, since its {@code
+   * getErrorCode()} is the vendor's number.
+   */
+  private StatementTimeoutException timedOut(String message, @Nullable Throwable driverFailure) {
     if (backwardCompatible) {
       return new StatementTimeoutException(message, driverFailure);
     }
