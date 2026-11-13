@@ -1,6 +1,6 @@
 package com.exepex.stratum.data.it;
 
-import static com.exepex.stratum.data.testsupport.DataAssertions.chainOf;
+import static com.exepex.stratum.test.DatabaseFailureAssertions.chainOf;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;

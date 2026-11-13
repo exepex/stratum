@@ -1,0 +1,71 @@
+package com.exepex.stratum.data;
+
+import com.exepex.stratum.core.api.StratumInternal;
+import com.exepex.stratum.core.condition.StratumModuleSwitch;
+import com.exepex.stratum.core.properties.BackwardCompatibleMode;
+import com.exepex.stratum.core.properties.StratumDefaults;
+import java.util.Map;
+import org.springframework.boot.EnvironmentPostProcessor;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.context.config.ConfigDataEnvironmentPostProcessor;
+import org.springframework.core.Ordered;
+import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.util.ClassUtils;
+
+/**
+ * Gives Spring Boot's pool and transaction settings Stratum's defaults unless {@code
+ * stratum.data.enabled=false}. In both modes, a caller waits at most 3 seconds for a connection.
+ * With {@code stratum.backward-compatible=false}, its default, every transaction has 60 seconds,
+ * except when Spring Batch is present, whose jobs run longer. Every value the service sets for
+ * these Spring Boot keys wins. In both modes, startup stops when the service sets a leak alarm
+ * threshold that HikariCP would turn off.
+ */
+@StratumInternal
+public class DataEnvironmentPostProcessor implements EnvironmentPostProcessor, Ordered {
+
+  /** The default that changes nothing a consumer of the service sees, so applies in both modes. */
+  private static final Map<String, Object> INTERNAL_DEFAULTS =
+      Map.of(DataConstants.CONNECTION_TIMEOUT, 3000);
+
+  /** The transaction time limit, external too, which Spring Batch jobs would outlive. */
+  private static final Map<String, Object> TRANSACTION_TIMEOUT =
+      Map.of(DataConstants.TRANSACTION_TIMEOUT, "60s");
+
+  /** Checks the leak alarm threshold the service set. */
+  private final LeakAlarmCheck leakAlarmCheck = new LeakAlarmCheck();
+
+  /**
+   * Runs right after the configuration files are read, so that the module switch and the mode are
+   * known.
+   *
+   * @return the order
+   */
+  @Override
+  public int getOrder() {
+    return ConfigDataEnvironmentPostProcessor.ORDER + 1;
+  }
+
+  /**
+   * Adds the defaults below the service's own values: the pool wait when the module is on, and the
+   * transaction limit when {@code stratum.backward-compatible} is off too. Then it checks the leak
+   * alarm threshold the service set.
+   *
+   * @param environment the application's environment
+   * @param application the application being started, whose class loader shows Spring Batch
+   * @throws com.exepex.stratum.core.error.StratumException {@code SX-DATA-1002} if HikariCP would
+   *     turn the leak alarm off
+   */
+  @Override
+  public void postProcessEnvironment(
+      ConfigurableEnvironment environment, SpringApplication application) {
+    if (!StratumModuleSwitch.isEnabled(environment, DataConstants.MODULE)) {
+      return;
+    }
+    StratumDefaults.addBelowServiceValues(environment, INTERNAL_DEFAULTS);
+    if (!BackwardCompatibleMode.isOn(environment)
+        && !ClassUtils.isPresent(DataConstants.SPRING_BATCH_JOB, application.getClassLoader())) {
+      StratumDefaults.addBelowServiceValues(environment, TRANSACTION_TIMEOUT);
+    }
+    leakAlarmCheck.check(environment);
+  }
+}

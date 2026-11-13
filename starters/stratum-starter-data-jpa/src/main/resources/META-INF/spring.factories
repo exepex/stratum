@@ -1,4 +1,5 @@
 org.springframework.boot.EnvironmentPostProcessor=\
-com.exepex.stratum.data.DataEnvironmentPostProcessor
+com.exepex.stratum.data.DataEnvironmentPostProcessor,\
+com.exepex.stratum.datajpa.DataJpaEnvironmentPostProcessor
 org.springframework.boot.diagnostics.FailureAnalyzer=\
-com.exepex.stratum.data.SchemaValidationFailureAnalyzer
+com.exepex.stratum.datajpa.SchemaValidationFailureAnalyzer

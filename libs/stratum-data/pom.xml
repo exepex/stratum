@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>io.github.exepex.stratum</groupId>
+    <artifactId>stratum-library-parent</artifactId>
+    <version>${revision}</version>
+    <relativePath>../../platform/stratum-library-parent/pom.xml</relativePath>
+  </parent>
+
+  <artifactId>stratum-data</artifactId>
+
+  <name>Stratum data</name>
+  <description>What every Stratum data starter shares: the JDBC boundary and safe defaults for the connection pool and transactions.</description>
+
+  <!-- Only partly built, so not published to Maven Central yet and not in stratum-bom
+       (docs/contributing.md#publishing). -->
+  <properties>
+    <skipPublishing>true</skipPublishing>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>io.github.exepex.stratum</groupId>
+      <artifactId>stratum-core</artifactId>
+    </dependency>
+    <!-- Spring Boot's own JDBC starter: the HikariCP pool and Spring's JDBC support that this
+         module gives its defaults, without Hibernate ORM. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-jdbc</artifactId>
+    </dependency>
+    <!-- Generates the JDBC boundary's wrappers once at startup, so no JDBC call reflects. -->
+    <dependency>
+      <groupId>net.bytebuddy</groupId>
+      <artifactId>byte-buddy</artifactId>
+    </dependency>
+    <!-- Micrometer, optional: the boundary counts the statements it cancels in
+         stratum.data.timeouts when a service has a meter registry. -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-core</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <!-- The PostgreSQL driver, optional: the boundary reads the violated constraint's name from its
+         errors when a service brings it. -->
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <!-- Spring Boot's Flyway support, optional: its customizer is where the boundary wraps the
+         connection Boot builds for Flyway. A service brings it with spring-boot-starter-flyway. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-flyway</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <!-- Liquibase, optional: its SpringLiquibase bean holds the connection the boundary wraps. A
+         service brings it with spring-boot-starter-liquibase. -->
+    <dependency>
+      <groupId>org.liquibase</groupId>
+      <artifactId>liquibase-core</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <!-- The checks and set-up that every module's tests share, and the PostgreSQL container that
+         stratum-test declares optional, for the benchmarks. -->
+    <dependency>
+      <groupId>io.github.exepex.stratum</groupId>
+      <artifactId>stratum-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-testcontainers</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Spring Batch on the classpath, to prove that the module then sets no transaction timeout.
+         Services bring their own. -->
+    <dependency>
+      <groupId>org.springframework.batch</groupId>
+      <artifactId>spring-batch-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Flyway and Liquibase as a service adds them, to prove their connections get the boundary. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-flyway</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-liquibase</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Hibernate ORM, only to prove that Hibernate's PostgreSQL dialect still reads the name of the
+         violated constraint from the boundary's clean errors, as the data JPA starter needs. -->
+    <dependency>
+      <groupId>org.hibernate.orm</groupId>
+      <artifactId>hibernate-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- JMH, for the JDBC boundary's benchmark, which only the benchmark profile below runs. -->
+    <dependency>
+      <groupId>org.openjdk.jmh</groupId>
+      <artifactId>jmh-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <profiles>
+    <!-- Measures what the JDBC boundary adds to each JDBC call, and what the statement limits'
+         pool and driver settings cost, against the raw pool, on a PostgreSQL container. Run on
+         demand only; docs/contributing.md gives the command, and jmh.benchmarks picks one. -->
+    <profile>
+      <id>benchmark</id>
+      <properties>
+        <jmh.benchmarks>JdbcBoundaryBenchmark|StatementLimitsBenchmark|StatementTimerBenchmark|StatementSweeperBenchmark</jmh.benchmarks>
+      </properties>
+      <build>
+        <plugins>
+          <!-- JMH's generator, added to the processors the library parent lists, so that the test
+               compile writes the benchmark code and META-INF/BenchmarkList. -->
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+              <annotationProcessorPaths combine.children="append">
+                <path>
+                  <groupId>org.openjdk.jmh</groupId>
+                  <artifactId>jmh-generator-annprocess</artifactId>
+                </path>
+              </annotationProcessorPaths>
+            </configuration>
+          </plugin>
+          <!-- antrun launches JMH because Spring Boot already manages it, so the build needs no new
+               plugin (ST-ENG-62). It passes no argLine, so JaCoCo's agent stays out of the
+               benchmark, and -jvmArgs stops JMH's forks from copying this JVM's arguments. -->
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-antrun-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>stratum-jmh</id>
+                <phase>integration-test</phase>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+                <configuration>
+                  <target>
+                    <java classname="org.openjdk.jmh.Main" classpathref="maven.test.classpath"
+                        fork="true" failonerror="true">
+                      <arg value="-jvmArgs"/>
+                      <arg value="-Xms1g -Xmx1g"/>
+                      <arg value="-rf"/>
+                      <arg value="json"/>
+                      <arg value="-rff"/>
+                      <arg value="${project.build.directory}/jmh-result.json"/>
+                      <arg value="${jmh.benchmarks}"/>
+                    </java>
+                  </target>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+</project>

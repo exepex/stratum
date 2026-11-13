@@ -39,6 +39,7 @@ stratum/
 │                                   # and skips FindSecBugs' SPRING_ENDPOINT pattern
 ├── libs/
 │   ├── stratum-core/               # shared internals: constants, property defaults
+│   ├── stratum-data/               # what every data starter shares: the JDBC boundary, pool defaults
 │   ├── stratum-redaction/          # the masking rules that logs and span URLs share
 │   ├── stratum-http-client/        # what both HTTP client starters share: @StratumClient, settings, codes
 │   ├── stratum-test/               # test support for services
