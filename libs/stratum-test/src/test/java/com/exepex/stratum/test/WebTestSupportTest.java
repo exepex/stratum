@@ -163,18 +163,20 @@ class WebTestSupportTest {
     @DisplayName("checkTimeLeftUpTo passes a time within the limit and fails one above it")
     void checksTimeLeft() {
       WebTestSupport.checkTimeLeftUpTo(answer("1500"), LIMIT_MILLIS);
+      var aboveLimit = answer("2500");
 
       assertThatExceptionOfType(AssertionError.class)
-          .isThrownBy(() -> WebTestSupport.checkTimeLeftUpTo(answer("2500"), LIMIT_MILLIS));
+          .isThrownBy(() -> WebTestSupport.checkTimeLeftUpTo(aboveLimit, LIMIT_MILLIS));
     }
 
     @Test
     @DisplayName("checkNoTimeLimit passes no limit and fails a time")
     void checksNoLimit() {
       WebTestSupport.checkNoTimeLimit(answer(WebTestSupport.NO_TIME_LIMIT));
+      var withTimeLeft = answer("1500");
 
       assertThatExceptionOfType(AssertionError.class)
-          .isThrownBy(() -> WebTestSupport.checkNoTimeLimit(answer("1500")));
+          .isThrownBy(() -> WebTestSupport.checkNoTimeLimit(withTimeLeft));
     }
 
     /** Returns an answer with status 200 and the body. */
