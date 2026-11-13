@@ -22,7 +22,7 @@ import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.mock.env.MockEnvironment;
 
 @DisplayName(
-    "DataEnvironmentPostProcessor gives Spring Boot's pool and transaction settings Stratum's defaults")
+    "DataEnvironmentPostProcessor gives the pool and transaction settings Stratum's defaults")
 class DataEnvironmentPostProcessorTest {
 
   // The keys are spelled out here, so a misspelt key in the module fails the tests.

@@ -91,9 +91,10 @@ class DatabaseFailureAssertionsTest {
     void returnsFirstSqlException() {
       var database = new SQLException(CLEAN);
 
-      assertThat(
-              DatabaseFailureAssertions.sqlExceptionIn(new IllegalStateException("top", database)))
-          .isSameAs(database);
+      Throwable found =
+          DatabaseFailureAssertions.sqlExceptionIn(new IllegalStateException("top", database));
+
+      assertThat(found).isSameAs(database);
     }
 
     @Test

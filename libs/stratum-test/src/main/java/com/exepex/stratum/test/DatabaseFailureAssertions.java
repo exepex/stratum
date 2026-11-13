@@ -2,9 +2,9 @@ package com.exepex.stratum.test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ch.qos.logback.classic.spi.ThrowableProxy;
+import ch.qos.logback.classic.spi.ThrowableProxyUtil;
 import com.exepex.stratum.core.api.StratumInternal;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.sql.SQLException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -60,16 +60,15 @@ public class DatabaseFailureAssertions {
   }
 
   /**
-   * Checks that a value appears in no message, no {@code toString()} and no printed stack trace of
-   * a failure and of every failure in its chain: causes, suppressed and next exceptions.
+   * Checks that a value appears in no message, no {@code toString()} and no stack trace, as Logback
+   * prints it, of a failure and of every failure in its chain: causes, suppressed and next
+   * exceptions.
    *
    * @param failure the failure the service sees
    * @param value the value that must not appear
    */
   public static void assertChainCarriesNo(Throwable failure, String value) {
-    var printed = new StringWriter();
-    failure.printStackTrace(new PrintWriter(printed));
-    assertThat(printed.toString()).doesNotContain(value);
+    assertThat(ThrowableProxyUtil.asString(new ThrowableProxy(failure))).doesNotContain(value);
     chainOf(failure).forEach(member -> assertCarriesNo(member, value));
   }
 
