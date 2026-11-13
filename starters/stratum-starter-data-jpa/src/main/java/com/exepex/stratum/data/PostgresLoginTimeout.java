@@ -1,10 +1,7 @@
 package com.exepex.stratum.data;
 
-import java.util.Properties;
 import lombok.experimental.UtilityClass;
 import org.jspecify.annotations.Nullable;
-import org.springframework.core.env.Environment;
-import org.springframework.jdbc.datasource.SimpleDriverDataSource;
 
 /**
  * Gives a connection to PostgreSQL a login limit, unless the service set its own. The PostgreSQL
@@ -23,7 +20,7 @@ class PostgresLoginTimeout {
   private static final String URL_PREFIX = "jdbc:postgresql:";
 
   /** HikariCP's own wait when the service sets none, in milliseconds. */
-  private static final long HIKARI_DEFAULT_MS = 30_000;
+  static final long HIKARI_DEFAULT_MS = 30_000;
 
   /** What HikariCP adds before it turns its wait into whole seconds of login limit. */
   private static final long ROUNDING_MS = 500;
@@ -61,33 +58,5 @@ class PostgresLoginTimeout {
    */
   String seconds(long connectionTimeoutMs) {
     return String.valueOf(Math.max(1, (ROUNDING_MS + connectionTimeoutMs) / MS_PER_SECOND));
-  }
-
-  /**
-   * Gives the connection Spring Boot builds for Flyway or Liquibase the login limit of Boot's pool,
-   * {@code spring.datasource.hikari.connection-timeout}, unless its properties hold their own.
-   *
-   * @param connection the migration's connection
-   * @param environment the application's environment, or {@code null} for HikariCP's default wait
-   */
-  void limit(SimpleDriverDataSource connection, @Nullable Environment environment) {
-    long connectionTimeoutMs =
-        environment == null
-            ? HIKARI_DEFAULT_MS
-            : environment.getProperty(
-                DataConstants.CONNECTION_TIMEOUT, Long.class, HIKARI_DEFAULT_MS);
-    var current = connection.getConnectionProperties();
-    if (!appliesTo(connection.getUrl())
-        || unlimited(connectionTimeoutMs)
-        || current != null && current.containsKey(LOGIN_TIMEOUT)) {
-      return;
-    }
-    // Boot builds this connection with no properties at all, so they are created here.
-    var properties = new Properties();
-    if (current != null) {
-      properties.putAll(current);
-    }
-    properties.setProperty(LOGIN_TIMEOUT, seconds(connectionTimeoutMs));
-    connection.setConnectionProperties(properties);
   }
 }
