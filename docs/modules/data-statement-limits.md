@@ -70,6 +70,8 @@ once. Over a real network, add a round trip and TLS to each cancel.
 A connection borrow is checked too, with the same request time left minus the margin: before the
 pool is asked, and again once it has handed out the connection. A borrow with no time left fails
 with `SX-DATA-1003`; a connection borrowed too late goes back to the pool before any SQL is sent.
+The wait for a free connection itself is not cut short: it ends by HikariCP's own
+`connection-timeout`, 3 seconds by default, or on Spring MVC by the web module's interrupt.
 
 - The request's deadline reaches the threads the web module carries it to: the request's own
   thread, WebFlux operators, and `@Async` work on executors that carry the context. See

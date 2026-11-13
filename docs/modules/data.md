@@ -333,15 +333,18 @@ such as `hikaricp.connections.pending`, come from Spring Boot.
 
 ## Configure in Java
 
-`stratum.data.query-timeout` and `stratum.data.deadline-margin` can also be set in Java, through a `DataPropertiesCustomizer` class,
-and Java wins over the files:
+`stratum.data.query-timeout` and `stratum.data.deadline-margin` can also be set in Java, through a
+`DataPropertiesCustomizer` class, and Java wins over the files:
 
 ```java
 public class OrdersDataSettings implements DataPropertiesCustomizer {
 
   @Override
   public DataProperties customize(DataProperties properties) {
-    return properties.toBuilder().queryTimeout(Duration.ofSeconds(10)).build();
+    return properties.toBuilder()
+        .queryTimeout(Duration.ofSeconds(10))
+        .deadlineMargin(Duration.ofMillis(300))
+        .build();
   }
 }
 ```

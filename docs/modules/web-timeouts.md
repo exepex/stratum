@@ -237,8 +237,9 @@ The deadline reaches these places, and no others:
 | A `Callable` or `DeferredResult` handler | No limit once the handler method has returned, because the limit ends then; a `Callable` that starts before that can read the time left for that moment |
 | Any of these, once the request has ended | No limit. On WebFlux the request ends when its response starts. On Spring MVC it ends when the handler returns, or when its limit passes after its response has started: a handler that starts its response itself, with `flushBuffer()` or by writing to the output stream, reads its time left until the limit, and no limit after it |
 
-Stratum's data module reads it to end each SQL statement, and each wait for a pooled connection,
-before the request's limit; see [Statement time limits](data-statement-limits.md#in-a-web-request).
+Stratum's data module reads it to end each SQL statement before the request's limit, and to fail a
+connection borrow, before and after the pool's wait, once no time is left; see
+[Statement time limits](data-statement-limits.md#in-a-web-request).
 To read the time left in your own way, declare a bean of type `RequestTimeLeft`; Stratum's backs
 off, and the data module reads yours.
 

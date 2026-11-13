@@ -214,7 +214,7 @@ public class StatementLimits {
   }
 
   /** Returns a list of the one deadline, or an empty list. */
-  private static List<TimeLeft> listOf(@Nullable TimeLeft deadline) {
+  private List<TimeLeft> listOf(@Nullable TimeLeft deadline) {
     return deadline == null ? List.of() : List.of(deadline);
   }
 
