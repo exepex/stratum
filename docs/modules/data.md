@@ -45,15 +45,21 @@ sees and apply in both modes
 | `stratum.data.enabled` | boolean | `true` | Whether the module is on. With `false`, Stratum sets none of the defaults below, nor a data starter's own, and Spring Boot's own apply, and it wraps no data source in the [clean errors boundary](#clean-database-errors). |
 | `stratum.data.query-timeout` | duration | `30s`, or `0` with `stratum.backward-compatible=true` | How long one SQL statement may run when the code that runs it sets no time limit of its own; `0` for none. See [Statement time limits](data-statement-limits.md). |
 
-Spring Boot properties this module gives a default (your values win):
+Spring Boot properties this module and the data JPA starter give a default (your values win):
 
 | Spring Boot property | Type | Stratum default | Spring Boot's default | Meaning |
 | --- | --- | --- | --- | --- |
 | `spring.datasource.hikari.connection-timeout` | long (ms) | `3000` | `30000` (HikariCP) | How long a caller waits for a free connection. |
 | `spring.transaction.default-timeout` | duration | `60s` (strict mode, without Spring Batch) | unset: no limit | The time limit of a transaction that sets none. |
-
-The Hibernate keys that the data JPA starter gives a default are in
-[Data JPA → Properties](data-jpa.md#properties).
+| `spring.jpa.hibernate.ddl-auto` | string | `validate`, see [Schema check](data-jpa.md#schema-check); data JPA starter only | `none`, or `create-drop` for an in-memory database | What Hibernate does with the schema at startup. |
+| `spring.jpa.properties.hibernate.jdbc.batch_size` | int | `50`; data JPA starter only | unset: no batching | How many rows Hibernate sends in one batch. |
+| `spring.jpa.properties.hibernate.order_inserts` | boolean | `true`; data JPA starter only | `false` | Groups inserts by table, so they can be batched. |
+| `spring.jpa.properties.hibernate.order_updates` | boolean | `true`; data JPA starter only | `false` | Groups updates by table, so they can be batched. |
+| `spring.jpa.properties.hibernate.query.in_clause_parameter_padding` | boolean | `true`; data JPA starter only | `false` | Pads `IN` lists to the next power of two. |
+| `spring.jpa.properties.hibernate.jdbc.log.errors` | boolean | `false`; data JPA starter only | `true` | Whether Hibernate logs each JDBC error itself, before it throws it. |
+| `spring.jpa.properties.hibernate.jdbc.log.warnings` | boolean | `false`; data JPA starter only | depends on the dialect | Whether Hibernate logs each JDBC warning. |
+| `spring.jpa.open-in-view` | boolean | `false` (strict mode); data JPA starter only | `true`, with a warning at startup | Whether a web request keeps its connection until the response is written. |
+| `spring.jpa.properties.hibernate.query.fail_on_pagination_over_collection_fetch` | boolean | `true` (strict mode); data JPA starter only | `false` | Whether paging a fetch join over a collection fails instead of paging in memory. |
 
 ### The pool
 
@@ -97,7 +103,7 @@ On PostgreSQL, a violated constraint keeps its name, with no value:
 `ConstraintViolationException.getConstraintName()` and Spring's `DuplicateKeyException` keep
 working. With the data JPA starter, Hibernate's own logging of JDBC errors and warnings is off
 (`hibernate.jdbc.log.errors=false`, `hibernate.jdbc.log.warnings=false`); turn it on again with
-the keys in [Data JPA → Properties](data-jpa.md#properties) if you need it.
+the keys in [Properties](#properties) if you need it.
 
 **What it costs.** Stratum's limit for the boundary is 1 µs per JDBC call. JMH measured it against
 the raw connection pool on an Intel Xeon at 2.10 GHz with 4 cores, JDK 25.0.5 and PostgreSQL 18.6

@@ -98,23 +98,9 @@ loaded differently. The "Always" rows change nothing a caller sees and apply in 
 
 ## Properties
 
-The `stratum.data` properties, and the pool and transaction keys Stratum gives a default, are in
-[Data → Properties](data.md#properties). `stratum.data.enabled=false` turns off this starter's
-defaults below too.
-
-Spring Boot properties this starter gives a default (your values win):
-
-| Spring Boot property | Type | Stratum default | Spring Boot's default | Meaning |
-| --- | --- | --- | --- | --- |
-| `spring.jpa.hibernate.ddl-auto` | string | `validate`, see [Schema check](#schema-check) | `none`, or `create-drop` for an in-memory database | What Hibernate does with the schema at startup. |
-| `spring.jpa.properties.hibernate.jdbc.batch_size` | int | `50` | unset: no batching | How many rows Hibernate sends in one batch. |
-| `spring.jpa.properties.hibernate.order_inserts` | boolean | `true` | `false` | Groups inserts by table, so they can be batched. |
-| `spring.jpa.properties.hibernate.order_updates` | boolean | `true` | `false` | Groups updates by table, so they can be batched. |
-| `spring.jpa.properties.hibernate.query.in_clause_parameter_padding` | boolean | `true` | `false` | Pads `IN` lists to the next power of two. |
-| `spring.jpa.properties.hibernate.jdbc.log.errors` | boolean | `false` | `true` | Whether Hibernate logs each JDBC error itself, before it throws it. |
-| `spring.jpa.properties.hibernate.jdbc.log.warnings` | boolean | `false` | depends on the dialect | Whether Hibernate logs each JDBC warning. |
-| `spring.jpa.open-in-view` | boolean | `false` (strict mode) | `true`, with a warning at startup | Whether a web request keeps its connection until the response is written. |
-| `spring.jpa.properties.hibernate.query.fail_on_pagination_over_collection_fetch` | boolean | `true` (strict mode) | `false` | Whether paging a fetch join over a collection fails instead of paging in memory. |
+The `stratum.data` properties, and every Spring Boot key Stratum gives a default, are in the one
+table of [Data → Properties](data.md#properties). This starter's Hibernate keys are marked "data
+JPA starter only" there. `stratum.data.enabled=false` turns off this starter's defaults too.
 
 ## Schema check
 
