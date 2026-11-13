@@ -11,6 +11,8 @@ import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebProperties;
 import io.micrometer.observation.ObservationRegistry;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletResponse;
+import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Optional;
@@ -154,6 +156,20 @@ class ResponseTimeoutFilterTest {
     assertThat(new RequestDeadlineAccessor().getValue()).isNull();
   }
 
+  @Test
+  @DisplayName(
+      "a handler that started its response itself still reads its time left until it returns")
+  void startedResponseKeepsTimeLeft() throws Exception {
+    var seen = new ArrayList<Optional<Duration>>();
+
+    filter.doFilter(
+        request,
+        response,
+        (streamingRequest, streamingResponse) -> seen.add(timeLeftAfterFlush(streamingResponse)));
+
+    assertThat(seen).singleElement().satisfies(left -> assertThat(left).isPresent());
+  }
+
   /**
    * Checks that the request was answered with the timeout status, through the timeout, and that the
    * thread is not left interrupted.
@@ -189,6 +205,13 @@ class ResponseTimeoutFilterTest {
       Thread.currentThread().interrupt();
       throw new ServletException("the slow call was interrupted", interrupted);
     }
+  }
+
+  /** Starts the response, then returns the time left. */
+  private Optional<Duration> timeLeftAfterFlush(ServletResponse streamingResponse)
+      throws IOException {
+    streamingResponse.flushBuffer();
+    return timeLeft.timeLeft();
   }
 
   /** Blocks for longer than the limit; returns whether the wait was cut short. */

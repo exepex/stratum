@@ -178,7 +178,7 @@ public class StockService {
 `timeLeft()` returns:
 
 - the time left, while the request runs;
-- zero or less, once the limit has passed and before the `503` is sent;
+- zero or less, once the limit has passed and until the request ends;
 - empty, which means **no limit**, when there is no limit to read: a route or method with a limit of
   `0`, a request that has ended, and any work that is not part of a web request, such as a Kafka
   listener, a batch job or a scheduled task.
@@ -196,7 +196,7 @@ The deadline reaches these places, and no others:
 | `@Async` methods and the executor beans of your service | The time left, while the request runs, when the executors carry the context: the [logging](../../starters/stratum-starter-logging/README.md) and [observability](../../starters/stratum-starter-observability/README.md) starters turn that on. With a web starter alone, no limit, as such work has no logging context either |
 | A pool that is not a bean, `CompletableFuture`'s common pool, or a thread you start | No limit |
 | A `Callable` or `DeferredResult` handler | No limit once the handler method has returned, because the limit ends then; a `Callable` that starts before that can read the time left for that moment |
-| Any of these, after the response has started | No limit |
+| Any of these, once the request has ended | No limit. On WebFlux the request ends when its response starts. On Spring MVC it ends when the handler returns, so a handler that starts its response itself, with `flushBuffer()` or by writing to the output stream, still reads its time left until it returns, and that can go below zero |
 
 To read the time left in your own way, declare a bean of type `RequestTimeLeft`; Stratum's backs off.
 Stratum's other modules then read yours.
