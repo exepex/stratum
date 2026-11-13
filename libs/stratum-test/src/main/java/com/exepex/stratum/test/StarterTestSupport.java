@@ -25,6 +25,10 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
+import org.apache.commons.logging.LogFactory;
+import org.springframework.boot.EnvironmentPostProcessor;
+import org.springframework.core.io.support.SpringFactoriesLoader;
+import org.springframework.core.io.support.SpringFactoriesLoader.FailureHandler;
 
 /**
  * The checks and set-up that the tests of every Stratum starter share, so that each starter calls
@@ -76,6 +80,21 @@ public class StarterTestSupport {
     } finally {
       thread.setContextClassLoader(originalClassLoader);
     }
+  }
+
+  /**
+   * Returns the environment post-processors that the class path's {@code spring.factories} files
+   * list, created as Spring Boot creates them at start-up, so a test can check which ones a starter
+   * registers. Those that need constructor arguments, such as Spring Boot's own, are left out.
+   *
+   * @return one post-processor per listed class that needs no argument
+   */
+  public static List<EnvironmentPostProcessor> environmentPostProcessors() {
+    return SpringFactoriesLoader.forDefaultResourceLocation()
+        .load(
+            EnvironmentPostProcessor.class,
+            null,
+            FailureHandler.logging(LogFactory.getLog(StarterTestSupport.class)));
   }
 
   /**

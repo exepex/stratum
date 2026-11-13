@@ -10,17 +10,14 @@ import com.exepex.stratum.data.JdbcBoundaryPostProcessor;
 import com.exepex.stratum.data.LiquibaseBoundaryPostProcessor;
 import com.exepex.stratum.data.PostgresLoginTimeoutPostProcessor;
 import com.exepex.stratum.jdbc.autoconfigure.JdbcStarterAutoConfiguration;
+import com.exepex.stratum.test.StarterTestSupport;
 import java.util.List;
-import org.apache.commons.logging.LogFactory;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.EnvironmentPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
-import org.springframework.core.io.support.SpringFactoriesLoader;
-import org.springframework.core.io.support.SpringFactoriesLoader.FailureHandler;
 
 @DisplayName("A service with both the data JPA and the JDBC starter gets each Stratum part once")
 class BothDataStartersTest {
@@ -85,14 +82,7 @@ class BothDataStartersTest {
     @DisplayName("run once, though both starters list them")
     void runsSharedDefaultsOnce() {
       var postProcessors =
-          SpringFactoriesLoader.forDefaultResourceLocation()
-              // Spring Boot's own post-processors need constructor arguments; they are skipped.
-              // The same loading as JdbcClassPathTest's, kept by the owner's decision.
-              .load(
-                  EnvironmentPostProcessor.class,
-                  null,
-                  FailureHandler.logging(LogFactory.getLog(getClass())))
-              .stream()
+          StarterTestSupport.environmentPostProcessors().stream()
               .filter(DataEnvironmentPostProcessor.class::isInstance)
               .toList();
 

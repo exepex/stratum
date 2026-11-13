@@ -3,13 +3,10 @@ package com.exepex.stratum.jdbc;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.data.DataEnvironmentPostProcessor;
-import org.apache.commons.logging.LogFactory;
+import com.exepex.stratum.test.StarterTestSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.EnvironmentPostProcessor;
-import org.springframework.core.io.support.SpringFactoriesLoader;
-import org.springframework.core.io.support.SpringFactoriesLoader.FailureHandler;
 import org.springframework.util.ClassUtils;
 
 @DisplayName("The JDBC starter brings plain JDBC and the shared data defaults, without an ORM")
@@ -35,14 +32,7 @@ class JdbcClassPathTest {
         "the shared defaults of stratum-data are the only Stratum data defaults registered")
     void registersSharedDefaults() {
       var postProcessors =
-          SpringFactoriesLoader.forDefaultResourceLocation()
-              // Spring Boot's own post-processors need constructor arguments; they are skipped.
-              // The same loading as BothDataStartersTest's, kept by the owner's decision.
-              .load(
-                  EnvironmentPostProcessor.class,
-                  null,
-                  FailureHandler.logging(LogFactory.getLog(getClass())))
-              .stream()
+          StarterTestSupport.environmentPostProcessors().stream()
               .map(postProcessor -> postProcessor.getClass().getName())
               .filter(name -> name.startsWith("com.exepex.stratum.data"))
               .toList();

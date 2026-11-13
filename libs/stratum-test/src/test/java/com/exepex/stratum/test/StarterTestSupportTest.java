@@ -3,6 +3,7 @@ package com.exepex.stratum.test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
+import com.exepex.stratum.core.condition.EarlyModuleSwitches;
 import com.exepex.stratum.core.properties.StratumPropertiesCustomizer;
 import com.exepex.stratum.test.fixture.UnswitchedGreeter;
 import com.exepex.stratum.test.fixture.autoconfigure.GreetingAutoConfiguration;
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.boot.context.config.ConfigDataEnvironmentPostProcessor;
 
 @DisplayName("StarterTestSupport gives every starter's tests the same checks and set-up")
 class StarterTestSupportTest {
@@ -31,6 +33,22 @@ class StarterTestSupportTest {
 
   /** How the API list rule reports a class, after the class name. */
   private static final String NOT_LISTED = "> is not on the module's API list";
+
+  @Nested
+  @DisplayName("environmentPostProcessors")
+  class EnvironmentPostProcessors {
+
+    @Test
+    @DisplayName(
+        "creates the listed post-processors and skips those needing Boot's start-up objects")
+    void createsPostProcessorsWithoutArguments() {
+      var postProcessors = StarterTestSupport.environmentPostProcessors();
+
+      assertThat(postProcessors)
+          .hasAtLeastOneElementOfType(EarlyModuleSwitches.class)
+          .noneMatch(ConfigDataEnvironmentPostProcessor.class::isInstance);
+    }
+  }
 
   @Nested
   @DisplayName("withCustomizers")
