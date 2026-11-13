@@ -13,9 +13,11 @@ import com.exepex.stratum.jdbc.autoconfigure.JdbcStarterAutoConfiguration;
 import java.util.List;
 import org.apache.commons.logging.LogFactory;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.EnvironmentPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.core.io.support.SpringFactoriesLoader;
 import org.springframework.core.io.support.SpringFactoriesLoader.FailureHandler;
@@ -39,42 +41,61 @@ class BothDataStartersTest {
               AutoConfigurations.of(
                   DataJpaBoundaryAutoConfiguration.class, JdbcStarterAutoConfiguration.class));
 
-  @Test
-  @DisplayName("each boundary bean is created once")
-  void createsEachBeanOnce() {
-    contextRunner.run(
-        context -> {
-          assertThat(context).hasNotFailed();
-          BOUNDARY_TYPES.forEach(type -> assertThat(context).hasSingleBean(type));
-        });
+  @Nested
+  @DisplayName("the boundary beans")
+  class BoundaryBeans {
+
+    @Test
+    @DisplayName("are each created once")
+    void createsEachBeanOnce() {
+      contextRunner.run(context -> assertEachBeanOnce(context));
+    }
+
+    /** Checks that the context started with one bean of each boundary type. */
+    private void assertEachBeanOnce(AssertableApplicationContext context) {
+      assertThat(context).hasNotFailed();
+      BOUNDARY_TYPES.forEach(type -> assertThat(context).hasSingleBean(type));
+    }
   }
 
-  @Test
-  @DisplayName("with the module off, none is created")
-  void createsNothingWithModuleOff() {
-    contextRunner
-        .withPropertyValues(DataConstants.ENABLED + "=false")
-        .run(
-            context -> {
-              assertThat(context).hasNotFailed();
-              BOUNDARY_TYPES.forEach(type -> assertThat(context).doesNotHaveBean(type));
-            });
+  @Nested
+  @DisplayName("the module switch")
+  class ModuleSwitch {
+
+    @Test
+    @DisplayName("set to false, turns every boundary bean off")
+    void createsNothingWithModuleOff() {
+      contextRunner
+          .withPropertyValues(DataConstants.ENABLED + "=false")
+          .run(context -> assertNoBoundaryBean(context));
+    }
+
+    /** Checks that the context started with no bean of any boundary type. */
+    private void assertNoBoundaryBean(AssertableApplicationContext context) {
+      assertThat(context).hasNotFailed();
+      BOUNDARY_TYPES.forEach(type -> assertThat(context).doesNotHaveBean(type));
+    }
   }
 
-  @Test
-  @DisplayName("the shared pool and transaction defaults run once, though both starters list them")
-  void runsSharedDefaultsOnce() {
-    var postProcessors =
-        SpringFactoriesLoader.forDefaultResourceLocation()
-            // Spring Boot's own post-processors need constructor arguments; they are skipped.
-            .load(
-                EnvironmentPostProcessor.class,
-                null,
-                FailureHandler.logging(LogFactory.getLog(getClass())))
-            .stream()
-            .filter(DataEnvironmentPostProcessor.class::isInstance)
-            .toList();
+  @Nested
+  @DisplayName("the shared pool and transaction defaults")
+  class SharedDefaults {
 
-    assertThat(postProcessors).hasSize(1);
+    @Test
+    @DisplayName("run once, though both starters list them")
+    void runsSharedDefaultsOnce() {
+      var postProcessors =
+          SpringFactoriesLoader.forDefaultResourceLocation()
+              // Spring Boot's own post-processors need constructor arguments; they are skipped.
+              .load(
+                  EnvironmentPostProcessor.class,
+                  null,
+                  FailureHandler.logging(LogFactory.getLog(getClass())))
+              .stream()
+              .filter(DataEnvironmentPostProcessor.class::isInstance)
+              .toList();
+
+      assertThat(postProcessors).hasSize(1);
+    }
   }
 }

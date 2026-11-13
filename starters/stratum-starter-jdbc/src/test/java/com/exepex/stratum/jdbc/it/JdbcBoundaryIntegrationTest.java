@@ -9,6 +9,7 @@ import com.exepex.stratum.test.PostgresContainerConfiguration;
 import java.time.Duration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,27 +50,37 @@ class JdbcBoundaryIntegrationTest {
     jdbcClient.sql("TRUNCATE customers").update();
   }
 
-  @Test
-  @DisplayName(
-      "a duplicate email fails as Spring's DuplicateKeyException, whose log and chain hold no"
-          + " email")
-  void hidesDuplicateEmail(CapturedOutput output) {
-    jdbcClient.sql(INSERT).params(1, PERSONAL_VALUE).update();
+  @Nested
+  @DisplayName("a database error")
+  class DatabaseError {
 
-    var failure = catchThrowable(() -> jdbcClient.sql(INSERT).params(2, PERSONAL_VALUE).update());
+    @Test
+    @DisplayName(
+        "a duplicate email fails as Spring's DuplicateKeyException, whose log and chain hold no"
+            + " email")
+    void hidesDuplicateEmail(CapturedOutput output) {
+      jdbcClient.sql(INSERT).params(1, PERSONAL_VALUE).update();
 
-    assertThat(failure).isInstanceOf(DuplicateKeyException.class);
-    DatabaseFailureAssertions.assertServiceSeesNo(failure, output, PERSONAL_VALUE);
+      var failure = catchThrowable(() -> jdbcClient.sql(INSERT).params(2, PERSONAL_VALUE).update());
+
+      assertThat(failure).isInstanceOf(DuplicateKeyException.class);
+      DatabaseFailureAssertions.assertServiceSeesNo(failure, output, PERSONAL_VALUE);
+    }
   }
 
-  @Test
-  @DisplayName("a statement past stratum.data.query-timeout is cancelled as a query timeout")
-  void cancelsSlowStatement() {
-    long start = System.nanoTime();
+  @Nested
+  @DisplayName("the statement time limit")
+  class StatementLimit {
 
-    var failure = catchThrowable(() -> jdbcClient.sql(SLOW).query().singleValue());
+    @Test
+    @DisplayName("a statement past stratum.data.query-timeout is cancelled as a query timeout")
+    void cancelsSlowStatement() {
+      long start = System.nanoTime();
 
-    assertThat(failure).isInstanceOf(QueryTimeoutException.class);
-    assertThat(Duration.ofNanos(System.nanoTime() - start)).isLessThan(CANCELLED_WITHIN);
+      var failure = catchThrowable(() -> jdbcClient.sql(SLOW).query().singleValue());
+
+      assertThat(failure).isInstanceOf(QueryTimeoutException.class);
+      assertThat(Duration.ofNanos(System.nanoTime() - start)).isLessThan(CANCELLED_WITHIN);
+    }
   }
 }

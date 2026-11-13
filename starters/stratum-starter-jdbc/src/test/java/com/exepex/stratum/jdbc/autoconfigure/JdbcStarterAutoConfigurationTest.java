@@ -21,6 +21,7 @@ import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.flyway.autoconfigure.FlywayConfigurationCustomizer;
 import org.springframework.boot.test.context.ConfigDataApplicationContextInitializer;
 import org.springframework.boot.test.context.FilteredClassLoader;
+import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 
@@ -134,14 +135,15 @@ class JdbcStarterAutoConfigurationTest {
     private void assertMissingOnly(Class<?> missingClass, String missingBean) {
       contextRunner
           .withClassLoader(new FilteredClassLoader(missingClass))
-          .run(
-              context -> {
-                assertThat(context).hasNotFailed();
-                assertThat(context.getBeanDefinitionNames())
-                    .doesNotContain(missingBean)
-                    .containsAll(
-                        BOUNDARY_BEANS.stream().filter(bean -> !bean.equals(missingBean)).toList());
-              });
+          .run(context -> assertOnlyBeanMissing(context, missingBean));
+    }
+
+    /** Checks that the context started with every boundary bean but the missing one. */
+    private void assertOnlyBeanMissing(AssertableApplicationContext context, String missingBean) {
+      assertThat(context).hasNotFailed();
+      assertThat(context.getBeanDefinitionNames())
+          .doesNotContain(missingBean)
+          .containsAll(BOUNDARY_BEANS.stream().filter(bean -> !bean.equals(missingBean)).toList());
     }
   }
 
