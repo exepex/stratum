@@ -23,8 +23,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.FieldSource;
-import org.springframework.jdbc.datasource.ConnectionHolder;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @DisplayName("Statements and borrows end by the web request's time left minus the margin")
 class RequestDeadlineLimitsTest {
@@ -110,16 +108,7 @@ class RequestDeadlineLimitsTest {
    * and returns what it threw.
    */
   private Throwable failureOfQueryInTransaction(long transactionMillis) {
-    var holder = new ConnectionHolder(fixture.driverConnection);
-    holder.setTimeoutInMillis(transactionMillis);
-    TransactionSynchronizationManager.initSynchronization();
-    TransactionSynchronizationManager.bindResource(fixture.dataSource, holder);
-    try {
-      return failureOfQuery();
-    } finally {
-      TransactionSynchronizationManager.unbindResource(fixture.dataSource);
-      TransactionSynchronizationManager.clear();
-    }
+    return fixture.inTransaction(transactionMillis, this::failureOfQuery);
   }
 
   /** Borrows a connection through the boundary and returns what the borrow threw. */

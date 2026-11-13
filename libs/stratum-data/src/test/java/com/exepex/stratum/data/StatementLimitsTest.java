@@ -22,8 +22,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.springframework.jdbc.datasource.ConnectionHolder;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @DisplayName("A statement past its limit fails with SX-DATA-1003, and no other failure changes")
 class StatementLimitsTest {
@@ -202,17 +200,8 @@ class StatementLimitsTest {
     @Test
     @DisplayName("the statement fails at once with SX-DATA-1003, and never reaches the driver")
     void failsBeforeDriver() throws SQLException {
-      var holder = new ConnectionHolder(fixture.driverConnection);
-      holder.setTimeoutInMillis(PASSED_DEADLINE_MILLIS);
-      TransactionSynchronizationManager.initSynchronization();
-      TransactionSynchronizationManager.bindResource(fixture.dataSource, holder);
-      Throwable failure;
-      try {
-        failure = failureOfQuery();
-      } finally {
-        TransactionSynchronizationManager.unbindResource(fixture.dataSource);
-        TransactionSynchronizationManager.clear();
-      }
+      var failure =
+          fixture.inTransaction(PASSED_DEADLINE_MILLIS, StatementLimitsTest.this::failureOfQuery);
 
       assertThat(failure)
           .isInstanceOf(StatementTimeoutException.class)

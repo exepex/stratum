@@ -17,7 +17,10 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import javax.sql.DataSource;
+import org.springframework.jdbc.datasource.ConnectionHolder;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * A data source with statement limits around mocks of a pool, a connection and a statement, on a
@@ -112,6 +115,28 @@ final class StatementLimitsFixture {
   void passLimitAndSweep(long limitMillis) {
     now.addAndGet(limitMillis + 1);
     sweeper.sweep();
+  }
+
+  /**
+   * Runs work with the pool's connection bound to a transaction whose deadline is the given time
+   * away, as Spring's transaction manager binds it, and unbinds it afterwards.
+   *
+   * @param deadlineMillis how far away the transaction's deadline is; negative when it has passed
+   * @param work the work to run in the transaction
+   * @param <T> what the work returns
+   * @return what the work returned
+   */
+  <T> T inTransaction(long deadlineMillis, Supplier<T> work) {
+    var holder = new ConnectionHolder(driverConnection);
+    holder.setTimeoutInMillis(deadlineMillis);
+    TransactionSynchronizationManager.initSynchronization();
+    TransactionSynchronizationManager.bindResource(dataSource, holder);
+    try {
+      return work.get();
+    } finally {
+      TransactionSynchronizationManager.unbindResource(dataSource);
+      TransactionSynchronizationManager.clear();
+    }
   }
 
   /**

@@ -213,8 +213,8 @@ public record WebProperties(
 
   /**
    * How long a request may take until its response starts, before it is answered with the timeout
-   * status. A response that has started, such as a stream or a download, is not cut off, though
-   * with a data starter its SQL statements still end by the limit. A method's
+   * status. A response that has started, such as a stream or a download, is not cut off, though on
+   * Spring MVC with a data starter its SQL statements still end by the limit. A method's
    * {@code @ResponseTimeout} wins over a route, and a route wins over the default.
    *
    * @param defaultLimit How long any request may take until its response starts, such as 10s or

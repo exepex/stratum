@@ -16,8 +16,8 @@ act on, and a slow call can no longer hold a server thread, or a caller, for min
 
 The limit counts from when the request reaches the service, so the time Spring Security takes counts
 too, until the first byte of the response is sent. The web module never cuts off a response that
-has started, such as a stream or a large download. With a data starter, though, the response's SQL
-statements still end by the limit; see [Downloads and streams](#downloads-and-streams).
+has started, such as a stream or a large download. On Spring MVC with a data starter, though, the
+response's SQL statements still end by the limit; see [Downloads and streams](#downloads-and-streams).
 
 ## Set the limits
 
