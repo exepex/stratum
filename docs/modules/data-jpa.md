@@ -130,7 +130,7 @@ Fix the entity mapping or add the missing migration, or, to stop Hibernate check
 
 ## Configure in Java
 
-Set any Spring Boot key above in Java as a default property, which wins over Stratum's default:
+Set any Spring Boot key in [Data → Properties](data.md#properties) in Java as a default property, which wins over Stratum's default:
 
 ```java
 var application = new SpringApplication(OrdersApplication.class);
