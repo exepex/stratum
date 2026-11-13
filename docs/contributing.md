@@ -183,8 +183,8 @@ pages get the same name, when a page written in the wiki has a copied page's nam
 `docs/README.md` has a section with no sidebar group, when a page in `docs/` outside `docs/agents/`
 is in no table row of `docs/README.md`, or when a link's `#anchor` names no heading of its target
 Markdown page, the same page included. An anchor is the heading's text as GitHub makes it: lower
-case, punctuation removed, each space a hyphen, and `-1`, `-2` added to repeats; a heading inside a
-code fence has none. Anchors into other files, such as code, are not checked. So a new page needs
+case, punctuation other than `_` and `-` removed, each space a hyphen, and `-1`, `-2` added to
+repeats; a heading inside a code fence has none. Anchors into other files, such as code, are not checked. So a new page needs
 its row in `docs/README.md`, a new section also needs its group in `WikiSync.java`, and a page
 written in the wiki needs a name no copied page has.
 A run that changes no page makes no commit.

@@ -9,8 +9,8 @@ import java.util.regex.Pattern;
 
 /**
  * Checks that a link's {@code #anchor} names a heading of its target Markdown page, with the anchors
- * GitHub gives headings: the text in lower case, punctuation removed, spaces as hyphens, and
- * {@code -1}, {@code -2} on repeats.
+ * GitHub gives headings: the text in lower case, punctuation other than {@code _} and {@code -}
+ * removed, spaces as hyphens, and {@code -1}, {@code -2} on repeats.
  */
 final class HeadingAnchors {
 

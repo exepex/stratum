@@ -53,6 +53,7 @@ expect_failure "relative image" "touch repo/docs/getting-started/diagram.png && 
 expect_failure "link out of the repository" "touch outside.md && printf '[Out](../../../outside.md)\n' >> $intro"
 expect_failure "link to a missing file" "printf '[Gone](missing.md)\n' >> $intro"
 expect_failure "page missing from the index" "printf '# Orphan\n' > repo/docs/orphan.md"
+expect_failure "page in a subfolder missing from the index" "mkdir -p repo/docs/sub && printf '# Orphan\n' > repo/docs/sub/orphan.md"
 expect_failure "anchor to a missing heading in another page" "printf '[Gone](../contributing.md#nowhere)\n' >> $intro"
 expect_failure "same-page anchor to a missing heading" "printf '[Gone](#nowhere)\n' >> $intro"
 expect_failure "anchor to a heading inside a code fence" "printf '\x60\x60\x60\n# Fenced\n\x60\x60\x60\n[Fenced](#fenced)\n' >> $intro"
