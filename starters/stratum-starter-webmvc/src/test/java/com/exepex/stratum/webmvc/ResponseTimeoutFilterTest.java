@@ -3,12 +3,17 @@ package com.exepex.stratum.webmvc;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.exepex.stratum.web.CurrentRequestTimeLeft;
+import com.exepex.stratum.web.RequestDeadlineAccessor;
 import com.exepex.stratum.web.RequestTimedOutException;
 import com.exepex.stratum.web.ResponseTimeouts;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebProperties;
 import io.micrometer.observation.ObservationRegistry;
 import jakarta.servlet.ServletException;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
@@ -43,6 +48,9 @@ class ResponseTimeoutFilterTest {
   private final ResponseTimeoutFilter filter =
       new ResponseTimeoutFilter(
           timeouts, new StaticListableBeanFactory().getBeanProvider(ObservationRegistry.class));
+
+  /** Reads the time left of the request on this thread. */
+  private final CurrentRequestTimeLeft timeLeft = new CurrentRequestTimeLeft();
 
   /** The request. */
   private final MockHttpServletRequest request = new MockHttpServletRequest("GET", "/orders/42");
@@ -122,6 +130,28 @@ class ResponseTimeoutFilterTest {
 
     assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
     assertThat(Thread.currentThread().isInterrupted()).isFalse();
+  }
+
+  @Test
+  @DisplayName(
+      "the request's deadline is on its thread while it runs, and gone from the thread after it,"
+          + " also after a failure")
+  void deadlineOnThreadOnlyWhileRunning() throws Exception {
+    var seen = new ArrayList<Optional<Duration>>();
+
+    filter.doFilter(request, response, (inTime, itsResponse) -> seen.add(timeLeft.timeLeft()));
+    assertThatThrownBy(
+            () ->
+                filter.doFilter(
+                    request,
+                    response,
+                    (failedRequest, failedResponse) -> {
+                      throw new ServletException("the order store is down");
+                    }))
+        .isInstanceOf(ServletException.class);
+
+    assertThat(seen).singleElement().satisfies(left -> assertThat(left).isPresent());
+    assertThat(new RequestDeadlineAccessor().getValue()).isNull();
   }
 
   /**

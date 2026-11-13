@@ -51,7 +51,9 @@ the [JDBC boundary](modules/data-jpa.md#clean-database-errors) adds to each JDBC
 timeout and a [statement limit](modules/data-jpa-statement-limits.md) slot on every borrow, and
 pgjdbc's query timeout, Stratum's sweeper or a per-statement timer on every statement; and what the
 sweeper (`StatementSweeperBenchmark`) and the per-statement timer it replaced
-(`StatementTimerBenchmark`) cost with no database. Each runs on one thread and on 16. It needs
+(`StatementTimerBenchmark`) cost with no database; and what reading a web request's time left costs,
+and what carrying its deadline adds to each Reactor operator and each executor task
+(`RequestTimeLeftBenchmark`), also with no database. Each runs on one thread, and most also on 16. It needs
 Docker, because each JMH fork of the pool measurements starts its own PostgreSQL container.
 `JdbcBoundaryBenchmark` takes about 10 to 15 minutes and `StatementLimitsBenchmark` about 20:
 

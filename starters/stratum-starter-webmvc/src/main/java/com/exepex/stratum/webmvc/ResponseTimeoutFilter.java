@@ -2,6 +2,7 @@ package com.exepex.stratum.webmvc;
 
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.web.RequestDeadline;
+import com.exepex.stratum.web.RequestDeadlineAccessor;
 import com.exepex.stratum.web.ResponseTimeouts;
 import io.micrometer.observation.ObservationRegistry;
 import jakarta.servlet.FilterChain;
@@ -21,7 +22,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * handler fails. A call that ignores interrupts runs on, and {@link ResponseTimeoutInterceptor}
  * fails the request when the handler answers. A request whose response has started is not
  * interrupted. For a handler that returns a {@code Callable} or {@code DeferredResult}, the limit
- * ends when the handler returns.
+ * ends when the handler returns. While the request runs, its deadline is on its thread, so code
+ * there and the executors that carry the context can read its time left.
  */
 @StratumInternal
 @RequiredArgsConstructor
@@ -41,6 +43,9 @@ public class ResponseTimeoutFilter extends OncePerRequestFilter {
 
   /** Where failures are recorded: the service's observation registry, if it has one. */
   private final ObjectProvider<ObservationRegistry> observationRegistry;
+
+  /** Puts the request's deadline on its thread, for its time left. */
+  private final RequestDeadlineAccessor deadlines = new RequestDeadlineAccessor();
 
   /**
    * Runs the rest of the chain within the request's limit. If the chain fails after the time ran
@@ -65,6 +70,7 @@ public class ResponseTimeoutFilter extends OncePerRequestFilter {
             request.getRequestURI().substring(request.getContextPath().length()),
             () -> interruptUnlessStarted(requestThread, response));
     request.setAttribute(DEADLINE_ATTRIBUTE, deadline);
+    deadlines.setValue(deadline);
     try {
       filterChain.doFilter(request, response);
     } catch (ServletException | IOException | RuntimeException failure) {
@@ -80,6 +86,7 @@ public class ResponseTimeoutFilter extends OncePerRequestFilter {
     } finally {
       endAndClearInterrupt(deadline);
       request.removeAttribute(DEADLINE_ATTRIBUTE);
+      deadlines.setValue();
     }
   }
 
