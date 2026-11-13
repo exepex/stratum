@@ -53,10 +53,10 @@ class DatabaseFailureAssertionsTest {
     @Test
     @DisplayName("fails when only a next exception deep in the chain carries the value")
     void failsOnValueInNextException() {
+      var failure = failureWithValueInNextException();
+
       assertThatThrownBy(
-              () ->
-                  DatabaseFailureAssertions.assertChainCarriesNo(
-                      failureWithValueInNextException(), PERSONAL_VALUE))
+              () -> DatabaseFailureAssertions.assertChainCarriesNo(failure, PERSONAL_VALUE))
           .isInstanceOf(AssertionError.class);
     }
 
