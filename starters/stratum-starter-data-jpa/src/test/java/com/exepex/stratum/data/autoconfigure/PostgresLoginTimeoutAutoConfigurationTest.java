@@ -69,10 +69,16 @@ class PostgresLoginTimeoutAutoConfigurationTest {
   }
 
   @Test
-  @DisplayName("without the PostgreSQL driver, or with the module off, there is none")
+  @DisplayName(
+      "without the PostgreSQL driver, without HikariCP, or with the module off, there is none")
   void noneWithoutDriverOrModule() {
     contextRunner
         .withClassLoader(new FilteredClassLoader("org.postgresql"))
+        .run(
+            context ->
+                assertThat(context).doesNotHaveBean(PostgresLoginTimeoutPostProcessor.class));
+    contextRunner
+        .withClassLoader(new FilteredClassLoader("com.zaxxer.hikari"))
         .run(
             context ->
                 assertThat(context).doesNotHaveBean(PostgresLoginTimeoutPostProcessor.class));

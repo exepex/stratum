@@ -53,8 +53,18 @@ spring:
   `application.properties` or in YAML, never as an environment variable:
   `SPRING_DATASOURCE_HIKARI_DATASOURCEPROPERTIES_LOGINTIMEOUT` reaches the driver as
   `logintimeout`, which it ignores, so Stratum's limit applies.
-- A migration connection takes its own limit from its URL, such as
-  `spring.flyway.url=jdbc:postgresql://db.example.com:5432/orders?loginTimeout=10`.
+- A migration connection takes its own limit from its URL:
+
+  ```properties
+  spring.flyway.url=jdbc:postgresql://db.example.com:5432/orders?loginTimeout=10
+  ```
+
+  ```yaml
+  spring:
+    flyway:
+      url: "jdbc:postgresql://db.example.com:5432/orders?loginTimeout=10"
+  ```
+
 - A bean named `stratumPostgresLoginTimeout` replaces the post-processor that limits the pools.
 
 ## What it costs

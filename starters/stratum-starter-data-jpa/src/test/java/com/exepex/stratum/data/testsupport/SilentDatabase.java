@@ -72,11 +72,12 @@ public final class SilentDatabase implements AutoCloseable {
   }
 
   /**
-   * Returns how many of the driver's connection threads are alive in this JVM.
+   * Returns how many of the driver's connection threads are alive in this JVM, such as those still
+   * reading a connection this database never answers.
    *
    * @return the number of threads
    */
-  public static long driverThreads() {
+  public long driverThreads() {
     return Thread.getAllStackTraces().keySet().stream()
         .filter(thread -> DRIVER_THREAD.equals(thread.getName()) && thread.isAlive())
         .count();

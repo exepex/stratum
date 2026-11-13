@@ -32,6 +32,7 @@ import org.postgresql.Driver;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.jdbc.autoconfigure.JdbcConnectionDetails;
+import org.springframework.context.ConfigurableApplicationContext;
 
 /**
  * Starts services against a database that accepts connections and never answers, and against the
@@ -57,8 +58,13 @@ class PostgresLoginTimeoutIntegrationTest {
   /** The nanoseconds in one microsecond, for printing medians. */
   private static final double NANOS_PER_MICRO = 1000.0;
 
+  /** Turns the TLS check off with a bean of its name, since its borrow would race the test's. */
+  private void turnOffTlsCheck(ConfigurableApplicationContext application) {
+    application.getBeanFactory().registerSingleton(DataConstants.TLS_CHECK, new Object());
+  }
+
   /** Returns the time since a start, read from {@link System#nanoTime()}. */
-  private static Duration since(long startNanos) {
+  private Duration since(long startNanos) {
     return Duration.ofNanos(System.nanoTime() - startNanos);
   }
 
@@ -76,21 +82,18 @@ class PostgresLoginTimeoutIntegrationTest {
           var context =
               new SpringApplicationBuilder(BoundaryApplication.class)
                   .web(WebApplicationType.NONE)
-                  // A bean of the check's name turns the TLS check off, which would borrow too.
-                  .initializers(
-                      app ->
-                          app.getBeanFactory()
-                              .registerSingleton(DataConstants.TLS_CHECK, new Object()))
+                  .initializers(PostgresLoginTimeoutIntegrationTest.this::turnOffTlsCheck)
                   .properties(startupProperties(database.url()))
                   .run()) {
         var dataSource = context.getBean(DataSource.class);
-        long threadsBefore = SilentDatabase.driverThreads();
+        long threadsBefore = database.driverThreads();
 
+        // A loop rather than a stream: each borrow is timed and checked in turn, against the last.
         for (int attempt = 1; attempt <= ATTEMPTS; attempt++) {
           long start = System.nanoTime();
           var failure = catchThrowable(dataSource::getConnection);
           var took = since(start);
-          long threads = SilentDatabase.driverThreads() - threadsBefore;
+          long threads = database.driverThreads() - threadsBefore;
           if (log.isInfoEnabled()) {
             log.info(
                 "Borrow {} failed after {} ms; driver threads alive: {}",
@@ -198,17 +201,16 @@ class PostgresLoginTimeoutIntegrationTest {
           new SpringApplicationBuilder(
                   BoundaryApplication.class, PostgresContainerConfiguration.class)
               .web(WebApplicationType.NONE)
-              .initializers(
-                  app ->
-                      app.getBeanFactory().registerSingleton(DataConstants.TLS_CHECK, new Object()))
+              .initializers(PostgresLoginTimeoutIntegrationTest.this::turnOffTlsCheck)
               .properties(SilentDatabase.STARTUP_PROPERTIES.toArray(String[]::new))
               .run()) {
         var details = context.getBean(JdbcConnectionDetails.class);
         var withoutLimit = new long[CONNECTIONS];
         var withLimit = new long[CONNECTIONS];
-        for (int i = 0; i < CONNECTIONS; i++) {
-          withoutLimit[i] = connectNanos(details, "0");
-          withLimit[i] = connectNanos(details, "3");
+        // A loop rather than a stream: it fills two arrays in step, alternating the two settings.
+        for (int round = 0; round < CONNECTIONS; round++) {
+          withoutLimit[round] = connectNanos(details, "0");
+          withLimit[round] = connectNanos(details, "3");
         }
 
         if (log.isInfoEnabled()) {
@@ -242,11 +244,12 @@ class PostgresLoginTimeoutIntegrationTest {
     /** Returns how long each of many platform threads took to start, run nothing and end. */
     private long[] threadNanos() throws InterruptedException {
       var took = new long[THREADS];
-      for (int i = 0; i < THREADS; i++) {
+      // A loop rather than a stream: Thread.join throws a checked exception.
+      for (int run = 0; run < THREADS; run++) {
         long start = System.nanoTime();
         var thread = Thread.ofPlatform().daemon().start(() -> {});
         thread.join();
-        took[i] = System.nanoTime() - start;
+        took[run] = System.nanoTime() - start;
       }
       return took;
     }
