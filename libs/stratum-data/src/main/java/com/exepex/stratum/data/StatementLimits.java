@@ -105,25 +105,38 @@ public class StatementLimits {
   }
 
   /**
-   * Fails a borrow when the web request it serves has no time left: its time left minus the margin
-   * is 0 or less. Called before the pool is asked, and again once it has handed out the connection,
-   * so a connection borrowed too late is returned before any SQL is sent.
+   * Fails a borrow before the pool is asked when the web request it serves has no time left: its
+   * time left minus the margin is 0 or less.
    *
-   * @param borrowed whether the pool has already handed out the connection
    * @throws SQLException {@code SX-DATA-1003} when no time is left
    */
-  void checkBorrow(boolean borrowed) throws SQLException {
+  void checkBeforeBorrow() throws SQLException {
+    checkTimeLeftTo("borrow");
+  }
+
+  /**
+   * Fails a borrow once the pool has handed out the connection, when the web request it serves ran
+   * out of time while it waited; the caller then returns the connection before any SQL is sent.
+   *
+   * @throws SQLException {@code SX-DATA-1003} when no time is left
+   */
+  void checkAfterBorrow() throws SQLException {
+    checkTimeLeftTo("use");
+  }
+
+  /** Fails with {@code SX-DATA-1003} when the request has no time left to do what is named. */
+  private void checkTimeLeftTo(String what) throws SQLException {
     var left = requestDeadline();
     if (left == null || left.millis() > 0) {
       return;
     }
     counter.count(pool, LimitSource.REQUEST);
     throw timedOut(
-        ("%s: no time was left %s a connection: the request's time left minus the margin of %d ms"
-                + " was %d ms, on data source %s")
+        ("%s: no time was left to %s a connection: the request's time left minus the margin of %d"
+                + " ms was %d ms, on data source %s")
             .formatted(
                 DataErrorCode.STATEMENT_TIMED_OUT.getCode(),
-                borrowed ? "to use" : "to borrow",
+                what,
                 marginMillis,
                 left.millis(),
                 pool),

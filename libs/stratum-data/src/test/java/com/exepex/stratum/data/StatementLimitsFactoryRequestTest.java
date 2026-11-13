@@ -65,9 +65,9 @@ class StatementLimitsFactoryRequestTest {
 
   /** Checks three borrows, before and after the pool, as three statements' borrows do. */
   private void borrowThreeTimes(StatementLimits limits) throws SQLException {
-    limits.checkBorrow(false);
-    limits.checkBorrow(true);
-    limits.checkBorrow(false);
+    limits.checkBeforeBorrow();
+    limits.checkAfterBorrow();
+    limits.checkBeforeBorrow();
   }
 
   /** Returns what a borrow with the given time left throws, or {@code null}. */
@@ -77,7 +77,7 @@ class StatementLimitsFactoryRequestTest {
         new StatementLimitsFactory(
             environment, beanFactory, Thread.currentThread().getContextClassLoader())) {
       var limits = factory.forPool("ordersDataSource");
-      return catchThrowable(() -> limits.checkBorrow(false));
+      return catchThrowable(() -> limits.checkBeforeBorrow());
     }
   }
 

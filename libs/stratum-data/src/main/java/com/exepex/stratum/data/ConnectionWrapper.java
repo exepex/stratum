@@ -108,7 +108,7 @@ public abstract class ConnectionWrapper extends JdbcWrapper {
       return;
     }
     try {
-      limits.checkBorrow(true);
+      limits.checkAfterBorrow();
       raiseNetworkTimeout(limits.borrowNetworkTimeout());
     } catch (SQLException failure) {
       close();

@@ -33,7 +33,7 @@ public abstract class DataSourceWrapper extends JdbcWrapper {
   void enterBorrow() throws SQLException {
     var limits = boundary.getLimits();
     if (limits != null) {
-      limits.checkBorrow(false);
+      limits.checkBeforeBorrow();
     }
   }
 }
