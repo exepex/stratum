@@ -37,8 +37,9 @@ own value when the connection goes back to the pool.
 The statement fails with `SX-DATA-1003`, a `java.sql.SQLTimeoutException` with SQLState `57014`.
 Spring and Hibernate turn it into their `QueryTimeoutException`, as for any cancelled statement.
 
-- **Strict mode:** a web request that fails with it is answered with status 500, the code and its
-  description, and no detail. The limit, the run time and the data source bean name are only in the
+- **Strict mode:** a web request that fails with it is answered with status 503, the code and its
+  description, and no detail. To change the status, set
+  `stratum.web.error.statuses.SX-DATA-1003`, as in [Database failures](web-database-errors.md). The limit, the run time and the data source bean name are only in the
   exception's message, which goes to the log.
 - **Backward-compatible mode** (`stratum.backward-compatible=true`): the answer stays Spring
   Boot's own, as before. The code appears in the log only.

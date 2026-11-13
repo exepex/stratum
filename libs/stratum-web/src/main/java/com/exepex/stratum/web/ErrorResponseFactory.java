@@ -100,7 +100,10 @@ public class ErrorResponseFactory {
    * exception that implements {@link FailureWithErrorCode}, itself or as a cause of the failure,
    * with the status mapped to its code, and logs it once: a 5xx at ERROR with its stack trace, a
    * 4xx at WARN with its code and message. A warning code, which is never thrown, gets 500 and
-   * {@code SX-WEB-1005}. Each web stack calls it for a cause only when Spring has no status of its
+   * {@code SX-WEB-1005}. With {@code stratum.backward-compatible=false}, a failure with no code
+   * whose causes show a busy database or a data conflict gets {@code SX-WEB-1010} and 503, or
+   * {@code SX-WEB-1011} and 409, unless the code is mapped, and is logged once with its stack
+   * trace, a 409 at WARN. Each web stack calls it for a cause only when Spring has no status of its
    * own for the failure, so a wrapper such as {@code ResponseStatusException} keeps its status. A
    * chain of causes that loops back on itself is followed once.
    *
@@ -109,7 +112,8 @@ public class ErrorResponseFactory {
    */
   public Optional<ProblemDetail> forFailureWithErrorCode(Throwable failure) {
     return FailureCauses.findFailureWithErrorCode(failure)
-        .map(codedFailure -> answerAndLog(failure, codedFailure.getReport()));
+        .map(codedFailure -> answerAndLog(failure, codedFailure.getReport()))
+        .or(() -> forDatabaseFailure(failure));
   }
 
   /**
@@ -188,7 +192,7 @@ public class ErrorResponseFactory {
    * Returns whether the failure carries an error code, itself or in one of its causes.
    *
    * @param failure what the request failed with
-   * @return whether {@link #forFailureWithErrorCode} would answer it
+   * @return whether the failure or one of its causes carries an error code
    */
   public boolean carriesErrorCode(Throwable failure) {
     return FailureCauses.findFailureWithErrorCode(failure).isPresent();
@@ -218,16 +222,44 @@ public class ErrorResponseFactory {
       return bodyOf(externalErrorOf(report), HttpStatus.INTERNAL_SERVER_ERROR);
     }
     var external = report.getExternal();
-    var mappedStatus = Optional.ofNullable(statusesByCode.get(external.code()));
-    var status =
-        HttpStatusCode.valueOf(mappedStatus.orElse(HttpStatus.INTERNAL_SERVER_ERROR.value()));
-    var logLine = logLineOf(report, mappedStatus.isEmpty() ? UNMAPPED_CODE_NOTE : "");
+    var status = statusOf(external.code(), HttpStatus.INTERNAL_SERVER_ERROR);
+    var logLine =
+        logLineOf(report, statusesByCode.containsKey(external.code()) ? "" : UNMAPPED_CODE_NOTE);
     if (status.is5xxServerError()) {
       log.error(logLine, failure);
     } else {
       log.warn(logLine);
     }
     return bodyOf(external, status);
+  }
+
+  /**
+   * Answers a failure with no code whose causes show a busy database or a data conflict, outside
+   * backward-compatible mode, and logs it once with its stack trace.
+   */
+  private Optional<ProblemDetail> forDatabaseFailure(Throwable failure) {
+    if (backwardCompatible) {
+      return Optional.empty();
+    }
+    return DatabaseFailure.of(failure).map(kind -> answerAndLogDatabaseFailure(failure, kind));
+  }
+
+  /** Logs a database failure once, at ERROR for a 5xx, and returns its body. */
+  private ProblemDetail answerAndLogDatabaseFailure(Throwable failure, DatabaseFailure kind) {
+    var report = ErrorReport.of(kind.getCode());
+    var status = statusOf(kind.getCode().getCode(), kind.getDefaultStatus());
+    var logLine = logLineOf(report, "");
+    if (status.is5xxServerError()) {
+      log.error(logLine, failure);
+    } else {
+      log.warn(logLine, failure);
+    }
+    return bodyOf(report.getExternal(), status);
+  }
+
+  /** Returns the status mapped to a code in {@code stratum.web.error.statuses}, or the default. */
+  private HttpStatusCode statusOf(String code, HttpStatus unmappedStatus) {
+    return HttpStatusCode.valueOf(statusesByCode.getOrDefault(code, unmappedStatus.value()));
   }
 
   /** Returns the log line of a report, with a note after its code and message. */

@@ -64,7 +64,8 @@ public record WebProperties(
    *
    * @param statuses The HTTP status, from 400 to 599, of each of the service's error codes that a
    *     StratumException carries, such as ORD-0001 to 409. A code with no status is answered with
-   *     500 and logged. None by default.
+   *     500 and logged. It also changes a Stratum code's own default, such as 409 for SX-WEB-1011.
+   *     None by default.
    */
   @Builder(toBuilder = true)
   public record ErrorSettings(@DefaultValue Map<String, @Min(400) @Max(599) Integer> statuses) {

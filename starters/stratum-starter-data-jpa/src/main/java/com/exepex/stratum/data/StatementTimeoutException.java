@@ -12,7 +12,7 @@ import org.jspecify.annotations.Nullable;
  * time and the data source bean, never SQL or a value. With {@code
  * stratum.backward-compatible=true} its cause is the driver's clean error, so the service's error
  * answers stay as they were; otherwise its cause is a {@code StratumException} with {@code
- * SX-DATA-1003} and no detail, which the web starters answer with status 500.
+ * SX-DATA-1003} and no detail, which the web starters answer with status 503 by default.
  */
 @StratumInternal
 public class StatementTimeoutException extends SQLTimeoutException {

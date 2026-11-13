@@ -123,6 +123,8 @@ whatever `spring.web.error.include-*` says.
 | A body that is not valid JSON, or a parameter of the wrong type | `400` | `SX-WEB-1002` |
 | A path nothing answers | `404` | `SX-WEB-1003` |
 | Any other status, such as `405` or an exception annotated `@ResponseStatus` | that status | `SX-WEB-1004` |
+| A database that is busy or too slow, such as a statement timeout, a wait for a pooled connection or a deadlock, outside backward-compatible mode ([details](../../docs/modules/web-database-errors.md)) | `503` | `SX-WEB-1010` |
+| A request that conflicts with the stored data, outside backward-compatible mode: a duplicate key, or an `@Version` row changed meanwhile | `409` | `SX-WEB-1011` |
 | Any other exception | `500` | `SX-WEB-1005`, with a fixed message |
 | A request whose response had not started within its [time limit](#timeouts) | `stratum.web.timeout.status`, `503` by default | `SX-WEB-1007` |
 | A request whose body is larger than its [limit](#body-size-limit) | `413` | `SX-WEB-1008` |
@@ -136,6 +138,8 @@ The codes, with how to fix each, are in [Error and warning codes](../../docs/gui
 - A `StratumException` with a `5xx` status: one ERROR line with its stack trace. When its code has
   no status in `stratum.web.error.statuses`, the line says so, so a missing mapping shows up in
   testing.
+- A database failure answered with `503` or `409`: one line with its stack trace, ERROR for the
+  `503` and WARN for the `409`.
 - Any other exception: Spring and Tomcat log it at ERROR with its stack trace, as without Stratum.
 - `400`, `404` and the other failures Spring answers itself are not logged, as in Spring Boot. To
   log Spring's reason, set `spring.mvc.log-resolved-exception=true`.

@@ -61,6 +61,7 @@ Each module page follows the same layout so you always know where to look:
 | Web backward-compatible mode, which keeps existing consumers' error bodies | [web-compatible-mode.md](modules/web-compatible-mode.md) |
 | Web response timeouts, for Spring MVC and WebFlux | [web-timeouts.md](modules/web-timeouts.md) |
 | Web request body size limit, for Spring MVC and WebFlux | [web-body-limit.md](modules/web-body-limit.md) |
+| Web answers to database failures: `503` for a busy database, `409` for a data conflict | [web-database-errors.md](modules/web-database-errors.md) |
 | Web request log line: headers, token claims and switching it off | [web-request-log.md](modules/web-request-log.md) |
 | Web MVC (error responses for Spring MVC services) | [stratum-starter-webmvc/README.md](../starters/stratum-starter-webmvc/README.md) |
 | WebFlux (error responses for reactive services) | [stratum-starter-webflux/README.md](../starters/stratum-starter-webflux/README.md) |
@@ -103,6 +104,7 @@ Each module page follows the same layout so you always know where to look:
 | [Error and warning codes](guides/error-codes.md) | What Stratum's codes look like, the internal and external error objects, using codes in your service, and every code with its fix. |
 | [Troubleshooting](guides/troubleshooting.md) | Finding out what Stratum configured, and fixes for common problems. |
 | [FAQ](guides/faq.md) | Short answers to common questions. |
+| [Release notes for 0.2.0](releases/0.2.0.md) | Not released yet: the changes on `main` since 0.1.0, with the steps to migrate. |
 | [Release notes for 0.1.0](releases/0.1.0.md) | What Stratum's first release contains, the modules left out of it and its known gaps. |
 
 ## Architecture decisions

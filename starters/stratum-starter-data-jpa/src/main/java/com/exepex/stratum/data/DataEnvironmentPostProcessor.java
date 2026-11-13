@@ -1,6 +1,7 @@
 package com.exepex.stratum.data;
 
 import com.exepex.stratum.core.api.StratumInternal;
+import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.condition.StratumModuleSwitch;
 import com.exepex.stratum.core.properties.BackwardCompatibleMode;
 import com.exepex.stratum.core.properties.StratumDefaults;
@@ -21,9 +22,11 @@ import org.springframework.util.ClassUtils;
  * Hibernate sends inserts and updates in ordered batches of 50 and pads {@code IN} lists, and
  * Hibernate logs no JDBC errors or warnings of its own. With {@code
  * stratum.backward-compatible=false}, its default, open-in-view is off, paging a fetch join over a
- * collection fails, and every transaction has 60 seconds, except when Spring Batch is present,
- * whose jobs run longer. Every value the service sets for these Spring Boot keys wins. In both
- * modes, startup stops when the service sets a leak alarm threshold that HikariCP would turn off.
+ * collection fails, every transaction has 60 seconds, except when Spring Batch is present, whose
+ * jobs run longer, and a web request whose statement Stratum cancelled ({@code SX-DATA-1003}) is
+ * answered with 503 through {@code stratum.web.error.statuses}. Every value the service sets for
+ * these keys wins. In both modes, startup stops when the service sets a leak alarm threshold that
+ * HikariCP would turn off.
  */
 @StratumInternal
 public class DataEnvironmentPostProcessor implements EnvironmentPostProcessor, Ordered {
@@ -52,7 +55,10 @@ public class DataEnvironmentPostProcessor implements EnvironmentPostProcessor, O
           DataConstants.OPEN_IN_VIEW,
           false,
           DataConstants.JPA_PROPERTIES + QuerySettings.FAIL_ON_PAGINATION_OVER_COLLECTION_FETCH,
-          true);
+          true,
+          StratumModuleConstants.mapEntry(
+              DataConstants.WEB_ERROR_STATUSES, DataErrorCode.STATEMENT_TIMED_OUT.getCode()),
+          DataConstants.STATEMENT_TIMED_OUT_STATUS);
 
   /** The transaction time limit, external too, which Spring Batch jobs would outlive. */
   private static final Map<String, Object> TRANSACTION_TIMEOUT =
