@@ -15,6 +15,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.env.DefaultPropertiesPropertySource;
@@ -58,64 +59,85 @@ class JdbcDefaultsIntegrationTest {
     return dataSource.unwrap(HikariDataSource.class);
   }
 
-  @Test
-  @DisplayName("the data source is behind the JDBC boundary")
-  void wrapsDataSource() {
-    assertThat(dataSource).isInstanceOf(JdbcWrapper.class);
+  @Nested
+  @DisplayName("the JDBC boundary")
+  class Boundary {
+
+    @Test
+    @DisplayName("the data source is behind the JDBC boundary")
+    void wrapsDataSource() {
+      assertThat(dataSource).isInstanceOf(JdbcWrapper.class);
+    }
+
+    @Test
+    @DisplayName("the TLS check of the data source is on")
+    void checksTls() {
+      assertThat(context.getBean(DataConstants.TLS_CHECK)).isInstanceOf(DatabaseTlsCheck.class);
+    }
   }
 
-  @Test
-  @DisplayName("a caller waits at most 3 seconds for a connection")
-  void waitsThreeSecondsForConnection() throws SQLException {
-    assertThat(pool().getConnectionTimeout()).isEqualTo(CONNECTION_TIMEOUT_MILLIS);
+  @Nested
+  @DisplayName("the connection pool")
+  class Pool {
+
+    @Test
+    @DisplayName("a caller waits at most 3 seconds for a connection")
+    void waitsThreeSecondsForConnection() throws SQLException {
+      assertThat(pool().getConnectionTimeout()).isEqualTo(CONNECTION_TIMEOUT_MILLIS);
+    }
+
+    @Test
+    @DisplayName("the PostgreSQL driver gets a login limit of 3 seconds")
+    void limitsLogin() throws SQLException {
+      assertThat(pool().getDataSourceProperties())
+          .containsEntry("loginTimeout", LOGIN_TIMEOUT_SECONDS);
+    }
+
+    @Test
+    @DisplayName("JdbcTemplate keeps Spring Boot's fetch size, which sets none")
+    void setsNoFetchSize() {
+      assertThat(jdbcTemplate.getFetchSize()).isEqualTo(-1);
+    }
   }
 
-  @Test
-  @DisplayName("the PostgreSQL driver gets a login limit of 3 seconds")
-  void limitsLogin() throws SQLException {
-    assertThat(pool().getDataSourceProperties())
-        .containsEntry("loginTimeout", LOGIN_TIMEOUT_SECONDS);
+  @Nested
+  @DisplayName("the time limits")
+  class TimeLimits {
+
+    @Test
+    @DisplayName("every transaction has 60 seconds")
+    void limitsTransactions() {
+      assertThat(transactionManager.getDefaultTimeout()).isEqualTo(TRANSACTION_TIMEOUT_SECONDS);
+    }
+
+    @Test
+    @DisplayName("every statement has 30 seconds, and one past it is answered with 503")
+    void limitsStatements() {
+      assertThat(DataProperties.resolve(environment).queryTimeout()).isEqualTo(QUERY_TIMEOUT);
+      assertThat(
+              environment.getProperty(
+                  StratumModuleConstants.mapEntry(
+                      DataConstants.WEB_ERROR_STATUSES,
+                      DataErrorCode.STATEMENT_TIMED_OUT.getCode())))
+          .isEqualTo(String.valueOf(DataConstants.STATEMENT_TIMED_OUT_STATUS));
+    }
   }
 
-  @Test
-  @DisplayName("every transaction has 60 seconds")
-  void limitsTransactions() {
-    assertThat(transactionManager.getDefaultTimeout()).isEqualTo(TRANSACTION_TIMEOUT_SECONDS);
-  }
+  @Nested
+  @DisplayName("the Spring Boot keys Stratum sets")
+  class SpringBootKeys {
 
-  @Test
-  @DisplayName("every statement has 30 seconds, and one past it is answered with 503")
-  void limitsStatements() {
-    assertThat(DataProperties.resolve(environment).queryTimeout()).isEqualTo(QUERY_TIMEOUT);
-    assertThat(
-            environment.getProperty(
-                StratumModuleConstants.mapEntry(
-                    DataConstants.WEB_ERROR_STATUSES, DataErrorCode.STATEMENT_TIMED_OUT.getCode())))
-        .isEqualTo(String.valueOf(DataConstants.STATEMENT_TIMED_OUT_STATUS));
-  }
+    @Test
+    @DisplayName("Stratum gives no spring.jpa key a default")
+    void setsNoJpaKey() {
+      var defaults =
+          (EnumerablePropertySource<?>)
+              environment.getPropertySources().get(DefaultPropertiesPropertySource.NAME);
 
-  @Test
-  @DisplayName("the TLS check of the data source is on")
-  void checksTls() {
-    assertThat(context.getBean(DataConstants.TLS_CHECK)).isInstanceOf(DatabaseTlsCheck.class);
-  }
-
-  @Test
-  @DisplayName("JdbcTemplate keeps Spring Boot's fetch size, which sets none")
-  void setsNoFetchSize() {
-    assertThat(jdbcTemplate.getFetchSize()).isEqualTo(-1);
-  }
-
-  @Test
-  @DisplayName("Stratum gives no spring.jpa key a default")
-  void setsNoJpaKey() {
-    var defaults =
-        (EnumerablePropertySource<?>)
-            environment.getPropertySources().get(DefaultPropertiesPropertySource.NAME);
-
-    assertThat(defaults).isNotNull();
-    assertThat(Arrays.asList(defaults.getPropertyNames()))
-        .contains(DataConstants.CONNECTION_TIMEOUT)
-        .noneMatch(name -> name.startsWith("spring.jpa."));
+      assertThat(defaults).isNotNull();
+      assertThat(Arrays.asList(defaults.getPropertyNames()))
+          .contains(DataConstants.CONNECTION_TIMEOUT)
+          .noneMatch(name -> name.startsWith("spring.jpa."));
+    }
   }
 }
