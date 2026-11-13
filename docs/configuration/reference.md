@@ -101,7 +101,7 @@ Module page: [Web → Properties](../modules/web.md#properties).
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.web.error.statuses` | `Map<String, Integer>` | none | The HTTP status, from 400 to 599, of each of the service's error codes that a StratumException carries, such as ORD-0001 to 409. A code with no status is answered with 500 and logged. None by default. |
+| `stratum.web.error.statuses` | `Map<String, Integer>` | none | The HTTP status, from 400 to 599, of each of the service's error codes that a StratumException carries, such as ORD-0001 to 409. A code with no status is answered with 500 and logged. It also changes a Stratum code's own default, such as 409 for SX-WEB-1011. None by default. |
 
 ### `stratum.web.request-fields`
 

@@ -131,4 +131,27 @@ public class WebConstants {
 
   /** The error body member that lists the problems with single fields of the request. */
   public static final String DETAILS = "details";
+
+  /** The SQLState of a statement the database cancelled, such as by PostgreSQL's timeout. */
+  public static final String STATEMENT_CANCELLED = "57014";
+
+  /** The SQLState of a lock the database could not take in time, such as by lock_timeout. */
+  public static final String LOCK_NOT_AVAILABLE = "55P03";
+
+  /** The SQLState of a transaction the database ended to break a deadlock. */
+  public static final String DEADLOCK = "40P01";
+
+  /** The SQLState of a row whose unique key already exists. */
+  public static final String UNIQUE_VIOLATION = "23505";
+
+  /** Spring's exception for a transaction that ran past its time limit. */
+  public static final String TRANSACTION_TIMED_OUT =
+      "org.springframework.transaction.TransactionTimedOutException";
+
+  /** Spring's exception for a row that another transaction changed since it was read. */
+  public static final String OPTIMISTIC_LOCK_FAILURE =
+      "org.springframework.dao.OptimisticLockingFailureException";
+
+  /** Hibernate's exception for a versioned row that another transaction changed. */
+  public static final String STALE_STATE = "org.hibernate.StaleStateException";
 }

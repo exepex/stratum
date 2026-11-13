@@ -56,7 +56,21 @@ public enum WebErrorCode implements ErrorCode {
       Severity.ERROR,
       "A path pattern in the web settings is not valid",
       "Correct the pattern; Spring's path patterns allow {name}, * and **, and ** only at the"
-          + " end.");
+          + " end."),
+
+  /** The database was too busy or too slow to answer, such as a timeout, pool wait or deadlock. */
+  DATABASE_BUSY(
+      "SX-WEB-1010",
+      Severity.ERROR,
+      "The database is busy or did not answer in time; try again later",
+      ""),
+
+  /** The request conflicts with the stored data: a duplicate key, or a row changed meanwhile. */
+  DATA_CONFLICT(
+      "SX-WEB-1011",
+      Severity.ERROR,
+      "The request conflicts with the current data; read it again before retrying",
+      "");
 
   /** The code, such as {@code SX-WEB-1001}. */
   private final String code;

@@ -7,7 +7,8 @@ in the READMEs of [`stratum-starter-webmvc`](../../starters/stratum-starter-webm
 [Request log](web-request-log.md), timeouts in
 [Response timeouts](web-timeouts.md), backward-compatible mode in
 [Backward-compatible mode](web-compatible-mode.md), the body size limit in
-[Request body size limit](web-body-limit.md), and the rest on this page.
+[Request body size limit](web-body-limit.md), the answers to database failures in
+[Database failures](web-database-errors.md), and the rest on this page.
 
 [← Documentation home](../README.md) · Property prefix: `stratum.web` · Decision record:
 [ADR 0006](../adr/0006-separate-mvc-and-webflux-starters.md)
@@ -121,6 +122,9 @@ time or body size limit. A new service leaves it unset, at `false`. See
   [Marking an existing exception](web-compatible-mode.md#marking-an-existing-exception).
 - **An exception annotated `@ResponseStatus`** gets that status, with Spring Boot's body in
   [backward-compatible mode](web-compatible-mode.md) and Stratum's body once it is off.
+- **A database failure** that is a timeout, a wait for a connection, a lock timeout or a deadlock
+  is answered with `503` and `SX-WEB-1010`; a duplicate key or a row changed meanwhile with `409`
+  and `SX-WEB-1011`. See [Database failures](web-database-errors.md).
 - **Anything else** is answered with `500`. Stratum's body has a fixed message, and the real error
   goes to the log only.
 
@@ -335,7 +339,7 @@ it is listed in [Configuration reference](../configuration/reference.md) and exp
 | Property | Type | Stratum's default | Spring Boot's default | Description |
 | --- | --- | --- | --- | --- |
 | `stratum.web.enabled` | boolean | `true` | no such key | Whether the module is on. With `false`, the starter sets up nothing of its own. |
-| `stratum.web.error.statuses` | map of code to status | empty | no such key | The HTTP status of each of your error codes, such as `ORD-0001: 409`. |
+| `stratum.web.error.statuses` | map of code to status | empty | no such key | The HTTP status of each of your error codes, such as `ORD-0001: 409`. It also changes the status of a Stratum code, such as `SX-WEB-1011`, whose default is `409`; see [Database failures](web-database-errors.md). |
 | `stratum.web.correlation.accept-from-caller` | boolean | `true` | no such key | Whether a caller's `X-Correlation-Id`, or the `correlationId` in its baggage, is used. Set it to `false` on a service that faces the internet, to always use the trace ID. |
 | `stratum.web.client-ip.trusted-proxies` | list of address ranges | `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `127.0.0.0/8`, `::1/128`, `fc00::/7` | no such key | The load balancers and proxies whose `X-Forwarded-For` header is trusted. An empty list trusts none. |
 | `stratum.web.user-agent.parse` | boolean | `false` | no such key | Whether device, OS and browser are read from the user agent. Adds about 110 MB of memory and 3 seconds of startup. |

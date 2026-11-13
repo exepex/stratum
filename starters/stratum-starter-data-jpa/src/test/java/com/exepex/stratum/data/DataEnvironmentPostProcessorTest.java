@@ -48,6 +48,8 @@ class DataEnvironmentPostProcessorTest {
 
   private static final String TRANSACTION_TIMEOUT = "spring.transaction.default-timeout";
 
+  private static final String STATEMENT_TIMEOUT_STATUS = "stratum.web.error.statuses[SX-DATA-1003]";
+
   private static final String LEAK_THRESHOLD = "spring.datasource.hikari.leak-detection-threshold";
 
   private static final String MAX_LIFETIME = "spring.datasource.hikari.max-lifetime";
@@ -74,7 +76,15 @@ class DataEnvironmentPostProcessorTest {
 
   /** The defaults that apply only with {@code stratum.backward-compatible=false}. */
   private static final Map<String, String> EXTERNAL_DEFAULTS =
-      Map.of(OPEN_IN_VIEW, OFF, FAIL_ON_PAGINATION, ON, TRANSACTION_TIMEOUT, "60s");
+      Map.of(
+          OPEN_IN_VIEW,
+          OFF,
+          FAIL_ON_PAGINATION,
+          ON,
+          TRANSACTION_TIMEOUT,
+          "60s",
+          STATEMENT_TIMEOUT_STATUS,
+          "503");
 
   /** Every key the module gives a default, with a value a service sets instead. */
   private static final List<Arguments> SERVICE_VALUES =
@@ -86,7 +96,8 @@ class DataEnvironmentPostProcessorTest {
           arguments(ORDER_UPDATES, OFF),
           arguments(OPEN_IN_VIEW, ON),
           arguments(FAIL_ON_PAGINATION, OFF),
-          arguments(TRANSACTION_TIMEOUT, "300s"));
+          arguments(TRANSACTION_TIMEOUT, "300s"),
+          arguments(STATEMENT_TIMEOUT_STATUS, "500"));
 
   /** Thresholds HikariCP would turn off with its default {@code max-lifetime} of 30 minutes. */
   private static final List<Arguments> THRESHOLDS_TURNED_OFF =
@@ -195,7 +206,9 @@ class DataEnvironmentPostProcessorTest {
 
       assertUnset(environment, List.of(TRANSACTION_TIMEOUT));
       assertSet(environment, INTERNAL_DEFAULTS);
-      assertSet(environment, Map.of(OPEN_IN_VIEW, OFF, FAIL_ON_PAGINATION, ON));
+      assertSet(
+          environment,
+          Map.of(OPEN_IN_VIEW, OFF, FAIL_ON_PAGINATION, ON, STATEMENT_TIMEOUT_STATUS, "503"));
     }
   }
 

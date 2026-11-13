@@ -54,6 +54,15 @@ public class DataConstants {
   /** The property that limits how long one statement may run. */
   public static final String QUERY_TIMEOUT = PREFIX + ".query-timeout";
 
+  /**
+   * The web module's map of error codes to HTTP statuses, where this module gives its own code a
+   * default.
+   */
+  public static final String WEB_ERROR_STATUSES = "stratum.web.error.statuses";
+
+  /** The HTTP status of a request whose statement Stratum cancelled: 503, Service Unavailable. */
+  public static final int STATEMENT_TIMED_OUT_STATUS = 503;
+
   /** The counter of the statements Stratum cancelled because they ran past their limit. */
   public static final String TIMEOUTS_METER = "stratum.data.timeouts";
 
