@@ -162,8 +162,8 @@ the sidebar. It runs
 - copies [`docs/README.md`](README.md) as the wiki's **Home**, and every page it links in a table row:
   every relative link of a row becomes a page, so the HTTP client row yields all its pages. A row
   may link only to a page in `docs/`, a starter's `README.md` or the project `README.md`; any other
-  file fails the run. The agent rules in `docs/agents/` are not in the index, so they
-  stay in the repository;
+  file fails the run. Every page in `docs/` must be in a row, except the agent rules in
+  `docs/agents/`, which are not in the index and so stay in the repository;
 - copies the project [`README.md`](../README.md) as the page **Project-README**, linked under Home in
   the sidebar. Home is the documentation index; Project-README is the overview of what Stratum is.
   Links between the two work in the wiki;
@@ -179,9 +179,14 @@ the sidebar. It runs
 
 The sync checks everything before it writes. It stops and leaves the wiki as it was when a link
 leads out of the repository or to a missing file, when a page shows a relative image, when two
-pages get the same name, when a page written in the wiki has a copied page's name, or when
-`docs/README.md` has a section with no sidebar group. So a new section in `docs/README.md` also
-needs its group in `WikiSync.java`, and a page written in the wiki needs a name no copied page has.
+pages get the same name, when a page written in the wiki has a copied page's name, when
+`docs/README.md` has a section with no sidebar group, when a page in `docs/` outside `docs/agents/`
+is in no table row of `docs/README.md`, or when a link's `#anchor` names no heading of its target
+Markdown page, the same page included. An anchor is the heading's text as GitHub makes it: lower
+case, punctuation other than `_` and `-` removed, each space a hyphen, and `-1`, `-2` added to
+repeats; a heading inside a code fence has none. Anchors into other files, such as code, are not checked. So a new page needs
+its row in `docs/README.md`, a new section also needs its group in `WikiSync.java`, and a page
+written in the wiki needs a name no copied page has.
 A run that changes no page makes no commit.
 
 On every pull request, the workflow runs the sync's golden test,

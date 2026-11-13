@@ -2,6 +2,7 @@
 
 See [the decision](../adr/0001-first.md#context), [the steps](#steps), [Spring](https://spring.io),
 the [agent rules](../agents/rules.md#rule-one), which are not copied, and [AGENTS.md](../../AGENTS.md).
+The [licence](../../LICENSE#L1) is not a Markdown file, whose line anchor is not a heading.
 
 A link whose text [wraps onto
 the next line](../contributing.md) is rewritten.
