@@ -3,6 +3,7 @@ package com.exepex.stratum.jdbc.it;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.condition.StratumModuleConstants;
+import com.exepex.stratum.core.properties.BackwardCompatibleMode;
 import com.exepex.stratum.data.DataConstants;
 import com.exepex.stratum.data.DataErrorCode;
 import com.exepex.stratum.data.DataProperties;
@@ -11,7 +12,6 @@ import com.exepex.stratum.data.JdbcWrapper;
 import com.exepex.stratum.test.PostgresContainerConfiguration;
 import com.zaxxer.hikari.HikariDataSource;
 import java.sql.SQLException;
-import java.time.Duration;
 import java.util.Arrays;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.DisplayName;
@@ -37,9 +37,6 @@ class JdbcDefaultsIntegrationTest {
 
   /** Stratum's transaction time limit, in seconds. */
   private static final int TRANSACTION_TIMEOUT_SECONDS = 60;
-
-  /** Stratum's statement time limit. */
-  private static final Duration QUERY_TIMEOUT = Duration.ofSeconds(30);
 
   /** The login limit the PostgreSQL driver gets from the 3 seconds' wait, in seconds. */
   private static final String LOGIN_TIMEOUT_SECONDS = "3";
@@ -110,10 +107,17 @@ class JdbcDefaultsIntegrationTest {
       assertThat(transactionManager.getDefaultTimeout()).isEqualTo(TRANSACTION_TIMEOUT_SECONDS);
     }
 
+    // The 30 seconds are not a property: StatementLimitsFactory gives them to every pool when
+    // the service sets no stratum.data.query-timeout and strict mode is on, as
+    // StatementLimitsFactoryTest proves. JdbcBoundaryIntegrationTest proves the limit cancels a
+    // statement on this starter.
     @Test
-    @DisplayName("every statement has 30 seconds, and one past it is answered with 503")
+    @DisplayName(
+        "every statement gets Stratum's 30 seconds, in strict mode with no limit of the service's,"
+            + " and one past it is answered with 503")
     void limitsStatements() {
-      assertThat(DataProperties.resolve(environment).queryTimeout()).isEqualTo(QUERY_TIMEOUT);
+      assertThat(BackwardCompatibleMode.isOn(environment)).isFalse();
+      assertThat(DataProperties.resolve(environment).queryTimeout()).isNull();
       assertThat(
               environment.getProperty(
                   StratumModuleConstants.mapEntry(
