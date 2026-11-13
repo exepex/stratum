@@ -134,7 +134,7 @@ because no caller sees them:
   (`spring.jpa.properties.hibernate.jdbc.log.errors=false` and `...log.warnings=false`).
 
 Search your code for driver exception classes and for `HikariDataSource` before this step. The
-other effects are listed under [Data → Clean database errors](../modules/data-jpa.md#clean-database-errors),
+other effects are listed under [Data → Clean database errors](../modules/data.md#clean-database-errors),
 in its Limits.
 
 Before deploying this step, run the service once with `validate` in development or CI against a

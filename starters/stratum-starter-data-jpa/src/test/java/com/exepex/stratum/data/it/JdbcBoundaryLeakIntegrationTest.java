@@ -1,9 +1,9 @@
 package com.exepex.stratum.data.it;
 
-import static com.exepex.stratum.data.testsupport.DataAssertions.assertChainCarriesNo;
-import static com.exepex.stratum.data.testsupport.DataAssertions.assertServiceSeesNo;
-import static com.exepex.stratum.data.testsupport.DataAssertions.sqlExceptionIn;
-import static com.exepex.stratum.data.testsupport.SqlFailureTestData.PERSONAL_VALUE;
+import static com.exepex.stratum.test.DatabaseFailureAssertions.PERSONAL_VALUE;
+import static com.exepex.stratum.test.DatabaseFailureAssertions.assertChainCarriesNo;
+import static com.exepex.stratum.test.DatabaseFailureAssertions.assertServiceSeesNo;
+import static com.exepex.stratum.test.DatabaseFailureAssertions.sqlExceptionIn;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 

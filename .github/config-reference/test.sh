@@ -42,10 +42,10 @@ expect_failure() {
 }
 
 expect_failure "module missing from MODULES" "starters/stratum-starter-new has stratum.* keys but no entry in MODULES" \
-  "mkdir -p \$(dirname \$(metadata starters/stratum-starter-new)) && cp \$(metadata starters/stratum-starter-data-jpa) \$(metadata starters/stratum-starter-new)"
+  "mkdir -p \$(dirname \$(metadata starters/stratum-starter-new)) && cp \$(metadata libs/stratum-data) \$(metadata starters/stratum-starter-new)"
 expect_failure "module not built" "starters/stratum-starter-cache/target/classes/META-INF/spring-configuration-metadata.json is missing" \
   "rm \$(metadata starters/stratum-starter-cache)"
-expect_failure "key outside the module's prefix" "starters/stratum-starter-data-jpa: stratum.database.enabled does not start with stratum.data" \
-  "sed -i 's/stratum.data.enabled/stratum.database.enabled/' \$(metadata starters/stratum-starter-data-jpa)"
+expect_failure "key outside the module's prefix" "libs/stratum-data: stratum.database.enabled does not start with stratum.data" \
+  "sed -i 's/stratum.data.enabled/stratum.database.enabled/' \$(metadata libs/stratum-data)"
 expect_failure "malformed metadata" "libs/stratum-web/target/classes/META-INF/spring-configuration-metadata.json: unexpected" \
   "printf '{\"properties\": [}' > \$(metadata libs/stratum-web)"

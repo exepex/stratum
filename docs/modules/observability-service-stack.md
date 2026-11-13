@@ -51,7 +51,7 @@ show where database time goes:
 | --- | --- |
 | `hikaricp.connections.active`, `.idle`, `.pending`, `.max`, `.min` | The connection pool's state, tagged with the pool's name. `pending` above zero means callers wait for a connection |
 | `hikaricp.connections.acquire`, `.usage`, `.creation` | How long getting, holding and opening a connection take |
-| `hikaricp.connections.timeout` | Callers that gave up waiting, after `spring.datasource.hikari.connection-timeout` ([data](data-jpa.md)) |
+| `hikaricp.connections.timeout` | Callers that gave up waiting, after `spring.datasource.hikari.connection-timeout` ([data](data.md#properties)) |
 | `spring.data.repository.invocations` | Each Spring Data repository call, tagged with the repository, the method, its state and exception |
 
 Hibernate's `hibernate.*` metrics appear only when the service adds

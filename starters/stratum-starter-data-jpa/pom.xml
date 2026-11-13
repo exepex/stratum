@@ -27,45 +27,19 @@
       <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-core</artifactId>
     </dependency>
-    <!-- Spring Boot's own JPA starter: the HikariCP pool, Hibernate and Spring Data JPA that this
-         module gives its defaults. -->
+    <!-- The JDBC boundary and the pool and transaction defaults every data starter shares. It is
+         not in stratum-bom until it is published (docs/contributing.md#publishing), so its
+         version is this build's own. -->
+    <dependency>
+      <groupId>io.github.exepex.stratum</groupId>
+      <artifactId>stratum-data</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <!-- Spring Boot's own JPA starter: Hibernate and Spring Data JPA, which this module gives
+         its defaults. -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-data-jpa</artifactId>
-    </dependency>
-    <!-- Generates the JDBC boundary's wrappers once at startup, so no JDBC call reflects.
-         Hibernate brings it only in runtime scope. -->
-    <dependency>
-      <groupId>net.bytebuddy</groupId>
-      <artifactId>byte-buddy</artifactId>
-    </dependency>
-    <!-- Micrometer, optional: the boundary counts the statements it cancels in
-         stratum.data.timeouts when a service has a meter registry. -->
-    <dependency>
-      <groupId>io.micrometer</groupId>
-      <artifactId>micrometer-core</artifactId>
-      <optional>true</optional>
-    </dependency>
-    <!-- The PostgreSQL driver, optional: the boundary reads the violated constraint's name from its
-         errors when a service brings it. -->
-    <dependency>
-      <groupId>org.postgresql</groupId>
-      <artifactId>postgresql</artifactId>
-      <optional>true</optional>
-    </dependency>
-    <!-- Spring Boot's Flyway support, optional: its customizer is where the boundary wraps the
-         connection Boot builds for Flyway. A service brings it with spring-boot-starter-flyway. -->
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-flyway</artifactId>
-      <optional>true</optional>
-    </dependency>
-    <!-- Liquibase, optional: its SpringLiquibase bean holds the connection the boundary wraps. A
-         service brings it with spring-boot-starter-liquibase. -->
-    <dependency>
-      <groupId>org.liquibase</groupId>
-      <artifactId>liquibase-core</artifactId>
-      <optional>true</optional>
     </dependency>
     <!-- The two web starters, for the tests of the answer to a request whose statement Stratum
          cancelled, on both stacks (ADR 0006). -->
@@ -115,6 +89,18 @@
       <artifactId>spring-batch-core</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Micrometer and the PostgreSQL driver, which stratum-data declares optional, as a service
+         brings them, for the integration tests. -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
     <!-- Flyway and Liquibase as a service adds them, to prove their connections get the boundary. -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -131,7 +117,7 @@
       <artifactId>spring-boot-starter-liquibase</artifactId>
       <scope>test</scope>
     </dependency>
-    <!-- JMH, for the JDBC boundary's benchmark, which only the benchmark profile below runs. -->
+    <!-- JMH, for the request time left benchmark, which only the benchmark profile below runs. -->
     <dependency>
       <groupId>org.openjdk.jmh</groupId>
       <artifactId>jmh-core</artifactId>
@@ -140,13 +126,13 @@
   </dependencies>
 
   <profiles>
-    <!-- Measures what the JDBC boundary adds to each JDBC call, and what the statement limits'
-         pool and driver settings cost, against the raw pool, on a PostgreSQL container. Run on
-         demand only; docs/contributing.md gives the command, and jmh.benchmarks picks one. -->
+    <!-- Measures what reading a web request's time left costs, with no database. The JDBC
+         boundary's benchmarks are in stratum-data. Run on demand only; docs/contributing.md
+         gives the command. -->
     <profile>
       <id>benchmark</id>
       <properties>
-        <jmh.benchmarks>JdbcBoundaryBenchmark|StatementLimitsBenchmark|StatementTimerBenchmark|StatementSweeperBenchmark|RequestTimeLeftBenchmark</jmh.benchmarks>
+        <jmh.benchmarks>RequestTimeLeftBenchmark</jmh.benchmarks>
       </properties>
       <build>
         <plugins>

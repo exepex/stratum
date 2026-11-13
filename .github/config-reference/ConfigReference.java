@@ -70,11 +70,11 @@ final class ConfigReference {
               "HTTP client → Properties",
               "../modules/http-client.md#properties"),
           new Module(
-              "starters/stratum-starter-data-jpa",
+              "libs/stratum-data",
               "Data",
               "stratum.data",
               "Data → Properties",
-              "../modules/data-jpa.md#properties"),
+              "../modules/data.md#properties"),
           new Module(
               "starters/stratum-starter-cache",
               "Cache",

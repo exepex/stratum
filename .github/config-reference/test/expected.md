@@ -96,7 +96,7 @@ Module page: [HTTP client → Properties](../modules/http-client.md#properties).
 
 ## Data
 
-Module page: [Data → Properties](../modules/data-jpa.md#properties).
+Module page: [Data → Properties](../modules/data.md#properties).
 
 ### `stratum.data`
 

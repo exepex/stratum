@@ -1,4 +1,2 @@
-com.exepex.stratum.data.autoconfigure.DataJpaAutoConfiguration
-com.exepex.stratum.data.autoconfigure.JdbcBoundaryAutoConfiguration
-com.exepex.stratum.data.autoconfigure.FlywayBoundaryAutoConfiguration
-com.exepex.stratum.data.autoconfigure.LiquibaseBoundaryAutoConfiguration
+com.exepex.stratum.datajpa.autoconfigure.DataJpaAutoConfiguration
+com.exepex.stratum.datajpa.autoconfigure.DataJpaBoundaryAutoConfiguration

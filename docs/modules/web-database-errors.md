@@ -26,7 +26,7 @@ decides:
 
 | Among the failure and its causes | Status | `code` |
 | --- | --- | --- |
-| A `StratumException` or `FailureWithErrorCode`, such as `SX-DATA-1003` when the [data JPA starter](data-jpa-statement-limits.md) cancelled a statement | its mapped status: `503` for `SX-DATA-1003` | its own code |
+| A `StratumException` or `FailureWithErrorCode`, such as `SX-DATA-1003` when the [data module](data-statement-limits.md) cancelled a statement | its mapped status: `503` for `SX-DATA-1003` | its own code |
 | `java.sql.SQLTimeoutException`, such as a query timeout set through JDBC | `503` | `SX-WEB-1010` |
 | `java.sql.SQLTransientConnectionException`, such as HikariCP's after a caller waited `spring.datasource.hikari.connection-timeout` for a connection, also when the database is down | `503` | `SX-WEB-1010` |
 | A database error with SQLState `57014` (statement cancelled, such as by PostgreSQL's `statement_timeout`), `55P03` (lock not available, such as by `lock_timeout`) or `40P01` (deadlock) | `503` | `SX-WEB-1010` |
@@ -69,7 +69,7 @@ every error gets, with the trace ID to quote to support:
 The service logs the failure once, with its stack trace: a `503` at ERROR and a `409` at WARN. Any
 caller can cause a `409`, such as by sending the same new order twice, so each one writes a WARN
 line. With the data JPA starter, the logged exception has no values from the database; see
-[Clean database errors](data-jpa.md#clean-database-errors).
+[Clean database errors](data.md#clean-database-errors).
 
 ## Change a status
 

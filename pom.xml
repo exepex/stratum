@@ -76,6 +76,7 @@
 
     <!-- Shared libraries -->
     <module>libs/stratum-core</module>
+    <module>libs/stratum-data</module>
     <module>libs/stratum-redaction</module>
     <module>libs/stratum-http-client</module>
     <module>libs/stratum-test</module>

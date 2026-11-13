@@ -1,14 +1,14 @@
 package com.exepex.stratum.data.it;
 
-import static com.exepex.stratum.data.testsupport.DataAssertions.chainOf;
-import static com.exepex.stratum.data.testsupport.SqlFailureTestData.CONSTRAINT;
-import static com.exepex.stratum.data.testsupport.SqlFailureTestData.PERSONAL_VALUE;
+import static com.exepex.stratum.test.DatabaseFailureAssertions.CONSTRAINT;
+import static com.exepex.stratum.test.DatabaseFailureAssertions.PERSONAL_VALUE;
+import static com.exepex.stratum.test.DatabaseFailureAssertions.chainOf;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
 import com.exepex.stratum.data.it.migration.MigrationApplication;
-import com.exepex.stratum.data.testsupport.DataAssertions;
+import com.exepex.stratum.test.DatabaseFailureAssertions;
 import com.exepex.stratum.test.PostgresJdbcContainerConfiguration;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -78,7 +78,7 @@ class MigrationBoundaryIntegrationTest {
 
       assertThat(chainOf(failure).map(Throwable::getMessage))
           .anySatisfy(message -> assertThat(message).contains(CONSTRAINT));
-      DataAssertions.assertServiceSeesNo(failure, output, PERSONAL_VALUE);
+      DatabaseFailureAssertions.assertServiceSeesNo(failure, output, PERSONAL_VALUE);
     }
   }
 

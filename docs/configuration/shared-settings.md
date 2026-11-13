@@ -92,7 +92,7 @@ the Spring Boot keys it sets, with both defaults:
 [Web](../modules/web.md#properties),
 [Logging](../../starters/stratum-starter-logging/README.md#properties),
 [Observability](../../starters/stratum-starter-observability/README.md#properties),
-[Data](../modules/data-jpa.md#properties) and [Cache](../modules/cache.md#properties). The planned
+[Data](../modules/data.md#properties) and [Cache](../modules/cache.md#properties). The planned
 modules' pages list theirs. The HTTP client starters are the one exception: each client's settings live
 under `stratum.http-client.clients.<name>.*`, and Spring Boot's `spring.http.serviceclient.*` keys do not apply
 ([ADR 0011](../adr/0011-http-client-starters.md)).
