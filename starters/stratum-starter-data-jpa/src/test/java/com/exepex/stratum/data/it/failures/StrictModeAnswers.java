@@ -173,7 +173,7 @@ abstract class StrictModeAnswers {
   @Test
   @DisplayName("a deadlock that PostgreSQL broke by ending the request's transaction gets 503")
   void deadlock(CapturedOutput output)
-      throws IOException, InterruptedException, SQLException, ExecutionException, TimeoutException {
+      throws InterruptedException, SQLException, ExecutionException, TimeoutException {
     try (var holder = openTransaction();
         var statement = holder.createStatement()) {
       statement.execute("SET LOCAL deadlock_timeout = '10s'");

@@ -170,11 +170,11 @@ class DatabaseFailureTest {
   @Test
   @DisplayName("each class name is the real name of Spring's or Hibernate's exception")
   void namesMatchRealClasses() {
-    assertThat(WebConstants.TRANSACTION_TIMED_OUT)
-        .isEqualTo(TransactionTimedOutException.class.getName());
-    assertThat(WebConstants.OPTIMISTIC_LOCK_FAILURE)
-        .isEqualTo(OptimisticLockingFailureException.class.getName());
-    assertThat(WebConstants.STALE_STATE).isEqualTo(StaleStateException.class.getName());
+    assertThat(TransactionTimedOutException.class.getName())
+        .isEqualTo(WebConstants.TRANSACTION_TIMED_OUT);
+    assertThat(OptimisticLockingFailureException.class.getName())
+        .isEqualTo(WebConstants.OPTIMISTIC_LOCK_FAILURE);
+    assertThat(StaleStateException.class.getName()).isEqualTo(WebConstants.STALE_STATE);
   }
 
   /** Holds a service's own exception that shares the simple name of Spring's. */

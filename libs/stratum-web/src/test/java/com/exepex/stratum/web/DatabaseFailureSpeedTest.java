@@ -24,11 +24,10 @@ class DatabaseFailureSpeedTest {
   private static final int CALLS_PER_BATCH = 20;
 
   /**
-   * CPU time one read of the chain may take: 5 times M, where M = 5,598 µs is the best value of a
-   * local run with coverage on, JDK 25, 2026-11-13; to be replaced by the largest best value of 3
-   * CI runs.
+   * CPU time one read of the chain may take: 5 times M, where M = 11,103 µs is the best value of CI
+   * run 43402217558 with coverage on, JDK 25, 2026-11-13 (a local run took 5,598 µs).
    */
-  private static final Duration LIMIT = Duration.of(27_990, ChronoUnit.MICROS);
+  private static final Duration LIMIT = Duration.of(55_517, ChronoUnit.MICROS);
 
   @Test
   @DisplayName("a duplicate key beneath 10,000 wrappers is found within the limit")
