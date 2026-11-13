@@ -48,13 +48,16 @@ class StatementLimitsFactoryRequestTest {
   @SuppressWarnings("unchecked")
   private final ObjectProvider<RequestTimeLeft> requestTimeLeft = mock(ObjectProvider.class);
 
+  /** Finds no meter registry, so nothing is counted. */
+  @SuppressWarnings("unchecked")
+  private final ObjectProvider<MeterRegistry> meterRegistries = mock(ObjectProvider.class);
+
   /** The application's bean factory, with no meter registry. */
   private final BeanFactory beanFactory = mock(BeanFactory.class);
 
   /** Gives the bean factory the web module's bean, or none. */
-  @SuppressWarnings("unchecked")
   private void withBean(boolean present) {
-    when(beanFactory.getBeanProvider(MeterRegistry.class)).thenReturn(mock(ObjectProvider.class));
+    when(beanFactory.getBeanProvider(MeterRegistry.class)).thenReturn(meterRegistries);
     when(beanFactory.getBeanProvider(RequestTimeLeft.class)).thenReturn(requestTimeLeft);
     when(requestTimeLeft.getIfAvailable()).thenReturn(present ? () -> left : null);
   }
