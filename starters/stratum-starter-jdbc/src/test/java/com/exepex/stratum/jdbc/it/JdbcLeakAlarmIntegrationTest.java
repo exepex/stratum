@@ -1,4 +1,4 @@
-package com.exepex.stratum.jdbc;
+package com.exepex.stratum.jdbc.it;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
@@ -13,7 +13,7 @@ import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.annotation.Configuration;
 
 @DisplayName("A plain JDBC service gets the leak alarm check of stratum-data")
-class JdbcLeakAlarmTest {
+class JdbcLeakAlarmIntegrationTest {
 
   @Test
   @DisplayName("a leak alarm threshold HikariCP would turn off stops startup with SX-DATA-1002")

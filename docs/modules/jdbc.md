@@ -90,7 +90,21 @@ report. It then gets each Stratum bean and each default once, and the Hibernate 
 
 The `stratum.data` properties, and every Spring Boot key Stratum gives a default, are in the one
 table of [Data → Properties](data.md#properties). The rows marked "data JPA starter only" do not
-apply to this starter. To set them in Java, see [Data → Configure in Java](data.md#configure-in-java).
+apply to this starter.
+
+## Configure in Java
+
+Set any Spring Boot key in [Data → Properties](data.md#properties) in Java as a default property,
+which wins over Stratum's default:
+
+```java
+var application = new SpringApplication(OrdersApplication.class);
+application.setDefaultProperties(Map.of("spring.datasource.hikari.connection-timeout", 5000));
+application.run(args);
+```
+
+`stratum.data.query-timeout` is set in Java as in
+[Data → Configure in Java](data.md#configure-in-java).
 
 ## Customize
 
