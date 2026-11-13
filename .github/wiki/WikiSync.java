@@ -22,7 +22,7 @@ import java.util.stream.Stream;
 final class WikiSync {
 
   /** The documentation index: the source of the page list, the sidebar and the wiki's Home. */
-  private static final String INDEX = "docs/README.md";
+  static final String INDEX = "docs/README.md";
 
   /** The project README: copied as its own page, because Home is the documentation index. */
   private static final String ROOT_README = "README.md";
@@ -86,6 +86,9 @@ final class WikiSync {
   /** The sidebar entries of each group, as Markdown list lines. */
   private final Map<String, List<String>> groupEntries = new LinkedHashMap<>();
 
+  /** Checks that each link's anchor names a heading of its target page. */
+  private final HeadingAnchors anchors = new HeadingAnchors(this::read);
+
   private WikiSync(Path repository, Path wiki) {
     this.repository = repository;
     this.wiki = wiki;
@@ -113,6 +116,7 @@ final class WikiSync {
   /** Builds every page in memory, checks the wiki, then writes, deletes and optionally commits. */
   private void run(boolean commit) {
     readIndex();
+    new IndexCoverage(repository).check(pageNames.keySet());
     var output = new LinkedHashMap<String, String>();
     pageNames.forEach((source, name) -> output.put(name + ".md", page(source)));
     List<String> existing = existingPages();
@@ -219,16 +223,11 @@ final class WikiSync {
   private String page(String source) {
     var body = new StringBuilder(MARKER).append(source).append(" -->\n");
     var text = new StringBuilder();
-    String fence = null;
+    var fence = new CodeFence();
     for (String line : read(source).lines().toList()) {
-      String opening = line.stripLeading();
-      if (fence == null && (opening.startsWith("```") || opening.startsWith("~~~"))) {
-        fence = opening.substring(0, 3);
+      if (fence.isFenced(line)) {
         body.append(rewriteLinks(source, text.toString())).append(line).append('\n');
         text.setLength(0);
-      } else if (fence != null) {
-        fence = opening.startsWith(fence) ? null : fence;
-        body.append(line).append('\n');
       } else {
         text.append(line).append('\n');
       }
@@ -257,18 +256,28 @@ final class WikiSync {
     return link.appendTail(result).toString();
   }
 
-  /** Points one link at a copied page, or at the file on GitHub; images and broken links fail. */
+  /**
+   * Points one link at a copied page, or at the file on GitHub; images, broken links and anchors that
+   * name no heading fail.
+   */
   private String rewriteLink(String source, Matcher link) {
     String target = link.group(3);
-    if (target.startsWith("#") || target.contains("://") || target.startsWith("mailto:")) {
+    if (target.contains("://") || target.startsWith("mailto:")) {
+      return link.group();
+    }
+    String[] pathAndAnchor = target.split("#", 2);
+    if (pathAndAnchor[0].isEmpty()) {
+      anchors.check(source, source, pathAndAnchor[1]);
       return link.group();
     }
     if (!link.group(1).isEmpty()) {
       throw new IllegalStateException(source + ": relative image " + target + " is not supported");
     }
-    String[] pathAndAnchor = target.split("#", 2);
-    String anchor = pathAndAnchor.length == 2 ? "#" + pathAndAnchor[1] : "";
     String resolved = resolve(source, pathAndAnchor[0]);
+    if (pathAndAnchor.length == 2) {
+      anchors.check(source, resolved, pathAndAnchor[1]);
+    }
+    String anchor = pathAndAnchor.length == 2 ? "#" + pathAndAnchor[1] : "";
     String name = pageNames.get(resolved);
     String destination = name != null ? name : BLOB + resolved;
     return "[" + link.group(2) + "](" + destination + anchor + ")";
