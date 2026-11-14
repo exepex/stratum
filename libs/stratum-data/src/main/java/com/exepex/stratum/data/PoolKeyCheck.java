@@ -90,8 +90,9 @@ public class PoolKeyCheck {
   void checkName(String name) {
     if (!isName(name)) {
       throw invalid(
-          "the pool name in %s.%s is not lower-case letters and digits starting with a letter, at"
-              + " most 31 characters, or it is main".formatted(DataConstants.SOURCES, clean(name)));
+          ("the pool name in %s.%s is not lower-case letters and digits starting with a letter, at"
+                  + " most 31 characters, or it is main")
+              .formatted(DataConstants.SOURCES, clean(name)));
     }
   }
 

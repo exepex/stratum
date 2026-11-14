@@ -57,34 +57,6 @@ public class NamedPoolConnections {
         new RootBeanDefinition(PoolBeansRegistrar.class, () -> new PoolBeansRegistrar(pool)));
   }
 
-  /** Registers the pool's container and its connection details, neither a default candidate. */
-  private static void register(BeanDefinitionRegistry registry, String pool) {
-    var containerName = pool + CONTAINER_SUFFIX;
-    var container =
-        new RootBeanDefinition(
-            PostgreSQLContainer.class,
-            () -> new PostgreSQLContainer(ContainerImages.POSTGRES_IMAGE).withDatabaseName(pool));
-    container.setDefaultCandidate(false);
-    container.setDestroyMethodName(AbstractBeanDefinition.INFER_METHOD);
-    registry.registerBeanDefinition(containerName, container);
-    var beanFactory = (BeanFactory) registry;
-    var details =
-        new RootBeanDefinition(
-            JdbcConnectionDetails.class,
-            () -> detailsOf(beanFactory.getBean(containerName, PostgreSQLContainer.class)));
-    details.setDefaultCandidate(false);
-    registry.registerBeanDefinition(pool + DETAILS_SUFFIX, details);
-  }
-
-  /** Returns the connection of a container, which it starts first if it has not. */
-  private static JdbcConnectionDetails detailsOf(PostgreSQLContainer container) {
-    if (!container.isRunning()) {
-      container.start();
-    }
-    return new ContainerConnection(
-        container.getJdbcUrl(), container.getUsername(), container.getPassword());
-  }
-
   /**
    * A container's connection. A test database's password is no secret.
    *
@@ -122,7 +94,35 @@ public class NamedPoolConnections {
 
     @Override
     public void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry registry) {
-      register(registry, pool);
+      register(registry);
+    }
+
+    /** Registers the pool's container and its connection details, neither a default candidate. */
+    private void register(BeanDefinitionRegistry registry) {
+      var containerName = pool + CONTAINER_SUFFIX;
+      var container =
+          new RootBeanDefinition(
+              PostgreSQLContainer.class,
+              () -> new PostgreSQLContainer(ContainerImages.POSTGRES_IMAGE).withDatabaseName(pool));
+      container.setDefaultCandidate(false);
+      container.setDestroyMethodName(AbstractBeanDefinition.INFER_METHOD);
+      registry.registerBeanDefinition(containerName, container);
+      var beanFactory = (BeanFactory) registry;
+      var details =
+          new RootBeanDefinition(
+              JdbcConnectionDetails.class,
+              () -> detailsOf(beanFactory.getBean(containerName, PostgreSQLContainer.class)));
+      details.setDefaultCandidate(false);
+      registry.registerBeanDefinition(pool + DETAILS_SUFFIX, details);
+    }
+
+    /** Returns the connection of a container, which it starts first if it has not. */
+    private JdbcConnectionDetails detailsOf(PostgreSQLContainer container) {
+      if (!container.isRunning()) {
+        container.start();
+      }
+      return new ContainerConnection(
+          container.getJdbcUrl(), container.getUsername(), container.getPassword());
     }
 
     @Override

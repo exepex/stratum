@@ -108,7 +108,8 @@ class PoolKeyCheckTest {
       var environment =
           new MockEnvironment().withProperty("stratum.data.sources." + name + ".url", "u");
 
-      assertThat(failureOf(environment)).hasMessageContaining("lower-case letters and digits");
+      assertThat(failureOf(environment))
+          .hasMessageContaining("stratum.data.sources." + name + " is not lower-case letters");
     }
 
     @Test
