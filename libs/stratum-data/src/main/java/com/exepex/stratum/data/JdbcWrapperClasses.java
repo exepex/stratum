@@ -243,7 +243,7 @@ public final class JdbcWrapperClasses {
   }
 
   /** Returns whether a method's first parameter is its SQL. */
-  private static boolean takesSql(Method method) {
+  private boolean takesSql(Method method) {
     return method.getParameterCount() > 0 && method.getParameterTypes()[0] == String.class;
   }
 
@@ -269,7 +269,7 @@ public final class JdbcWrapperClasses {
   }
 
   /** Returns the advice of a class, which can replace what the call throws. */
-  private static Advice adviceOf(Class<?> adviceClass) {
+  private Advice adviceOf(Class<?> adviceClass) {
     return Advice.withCustomMapping().with(new Advice.AssignReturned.Factory()).to(adviceClass);
   }
 

@@ -102,7 +102,7 @@ public class StatementSpansBenchmark {
 
   /** Starts and ends one span through the side's hook. */
   private static Object startAndEnd(Tracing tracing) {
-    var span = tracing.spans.start(QUERY, "", tracing.connection);
+    var span = tracing.spans.start(QUERY, List.of(), tracing.connection);
     if (span != StatementSpans.NO_SPAN) {
       tracing.spans.end(span, null);
     }

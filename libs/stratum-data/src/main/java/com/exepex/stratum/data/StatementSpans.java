@@ -2,6 +2,7 @@ package com.exepex.stratum.data;
 
 import com.exepex.stratum.core.api.StratumInternal;
 import java.sql.Connection;
+import java.util.List;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -22,11 +23,12 @@ public interface StatementSpans {
    * Starts the span of an execute, when the current trace is sampled.
    *
    * @param sql the statement's SQL, read only for its first keyword; empty when unknown
-   * @param batchOperation the operation of a plain batch with mixed keywords; empty for none
+   * @param batch the SQL added to a plain batch, read only when the trace is sampled; empty for
+   *     none
    * @param connection the driver's connection, for the database's name and product
    * @return the started span, or {@link #NO_SPAN} when the trace is not sampled or there is none
    */
-  default Object start(String sql, String batchOperation, @Nullable Connection connection) {
+  default Object start(String sql, List<String> batch, @Nullable Connection connection) {
     return NO_SPAN;
   }
 

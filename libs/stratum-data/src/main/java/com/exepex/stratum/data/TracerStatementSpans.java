@@ -5,6 +5,7 @@ import io.micrometer.tracing.Span;
 import io.micrometer.tracing.Tracer;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -57,14 +58,15 @@ public final class TracerStatementSpans implements StatementSpans {
   }
 
   @Override
-  public Object start(String sql, String batchOperation, @Nullable Connection connection) {
+  public Object start(String sql, List<String> batch, @Nullable Connection connection) {
     try {
       var tracer = tracer();
       var current = tracer == null ? null : tracer.currentSpan();
       if (current == null || !Boolean.TRUE.equals(current.context().sampled())) {
         return NO_SPAN;
       }
-      var operation = batchOperation.isEmpty() ? QueryOperation.of(sql) : batchOperation;
+      var operation =
+          (batch.isEmpty() ? QueryOperation.of(sql) : QueryOperation.ofBatch(batch)).name();
       var builder =
           tracer
               .spanBuilder()
@@ -78,7 +80,7 @@ public final class TracerStatementSpans implements StatementSpans {
         builder.tag(DataConstants.SPAN_NAMESPACE, namespace);
       }
       return builder.start();
-    } catch (RuntimeException failure) {
+    } catch (RuntimeException _) {
       return NO_SPAN;
     }
   }
@@ -130,7 +132,7 @@ public final class TracerStatementSpans implements StatementSpans {
       var metadata = connection.getMetaData();
       var product = metadata == null ? null : metadata.getDatabaseProductName();
       return product == null ? "" : product.toLowerCase(Locale.ROOT);
-    } catch (SQLException failure) {
+    } catch (SQLException _) {
       return "";
     }
   }
@@ -142,7 +144,7 @@ public final class TracerStatementSpans implements StatementSpans {
     }
     try {
       return connection.getCatalog();
-    } catch (SQLException failure) {
+    } catch (SQLException _) {
       return null;
     }
   }

@@ -13,7 +13,6 @@ import com.exepex.stratum.data.testsupport.TracedRequests;
 import io.opentelemetry.sdk.trace.data.SpanData;
 import java.sql.SQLException;
 import java.util.List;
-import java.util.stream.Stream;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -21,7 +20,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.FieldSource;
 
 @DisplayName("In a sampled request, each statement's execute gets one client span with no SQL text")
 class StatementSpansTest {
@@ -35,6 +34,9 @@ class StatementSpansTest {
 
   /** The operation of a query. */
   private static final String SELECT = "SELECT";
+
+  /** The operation of SQL that starts with no known keyword. */
+  private static final String UNKNOWN = QueryOperation.UNKNOWN.name();
 
   /** How many times the repeated statement runs. */
   private static final int EXECUTES = 3;
@@ -190,6 +192,14 @@ class StatementSpansTest {
     }
 
     @Test
+    @DisplayName("that was cleared keeps none of its SQL, so the next batch gets its own operation")
+    void cleared() throws Exception {
+      traced.inRequest(this::runClearedBatch);
+
+      assertStatementSpan(onlySpan(), "UPDATE", PERSONAL_VALUE);
+    }
+
+    @Test
     @DisplayName("of a prepared statement gets the operation it was prepared with")
     void prepared() throws Exception {
       traced.inRequest(this::runPreparedBatch);
@@ -219,6 +229,17 @@ class StatementSpansTest {
       }
     }
 
+    /** Adds an insert to a plain batch, clears it, then runs a batch of one update. */
+    private void runClearedBatch() throws SQLException {
+      try (var connection = dataSource.getConnection();
+          var statement = connection.createStatement()) {
+        statement.addBatch(LITERAL_INSERT);
+        statement.clearBatch();
+        statement.addBatch("UPDATE customers SET email = 'a'");
+        statement.executeBatch();
+      }
+    }
+
     /** Runs a prepared insert as a batch of two. */
     private void runPreparedBatch() throws SQLException {
       try (var connection = dataSource.getConnection();
@@ -231,28 +252,25 @@ class StatementSpansTest {
     }
   }
 
-  /**
-   * Returns hostile SQL, each with the operation its span must carry; none carries the literal.
-   *
-   * @return the SQL and its operation
-   */
-  static Stream<Arguments> hostileSql() {
-    var value = "'" + PERSONAL_VALUE + "'";
-    return Stream.of(
-        arguments("/* DROP TABLE customers */ SELECT " + value, SELECT),
-        arguments("-- DELETE FROM customers\nSELECT " + value, SELECT),
-        arguments("/* unterminated SELECT " + value, QueryOperation.UNKNOWN),
-        arguments(value + "; DROP TABLE customers", QueryOperation.UNKNOWN),
-        arguments("SELECTED " + value, QueryOperation.UNKNOWN),
-        arguments("select " + value, SELECT),
-        arguments(" \n\t INSERT INTO t VALUES (" + value + ")", "INSERT"),
-        arguments("WITH secret AS (SELECT " + value + ") SELECT 1", "WITH"),
-        arguments("{call archive(" + value + ")}", QueryOperation.UNKNOWN),
-        arguments(PERSONAL_VALUE, QueryOperation.UNKNOWN));
-  }
+  /** A personal value as an SQL literal, which no span may carry. */
+  private static final String LITERAL = "'" + PERSONAL_VALUE + "'";
+
+  /** Hostile SQL, each with the operation its span must carry; none carries the literal. */
+  private static final List<Arguments> HOSTILE_SQL =
+      List.of(
+          arguments("/* DROP TABLE customers */ SELECT " + LITERAL, SELECT),
+          arguments("-- DELETE FROM customers\nSELECT " + LITERAL, SELECT),
+          arguments("/* unterminated SELECT " + LITERAL, UNKNOWN),
+          arguments(LITERAL + "; DROP TABLE customers", UNKNOWN),
+          arguments("SELECTED " + LITERAL, UNKNOWN),
+          arguments("select " + LITERAL, SELECT),
+          arguments(" \n\t INSERT INTO t VALUES (" + LITERAL + ")", "INSERT"),
+          arguments("WITH secret AS (SELECT " + LITERAL + ") SELECT 1", "WITH"),
+          arguments("{call archive(" + LITERAL + ")}", UNKNOWN),
+          arguments(PERSONAL_VALUE, UNKNOWN));
 
   @ParameterizedTest(name = "{1} for {0}")
-  @MethodSource("hostileSql")
+  @FieldSource("HOSTILE_SQL")
   @DisplayName("hostile SQL gets an allowed operation or UNKNOWN, and its span carries no value")
   void hostile(String sql, String operation) throws Exception {
     traced.inRequest(() -> runPlain(sql));

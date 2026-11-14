@@ -1,46 +1,59 @@
 package com.exepex.stratum.data;
 
+import java.util.List;
 import java.util.Locale;
-import java.util.Set;
-import lombok.experimental.UtilityClass;
 
 /**
- * Reads the operation a statement's SQL starts with, such as {@code SELECT}, for its span: the
- * first word after white space and comments, when it is a known SQL keyword. It reads nothing after
- * that word, so no table name or value can reach the span.
+ * The operation a statement's SQL starts with, such as {@code SELECT}, for its span: the first word
+ * after white space and comments, when it is a known SQL keyword. It reads nothing after that word,
+ * so no table name or value can reach the span.
  */
-@UtilityClass
-class QueryOperation {
+enum QueryOperation {
 
-  /** The operation of a statement whose first word is no known keyword. */
-  static final String UNKNOWN = "UNKNOWN";
-
-  /** The operation of a plain batch whose statements start with different keywords. */
-  static final String BATCH = "BATCH";
-
-  /** The keywords a span may carry; any other first word is {@link #UNKNOWN}. */
-  private static final Set<String> KEYWORDS =
-      Set.of(
-          "SELECT",
-          "INSERT",
-          "UPDATE",
-          "DELETE",
-          "MERGE",
-          "WITH",
-          "CALL",
-          "CREATE",
-          "ALTER",
-          "DROP",
-          "TRUNCATE",
-          "BEGIN",
-          "COMMIT",
-          "ROLLBACK",
-          "SET",
-          "SHOW",
-          "VALUES",
-          "LOCK",
-          "COPY",
-          "EXPLAIN");
+  /** A query. */
+  SELECT,
+  /** An insert. */
+  INSERT,
+  /** An update. */
+  UPDATE,
+  /** A delete. */
+  DELETE,
+  /** A merge or upsert. */
+  MERGE,
+  /** A statement with common table expressions. */
+  WITH,
+  /** A stored procedure call. */
+  CALL,
+  /** A schema object created. */
+  CREATE,
+  /** A schema object changed. */
+  ALTER,
+  /** A schema object dropped. */
+  DROP,
+  /** A table emptied. */
+  TRUNCATE,
+  /** A transaction started. */
+  BEGIN,
+  /** A transaction committed. */
+  COMMIT,
+  /** A transaction rolled back. */
+  ROLLBACK,
+  /** A session setting changed. */
+  SET,
+  /** A session setting read. */
+  SHOW,
+  /** A list of rows. */
+  VALUES,
+  /** A table locked. */
+  LOCK,
+  /** A bulk copy. */
+  COPY,
+  /** A query plan read. */
+  EXPLAIN,
+  /** A statement whose first word is no known keyword. */
+  UNKNOWN,
+  /** A plain batch whose statements start with different operations. */
+  BATCH;
 
   /** The longest keyword, so a longer first word is never copied. */
   private static final int LONGEST = 8;
@@ -49,9 +62,9 @@ class QueryOperation {
    * Returns the operation the SQL starts with.
    *
    * @param sql the statement's SQL
-   * @return its first keyword in upper case, one of a fixed set, or {@link #UNKNOWN}
+   * @return its first keyword, or {@link #UNKNOWN}; never {@link #BATCH}
    */
-  static String of(String sql) {
+  static QueryOperation of(String sql) {
     int start = firstWord(sql);
     int end = start;
     while (end < sql.length() && end - start <= LONGEST && Character.isLetter(sql.charAt(end))) {
@@ -60,8 +73,37 @@ class QueryOperation {
     if (end == start || end - start > LONGEST) {
       return UNKNOWN;
     }
-    var word = sql.substring(start, end).toUpperCase(Locale.ROOT);
-    return KEYWORDS.contains(word) ? word : UNKNOWN;
+    return keyword(sql.substring(start, end).toUpperCase(Locale.ROOT));
+  }
+
+  /**
+   * Returns the operation of a plain batch: that of its first SQL, or {@link #BATCH} when another
+   * starts with a different one.
+   *
+   * @param batch the SQL added to the batch, never empty
+   * @return the batch's operation
+   */
+  static QueryOperation ofBatch(List<String> batch) {
+    var first = batch.getFirst();
+    var operation = of(first);
+    for (var sql : batch) {
+      if (!sql.equals(first) && of(sql) != operation) {
+        return BATCH;
+      }
+    }
+    return operation;
+  }
+
+  /** Returns the keyword a word names, or {@link #UNKNOWN}; never {@link #BATCH}. */
+  private static QueryOperation keyword(String word) {
+    if (BATCH.name().equals(word)) {
+      return UNKNOWN;
+    }
+    try {
+      return valueOf(word);
+    } catch (IllegalArgumentException _) {
+      return UNKNOWN;
+    }
   }
 
   /** Returns where the first word starts, after white space, line comments and block comments. */

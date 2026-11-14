@@ -29,7 +29,9 @@ Anything else is `UNKNOWN`, such as a JDBC escape like `{call archive(?)}`.
 - A prepared statement takes its operation from the SQL it was prepared with; a plain statement from
   the SQL each `execute` gets.
 - A batch gets one span for its `executeBatch`. A plain batch whose statements start with different
-  operations gets `BATCH`.
+  operations gets `BATCH`. Until the batch runs or is cleared, the boundary keeps a reference to each
+  SQL text added, which the driver holds too, so nothing is copied; it reads them only when the
+  trace is sampled.
 - A statement that its [time limit](data-statement-limits.md) refuses to start still gets its span,
   which records `SX-DATA-1003`.
 - No meter is added: the span is not a Micrometer Observation, so it creates no timer.

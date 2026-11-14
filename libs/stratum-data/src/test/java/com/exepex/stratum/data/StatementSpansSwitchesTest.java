@@ -23,8 +23,12 @@ import io.micrometer.tracing.Tracer;
 import io.opentelemetry.api.trace.StatusCode;
 import java.sql.SQLException;
 import java.time.Duration;
+import java.util.AbstractList;
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -77,6 +81,38 @@ class StatementSpansSwitchesTest {
     try (var connection = dataSource.getConnection();
         var statement = connection.prepareStatement(QUERY)) {
       statement.executeQuery();
+    }
+  }
+
+  /** Runs a plain batch of two statements with different operations through the data source. */
+  private static void runBatch(DataSource dataSource) throws SQLException {
+    try (var connection = dataSource.getConnection();
+        var statement = connection.createStatement()) {
+      statement.addBatch("INSERT INTO customers (email) VALUES ('" + PERSONAL_VALUE + "')");
+      statement.addBatch("DELETE FROM customers");
+      statement.executeBatch();
+    }
+  }
+
+  /** A batch's SQL that counts how often it is read. */
+  @RequiredArgsConstructor
+  private static final class ReadCounting extends AbstractList<String> {
+
+    /** The SQL. */
+    private final List<String> sql;
+
+    /** How often the SQL was read. */
+    private final AtomicInteger reads = new AtomicInteger();
+
+    @Override
+    public String get(int index) {
+      reads.incrementAndGet();
+      return sql.get(index);
+    }
+
+    @Override
+    public int size() {
+      return sql.size();
     }
   }
 
@@ -139,9 +175,25 @@ class StatementSpansSwitchesTest {
       var tracer = mock(Tracer.class);
       when(tracer.currentSpan()).thenThrow(new IllegalStateException("tracer failed"));
 
-      runQuery(dataSource(providerOf(tracer)));
+      var dataSource = dataSource(providerOf(tracer));
+      runQuery(dataSource);
+      runBatch(dataSource);
 
       verify(database.prepared).executeQuery();
+      verify(database.statement).executeBatch();
+    }
+
+    @Test
+    @DisplayName("when the request is not sampled, a plain batch's SQL is never read")
+    void unsampledBatch() throws Exception {
+      traced.close();
+      traced = TracedRequests.unsampled();
+      var batch = new ReadCounting(List.of(QUERY, "DELETE FROM customers"));
+      var spans = new TracerStatementSpans(traced.tracers());
+
+      traced.inRequest(() -> spans.start("", batch, database.connection));
+
+      assertThat(batch.reads).hasValue(0);
     }
   }
 

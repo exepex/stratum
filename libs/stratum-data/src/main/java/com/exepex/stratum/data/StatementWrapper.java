@@ -4,6 +4,8 @@ import com.exepex.stratum.core.api.StratumInternal;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
@@ -25,11 +27,14 @@ public abstract class StatementWrapper extends JdbcWrapper {
   /** The SQL the statement was prepared with, or {@code null} for a plain statement. */
   private @Nullable String preparedSql;
 
-  /** The SQL of a plain execute or the first of a plain batch, until the execute ends; or empty. */
+  /** The SQL of a plain execute, until the execute ends; or empty. */
   private String plainSql = "";
 
-  /** {@code BATCH} when a plain batch mixes operations, until the execute ends; or empty. */
-  private String batchOperation = "";
+  /**
+   * The SQL added to a plain batch, until it runs or is cleared; kept by reference, since the
+   * driver holds the same texts, and read only when the batch's span starts.
+   */
+  private List<String> batchSql = List.of();
 
   /** The span of the execute that is running, or {@link StatementSpans#NO_SPAN}. */
   private Object span = StatementSpans.NO_SPAN;
@@ -92,7 +97,7 @@ public abstract class StatementWrapper extends JdbcWrapper {
    * @throws SQLException {@code SX-DATA-1003} when no time is left
    */
   long enterLimit() throws SQLException {
-    span = boundary.getSpans().start(currentSql(), batchOperation, driverConnection());
+    span = boundary.getSpans().start(currentSql(), batchSql, driverConnection());
     try {
       return limitOnEnter();
     } catch (SQLException refused) {
@@ -157,19 +162,29 @@ public abstract class StatementWrapper extends JdbcWrapper {
   }
 
   /**
-   * Keeps the first SQL of a plain batch, and marks the batch {@code BATCH} when a later one starts
-   * with another operation.
+   * Keeps the SQL added to a plain batch, for its span's operation. Nothing is read here: in a
+   * trace that is not sampled, the batch's SQL is never scanned.
    *
    * @param sql the SQL added to the batch
    */
   void batches(@Nullable String sql) {
-    var added = Objects.requireNonNullElse(sql, "");
-    if (plainSql.isEmpty()) {
-      plainSql = added;
-    } else if (batchOperation.isEmpty()
-        && !plainSql.equals(added)
-        && !QueryOperation.of(plainSql).equals(QueryOperation.of(added))) {
-      batchOperation = QueryOperation.BATCH;
+    if (batchSql.isEmpty()) {
+      batchSql = new ArrayList<>();
+    }
+    batchSql.add(Objects.requireNonNullElse(sql, ""));
+  }
+
+  /**
+   * Empties the batch, and forgets its SQL so the next execute's span takes its own operation.
+   *
+   * @throws SQLException the clean copy of the driver's error
+   */
+  public void clearBatch() throws SQLException {
+    batchSql = List.of();
+    try {
+      ((Statement) delegate).clearBatch();
+    } catch (SQLException failure) {
+      throw boundary.cleaned(failure);
     }
   }
 
@@ -186,10 +201,10 @@ public abstract class StatementWrapper extends JdbcWrapper {
     return parent instanceof ConnectionWrapper connection ? (Connection) connection.delegate : null;
   }
 
-  /** Ends the running execute's span, if it has one, and forgets its plain SQL. */
+  /** Ends the running execute's span, if it has one, and forgets its SQL. */
   private void finishExecute(@Nullable Throwable thrown) {
     plainSql = "";
-    batchOperation = "";
+    batchSql = List.of();
     var running = span;
     if (running != StatementSpans.NO_SPAN) {
       span = StatementSpans.NO_SPAN;
