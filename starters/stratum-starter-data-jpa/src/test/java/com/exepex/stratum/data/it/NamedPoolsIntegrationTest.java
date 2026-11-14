@@ -15,6 +15,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.boot.WebApplicationType;
@@ -84,47 +85,67 @@ class NamedPoolsIntegrationTest {
         .single();
   }
 
-  @Test
-  @DisplayName("the pool connects to its own database, and the plain data source to main's")
-  void connectsToItsDatabase() {
-    assertThat(databaseOf(BATCH_DATA_SOURCE)).isEqualTo(BATCH_DATABASE);
-    assertThat(databaseOf(MAIN_DATA_SOURCE)).isNotEqualTo(BATCH_DATABASE);
+  @Nested
+  @DisplayName("connections")
+  class PoolConnections {
+
+    @Test
+    @DisplayName("the pool connects to its own database, and the plain data source to main's")
+    void connectsToItsDatabase() {
+      assertThat(databaseOf(BATCH_DATA_SOURCE)).isEqualTo(BATCH_DATABASE);
+      assertThat(databaseOf(MAIN_DATA_SOURCE)).isNotEqualTo(BATCH_DATABASE);
+    }
   }
 
-  @Test
-  @DisplayName("Spring Boot's db health lists both pools, each up")
-  void healthListsBoth() {
-    var health = application.getBean("dbHealthContributor", CompositeHealthContributor.class);
+  @Nested
+  @DisplayName("health")
+  class PoolHealth {
 
-    assertThat(((HealthIndicator) health.getContributor(MAIN_DATA_SOURCE)).health().getStatus())
-        .isEqualTo(Status.UP);
-    assertThat(((HealthIndicator) health.getContributor(BATCH_DATA_SOURCE)).health().getStatus())
-        .isEqualTo(Status.UP);
+    @Test
+    @DisplayName("Spring Boot's db health lists both pools, each up")
+    void healthListsBoth() {
+      var health = application.getBean("dbHealthContributor", CompositeHealthContributor.class);
+
+      assertThat(((HealthIndicator) health.getContributor(MAIN_DATA_SOURCE)).health().getStatus())
+          .isEqualTo(Status.UP);
+      assertThat(((HealthIndicator) health.getContributor(BATCH_DATA_SOURCE)).health().getStatus())
+          .isEqualTo(Status.UP);
+    }
   }
 
-  @Test
-  @DisplayName("Spring Boot's pool metrics tag each pool with its one name: main and batch")
-  void metricsNameEachPool() {
-    var registry = application.getBean(MeterRegistry.class);
-    application
-        .getBeansOfType(MeterBinder.class)
-        .values()
-        .forEach(binder -> binder.bindTo(registry));
-    databaseOf(BATCH_DATA_SOURCE);
-    databaseOf(MAIN_DATA_SOURCE);
+  @Nested
+  @DisplayName("metrics")
+  class PoolMetrics {
 
-    assertThat(registry.find("hikaricp.connections.max").tag("pool", "batch").gauge()).isNotNull();
-    assertThat(registry.find("hikaricp.connections.max").tag("pool", "main").gauge()).isNotNull();
+    @Test
+    @DisplayName("Spring Boot's pool metrics tag each pool with its one name: main and batch")
+    void metricsNameEachPool() {
+      var registry = application.getBean(MeterRegistry.class);
+      application
+          .getBeansOfType(MeterBinder.class)
+          .values()
+          .forEach(binder -> binder.bindTo(registry));
+      queryBothPools();
+
+      assertThat(registry.find("hikaricp.connections.max").tag("pool", "batch").gauge())
+          .isNotNull();
+      assertThat(registry.find("hikaricp.connections.max").tag("pool", "main").gauge()).isNotNull();
+    }
   }
 
-  @Test
-  @DisplayName("each statement's span carries its pool's name")
-  void spansNameThePool() throws SQLException {
-    tracedRequests().inRequest(this::queryBothPools);
+  @Nested
+  @DisplayName("spans")
+  class PoolSpans {
 
-    assertThat(tracedRequests().statementSpans())
-        .extracting(span -> span.getAttributes().get(POOL))
-        .containsExactly("batch", "main");
+    @Test
+    @DisplayName("each statement's span carries its pool's name")
+    void spansNameThePool() throws SQLException {
+      tracedRequests().inRequest(NamedPoolsIntegrationTest.this::queryBothPools);
+
+      assertThat(tracedRequests().statementSpans())
+          .extracting(span -> span.getAttributes().get(POOL))
+          .containsExactly("batch", "main");
+    }
   }
 
   /** Runs one statement on the pool {@code batch}, then one on the main pool. */
