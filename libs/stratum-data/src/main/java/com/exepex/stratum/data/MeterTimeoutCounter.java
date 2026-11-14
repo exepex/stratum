@@ -9,7 +9,7 @@ import org.springframework.beans.factory.ObjectProvider;
 
 /**
  * Counts the cancelled statements and the failed borrows in the counter {@code
- * stratum.data.timeouts}, tagged with {@code pool}, the data source bean, and {@code cause}: {@code
+ * stratum.data.timeouts}, tagged with {@code pool}, the pool's name, and {@code cause}: {@code
  * transaction}, {@code query-timeout}, {@code caller} or {@code request}. The registry is looked up
  * at the first count, since the boundary is set up before any meter registry exists.
  */

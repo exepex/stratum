@@ -293,7 +293,9 @@ Module page: [Data → Properties](../modules/data.md#properties).
 | --- | --- | --- | --- |
 | `stratum.data.deadline-margin` | `Duration` | none | How much earlier than the web request's time limit its statements and connection borrows must end, so that a slow statement is cancelled and answered before the web module has to interrupt the request. A statement in a web request with a time limit ends by that limit minus this margin. Defaults to 150ms. |
 | `stratum.data.enabled` | `Boolean` | `true` | Whether the data module is on. With false, Stratum sets none of its defaults for the connection pool and transactions, nor a data starter's own, and wraps no data source in the boundary that cleans database errors. |
+| `stratum.data.max-connections` | `Integer` | none | The most connections all pools together may open, the main pool included. Startup stops when their maximum-pool-size values add up to more. Defaults to 30. |
 | `stratum.data.query-timeout` | `Duration` | none | How long one SQL statement may run before Stratum cancels it, when the code that runs it sets no time limit of its own. A statement in a transaction with a time limit ends by that limit too. 0 means no limit. Defaults to 30s, or to 0 with stratum.backward-compatible=true. |
+| `stratum.data.sources` | `Map<String, PoolSettings>` | none | The named pools, by name, beside the main pool that spring.datasource.\* sets. A name is lower-case letters and digits, starts with a letter and is not main; the pool's beans are named after it, such as batchDataSource and batchTransactionManager. |
 
 ## Cache
 

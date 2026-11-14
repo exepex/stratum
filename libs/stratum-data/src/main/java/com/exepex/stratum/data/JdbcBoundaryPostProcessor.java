@@ -111,17 +111,17 @@ public final class JdbcBoundaryPostProcessor
     if (bean instanceof DataSource dataSource
         && !(bean instanceof JdbcWrapper)
         && wrapsBean.test(beanName)) {
-      return boundaryFor(beanName).wrap(dataSource);
+      return boundaryFor(beanName, PoolNames.nameOf(dataSource, beanName)).wrap(dataSource);
     }
     return bean;
   }
 
   /**
-   * Returns the boundary of a data source bean, with the time limits of its statements once Spring
-   * has given the bean factory and the environment, and the statements' spans when Micrometer
-   * Tracing's OpenTelemetry bridge is present.
+   * Returns the boundary of a data source bean, with the time limits and fetch size of its
+   * statements once Spring has given the bean factory and the environment, and the statements'
+   * spans when Micrometer Tracing's OpenTelemetry bridge is present.
    */
-  private JdbcBoundary boundaryFor(String beanName) {
+  private JdbcBoundary boundaryFor(String beanName, String poolName) {
     var shared = readyBoundary();
     if (beanFactory == null || environment == null || classLoader == null) {
       return shared;
@@ -129,9 +129,12 @@ public final class JdbcBoundaryPostProcessor
     if (limitsFactory == null) {
       limitsFactory = new StatementLimitsFactory(environment, beanFactory, classLoader);
     }
-    var limited = shared.withLimits(limitsFactory.forPool(beanName));
+    var limited =
+        shared
+            .withLimits(limitsFactory.forPool(beanName, poolName))
+            .withFetchSize(limitsFactory.poolSettings(beanName).fetchSize());
     return ClassUtils.isPresent(DataConstants.TRACER_BRIDGE, classLoader)
-        ? limited.withSpans(TracerStatementSpans.of(beanFactory))
+        ? limited.withSpans(TracerStatementSpans.of(beanFactory, poolName))
         : limited;
   }
 

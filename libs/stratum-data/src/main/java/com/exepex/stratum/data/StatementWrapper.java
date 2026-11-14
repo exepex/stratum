@@ -51,6 +51,20 @@ public abstract class StatementWrapper extends JdbcWrapper {
   }
 
   /**
+   * Sets the fetch size of a new statement, before the code that created it runs.
+   *
+   * @param rows how many rows the driver fetches at a time
+   * @throws SQLException the clean copy of the driver's error
+   */
+  void fetch(int rows) throws SQLException {
+    try {
+      ((Statement) delegate).setFetchSize(rows);
+    } catch (SQLException failure) {
+      throw boundary.cleaned(failure);
+    }
+  }
+
+  /**
    * Keeps the time limit the code sets, in seconds, or passes it to the driver on a data source
    * with no statement limits.
    *

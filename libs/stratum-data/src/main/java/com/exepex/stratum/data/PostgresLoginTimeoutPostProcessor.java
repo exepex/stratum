@@ -20,7 +20,7 @@ public final class PostgresLoginTimeoutPostProcessor implements BeanPostProcesso
   /** Runs before the JDBC boundary, at -100, wraps the pool, so it still sees the pool itself. */
   private static final int ORDER = -200;
 
-  /** The line breaks a logged bean name must not carry. */
+  /** The line breaks a logged pool name must not carry. */
   private static final String LINE_BREAKS = "[\r\n]";
 
   /**
@@ -34,13 +34,14 @@ public final class PostgresLoginTimeoutPostProcessor implements BeanPostProcesso
   @Override
   public Object postProcessAfterInitialization(Object bean, String beanName) {
     if (bean instanceof HikariDataSource) {
-      limit((HikariConfig) bean, beanName);
+      var pool = (HikariConfig) bean;
+      limit(pool, PoolNames.nameOf(pool, beanName));
     }
     return bean;
   }
 
   /** Adds the limit to a PostgreSQL pool whose properties and wait leave it without one. */
-  private void limit(HikariConfig pool, String beanName) {
+  private void limit(HikariConfig pool, String poolName) {
     if (!PostgresLoginTimeout.appliesTo(pool.getJdbcUrl())
         || pool.getDataSourceProperties().containsKey(PostgresLoginTimeout.LOGIN_TIMEOUT)
         || PostgresLoginTimeout.unlimited(pool.getConnectionTimeout())) {
@@ -54,7 +55,7 @@ public final class PostgresLoginTimeoutPostProcessor implements BeanPostProcesso
       if (log.isDebugEnabled()) {
         log.debug(
             "The pool '{}' has already started, so it gets no login limit from Stratum",
-            beanName.replaceAll(LINE_BREAKS, " "));
+            poolName.replaceAll(LINE_BREAKS, " "));
       }
     }
   }

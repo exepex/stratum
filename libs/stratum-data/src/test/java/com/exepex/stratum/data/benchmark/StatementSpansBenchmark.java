@@ -137,7 +137,7 @@ public class StatementSpansBenchmark {
       spans =
           "none".equals(side)
               ? StatementSpans.NONE
-              : new TracerStatementSpans(beans.getBeanProvider(Tracer.class));
+              : new TracerStatementSpans(beans.getBeanProvider(Tracer.class), "main");
       connection = JdbcStubs.stubConnection();
     }
 

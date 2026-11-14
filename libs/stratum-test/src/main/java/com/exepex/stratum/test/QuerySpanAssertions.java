@@ -29,9 +29,13 @@ public class QuerySpanAssertions {
   /** The attribute of the statement's operation, such as {@code SELECT}. */
   public static final AttributeKey<String> OPERATION = AttributeKey.stringKey("db.operation.name");
 
+  /** The attribute of the pool the statement ran on, such as {@code main}. */
+  public static final AttributeKey<String> POOL =
+      AttributeKey.stringKey("db.client.connection.pool.name");
+
   /** Every attribute a statement span may carry. */
   private static final Set<String> ALLOWED =
-      Set.of(SYSTEM.getKey(), NAMESPACE.getKey(), OPERATION.getKey());
+      Set.of(SYSTEM.getKey(), NAMESPACE.getKey(), OPERATION.getKey(), POOL.getKey());
 
   /**
    * Returns the statement spans among the spans that ended: the client spans.

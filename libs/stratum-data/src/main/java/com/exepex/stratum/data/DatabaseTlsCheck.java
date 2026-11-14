@@ -112,17 +112,19 @@ public class DatabaseTlsCheck implements SmartApplicationListener, DisposableBea
   }
 
   /**
-   * Returns the data source beans that already exist, by name, without creating any bean: a lazy
-   * data source not yet used is not checked.
+   * Returns the data source beans that already exist, by their pool's name, without creating any
+   * bean: a lazy data source not yet used is not checked, and a pool two beans hand out is checked
+   * once.
    *
-   * @return the data sources, by bean name
+   * @return the data sources, by pool name
    */
   Map<String, DataSource> dataSources() {
     var beanFactory = context.getBeanFactory();
     var dataSources = new LinkedHashMap<String, DataSource>();
     for (var name : beanFactory.getBeanNamesForType(DataSource.class, false, false)) {
       if (beanFactory.containsSingleton(name)) {
-        dataSources.put(name, beanFactory.getBean(name, DataSource.class));
+        var dataSource = beanFactory.getBean(name, DataSource.class);
+        dataSources.put(PoolNames.nameOf(dataSource, name), dataSource);
       }
     }
     return dataSources;
@@ -132,7 +134,7 @@ public class DatabaseTlsCheck implements SmartApplicationListener, DisposableBea
    * Checks the data sources on the check's own daemon thread. An error that ends the thread is
    * logged with its class only, and the service goes on.
    *
-   * @param dataSources the data sources, by bean name
+   * @param dataSources the data sources, by pool name
    */
   void start(Map<String, DataSource> dataSources) {
     var started =
@@ -149,7 +151,7 @@ public class DatabaseTlsCheck implements SmartApplicationListener, DisposableBea
   /**
    * Checks each data source in turn, until the application closes.
    *
-   * @param dataSources the data sources, by bean name
+   * @param dataSources the data sources, by pool name
    */
   void checkAll(Map<String, DataSource> dataSources) {
     for (var dataSource : dataSources.entrySet()) {

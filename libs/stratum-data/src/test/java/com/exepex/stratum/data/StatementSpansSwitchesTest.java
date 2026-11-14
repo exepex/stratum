@@ -39,6 +39,9 @@ import org.springframework.beans.factory.support.StaticListableBeanFactory;
 @DisplayName("Statement spans appear only in sampled requests and never change the JDBC call")
 class StatementSpansSwitchesTest {
 
+  /** The name of the pool the statements run on, which each span carries. */
+  private static final String POOL = "orders";
+
   /** The generated wrapper classes, shared by every test. */
   private static final JdbcWrapperClasses CLASSES = new JdbcWrapperClasses();
 
@@ -65,7 +68,7 @@ class StatementSpansSwitchesTest {
   /** Returns the data source with spans that find their tracer through the provider. */
   private DataSource dataSource(ObjectProvider<Tracer> tracers) {
     return new JdbcBoundary(CLASSES, postgresReaders())
-        .withSpans(new TracerStatementSpans(tracers))
+        .withSpans(new TracerStatementSpans(tracers, POOL))
         .wrap(database.pool);
   }
 
@@ -195,7 +198,7 @@ class StatementSpansSwitchesTest {
       traced.close();
       traced = TracedRequests.unsampled();
       var batch = new ReadCounting(List.of(QUERY, "DELETE FROM customers"));
-      var spans = new TracerStatementSpans(traced.tracers());
+      var spans = new TracerStatementSpans(traced.tracers(), POOL);
 
       traced.inRequest(() -> spans.start("", batch, database.connection));
 
@@ -250,7 +253,7 @@ class StatementSpansSwitchesTest {
     @Test
     @DisplayName("when the time limit refuses the execute: the span records SX-DATA-1003")
     void limitRefuses() throws Exception {
-      var fixture = new StatementLimitsFixture(new TracerStatementSpans(traced.tracers()));
+      var fixture = new StatementLimitsFixture(new TracerStatementSpans(traced.tracers(), POOL));
 
       traced.inRequest(() -> runPastDeadline(fixture));
 
@@ -264,7 +267,7 @@ class StatementSpansSwitchesTest {
     void endNeverThrows() {
       var span = mock(Span.class);
       doThrow(new IllegalStateException("exporter failed")).when(span).end();
-      var spans = new TracerStatementSpans(traced.tracers());
+      var spans = new TracerStatementSpans(traced.tracers(), POOL);
 
       assertThatCode(() -> spans.end(span, null)).doesNotThrowAnyException();
       assertThatCode(() -> spans.end("not a span", null)).doesNotThrowAnyException();

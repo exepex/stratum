@@ -81,4 +81,40 @@ public class DataConstants {
 
   /** The span tag of the operation the statement's SQL starts with, such as {@code SELECT}. */
   public static final String SPAN_OPERATION = "db.operation.name";
+
+  /** The span tag of the pool the statement ran on: {@code main} or a named pool's name. */
+  public static final String SPAN_POOL = "db.client.connection.pool.name";
+
+  /** The first part of every named pool's properties, followed by the pool's name. */
+  public static final String SOURCES = PREFIX + ".sources";
+
+  /** The property that caps the connections of all pools together. */
+  public static final String MAX_CONNECTIONS = PREFIX + ".max-connections";
+
+  /** The name of the pool that {@code spring.datasource.*} configures. */
+  public static final String MAIN_POOL = "main";
+
+  /** The name of Spring Boot's own data source bean, the main pool. */
+  public static final String MAIN_BEAN = "dataSource";
+
+  /** The end of a named pool's data source bean name, after the pool's name. */
+  public static final String DATA_SOURCE_SUFFIX = "DataSource";
+
+  /** The end of a named pool's connection details bean name, after the pool's name. */
+  public static final String DETAILS_SUFFIX = "JdbcConnectionDetails";
+
+  /** The end of a named pool's transaction manager bean name, after the pool's name. */
+  public static final String TRANSACTION_MANAGER_SUFFIX = "TransactionManager";
+
+  /** The name of the bean that registers the named pools' beans. */
+  public static final String NAMED_POOLS = "stratumNamedPools";
+
+  /** The name of the bean that names Spring Boot's pool {@code main}. */
+  public static final String MAIN_POOL_NAME = "stratumMainPoolName";
+
+  /** The name of the bean that checks the pools once every bean exists. */
+  public static final String POOL_CHECK = "stratumPoolCheck";
+
+  /** Whether Spring translates JDBC errors, which picks the kind of transaction manager. */
+  public static final String EXCEPTION_TRANSLATION = "spring.dao.exceptiontranslation.enabled";
 }

@@ -3,6 +3,7 @@ package com.exepex.stratum.data;
 import static com.exepex.stratum.data.testsupport.SqlFailureTestData.postgresReaders;
 import static com.exepex.stratum.test.DatabaseFailureAssertions.PERSONAL_VALUE;
 import static com.exepex.stratum.test.QuerySpanAssertions.NAMESPACE;
+import static com.exepex.stratum.test.QuerySpanAssertions.POOL;
 import static com.exepex.stratum.test.QuerySpanAssertions.SYSTEM;
 import static com.exepex.stratum.test.QuerySpanAssertions.assertStatementSpan;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -24,6 +25,9 @@ import org.junit.jupiter.params.provider.FieldSource;
 
 @DisplayName("In a sampled request, each statement's execute gets one client span with no SQL text")
 class StatementSpansTest {
+
+  /** The name of the pool the statements run on, which each span carries. */
+  private static final String ORDERS_POOL = "orders";
 
   /** The generated wrapper classes, shared by every test. */
   private static final JdbcWrapperClasses CLASSES = new JdbcWrapperClasses();
@@ -57,7 +61,7 @@ class StatementSpansTest {
 
   private final DataSource dataSource =
       new JdbcBoundary(CLASSES, postgresReaders())
-          .withSpans(new TracerStatementSpans(traced.tracers()))
+          .withSpans(new TracerStatementSpans(traced.tracers(), ORDERS_POOL))
           .wrap(database.pool);
 
   /**
@@ -84,7 +88,8 @@ class StatementSpansTest {
   class Kinds {
 
     @Test
-    @DisplayName("a prepared query gets a SELECT span, a child of the request, with the database")
+    @DisplayName(
+        "a prepared query gets a SELECT span, a child of the request, with the database and pool")
     void preparedQuery() throws Exception {
       traced.inRequest(this::runPrepared);
 
@@ -92,6 +97,7 @@ class StatementSpansTest {
       assertStatementSpan(span, SELECT, PERSONAL_VALUE);
       assertThat(span.getAttributes().get(SYSTEM)).isEqualTo("postgresql");
       assertThat(span.getAttributes().get(NAMESPACE)).isEqualTo(MockDatabase.DATABASE);
+      assertThat(span.getAttributes().get(POOL)).isEqualTo(ORDERS_POOL);
       assertThat(span.getParentSpanId()).isEqualTo(requestSpan().getSpanId());
     }
 

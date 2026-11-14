@@ -32,13 +32,13 @@ class DatabaseTlsCheckIntegrationTest {
   /** The thread the check runs on, as Logback's console line shortens it. */
   private static final String THREAD = "abase-tls-check]";
 
-  /** The WARN for an unencrypted data source named dataSource. */
+  /** The WARN for the unencrypted main pool, which it names by its pool name. */
   private static final String UNENCRYPTED =
-      "The data source 'dataSource' connects to the database without TLS.";
+      "The data source 'main' connects to the database without TLS.";
 
-  /** The WARN for a data source named dataSource that could not be checked. */
+  /** The WARN for the main pool when it could not be checked. */
   private static final String NOT_CHECKED =
-      "Could not check whether the data source 'dataSource' uses TLS: ";
+      "Could not check whether the data source 'main' uses TLS: ";
 
   /** Returns the console lines that hold a text. */
   private long linesWith(CapturedOutput output, String text) {

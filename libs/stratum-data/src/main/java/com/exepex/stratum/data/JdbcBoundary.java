@@ -39,6 +39,9 @@ public class JdbcBoundary {
   @Getter(AccessLevel.PACKAGE)
   private final StatementSpans spans;
 
+  /** How many rows each new statement fetches at a time, or {@code null} for the driver's own. */
+  private final @Nullable Integer fetchSize;
+
   /** The wrapped JDBC type a driver class implements, worked out once per class. */
   private final ClassValue<Optional<Class<?>>> wrappedTypeByClass =
       new ClassValue<>() {
@@ -65,19 +68,24 @@ public class JdbcBoundary {
     this.cleaner = new SqlExceptionCleaner(constraintReaders);
     this.limits = null;
     this.spans = StatementSpans.NONE;
+    this.fetchSize = null;
   }
 
   /**
    * Creates a boundary that shares another's wrappers and cleaner, with its own limits and spans.
    */
   private JdbcBoundary(
-      JdbcBoundary shared, @Nullable StatementLimits limits, StatementSpans spans) {
+      JdbcBoundary shared,
+      @Nullable StatementLimits limits,
+      StatementSpans spans,
+      @Nullable Integer fetchSize) {
     this.wrapperClasses = shared.wrapperClasses;
     this.factories = shared.factories;
     this.wrappedTypes = shared.wrappedTypes;
     this.cleaner = shared.cleaner;
     this.limits = limits;
     this.spans = spans;
+    this.fetchSize = fetchSize;
   }
 
   /**
@@ -88,7 +96,7 @@ public class JdbcBoundary {
    * @return the boundary, which shares this one's wrappers and cleaner
    */
   public JdbcBoundary withLimits(StatementLimits statementLimits) {
-    return new JdbcBoundary(this, statementLimits, spans);
+    return new JdbcBoundary(this, statementLimits, spans, fetchSize);
   }
 
   /**
@@ -98,7 +106,18 @@ public class JdbcBoundary {
    * @return the boundary, which shares this one's wrappers, cleaner and limits
    */
   public JdbcBoundary withSpans(StatementSpans statementSpans) {
-    return new JdbcBoundary(this, limits, statementSpans);
+    return new JdbcBoundary(this, limits, statementSpans, fetchSize);
+  }
+
+  /**
+   * Returns this boundary, whose new statements fetch the given number of rows at a time, before
+   * the code that created them runs, so a fetch size the code sets afterwards wins.
+   *
+   * @param rows the fetch size, or {@code null} to leave the driver's own
+   * @return the boundary with the fetch size
+   */
+  public JdbcBoundary withFetchSize(@Nullable Integer rows) {
+    return new JdbcBoundary(this, limits, spans, rows);
   }
 
   /**
@@ -123,19 +142,21 @@ public class JdbcBoundary {
 
   /**
    * Wraps an object a JDBC call returned in the generated wrapper of its type; a connection gets
-   * its data source's network timeout.
+   * its data source's network timeout, and a statement its pool's fetch size.
    *
    * @param returned the driver's or pool's object
    * @param type the JDBC type to wrap it as
    * @param parent the wrapper whose call returned it
    * @return the wrapper
-   * @throws SQLException the clean copy of the driver's error when the network timeout cannot be
-   *     set; the connection is then returned
+   * @throws SQLException the clean copy of the driver's error when the network timeout or the fetch
+   *     size cannot be set; a connection is then returned
    */
   JdbcWrapper wrapResult(Object returned, Class<?> type, JdbcWrapper parent) throws SQLException {
     var wrapper = factories.get(type).apply(returned, parent);
     if (wrapper instanceof ConnectionWrapper connection) {
       connection.onBorrow();
+    } else if (fetchSize != null && wrapper instanceof StatementWrapper statement) {
+      statement.fetch(fetchSize);
     }
     return wrapper;
   }

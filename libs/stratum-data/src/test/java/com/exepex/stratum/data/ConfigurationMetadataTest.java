@@ -19,12 +19,18 @@ class ConfigurationMetadataTest {
 
   @Test
   @DisplayName(
-      "the module switch, the statement time limit and the margin are listed with a description")
+      "the module switch, the time limit, the margin, the named pools and the cap are listed with a"
+          + " description")
   void listsEveryProperty() throws IOException {
     var metadata = Files.readString(METADATA);
 
     var properties =
-        List.of(DataConstants.ENABLED, DataConstants.QUERY_TIMEOUT, DataConstants.DEADLINE_MARGIN);
+        List.of(
+            DataConstants.ENABLED,
+            DataConstants.QUERY_TIMEOUT,
+            DataConstants.DEADLINE_MARGIN,
+            DataConstants.SOURCES,
+            DataConstants.MAX_CONNECTIONS);
     assertThat(JsonPath.<List<String>>read(metadata, "$.properties[*].name"))
         .containsExactlyInAnyOrderElementsOf(properties);
     assertThat(JsonPath.<List<String>>read(metadata, "$.properties[*].description"))

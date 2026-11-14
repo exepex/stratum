@@ -19,6 +19,7 @@ span that was current, such as the request's own span.
 | `db.system.name` | `postgresql`, `mysql`, `mariadb`, `h2`, `oracle.db`, `microsoft.sql_server`; `other_sql` for any other database | The driver's product name |
 | `db.namespace` | The database's name, such as `orders`; left out when the driver cannot give it | The connection's catalog |
 | `db.operation.name` | The same operation as the name | The first keyword of the statement's SQL |
+| `db.client.connection.pool.name` | The pool's name: `main` for Spring Boot's pool, or a [named pool](data-named-pools.md)'s, such as `batch` | The same name as the pool's metrics carry, see [Pool names](data-named-pools.md#pool-names) |
 | Error | Status `ERROR` when the statement fails | The boundary's clean copy of the error, see [Clean database errors](data.md#clean-database-errors) |
 
 The operation is the first word of the SQL after white space and comments, when it is one of

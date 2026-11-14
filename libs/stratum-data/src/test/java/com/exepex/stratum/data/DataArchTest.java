@@ -10,14 +10,16 @@ class DataArchTest {
 
   /**
    * The shared data library's types, top-level or nested, that services may use: the post-processor
-   * they replace to skip a data source, and the settings record, its builder and its customizer, as
-   * every module's. Every other type carries the label.
+   * they replace to skip a data source, and the settings records, their builders and the
+   * customizer, as every module's. Every other type carries the label.
    */
   private static final Set<Class<?>> API_TYPES =
       Set.of(
           JdbcBoundaryPostProcessor.class,
           DataProperties.class,
           DataProperties.DataPropertiesBuilder.class,
+          PoolSettings.class,
+          PoolSettings.PoolSettingsBuilder.class,
           DataPropertiesCustomizer.class);
 
   @Test

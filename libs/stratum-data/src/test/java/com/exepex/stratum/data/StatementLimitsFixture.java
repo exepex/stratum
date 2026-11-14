@@ -30,8 +30,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  */
 final class StatementLimitsFixture {
 
-  /** The data source bean's name. */
-  static final String POOL = "ordersDataSource";
+  /** The pool's name, which the counter and the message show. */
+  static final String POOL = "orders";
 
   /** The pool's query-timeout: 30 seconds. */
   static final long POOL_MILLIS = 30_000;

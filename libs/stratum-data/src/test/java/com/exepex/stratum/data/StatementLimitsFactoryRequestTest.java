@@ -76,7 +76,7 @@ class StatementLimitsFactoryRequestTest {
     try (var factory =
         new StatementLimitsFactory(
             environment, beanFactory, Thread.currentThread().getContextClassLoader())) {
-      var limits = factory.forPool("ordersDataSource");
+      var limits = factory.forPool("ordersDataSource", "orders");
       return catchThrowable(() -> limits.checkBeforeBorrow());
     }
   }
@@ -152,7 +152,7 @@ class StatementLimitsFactoryRequestTest {
       try (var factory =
           new StatementLimitsFactory(
               new MockEnvironment(), beanFactory, Thread.currentThread().getContextClassLoader())) {
-        var limits = factory.forPool("ordersDataSource");
+        var limits = factory.forPool("ordersDataSource", "orders");
         assertThatCode(() -> borrowThreeTimes(limits)).doesNotThrowAnyException();
       }
 

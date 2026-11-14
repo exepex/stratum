@@ -49,8 +49,8 @@ class StatementTimeoutIntegrationTest {
   /** The cause of a limit set by {@code stratum.data.query-timeout}, as the counter tags it. */
   private static final String QUERY_TIMEOUT_CAUSE = "query-timeout";
 
-  /** The data source bean's name, which the counter's {@code pool} tag shows. */
-  private static final String POOL = "dataSource";
+  /** The main pool's name, which the counter's {@code pool} tag shows. */
+  private static final String POOL = "main";
 
   @Autowired private DataSource dataSource;
 
