@@ -24,7 +24,8 @@ span that was current, such as the request's own span.
 The operation is the first word of the SQL after white space and comments, when it is one of
 `SELECT`, `INSERT`, `UPDATE`, `DELETE`, `MERGE`, `WITH`, `CALL`, `CREATE`, `ALTER`, `DROP`,
 `TRUNCATE`, `BEGIN`, `COMMIT`, `ROLLBACK`, `SET`, `SHOW`, `VALUES`, `LOCK`, `COPY` and `EXPLAIN`.
-Anything else is `UNKNOWN`, such as a JDBC escape like `{call archive(?)}`.
+Anything else is `UNKNOWN`, such as a JDBC escape like `{call archive(?)}`. Block comments nest,
+as in PostgreSQL and the SQL standard, so `/* a /* b */ c */ SELECT 1` is a `SELECT`.
 
 - A prepared statement takes its operation from the SQL it was prepared with; a plain statement from
   the SQL each `execute` gets.

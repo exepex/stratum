@@ -24,6 +24,18 @@ class QueryOperationTest {
    */
   private static final Duration HOSTILE_LIMIT = Duration.ofNanos(1_200_000);
 
+  /**
+   * Half a million nested block comments with no end, the deepest nesting a statement can force.
+   */
+  private static final String HOSTILE_NESTING = "/*".repeat(500_000);
+
+  /**
+   * The most CPU time one scan of the hostile nesting may take: about 10 times the 4.5 ms measured
+   * on the build machine, where each {@code *} costs one search, so a 10× slowdown fails; a scan
+   * that rescans the text for each opening would take seconds.
+   */
+  private static final Duration HOSTILE_NESTING_LIMIT = Duration.ofMillis(45);
+
   /** Scans in each timed batch: a few milliseconds of work. */
   private static final int SCANS_PER_BATCH = 5;
 
@@ -44,6 +56,9 @@ class QueryOperationTest {
           arguments("   ", QueryOperation.UNKNOWN),
           arguments("-- only a comment", QueryOperation.UNKNOWN),
           arguments("/* unterminated SELECT", QueryOperation.UNKNOWN),
+          arguments("/* outer /* inner */ DROP TABLE t */ SELECT 1", QueryOperation.SELECT),
+          arguments("/* a /* b */ c /* d */ e */ UPDATE t", QueryOperation.UPDATE),
+          arguments("/* outer /* inner */ SELECT 1", QueryOperation.UNKNOWN),
           arguments("{call p()}", QueryOperation.UNKNOWN),
           arguments("EXEC p", QueryOperation.UNKNOWN),
           arguments("SELECTED 1", QueryOperation.UNKNOWN),
@@ -88,5 +103,15 @@ class QueryOperationTest {
             "a megabyte of unterminated comment",
             HOSTILE_LIMIT,
             () -> assertThat(QueryOperation.of(HOSTILE_COMMENT)).isEqualTo(QueryOperation.UNKNOWN));
+  }
+
+  @Test
+  @DisplayName("scans half a million nested comment openings in linear time")
+  void linearOnHostileNesting() {
+    new CpuCostMeter(SCANS_PER_BATCH)
+        .assertCpuCostWithin(
+            "half a million nested comment openings",
+            HOSTILE_NESTING_LIMIT,
+            () -> assertThat(QueryOperation.of(HOSTILE_NESTING)).isEqualTo(QueryOperation.UNKNOWN));
   }
 }

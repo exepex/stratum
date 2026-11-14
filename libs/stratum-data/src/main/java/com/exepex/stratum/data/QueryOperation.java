@@ -129,9 +129,30 @@ enum QueryOperation {
     return newline < 0 ? sql.length() : newline + 1;
   }
 
-  /** Returns the index after a block comment, or the end of an unterminated one. */
+  /**
+   * Returns the index after a block comment, or the end of an unterminated one. Block comments
+   * nest, as in PostgreSQL and the SQL standard. The scan reads left to right from one {@code *} to
+   * the next, as a lexer does, so each character is read once however deep the nesting.
+   */
   private static int commentEnd(String sql, int from) {
-    int close = sql.indexOf("*/", from + 2);
-    return close < 0 ? sql.length() : close + 2;
+    int depth = 0;
+    int at = from;
+    int star = sql.indexOf('*', at);
+    while (star >= 0) {
+      if (star > at && sql.charAt(star - 1) == '/') {
+        depth++;
+        at = star + 1;
+      } else if (star + 1 < sql.length() && sql.charAt(star + 1) == '/') {
+        depth--;
+        at = star + 2;
+        if (depth == 0) {
+          return at;
+        }
+      } else {
+        at = star + 1;
+      }
+      star = sql.indexOf('*', at);
+    }
+    return sql.length();
   }
 }
