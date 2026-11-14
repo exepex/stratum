@@ -35,6 +35,10 @@ public class JdbcBoundary {
   @Getter(AccessLevel.PACKAGE)
   private final @Nullable StatementLimits limits;
 
+  /** Gives each statement's execute a span when its trace is sampled; none without tracing. */
+  @Getter(AccessLevel.PACKAGE)
+  private final StatementSpans spans;
+
   /** The wrapped JDBC type a driver class implements, worked out once per class. */
   private final ClassValue<Optional<Class<?>>> wrappedTypeByClass =
       new ClassValue<>() {
@@ -60,15 +64,20 @@ public class JdbcBoundary {
     this.wrappedTypes = JdbcWrapperClasses.WRAPPED_TYPES;
     this.cleaner = new SqlExceptionCleaner(constraintReaders);
     this.limits = null;
+    this.spans = StatementSpans.NONE;
   }
 
-  /** Creates a boundary that shares another's wrappers and cleaner, with statement limits. */
-  private JdbcBoundary(JdbcBoundary shared, StatementLimits limits) {
+  /**
+   * Creates a boundary that shares another's wrappers and cleaner, with its own limits and spans.
+   */
+  private JdbcBoundary(
+      JdbcBoundary shared, @Nullable StatementLimits limits, StatementSpans spans) {
     this.wrapperClasses = shared.wrapperClasses;
     this.factories = shared.factories;
     this.wrappedTypes = shared.wrappedTypes;
     this.cleaner = shared.cleaner;
     this.limits = limits;
+    this.spans = spans;
   }
 
   /**
@@ -79,7 +88,17 @@ public class JdbcBoundary {
    * @return the boundary, which shares this one's wrappers and cleaner
    */
   public JdbcBoundary withLimits(StatementLimits statementLimits) {
-    return new JdbcBoundary(this, statementLimits);
+    return new JdbcBoundary(this, statementLimits, spans);
+  }
+
+  /**
+   * Returns a boundary that also gives each statement's execute a span when its trace is sampled.
+   *
+   * @param statementSpans the spans of the data source's statements
+   * @return the boundary, which shares this one's wrappers, cleaner and limits
+   */
+  public JdbcBoundary withSpans(StatementSpans statementSpans) {
+    return new JdbcBoundary(this, limits, statementSpans);
   }
 
   /**

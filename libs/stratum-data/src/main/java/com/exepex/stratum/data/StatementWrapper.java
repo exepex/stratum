@@ -1,8 +1,12 @@
 package com.exepex.stratum.data;
 
 import com.exepex.stratum.core.api.StratumInternal;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -19,6 +23,21 @@ public abstract class StatementWrapper extends JdbcWrapper {
 
   /** The time limit the code set on the statement, in seconds; 0 for none. */
   private int callerSeconds;
+
+  /** The SQL the statement was prepared with, or {@code null} for a plain statement. */
+  private @Nullable String preparedSql;
+
+  /** The SQL of a single plain execute, until the execute ends; or empty, as in a batch's. */
+  private String plainSql = "";
+
+  /**
+   * The SQL added to a plain batch, until it runs or is cleared; kept by reference, since the
+   * driver holds the same texts, and read only when the batch's span starts.
+   */
+  private List<String> batchSql = List.of();
+
+  /** The span of the execute that is running, or {@link StatementSpans#NO_SPAN}. */
+  private Object span = StatementSpans.NO_SPAN;
 
   /**
    * Wraps a statement.
@@ -78,6 +97,18 @@ public abstract class StatementWrapper extends JdbcWrapper {
    * @throws SQLException {@code SX-DATA-1003} when no time is left
    */
   long enterLimit() throws SQLException {
+    var batch = plainSql.isEmpty() ? batchSql : List.<String>of();
+    span = boundary.getSpans().start(currentSql(), batch, driverConnection());
+    try {
+      return limitOnEnter();
+    } catch (SQLException refused) {
+      finishExecute(refused);
+      throw refused;
+    }
+  }
+
+  /** Starts the limit of an execute; see {@link #enterLimit}. */
+  private long limitOnEnter() throws SQLException {
     var limits = limits();
     if (limits == null || !(parent instanceof ConnectionWrapper connection)) {
       return StatementLimits.NO_LIMIT;
@@ -96,6 +127,13 @@ public abstract class StatementWrapper extends JdbcWrapper {
    * @return what the execute throws, or {@code null} when it returns
    */
   @Nullable Throwable exitLimit(long running, @Nullable Throwable thrown) {
+    var result = limitOnExit(running, thrown);
+    finishExecute(result);
+    return result;
+  }
+
+  /** Ends the limit of an execute; see {@link #exitLimit}. */
+  private @Nullable Throwable limitOnExit(long running, @Nullable Throwable thrown) {
     var limits = limits();
     if (running == StatementLimits.NO_LIMIT
         || limits == null
@@ -104,6 +142,81 @@ public abstract class StatementWrapper extends JdbcWrapper {
       return thrown;
     }
     return limits.exit(connection.getSlot(), running, thrown);
+  }
+
+  /**
+   * Keeps the SQL the statement was prepared with, for its spans' operation.
+   *
+   * @param sql the statement's SQL
+   */
+  void prepared(String sql) {
+    preparedSql = sql;
+  }
+
+  /**
+   * Keeps the SQL of a plain execute, for its span's operation.
+   *
+   * @param sql the SQL the execute runs
+   */
+  void executes(@Nullable String sql) {
+    plainSql = Objects.requireNonNullElse(sql, "");
+  }
+
+  /**
+   * Keeps the SQL added to a plain batch, for its span's operation. Nothing is read here: in a
+   * trace that is not sampled, the batch's SQL is never scanned.
+   *
+   * @param sql the SQL added to the batch
+   */
+  void batches(@Nullable String sql) {
+    if (batchSql.isEmpty()) {
+      batchSql = new ArrayList<>();
+    }
+    batchSql.add(Objects.requireNonNullElse(sql, ""));
+  }
+
+  /**
+   * Empties the batch, and forgets its SQL so the next execute's span takes its own operation.
+   *
+   * @throws SQLException the clean copy of the driver's error
+   */
+  public void clearBatch() throws SQLException {
+    batchSql = List.of();
+    try {
+      ((Statement) delegate).clearBatch();
+    } catch (SQLException failure) {
+      throw boundary.cleaned(failure);
+    }
+  }
+
+  /** Returns the SQL the running execute runs: a plain one, or the prepared one. */
+  private String currentSql() {
+    if (!plainSql.isEmpty()) {
+      return plainSql;
+    }
+    return preparedSql == null ? "" : preparedSql;
+  }
+
+  /** Returns the driver's connection behind the statement, or {@code null}. */
+  private @Nullable Connection driverConnection() {
+    return parent instanceof ConnectionWrapper connection ? (Connection) connection.delegate : null;
+  }
+
+  /**
+   * Ends the running execute's span, if it has one, and forgets its SQL: a single execute's own
+   * SQL, which leaves a pending batch for its {@code executeBatch}, or else the batch's.
+   */
+  private void finishExecute(@Nullable Throwable thrown) {
+    if (plainSql.isEmpty()) {
+      batchSql = List.of();
+    } else {
+      plainSql = "";
+    }
+    var running = span;
+    if (running != StatementSpans.NO_SPAN) {
+      span = StatementSpans.NO_SPAN;
+      boundary.getSpans().end(running, thrown);
+    }
   }
 
   /** Returns the limits of the statement's data source, or {@code null} when it has none. */

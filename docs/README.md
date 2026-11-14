@@ -78,7 +78,7 @@ Each module page follows the same layout so you always know where to look:
 | OAuth2 client (the service's own tokens for the HTTP client) | [oauth2-client.md](modules/oauth2-client.md) |
 | HTTP client | [http-client.md](modules/http-client.md), [auth and mTLS](modules/http-client-auth.md), [errors](modules/http-client-errors.md), [mocked clients](modules/http-client-mocks.md), [retries and the circuit breaker](modules/http-client-resilience.md), [clients Stratum did not build](modules/http-client-own-clients.md), [headers and interceptors](modules/http-client-headers.md), [call log and meters](modules/http-client-observability.md) |
 | Resilience | [resilience.md](modules/resilience.md) |
-| Data (JPA, JDBC, connection pool, transactions) | [data-jpa.md](modules/data-jpa.md), [jdbc.md](modules/jdbc.md), [data.md](modules/data.md) (the JDBC boundary every data starter shares), [statement time limits](modules/data-statement-limits.md), [TLS check](modules/data-tls-check.md), [PostgreSQL login limit](modules/data-login-limit.md) |
+| Data (JPA, JDBC, connection pool, transactions) | [data-jpa.md](modules/data-jpa.md), [jdbc.md](modules/jdbc.md), [data.md](modules/data.md) (the JDBC boundary every data starter shares), [statement time limits](modules/data-statement-limits.md), [TLS check](modules/data-tls-check.md), [PostgreSQL login limit](modules/data-login-limit.md), [query spans](modules/data-query-spans.md) |
 | Cache | [cache.md](modules/cache.md) |
 | Cache when Redis is down | [cache-redis-down.md](modules/cache-redis-down.md) |
 | Cache stored values | [cache-values.md](modules/cache-values.md) |

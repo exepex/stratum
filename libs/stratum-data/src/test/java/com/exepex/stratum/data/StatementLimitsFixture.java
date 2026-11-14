@@ -85,6 +85,35 @@ final class StatementLimitsFixture {
   StatementLimitsFixture(
       boolean backwardCompatible, long cancelWaitMillis, Consumer<Runnable> cancelStarter)
       throws SQLException {
+    this(backwardCompatible, cancelWaitMillis, cancelStarter, StatementSpans.NONE);
+  }
+
+  /**
+   * Builds the data source with the pool's limit of 30 seconds, whose sweeper runs each cancel at
+   * once, and whose statements get the given spans.
+   *
+   * @param spans the statements' spans
+   * @throws SQLException never; the mocks declare it
+   */
+  StatementLimitsFixture(StatementSpans spans) throws SQLException {
+    this(false, StatementLimits.NETWORK_MARGIN_MILLIS, Runnable::run, spans);
+  }
+
+  /**
+   * Builds the data source with the pool's limit of 30 seconds.
+   *
+   * @param backwardCompatible whether {@code stratum.backward-compatible} is on
+   * @param cancelWaitMillis how long a cancelled statement waits for its cancel
+   * @param cancelStarter starts each cancel the sweeper claims
+   * @param spans the statements' spans
+   * @throws SQLException never; the mocks declare it
+   */
+  private StatementLimitsFixture(
+      boolean backwardCompatible,
+      long cancelWaitMillis,
+      Consumer<Runnable> cancelStarter,
+      StatementSpans spans)
+      throws SQLException {
     sweeper = new StatementSweeper(now::get, cancelStarter);
     when(pool.getConnection()).thenReturn(driverConnection);
     when(driverConnection.prepareStatement(anyString())).thenReturn(driverStatement);
@@ -103,7 +132,10 @@ final class StatementLimitsFixture {
             .marginMillis(MARGIN_MILLIS)
             .build();
     dataSource =
-        new JdbcBoundary(new JdbcWrapperClasses(), List.of()).withLimits(limits).wrap(pool);
+        new JdbcBoundary(new JdbcWrapperClasses(), List.of())
+            .withLimits(limits)
+            .withSpans(spans)
+            .wrap(pool);
     wrapped.set(dataSource);
   }
 

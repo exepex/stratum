@@ -2,7 +2,8 @@
 
 **Status: Partly built.** What every Stratum data starter shares: database errors that carry no
 data values, from your code and from Flyway and Liquibase, a time limit on every SQL statement, a
-check that the connection to the database is encrypted, and safe defaults for Spring Boot's
+span for each statement in a traced request, a check that the connection to the database is
+encrypted, and safe defaults for Spring Boot's
 connection pool (HikariCP) and transactions.
 
 [← Documentation home](../README.md) · Property prefix: `stratum.data`
@@ -31,6 +32,7 @@ shows how to add it. R2DBC is not covered.
 | Login limit | A new connection to a PostgreSQL database that never answers fails after about 3 seconds, instead of waiting for good; see [The PostgreSQL login limit](data-login-limit.md) | Always |
 | Leak alarm check | A `leak-detection-threshold` that HikariCP would silently turn off stops startup with `SX-DATA-1002`; the alarm itself stays off, see [Leak alarm](#leak-alarm) | Always |
 | Transaction time limit | Every transaction that sets no limit of its own gets 60 seconds | Strict mode, without Spring Batch |
+| Query spans | In a sampled trace, each SQL statement gets a client span with the database and its operation, such as `SELECT`, and no SQL text; see [Query spans](data-query-spans.md) | With tracing |
 
 **Strict mode** is Stratum's default, `stratum.backward-compatible=false`. A service already
 running with consumers sets `stratum.backward-compatible=true` while it moves to Stratum; then the

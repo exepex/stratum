@@ -1,6 +1,8 @@
 # Observability: traces
 
 This page belongs to the [observability starter](../../starters/stratum-starter-observability/README.md).
+With a data starter, each SQL statement in a sampled trace gets a span of its own; see
+[Query spans](data-query-spans.md).
 
 ## Correlation ID
 

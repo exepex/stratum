@@ -78,8 +78,8 @@ spring:
 ## What you get
 
 Everything [`stratum-data`](data.md#what-you-get) gives: clean database errors, statement time
-limits, the TLS check, the short pool wait, the PostgreSQL login limit, the leak alarm check and the
-transaction time limit. And for Hibernate:
+limits, the TLS check, the short pool wait, the PostgreSQL login limit, the leak alarm check, the
+transaction time limit and [query spans](data-query-spans.md). And for Hibernate:
 
 | Feature | Behaviour | Applies |
 | --- | --- | --- |

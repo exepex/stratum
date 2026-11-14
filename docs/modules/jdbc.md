@@ -77,7 +77,8 @@ spring:
 
 Everything in [Data → What you get](data.md#what-you-get), in the same modes: clean database
 errors, statement time limits, the TLS check, the short pool wait, the PostgreSQL login limit, the
-leak alarm check and the transaction time limit. Stratum sets no fetch size, and no `spring.jpa.*`
+leak alarm check, the transaction time limit and [query spans](data-query-spans.md). Stratum sets
+no fetch size, and no `spring.jpa.*`
 key.
 
 ## With the data JPA starter too

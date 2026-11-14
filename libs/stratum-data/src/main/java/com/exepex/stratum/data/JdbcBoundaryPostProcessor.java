@@ -118,7 +118,8 @@ public final class JdbcBoundaryPostProcessor
 
   /**
    * Returns the boundary of a data source bean, with the time limits of its statements once Spring
-   * has given the bean factory and the environment.
+   * has given the bean factory and the environment, and the statements' spans when Micrometer
+   * Tracing's OpenTelemetry bridge is present.
    */
   private JdbcBoundary boundaryFor(String beanName) {
     var shared = readyBoundary();
@@ -128,7 +129,10 @@ public final class JdbcBoundaryPostProcessor
     if (limitsFactory == null) {
       limitsFactory = new StatementLimitsFactory(environment, beanFactory, classLoader);
     }
-    return shared.withLimits(limitsFactory.forPool(beanName));
+    var limited = shared.withLimits(limitsFactory.forPool(beanName));
+    return ClassUtils.isPresent(DataConstants.TRACER_BRIDGE, classLoader)
+        ? limited.withSpans(TracerStatementSpans.of(beanFactory))
+        : limited;
   }
 
   /**

@@ -80,5 +80,24 @@
       <artifactId>spring-boot-starter-liquibase</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Micrometer's OpenTelemetry bridge and the SDK's in-memory exporter, to prove what each
+         statement's span carries on PostgreSQL. Services bring tracing with the observability
+         starter. -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-tracing-bridge-otel</artifactId>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>aopalliance</groupId>
+          <artifactId>aopalliance</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-sdk-testing</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 </project>
