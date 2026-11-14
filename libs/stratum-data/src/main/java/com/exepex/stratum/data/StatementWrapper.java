@@ -27,7 +27,7 @@ public abstract class StatementWrapper extends JdbcWrapper {
   /** The SQL the statement was prepared with, or {@code null} for a plain statement. */
   private @Nullable String preparedSql;
 
-  /** The SQL of a plain execute, until the execute ends; or empty. */
+  /** The SQL of a single plain execute, until the execute ends; or empty, as in a batch's. */
   private String plainSql = "";
 
   /**
@@ -97,7 +97,8 @@ public abstract class StatementWrapper extends JdbcWrapper {
    * @throws SQLException {@code SX-DATA-1003} when no time is left
    */
   long enterLimit() throws SQLException {
-    span = boundary.getSpans().start(currentSql(), batchSql, driverConnection());
+    var batch = plainSql.isEmpty() ? batchSql : List.<String>of();
+    span = boundary.getSpans().start(currentSql(), batch, driverConnection());
     try {
       return limitOnEnter();
     } catch (SQLException refused) {
@@ -201,10 +202,16 @@ public abstract class StatementWrapper extends JdbcWrapper {
     return parent instanceof ConnectionWrapper connection ? (Connection) connection.delegate : null;
   }
 
-  /** Ends the running execute's span, if it has one, and forgets its SQL. */
+  /**
+   * Ends the running execute's span, if it has one, and forgets its SQL: a single execute's own
+   * SQL, which leaves a pending batch for its {@code executeBatch}, or else the batch's.
+   */
   private void finishExecute(@Nullable Throwable thrown) {
-    plainSql = "";
-    batchSql = List.of();
+    if (plainSql.isEmpty()) {
+      batchSql = List.of();
+    } else {
+      plainSql = "";
+    }
     var running = span;
     if (running != StatementSpans.NO_SPAN) {
       span = StatementSpans.NO_SPAN;

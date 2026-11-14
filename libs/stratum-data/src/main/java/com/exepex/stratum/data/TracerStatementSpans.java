@@ -124,7 +124,7 @@ public final class TracerStatementSpans implements StatementSpans {
   }
 
   /** Returns the product name a connection's driver reports, in lower case, or an empty text. */
-  private static String productName(@Nullable Connection connection) {
+  private String productName(@Nullable Connection connection) {
     if (connection == null) {
       return "";
     }
@@ -138,7 +138,7 @@ public final class TracerStatementSpans implements StatementSpans {
   }
 
   /** Returns the connection's database name, which the driver keeps, or {@code null}. */
-  private static @Nullable String namespace(@Nullable Connection connection) {
+  private @Nullable String namespace(@Nullable Connection connection) {
     if (connection == null) {
       return null;
     }

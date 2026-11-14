@@ -35,6 +35,9 @@ class StatementSpansTest {
   /** The operation of a query. */
   private static final String SELECT = "SELECT";
 
+  /** The operation of an insert. */
+  private static final String INSERT = "INSERT";
+
   /** The operation of SQL that starts with no known keyword. */
   private static final String UNKNOWN = QueryOperation.UNKNOWN.name();
 
@@ -170,7 +173,7 @@ class StatementSpansTest {
       traced.inRequest(
           () -> runBatch(LITERAL_INSERT, "INSERT INTO customers (email) VALUES ('b')"));
 
-      assertStatementSpan(onlySpan(), "INSERT", PERSONAL_VALUE);
+      assertStatementSpan(onlySpan(), INSERT, PERSONAL_VALUE);
     }
 
     @Test
@@ -200,11 +203,21 @@ class StatementSpansTest {
     }
 
     @Test
+    @DisplayName("stays pending across a single execute, which gets its own operation")
+    void pendingAcrossExecute() throws Exception {
+      traced.inRequest(this::runQueryBetweenBatch);
+
+      assertThat(traced.statementSpans())
+          .extracting(SpanData::getName)
+          .containsExactly(SELECT, INSERT);
+    }
+
+    @Test
     @DisplayName("of a prepared statement gets the operation it was prepared with")
     void prepared() throws Exception {
       traced.inRequest(this::runPreparedBatch);
 
-      assertStatementSpan(onlySpan(), "INSERT", PERSONAL_VALUE);
+      assertStatementSpan(onlySpan(), INSERT, PERSONAL_VALUE);
     }
 
     /** Adds two SQL texts to a plain batch and runs it. */
@@ -240,6 +253,16 @@ class StatementSpansTest {
       }
     }
 
+    /** Adds an insert to a plain batch, runs a query, then runs the batch. */
+    private void runQueryBetweenBatch() throws SQLException {
+      try (var connection = dataSource.getConnection();
+          var statement = connection.createStatement()) {
+        statement.addBatch(LITERAL_INSERT);
+        statement.executeQuery(LITERAL_QUERY);
+        statement.executeBatch();
+      }
+    }
+
     /** Runs a prepared insert as a batch of two. */
     private void runPreparedBatch() throws SQLException {
       try (var connection = dataSource.getConnection();
@@ -264,7 +287,7 @@ class StatementSpansTest {
           arguments(LITERAL + "; DROP TABLE customers", UNKNOWN),
           arguments("SELECTED " + LITERAL, UNKNOWN),
           arguments("select " + LITERAL, SELECT),
-          arguments(" \n\t INSERT INTO t VALUES (" + LITERAL + ")", "INSERT"),
+          arguments(" \n\t INSERT INTO t VALUES (" + LITERAL + ")", INSERT),
           arguments("WITH secret AS (SELECT " + LITERAL + ") SELECT 1", "WITH"),
           arguments("{call archive(" + LITERAL + ")}", UNKNOWN),
           arguments(PERSONAL_VALUE, UNKNOWN));
