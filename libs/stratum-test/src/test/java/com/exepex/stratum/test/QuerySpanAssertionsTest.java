@@ -54,7 +54,7 @@ class QuerySpanAssertionsTest {
   }
 
   /** Returns a clean statement span's attributes. */
-  private static Attributes clean() {
+  private Attributes clean() {
     return Attributes.of(
         QuerySpanAssertions.SYSTEM, "postgresql",
         QuerySpanAssertions.NAMESPACE, "orders",

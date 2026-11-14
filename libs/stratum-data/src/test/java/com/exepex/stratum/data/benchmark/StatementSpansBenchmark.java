@@ -130,7 +130,8 @@ public class StatementSpansBenchmark {
               .setSampler(Sampler.traceIdRatioBased("unsampled".equals(side) ? 0.0 : 1.0))
               .addSpanProcessor(BatchSpanProcessor.builder(new DroppingExporter()).build())
               .build();
-      tracer = new OtelTracer(provider.get("benchmark"), new OtelCurrentTraceContext(), e -> {});
+      tracer =
+          new OtelTracer(provider.get("benchmark"), new OtelCurrentTraceContext(), event -> {});
       var beans = new StaticListableBeanFactory();
       beans.addBean("tracer", tracer);
       spans =

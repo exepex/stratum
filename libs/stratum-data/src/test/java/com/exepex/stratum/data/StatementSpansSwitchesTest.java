@@ -84,6 +84,12 @@ class StatementSpansSwitchesTest {
     }
   }
 
+  /** Runs the query twice through the data source, on two connections. */
+  private void runQueryTwice(DataSource dataSource) throws SQLException {
+    runQuery(dataSource);
+    runQuery(dataSource);
+  }
+
   /** Runs a plain batch of two statements with different operations through the data source. */
   private void runBatch(DataSource dataSource) throws SQLException {
     try (var connection = dataSource.getConnection();
@@ -226,14 +232,19 @@ class StatementSpansSwitchesTest {
     }
 
     @Test
-    @DisplayName("when the product cannot be read: the span says other_sql")
+    @DisplayName(
+        "when the product cannot be read: other_sql, and the next statement reads it again")
     void metadataFails() throws Exception {
-      when(database.connection.getMetaData()).thenThrow(new SQLException("closed", "08003"));
+      when(database.connection.getMetaData())
+          .thenThrow(new SQLException("closed", "08003"))
+          .thenReturn(database.metadata);
+      var dataSource = dataSource(traced.tracers());
 
-      traced.inRequest(() -> runQuery(dataSource(traced.tracers())));
+      traced.inRequest(() -> runQueryTwice(dataSource));
 
-      assertThat(traced.statementSpans().getFirst().getAttributes().get(SYSTEM))
-          .isEqualTo("other_sql");
+      assertThat(traced.statementSpans())
+          .extracting(span -> span.getAttributes().get(SYSTEM))
+          .containsExactly("other_sql", "postgresql");
     }
 
     @Test

@@ -19,7 +19,7 @@ span that was current, such as the request's own span.
 | `db.system.name` | `postgresql`, `mysql`, `mariadb`, `h2`, `oracle.db`, `microsoft.sql_server`; `other_sql` for any other database | The driver's product name |
 | `db.namespace` | The database's name, such as `orders`; left out when the driver cannot give it | The connection's catalog |
 | `db.operation.name` | The same operation as the name | The first keyword of the statement's SQL |
-| Error | The boundary's clean copy of the error, when the statement fails | [Clean database errors](data.md#clean-database-errors) |
+| Error | Status `ERROR` when the statement fails | The boundary's clean copy of the error, see [Clean database errors](data.md#clean-database-errors) |
 
 The operation is the first word of the SQL after white space and comments, when it is one of
 `SELECT`, `INSERT`, `UPDATE`, `DELETE`, `MERGE`, `WITH`, `CALL`, `CREATE`, `ALTER`, `DROP`,
@@ -34,7 +34,11 @@ as in PostgreSQL and the SQL standard, so `/* a /* b */ c */ SELECT 1` is a `SEL
   SQL text added, which the driver holds too, so nothing is copied; it reads them only when the
   trace is sampled.
 - A statement that its [time limit](data-statement-limits.md) refuses to start still gets its span,
-  which records `SX-DATA-1003`.
+  which records the `SX-DATA-1003` error.
+- With the [observability starter](../../starters/stratum-starter-observability/README.md), only
+  the `ERROR` status of a failed statement is sent to the trace backend: Stratum removes the error's
+  message and its `exception` event from every span, so they stay in your logs. See
+  [Errors on spans](observability-traces.md#errors-on-spans).
 - No meter is added: the span is not a Micrometer Observation, so it creates no timer.
 
 ## Why there is no SQL text
