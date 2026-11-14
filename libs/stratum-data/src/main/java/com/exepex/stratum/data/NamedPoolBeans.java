@@ -83,10 +83,10 @@ public class NamedPoolBeans {
   DataSourceTransactionManager transactionManager(String name, PoolSettings settings) {
     var dataSource = beanFactory.getBean(name + DataConstants.DATA_SOURCE_SUFFIX, DataSource.class);
     var manager =
-        !Boolean.FALSE.equals(
+        Boolean.FALSE.equals(
                 environment.getProperty(DataConstants.EXCEPTION_TRANSLATION, Boolean.class))
-            ? new JdbcTransactionManager(dataSource)
-            : new DataSourceTransactionManager(dataSource);
+            ? new DataSourceTransactionManager(dataSource)
+            : new JdbcTransactionManager(dataSource);
     beanFactory
         .getBeanProvider(TransactionManagerCustomizers.class)
         .ifAvailable(customizers -> customizers.customize(manager));
