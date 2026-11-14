@@ -84,6 +84,12 @@ public final class JdbcWrapperClasses {
   /** The name of the data source methods that borrow a connection. */
   private static final String GET_CONNECTION = "getConnection";
 
+  /** The start of the name of the connection methods that prepare a statement from its SQL. */
+  private static final String PREPARE = "prepare";
+
+  /** The name of the statement method that adds SQL to a batch. */
+  private static final String ADD_BATCH = "addBatch";
+
   /** The name ending of every generated class, so that a stack trace shows where it came from. */
   private static final String SUFFIX = "$StratumBoundary$";
 
@@ -92,6 +98,24 @@ public final class JdbcWrapperClasses {
 
   /** Generates the classes. */
   private final ByteBuddy byteBuddy = new ByteBuddy();
+
+  /** Replaces what any call throws with its clean copy. */
+  private final Advice cleanErrors = adviceOf(CleanErrorsAdvice.class);
+
+  /** Runs a statement's execute under its time limit and span. */
+  private final Advice statementLimit = adviceOf(StatementLimitAdvice.class);
+
+  /** Runs a data source's borrow under the borrow limit. */
+  private final Advice borrowLimit = adviceOf(BorrowLimitAdvice.class);
+
+  /** Keeps the SQL of a plain execute. */
+  private final Advice plainSql = Advice.to(PlainSqlAdvice.class);
+
+  /** Keeps the SQL a connection prepares a statement with. */
+  private final Advice preparedSql = Advice.to(PreparedSqlAdvice.class);
+
+  /** Keeps the SQL added to a plain batch. */
+  private final Advice batchSql = Advice.to(BatchSqlAdvice.class);
 
   /** The factory of the wrappers of each JDBC type other than a data source. */
   private final Map<Class<?>, BiFunction<Object, JdbcWrapper, JdbcWrapper>> factories;
@@ -185,22 +209,42 @@ public final class JdbcWrapperClasses {
                     + SUFFIX
                     + RandomString.make())
             .implement(type);
-    var advice = adviceOf(CleanErrorsAdvice.class);
-    var limitAdvice = adviceOf(StatementLimitAdvice.class);
-    var borrowAdvice = adviceOf(BorrowLimitAdvice.class);
     for (var method : delegatedMethods(type, base)) {
-      Implementation call = advice.wrap(callOf(method));
-      if (isLimited(base, method)) {
-        call = limitAdvice.wrap(call);
-      } else if (isBorrow(base, method)) {
-        call = borrowAdvice.wrap(call);
-      }
       builder =
           builder
               .method(named(method.getName()).and(takesArguments(method.getParameterTypes())))
-              .intercept(call);
+              .intercept(withAdvice(base, method, cleanErrors.wrap(callOf(method))));
     }
     return load(builder).asSubclass(JdbcWrapper.class);
+  }
+
+  /**
+   * Returns a method's call with the advice its type needs: a statement's execute runs under its
+   * time limit and span, after its SQL is kept when it takes one; a data source's borrow runs under
+   * the borrow limit; a connection's prepare and a statement's batch keep their SQL.
+   */
+  private Implementation withAdvice(Class<?> base, Method method, Implementation call) {
+    if (isLimited(base, method)) {
+      var limited = statementLimit.wrap(call);
+      return takesSql(method) ? plainSql.wrap(limited) : limited;
+    }
+    if (isBorrow(base, method)) {
+      return borrowLimit.wrap(call);
+    }
+    if (base == ConnectionWrapper.class
+        && method.getName().startsWith(PREPARE)
+        && takesSql(method)) {
+      return preparedSql.wrap(call);
+    }
+    if (base == StatementWrapper.class && ADD_BATCH.equals(method.getName()) && takesSql(method)) {
+      return batchSql.wrap(call);
+    }
+    return call;
+  }
+
+  /** Returns whether a method's first parameter is its SQL. */
+  private static boolean takesSql(Method method) {
+    return method.getParameterCount() > 0 && method.getParameterTypes()[0] == String.class;
   }
 
   /** Returns the base class of a JDBC type's wrapper. */
@@ -225,7 +269,7 @@ public final class JdbcWrapperClasses {
   }
 
   /** Returns the advice of a class, which can replace what the call throws. */
-  private Advice adviceOf(Class<?> adviceClass) {
+  private static Advice adviceOf(Class<?> adviceClass) {
     return Advice.withCustomMapping().with(new Advice.AssignReturned.Factory()).to(adviceClass);
   }
 

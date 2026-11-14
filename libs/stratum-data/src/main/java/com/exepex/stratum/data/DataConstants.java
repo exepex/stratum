@@ -69,4 +69,16 @@ public class DataConstants {
 
   /** The name of the bean that wraps the connection Spring Boot builds for Liquibase. */
   public static final String LIQUIBASE_BOUNDARY = "stratumLiquibaseBoundary";
+
+  /** A class of Micrometer Tracing's OpenTelemetry bridge, whose presence turns on query spans. */
+  public static final String TRACER_BRIDGE = "io.micrometer.tracing.otel.bridge.OtelTracer";
+
+  /** The span tag of the database system, such as {@code postgresql}. */
+  public static final String SPAN_SYSTEM = "db.system.name";
+
+  /** The span tag of the database's name. */
+  public static final String SPAN_NAMESPACE = "db.namespace";
+
+  /** The span tag of the operation the statement's SQL starts with, such as {@code SELECT}. */
+  public static final String SPAN_OPERATION = "db.operation.name";
 }

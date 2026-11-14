@@ -43,9 +43,9 @@ management:
 
 ## PostgreSQL
 
-Database queries make no spans yet: a request's span shows the time spent, not which query took it
-([#225](https://github.com/exepex/stratum/issues/225)). Until then, these metrics from Spring Boot
-show where database time goes:
+In a sampled trace, each SQL statement gets a client span with the database and its operation,
+such as `SELECT`, and no SQL text; see [Query spans](data-query-spans.md). These metrics from
+Spring Boot show where database time goes across all requests:
 
 | Metric | What it shows |
 | --- | --- |

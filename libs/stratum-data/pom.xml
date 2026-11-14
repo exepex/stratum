@@ -45,6 +45,20 @@
       <artifactId>micrometer-core</artifactId>
       <optional>true</optional>
     </dependency>
+    <!-- Micrometer Tracing, optional: the boundary gives each statement a span when a service has
+         its OpenTelemetry bridge, which the observability starter brings. -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-tracing</artifactId>
+      <optional>true</optional>
+      <!-- Spring AOP already holds these classes. -->
+      <exclusions>
+        <exclusion>
+          <groupId>aopalliance</groupId>
+          <artifactId>aopalliance</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
     <!-- The PostgreSQL driver, optional: the boundary reads the violated constraint's name from its
          errors when a service brings it. -->
     <dependency>
@@ -113,6 +127,30 @@
       <artifactId>hibernate-core</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Micrometer Tracing's OpenTelemetry bridge and the SDK's in-memory exporter, to prove what
+         each statement's span carries. Services bring tracing with the observability starter. -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-tracing-bridge-otel</artifactId>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>aopalliance</groupId>
+          <artifactId>aopalliance</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-sdk-testing</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Spring Boot's OpenTelemetry tracing, for the statement spans' benchmark on PostgreSQL. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-micrometer-tracing-opentelemetry</artifactId>
+      <scope>test</scope>
+    </dependency>
     <!-- JMH, for the JDBC boundary's benchmark, which only the benchmark profile below runs. -->
     <dependency>
       <groupId>org.openjdk.jmh</groupId>
@@ -128,7 +166,7 @@
     <profile>
       <id>benchmark</id>
       <properties>
-        <jmh.benchmarks>JdbcBoundaryBenchmark|StatementLimitsBenchmark|StatementTimerBenchmark|StatementSweeperBenchmark</jmh.benchmarks>
+        <jmh.benchmarks>JdbcBoundaryBenchmark|StatementLimitsBenchmark|StatementTimerBenchmark|StatementSweeperBenchmark|StatementSpansBenchmark|QuerySpanCallBenchmark</jmh.benchmarks>
       </properties>
       <build>
         <plugins>

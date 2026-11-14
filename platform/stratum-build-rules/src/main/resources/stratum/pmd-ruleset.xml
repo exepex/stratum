@@ -38,6 +38,10 @@
     thread after startup and must never stop the service: any failure of the pool or the driver,
     which can be any unchecked exception, is logged once and the check goes on. The owner allowed
     that one method (2026-11-12). Every other method is still checked.
+    The data starter's TracerStatementSpans.start and .end start and end a statement's span through
+    Micrometer Tracing and the OpenTelemetry SDK, which can fail with any unchecked exception, such
+    as a broken exporter or bridge; such a failure must never reach the service's SQL call. The
+    owner allowed those two methods (2026-11-14).
   -->
   <rule ref="category/java/errorprone.xml/AvoidCatchingGenericException">
     <properties>
@@ -56,6 +60,9 @@
               [ancestor::CompilationUnit/PackageDeclaration[@Name='com.exepex.stratum.restclient']]
             | ./ancestor::MethodDeclaration[@Name='checkDataSource']
               [ancestor::ClassDeclaration[@SimpleName='DatabaseTlsCheck']]
+              [ancestor::CompilationUnit/PackageDeclaration[@Name='com.exepex.stratum.data']]
+            | ./ancestor::MethodDeclaration[@Name='start' or @Name='end']
+              [ancestor::ClassDeclaration[@SimpleName='TracerStatementSpans']]
               [ancestor::CompilationUnit/PackageDeclaration[@Name='com.exepex.stratum.data']]"/>
     </properties>
   </rule>

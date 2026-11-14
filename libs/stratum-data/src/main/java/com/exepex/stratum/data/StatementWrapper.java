@@ -1,8 +1,10 @@
 package com.exepex.stratum.data;
 
 import com.exepex.stratum.core.api.StratumInternal;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -19,6 +21,18 @@ public abstract class StatementWrapper extends JdbcWrapper {
 
   /** The time limit the code set on the statement, in seconds; 0 for none. */
   private int callerSeconds;
+
+  /** The SQL the statement was prepared with, or {@code null} for a plain statement. */
+  private @Nullable String preparedSql;
+
+  /** The SQL of a plain execute or the first of a plain batch, until the execute ends; or empty. */
+  private String plainSql = "";
+
+  /** {@code BATCH} when a plain batch mixes operations, until the execute ends; or empty. */
+  private String batchOperation = "";
+
+  /** The span of the execute that is running, or {@link StatementSpans#NO_SPAN}. */
+  private Object span = StatementSpans.NO_SPAN;
 
   /**
    * Wraps a statement.
@@ -78,6 +92,17 @@ public abstract class StatementWrapper extends JdbcWrapper {
    * @throws SQLException {@code SX-DATA-1003} when no time is left
    */
   long enterLimit() throws SQLException {
+    span = boundary.getSpans().start(currentSql(), batchOperation, driverConnection());
+    try {
+      return limitOnEnter();
+    } catch (SQLException refused) {
+      finishExecute(refused);
+      throw refused;
+    }
+  }
+
+  /** Starts the limit of an execute; see {@link #enterLimit}. */
+  private long limitOnEnter() throws SQLException {
     var limits = limits();
     if (limits == null || !(parent instanceof ConnectionWrapper connection)) {
       return StatementLimits.NO_LIMIT;
@@ -96,6 +121,13 @@ public abstract class StatementWrapper extends JdbcWrapper {
    * @return what the execute throws, or {@code null} when it returns
    */
   @Nullable Throwable exitLimit(long running, @Nullable Throwable thrown) {
+    var result = limitOnExit(running, thrown);
+    finishExecute(result);
+    return result;
+  }
+
+  /** Ends the limit of an execute; see {@link #exitLimit}. */
+  private @Nullable Throwable limitOnExit(long running, @Nullable Throwable thrown) {
     var limits = limits();
     if (running == StatementLimits.NO_LIMIT
         || limits == null
@@ -104,6 +136,65 @@ public abstract class StatementWrapper extends JdbcWrapper {
       return thrown;
     }
     return limits.exit(connection.getSlot(), running, thrown);
+  }
+
+  /**
+   * Keeps the SQL the statement was prepared with, for its spans' operation.
+   *
+   * @param sql the statement's SQL
+   */
+  void prepared(String sql) {
+    preparedSql = sql;
+  }
+
+  /**
+   * Keeps the SQL of a plain execute, for its span's operation.
+   *
+   * @param sql the SQL the execute runs
+   */
+  void executes(@Nullable String sql) {
+    plainSql = Objects.requireNonNullElse(sql, "");
+  }
+
+  /**
+   * Keeps the first SQL of a plain batch, and marks the batch {@code BATCH} when a later one starts
+   * with another operation.
+   *
+   * @param sql the SQL added to the batch
+   */
+  void batches(@Nullable String sql) {
+    var added = Objects.requireNonNullElse(sql, "");
+    if (plainSql.isEmpty()) {
+      plainSql = added;
+    } else if (batchOperation.isEmpty()
+        && !plainSql.equals(added)
+        && !QueryOperation.of(plainSql).equals(QueryOperation.of(added))) {
+      batchOperation = QueryOperation.BATCH;
+    }
+  }
+
+  /** Returns the SQL the running execute runs: a plain one, or the prepared one. */
+  private String currentSql() {
+    if (!plainSql.isEmpty()) {
+      return plainSql;
+    }
+    return preparedSql == null ? "" : preparedSql;
+  }
+
+  /** Returns the driver's connection behind the statement, or {@code null}. */
+  private @Nullable Connection driverConnection() {
+    return parent instanceof ConnectionWrapper connection ? (Connection) connection.delegate : null;
+  }
+
+  /** Ends the running execute's span, if it has one, and forgets its plain SQL. */
+  private void finishExecute(@Nullable Throwable thrown) {
+    plainSql = "";
+    batchOperation = "";
+    var running = span;
+    if (running != StatementSpans.NO_SPAN) {
+      span = StatementSpans.NO_SPAN;
+      boundary.getSpans().end(running, thrown);
+    }
   }
 
   /** Returns the limits of the statement's data source, or {@code null} when it has none. */
