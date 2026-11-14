@@ -1,9 +1,9 @@
-package com.exepex.stratum.data.testsupport;
+package com.exepex.stratum.test;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import io.micrometer.tracing.Tracer;
 import io.micrometer.tracing.otel.bridge.OtelCurrentTraceContext;
 import io.micrometer.tracing.otel.bridge.OtelTracer;
-import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import io.opentelemetry.sdk.trace.data.SpanData;
@@ -16,8 +16,11 @@ import org.springframework.beans.factory.support.StaticListableBeanFactory;
 
 /**
  * A real OpenTelemetry tracer behind Micrometer Tracing's bridge, as the observability starter sets
- * up, with a sample rate the test picks and an exporter that keeps every ended span in memory.
+ * up, with a sample rate the test picks and an exporter that keeps every ended span in memory. A
+ * unit test builds one; a Spring test registers it as a bean and its {@link #tracer()} as the
+ * {@link Tracer} bean.
  */
+@StratumInternal
 public final class TracedRequests implements AutoCloseable {
 
   /** The name of each request's root span. */
@@ -105,9 +108,7 @@ public final class TracedRequests implements AutoCloseable {
    * @return the spans, in the order they ended
    */
   public List<SpanData> statementSpans() {
-    return exporter.getFinishedSpanItems().stream()
-        .filter(span -> span.getKind() == SpanKind.CLIENT)
-        .toList();
+    return QuerySpanAssertions.statementSpans(exporter.getFinishedSpanItems());
   }
 
   /**
@@ -119,6 +120,11 @@ public final class TracedRequests implements AutoCloseable {
     return exporter.getFinishedSpanItems();
   }
 
+  /** Forgets the spans that ended so far, such as those of startup or of an earlier test. */
+  public void reset() {
+    exporter.reset();
+  }
+
   /** Closes the tracer provider. */
   @Override
   public void close() {
@@ -126,6 +132,7 @@ public final class TracedRequests implements AutoCloseable {
   }
 
   /** Work that runs inside a request and may throw. */
+  @StratumInternal
   @FunctionalInterface
   public interface Work {
 

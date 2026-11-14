@@ -85,6 +85,24 @@
       <artifactId>opentelemetry-sdk-trace</artifactId>
       <optional>true</optional>
     </dependency>
+    <!-- TracedRequests builds a real tracer behind Micrometer's bridge and keeps its spans in
+         memory. Optional: a module that tests statement spans already has both in test scope. -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-tracing-bridge-otel</artifactId>
+      <optional>true</optional>
+      <exclusions>
+        <exclusion>
+          <groupId>aopalliance</groupId>
+          <artifactId>aopalliance</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-sdk-testing</artifactId>
+      <optional>true</optional>
+    </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>

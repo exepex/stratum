@@ -17,7 +17,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.exepex.stratum.data.testsupport.MockDatabase;
-import com.exepex.stratum.data.testsupport.TracedRequests;
+import com.exepex.stratum.test.TracedRequests;
 import io.micrometer.tracing.Span;
 import io.micrometer.tracing.Tracer;
 import io.opentelemetry.api.trace.StatusCode;
@@ -70,14 +70,14 @@ class StatementSpansSwitchesTest {
   }
 
   /** Returns a provider of the given tracer, as a bean factory gives it. */
-  private static ObjectProvider<Tracer> providerOf(Tracer tracer) {
+  private ObjectProvider<Tracer> providerOf(Tracer tracer) {
     var beans = new StaticListableBeanFactory();
     beans.addBean("tracer", tracer);
     return beans.getBeanProvider(Tracer.class);
   }
 
   /** Runs the query once through the data source. */
-  private static void runQuery(DataSource dataSource) throws SQLException {
+  private void runQuery(DataSource dataSource) throws SQLException {
     try (var connection = dataSource.getConnection();
         var statement = connection.prepareStatement(QUERY)) {
       statement.executeQuery();
@@ -85,7 +85,7 @@ class StatementSpansSwitchesTest {
   }
 
   /** Runs a plain batch of two statements with different operations through the data source. */
-  private static void runBatch(DataSource dataSource) throws SQLException {
+  private void runBatch(DataSource dataSource) throws SQLException {
     try (var connection = dataSource.getConnection();
         var statement = connection.createStatement()) {
       statement.addBatch("INSERT INTO customers (email) VALUES ('" + PERSONAL_VALUE + "')");

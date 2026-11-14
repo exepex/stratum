@@ -9,7 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import com.exepex.stratum.data.testsupport.MockDatabase;
-import com.exepex.stratum.data.testsupport.TracedRequests;
+import com.exepex.stratum.test.TracedRequests;
 import io.opentelemetry.sdk.trace.data.SpanData;
 import java.sql.SQLException;
 import java.util.List;

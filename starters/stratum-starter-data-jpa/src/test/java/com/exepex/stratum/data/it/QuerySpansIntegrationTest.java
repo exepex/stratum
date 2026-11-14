@@ -4,21 +4,17 @@ import static com.exepex.stratum.test.DatabaseFailureAssertions.PERSONAL_VALUE;
 import static com.exepex.stratum.test.QuerySpanAssertions.NAMESPACE;
 import static com.exepex.stratum.test.QuerySpanAssertions.SYSTEM;
 import static com.exepex.stratum.test.QuerySpanAssertions.assertStatementSpan;
-import static com.exepex.stratum.test.QuerySpanAssertions.statementSpans;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.data.it.orders.OrdersApplication;
 import com.exepex.stratum.data.it.orders.PlacedOrder;
 import com.exepex.stratum.test.PostgresContainerConfiguration;
+import com.exepex.stratum.test.TracedRequests;
 import io.micrometer.tracing.Tracer;
-import io.micrometer.tracing.otel.bridge.OtelCurrentTraceContext;
-import io.micrometer.tracing.otel.bridge.OtelTracer;
-import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter;
-import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import io.opentelemetry.sdk.trace.data.SpanData;
-import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,37 +33,35 @@ import org.springframework.context.annotation.Import;
 @DisplayName("On PostgreSQL, a traced JPA service's statements get client spans with no SQL text")
 class QuerySpansIntegrationTest {
 
-  /** The spans that ended, kept in memory. */
-  private static final InMemorySpanExporter EXPORTER = InMemorySpanExporter.create();
-
   /** The order a test looks up. */
   private static final long ORDER_ID = 987_654_321L;
 
   @Autowired private EntityManagerFactory entityManagerFactory;
 
-  @Autowired private Tracer tracer;
+  @Autowired private TracedRequests traced;
 
   /** Forgets the spans of earlier tests and of startup. */
   @BeforeEach
   void forgetSpans() {
-    EXPORTER.reset();
+    traced.reset();
   }
 
   /** Runs work with an entity manager inside a sampled request, and returns the statement spans. */
-  private List<SpanData> spansOf(Consumer<EntityManager> work) {
-    var request = tracer.nextSpan().name("request").start();
-    try (var _ = tracer.withSpan(request);
-        var entityManager = entityManagerFactory.createEntityManager()) {
+  private List<SpanData> spansOf(Consumer<EntityManager> work) throws SQLException {
+    traced.inRequest(() -> withEntityManager(work));
+    return traced.statementSpans();
+  }
+
+  /** Runs work with a new entity manager, which it closes. */
+  private void withEntityManager(Consumer<EntityManager> work) {
+    try (var entityManager = entityManagerFactory.createEntityManager()) {
       work.accept(entityManager);
-    } finally {
-      request.end();
     }
-    return statementSpans(EXPORTER.getFinishedSpanItems());
   }
 
   @Test
   @DisplayName("Hibernate's lookup of an entity gets one SELECT span with the database, no id")
-  void lookupHasDatabaseAndOperation() {
+  void lookupHasDatabaseAndOperation() throws SQLException {
     var spans = spansOf(entityManager -> entityManager.find(PlacedOrder.class, ORDER_ID));
 
     assertThat(spans)
@@ -79,7 +73,7 @@ class QuerySpansIntegrationTest {
 
   @Test
   @DisplayName("a native query with a literal gets a SELECT span with no value")
-  void nativeQueryHasOperation() {
+  void nativeQueryHasOperation() throws SQLException {
     var spans =
         spansOf(
             entityManager ->
@@ -93,33 +87,29 @@ class QuerySpansIntegrationTest {
         .satisfies(span -> assertStatementSpan(span, "SELECT", PERSONAL_VALUE));
   }
 
-  /**
-   * Micrometer's tracer over OpenTelemetry's SDK, which samples every trace and keeps its spans.
-   */
+  /** A real tracer over OpenTelemetry's SDK, which samples every trace and keeps its spans. */
   @TestConfiguration(proxyBeanMethods = false)
   static class Spans {
 
     /**
-     * Returns the SDK's tracer provider, which exports each span as it ends, into memory.
+     * Returns the traced requests, which sample every trace and keep its spans in memory.
      *
-     * @return the provider
+     * @return the traced requests
      */
     @Bean(destroyMethod = "close")
-    SdkTracerProvider tracerProvider() {
-      return SdkTracerProvider.builder()
-          .addSpanProcessor(SimpleSpanProcessor.create(EXPORTER))
-          .build();
+    TracedRequests tracedRequests() {
+      return TracedRequests.sampled();
     }
 
     /**
      * Returns Micrometer's tracer over the SDK, as the observability starter sets one up.
      *
-     * @param tracerProvider the SDK's tracer provider
+     * @param traced the traced requests
      * @return the tracer
      */
     @Bean
-    Tracer tracer(SdkTracerProvider tracerProvider) {
-      return new OtelTracer(tracerProvider.get("test"), new OtelCurrentTraceContext(), event -> {});
+    Tracer tracer(TracedRequests traced) {
+      return traced.tracer();
     }
   }
 }

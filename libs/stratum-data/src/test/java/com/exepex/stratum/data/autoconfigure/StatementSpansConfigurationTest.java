@@ -9,7 +9,7 @@ import com.exepex.stratum.data.DataConstants;
 import com.exepex.stratum.data.JdbcWrapper;
 import com.exepex.stratum.data.testsupport.DataStarterStandIns;
 import com.exepex.stratum.data.testsupport.MockDatabase;
-import com.exepex.stratum.data.testsupport.TracedRequests;
+import com.exepex.stratum.test.TracedRequests;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.micrometer.tracing.Tracer;
@@ -36,7 +36,7 @@ class StatementSpansConfigurationTest {
   private final ApplicationContextRunner dataService =
       new ApplicationContextRunner()
           .withConfiguration(AutoConfigurations.of(DataStarterStandIns.JdbcBoundaryStandIn.class))
-          .withBean("dataSource", DataSource.class, StatementSpansConfigurationTest::pool);
+          .withBean("dataSource", DataSource.class, this::pool);
 
   /** The same service with the observability starter's tracer. */
   private final ApplicationContextRunner tracedService =
@@ -49,7 +49,7 @@ class StatementSpansConfigurationTest {
   }
 
   /** Returns a mock pool, as a bean supplier needs it. */
-  private static DataSource pool() {
+  private DataSource pool() {
     try {
       return new MockDatabase().pool;
     } catch (SQLException impossible) {
@@ -65,7 +65,7 @@ class StatementSpansConfigurationTest {
   }
 
   /** Runs the query once. */
-  private static void runQuery(DataSource dataSource) throws SQLException {
+  private void runQuery(DataSource dataSource) throws SQLException {
     try (var connection = dataSource.getConnection();
         var statement = connection.createStatement()) {
       statement.executeQuery(QUERY);
