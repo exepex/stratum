@@ -11,22 +11,28 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.binder.MeterBinder;
 import java.sql.SQLException;
 import javax.sql.DataSource;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.springframework.boot.WebApplicationType;
-import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.health.contributor.CompositeHealthContributor;
 import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.boot.health.contributor.Status;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.test.context.ContextConfiguration;
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@SpringBootTest(
+    classes = {
+      BoundaryApplication.class,
+      PostgresContainerConfiguration.class,
+      QuerySpansIntegrationTest.Spans.class
+    },
+    properties = "spring.jpa.hibernate.ddl-auto=none")
+@ContextConfiguration(initializers = NamedPoolsIntegrationTest.BatchPool.class)
 @DisplayName(
     "On PostgreSQL, a named pool beside Spring Boot's is found by health, metrics and spans")
 class NamedPoolsIntegrationTest {
@@ -40,31 +46,8 @@ class NamedPoolsIntegrationTest {
   /** The data source bean of the pool {@code batch}. */
   private static final String BATCH_DATA_SOURCE = "batchDataSource";
 
-  /** The service, started once for every test. */
-  private ConfigurableApplicationContext application;
-
-  /**
-   * Starts the service, with the main pool on its own database and {@code batch} on another, named
-   * after the pool.
-   */
-  @BeforeAll
-  void start() {
-    application =
-        new SpringApplicationBuilder(
-                BoundaryApplication.class,
-                PostgresContainerConfiguration.class,
-                QuerySpansIntegrationTest.Spans.class)
-            .web(WebApplicationType.NONE)
-            .initializers(NamedPoolConnections.postgres(BATCH_DATABASE))
-            .properties("spring.jpa.hibernate.ddl-auto=none")
-            .run();
-  }
-
-  /** Stops the service and both databases. */
-  @AfterAll
-  void stop() {
-    application.close();
-  }
+  /** The service, with the main pool on its own database and {@code batch} on another. */
+  @Autowired private ConfigurableApplicationContext application;
 
   /** Forgets the spans of earlier tests and of startup. */
   @BeforeEach
@@ -152,5 +135,17 @@ class NamedPoolsIntegrationTest {
   private void queryBothPools() {
     databaseOf(BATCH_DATA_SOURCE);
     databaseOf(MAIN_DATA_SOURCE);
+  }
+
+  /**
+   * Gives the pool {@code batch} its own database, as a service's test does with {@code
+   * NamedPoolConnections} under {@code @SpringBootTest}.
+   */
+  static class BatchPool implements ApplicationContextInitializer<ConfigurableApplicationContext> {
+
+    @Override
+    public void initialize(ConfigurableApplicationContext context) {
+      NamedPoolConnections.postgres(BATCH_DATABASE).initialize(context);
+    }
   }
 }

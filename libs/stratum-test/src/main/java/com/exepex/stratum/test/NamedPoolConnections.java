@@ -18,8 +18,10 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
  * adds a container of the same pinned image as {@link PostgresContainerConfiguration}, with a
  * database named after the pool, and registers {@code <name>JdbcConnectionDetails} from it as a
  * bean that is no default candidate: Boot's main pool keeps its own connection, and Stratum builds
- * the pool {@code <name>} from it. The container lives as long as the application context. Add it
- * with {@code SpringApplicationBuilder.initializers(...)} or {@code
+ * the pool {@code <name>} from it. The container lives as long as the application context. Under
+ * {@code @SpringBootTest}, call it from an initializer class named in
+ * {@code @ContextConfiguration(initializers = ...)}; otherwise add it with {@code
+ * SpringApplicationBuilder.initializers(...)} or {@code
  * ApplicationContextRunner.withInitializer(...)}.
  *
  * <p>It registers the beans once every configuration class is read, after Boot has given a

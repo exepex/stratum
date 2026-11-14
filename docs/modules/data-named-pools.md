@@ -199,10 +199,25 @@ only: none of them supplies a named pool's connection. In a test, `NamedPoolConn
 `PostgresContainerConfiguration`:
 
 ```java
-new SpringApplicationBuilder(OrdersApplication.class, PostgresContainerConfiguration.class)
-    .initializers(NamedPoolConnections.postgres("batch"))
-    .run();
+@SpringBootTest
+@Import(PostgresContainerConfiguration.class)
+@ContextConfiguration(initializers = NightlyExportTest.BatchPool.class)
+class NightlyExportTest {
+
+  static class BatchPool implements ApplicationContextInitializer<ConfigurableApplicationContext> {
+
+    @Override
+    public void initialize(ConfigurableApplicationContext context) {
+      NamedPoolConnections.postgres("batch").initialize(context);
+    }
+  }
+
+  // your tests
+}
 ```
+
+A test that starts the application itself adds the same initializer with
+`SpringApplicationBuilder.initializers(NamedPoolConnections.postgres("batch"))`.
 
 It registers `batchJdbcConnectionDetails` after Spring Boot has connected the main pool's container.
 A `@Bean` of that name in a test configuration would not work with `@ServiceConnection`: Boot gives
