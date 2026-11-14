@@ -51,7 +51,8 @@ public abstract class StatementWrapper extends JdbcWrapper {
   }
 
   /**
-   * Sets the fetch size of a new statement, before the code that created it runs.
+   * Sets the fetch size of a new statement, before the code that created it runs. When the driver
+   * refuses it, the statement is closed, since the code never receives it to close.
    *
    * @param rows how many rows the driver fetches at a time
    * @throws SQLException the clean copy of the driver's error
@@ -60,7 +61,18 @@ public abstract class StatementWrapper extends JdbcWrapper {
     try {
       ((Statement) delegate).setFetchSize(rows);
     } catch (SQLException failure) {
-      throw boundary.cleaned(failure);
+      var cleaned = boundary.cleaned(failure);
+      closeAfter(cleaned);
+      throw cleaned;
+    }
+  }
+
+  /** Closes the driver's statement after a failure, keeping a close failure as suppressed. */
+  private void closeAfter(SQLException failure) {
+    try {
+      ((Statement) delegate).close();
+    } catch (SQLException closeFailure) {
+      failure.addSuppressed(boundary.cleaned(closeFailure));
     }
   }
 

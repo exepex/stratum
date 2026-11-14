@@ -5,13 +5,18 @@ import static com.exepex.stratum.data.testsupport.NamedPoolContexts.withMainPool
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.condition.StratumModuleConstants;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.FieldSource;
 
 @DisplayName("Spring Boot's pool is named main unless the service names it")
 class MainPoolNameConfigurationTest {
+
+  /** The two keys with which a service names Spring Boot's pool. */
+  private static final List<String> NAME_KEYS =
+      List.of("spring.datasource.name", "spring.datasource.hikari.pool-name");
 
   /** The name a service gives its pool. */
   private static final String ORDERS = "orders";
@@ -32,7 +37,7 @@ class MainPoolNameConfigurationTest {
   }
 
   @ParameterizedTest(name = "{0}")
-  @ValueSource(strings = {"spring.datasource.name", "spring.datasource.hikari.pool-name"})
+  @FieldSource("NAME_KEYS")
   @DisplayName("a name the service set is kept")
   void keepsServiceName(String key) {
     withMainPool()

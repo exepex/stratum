@@ -18,6 +18,7 @@ import com.exepex.stratum.data.DataProperties;
 import com.exepex.stratum.data.PoolCheck;
 import com.exepex.stratum.test.LogLineCapture;
 import com.zaxxer.hikari.HikariDataSource;
+import java.util.List;
 import javax.sql.DataSource;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.junit.jupiter.api.AfterEach;
@@ -26,7 +27,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.support.AbstractBeanDefinition;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
@@ -186,8 +187,12 @@ class PoolCheckConfigurationTest {
   @DisplayName("credentials")
   class Credentials {
 
+    /** URLs that carry the password, as PostgreSQL's and Oracle's drivers accept it. */
+    private static final List<String> URLS_WITH_PASSWORD =
+        List.of(URL_WITH_PASSWORD, ORACLE_URL_WITH_PASSWORD);
+
     @ParameterizedTest(name = "{0}")
-    @ValueSource(strings = {URL_WITH_PASSWORD, ORACLE_URL_WITH_PASSWORD})
+    @FieldSource("URLS_WITH_PASSWORD")
     @DisplayName("a password in the url or the key reaches no line or startup failure")
     void hidesPassword(String url) {
       withFourPools()

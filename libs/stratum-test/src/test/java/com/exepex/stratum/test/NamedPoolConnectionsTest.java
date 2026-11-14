@@ -6,10 +6,11 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.support.AbstractBeanDefinition;
@@ -30,6 +31,9 @@ class NamedPoolConnectionsTest {
 
   /** The connection details bean the initializer registers for the pool {@code batch}. */
   private static final String DETAILS = "batchJdbcConnectionDetails";
+
+  /** The beans the initializer registers for the pool {@code batch}. */
+  private static final List<String> REGISTERED_BEANS = List.of(CONTAINER, DETAILS);
 
   /** Returns a container stand-in that reports its connection and whether it runs. */
   private PostgreSQLContainer standIn(boolean running) {
@@ -74,7 +78,7 @@ class NamedPoolConnectionsTest {
   }
 
   @ParameterizedTest(name = "{0}")
-  @ValueSource(strings = {CONTAINER, DETAILS})
+  @FieldSource("REGISTERED_BEANS")
   @DisplayName("then the container and the connection details are no default candidates")
   void registersNonDefaultBeans(String beanName) {
     try (var context = new GenericApplicationContext()) {

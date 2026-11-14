@@ -96,4 +96,18 @@ class FetchSizeTest {
           .hasMessageNotContaining(DatabaseFailureAssertions.PERSONAL_VALUE);
     }
   }
+
+  @Test
+  @DisplayName("a statement whose fetch size the driver refuses is closed, as no code can close it")
+  void closesRefusedStatement() throws SQLException {
+    doThrow(SqlFailureTestData.postgresFailure("22023"))
+        .when(database.prepared)
+        .setFetchSize(POOL_ROWS);
+
+    try (var connection = wrappedWith(POOL_ROWS).getConnection()) {
+      assertThatThrownBy(() -> connection.prepareStatement(QUERY)).isInstanceOf(SQLException.class);
+    }
+
+    verify(database.prepared).close();
+  }
 }

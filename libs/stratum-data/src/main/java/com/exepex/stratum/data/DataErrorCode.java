@@ -27,16 +27,17 @@ public enum DataErrorCode implements ErrorCode {
           + " schema, set spring.jpa.hibernate.ddl-auto=none."),
 
   /**
-   * HikariCP would turn its leak alarm off, because the threshold is under 2 seconds or above the
-   * connections' {@code max-lifetime}. The detail names the keys, never their values.
+   * HikariCP would turn a pool's leak alarm off, because the threshold is under 2 seconds or above
+   * the connections' {@code max-lifetime}. The detail names the pool's keys, never their values.
    */
   LEAK_ALARM_OFF(
       "SX-DATA-1002",
       Severity.ERROR,
       "HikariCP would turn its connection leak alarm off",
-      "Set spring.datasource.hikari.leak-detection-threshold to at least 2000 and at most"
-          + " spring.datasource.hikari.max-lifetime, or raise max-lifetime above it, or set the"
-          + " threshold to 0 to turn the alarm off."),
+      "Set the pool's leak-detection-threshold to at least 2000 and at most its max-lifetime, or"
+          + " raise max-lifetime above it, or set the threshold to 0 to turn the alarm off: under"
+          + " spring.datasource.hikari for the main pool, or stratum.data.sources.<name>.hikari for"
+          + " the named pool the message names."),
 
   /**
    * Stratum cancelled a SQL statement that ran past its time limit. The answer carries no detail;

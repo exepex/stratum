@@ -19,13 +19,14 @@ import com.exepex.stratum.data.testsupport.NamedPoolContexts.Injected;
 import com.exepex.stratum.data.testsupport.ReportsPoolCustomizer;
 import com.zaxxer.hikari.HikariDataSource;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Map;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.boot.jdbc.autoconfigure.JdbcConnectionDetails;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.context.annotation.Bean;
@@ -229,6 +230,10 @@ class NamedPoolRegistrarConfigurationTest {
   @DisplayName("the service's own beans")
   class ServiceBeans {
 
+    /** The bean names Stratum keeps for the pool {@code batch}. */
+    private static final List<String> RESERVED_NAMES =
+        List.of(BATCH_DATA_SOURCE, BATCH_DETAILS, BATCH_MANAGER);
+
     @Test
     @DisplayName("a connection details bean that is no default candidate adds the pool, no key")
     void detailsBeanAddsPool() {
@@ -266,7 +271,7 @@ class NamedPoolRegistrarConfigurationTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @ValueSource(strings = {BATCH_DATA_SOURCE, BATCH_DETAILS, BATCH_MANAGER})
+    @FieldSource("RESERVED_NAMES")
     @DisplayName("a default candidate of a pool's bean name stops startup with SX-DATA-1006")
     void rejectsDefaultCandidate(String beanName) {
       withBatchPool()
