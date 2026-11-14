@@ -158,29 +158,40 @@ class PoolCheckConfigurationTest {
     }
   }
 
-  @Test
-  @DisplayName("two pools with one name stop startup with SX-DATA-1004, as their meters would mix")
-  void rejectsSharedName() {
-    withBatchPool()
-        .withPropertyValues(BATCH_KEYS + "hikari.pool-name=main")
-        .run(
-            context ->
-                assertThat(failureOf(context, DataErrorCode.POOL_SETTING_INVALID))
-                    .hasMessageContaining("two pools are named main"));
+  @Nested
+  @DisplayName("pool names")
+  class Names {
+
+    @Test
+    @DisplayName(
+        "two pools with one name stop startup with SX-DATA-1004, as their meters would mix")
+    void rejectsSharedName() {
+      withBatchPool()
+          .withPropertyValues(BATCH_KEYS + "hikari.pool-name=main")
+          .run(
+              context ->
+                  assertThat(failureOf(context, DataErrorCode.POOL_SETTING_INVALID))
+                      .hasMessageContaining("two pools are named main"));
+    }
   }
 
-  @Test
-  @DisplayName("each pool is logged with its name and maximum only")
-  void logsEachPool() {
-    withBatchPool()
-        .withPropertyValues(BATCH_KEYS + "hikari.maximum-pool-size=4")
-        .run(
-            context ->
-                assertThat(lines.lines())
-                    .extracting(ILoggingEvent::getFormattedMessage)
-                    .containsExactlyInAnyOrder(
-                        "Pool 'main' opens at most 10 connections",
-                        "Pool 'batch' opens at most 4 connections"));
+  @Nested
+  @DisplayName("the startup lines")
+  class Lines {
+
+    @Test
+    @DisplayName("each pool is logged with its name and maximum only")
+    void logsEachPool() {
+      withBatchPool()
+          .withPropertyValues(BATCH_KEYS + "hikari.maximum-pool-size=4")
+          .run(
+              context ->
+                  assertThat(lines.lines())
+                      .extracting(ILoggingEvent::getFormattedMessage)
+                      .containsExactlyInAnyOrder(
+                          "Pool 'main' opens at most 10 connections",
+                          "Pool 'batch' opens at most 4 connections"));
+    }
   }
 
   @Nested

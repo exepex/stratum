@@ -25,20 +25,6 @@ class PoolKeyCheckTest {
   /** The first part of every pool variable. */
   private static final String VARIABLES = "STRATUM_DATA_SOURCES_BATCH_";
 
-  /** Names no pool may have: a dash, upper case, a digit first, too long, empty, main. */
-  private static final List<String> BAD_NAMES =
-      List.of("reporting-db", "Batch", "1st", "a".repeat(32), "main", "rep_db");
-
-  /** The variables Spring Boot binds to a pool's keys, each of which the check must accept. */
-  private static final List<String> BOUND_VARIABLES =
-      List.of(
-          VARIABLES + "QUERY_TIMEOUT",
-          VARIABLES + "QUERYTIMEOUT",
-          VARIABLES + "FETCH_SIZE",
-          VARIABLES + "HIKARI_MAXIMUM_POOL_SIZE",
-          VARIABLES + "HIKARI_MAXIMUMPOOLSIZE",
-          VARIABLES + "HIKARI_DATA_SOURCE_PROPERTIES_SSLMODE");
-
   /** The seconds of the time limit a variable sets. */
   private static final long FIVE = 5;
 
@@ -60,6 +46,10 @@ class PoolKeyCheckTest {
   @Nested
   @DisplayName("from properties files")
   class Files {
+
+    /** Names no pool may have: a dash, upper case, a digit first, too long, empty, main. */
+    private static final List<String> BAD_NAMES =
+        List.of("reporting-db", "Batch", "1st", "a".repeat(32), "main", "rep_db");
 
     @Test
     @DisplayName("every key of a pool, HikariCP's and a driver property included, passes")
@@ -102,7 +92,7 @@ class PoolKeyCheckTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @FieldSource("com.exepex.stratum.data.PoolKeyCheckTest#BAD_NAMES")
+    @FieldSource("BAD_NAMES")
     @DisplayName("a name that breaks the rule fails")
     void rejectsBadName(String name) {
       var environment =
@@ -124,8 +114,18 @@ class PoolKeyCheckTest {
   @DisplayName("from environment variables")
   class Variables {
 
+    /** The variables Spring Boot binds to a pool's keys, each of which the check must accept. */
+    private static final List<String> BOUND_VARIABLES =
+        List.of(
+            VARIABLES + "QUERY_TIMEOUT",
+            VARIABLES + "QUERYTIMEOUT",
+            VARIABLES + "FETCH_SIZE",
+            VARIABLES + "HIKARI_MAXIMUM_POOL_SIZE",
+            VARIABLES + "HIKARI_MAXIMUMPOOLSIZE",
+            VARIABLES + "HIKARI_DATA_SOURCE_PROPERTIES_SSLMODE");
+
     @ParameterizedTest(name = "{0}")
-    @FieldSource("com.exepex.stratum.data.PoolKeyCheckTest#BOUND_VARIABLES")
+    @FieldSource("BOUND_VARIABLES")
     @DisplayName("each spelling Spring Boot binds passes")
     void acceptsBoundVariables(String variable) {
       assertThatCode(() -> checkAll(withVariables(Map.of(variable, "5"))))

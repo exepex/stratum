@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.FieldSource;
@@ -31,9 +32,6 @@ class NamedPoolConnectionsTest {
 
   /** The connection details bean the initializer registers for the pool {@code batch}. */
   private static final String DETAILS = "batchJdbcConnectionDetails";
-
-  /** The beans the initializer registers for the pool {@code batch}. */
-  private static final List<String> REGISTERED_BEANS = List.of(CONTAINER, DETAILS);
 
   /** Returns a container stand-in that reports its connection and whether it runs. */
   private PostgreSQLContainer standIn(boolean running) {
@@ -66,61 +64,74 @@ class NamedPoolConnectionsTest {
         CONTAINER, new RootBeanDefinition(PostgreSQLContainer.class, () -> container));
   }
 
-  @Test
-  @DisplayName("nothing is registered until Spring runs the registrars, after the configuration")
-  void registersLate() {
-    try (var context = new GenericApplicationContext()) {
-      NamedPoolConnections.postgres("batch").initialize(context);
+  @Nested
+  @DisplayName("registration")
+  class Registration {
 
-      assertThat(context.containsBeanDefinition(DETAILS)).isFalse();
-      assertThat(context.containsBeanDefinition(CONTAINER)).isFalse();
+    /** The beans the initializer registers for the pool {@code batch}. */
+    private static final List<String> REGISTERED_BEANS = List.of(CONTAINER, DETAILS);
+
+    @Test
+    @DisplayName("nothing is registered until Spring runs the registrars, after the configuration")
+    void registersLate() {
+      try (var context = new GenericApplicationContext()) {
+        NamedPoolConnections.postgres("batch").initialize(context);
+
+        assertThat(context.containsBeanDefinition(DETAILS)).isFalse();
+        assertThat(context.containsBeanDefinition(CONTAINER)).isFalse();
+      }
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @FieldSource("REGISTERED_BEANS")
+    @DisplayName("then the container and the connection details are no default candidates")
+    void registersNonDefaultBeans(String beanName) {
+      try (var context = new GenericApplicationContext()) {
+        NamedPoolConnections.postgres("batch").initialize(context);
+        context.addBeanFactoryPostProcessor(
+            (BeanFactoryPostProcessor)
+                beanFactory ->
+                    assertThat(
+                            ((AbstractBeanDefinition) beanFactory.getBeanDefinition(beanName))
+                                .isDefaultCandidate())
+                        .isFalse());
+        context.addBeanFactoryPostProcessor(
+            (BeanFactoryPostProcessor) beanFactory -> replaceContainer(beanFactory, standIn(true)));
+        context.refresh();
+
+        assertThat(context.containsBeanDefinition(beanName)).isTrue();
+      }
     }
   }
 
-  @ParameterizedTest(name = "{0}")
-  @FieldSource("REGISTERED_BEANS")
-  @DisplayName("then the container and the connection details are no default candidates")
-  void registersNonDefaultBeans(String beanName) {
-    try (var context = new GenericApplicationContext()) {
-      NamedPoolConnections.postgres("batch").initialize(context);
-      context.addBeanFactoryPostProcessor(
-          (BeanFactoryPostProcessor)
-              beanFactory ->
-                  assertThat(
-                          ((AbstractBeanDefinition) beanFactory.getBeanDefinition(beanName))
-                              .isDefaultCandidate())
-                      .isFalse());
-      context.addBeanFactoryPostProcessor(
-          (BeanFactoryPostProcessor) beanFactory -> replaceContainer(beanFactory, standIn(true)));
-      context.refresh();
+  @Nested
+  @DisplayName("the connection")
+  class Connection {
 
-      assertThat(context.containsBeanDefinition(beanName)).isTrue();
+    @Test
+    @DisplayName("the connection details report the container's URL, user name and password")
+    void reportsContainer() {
+      try (var context = contextWith(standIn(true))) {
+        context.refresh();
+        var details = context.getBean(DETAILS, JdbcConnectionDetails.class);
+
+        assertThat(details.getJdbcUrl()).isEqualTo(URL);
+        assertThat(details.getUsername()).isEqualTo("app");
+        assertThat(details.getPassword()).isEqualTo("test");
+      }
     }
-  }
 
-  @Test
-  @DisplayName("the connection details report the container's URL, user name and password")
-  void reportsContainer() {
-    try (var context = contextWith(standIn(true))) {
-      context.refresh();
-      var details = context.getBean(DETAILS, JdbcConnectionDetails.class);
+    @Test
+    @DisplayName("a running container is not started again, and one not running is started")
+    void startsOnlyStoppedContainer() {
+      try (var running = standIn(true);
+          var stopped = standIn(false)) {
+        refresh(running);
+        refresh(stopped);
 
-      assertThat(details.getJdbcUrl()).isEqualTo(URL);
-      assertThat(details.getUsername()).isEqualTo("app");
-      assertThat(details.getPassword()).isEqualTo("test");
-    }
-  }
-
-  @Test
-  @DisplayName("a running container is not started again, and one not running is started")
-  void startsOnlyStoppedContainer() {
-    try (var running = standIn(true);
-        var stopped = standIn(false)) {
-      refresh(running);
-      refresh(stopped);
-
-      verify(running, never()).start();
-      verify(stopped).start();
+        verify(running, never()).start();
+        verify(stopped).start();
+      }
     }
   }
 
