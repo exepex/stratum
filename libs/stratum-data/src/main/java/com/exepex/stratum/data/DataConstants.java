@@ -106,6 +106,12 @@ public class DataConstants {
   /** The end of a named pool's transaction manager bean name, after the pool's name. */
   public static final String TRANSACTION_MANAGER_SUFFIX = "TransactionManager";
 
+  /** HikariCP's pool, whose presence turns on the named pools and the pools' check. */
+  public static final String HIKARI_POOL = "com.zaxxer.hikari.HikariDataSource";
+
+  /** The key under which a named pool's HikariCP settings follow. */
+  public static final String HIKARI_KEYS = "hikari";
+
   /** The name of the bean that registers the named pools' beans. */
   public static final String NAMED_POOLS = "stratumNamedPools";
 

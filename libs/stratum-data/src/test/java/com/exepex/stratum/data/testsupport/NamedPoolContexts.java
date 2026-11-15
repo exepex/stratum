@@ -1,5 +1,9 @@
 package com.exepex.stratum.data.testsupport;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.exepex.stratum.core.error.StratumException;
+import com.exepex.stratum.data.DataErrorCode;
 import com.zaxxer.hikari.HikariDataSource;
 import java.sql.SQLException;
 import javax.sql.DataSource;
@@ -11,6 +15,7 @@ import org.springframework.boot.jdbc.autoconfigure.DataSourceTransactionManagerA
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.transaction.autoconfigure.TransactionManagerCustomizationAutoConfiguration;
+import org.springframework.core.NestedExceptionUtils;
 import org.springframework.transaction.PlatformTransactionManager;
 
 /**
@@ -58,6 +63,23 @@ public class NamedPoolContexts {
   public static HikariDataSource poolOf(AssertableApplicationContext context, String beanName)
       throws SQLException {
     return context.getBean(beanName, DataSource.class).unwrap(HikariDataSource.class);
+  }
+
+  /**
+   * Returns the cause that stopped the application, which must be a {@code StratumException} with
+   * the code.
+   *
+   * @param context the application that failed to start
+   * @param code the failure's expected code
+   * @return the failure
+   */
+  public static StratumException startupFailureOf(
+      AssertableApplicationContext context, DataErrorCode code) {
+    var failure = NestedExceptionUtils.getMostSpecificCause(context.getStartupFailure());
+    assertThat(failure)
+        .isInstanceOfSatisfying(
+            StratumException.class, stratum -> assertThat(stratum.getErrorCode()).isEqualTo(code));
+    return (StratumException) failure;
   }
 
   /**

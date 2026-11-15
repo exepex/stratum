@@ -20,7 +20,7 @@ public interface TimeoutCounter {
   /**
    * Counts one cancelled statement or failed borrow.
    *
-   * @param pool the data source bean's name
+   * @param pool the pool's name, such as {@code main}
    * @param source what set the limit
    */
   void count(String pool, LimitSource source);

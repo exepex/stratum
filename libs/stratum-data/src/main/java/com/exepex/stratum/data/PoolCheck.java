@@ -32,9 +32,6 @@ public final class PoolCheck implements SmartInitializingSingleton {
   /** HikariCP's maximum when nothing sets one. */
   private static final int HIKARI_MAXIMUM_POOL_SIZE = 10;
 
-  /** The line breaks a logged name must not carry. */
-  private static final String LINE_BREAKS = "[\r\n]";
-
   /** Finds the data source beans. */
   private final ListableBeanFactory beanFactory;
 
@@ -56,7 +53,11 @@ public final class PoolCheck implements SmartInitializingSingleton {
       throw new StratumException(
           DataErrorCode.TOO_MANY_CONNECTIONS,
           "%s is %d, but the pools may open %d connections: %s"
-              .formatted(DataConstants.MAX_CONNECTIONS, cap, total, clean(maximums.toString())));
+              .formatted(
+                  DataConstants.MAX_CONNECTIONS,
+                  cap,
+                  total,
+                  LogLines.oneLine(maximums.toString())));
     }
   }
 
@@ -83,11 +84,12 @@ public final class PoolCheck implements SmartInitializingSingleton {
     if (pool != null && !seen.add(pool)) {
       return;
     }
-    var name = PoolNames.nameOf(pool, beanName);
+    var name = HikariPoolNames.nameOf(pool, beanName);
     if (maximums.containsKey(name)) {
       throw new StratumException(
           DataErrorCode.POOL_SETTING_INVALID,
-          "two pools are named %s, so their meters would be mixed".formatted(clean(name)));
+          "two pools are named %s, so their meters would be mixed"
+              .formatted(LogLines.oneLine(name)));
     }
     int maximum = maximumOf(pool);
     maximums.put(name, maximum);
@@ -108,14 +110,10 @@ public final class PoolCheck implements SmartInitializingSingleton {
       return;
     }
     if (pool == null) {
-      log.info("Data source '{}' is not a HikariCP pool, so it is not counted", clean(name));
+      log.info(
+          "Data source '{}' is not a HikariCP pool, so it is not counted", LogLines.oneLine(name));
     } else {
-      log.info("Pool '{}' opens at most {} connections", clean(name), maximum);
+      log.info("Pool '{}' opens at most {} connections", LogLines.oneLine(name), maximum);
     }
-  }
-
-  /** Returns a text without line breaks, for a log line or a message. */
-  private String clean(String text) {
-    return text.replaceAll(LINE_BREAKS, " ");
   }
 }

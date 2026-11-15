@@ -8,6 +8,10 @@ web requests, and reports may read from a replica. A named pool is a second Hika
 add with a few `stratum.data.sources.<name>.*` keys. Spring Boot's pool stays as it is, and Stratum
 calls it the `main` pool.
 
+Named pools need HikariCP, which every Stratum data starter brings through Spring Boot. A service
+that removes HikariCP keeps the boundary and the time limits on its own data source beans, but gets
+no named pool and no check of the pools: Stratum ignores `stratum.data.sources`.
+
 ## Add a pool
 
 Give the pool a name and a URL. This adds the pool `batch`:
@@ -106,6 +110,10 @@ JdbcConnectionDetails batchJdbcConnectionDetails(VaultCredentials vault) {
 
 A `<name>JdbcConnectionDetails` bean that is no default candidate adds the pool by itself, with no
 key: its other settings take their defaults.
+
+Such a bean also stops Spring Boot's `@ServiceConnection` in your tests: Boot connects a container
+only while no `JdbcConnectionDetails` bean exists, whatever its name. The main pool then has no
+connection in tests, unless the test gives it one; [In tests](#in-tests) shows how.
 
 ## Pool names
 
@@ -222,6 +230,35 @@ A test that starts the application itself adds the same initializer with
 It registers `batchJdbcConnectionDetails` after Spring Boot has connected the main pool's container.
 A `@Bean` of that name in a test configuration would not work with `@ServiceConnection`: Boot gives
 the main pool's container no connection while any `JdbcConnectionDetails` bean exists.
+
+When the service itself declares `batchJdbcConnectionDetails`, as in [Your own beans](#your-own-beans),
+Boot gives the main pool's container no connection either. The test then connects the main pool with
+a bean of its own, built from the container, and needs no `NamedPoolConnections`:
+
+```java
+@SpringBootTest
+@Import(PostgresContainerConfiguration.class)
+class NightlyExportTest {
+
+  @TestConfiguration(proxyBeanMethods = false)
+  static class MainPool {
+
+    @Bean
+    JdbcConnectionDetails mainConnectionDetails(PostgreSQLContainer postgresContainer) {
+      return new ContainerConnection(
+          postgresContainer.getJdbcUrl(),
+          postgresContainer.getUsername(),
+          postgresContainer.getPassword());
+    }
+  }
+
+  // your tests
+}
+```
+
+`ContainerConnection` is your own class that implements `JdbcConnectionDetails`, such as a Lombok
+`@Getter` class with the three fields. The service's own bean still connects the pool `batch`, so the
+test must reach what that bean reads, such as its vault.
 
 ## Planned
 

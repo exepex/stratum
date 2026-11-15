@@ -1,5 +1,6 @@
 package com.exepex.stratum.data.autoconfigure;
 
+import static com.exepex.stratum.data.testsupport.NamedPoolContexts.startupFailureOf;
 import static com.exepex.stratum.data.testsupport.NamedPoolContexts.withBatchPool;
 import static com.exepex.stratum.data.testsupport.NamedPoolContexts.withMainPool;
 import static com.exepex.stratum.data.testsupport.NamedPoolTestData.BATCH_KEYS;
@@ -11,7 +12,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 import ch.qos.logback.classic.spi.ILoggingEvent;
-import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.data.DataConstants;
 import com.exepex.stratum.data.DataErrorCode;
 import com.exepex.stratum.data.DataProperties;
@@ -34,7 +34,6 @@ import org.springframework.boot.test.context.assertj.AssertableApplicationContex
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.NestedExceptionUtils;
 import org.springframework.mock.env.MockEnvironment;
 
 @DisplayName("PoolCheck counts every pool against the cap and logs each one without secrets")
@@ -62,14 +61,6 @@ class PoolCheckConfigurationTest {
             "stratum.data.sources.reports.url=" + URL, "stratum.data.sources.exports.url=" + URL);
   }
 
-  /** Returns the startup failure, which must be a {@code StratumException} with the code. */
-  private StratumException failureOf(AssertableApplicationContext context, DataErrorCode code) {
-    var failure = NestedExceptionUtils.getMostSpecificCause(context.getStartupFailure());
-    assertThat(failure).isInstanceOf(StratumException.class);
-    assertThat(((StratumException) failure).getErrorCode()).isEqualTo(code);
-    return (StratumException) failure;
-  }
-
   /** Returns every captured line's text. */
   private String loggedText() {
     return lines.lines().stream().map(ILoggingEvent::getFormattedMessage).toList().toString();
@@ -85,7 +76,7 @@ class PoolCheckConfigurationTest {
       withFourPools()
           .run(
               context ->
-                  assertThat(failureOf(context, DataErrorCode.TOO_MANY_CONNECTIONS))
+                  assertThat(startupFailureOf(context, DataErrorCode.TOO_MANY_CONNECTIONS))
                       .hasMessageContaining(DataConstants.MAX_CONNECTIONS + " is 30")
                       .hasMessageContaining("open 40 connections")
                       .hasMessageContaining("main=10"));
@@ -106,7 +97,7 @@ class PoolCheckConfigurationTest {
           .withPropertyValues("spring.datasource.hikari.maximum-pool-size=31")
           .run(
               context ->
-                  assertThat(failureOf(context, DataErrorCode.TOO_MANY_CONNECTIONS))
+                  assertThat(startupFailureOf(context, DataErrorCode.TOO_MANY_CONNECTIONS))
                       .hasMessageContaining("main=31"));
     }
 
@@ -123,7 +114,7 @@ class PoolCheckConfigurationTest {
               definition -> ((AbstractBeanDefinition) definition).setDefaultCandidate(false))
           .run(
               context ->
-                  assertThat(failureOf(context, DataErrorCode.TOO_MANY_CONNECTIONS))
+                  assertThat(startupFailureOf(context, DataErrorCode.TOO_MANY_CONNECTIONS))
                       .hasMessageContaining("ordersDataSource=10"));
     }
 
@@ -170,7 +161,7 @@ class PoolCheckConfigurationTest {
           .withPropertyValues(BATCH_KEYS + "hikari.pool-name=main")
           .run(
               context ->
-                  assertThat(failureOf(context, DataErrorCode.POOL_SETTING_INVALID))
+                  assertThat(startupFailureOf(context, DataErrorCode.POOL_SETTING_INVALID))
                       .hasMessageContaining("two pools are named main"));
     }
   }
@@ -225,7 +216,7 @@ class PoolCheckConfigurationTest {
           .withPropertyValues(BATCH_KEYS + "url=" + URL_WITH_PASSWORD)
           .run(
               context ->
-                  assertThat(failureOf(context, DataErrorCode.TOO_MANY_CONNECTIONS))
+                  assertThat(startupFailureOf(context, DataErrorCode.TOO_MANY_CONNECTIONS))
                       .hasMessageNotContaining(SECRET)
                       .hasMessageNotContaining("jdbc:"));
     }

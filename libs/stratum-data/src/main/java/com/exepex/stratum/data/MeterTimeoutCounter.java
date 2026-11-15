@@ -34,7 +34,7 @@ public class MeterTimeoutCounter implements TimeoutCounter {
   /**
    * Counts one cancelled statement or failed borrow, when the application has a meter registry.
    *
-   * @param pool the data source bean's name
+   * @param pool the pool's name, such as {@code main}
    * @param source what set the limit
    */
   @Override

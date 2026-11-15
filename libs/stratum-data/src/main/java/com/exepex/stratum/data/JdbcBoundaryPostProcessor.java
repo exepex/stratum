@@ -111,9 +111,14 @@ public final class JdbcBoundaryPostProcessor
     if (bean instanceof DataSource dataSource
         && !(bean instanceof JdbcWrapper)
         && wrapsBean.test(beanName)) {
-      return boundaryFor(beanName, PoolNames.nameOf(dataSource, beanName)).wrap(dataSource);
+      return boundaryFor(beanName, poolNameOf(dataSource, beanName)).wrap(dataSource);
     }
     return bean;
+  }
+
+  /** Returns a data source bean's pool name, with HikariCP's name only when HikariCP is present. */
+  private String poolNameOf(DataSource dataSource, String beanName) {
+    return classLoader == null ? beanName : PoolNames.nameOf(dataSource, beanName, classLoader);
   }
 
   /**

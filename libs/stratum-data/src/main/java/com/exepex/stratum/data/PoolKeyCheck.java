@@ -32,9 +32,6 @@ public class PoolKeyCheck {
   private static final Set<String> KEYS =
       Set.of("url", "username", "password", "querytimeout", "transactiontimeout", "fetchsize");
 
-  /** The key under which HikariCP's own settings follow. */
-  private static final String HIKARI = "hikari";
-
   /** HikariCP's settings that hold a map, whose own keys are the driver's or the check's. */
   private static final List<String> HIKARI_MAPS =
       List.of("datasourceproperties", "healthcheckproperties");
@@ -45,9 +42,6 @@ public class PoolKeyCheck {
 
   /** Where a pool's name is among a key's elements. */
   private static final int NAME_ELEMENT = 3;
-
-  /** The line breaks a key in a message must not carry. */
-  private static final String LINE_BREAKS = "[\r\n]";
 
   /** HikariCP's setting names, in uniform form. */
   private final Set<String> hikariKeys =
@@ -92,7 +86,7 @@ public class PoolKeyCheck {
       throw invalid(
           ("the pool name in %s.%s is not lower-case letters and digits starting with a letter, at"
                   + " most 31 characters, or it is main")
-              .formatted(DataConstants.SOURCES, clean(name)));
+              .formatted(DataConstants.SOURCES, LogLines.oneLine(name)));
     }
   }
 
@@ -112,7 +106,7 @@ public class PoolKeyCheck {
     pool.hikari().keySet().stream()
         .filter(key -> !isHikariKey(uniform(key)))
         .findFirst()
-        .ifPresent(key -> unknown(name, HIKARI + "." + key));
+        .ifPresent(key -> unknown(name, DataConstants.HIKARI_KEYS + "." + key));
   }
 
   /**
@@ -122,12 +116,13 @@ public class PoolKeyCheck {
    */
   private void checkKey(ConfigurationPropertyName key) {
     if (key.getNumberOfElements() <= NAME_ELEMENT + 1) {
-      throw invalid("%s is not a key of a named pool".formatted(clean(key.toString())));
+      throw invalid("%s is not a key of a named pool".formatted(LogLines.oneLine(key.toString())));
     }
     checkName(key.getElement(NAME_ELEMENT, Form.ORIGINAL));
-    boolean hikari = HIKARI.equals(key.getElement(NAME_ELEMENT + 1, Form.UNIFORM));
+    boolean hikari =
+        DataConstants.HIKARI_KEYS.equals(key.getElement(NAME_ELEMENT + 1, Form.UNIFORM));
     if (!hikari && !KEYS.contains(uniformFrom(key, NAME_ELEMENT + 1))) {
-      throw invalid("%s is not a key of a named pool".formatted(clean(key.toString())));
+      throw invalid("%s is not a key of a named pool".formatted(LogLines.oneLine(key.toString())));
     }
   }
 
@@ -153,12 +148,8 @@ public class PoolKeyCheck {
   /** Fails for a HikariCP key of a pool in the settings that HikariCP does not have. */
   private void unknown(String name, String key) {
     throw invalid(
-        "%s.%s.%s is not a key of a named pool".formatted(DataConstants.SOURCES, name, clean(key)));
-  }
-
-  /** Returns a key without line breaks, for a message. */
-  private String clean(String key) {
-    return key.replaceAll(LINE_BREAKS, " ");
+        "%s.%s.%s is not a key of a named pool"
+            .formatted(DataConstants.SOURCES, name, LogLines.oneLine(key)));
   }
 
   /** Returns the startup failure with its detail. */

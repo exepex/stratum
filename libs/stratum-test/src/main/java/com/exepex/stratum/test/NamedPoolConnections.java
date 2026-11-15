@@ -1,5 +1,7 @@
 package com.exepex.stratum.test;
 
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.experimental.UtilityClass;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.support.AbstractBeanDefinition;
@@ -59,30 +61,19 @@ public class NamedPoolConnections {
         new RootBeanDefinition(PoolBeansRegistrar.class, () -> new PoolBeansRegistrar(pool)));
   }
 
-  /**
-   * A container's connection. A test database's password is no secret.
-   *
-   * @param jdbcUrl the container's JDBC URL
-   * @param username its user name
-   * @param password its password
-   */
-  private record ContainerConnection(String jdbcUrl, String username, String password)
-      implements JdbcConnectionDetails {
+  /** A container's connection. A test database's password is no secret. */
+  @Getter
+  @RequiredArgsConstructor
+  private static final class ContainerConnection implements JdbcConnectionDetails {
 
-    @Override
-    public String getJdbcUrl() {
-      return jdbcUrl;
-    }
+    /** The container's JDBC URL. */
+    private final String jdbcUrl;
 
-    @Override
-    public String getUsername() {
-      return username;
-    }
+    /** Its user name. */
+    private final String username;
 
-    @Override
-    public String getPassword() {
-      return password;
-    }
+    /** Its password. */
+    private final String password;
   }
 
   /**

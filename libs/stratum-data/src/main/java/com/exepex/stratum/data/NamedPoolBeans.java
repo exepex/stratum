@@ -29,9 +29,6 @@ public class NamedPoolBeans {
   /** How many connections a named pool opens at most, unless its settings say otherwise. */
   static final int STANDARD_MAXIMUM_POOL_SIZE = 10;
 
-  /** Where HikariCP's settings start, in the pool's settings and in its keys. */
-  private static final String HIKARI = "hikari";
-
   /** The application's environment, with the pools' keys. */
   private final Environment environment;
 
@@ -63,9 +60,11 @@ public class NamedPoolBeans {
     pool.setMaximumPoolSize(STANDARD_MAXIMUM_POOL_SIZE);
     pool.setPoolName(name);
     Binder.get(environment)
-        .bind(DataConstants.SOURCES + "." + name + "." + HIKARI, Bindable.ofInstance(pool));
+        .bind(
+            DataConstants.SOURCES + "." + name + "." + DataConstants.HIKARI_KEYS,
+            Bindable.ofInstance(pool));
     new Binder(new MapConfigurationPropertySource(prefixed(settings.hikari())))
-        .bind(HIKARI, Bindable.ofInstance(pool));
+        .bind(DataConstants.HIKARI_KEYS, Bindable.ofInstance(pool));
     return pool;
   }
 
@@ -105,6 +104,8 @@ public class NamedPoolBeans {
   /** Returns HikariCP's settings with {@code hikari.} before each key, for the binder. */
   private Map<String, String> prefixed(Map<String, String> hikari) {
     return hikari.entrySet().stream()
-        .collect(Collectors.toMap(entry -> HIKARI + "." + entry.getKey(), Map.Entry::getValue));
+        .collect(
+            Collectors.toMap(
+                entry -> DataConstants.HIKARI_KEYS + "." + entry.getKey(), Map.Entry::getValue));
   }
 }

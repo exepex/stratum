@@ -1,6 +1,7 @@
 package com.exepex.stratum.data.autoconfigure;
 
 import static com.exepex.stratum.data.testsupport.NamedPoolContexts.poolOf;
+import static com.exepex.stratum.data.testsupport.NamedPoolContexts.startupFailureOf;
 import static com.exepex.stratum.data.testsupport.NamedPoolContexts.withBatchPool;
 import static com.exepex.stratum.data.testsupport.NamedPoolContexts.withMainPool;
 import static com.exepex.stratum.data.testsupport.NamedPoolTestData.BATCH_DATA_SOURCE;
@@ -11,7 +12,6 @@ import static com.exepex.stratum.data.testsupport.NamedPoolTestData.URL;
 import static com.exepex.stratum.data.testsupport.NamedPoolTestData.withVariables;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.data.DataConstants;
 import com.exepex.stratum.data.DataErrorCode;
 import com.exepex.stratum.data.PoolConnectionDetails;
@@ -31,7 +31,6 @@ import org.springframework.boot.jdbc.autoconfigure.JdbcConnectionDetails;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.NestedExceptionUtils;
 import org.springframework.core.env.StandardEnvironment;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 
@@ -46,15 +45,6 @@ class NamedPoolRegistrarConfigurationTest {
 
   /** The maximum a pool's own HikariCP key sets. */
   private static final int OWN_MAXIMUM = 4;
-
-  /** Checks that a startup failed with the given code, naming the given text. */
-  private void assertFailedWith(
-      AssertableApplicationContext context, DataErrorCode code, String named) {
-    assertThat(NestedExceptionUtils.getMostSpecificCause(context.getStartupFailure()))
-        .isInstanceOfSatisfying(
-            StratumException.class, failure -> assertThat(failure.getErrorCode()).isEqualTo(code))
-        .hasMessageContaining(named);
-  }
 
   @Nested
   @DisplayName("injection")
@@ -213,8 +203,8 @@ class NamedPoolRegistrarConfigurationTest {
           .withPropertyValues(BATCH_KEYS + "query-timeout=5s")
           .run(
               context ->
-                  assertFailedWith(
-                      context, DataErrorCode.POOL_SETTING_INVALID, BATCH_KEYS + "url"));
+                  assertThat(startupFailureOf(context, DataErrorCode.POOL_SETTING_INVALID))
+                      .hasMessageContaining(BATCH_KEYS + "url"));
     }
 
     @Test
@@ -278,7 +268,8 @@ class NamedPoolRegistrarConfigurationTest {
           .withBean(beanName, Object.class, Object::new)
           .run(
               context ->
-                  assertFailedWith(context, DataErrorCode.POOL_BEAN_DEFAULT_CANDIDATE, beanName));
+                  assertThat(startupFailureOf(context, DataErrorCode.POOL_BEAN_DEFAULT_CANDIDATE))
+                      .hasMessageContaining(beanName));
     }
   }
 

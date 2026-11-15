@@ -8,6 +8,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.exepex.stratum.data.testsupport.MockDatabase;
+import com.exepex.stratum.data.testsupport.NamedPoolTestData;
 import com.exepex.stratum.data.testsupport.SqlFailureTestData;
 import com.exepex.stratum.test.DatabaseFailureAssertions;
 import java.sql.SQLException;
@@ -16,6 +17,8 @@ import javax.sql.DataSource;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.support.DefaultListableBeanFactory;
+import org.springframework.mock.env.MockEnvironment;
 
 @DisplayName("A named pool's fetch-size reaches each new statement before the code runs")
 class FetchSizeTest {
@@ -126,6 +129,50 @@ class FetchSizeTest {
       }
 
       verify(database.prepared).close();
+    }
+  }
+
+  @Nested
+  @DisplayName("for each pool")
+  class PerPool {
+
+    /** Returns the given bean of the pool, wrapped as Spring wraps it with only batch's key set. */
+    private DataSource wrappedBean(JdbcBoundaryPostProcessor postProcessor, String beanName) {
+      postProcessor.setBeanClassLoader(Thread.currentThread().getContextClassLoader());
+      postProcessor.setBeanFactory(new DefaultListableBeanFactory());
+      postProcessor.setEnvironment(
+          new MockEnvironment()
+              .withProperty(NamedPoolTestData.BATCH_KEYS + "url", NamedPoolTestData.URL)
+              .withProperty(
+                  NamedPoolTestData.BATCH_KEYS + "fetch-size", String.valueOf(POOL_ROWS)));
+      return (DataSource) postProcessor.postProcessAfterInitialization(database.pool, beanName);
+    }
+
+    @Test
+    @DisplayName("the pool batch's statements get batch's fetch-size")
+    void namedPoolGetsItsOwn() throws SQLException {
+      var postProcessor = new JdbcBoundaryPostProcessor(name -> true);
+      try (var connection =
+          wrappedBean(postProcessor, NamedPoolTestData.BATCH_DATA_SOURCE).getConnection()) {
+        connection.createStatement();
+      } finally {
+        postProcessor.destroy();
+      }
+
+      verify(database.statement).setFetchSize(POOL_ROWS);
+    }
+
+    @Test
+    @DisplayName("the main pool's statements do not get batch's fetch-size")
+    void mainPoolGetsNone() throws SQLException {
+      var postProcessor = new JdbcBoundaryPostProcessor(name -> true);
+      try (var connection = wrappedBean(postProcessor, DataConstants.MAIN_BEAN).getConnection()) {
+        connection.createStatement();
+      } finally {
+        postProcessor.destroy();
+      }
+
+      verify(database.statement, never()).setFetchSize(anyInt());
     }
   }
 }

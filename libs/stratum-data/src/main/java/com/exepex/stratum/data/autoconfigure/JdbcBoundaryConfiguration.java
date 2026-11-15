@@ -63,7 +63,7 @@ public final class JdbcBoundaryConfiguration {
    */
   @Bean(DataConstants.LOGIN_TIMEOUT)
   @Fallback
-  @ConditionalOnClass(name = {"org.postgresql.Driver", "com.zaxxer.hikari.HikariDataSource"})
+  @ConditionalOnClass(name = {"org.postgresql.Driver", DataConstants.HIKARI_POOL})
   @ConditionalOnMissingBean(name = DataConstants.LOGIN_TIMEOUT)
   public static PostgresLoginTimeoutPostProcessor stratumPostgresLoginTimeout() {
     return new PostgresLoginTimeoutPostProcessor();
@@ -84,14 +84,15 @@ public final class JdbcBoundaryConfiguration {
   }
 
   /**
-   * Registers the beans of each named pool of {@code stratum.data.sources}. A service replaces it
-   * with a bean of the same name. Static, because Spring creates registry post-processors before
-   * the other beans.
+   * Registers the beans of each named pool of {@code stratum.data.sources}, which are HikariCP
+   * pools, so only when HikariCP is on the class path. A service replaces it with a bean of the
+   * same name. Static, because Spring creates registry post-processors before the other beans.
    *
    * @return the registrar
    */
   @Bean(DataConstants.NAMED_POOLS)
   @Fallback
+  @ConditionalOnClass(name = DataConstants.HIKARI_POOL)
   @ConditionalOnMissingBean(name = DataConstants.NAMED_POOLS)
   public static NamedPoolRegistrar stratumNamedPools() {
     return new NamedPoolRegistrar();
@@ -106,6 +107,7 @@ public final class JdbcBoundaryConfiguration {
    */
   @Bean(DataConstants.MAIN_POOL_NAME)
   @Fallback
+  @ConditionalOnClass(name = DataConstants.HIKARI_POOL)
   @ConditionalOnMissingBean(name = DataConstants.MAIN_POOL_NAME)
   public static MainPoolNamePostProcessor stratumMainPoolName() {
     return new MainPoolNamePostProcessor();
@@ -113,7 +115,8 @@ public final class JdbcBoundaryConfiguration {
 
   /**
    * Checks every pool once all beans exist: no two share a name, and together they stay within
-   * {@code stratum.data.max-connections}. A service replaces it with a bean of the same name.
+   * {@code stratum.data.max-connections}. Only HikariCP pools have a size to count, so it needs
+   * HikariCP on the class path. A service replaces it with a bean of the same name.
    *
    * @param beanFactory the service's beans
    * @param environment the application's environment
@@ -121,6 +124,7 @@ public final class JdbcBoundaryConfiguration {
    */
   @Bean(DataConstants.POOL_CHECK)
   @Fallback
+  @ConditionalOnClass(name = DataConstants.HIKARI_POOL)
   @ConditionalOnMissingBean(name = DataConstants.POOL_CHECK)
   public PoolCheck stratumPoolCheck(ListableBeanFactory beanFactory, Environment environment) {
     return new PoolCheck(beanFactory, environment);

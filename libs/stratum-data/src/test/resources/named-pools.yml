@@ -1,0 +1,10 @@
+stratum:
+  data:
+    max-connections: 25
+    sources:
+      batch:
+        url: jdbc:postgresql://localhost:1/orders
+        fetch-size: 500
+        query-timeout: 2m
+        hikari:
+          maximum-pool-size: 4
