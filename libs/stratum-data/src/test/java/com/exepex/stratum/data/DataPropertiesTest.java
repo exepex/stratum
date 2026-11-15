@@ -36,15 +36,15 @@ class DataPropertiesTest {
   @DisplayName("a value out of range stops startup")
   class OutOfRange {
 
-    /** Each key with a value out of range, and the rule the failure names. */
-    static final List<Map.Entry<String, String>> BAD_POOL_KEYS =
+    /** Each key of the pool batch with a value out of range, and that value. */
+    private static final List<Map.Entry<String, String>> BAD_POOL_KEYS =
         List.of(
             Map.entry(BATCH_KEYS + "query-timeout", "-1s"),
             Map.entry(BATCH_KEYS + "transaction-timeout", "-1s"),
             Map.entry(BATCH_KEYS + "fetch-size", "-1"));
 
     /** Each cap below one. */
-    static final List<String> BAD_CAPS = List.of("0", "-5");
+    private static final List<String> BAD_CAPS = List.of("0", "-5");
 
     @ParameterizedTest(name = "{0}")
     @FieldSource("BAD_POOL_KEYS")
@@ -91,10 +91,10 @@ class DataPropertiesTest {
   class FromYaml {
 
     /** The cap that named-pools.yml sets. */
-    static final int YAML_CAP = 25;
+    private static final int YAML_CAP = 25;
 
     /** The fetch size that named-pools.yml sets on the pool batch. */
-    static final int YAML_FETCH_SIZE = 500;
+    private static final int YAML_FETCH_SIZE = 500;
 
     @Test
     @DisplayName("binds a named pool's keys and the cap")

@@ -17,7 +17,8 @@ class LogLinesTest {
   class WithBreaks {
 
     /** Texts that would start a forged line, with a carriage return, a line feed or both. */
-    static final List<String> FORGED = List.of("batch\nINFO forged", "batch\rforged", "a\r\nb\nc");
+    private static final List<String> FORGED =
+        List.of("batch\nINFO forged", "batch\rforged", "a\r\nb\nc");
 
     @ParameterizedTest(name = "{index}")
     @FieldSource("FORGED")
