@@ -19,7 +19,7 @@ public class PoolRouters {
   public static boolean routes(DataSource dataSource) {
     try {
       return dataSource instanceof PoolRouter || dataSource.isWrapperFor(PoolRouter.class);
-    } catch (SQLException failure) {
+    } catch (SQLException _) {
       return false;
     }
   }

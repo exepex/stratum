@@ -32,7 +32,8 @@ public final class OpenInViewCheck implements InitializingBean {
   @Override
   public void afterPropertiesSet() {
     if (beanFactory.containsBean(DataJpaConstants.REPOSITORY_POOLS)
-        && environment.getProperty(DataJpaConstants.OPEN_IN_VIEW, Boolean.class, true)) {
+        && Boolean.TRUE.equals(
+            environment.getProperty(DataJpaConstants.OPEN_IN_VIEW, Boolean.class, Boolean.TRUE))) {
       throw new StratumException(
           DataErrorCode.OPEN_IN_VIEW_WITH_ROUTING,
           DataJpaConstants.OPEN_IN_VIEW

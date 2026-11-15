@@ -85,10 +85,10 @@ public class RoutingBenchmark {
       var pool = JdbcStubs.stubPool();
       routed = "routed".equals(path);
       dataSource =
-          !routed
-              ? pool
-              : new LazyConnectionDataSourceProxy(
-                  new RoutingDataSource(routing, Map.of(POOL, pool), JdbcStubs.stubPool()));
+          routed
+              ? new LazyConnectionDataSourceProxy(
+                  new RoutingDataSource(routing, Map.of(POOL, pool), JdbcStubs.stubPool()))
+              : pool;
     }
   }
 }
