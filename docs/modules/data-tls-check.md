@@ -101,8 +101,10 @@ wait, and the service is up all the while.
 - The check covers each data source **bean** that exists once the application is ready, not every
   connection: a later change to the URL or to TLS is checked again only after a restart.
 - A `@Lazy` data source that nothing has used yet is not created, and not checked.
-- A routing data source reaches only its default target. A routing bean and its target beans are
-  each checked, so one server can get two WARNs.
+- A routing data source of your own reaches only its default target. A routing bean and its target
+  beans are each checked, so one server can get two WARNs. Stratum's own routing data source,
+  `stratumRoutingDataSource` ([Repositories on a pool](data-named-pools.md#repositories-on-a-pool)),
+  is not checked: each pool behind it is a bean of its own, checked once.
 - The connections Flyway and Liquibase build from their own `url` are not beans, and are not
   checked.
 - Behind PgBouncer, the check sees PgBouncer's connection to the server, not the service's

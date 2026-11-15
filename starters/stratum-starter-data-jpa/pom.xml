@@ -90,6 +90,13 @@
       <artifactId>spring-boot-health</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Spring Data's map repositories, to prove that a repository of another Spring Data module
+         in a mapped package gets no pool advice. Services bring their own. -->
+    <dependency>
+      <groupId>org.springframework.data</groupId>
+      <artifactId>spring-data-keyvalue</artifactId>
+      <scope>test</scope>
+    </dependency>
     <!-- Spring Batch on the classpath, to prove that the module then sets no transaction timeout.
          Services bring their own. -->
     <dependency>

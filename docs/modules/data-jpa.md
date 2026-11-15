@@ -90,6 +90,10 @@ transaction time limit and [query spans](data-query-spans.md). And for Hibernate
 | No open-in-view | A web request releases its connection when your service method ends, not when the response is written | Strict mode |
 | Safe paging | A query that pages a fetch join over a collection fails, instead of loading every row and paging in memory | Strict mode |
 
+With [named pools](data-named-pools.md), JPA repositories can also run on a pool of their own,
+mapped by package or by `@UseDataSource`: see
+[Repositories on a pool](data-named-pools.md#repositories-on-a-pool).
+
 **Strict mode** is Stratum's default, `stratum.backward-compatible=false`. With
 `stratum.backward-compatible=true`, the "Strict mode" rows are left at Spring Boot's own defaults,
 because they can change what the service's callers see: a slower response, an error, or data

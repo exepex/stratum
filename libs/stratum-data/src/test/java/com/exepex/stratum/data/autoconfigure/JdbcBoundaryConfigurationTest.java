@@ -13,6 +13,7 @@ import com.exepex.stratum.data.DataPropertiesCustomizer;
 import com.exepex.stratum.data.JdbcBoundaryPostProcessor;
 import com.exepex.stratum.data.JdbcWrapper;
 import com.exepex.stratum.data.testsupport.DataStarterStandIns;
+import com.exepex.stratum.data.testsupport.NamedPoolTestData;
 import java.sql.SQLException;
 import java.time.Duration;
 import javax.sql.DataSource;
@@ -30,6 +31,7 @@ import org.springframework.boot.test.context.assertj.AssertableApplicationContex
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.jdbc.datasource.LazyConnectionDataSourceProxy;
 
 @DisplayName("JdbcBoundaryConfiguration wraps every data source bean in the JDBC boundary")
 class JdbcBoundaryConfigurationTest {
@@ -39,6 +41,9 @@ class JdbcBoundaryConfigurationTest {
 
   /** The name of the service's own data source, which a team may skip. */
   private static final String LEGACY = "legacyDataSource";
+
+  /** The name of a service's own lazy or routing data source. */
+  private static final String ROUTING = "routingDataSource";
 
   /** The name of a service's bean that hands out Spring Boot's data source under a second name. */
   private static final String ALIAS = "aliasDataSource";
@@ -77,6 +82,36 @@ class JdbcBoundaryConfigurationTest {
       return new PostgreSQLDialect()
           .getViolatedConstraintNameExtractor()
           .extractConstraintName(failure);
+    }
+  }
+
+  @Nested
+  @DisplayName("routing data sources")
+  class Routing {
+
+    @Test
+    @DisplayName("Stratum's routing data source is not wrapped: a statement passes one boundary")
+    void skipsStratumRouter() {
+      contextRunner
+          .withBean(
+              DataConstants.ROUTING_BEAN,
+              DataSource.class,
+              () -> NamedPoolTestData.lazyRouter(failingDataSource()))
+          .run(
+              context ->
+                  assertThat(context.getBean(DataConstants.ROUTING_BEAN))
+                      .isNotInstanceOf(JdbcWrapper.class));
+    }
+
+    @Test
+    @DisplayName("a service's own routing data source is still wrapped, as before")
+    void wrapsServiceRouter() {
+      contextRunner
+          .withBean(
+              ROUTING,
+              DataSource.class,
+              () -> new LazyConnectionDataSourceProxy(failingDataSource()))
+          .run(context -> assertThat(context.getBean(ROUTING)).isInstanceOf(JdbcWrapper.class));
     }
   }
 

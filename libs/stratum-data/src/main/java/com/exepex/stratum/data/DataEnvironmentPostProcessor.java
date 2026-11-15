@@ -15,19 +15,23 @@ import org.springframework.util.ClassUtils;
 
 /**
  * Gives Spring Boot's pool and transaction settings Stratum's defaults unless {@code
- * stratum.data.enabled=false}. In both modes, a caller waits at most 3 seconds for a connection.
- * With {@code stratum.backward-compatible=false}, its default, every transaction has 60 seconds,
- * except when Spring Batch is present, whose jobs run longer, and a web request whose statement
- * Stratum cancelled ({@code SX-DATA-1003}) is answered with 503 through {@code
- * stratum.web.error.statuses}. Every value the service sets for these keys wins. In both modes,
- * startup stops when the service sets a leak alarm threshold that HikariCP would turn off.
+ * stratum.data.enabled=false}. In both modes, a caller waits at most 3 seconds for a connection,
+ * and a connection is borrowed at the first statement, not at transaction begin. With {@code
+ * stratum.backward-compatible=false}, its default, every transaction has 60 seconds, except when
+ * Spring Batch is present, whose jobs run longer, and a web request whose statement Stratum
+ * cancelled ({@code SX-DATA-1003}) is answered with 503 through {@code stratum.web.error.statuses}.
+ * Every value the service sets for these keys wins. In both modes, startup stops when the service
+ * sets a leak alarm threshold that HikariCP would turn off.
  */
 @StratumInternal
 public class DataEnvironmentPostProcessor implements EnvironmentPostProcessor, Ordered {
 
-  /** The default that changes nothing a consumer of the service sees, so applies in both modes. */
+  /**
+   * The defaults that change nothing a consumer of the service sees, so apply in both modes: the
+   * pool wait, and a connection borrowed at the first statement rather than at transaction begin.
+   */
   private static final Map<String, Object> INTERNAL_DEFAULTS =
-      Map.of(DataConstants.CONNECTION_TIMEOUT, 3000);
+      Map.of(DataConstants.CONNECTION_TIMEOUT, 3000, DataConstants.CONNECTION_FETCH, "lazy");
 
   /** The defaults that can change what a consumer sees, so apply only outside compatible mode. */
   private static final Map<String, Object> EXTERNAL_DEFAULTS =
@@ -55,9 +59,10 @@ public class DataEnvironmentPostProcessor implements EnvironmentPostProcessor, O
   }
 
   /**
-   * Adds the defaults below the service's own values: the pool wait when the module is on, and the
-   * statement timeout's status and the transaction limit when {@code stratum.backward-compatible}
-   * is off too. Then it checks the leak alarm threshold the service set.
+   * Adds the defaults below the service's own values: the pool wait and lazy fetch when the module
+   * is on, and the statement timeout's status and the transaction limit when {@code
+   * stratum.backward-compatible} is off too. Then it checks the leak alarm threshold the service
+   * set.
    *
    * @param environment the application's environment
    * @param application the application being started, whose class loader shows Spring Batch

@@ -29,6 +29,8 @@ class DataEnvironmentPostProcessorTest {
   // The keys are spelled out here, so a misspelt key in the module fails the tests.
   private static final String CONNECTION_TIMEOUT = "spring.datasource.hikari.connection-timeout";
 
+  private static final String CONNECTION_FETCH = "spring.datasource.connection-fetch";
+
   private static final String TRANSACTION_TIMEOUT = "spring.transaction.default-timeout";
 
   private static final String STATEMENT_TIMEOUT_STATUS = "stratum.web.error.statuses[SX-DATA-1003]";
@@ -47,7 +49,8 @@ class DataEnvironmentPostProcessorTest {
   private static final String OFF = "false";
 
   /** The defaults that apply in both modes, with Stratum's values. */
-  private static final Map<String, String> INTERNAL_DEFAULTS = Map.of(CONNECTION_TIMEOUT, "3000");
+  private static final Map<String, String> INTERNAL_DEFAULTS =
+      Map.of(CONNECTION_TIMEOUT, "3000", CONNECTION_FETCH, "lazy");
 
   /** The defaults that apply only with {@code stratum.backward-compatible=false}. */
   private static final Map<String, String> EXTERNAL_DEFAULTS =
@@ -57,6 +60,7 @@ class DataEnvironmentPostProcessorTest {
   private static final List<Arguments> SERVICE_VALUES =
       List.of(
           arguments(CONNECTION_TIMEOUT, "10000"),
+          arguments(CONNECTION_FETCH, "eager"),
           arguments(TRANSACTION_TIMEOUT, "300s"),
           arguments(STATEMENT_TIMEOUT_STATUS, "500"));
 

@@ -108,7 +108,7 @@ public class DatabaseTlsCheck implements SmartApplicationListener, DisposableBea
   /**
    * Returns the data source beans that already exist, by their pool's name, without creating any
    * bean: a lazy data source not yet used is not checked, and a pool two beans hand out is checked
-   * once.
+   * once. Stratum's routing data source is skipped, since its pools are beans of their own.
    *
    * @return the data sources, by pool name
    */
@@ -118,7 +118,9 @@ public class DatabaseTlsCheck implements SmartApplicationListener, DisposableBea
     for (var name : beanFactory.getBeanNamesForType(DataSource.class, false, false)) {
       if (beanFactory.containsSingleton(name)) {
         var dataSource = beanFactory.getBean(name, DataSource.class);
-        dataSources.put(PoolNames.nameOf(dataSource, name, context.getClassLoader()), dataSource);
+        if (!PoolRouters.routes(dataSource)) {
+          dataSources.put(PoolNames.nameOf(dataSource, name, context.getClassLoader()), dataSource);
+        }
       }
     }
     return dataSources;

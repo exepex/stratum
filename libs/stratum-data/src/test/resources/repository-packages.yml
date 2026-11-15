@@ -1,0 +1,8 @@
+stratum:
+  data:
+    sources:
+      batch:
+        url: jdbc:postgresql://localhost:1/orders
+        packages:
+          - com.acme.batch
+          - com.acme.jobs

@@ -3,11 +3,14 @@ package com.exepex.stratum.data;
 import static com.exepex.stratum.data.testsupport.NamedPoolTestData.BATCH;
 import static com.exepex.stratum.data.testsupport.NamedPoolTestData.BATCH_KEYS;
 import static com.exepex.stratum.data.testsupport.NamedPoolTestData.withVariables;
+import static com.exepex.stratum.data.testsupport.NamedPoolTestData.withYaml;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
 import com.exepex.stratum.core.error.StratumException;
+import com.exepex.stratum.data.testsupport.NamedPoolTestData;
+import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -210,6 +213,89 @@ class PoolKeyCheckTest {
               .build();
 
       assertThatCode(() -> check.checkSettings(settings)).doesNotThrowAnyException();
+    }
+  }
+
+  @Nested
+  @DisplayName("the packages key, which maps repositories to the pool")
+  class Packages {
+
+    /** The packages the tests map, in order. */
+    private static final List<String> MAPPED = List.of("com.acme.batch", "com.acme.jobs");
+
+    /** Spellings of {@code packages} that are not the key, each of which must fail. */
+    private static final List<String> MISSPELT =
+        List.of("package", "packages.extra", "packages[0].name", "packagesx");
+
+    /** Returns the pool's packages after the check passed. */
+    private List<String> checkedPackages(Environment environment) {
+      checkAll(environment);
+      return DataProperties.resolve(environment).sources().get(BATCH).packages();
+    }
+
+    @Test
+    @DisplayName("a YAML list passes and binds")
+    void yamlList() throws IOException {
+      assertThat(checkedPackages(withYaml("repository-packages"))).isEqualTo(MAPPED);
+    }
+
+    @Test
+    @DisplayName("indexed keys, packages[0] and packages[1], pass and bind")
+    void indexedKeys() {
+      var environment =
+          new MockEnvironment()
+              .withProperty(BATCH_KEYS + "url", NamedPoolTestData.URL)
+              .withProperty(BATCH_KEYS + "packages[0]", MAPPED.get(0))
+              .withProperty(BATCH_KEYS + "packages[1]", MAPPED.get(1));
+
+      assertThat(checkedPackages(environment)).isEqualTo(MAPPED);
+    }
+
+    @Test
+    @DisplayName("a comma-separated value passes and binds")
+    void commaSeparated() {
+      var environment =
+          new MockEnvironment()
+              .withProperty(BATCH_KEYS + "url", NamedPoolTestData.URL)
+              .withProperty(BATCH_KEYS + "packages", String.join(",", MAPPED));
+
+      assertThat(checkedPackages(environment)).isEqualTo(MAPPED);
+    }
+
+    @Test
+    @DisplayName("the variables PACKAGES_0 and PACKAGES_1 pass and bind")
+    void indexedVariables() {
+      var environment =
+          withVariables(
+              Map.of(
+                  VARIABLES + "URL", NamedPoolTestData.URL,
+                  VARIABLES + "PACKAGES_0", MAPPED.get(0),
+                  VARIABLES + "PACKAGES_1", MAPPED.get(1)));
+
+      assertThat(checkedPackages(environment)).isEqualTo(MAPPED);
+    }
+
+    @Test
+    @DisplayName("the variable PACKAGES with a comma-separated value passes and binds")
+    void commaSeparatedVariable() {
+      var environment =
+          withVariables(
+              Map.of(
+                  VARIABLES + "URL",
+                  NamedPoolTestData.URL,
+                  VARIABLES + "PACKAGES",
+                  String.join(",", MAPPED)));
+
+      assertThat(checkedPackages(environment)).isEqualTo(MAPPED);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @FieldSource("MISSPELT")
+    @DisplayName("a misspelt key fails, so a mapping is never silently dropped")
+    void misspeltFails(String key) {
+      var environment = new MockEnvironment().withProperty(BATCH_KEYS + key, MAPPED.get(0));
+
+      assertThat(failureOf(environment)).hasMessageContaining("stratum.data.sources.batch");
     }
   }
 }

@@ -35,6 +35,9 @@ class DataJpaEnvironmentPostProcessorTest {
 
   private static final String OPEN_IN_VIEW = "spring.jpa.open-in-view";
 
+  private static final String IGNORE_ROUTING_HEALTH =
+      "management.health.db.ignore-routing-data-sources";
+
   private static final String FAIL_ON_PAGINATION =
       "spring.jpa.properties.hibernate.query.fail_on_pagination_over_collection_fetch";
 
@@ -52,7 +55,8 @@ class DataJpaEnvironmentPostProcessorTest {
           ORDER_INSERTS, ON,
           ORDER_UPDATES, ON,
           LOG_JDBC_ERRORS, OFF,
-          LOG_JDBC_WARNINGS, OFF);
+          LOG_JDBC_WARNINGS, OFF,
+          IGNORE_ROUTING_HEALTH, ON);
 
   /** The defaults that apply only with {@code stratum.backward-compatible=false}. */
   private static final Map<String, String> EXTERNAL_DEFAULTS =
@@ -67,6 +71,7 @@ class DataJpaEnvironmentPostProcessorTest {
           arguments(ORDER_UPDATES, OFF),
           arguments(LOG_JDBC_ERRORS, ON),
           arguments(LOG_JDBC_WARNINGS, ON),
+          arguments(IGNORE_ROUTING_HEALTH, OFF),
           arguments(OPEN_IN_VIEW, ON),
           arguments(FAIL_ON_PAGINATION, OFF));
 

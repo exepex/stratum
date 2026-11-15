@@ -18,9 +18,10 @@ import org.springframework.core.env.ConfigurableEnvironment;
 /**
  * Gives Spring Boot's JPA settings Stratum's defaults unless {@code stratum.data.enabled=false}. In
  * both modes, Hibernate sends inserts and updates in ordered batches of 50, pads {@code IN} lists
- * and logs no JDBC errors or warnings of its own. With {@code stratum.backward-compatible=false},
- * its default, open-in-view is off and paging a fetch join over a collection fails. Every value the
- * service sets for these Spring Boot keys wins.
+ * and logs no JDBC errors or warnings of its own, and the database health check leaves routing data
+ * sources out, since it checks each pool behind them. With {@code
+ * stratum.backward-compatible=false}, its default, open-in-view is off and paging a fetch join over
+ * a collection fails. Every value the service sets for these Spring Boot keys wins.
  */
 @StratumInternal
 public class DataJpaEnvironmentPostProcessor implements EnvironmentPostProcessor, Ordered {
@@ -39,7 +40,9 @@ public class DataJpaEnvironmentPostProcessor implements EnvironmentPostProcessor
           DataJpaConstants.JPA_PROPERTIES + JdbcSettings.LOG_JDBC_ERRORS,
           false,
           DataJpaConstants.JPA_PROPERTIES + JdbcSettings.LOG_JDBC_WARNINGS,
-          false);
+          false,
+          DataJpaConstants.IGNORE_ROUTING_HEALTH,
+          true);
 
   /** The defaults that can change what a consumer sees, so apply only outside compatible mode. */
   private static final Map<String, Object> EXTERNAL_DEFAULTS =

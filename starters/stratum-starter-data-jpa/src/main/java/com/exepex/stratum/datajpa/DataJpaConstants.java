@@ -21,4 +21,26 @@ public class DataJpaConstants {
 
   /** The name of the bean that gives Hibernate's schema setting Stratum's default. */
   public static final String SCHEMA_VALIDATION_DEFAULT = "stratumSchemaValidationDefault";
+
+  /** Spring Boot's key that leaves routing data sources out of the database health check. */
+  public static final String IGNORE_ROUTING_HEALTH =
+      "management.health.db.ignore-routing-data-sources";
+
+  /** The name of Spring Boot's entity manager factory, which JPA repositories use by default. */
+  public static final String ENTITY_MANAGER_FACTORY = "entityManagerFactory";
+
+  /** The name of the bean that maps repositories to named pools. */
+  public static final String ROUTING_REGISTRAR = "stratumRoutingRegistrar";
+
+  /** The name of the bean that holds each mapped repository's pool. */
+  public static final String REPOSITORY_POOLS = "stratumRepositoryPools";
+
+  /** The name of the bean that adds the pool advice to every JPA repository. */
+  public static final String REPOSITORY_ADVICE = "stratumRepositoryPoolAdvice";
+
+  /** The name of the bean that checks the mapped pools' database product and logs the mapping. */
+  public static final String ROUTING_CHECK = "stratumRoutingCheck";
+
+  /** The name of the bean that stops startup when open-in-view is on with a mapping. */
+  public static final String OPEN_IN_VIEW_CHECK = "stratumOpenInViewCheck";
 }

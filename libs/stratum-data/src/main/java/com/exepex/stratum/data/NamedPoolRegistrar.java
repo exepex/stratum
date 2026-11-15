@@ -3,10 +3,7 @@ package com.exepex.stratum.data;
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.error.StratumException;
 import com.zaxxer.hikari.HikariDataSource;
-import java.util.Arrays;
 import java.util.Objects;
-import java.util.Set;
-import java.util.TreeSet;
 import java.util.function.Supplier;
 import lombok.Setter;
 import org.jspecify.annotations.Nullable;
@@ -39,6 +36,9 @@ public final class NamedPoolRegistrar
   /** Checks the pools' names and keys. */
   private final PoolKeyCheck keyCheck = new PoolKeyCheck();
 
+  /** Finds the pools' names. */
+  private final NamedPoolNames poolNames = new NamedPoolNames();
+
   /** The application's environment, with the pools' keys. */
   @Setter private @Nullable Environment environment;
 
@@ -61,29 +61,9 @@ public final class NamedPoolRegistrar
     keyCheck.checkSettings(settings);
     var beans =
         new NamedPoolBeans(env, Objects.requireNonNull(beanFactory, "the bean factory is not set"));
-    for (var name : poolNames(registry, settings)) {
+    for (var name : poolNames.names(registry, settings)) {
       register(registry, beans, name, settings.sources().get(name));
     }
-  }
-
-  /**
-   * Returns the pools' names: those in the settings, and those of the service's connection details
-   * beans that are no default candidates.
-   */
-  private Set<String> poolNames(BeanDefinitionRegistry registry, DataProperties settings) {
-    var names = new TreeSet<>(settings.sources().keySet());
-    Arrays.stream(registry.getBeanDefinitionNames())
-        .filter(beanName -> beanName.endsWith(DataConstants.DETAILS_SUFFIX))
-        .filter(beanName -> !isDefaultCandidate(registry, beanName))
-        .map(beanName -> beanName.substring(0, beanName.length() - suffixLength()))
-        .filter(keyCheck::isName)
-        .forEach(names::add);
-    return names;
-  }
-
-  /** Returns the length of the connection details bean names' end. */
-  private int suffixLength() {
-    return DataConstants.DETAILS_SUFFIX.length();
   }
 
   /** Registers the beans of one pool that the service does not define itself. */
@@ -124,21 +104,13 @@ public final class NamedPoolRegistrar
    */
   private void rejectDefaultCandidates(BeanDefinitionRegistry registry, String... beanNames) {
     for (var beanName : beanNames) {
-      if (registry.containsBeanDefinition(beanName) && isDefaultCandidate(registry, beanName)) {
+      if (registry.containsBeanDefinition(beanName)
+          && poolNames.isDefaultCandidate(registry, beanName)) {
         throw new StratumException(
             DataErrorCode.POOL_BEAN_DEFAULT_CANDIDATE,
             "the bean %s is a default candidate".formatted(beanName));
       }
     }
-  }
-
-  /**
-   * Returns whether a defined bean is a default candidate, which a definition of no Spring kind
-   * always is.
-   */
-  private boolean isDefaultCandidate(BeanDefinitionRegistry registry, String beanName) {
-    return !(registry.getBeanDefinition(beanName) instanceof AbstractBeanDefinition definition)
-        || definition.isDefaultCandidate();
   }
 
   /** Registers a bean that is no default candidate, unless the service defines one of that name. */

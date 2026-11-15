@@ -123,4 +123,13 @@ public class DataConstants {
 
   /** Whether Spring translates JDBC errors, which picks the kind of transaction manager. */
   public static final String EXCEPTION_TRANSLATION = "spring.dao.exceptiontranslation.enabled";
+
+  /** The name of the bean that routes the mapped repositories' connections to their pools. */
+  public static final String ROUTING_BEAN = "stratumRoutingDataSource";
+
+  /** The key after a named pool's name that maps repository packages to the pool. */
+  public static final String PACKAGES_KEY = "packages";
+
+  /** Whether Spring Boot borrows a connection at transaction begin or at the first statement. */
+  public static final String CONNECTION_FETCH = "spring.datasource.connection-fetch";
 }

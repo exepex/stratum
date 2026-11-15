@@ -57,3 +57,6 @@ Two facts constrain the design:
   not only for a bean from the service.
 - Rules ST-ENG-21, ST-ENG-22, ST-ENG-60, ST-ENG-61, ST-ENG-65 and ST-TEST-20 carry the decision into
   the code.
+- [ADR 0022](0022-routing-data-source-is-the-only-primary.md) narrows decision 2 for one bean: the
+  routing data source of repositories mapped to named pools is primary and stops startup rather than
+  back off.

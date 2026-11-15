@@ -92,11 +92,27 @@ class JdbcStubs {
    */
   PreparedStatement boundaryStatement(StatementSpans spans, Connection connection, String sql)
       throws SQLException {
-    var pool =
-        stub(
-            DataSource.class, (method, args) -> "getConnection".equals(method) ? connection : null);
     var dataSource =
-        new JdbcBoundary(new JdbcWrapperClasses(), List.of()).withSpans(spans).wrap(pool);
+        new JdbcBoundary(new JdbcWrapperClasses(), List.of())
+            .withSpans(spans)
+            .wrap(poolOf(connection));
     return dataSource.getConnection().prepareStatement(sql);
+  }
+
+  /**
+   * Returns a pool stub that hands out a new connection stub for each borrow.
+   *
+   * @return the pool stub
+   */
+  DataSource stubPool() {
+    return stub(
+        DataSource.class,
+        (method, args) -> "getConnection".equals(method) ? stubConnection() : null);
+  }
+
+  /** Returns a pool stub that hands out the given connection for each borrow. */
+  private DataSource poolOf(Connection connection) {
+    return stub(
+        DataSource.class, (method, args) -> "getConnection".equals(method) ? connection : null);
   }
 }

@@ -22,7 +22,8 @@ import org.springframework.test.context.TestPropertySource;
 @TestPropertySource(
     properties = {
       "spring.datasource.hikari.maximum-pool-size=1",
-      "spring.datasource.hikari.connection-timeout=250"
+      "spring.datasource.hikari.connection-timeout=250",
+      "spring.datasource.connection-fetch=eager"
     })
 @DisplayName("An exhausted pool's error keeps its class and message through the boundary")
 class JdbcBoundaryPoolTimeoutIntegrationTest {

@@ -95,6 +95,13 @@ Stratum auto-configuration can also run before an unordered company auto-configu
 module page says so. In that case the company orders its auto-configuration before Stratum's with
 `beforeName`, as shown below, or the service turns the Stratum module off.
 
+One bean does not step back: the routing data source of the data JPA starter, which exists only
+when a service maps repositories to [named pools](../modules/data-named-pools.md#repositories-on-a-pool).
+It must be the one primary `DataSource`, so a company's own `DataSource` or primary `DataSource`
+next to a mapping stops startup with `SX-DATA-1007` instead
+([ADR 0022](../adr/0022-routing-data-source-is-the-only-primary.md)). Drop the mapping and reach
+the pool by its qualifier, or keep Spring Boot's `dataSource`.
+
 A company auto-configuration that sets its own late order can still run before Stratum's by naming
 it, for example
 `@AutoConfiguration(beforeName = "com.exepex.stratum.webmvc.autoconfigure.WebMvcRequestFieldsAutoConfiguration")`.

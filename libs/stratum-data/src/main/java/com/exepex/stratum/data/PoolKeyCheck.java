@@ -121,9 +121,21 @@ public class PoolKeyCheck {
     checkName(key.getElement(NAME_ELEMENT, Form.ORIGINAL));
     boolean hikari =
         DataConstants.HIKARI_KEYS.equals(key.getElement(NAME_ELEMENT + 1, Form.UNIFORM));
-    if (!hikari && !KEYS.contains(uniformFrom(key, NAME_ELEMENT + 1))) {
+    if (!hikari && !isPackagesKey(key) && !KEYS.contains(uniformFrom(key, NAME_ELEMENT + 1))) {
       throw invalid("%s is not a key of a named pool".formatted(LogLines.oneLine(key.toString())));
     }
+  }
+
+  /**
+   * Returns whether a key is a pool's {@code packages}, as one value or as a list element, such as
+   * {@code packages[0]} or {@code PACKAGES_0}.
+   */
+  private boolean isPackagesKey(ConfigurationPropertyName key) {
+    if (!DataConstants.PACKAGES_KEY.equals(key.getElement(NAME_ELEMENT + 1, Form.UNIFORM))) {
+      return false;
+    }
+    return IntStream.range(NAME_ELEMENT + 2, key.getNumberOfElements())
+        .allMatch(key::isNumericIndex);
   }
 
   /** Returns whether a key after {@code hikari.}, in uniform form, is one of HikariCP's. */

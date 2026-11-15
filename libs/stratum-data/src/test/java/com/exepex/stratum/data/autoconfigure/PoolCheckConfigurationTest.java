@@ -16,6 +16,7 @@ import com.exepex.stratum.data.DataConstants;
 import com.exepex.stratum.data.DataErrorCode;
 import com.exepex.stratum.data.DataProperties;
 import com.exepex.stratum.data.PoolCheck;
+import com.exepex.stratum.data.testsupport.NamedPoolTestData;
 import com.exepex.stratum.test.LogLineCapture;
 import com.zaxxer.hikari.HikariDataSource;
 import java.util.List;
@@ -30,6 +31,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.support.AbstractBeanDefinition;
+import org.springframework.beans.factory.support.BeanDefinitionRegistryPostProcessor;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
@@ -182,6 +184,23 @@ class PoolCheckConfigurationTest {
                       .containsExactlyInAnyOrder(
                           "Pool 'main' opens at most 10 connections",
                           "Pool 'batch' opens at most 4 connections"));
+    }
+
+    @Test
+    @DisplayName("Stratum's routing data source is no pool: no line, and nothing counted")
+    void skipsRouter() {
+      withBatchPool()
+          .withBean(
+              "routerRegistrar",
+              BeanDefinitionRegistryPostProcessor.class,
+              NamedPoolTestData::routerRegistrar)
+          .run(
+              context ->
+                  assertThat(lines.lines())
+                      .extracting(ILoggingEvent::getFormattedMessage)
+                      .containsExactlyInAnyOrder(
+                          "Pool 'main' opens at most 10 connections",
+                          "Pool 'batch' opens at most 10 connections"));
     }
   }
 

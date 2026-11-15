@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
+import com.exepex.stratum.data.testsupport.NamedPoolTestData;
 import com.exepex.stratum.test.LogLineCapture;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -328,6 +329,19 @@ class DatabaseTlsCheckTest {
 
       assertThat(check.dataSources()).containsOnlyKeys(DATA_SOURCE);
       assertThat(created).isFalse();
+    }
+
+    @Test
+    @DisplayName("not Stratum's routing data source, whose pools are checked as beans of their own")
+    void skipsRouter() {
+      context.registerBean(DATA_SOURCE, DataSource.class, () -> mock(DataSource.class));
+      context.registerBean(
+          DataConstants.ROUTING_BEAN,
+          DataSource.class,
+          () -> NamedPoolTestData.lazyRouter(mock(DataSource.class)));
+      context.refresh();
+
+      assertThat(check.dataSources()).containsOnlyKeys(DATA_SOURCE);
     }
   }
 }
