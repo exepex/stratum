@@ -40,9 +40,7 @@ public class DataJpaEnvironmentPostProcessor implements EnvironmentPostProcessor
           DataJpaConstants.JPA_PROPERTIES + JdbcSettings.LOG_JDBC_ERRORS,
           false,
           DataJpaConstants.JPA_PROPERTIES + JdbcSettings.LOG_JDBC_WARNINGS,
-          false,
-          DataJpaConstants.IGNORE_ROUTING_HEALTH,
-          true);
+          false);
 
   /** The defaults that can change what a consumer sees, so apply only outside compatible mode. */
   private static final Map<String, Object> EXTERNAL_DEFAULTS =

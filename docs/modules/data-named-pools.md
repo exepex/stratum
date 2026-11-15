@@ -175,7 +175,9 @@ repository runs. It changes a few things:
   request's entity manager would hold one pool's connection for the whole request. Stratum turns
   it off by default; with `stratum.backward-compatible=true`, set `spring.jpa.open-in-view=false`.
 - The `db` health check and the pool metrics list each pool, never the routing data source:
-  Stratum sets Spring Boot's `management.health.db.ignore-routing-data-sources=true`.
+  with a mapping, Stratum sets Spring Boot's `management.health.db.ignore-routing-data-sources`
+  to `true`. Without a mapping it sets nothing, so a routing data source of your own keeps its
+  entry. A value you set yourself wins.
 
 ### Limits
 

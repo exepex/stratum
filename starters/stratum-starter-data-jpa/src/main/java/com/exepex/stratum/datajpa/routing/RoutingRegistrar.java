@@ -1,6 +1,7 @@
 package com.exepex.stratum.datajpa.routing;
 
 import com.exepex.stratum.core.api.StratumInternal;
+import com.exepex.stratum.core.properties.StratumDefaults;
 import com.exepex.stratum.data.DataConstants;
 import com.exepex.stratum.data.DataProperties;
 import com.exepex.stratum.data.NamedPoolNames;
@@ -27,6 +28,7 @@ import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.BeanDefinitionRegistryPostProcessor;
 import org.springframework.beans.factory.support.RootBeanDefinition;
 import org.springframework.context.EnvironmentAware;
+import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.Environment;
 import org.springframework.jdbc.datasource.LazyConnectionDataSourceProxy;
 import org.springframework.util.ClassUtils;
@@ -84,7 +86,20 @@ public final class RoutingRegistrar
       throw new IllegalStateException("the bean registry is not a bean factory");
     }
     primaryCheck.check(registry, beanFactory);
+    addHealthDefault(env);
     register(registry, beanFactory, pools);
+  }
+
+  /**
+   * Leaves the routing data source out of the database health check, which then checks each pool on
+   * its own. It sits below every value of the service, so the service's own value wins, and it
+   * applies only with a mapping, so a service's own routing data source keeps its health entry.
+   */
+  private void addHealthDefault(Environment environment) {
+    if (environment instanceof ConfigurableEnvironment configurable) {
+      StratumDefaults.addBelowServiceValues(
+          configurable, Map.of(DataJpaConstants.IGNORE_ROUTING_HEALTH, true));
+    }
   }
 
   /**

@@ -35,9 +35,6 @@ class DataJpaEnvironmentPostProcessorTest {
 
   private static final String OPEN_IN_VIEW = "spring.jpa.open-in-view";
 
-  private static final String IGNORE_ROUTING_HEALTH =
-      "management.health.db.ignore-routing-data-sources";
-
   private static final String FAIL_ON_PAGINATION =
       "spring.jpa.properties.hibernate.query.fail_on_pagination_over_collection_fetch";
 
@@ -55,8 +52,7 @@ class DataJpaEnvironmentPostProcessorTest {
           ORDER_INSERTS, ON,
           ORDER_UPDATES, ON,
           LOG_JDBC_ERRORS, OFF,
-          LOG_JDBC_WARNINGS, OFF,
-          IGNORE_ROUTING_HEALTH, ON);
+          LOG_JDBC_WARNINGS, OFF);
 
   /** The defaults that apply only with {@code stratum.backward-compatible=false}. */
   private static final Map<String, String> EXTERNAL_DEFAULTS =
@@ -71,7 +67,6 @@ class DataJpaEnvironmentPostProcessorTest {
           arguments(ORDER_UPDATES, OFF),
           arguments(LOG_JDBC_ERRORS, ON),
           arguments(LOG_JDBC_WARNINGS, ON),
-          arguments(IGNORE_ROUTING_HEALTH, OFF),
           arguments(OPEN_IN_VIEW, ON),
           arguments(FAIL_ON_PAGINATION, OFF));
 
@@ -115,6 +110,14 @@ class DataJpaEnvironmentPostProcessorTest {
 
       assertSet(environment, INTERNAL_DEFAULTS);
       assertSet(environment, EXTERNAL_DEFAULTS);
+    }
+
+    @Test
+    @DisplayName("it leaves the health key unset, which the registrar sets only with a mapping")
+    void leavesHealthKeyUnset() {
+      var environment = runPostProcessor(new MockEnvironment());
+
+      assertThat(environment.getProperty(DataJpaConstants.IGNORE_ROUTING_HEALTH)).isNull();
     }
 
     @ParameterizedTest(name = "{0}={1}")

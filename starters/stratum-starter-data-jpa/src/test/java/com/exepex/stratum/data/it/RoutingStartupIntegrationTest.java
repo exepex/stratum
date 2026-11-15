@@ -9,6 +9,7 @@ import com.exepex.stratum.data.it.orders.OrdersApplication;
 import com.exepex.stratum.data.it.pools.PoolsApplication;
 import com.exepex.stratum.data.testsupport.PoolDatabases;
 import com.exepex.stratum.data.testsupport.ServiceDataSources;
+import com.exepex.stratum.datajpa.DataJpaConstants;
 import com.exepex.stratum.test.PostgresContainerConfiguration;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -19,8 +20,10 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.boot.health.contributor.CompositeHealthContributor;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.context.ConfigurableApplicationContext;
 
 @ExtendWith(OutputCaptureExtension.class)
 @DisplayName("On PostgreSQL, routing starts only where it is safe, and stays out without a mapping")
@@ -48,6 +51,11 @@ class RoutingStartupIntegrationTest {
         .sources(sources)
         .web(WebApplicationType.NONE)
         .properties(PoolDatabases.SQL_INIT);
+  }
+
+  /** Returns Spring Boot's db health check, which holds one entry per data source it checks. */
+  private CompositeHealthContributor healthOf(ConfigurableApplicationContext context) {
+    return context.getBean("dbHealthContributor", CompositeHealthContributor.class);
   }
 
   /** Checks that the application starts, and whether it has the routing data source. */
@@ -108,11 +116,46 @@ class RoutingStartupIntegrationTest {
     }
 
     @Test
+    @DisplayName("a service whose only data source is its own routing one starts, in db health")
+    void ownRouterStarts() {
+      try (var context = unmapped(ServiceDataSources.OwnRouter.class).run()) {
+        assertThat(healthOf(context).getContributor(ServiceDataSources.ROUTER_KEY)).isNotNull();
+        assertThat(context.getEnvironment().getProperty(DataJpaConstants.IGNORE_ROUTING_HEALTH))
+            .isNull();
+      }
+    }
+
+    @Test
     @DisplayName("a servlet application with open-in-view on starts")
     void servletOpenInViewStarts() {
       assertStarts(
           unmapped().web(WebApplicationType.SERVLET).properties(BACKWARD_COMPATIBLE, ANY_PORT),
           false);
+    }
+  }
+
+  @Nested
+  @DisplayName("the db health check, with a mapping")
+  class Health {
+
+    @Test
+    @DisplayName("leaves out the routing data source by default")
+    void skipsRouter() {
+      try (var context = mappedPools(WebApplicationType.NONE).run()) {
+        assertThat(healthOf(context).getContributor(DataConstants.ROUTING_BEAN)).isNull();
+      }
+    }
+
+    @Test
+    @DisplayName("lists it when the service sets the key to false, whose value wins")
+    void serviceValueWins() {
+      var application =
+          mappedPools(WebApplicationType.NONE)
+              .properties(DataJpaConstants.IGNORE_ROUTING_HEALTH + "=false");
+
+      try (var context = application.run()) {
+        assertThat(healthOf(context).getContributor(DataConstants.ROUTING_BEAN)).isNotNull();
+      }
     }
   }
 
