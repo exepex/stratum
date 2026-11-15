@@ -131,7 +131,9 @@ Every starter follows these rules:
   and a service turns it off with `stratum.<module>.enabled=false` (ADR 0010). The missing-bean condition checks the
   type that services inject, such as Resilience4j's `CircuitBreakerRegistry`, not a Stratum class. Every bean is also
   marked `@Fallback`, so that when another framework's bean of the same type exists, Spring injects that one
-  ([ADR 0001](../adr/0001-coexistence-with-company-frameworks.md)). For a type that Spring Boot already
+  ([ADR 0001](../adr/0001-coexistence-with-company-frameworks.md)). Only the routing data source breaks this: it
+  is `@Primary`, with neither `@ConditionalOnMissingBean` nor `@Fallback`
+  ([ADR 0022](../adr/0022-routing-data-source-is-the-only-primary.md)). For a type that Spring Boot already
   auto-configures, such as `RestClient.Builder`, Stratum does not define its own bean: it adjusts Boot's bean through
   a customizer (ST-ENG-24). One exception: when Spring Boot backs off from its `applicationTaskExecutor` because the
   service declares an executor of another kind, `stratum-core` defines that executor with Boot's own builder, so
