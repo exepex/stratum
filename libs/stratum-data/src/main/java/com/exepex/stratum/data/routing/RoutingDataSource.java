@@ -3,7 +3,6 @@ package com.exepex.stratum.data.routing;
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.data.DataConstants;
 import com.exepex.stratum.data.PoolRouter;
-import java.lang.reflect.Proxy;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.HashMap;
@@ -70,15 +69,8 @@ public final class RoutingDataSource extends AbstractRoutingDataSource implement
     throw new SQLException("The routing data source wraps no " + iface.getName());
   }
 
-  /**
-   * Returns the connection with each statement checked against the pool it was opened on. The
-   * platform class loader defines {@link Connection}, the only interface of the proxy.
-   */
+  /** Returns the connection with each statement checked against the pool it was opened on. */
   private Connection checked(Connection connection, String pool) {
-    return (Connection)
-        Proxy.newProxyInstance(
-            ClassLoader.getPlatformClassLoader(),
-            new Class<?>[] {Connection.class},
-            CheckedConnection.builder().connection(connection).pool(pool).routing(routing).build());
+    return CheckedConnection.builder().connection(connection).pool(pool).routing(routing).build();
   }
 }

@@ -3,10 +3,10 @@ package com.exepex.stratum.data.routing;
 import static com.exepex.stratum.data.testsupport.NamedPoolTestData.BATCH;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.mockingDetails;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -17,7 +17,9 @@ import com.exepex.stratum.data.PoolRouters;
 import com.exepex.stratum.data.testsupport.MockDatabase;
 import com.zaxxer.hikari.HikariDataSource;
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.List;
 import java.util.Map;
 import javax.sql.DataSource;
@@ -26,6 +28,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.jdbc.datasource.LazyConnectionDataSourceProxy;
 
@@ -96,46 +99,97 @@ class RoutingDataSourceTest {
     }
   }
 
+  /** Returns how often the pool's connection was asked for a statement, by name and arity. */
+  private long statementCalls(String method, int arity) {
+    return mockingDetails(batch.connection).getInvocations().stream()
+        .filter(call -> call.getMethod().getName().equals(method))
+        .filter(call -> call.getArguments().length == arity)
+        .count();
+  }
+
   @Nested
   @DisplayName("a statement")
   class Statements {
 
-    /** Each way a connection makes a statement. */
-    private static final List<ThrowingConsumer<Connection>> STATEMENT_KINDS =
-        List.of(
-            Connection::createStatement,
-            connection -> connection.prepareStatement("SELECT 1"),
-            connection -> connection.prepareCall("{call p()}"));
+    /** The method that creates a plain statement. */
+    private static final String CREATE = "createStatement";
 
-    @ParameterizedTest
+    /** The method that prepares a statement. */
+    private static final String PREPARE = "prepareStatement";
+
+    /** The method that prepares a call. */
+    private static final String PREPARE_CALL = "prepareCall";
+
+    /** The SQL of each prepared statement. */
+    private static final String SQL = "SELECT 1";
+
+    /** The call of each callable statement. */
+    private static final String CALL = "{call p()}";
+
+    /** A result set read forward only. */
+    private static final int FORWARD = ResultSet.TYPE_FORWARD_ONLY;
+
+    /** A result set that cannot be changed. */
+    private static final int READ_ONLY = ResultSet.CONCUR_READ_ONLY;
+
+    /** A result set kept open over a commit. */
+    private static final int HOLD = ResultSet.HOLD_CURSORS_OVER_COMMIT;
+
+    /** The index of the first column, whose generated key the statement returns. */
+    private static final int FIRST_COLUMN = 1;
+
+    /**
+     * Each of the 12 ways a connection makes a statement: the method, its number of arguments and
+     * the call.
+     */
+    private static final List<Arguments> STATEMENT_KINDS =
+        List.of(
+            arguments(CREATE, 0, (Kind) Connection::createStatement),
+            arguments(CREATE, 2, (Kind) c -> c.createStatement(FORWARD, READ_ONLY)),
+            arguments(CREATE, 3, (Kind) c -> c.createStatement(FORWARD, READ_ONLY, HOLD)),
+            arguments(PREPARE, 1, (Kind) c -> c.prepareStatement(SQL)),
+            arguments(
+                PREPARE, 2, (Kind) c -> c.prepareStatement(SQL, Statement.RETURN_GENERATED_KEYS)),
+            arguments(PREPARE, 2, (Kind) c -> c.prepareStatement(SQL, new int[] {FIRST_COLUMN})),
+            arguments(PREPARE, 2, (Kind) c -> c.prepareStatement(SQL, new String[] {"id"})),
+            arguments(PREPARE, 3, (Kind) c -> c.prepareStatement(SQL, FORWARD, READ_ONLY)),
+            arguments(PREPARE, 4, (Kind) c -> c.prepareStatement(SQL, FORWARD, READ_ONLY, HOLD)),
+            arguments(PREPARE_CALL, 1, (Kind) c -> c.prepareCall(CALL)),
+            arguments(PREPARE_CALL, 3, (Kind) c -> c.prepareCall(CALL, FORWARD, READ_ONLY)),
+            arguments(PREPARE_CALL, 4, (Kind) c -> c.prepareCall(CALL, FORWARD, READ_ONLY, HOLD)));
+
+    @ParameterizedTest(name = "[{index}] {0} with {1} arguments")
     @FieldSource("STATEMENT_KINDS")
-    @DisplayName("runs on a connection of the pool its call wants")
-    void samePoolRuns(ThrowingConsumer<Connection> statement) throws SQLException {
+    @DisplayName("on a connection of the pool its call wants, reaches the same driver method")
+    void samePoolRuns(String method, int arity, Kind statement) throws SQLException {
       var previous = routing.enter(BATCH);
       try (var connection = router.getConnection()) {
         statement.accept(connection);
-
-        assertThat(connection.isClosed()).isFalse();
       } finally {
         routing.exit(previous);
       }
+
+      assertThat(statementCalls(method, arity)).isOne();
     }
 
-    @ParameterizedTest
+    @ParameterizedTest(name = "[{index}] {0} with {1} arguments")
     @FieldSource("STATEMENT_KINDS")
     @DisplayName(
         "on a connection of another pool fails with SX-DATA-1008 before the driver sees it")
-    void otherPoolFails(ThrowingConsumer<Connection> statement) throws SQLException {
+    void otherPoolFails(String method, int arity, Kind statement) throws SQLException {
       try (var connection = openOn(BATCH)) {
         assertThatThrownBy(() -> statement.accept(connection))
             .isInstanceOf(StratumException.class)
             .hasMessageContaining(DataErrorCode.POOL_MIXED.getCode());
       }
-      verify(batch.connection, never()).createStatement();
-      verify(batch.connection, never()).prepareStatement(anyString());
-      verify(batch.connection, never()).prepareCall(anyString());
+
+      assertThat(statementCalls(method, arity)).isZero();
     }
   }
+
+  /** One way a connection makes a statement. */
+  @FunctionalInterface
+  interface Kind extends ThrowingConsumer<Connection> {}
 
   @Nested
   @DisplayName("the connection it returns")
