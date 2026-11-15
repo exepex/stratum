@@ -145,18 +145,44 @@ class RoutingDataSourceTest {
     private static final List<Arguments> STATEMENT_KINDS =
         List.of(
             arguments(CREATE, 0, (Kind) Connection::createStatement),
-            arguments(CREATE, 2, (Kind) c -> c.createStatement(FORWARD, READ_ONLY)),
-            arguments(CREATE, 3, (Kind) c -> c.createStatement(FORWARD, READ_ONLY, HOLD)),
-            arguments(PREPARE, 1, (Kind) c -> c.prepareStatement(SQL)),
             arguments(
-                PREPARE, 2, (Kind) c -> c.prepareStatement(SQL, Statement.RETURN_GENERATED_KEYS)),
-            arguments(PREPARE, 2, (Kind) c -> c.prepareStatement(SQL, new int[] {FIRST_COLUMN})),
-            arguments(PREPARE, 2, (Kind) c -> c.prepareStatement(SQL, new String[] {"id"})),
-            arguments(PREPARE, 3, (Kind) c -> c.prepareStatement(SQL, FORWARD, READ_ONLY)),
-            arguments(PREPARE, 4, (Kind) c -> c.prepareStatement(SQL, FORWARD, READ_ONLY, HOLD)),
-            arguments(PREPARE_CALL, 1, (Kind) c -> c.prepareCall(CALL)),
-            arguments(PREPARE_CALL, 3, (Kind) c -> c.prepareCall(CALL, FORWARD, READ_ONLY)),
-            arguments(PREPARE_CALL, 4, (Kind) c -> c.prepareCall(CALL, FORWARD, READ_ONLY, HOLD)));
+                CREATE, 2, (Kind) connection -> connection.createStatement(FORWARD, READ_ONLY)),
+            arguments(
+                CREATE,
+                3,
+                (Kind) connection -> connection.createStatement(FORWARD, READ_ONLY, HOLD)),
+            arguments(PREPARE, 1, (Kind) connection -> connection.prepareStatement(SQL)),
+            arguments(
+                PREPARE,
+                2,
+                (Kind)
+                    connection ->
+                        connection.prepareStatement(SQL, Statement.RETURN_GENERATED_KEYS)),
+            arguments(
+                PREPARE,
+                2,
+                (Kind) connection -> connection.prepareStatement(SQL, new int[] {FIRST_COLUMN})),
+            arguments(
+                PREPARE,
+                2,
+                (Kind) connection -> connection.prepareStatement(SQL, new String[] {"id"})),
+            arguments(
+                PREPARE,
+                3,
+                (Kind) connection -> connection.prepareStatement(SQL, FORWARD, READ_ONLY)),
+            arguments(
+                PREPARE,
+                4,
+                (Kind) connection -> connection.prepareStatement(SQL, FORWARD, READ_ONLY, HOLD)),
+            arguments(PREPARE_CALL, 1, (Kind) connection -> connection.prepareCall(CALL)),
+            arguments(
+                PREPARE_CALL,
+                3,
+                (Kind) connection -> connection.prepareCall(CALL, FORWARD, READ_ONLY)),
+            arguments(
+                PREPARE_CALL,
+                4,
+                (Kind) connection -> connection.prepareCall(CALL, FORWARD, READ_ONLY, HOLD)));
 
     @ParameterizedTest(name = "[{index}] {0} with {1} arguments")
     @FieldSource("STATEMENT_KINDS")

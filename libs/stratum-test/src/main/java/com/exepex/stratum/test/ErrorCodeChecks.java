@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.error.ErrorCode;
+import com.exepex.stratum.core.error.StratumException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -12,10 +13,12 @@ import java.util.List;
 import java.util.regex.MatchResult;
 import java.util.regex.Pattern;
 import lombok.experimental.UtilityClass;
+import org.springframework.boot.test.context.assertj.ApplicationContextAssertProvider;
+import org.springframework.core.NestedExceptionUtils;
 
 /**
  * Checks a module's error codes against the error codes page, so that the code, the page and Spring
- * Boot's failure report always agree.
+ * Boot's failure report always agree, and the code a failed startup carries.
  */
 @StratumInternal
 @UtilityClass
@@ -66,5 +69,24 @@ public class ErrorCodeChecks {
             .orElseThrow(() -> new AssertionError(code + " has no row on the error codes page"));
     var cells = CELL_SEPARATOR.split(row.substring(0, row.lastIndexOf(" |")));
     return cells[cells.length - 1].replace("`", "");
+  }
+
+  /**
+   * Returns the cause that stopped an application, which must be a {@code StratumException} with
+   * the code.
+   *
+   * @param context the application that failed to start
+   * @param code the failure's expected code
+   * @return the failure
+   */
+  public static StratumException startupFailureOf(
+      ApplicationContextAssertProvider<?> context, ErrorCode code) {
+    assertThat(context.getStartupFailure()).as("the startup failure").isNotNull();
+    var failure = NestedExceptionUtils.getMostSpecificCause(context.getStartupFailure());
+    if (failure instanceof StratumException stratum) {
+      assertThat(stratum.getErrorCode()).isEqualTo(code);
+      return stratum;
+    }
+    throw new AssertionError("the startup failure is no StratumException: " + failure);
   }
 }

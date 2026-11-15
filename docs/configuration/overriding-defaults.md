@@ -186,6 +186,8 @@ Every bean Stratum creates is marked `@ConditionalOnMissingBean`. If your applic
 of the same type, Stratum's version is not created and yours is used. The same holds for a bean from
 your company's framework; see
 [Using Stratum with a company framework](../guides/company-framework.md#rule-2-the-companys-bean-wins).
+The one exception is the routing data source, which stops startup instead
+([ADR 0022](../adr/0022-routing-data-source-is-the-only-primary.md)).
 
 Example: a service with very specific security rules defines its own filter chain:
 

@@ -1,7 +1,6 @@
 package com.exepex.stratum.data.autoconfigure;
 
 import static com.exepex.stratum.data.testsupport.NamedPoolContexts.poolOf;
-import static com.exepex.stratum.data.testsupport.NamedPoolContexts.startupFailureOf;
 import static com.exepex.stratum.data.testsupport.NamedPoolContexts.withBatchPool;
 import static com.exepex.stratum.data.testsupport.NamedPoolContexts.withMainPool;
 import static com.exepex.stratum.data.testsupport.NamedPoolTestData.BATCH_DATA_SOURCE;
@@ -10,6 +9,7 @@ import static com.exepex.stratum.data.testsupport.NamedPoolTestData.BATCH_KEYS;
 import static com.exepex.stratum.data.testsupport.NamedPoolTestData.BATCH_MANAGER;
 import static com.exepex.stratum.data.testsupport.NamedPoolTestData.URL;
 import static com.exepex.stratum.data.testsupport.NamedPoolTestData.withVariables;
+import static com.exepex.stratum.test.ErrorCodeChecks.startupFailureOf;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.data.DataConstants;

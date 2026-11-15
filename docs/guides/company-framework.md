@@ -67,7 +67,8 @@ steps back. Stratum does this in three ways:
    Boot already creates the bean, such as `RestClient.Builder`, Stratum does not create its own: it
    adds its settings to Boot's bean through a customizer. A company bean of that type then replaces
    Boot's bean, and Stratum's settings are applied to it only if the company builds it from Boot's
-   customizers.
+   customizers. The one exception is the routing data source, which stops startup instead of
+   stepping back ([ADR 0022](../adr/0022-routing-data-source-is-the-only-primary.md)).
 2. **Stratum's auto-configurations run late.** Spring Boot creates auto-configured beans in a
    sorted order. Stratum's auto-configurations sort after every auto-configuration that does not
    declare its own order, so the company's beans exist by the time Stratum checks for them.
@@ -76,7 +77,8 @@ steps back. Stratum does this in three ways:
    condition, Spring injects the company's bean and not Stratum's (`@Fallback`). Code that injects
    a list of all beans of that type still receives both. `@Fallback` only chooses between beans
    that exist: it cannot bring back a company bean that backed off because Stratum's was there
-   first.
+   first. The routing data source is not a fallback either: it is `@Primary`
+   ([ADR 0022](../adr/0022-routing-data-source-is-the-only-primary.md)).
 
 What this means in practice:
 

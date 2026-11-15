@@ -45,17 +45,17 @@ class RoutingRegistrarWithoutHikariTest {
   }
 
   /** Returns the test's class path, which Surefire names, with HikariCP's jar left out. */
-  private static URL[] classPathWithoutHikari() {
+  private URL[] classPathWithoutHikari() {
     var classPath =
         System.getProperty("surefire.test.class.path", System.getProperty("java.class.path"));
     return Arrays.stream(classPath.split(File.pathSeparator))
         .filter(entry -> !Path.of(entry).getFileName().toString().startsWith(HIKARI_JAR))
-        .map(RoutingRegistrarWithoutHikariTest::url)
+        .map(this::url)
         .toArray(URL[]::new);
   }
 
   /** Returns a class path entry's URL. */
-  private static URL url(String entry) {
+  private URL url(String entry) {
     try {
       return Path.of(entry).toUri().toURL();
     } catch (MalformedURLException failure) {

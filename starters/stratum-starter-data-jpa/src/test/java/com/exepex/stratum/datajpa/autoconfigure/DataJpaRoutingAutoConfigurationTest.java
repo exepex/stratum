@@ -1,8 +1,8 @@
 package com.exepex.stratum.datajpa.autoconfigure;
 
+import static com.exepex.stratum.test.ErrorCodeChecks.startupFailureOf;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.data.DataConstants;
 import com.exepex.stratum.data.DataErrorCode;
 import com.exepex.stratum.data.testsupport.RoutingPackagesCustomizer;
@@ -17,7 +17,6 @@ import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.BeanDefinitionRegistryPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.FilteredClassLoader;
-import org.springframework.boot.test.context.assertj.ApplicationContextAssertProvider;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
@@ -45,17 +44,6 @@ class DataJpaRoutingAutoConfigurationTest {
   private final WebApplicationContextRunner servletRunner =
       new WebApplicationContextRunner()
           .withConfiguration(AutoConfigurations.of(DataJpaRoutingAutoConfiguration.class));
-
-  /** Returns the failure of a context that must fail with an error code. */
-  private Throwable startupFailureOf(
-      ApplicationContextAssertProvider<?> context, DataErrorCode code) {
-    assertThat(context).hasFailed();
-    var failure = context.getStartupFailure();
-    var stratum = failure instanceof StratumException own ? own : failure.getCause();
-    assertThat(stratum).isInstanceOf(StratumException.class);
-    assertThat(((StratumException) stratum).getErrorCode()).isEqualTo(code);
-    return stratum;
-  }
 
   @Nested
   @DisplayName("the registrar")
