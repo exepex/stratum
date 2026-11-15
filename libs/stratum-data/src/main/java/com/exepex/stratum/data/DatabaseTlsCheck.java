@@ -37,12 +37,6 @@ public class DatabaseTlsCheck implements SmartApplicationListener, DisposableBea
   private static final String DOCS =
       "https://github.com/exepex/stratum/blob/main/docs/modules/data-tls-check.md";
 
-  /**
-   * The line breaks a bean or database name could hold, replaced so that each message stays on one
-   * line; the replacement is written in each log call, where SpotBugs sees it.
-   */
-  private static final String LINE_BREAKS = "[\r\n]";
-
   /** The driver class whose presence adds the PostgreSQL reader. */
   private static final String POSTGRES_DRIVER = "org.postgresql.Driver";
 
@@ -112,17 +106,19 @@ public class DatabaseTlsCheck implements SmartApplicationListener, DisposableBea
   }
 
   /**
-   * Returns the data source beans that already exist, by name, without creating any bean: a lazy
-   * data source not yet used is not checked.
+   * Returns the data source beans that already exist, by their pool's name, without creating any
+   * bean: a lazy data source not yet used is not checked, and a pool two beans hand out is checked
+   * once.
    *
-   * @return the data sources, by bean name
+   * @return the data sources, by pool name
    */
   Map<String, DataSource> dataSources() {
     var beanFactory = context.getBeanFactory();
     var dataSources = new LinkedHashMap<String, DataSource>();
     for (var name : beanFactory.getBeanNamesForType(DataSource.class, false, false)) {
       if (beanFactory.containsSingleton(name)) {
-        dataSources.put(name, beanFactory.getBean(name, DataSource.class));
+        var dataSource = beanFactory.getBean(name, DataSource.class);
+        dataSources.put(PoolNames.nameOf(dataSource, name, context.getClassLoader()), dataSource);
       }
     }
     return dataSources;
@@ -132,7 +128,7 @@ public class DatabaseTlsCheck implements SmartApplicationListener, DisposableBea
    * Checks the data sources on the check's own daemon thread. An error that ends the thread is
    * logged with its class only, and the service goes on.
    *
-   * @param dataSources the data sources, by bean name
+   * @param dataSources the data sources, by pool name
    */
   void start(Map<String, DataSource> dataSources) {
     var started =
@@ -140,8 +136,7 @@ public class DatabaseTlsCheck implements SmartApplicationListener, DisposableBea
     started.setUncaughtExceptionHandler(
         (_, error) ->
             log.warn(
-                ("The database TLS check stopped: " + error.getClass().getName())
-                    .replaceAll(LINE_BREAKS, " ")));
+                LogLines.oneLine("The database TLS check stopped: " + error.getClass().getName())));
     thread.set(started);
     started.start();
   }
@@ -149,7 +144,7 @@ public class DatabaseTlsCheck implements SmartApplicationListener, DisposableBea
   /**
    * Checks each data source in turn, until the application closes.
    *
-   * @param dataSources the data sources, by bean name
+   * @param dataSources the data sources, by pool name
    */
   void checkAll(Map<String, DataSource> dataSources) {
     for (var dataSource : dataSources.entrySet()) {
@@ -172,23 +167,23 @@ public class DatabaseTlsCheck implements SmartApplicationListener, DisposableBea
         logNotChecked(name, product);
       } else if (!reader.get().encrypted(connection) && !closing.get() && log.isWarnEnabled()) {
         log.warn(
-            ("The data source '"
+            LogLines.oneLine(
+                "The data source '"
                     + name
                     + "' connects to the database without TLS. Set sslmode=verify-full in the JDBC"
                     + " URL of data source '"
                     + name
                     + "'. See "
-                    + DOCS)
-                .replaceAll(LINE_BREAKS, " "));
+                    + DOCS));
       }
     } catch (SQLException | RuntimeException failure) {
       if (!closing.get() && log.isWarnEnabled()) {
         log.warn(
-            ("Could not check whether the data source '"
+            LogLines.oneLine(
+                "Could not check whether the data source '"
                     + name
                     + "' uses TLS: "
-                    + failure.getClass().getName())
-                .replaceAll(LINE_BREAKS, " "));
+                    + failure.getClass().getName()));
       }
     }
   }
@@ -197,11 +192,11 @@ public class DatabaseTlsCheck implements SmartApplicationListener, DisposableBea
   private void logNotChecked(String name, @Nullable String databaseProductName) {
     if (log.isDebugEnabled()) {
       log.debug(
-          ("The data source '"
+          LogLines.oneLine(
+              "The data source '"
                   + name
                   + "' is not checked for TLS: no check for "
-                  + databaseProductName)
-              .replaceAll(LINE_BREAKS, " "));
+                  + databaseProductName));
     }
   }
 

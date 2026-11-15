@@ -35,6 +35,9 @@ public class StatementLimitsFactory implements AutoCloseable {
   /** The longest limit kept, in milliseconds; a longer one is cut to it. */
   private static final Duration LONGEST_LIMIT = Duration.ofMillis(StatementSlot.MAX_DEADLINE);
 
+  /** The settings of a data source that is no named pool: none set. */
+  private static final PoolSettings NO_SETTINGS = PoolSettings.builder().build();
+
   /** The application's environment, with the settings and the mode. */
   private final Environment environment;
 
@@ -69,20 +72,23 @@ public class StatementLimitsFactory implements AutoCloseable {
   }
 
   /**
-   * Returns the statement limits of one data source bean.
+   * Returns the statement limits of one data source bean. A named pool's own {@code query-timeout}
+   * wins over {@code stratum.data.query-timeout}, and its connections' network timeout follows it.
    *
-   * @param beanName the data source bean's name
+   * @param beanName the data source bean's name, which transactions bind their connection to
+   * @param poolName the pool's name, which the counter and the message show
    * @return its limits
    * @throws com.exepex.stratum.core.error.StratumException {@code SX-CORE-1003} if a setting breaks
    *     its rules
    */
-  public StatementLimits forPool(String beanName) {
+  public StatementLimits forPool(String beanName, String poolName) {
     boolean backwardCompatible = BackwardCompatibleMode.isOn(environment);
     var queryTimeout =
-        Optional.ofNullable(settings.obtain().queryTimeout())
+        Optional.ofNullable(poolSettings(beanName).queryTimeout())
+            .or(() -> Optional.ofNullable(settings.obtain().queryTimeout()))
             .orElse(backwardCompatible ? Duration.ZERO : STANDARD_QUERY_TIMEOUT);
     return StatementLimits.builder()
-        .pool(beanName)
+        .pool(poolName)
         .outermost(SingletonSupplier.of(() -> beanFactory.getBean(beanName, DataSource.class)))
         .poolMillis(
             queryTimeout.compareTo(LONGEST_LIMIT) > 0
@@ -105,6 +111,27 @@ public class StatementLimitsFactory implements AutoCloseable {
                 .orElse(STANDARD_DEADLINE_MARGIN)
                 .toMillis())
         .build();
+  }
+
+  /**
+   * Returns the settings of the named pool whose data source bean this is, such as {@code batch}
+   * for {@code batchDataSource}, or empty settings for any other data source.
+   *
+   * @param beanName the data source bean's name
+   * @return the pool's settings
+   * @throws com.exepex.stratum.core.error.StratumException {@code SX-CORE-1003} if a setting breaks
+   *     its rules
+   */
+  public PoolSettings poolSettings(String beanName) {
+    var suffix = DataConstants.DATA_SOURCE_SUFFIX;
+    var found =
+        beanName.endsWith(suffix)
+            ? settings
+                .obtain()
+                .sources()
+                .get(beanName.substring(0, beanName.length() - suffix.length()))
+            : null;
+    return found == null ? NO_SETTINGS : found;
   }
 
   /** Stops the sweeper thread, if it was started. */

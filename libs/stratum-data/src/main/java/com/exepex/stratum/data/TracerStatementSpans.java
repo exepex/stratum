@@ -16,9 +16,10 @@ import org.springframework.beans.factory.ObjectProvider;
 
 /**
  * Gives each statement's execute a client span through Micrometer Tracing, only when the current
- * span is sampled. The span carries the database system, its name and the operation the SQL starts
- * with: no SQL text, value or table. It makes no Observation, so no meter is added. The tracer is
- * looked up at the first statement, since the boundary is set up before any tracer exists.
+ * span is sampled. The span carries the database system, its name, the operation the SQL starts
+ * with and the pool's name: no SQL text, value or table. It makes no Observation, so no meter is
+ * added. The tracer is looked up at the first statement, since the boundary is set up before any
+ * tracer exists.
  */
 @StratumInternal
 @RequiredArgsConstructor
@@ -40,6 +41,9 @@ public final class TracerStatementSpans implements StatementSpans {
   /** Finds the application's tracer. */
   private final ObjectProvider<Tracer> tracers;
 
+  /** The pool's name, which each span carries. */
+  private final String pool;
+
   /** The tracer, once found. */
   private final AtomicReference<@Nullable Tracer> foundTracer = new AtomicReference<>();
 
@@ -51,10 +55,11 @@ public final class TracerStatementSpans implements StatementSpans {
    * when Micrometer Tracing's OpenTelemetry bridge is present, so no other class refers to it.
    *
    * @param beanFactory the bean factory, which finds the tracer
+   * @param pool the pool's name, which each span carries
    * @return the spans
    */
-  static StatementSpans of(BeanFactory beanFactory) {
-    return new TracerStatementSpans(beanFactory.getBeanProvider(Tracer.class));
+  static StatementSpans of(BeanFactory beanFactory, String pool) {
+    return new TracerStatementSpans(beanFactory.getBeanProvider(Tracer.class), pool);
   }
 
   @Override
@@ -74,7 +79,8 @@ public final class TracerStatementSpans implements StatementSpans {
               .kind(Span.Kind.CLIENT)
               .name(operation)
               .tag(DataConstants.SPAN_SYSTEM, system(connection))
-              .tag(DataConstants.SPAN_OPERATION, operation);
+              .tag(DataConstants.SPAN_OPERATION, operation)
+              .tag(DataConstants.SPAN_POOL, pool);
       var namespace = namespace(connection);
       if (namespace != null) {
         builder.tag(DataConstants.SPAN_NAMESPACE, namespace);

@@ -6,6 +6,9 @@ import com.exepex.stratum.core.properties.StratumCustomizers;
 import com.exepex.stratum.data.DataConstants;
 import com.exepex.stratum.data.DatabaseTlsCheck;
 import com.exepex.stratum.data.JdbcBoundaryPostProcessor;
+import com.exepex.stratum.data.MainPoolNamePostProcessor;
+import com.exepex.stratum.data.NamedPoolRegistrar;
+import com.exepex.stratum.data.PoolCheck;
 import com.exepex.stratum.data.PostgresLoginTimeoutPostProcessor;
 import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -14,12 +17,13 @@ import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Fallback;
+import org.springframework.core.env.Environment;
 
 /**
  * Creates the JDBC boundary around every data source bean, with the time limits of their
- * statements, the login limit of every PostgreSQL pool, and the check of their connections'
- * encryption, unless {@code stratum.data.enabled=false}. Each data starter's auto-configuration
- * imports it.
+ * statements, the login limit of every PostgreSQL pool, the check of their connections' encryption,
+ * the named pools of {@code stratum.data.sources} and the check of all pools, unless {@code
+ * stratum.data.enabled=false}. Each data starter's auto-configuration imports it.
  */
 @StratumInternal
 @Configuration(proxyBeanMethods = false)
@@ -59,7 +63,7 @@ public final class JdbcBoundaryConfiguration {
    */
   @Bean(DataConstants.LOGIN_TIMEOUT)
   @Fallback
-  @ConditionalOnClass(name = {"org.postgresql.Driver", "com.zaxxer.hikari.HikariDataSource"})
+  @ConditionalOnClass(name = {"org.postgresql.Driver", DataConstants.HIKARI_POOL})
   @ConditionalOnMissingBean(name = DataConstants.LOGIN_TIMEOUT)
   public static PostgresLoginTimeoutPostProcessor stratumPostgresLoginTimeout() {
     return new PostgresLoginTimeoutPostProcessor();
@@ -77,5 +81,52 @@ public final class JdbcBoundaryConfiguration {
   @ConditionalOnMissingBean(name = DataConstants.TLS_CHECK)
   public DatabaseTlsCheck stratumDatabaseTlsCheck(ConfigurableApplicationContext context) {
     return DatabaseTlsCheck.forClassPath(context);
+  }
+
+  /**
+   * Registers the beans of each named pool of {@code stratum.data.sources}, which are HikariCP
+   * pools, so only when HikariCP is on the class path. A service replaces it with a bean of the
+   * same name. Static, because Spring creates registry post-processors before the other beans.
+   *
+   * @return the registrar
+   */
+  @Bean(DataConstants.NAMED_POOLS)
+  @Fallback
+  @ConditionalOnClass(name = DataConstants.HIKARI_POOL)
+  @ConditionalOnMissingBean(name = DataConstants.NAMED_POOLS)
+  public static NamedPoolRegistrar stratumNamedPools() {
+    return new NamedPoolRegistrar();
+  }
+
+  /**
+   * Names Spring Boot's HikariCP pool {@code main} when the service gave it no name. A service
+   * replaces it with a bean of the same name. Static, because Spring creates bean post-processors
+   * before the other beans.
+   *
+   * @return the post-processor
+   */
+  @Bean(DataConstants.MAIN_POOL_NAME)
+  @Fallback
+  @ConditionalOnClass(name = DataConstants.HIKARI_POOL)
+  @ConditionalOnMissingBean(name = DataConstants.MAIN_POOL_NAME)
+  public static MainPoolNamePostProcessor stratumMainPoolName() {
+    return new MainPoolNamePostProcessor();
+  }
+
+  /**
+   * Checks every pool once all beans exist: no two share a name, and together they stay within
+   * {@code stratum.data.max-connections}. Only HikariCP pools have a size to count, so it needs
+   * HikariCP on the class path. A service replaces it with a bean of the same name.
+   *
+   * @param beanFactory the service's beans
+   * @param environment the application's environment
+   * @return the check
+   */
+  @Bean(DataConstants.POOL_CHECK)
+  @Fallback
+  @ConditionalOnClass(name = DataConstants.HIKARI_POOL)
+  @ConditionalOnMissingBean(name = DataConstants.POOL_CHECK)
+  public PoolCheck stratumPoolCheck(ListableBeanFactory beanFactory, Environment environment) {
+    return new PoolCheck(beanFactory, environment);
   }
 }

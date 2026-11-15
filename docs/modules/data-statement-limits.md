@@ -40,8 +40,8 @@ Spring and Hibernate turn it into their `QueryTimeoutException`, as for any canc
 
 - **Strict mode:** a web request that fails with it is answered with status 503, the code and its
   description, and no detail. To change the status, set
-  `stratum.web.error.statuses.SX-DATA-1003`, as in [Database failures](web-database-errors.md). The limit, the run time and the data source bean name are only in the
-  exception's message, which goes to the log.
+  `stratum.web.error.statuses.SX-DATA-1003`, as in [Database failures](web-database-errors.md). The limit, the run time and the pool's name, such as `main`, are only
+  in the exception's message, which goes to the log.
 - **Backward-compatible mode** (`stratum.backward-compatible=true`): the answer stays Spring
   Boot's own, as before. The code appears in the log only.
 
@@ -49,7 +49,8 @@ A statement cancelled by your own code or by the database, such as PostgreSQL's
 `statement_timeout`, keeps the driver's error and is not counted.
 
 The counter `stratum.data.timeouts` counts each cancelled statement, and each borrow that failed
-because its web request had no time left, with the tags `pool`, the data source bean, and `cause`:
+because its web request had no time left, with the tags `pool`, the pool's name, such as `main`
+([Pool names](data-named-pools.md#pool-names)), and `cause`:
 `query-timeout`, `caller`, `transaction` or `request`. It needs Micrometer, which the
 observability starter brings.
 

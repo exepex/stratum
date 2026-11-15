@@ -13,9 +13,12 @@ connection from each data source bean in turn, asks the database whether the ses
 returns the connection and ends.
 
 - **Encrypted**: nothing is logged.
-- **Not encrypted**: one WARN, for example
-  `The data source 'orders' connects to the database without TLS. Set sslmode=verify-full in the JDBC URL of data source 'orders'.`
-  For Spring Boot's own data source, `dataSource`, that URL is `spring.datasource.url`.
+- **Not encrypted**: one WARN, which names the pool by its [pool name](data-named-pools.md#pool-names),
+  for example
+  `The data source 'main' connects to the database without TLS. Set sslmode=verify-full in the JDBC URL of data source 'main'.`
+  For Spring Boot's own pool, `main`, that URL is `spring.datasource.url`; for a named pool, such as
+  `batch`, it is `stratum.data.sources.batch.url`. A data source that is no HikariCP pool is named
+  by its bean name.
 - **Could not be checked** (no connection, no permission, no answer): one WARN that names the data
   source and the error's class, never its message, since a driver's message can carry the host,
   the port or the URL.

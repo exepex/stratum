@@ -8,8 +8,7 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * The codes of the data module, each listed with its fix in {@code docs/guides/error-codes.md}.
- * {@code SX-DATA-1001} and {@code SX-DATA-1002} stop the application at startup; {@code
- * SX-DATA-1003} fails one statement.
+ * {@code SX-DATA-1003} fails one statement; every other code stops the application at startup.
  */
 @StratumInternal
 @Getter
@@ -28,27 +27,63 @@ public enum DataErrorCode implements ErrorCode {
           + " schema, set spring.jpa.hibernate.ddl-auto=none."),
 
   /**
-   * HikariCP would turn its leak alarm off, because the threshold is under 2 seconds or above the
-   * connections' {@code max-lifetime}. The detail names the keys, never their values.
+   * HikariCP would turn a pool's leak alarm off, because the threshold is under 2 seconds or above
+   * the connections' {@code max-lifetime}. The detail names the pool's keys, never their values.
    */
   LEAK_ALARM_OFF(
       "SX-DATA-1002",
       Severity.ERROR,
       "HikariCP would turn its connection leak alarm off",
-      "Set spring.datasource.hikari.leak-detection-threshold to at least 2000 and at most"
-          + " spring.datasource.hikari.max-lifetime, or raise max-lifetime above it, or set the"
-          + " threshold to 0 to turn the alarm off."),
+      "Set the pool's leak-detection-threshold to at least 2000 and at most its max-lifetime, or"
+          + " raise max-lifetime above it, or set the threshold to 0 to turn the alarm off: under"
+          + " spring.datasource.hikari for the main pool, or stratum.data.sources.<name>.hikari for"
+          + " the named pool the message names."),
 
   /**
    * Stratum cancelled a SQL statement that ran past its time limit. The answer carries no detail;
-   * the exception's message names the limit, what set it, the run time and the data source bean.
+   * the exception's message names the limit, what set it, the run time and the pool.
    */
   STATEMENT_TIMED_OUT(
       "SX-DATA-1003",
       Severity.ERROR,
       "A SQL statement ran past its time limit and was cancelled",
       "Make the statement faster, or give it more time: stratum.data.query-timeout, the time limit"
-          + " the code sets on the statement, or the transaction's timeout.");
+          + " the code sets on the statement, or the transaction's timeout."),
+
+  /**
+   * A named pool's name or key breaks its rules, a pool has no connection, or two pools share one
+   * name. The detail names the property key or the pool, never a value.
+   */
+  POOL_SETTING_INVALID(
+      "SX-DATA-1004",
+      Severity.ERROR,
+      "A named pool's name or setting is not valid",
+      "Give each pool under stratum.data.sources a name of lower-case letters and digits that"
+          + " starts with a letter, is at most 31 characters and is not main; spell each key as"
+          + " the data module's page lists it; give each pool a url or a connection details bean;"
+          + " and give no two pools the same pool name."),
+
+  /**
+   * The pools together may open more connections than {@code stratum.data.max-connections}. The
+   * detail names the key, the total and each pool's maximum.
+   */
+  TOO_MANY_CONNECTIONS(
+      "SX-DATA-1005",
+      Severity.ERROR,
+      "The pools together may open more connections than the cap",
+      "Lower a pool's maximum-pool-size, or raise stratum.data.max-connections to at least the"
+          + " total the message names."),
+
+  /**
+   * A service's bean has a name Stratum keeps for a named pool and is a default candidate, which
+   * would take the place of Spring Boot's own bean. The detail names the bean.
+   */
+  POOL_BEAN_DEFAULT_CANDIDATE(
+      "SX-DATA-1006",
+      Severity.ERROR,
+      "A bean with a named pool's bean name would replace Spring Boot's own",
+      "Declare the bean with @Bean(defaultCandidate = false), so that unqualified injection keeps"
+          + " Spring Boot's own bean, or rename it.");
 
   /** The code, such as {@code SX-DATA-1001}. */
   private final String code;

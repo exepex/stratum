@@ -32,7 +32,8 @@ shows how to add it. R2DBC is not covered.
 | Login limit | A new connection to a PostgreSQL database that never answers fails after about 3 seconds, instead of waiting for good; see [The PostgreSQL login limit](data-login-limit.md) | Always |
 | Leak alarm check | A `leak-detection-threshold` that HikariCP would silently turn off stops startup with `SX-DATA-1002`; the alarm itself stays off, see [Leak alarm](#leak-alarm) | Always |
 | Transaction time limit | Every transaction that sets no limit of its own gets 60 seconds | Strict mode, without Spring Batch |
-| Query spans | In a sampled trace, each SQL statement gets a client span with the database and its operation, such as `SELECT`, and no SQL text; see [Query spans](data-query-spans.md) | With tracing |
+| Query spans | In a sampled trace, each SQL statement gets a client span with the database, its operation, such as `SELECT`, and its pool, and no SQL text; see [Query spans](data-query-spans.md) | With tracing |
+| Named pools | More HikariCP pools beside Spring Boot's, each with its own beans, settings and time limits, and a cap on all pools' connections; see [Named pools](data-named-pools.md) | Always |
 
 **Strict mode** is Stratum's default, `stratum.backward-compatible=false`. A service already
 running with consumers sets `stratum.backward-compatible=true` while it moves to Stratum; then the
@@ -48,6 +49,14 @@ sees and apply in both modes
 | `stratum.data.enabled` | boolean | `true` | Whether the module is on. With `false`, Stratum sets none of the defaults below, nor a data starter's own, and Spring Boot's own apply, and it wraps no data source in the [clean errors boundary](#clean-database-errors). |
 | `stratum.data.query-timeout` | duration | `30s`, or `0` with `stratum.backward-compatible=true` | How long one SQL statement may run when the code that runs it sets no time limit of its own; `0` for none. See [Statement time limits](data-statement-limits.md). |
 | `stratum.data.deadline-margin` | duration | `150ms` | How much earlier than its web request's time limit a statement or connection borrow must end; `0` for none. See [In a web request](data-statement-limits.md#in-a-web-request). |
+| `stratum.data.max-connections` | int | `30` | The most connections all pools of one instance may open together, the main pool included; startup stops with `SX-DATA-1005` above it. See [The cap on connections](data-named-pools.md#the-cap-on-connections). |
+| `stratum.data.sources.<name>.url` | string | unset | A named pool's JDBC URL; not needed with your own `<name>JdbcConnectionDetails` bean. See [Named pools](data-named-pools.md). |
+| `stratum.data.sources.<name>.username` | string | unset | The user name the named pool logs in with. |
+| `stratum.data.sources.<name>.password` | string | unset | The password the named pool logs in with; set it from a secret. Stratum never logs it. |
+| `stratum.data.sources.<name>.hikari.*` | HikariCP's keys | `minimum-idle` `0`, `maximum-pool-size` `10`, `pool-name` the pool's name; HikariCP's own for the rest | HikariCP's settings of the named pool, spelled as under `spring.datasource.hikari`. |
+| `stratum.data.sources.<name>.query-timeout` | duration | `stratum.data.query-timeout` | How long one statement on the named pool may run when its code sets no limit. |
+| `stratum.data.sources.<name>.transaction-timeout` | duration | `spring.transaction.default-timeout` | The time limit of a transaction on the named pool's transaction manager that sets none. |
+| `stratum.data.sources.<name>.fetch-size` | int | unset: the driver's own | How many rows each statement on the named pool fetches at a time, until its code sets its own. |
 
 Spring Boot properties this module and the data JPA starter give a default (your values win):
 
@@ -67,7 +76,11 @@ Spring Boot properties this module and the data JPA starter give a default (your
 
 ### The pool
 
-Stratum leaves HikariCP's other defaults as they are:
+Stratum names Spring Boot's pool `main`, in both modes, unless you set `spring.datasource.name` or
+`spring.datasource.hikari.pool-name`, so its metrics carry `pool=main` rather than
+`pool=HikariPool-1`; see [Pool names](data-named-pools.md#pool-names). Work that needs a pool of
+its own, such as a batch job, gets a [named pool](data-named-pools.md). Stratum leaves HikariCP's
+other defaults as they are:
 
 | Spring Boot property | HikariCP's default | Meaning |
 | --- | --- | --- |
@@ -301,15 +314,18 @@ spring:
 ### A pool for batch jobs
 
 Run the jobs in their own application, or with their own profile, and set
-`spring.transaction.default-timeout` to the longest chunk, such as `30m`. If you turn the leak
-alarm on, set its threshold to that plus 10 seconds, and raise `max-lifetime` above it.
+`spring.transaction.default-timeout` to the longest chunk, such as `30m`. Or give them a
+[named pool](data-named-pools.md) with its own `transaction-timeout`. If you turn the leak alarm on,
+set its threshold to that plus 10 seconds, and raise `max-lifetime` above it. A named pool's
+`hikari.leak-detection-threshold` is checked against its own `hikari.max-lifetime` the same way.
 
 ### Streaming and fetch size
 
 - Export many rows with `JdbcClient` or a DTO projection, never as managed entities, which
   Hibernate keeps in memory until the transaction ends.
-- Stratum sets no fetch size, in either mode. A query reads its result as the driver does by
-  default: the PostgreSQL driver reads every row into memory before the first `next()`.
+- Stratum sets no fetch size, in either mode, except a named pool's own `fetch-size`. A query reads
+  its result as the driver does by default: the PostgreSQL driver reads every row into memory
+  before the first `next()`.
 - To stream, set a fetch size yourself, only where you need it:
   - `spring.jdbc.template.fetch-size` for `JdbcTemplate` and `JdbcClient` (Spring Boot's default,
     `-1`, sets none);
@@ -329,14 +345,15 @@ alarm on, set its threshold to that plus 10 seconds, and raise `max-lifetime` ab
 ## Health and metrics
 
 With Spring Boot's actuator, which the observability starter brings, the database health check
-`db` is part of `/actuator/health`. It is not in the readiness group (`/actuator/health/readiness`),
-and Stratum does not add it. The pool's metrics,
-such as `hikaricp.connections.pending`, come from Spring Boot.
+`db` is part of `/actuator/health`, with one entry for each pool, named after its bean, such as
+`dataSource` and `batchDataSource`. It is not in the readiness group (`/actuator/health/readiness`),
+and Stratum does not add it. The pools' metrics, such as `hikaricp.connections.pending`, come from
+Spring Boot and carry each pool's name as their `pool` tag, such as `main`.
 
 ## Configure in Java
 
-`stratum.data.query-timeout` and `stratum.data.deadline-margin` can also be set in Java, through a
-`DataPropertiesCustomizer` class, and Java wins over the files:
+Every `stratum.data.*` key can also be set in Java, through a `DataPropertiesCustomizer` class,
+and Java wins over the files:
 
 ```java
 public class OrdersDataSettings implements DataPropertiesCustomizer {
@@ -346,10 +363,13 @@ public class OrdersDataSettings implements DataPropertiesCustomizer {
     return properties.toBuilder()
         .queryTimeout(Duration.ofSeconds(10))
         .deadlineMargin(Duration.ofMillis(300))
+        .maxConnections(40)
         .build();
   }
 }
 ```
+
+[Named pools](data-named-pools.md#configure-in-java) shows how a customizer adds a pool.
 
 The customizer is not a bean: list the class in the service's `META-INF/spring.factories` under
 `com.exepex.stratum.data.DataPropertiesCustomizer`. A customizer declared as a bean stops startup

@@ -152,7 +152,10 @@ class PublicApiRuleTest {
 
     /** The types of stratum-test that services may use, nested ones too; the rest are labelled. */
     private static final Set<Class<?>> TEST_API_TYPES =
-        Set.of(PostgresContainerConfiguration.class, RedisContainerConfiguration.class);
+        Set.of(
+            PostgresContainerConfiguration.class,
+            RedisContainerConfiguration.class,
+            NamedPoolConnections.class);
 
     @Test
     @DisplayName("fail for a public class with no label that is not on the API list")

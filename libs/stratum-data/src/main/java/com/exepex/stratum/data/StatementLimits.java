@@ -37,7 +37,7 @@ public class StatementLimits {
   /** How much longer than a statement's limit its connection waits for the network. */
   static final long NETWORK_MARGIN_MILLIS = 30_000;
 
-  /** The data source bean's name, which the counter and the message show. */
+  /** The pool's name, such as {@code main}, which the counter and the message show. */
   private final String pool;
 
   /** Finds the data source bean, wrapped by any proxy, that transactions bind their holder to. */
@@ -133,7 +133,7 @@ public class StatementLimits {
     counter.count(pool, LimitSource.REQUEST);
     throw timedOut(
         ("%s: no time was left to %s a connection: the request's time left minus the margin of %d"
-                + " ms was %d ms, on data source %s")
+                + " ms was %d ms, on pool %s")
             .formatted(
                 DataErrorCode.STATEMENT_TIMED_OUT.getCode(),
                 what,
@@ -262,7 +262,7 @@ public class StatementLimits {
   private StatementTimeoutException timedOut(
       Limit limit, long runMillis, @Nullable Throwable driverFailure) {
     return timedOut(
-        "%s: the statement ran %d ms, past its limit of %d ms set by %s, on data source %s"
+        "%s: the statement ran %d ms, past its limit of %d ms set by %s, on pool %s"
             .formatted(
                 DataErrorCode.STATEMENT_TIMED_OUT.getCode(),
                 runMillis,

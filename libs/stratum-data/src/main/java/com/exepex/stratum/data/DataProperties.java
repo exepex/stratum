@@ -1,8 +1,10 @@
 package com.exepex.stratum.data;
 
 import com.exepex.stratum.core.properties.StratumCustomizers;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import java.time.Duration;
+import java.util.Map;
 import lombok.Builder;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -21,10 +23,27 @@ import org.springframework.core.env.Environment;
  *     connection borrows must end, so that a slow statement is cancelled and answered before the
  *     web module has to interrupt the request. A statement in a web request with a time limit ends
  *     by that limit minus this margin. Defaults to 150ms.
+ * @param sources The named pools, by name, beside the main pool that spring.datasource.* sets. A
+ *     name is lower-case letters and digits, starts with a letter and is not main; the pool's beans
+ *     are named after it, such as batchDataSource and batchTransactionManager.
+ * @param maxConnections The most connections all pools together may open, the main pool included.
+ *     Startup stops when their maximum-pool-size values add up to more. Defaults to 30.
  */
 @Builder(toBuilder = true)
 @ConfigurationProperties(prefix = DataConstants.PREFIX)
-public record DataProperties(@Nullable Duration queryTimeout, @Nullable Duration deadlineMargin) {
+public record DataProperties(
+    @Nullable Duration queryTimeout,
+    @Nullable Duration deadlineMargin,
+    Map<String, @Valid PoolSettings> sources,
+    @Nullable Integer maxConnections) {
+
+  /** The cap on all pools' connections when the service sets none. */
+  private static final int STANDARD_MAX_CONNECTIONS = 30;
+
+  /** Keeps the named pools a fixed map, empty when none is set. */
+  public DataProperties {
+    sources = sources == null ? Map.of() : Map.copyOf(sources);
+  }
 
   /**
    * Returns the settings the module uses: {@code stratum.data.*} with the defaults for anything
@@ -61,5 +80,25 @@ public record DataProperties(@Nullable Duration queryTimeout, @Nullable Duration
   @AssertTrue
   public boolean isDeadlineMarginNotNegative() {
     return deadlineMargin == null || !deadlineMargin.isNegative();
+  }
+
+  /**
+   * Returns whether {@code max-connections}, when set, is 1 or more. Validation reports a lower
+   * value as {@code stratum.data.max-connections-positive breaks @AssertTrue}.
+   *
+   * @return whether the cap is positive
+   */
+  @AssertTrue
+  public boolean isMaxConnectionsPositive() {
+    return maxConnections == null || maxConnections > 0;
+  }
+
+  /**
+   * Returns the cap on all pools' connections, 30 unless set.
+   *
+   * @return the cap
+   */
+  public int maxConnectionsOrStandard() {
+    return maxConnections == null ? STANDARD_MAX_CONNECTIONS : maxConnections;
   }
 }
