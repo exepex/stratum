@@ -1,0 +1,2 @@
+com.exepex.stratum.data.DataPropertiesCustomizer=\
+  com.exepex.stratum.data.testsupport.RoutingPackagesCustomizer

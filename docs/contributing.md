@@ -51,7 +51,10 @@ the [JDBC boundary](modules/data.md#clean-database-errors) adds to each JDBC cal
 timeout and a [statement limit](modules/data-statement-limits.md) slot on every borrow, and
 pgjdbc's query timeout, Stratum's sweeper or a per-statement timer on every statement; and what the
 sweeper (`StatementSweeperBenchmark`) and the per-statement timer it replaced
-(`StatementTimerBenchmark`) cost with no database. Each runs on one thread and on 16. It needs
+(`StatementTimerBenchmark`) cost with no database. Each runs on one thread and on 16.
+`RoutingBenchmark` measures what [routing a repository to a named
+pool](modules/data-named-pools.md#repositories-on-a-pool) adds to one statement, with no database,
+on one thread. The profile needs
 Docker, because each JMH fork of the pool measurements starts its own PostgreSQL container.
 `JdbcBoundaryBenchmark` takes about 10 to 15 minutes and `StatementLimitsBenchmark` about 20:
 

@@ -76,10 +76,9 @@ public final class PoolRouting {
    * transaction, it does nothing.
    *
    * @param pool the pool of the repository being called
-   * @param repository the repository's interface, for the message
    * @throws StratumException {@code SX-DATA-1008} if the transaction is on another pool
    */
-  public void pinTransaction(String pool, String repository) {
+  public void pinTransaction(String pool) {
     if (!inTransaction()) {
       return;
     }
@@ -87,7 +86,7 @@ public final class PoolRouting {
     if (pinned == null) {
       bind(pool);
     } else if (!pinned.equals(pool)) {
-      throw mixed(pinned, "the repository %s of pool %s".formatted(repository, pool));
+      throw mixed(pinned, "a repository of pool " + pool);
     }
   }
 

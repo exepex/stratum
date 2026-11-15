@@ -7,12 +7,15 @@ import com.exepex.stratum.data.DataErrorCode;
 import com.exepex.stratum.data.UseDataSource;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -40,8 +43,8 @@ public final class RepositoryMapping {
    *
    * @param packages each pool's {@code packages}, as set
    * @param pools the named pools of the application
-   * @throws StratumException {@code SX-DATA-1007} if an entry is no package name, or a package is
-   *     mapped to two pools
+   * @throws StratumException {@code SX-DATA-1007} if a pool that maps packages does not exist, an
+   *     entry is no package name, or a package is mapped to two pools
    */
   public RepositoryMapping(Map<String, List<String>> packages, Set<String> pools) {
     this.pools = Set.copyOf(pools);
@@ -63,13 +66,10 @@ public final class RepositoryMapping {
    *     mapped package holds no JPA repository
    */
   public RepositoryPools map(Collection<Class<?>> repositories) {
-    var mapped = new HashMap<Class<?>, String>();
-    for (var repository : repositories) {
-      var pool = poolOf(repository);
-      if (pool != null) {
-        mapped.put(repository, pool);
-      }
-    }
+    Map<Class<?>, String> mapped =
+        repositories.stream()
+            .flatMap(repository -> poolEntry(repository).stream())
+            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     var annotated =
         repositories.stream()
             .filter(repository -> repository.isAnnotationPresent(UseDataSource.class))
@@ -90,6 +90,11 @@ public final class RepositoryMapping {
     return result;
   }
 
+  /** Returns a repository with its pool, or nothing if it has none. */
+  private Optional<Map.Entry<Class<?>, String>> poolEntry(Class<?> repository) {
+    return Optional.ofNullable(poolOf(repository)).map(pool -> Map.entry(repository, pool));
+  }
+
   /** Returns a repository's pool: its annotation's, else its package's, else none. */
   private @Nullable String poolOf(Class<?> repository) {
     var annotation = repository.getAnnotation(UseDataSource.class);
@@ -100,18 +105,25 @@ public final class RepositoryMapping {
 
   /** Checks one pool's packages and adds each to the map of packages to pools. */
   private void addPool(Map<String, String> byPackage, String pool, List<String> packages) {
-    for (var index = 0; index < packages.size(); index++) {
-      var name = packages.get(index);
-      if (!isPackageName(name)) {
-        throw invalid(
-            "%s.%s.%s[%d] is not a Java package name"
-                .formatted(DataConstants.SOURCES, pool, DataConstants.PACKAGES_KEY, index));
-      }
-      var other = byPackage.putIfAbsent(name, pool);
-      if (other != null) {
-        throw invalid(
-            "the package %s is mapped to the pools %s and %s".formatted(name, other, pool));
-      }
+    if (!packages.isEmpty() && !pools.contains(pool)) {
+      throw invalid(
+          "%s.%s.%s maps packages to a pool that does not exist; named pools need HikariCP"
+              .formatted(DataConstants.SOURCES, pool, DataConstants.PACKAGES_KEY));
+    }
+    IntStream.range(0, packages.size())
+        .forEach(index -> addPackage(byPackage, pool, packages.get(index), index));
+  }
+
+  /** Checks one entry of a pool's packages and adds it to the map of packages to pools. */
+  private void addPackage(Map<String, String> byPackage, String pool, String name, int index) {
+    if (!isPackageName(name)) {
+      throw invalid(
+          "%s.%s.%s[%d] is not a Java package name"
+              .formatted(DataConstants.SOURCES, pool, DataConstants.PACKAGES_KEY, index));
+    }
+    var other = byPackage.putIfAbsent(name, pool);
+    if (other != null) {
+      throw invalid("the package %s is mapped to the pools %s and %s".formatted(name, other, pool));
     }
   }
 
@@ -131,41 +143,53 @@ public final class RepositoryMapping {
    * com.acmex}.
    */
   private @Nullable String poolOfPackage(String packageName) {
-    var candidate = packageName;
-    while (true) {
-      var pool = poolByPackage.get(candidate);
-      var dot = candidate.lastIndexOf(DOT);
-      if (pool != null || dot < 0) {
-        return pool;
-      }
-      candidate = candidate.substring(0, dot);
-    }
+    return withParents(packageName)
+        .map(poolByPackage::get)
+        .filter(Objects::nonNull)
+        .findFirst()
+        .orElse(null);
+  }
+
+  /** Returns a package and each of its parents, the package first. */
+  private Stream<String> withParents(String packageName) {
+    return Stream.iterate(packageName, Objects::nonNull, this::parentOf);
+  }
+
+  /** Returns a package's parent, or none for a top-level package. */
+  private @Nullable String parentOf(String packageName) {
+    var dot = packageName.lastIndexOf(DOT);
+    return dot < 0 ? null : packageName.substring(0, dot);
   }
 
   /** Fails when a mapped package holds no JPA repository, which is most likely a typo. */
   private void checkUsed(Collection<Class<?>> repositories) {
-    var holding = new HashSet<String>();
-    for (var repository : repositories) {
-      var candidate = repository.getPackageName();
-      holding.add(candidate);
-      for (var dot = candidate.lastIndexOf(DOT); dot > 0; dot = candidate.lastIndexOf(DOT)) {
-        candidate = candidate.substring(0, dot);
-        holding.add(candidate);
-      }
+    var holding =
+        repositories.stream()
+            .map(Class::getPackageName)
+            .flatMap(this::withParents)
+            .collect(Collectors.toUnmodifiableSet());
+    var unused =
+        packagesByPool.entrySet().stream()
+            .flatMap(
+                entry ->
+                    entry.getValue().stream()
+                        .filter(name -> !holding.contains(name))
+                        .map(name -> unusedPackage(name, entry.getKey())))
+            .findFirst();
+    if (unused.isPresent()) {
+      throw unused.get();
     }
-    for (var entry : packagesByPool.entrySet()) {
-      for (var name : entry.getValue()) {
-        if (!holding.contains(name)) {
-          throw invalid(
-              "the package %s of pool %s holds no JPA repository".formatted(name, entry.getKey()));
-        }
-      }
-    }
+  }
+
+  /** Returns the startup failure of a mapped package that holds no JPA repository. */
+  private StratumException unusedPackage(String name, String pool) {
+    return invalid("the package %s of pool %s holds no JPA repository".formatted(name, pool));
   }
 
   /**
    * Returns whether a value is a package name: segments of Java identifier characters, joined by
-   * single dots, with no wildcard. It reads each character once.
+   * single dots, with no wildcard. It reads each character once, in a loop rather than a stream,
+   * since each character's rule depends on the one before it (ST-ENG-39).
    */
   private boolean isPackageName(@Nullable String name) {
     if (name == null || name.isEmpty()) {

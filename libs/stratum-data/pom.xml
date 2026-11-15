@@ -166,7 +166,7 @@
     <profile>
       <id>benchmark</id>
       <properties>
-        <jmh.benchmarks>JdbcBoundaryBenchmark|StatementLimitsBenchmark|StatementTimerBenchmark|StatementSweeperBenchmark|StatementSpansBenchmark|QuerySpanCallBenchmark</jmh.benchmarks>
+        <jmh.benchmarks>JdbcBoundaryBenchmark|StatementLimitsBenchmark|StatementTimerBenchmark|StatementSweeperBenchmark|StatementSpansBenchmark|QuerySpanCallBenchmark|RoutingBenchmark</jmh.benchmarks>
       </properties>
       <build>
         <plugins>

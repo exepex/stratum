@@ -28,4 +28,26 @@ public interface BatchNotes extends JpaRepository<Note, UUID> {
   default Note saveInOwnTransaction(Note note) {
     return save(note);
   }
+
+  /**
+   * Saves a note outside any transaction the caller is in; the save starts its own.
+   *
+   * @param note the note
+   * @return the saved note
+   */
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
+  default Note saveWithoutTransaction(Note note) {
+    return save(note);
+  }
+
+  /**
+   * Saves a note, and fails if the caller is in a transaction.
+   *
+   * @param note the note
+   * @return the saved note
+   */
+  @Transactional(propagation = Propagation.NEVER)
+  default Note saveOutsideTransactions(Note note) {
+    return save(note);
+  }
 }

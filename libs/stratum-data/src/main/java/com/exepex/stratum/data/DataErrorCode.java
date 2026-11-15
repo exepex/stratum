@@ -101,7 +101,7 @@ public enum DataErrorCode implements ErrorCode {
 
   /**
    * A transaction already on one pool reached a repository or a statement of another pool. The
-   * detail names both pools and, for a repository, its interface.
+   * detail names the pools only, never a class, since a web answer can carry it.
    */
   POOL_MIXED(
       "SX-DATA-1008",

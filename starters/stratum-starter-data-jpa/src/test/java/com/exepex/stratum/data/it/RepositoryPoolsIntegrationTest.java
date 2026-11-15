@@ -12,6 +12,7 @@ import com.exepex.stratum.data.it.pools.batch.CachedNotes;
 import com.exepex.stratum.data.it.pools.batch.MainPinnedNotes;
 import com.exepex.stratum.data.it.pools.main.AnnotatedNotes;
 import com.exepex.stratum.data.it.pools.main.MainNotes;
+import com.exepex.stratum.data.routing.RoutingDataSource;
 import com.exepex.stratum.data.testsupport.PoolDatabases;
 import com.exepex.stratum.datajpa.routing.RepositoryPoolAdvice;
 import com.exepex.stratum.test.PostgresContainerConfiguration;
@@ -31,6 +32,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.health.contributor.CompositeHealthContributor;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
+import org.springframework.jdbc.datasource.LazyConnectionDataSourceProxy;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -183,6 +185,22 @@ class RepositoryPoolsIntegrationTest {
                   .unwrap(HikariDataSource.class)
                   .getPoolName())
           .isEqualTo(DataConstants.MAIN_POOL);
+    }
+
+    @Test
+    @DisplayName("the router's main target is the boundary inside Spring Boot's lazy proxy")
+    void mainTargetUnwrapped() {
+      var routing = application.getBean(DataConstants.ROUTING_BEAN, DataSource.class);
+      var main = application.getBean(DataConstants.MAIN_BEAN, DataSource.class);
+      assertThat(routing).isInstanceOf(LazyConnectionDataSourceProxy.class);
+      assertThat(main).isInstanceOf(LazyConnectionDataSourceProxy.class);
+      var router = ((LazyConnectionDataSourceProxy) routing).getTargetDataSource();
+      assertThat(router).isInstanceOf(RoutingDataSource.class);
+
+      assertThat(((RoutingDataSource) router).getResolvedDataSources())
+          .extractingByKey(DataConstants.MAIN_POOL)
+          .isSameAs(((LazyConnectionDataSourceProxy) main).getTargetDataSource())
+          .isNotInstanceOf(LazyConnectionDataSourceProxy.class);
     }
 
     @Test

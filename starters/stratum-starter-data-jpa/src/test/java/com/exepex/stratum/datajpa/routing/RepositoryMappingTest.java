@@ -92,6 +92,23 @@ class RepositoryMappingTest {
       assertThat(failureOf(() -> new RepositoryMapping(packages, POOLS)))
           .hasMessageContaining("the package java.util is mapped to the pools");
     }
+
+    @Test
+    @DisplayName("packages of a pool that does not exist fail, as with no HikariCP")
+    void unknownPoolFails() {
+      var packages = Map.of(BATCH, List.of(JAVA_UTIL));
+
+      assertThat(failureOf(() -> new RepositoryMapping(packages, Set.of())))
+          .hasMessageContaining("stratum.data.sources.batch.packages maps packages to a pool")
+          .hasMessageContaining("does not exist");
+    }
+
+    @Test
+    @DisplayName("a pool that does not exist and maps no package passes")
+    void unknownPoolWithoutPackagesPasses() {
+      assertThatCode(() -> new RepositoryMapping(Map.of(BATCH, List.of()), Set.of()))
+          .doesNotThrowAnyException();
+    }
   }
 
   @Nested

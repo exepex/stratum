@@ -11,6 +11,7 @@ import jakarta.persistence.EntityManagerFactory;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -28,6 +29,7 @@ import org.springframework.beans.factory.support.RootBeanDefinition;
 import org.springframework.context.EnvironmentAware;
 import org.springframework.core.env.Environment;
 import org.springframework.jdbc.datasource.LazyConnectionDataSourceProxy;
+import org.springframework.util.ClassUtils;
 import org.springframework.util.function.SingletonSupplier;
 
 /**
@@ -73,7 +75,7 @@ public final class RoutingRegistrar
     var packages = new TreeMap<String, List<String>>();
     settings.sources().forEach((pool, poolSettings) -> packages.put(pool, poolSettings.packages()));
     var pools =
-        new RepositoryMapping(packages, poolNames.names(registry, settings))
+        new RepositoryMapping(packages, namedPools(registry, settings, loader))
             .map(repositories.find(registry, loader));
     if (pools.isEmpty()) {
       return;
@@ -83,6 +85,17 @@ public final class RoutingRegistrar
     }
     primaryCheck.check(registry, beanFactory);
     register(registry, beanFactory, pools);
+  }
+
+  /**
+   * Returns the named pools, which exist only with HikariCP; without it there are none, and no
+   * HikariCP class is loaded.
+   */
+  private Set<String> namedPools(
+      BeanDefinitionRegistry registry, DataProperties settings, ClassLoader loader) {
+    return ClassUtils.isPresent(DataConstants.HIKARI_POOL, loader)
+        ? poolNames.names(registry, settings)
+        : Set.of();
   }
 
   /** Registers the routing data source, the mapping, the advice and the check. */

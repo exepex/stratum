@@ -4,6 +4,7 @@ import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.data.DataConstants;
 import com.exepex.stratum.data.DataErrorCode;
+import com.exepex.stratum.data.LogLines;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
@@ -28,9 +29,6 @@ public final class RoutingCheck implements SmartInitializingSingleton {
   private static final Set<DatabaseDriver> UNKNOWN_PRODUCTS =
       EnumSet.of(DatabaseDriver.UNKNOWN, DatabaseDriver.TESTCONTAINERS, DatabaseDriver.AWS_WRAPPER);
 
-  /** The line breaks a logged name loses, so that it stays on one line. */
-  private static final String LINE_BREAKS = "[\r\n]";
-
   /** The room a startup line starts with, enough for most lines. */
   private static final int LINE_CAPACITY = 256;
 
@@ -52,24 +50,25 @@ public final class RoutingCheck implements SmartInitializingSingleton {
   public void afterSingletonsInstantiated() {
     var main = beanFactory.getBeanProvider(JdbcConnectionDetails.class).getIfUnique();
     var mainProduct = main == null ? DatabaseDriver.UNKNOWN : productOf(main);
-    for (var pool : pools.targets()) {
-      var details =
-          beanFactory.getBean(pool + DataConstants.DETAILS_SUFFIX, JdbcConnectionDetails.class);
-      checkProduct(pool, productOf(details), mainProduct);
-      if (log.isInfoEnabled()) {
-        log.info(line(pool).replaceAll(LINE_BREAKS, " "));
-      }
-    }
+    pools.targets().forEach(pool -> checkPool(pool, mainProduct));
+  }
+
+  /** Checks one mapped pool's product, then logs its mapping. */
+  private void checkPool(String pool, DatabaseDriver mainProduct) {
+    var details =
+        beanFactory.getBean(pool + DataConstants.DETAILS_SUFFIX, JdbcConnectionDetails.class);
+    checkProduct(pool, productOf(details), mainProduct);
+    LogLines.info(log, () -> line(pool));
   }
 
   /** Fails when both products are known and differ. */
   private void checkProduct(String pool, DatabaseDriver product, DatabaseDriver mainProduct) {
     if (UNKNOWN_PRODUCTS.contains(product) || UNKNOWN_PRODUCTS.contains(mainProduct)) {
-      if (log.isDebugEnabled()) {
-        log.debug(
-            "Pool '{}' was not checked against main's database product: a URL does not show it",
-            pool.replaceAll(LINE_BREAKS, " "));
-      }
+      LogLines.debug(
+          log,
+          () ->
+              "Pool '%s' was not checked against main's database product: a URL does not show it"
+                  .formatted(pool));
     } else if (product != mainProduct) {
       throw new StratumException(
           DataErrorCode.ROUTING_INVALID,

@@ -37,7 +37,7 @@ public final class RepositoryPoolAdvice implements MethodInterceptor {
           TransactionDefinition.PROPAGATION_NOT_SUPPORTED,
           TransactionDefinition.PROPAGATION_NEVER);
 
-  /** The repository interface. */
+  /** The repository interface, whose methods' {@code @Transactional} the advice reads. */
   private final Class<?> repository;
 
   /** The repository's pool, or {@code null} if it is not mapped. */
@@ -65,13 +65,13 @@ public final class RepositoryPoolAdvice implements MethodInterceptor {
     var joins = joinsCallerTransaction(invocation);
     if (pool == null) {
       if (joins) {
-        routing.pinTransaction(routing.currentPool(), repository.getName());
+        routing.pinTransaction(routing.currentPool());
       }
       return invocation.proceed();
     }
     if (joins) {
       checkJpaTransaction(pool);
-      routing.pinTransaction(pool, repository.getName());
+      routing.pinTransaction(pool);
     }
     var previous = routing.enter(pool);
     try {
@@ -97,8 +97,8 @@ public final class RepositoryPoolAdvice implements MethodInterceptor {
         && !TransactionSynchronizationManager.hasResource(entityManagerFactory.get())) {
       throw new StratumException(
           DataErrorCode.POOL_MIXED,
-          "the repository %s of pool %s was called in a transaction that is not JPA's"
-              .formatted(repository.getName(), wanted));
+          "a repository of pool %s was called in a transaction that is not JPA's"
+              .formatted(wanted));
     }
   }
 }

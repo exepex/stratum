@@ -11,7 +11,8 @@ calls it the `main` pool.
 Named pools need HikariCP, which every Stratum data starter brings through Spring Boot. A service
 that removes HikariCP keeps the boundary and the time limits on its own data source beans, but
 Stratum builds no named pool and checks no pool, though a `stratum.data.sources` value that breaks
-its rules still stops startup with `SX-CORE-1003`.
+its rules still stops startup with `SX-CORE-1003`, and so does a repository mapped to a named pool,
+with `SX-DATA-1007`.
 
 ## Add a pool
 

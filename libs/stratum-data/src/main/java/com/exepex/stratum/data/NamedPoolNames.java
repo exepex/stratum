@@ -4,6 +4,7 @@ import com.exepex.stratum.core.api.StratumInternal;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.regex.Pattern;
 import org.springframework.beans.factory.support.AbstractBeanDefinition;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 
@@ -14,8 +15,8 @@ import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 @StratumInternal
 public final class NamedPoolNames {
 
-  /** Tells a pool's name from any other bean name prefix. */
-  private final PoolKeyCheck keyCheck = new PoolKeyCheck();
+  /** A pool's name: lower-case letters and digits, starting with a letter, at most 31. */
+  private static final Pattern NAME = Pattern.compile("[a-z][a-z0-9]{0,30}");
 
   /**
    * Returns the pools' names, in alphabetical order.
@@ -30,9 +31,20 @@ public final class NamedPoolNames {
         .filter(beanName -> beanName.endsWith(DataConstants.DETAILS_SUFFIX))
         .filter(beanName -> !isDefaultCandidate(registry, beanName))
         .map(beanName -> beanName.substring(0, beanName.length() - suffixLength()))
-        .filter(keyCheck::isName)
+        .filter(this::isName)
         .forEach(names::add);
     return names;
+  }
+
+  /**
+   * Returns whether a text follows the rule of a pool's name and is not {@code main}. It needs no
+   * HikariCP class, so code that runs without HikariCP may call it.
+   *
+   * @param name the text
+   * @return whether it can name a pool
+   */
+  public boolean isName(String name) {
+    return NAME.matcher(name).matches() && !DataConstants.MAIN_POOL.equals(name);
   }
 
   /**
