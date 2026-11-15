@@ -166,6 +166,28 @@ class PoolRoutingTest {
   class StatementCheck {
 
     @Test
+    @DisplayName("puts a transaction on no pool yet on the connection's pool, so another fails")
+    void pinsTransaction() {
+      transactions.executeWithoutResult(
+          status -> {
+            routing.checkStatement(MAIN);
+
+            assertThat(routing.transactionPool()).isEqualTo(MAIN);
+            assertThatThrownBy(() -> routing.pinTransaction(BATCH, REPOSITORY))
+                .isInstanceOf(StratumException.class)
+                .hasMessageContaining(DataErrorCode.POOL_MIXED.getCode());
+          });
+    }
+
+    @Test
+    @DisplayName("puts nothing on a pool outside a transaction")
+    void noPinOutsideTransactions() {
+      routing.checkStatement(MAIN);
+
+      assertThat(routing.transactionPool()).isNull();
+    }
+
+    @Test
     @DisplayName("lets a statement through on the pool its call wants")
     void samePoolPasses() {
       var previous = routing.enter(BATCH);

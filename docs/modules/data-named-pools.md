@@ -138,8 +138,8 @@ names another database product than the main pool's. A URL that does not show it
 
 ### One pool per transaction
 
-A transaction uses one pool, the pool of its first repository call, until it ends. A save or change
-that Hibernate writes only at commit therefore reaches the same pool.
+A transaction uses one pool, the pool of its first repository call or statement, until it ends. A
+save or change that Hibernate writes only at commit therefore reaches the same pool.
 
 - A repository nothing maps, called after a mapped one in the same transaction, runs on the
   transaction's pool.
@@ -148,6 +148,9 @@ that Hibernate writes only at commit therefore reaches the same pool.
   main pool, and after code that ran a statement on the main pool itself, such as a `JdbcTemplate`
   or `EntityManager` call. Call the other pool's repositories in a transaction of their own, such
   as one with `@Transactional(propagation = REQUIRES_NEW)`.
+- A repository method that runs in a transaction of its own, such as one declared
+  `@Transactional(propagation = REQUIRES_NEW)` on the repository interface, leaves the caller's
+  transaction alone: it runs on its own pool, and the caller's transaction picks its pool later.
 - Around mapped repositories, use `@Transactional` with Spring Boot's JPA transaction manager, the
   default. A named pool's `<name>TransactionManager` does not reach JPA, so a mapped repository in
   its transaction fails with `SX-DATA-1008`.

@@ -11,6 +11,8 @@ import com.exepex.stratum.data.it.pools.batch.BatchNotes;
 import com.exepex.stratum.data.it.pools.main.MainNotes;
 import com.exepex.stratum.data.testsupport.PoolDatabases;
 import com.exepex.stratum.test.PostgresContainerConfiguration;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import java.sql.SQLException;
 import java.util.List;
 import javax.sql.DataSource;
@@ -49,6 +51,9 @@ class TransactionPoolIntegrationTest {
   @Autowired
   @Qualifier("batchTransactionManager")
   private PlatformTransactionManager batchManager;
+
+  /** The shared entity manager, which code outside repositories uses. */
+  @PersistenceContext private EntityManager entityManager;
 
   /** Both databases, read through their own pools. */
   private PoolDatabases databases;
@@ -93,7 +98,8 @@ class TransactionPoolIntegrationTest {
       transactions.executeWithoutResult(
           status -> {
             batchNotes.save(new Note(null, PoolDatabases.BATCH));
-            inner.executeWithoutResult(innerStatus -> mainNotes.save(new Note(null, "main")));
+            inner.executeWithoutResult(
+                innerStatus -> mainNotes.save(new Note(null, DataConstants.MAIN_POOL)));
           });
 
       assertThat(databases.batchRows()).isOne();
@@ -113,7 +119,7 @@ class TransactionPoolIntegrationTest {
               () ->
                   transactions.executeWithoutResult(
                       status -> {
-                        mainNotes.save(new Note(null, "main"));
+                        mainNotes.save(new Note(null, DataConstants.MAIN_POOL));
                         batchNotes.save(new Note(null, PoolDatabases.BATCH));
                       }))
           .hasMessageContaining(DataErrorCode.POOL_MIXED.getCode())
@@ -124,7 +130,7 @@ class TransactionPoolIntegrationTest {
     }
 
     @Test
-    @DisplayName("after a JDBC statement on main, a batch write fails before reaching any database")
+    @DisplayName("after a JDBC statement on main, a batch call fails before reaching any database")
     void jdbcStatementFirst() {
       var jdbc = JdbcClient.create(application.getBean(DataSource.class));
 
@@ -136,10 +142,26 @@ class TransactionPoolIntegrationTest {
                         batchNotes.save(new Note(null, PoolDatabases.BATCH));
                       }))
           .hasStackTraceContaining(DataErrorCode.POOL_MIXED.getCode())
-          .hasStackTraceContaining("pool main reached a statement of pool batch");
+          .hasStackTraceContaining("pool main reached the repository");
 
       assertThat(databases.mainRows()).isZero();
       assertThat(databases.batchRows()).isZero();
+    }
+
+    @Test
+    @DisplayName("after an entity loaded through the EntityManager, a batch read of it fails")
+    void entityManagerFirst() {
+      var id = mainNotes.save(new Note(null, DataConstants.MAIN_POOL)).getId();
+
+      assertThatThrownBy(
+              () ->
+                  transactions.executeWithoutResult(
+                      status -> {
+                        entityManager.find(Note.class, id);
+                        batchNotes.findById(id);
+                      }))
+          .hasMessageContaining(DataErrorCode.POOL_MIXED.getCode())
+          .hasMessageContaining("pool main reached the repository");
     }
 
     @Test
@@ -159,6 +181,37 @@ class TransactionPoolIntegrationTest {
   }
 
   @Nested
+  @DisplayName("a repository method with a transaction of its own")
+  class OwnTransaction {
+
+    @Test
+    @DisplayName("runs on its pool inside a transaction on main")
+    void runsInsideMainTransaction() {
+      transactions.executeWithoutResult(
+          status -> {
+            mainNotes.save(new Note(null, DataConstants.MAIN_POOL));
+            batchNotes.saveInOwnTransaction(new Note(null, PoolDatabases.BATCH));
+          });
+
+      assertThat(databases.mainRows()).isOne();
+      assertThat(databases.batchRows()).isOne();
+    }
+
+    @Test
+    @DisplayName("leaves the caller's transaction on no pool, so its next call picks its own")
+    void leavesCallerUnpinned() {
+      transactions.executeWithoutResult(
+          status -> {
+            batchNotes.saveInOwnTransaction(new Note(null, PoolDatabases.BATCH));
+            mainNotes.save(new Note(null, DataConstants.MAIN_POOL));
+          });
+
+      assertThat(databases.mainRows()).isOne();
+      assertThat(databases.batchRows()).isOne();
+    }
+  }
+
+  @Nested
   @DisplayName("a finished transaction")
   class Finished {
 
@@ -170,7 +223,8 @@ class TransactionPoolIntegrationTest {
             batchNotes.save(new Note(null, "rolled back"));
             status.setRollbackOnly();
           });
-      transactions.executeWithoutResult(status -> mainNotes.save(new Note(null, "main")));
+      transactions.executeWithoutResult(
+          status -> mainNotes.save(new Note(null, DataConstants.MAIN_POOL)));
 
       assertThat(databases.mainRows()).isOne();
       assertThat(databases.batchRows()).isZero();

@@ -10,8 +10,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 /**
  * The pool the current call wants: the repository's own pool while it runs, else the pool the
  * transaction is on, else {@code main}. A transaction is put on the pool of its first repository
- * call and stays on it, so its commit-time flush runs on that pool too. One instance serves the
- * routing data source and every repository.
+ * call or statement and stays on it, so its commit-time flush runs on that pool too. One instance
+ * serves the routing data source and every repository.
  */
 @StratumInternal
 public final class PoolRouting {
@@ -35,7 +35,7 @@ public final class PoolRouting {
 
   /**
    * Returns the pool the current transaction is on, or none outside a transaction or before its
-   * first repository call.
+   * first repository call or statement.
    *
    * @return the pool's name, or {@code null}
    */
@@ -80,22 +80,21 @@ public final class PoolRouting {
    * @throws StratumException {@code SX-DATA-1008} if the transaction is on another pool
    */
   public void pinTransaction(String pool, String repository) {
-    if (!TransactionSynchronizationManager.isActualTransactionActive()
-        || !TransactionSynchronizationManager.isSynchronizationActive()) {
+    if (!inTransaction()) {
       return;
     }
     var pinned = transactionPool();
     if (pinned == null) {
-      var transactionPool = new TransactionPool(this, pool);
-      TransactionSynchronizationManager.bindResource(this, transactionPool);
-      TransactionSynchronizationManager.registerSynchronization(transactionPool);
+      bind(pool);
     } else if (!pinned.equals(pool)) {
       throw mixed(pinned, "the repository %s of pool %s".formatted(repository, pool));
     }
   }
 
   /**
-   * Fails a statement whose call wants another pool than the one its connection is on.
+   * Fails a statement whose call wants another pool than the one its connection is on. Otherwise,
+   * in a transaction on no pool yet, it puts the transaction on the connection's pool, so a later
+   * repository call of another pool fails before it can return an entity loaded from this one.
    *
    * @param connectionPool the pool the connection was opened on
    * @throws StratumException {@code SX-DATA-1008} if the current call wants another pool
@@ -105,6 +104,22 @@ public final class PoolRouting {
     if (!wanted.equals(connectionPool)) {
       throw mixed(connectionPool, "a statement of pool " + wanted);
     }
+    if (inTransaction() && transactionPool() == null) {
+      bind(connectionPool);
+    }
+  }
+
+  /** Returns whether a transaction with synchronization is active on this thread. */
+  private boolean inTransaction() {
+    return TransactionSynchronizationManager.isActualTransactionActive()
+        && TransactionSynchronizationManager.isSynchronizationActive();
+  }
+
+  /** Puts the current transaction on a pool until it completes. */
+  private void bind(String pool) {
+    var transactionPool = new TransactionPool(this, pool);
+    TransactionSynchronizationManager.bindResource(this, transactionPool);
+    TransactionSynchronizationManager.registerSynchronization(transactionPool);
   }
 
   /** Returns the failure of a call that reaches another pool than its transaction's. */

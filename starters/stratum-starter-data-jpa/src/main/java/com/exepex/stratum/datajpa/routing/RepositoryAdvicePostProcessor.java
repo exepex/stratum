@@ -9,6 +9,8 @@ import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.data.jpa.repository.support.JpaRepositoryFactoryBean;
 import org.springframework.data.repository.core.RepositoryInformation;
+import org.springframework.transaction.annotation.AnnotationTransactionAttributeSource;
+import org.springframework.transaction.interceptor.TransactionAttributeSource;
 
 /**
  * Adds the pool advice to every JPA repository, before Spring Data builds it, as its first advice,
@@ -26,6 +28,10 @@ public final class RepositoryAdvicePostProcessor implements BeanPostProcessor {
 
   /** The entity manager factory, found on first use. */
   private final Supplier<EntityManagerFactory> entityManagerFactory;
+
+  /** Reads each repository method's {@code @Transactional}, shared by every advice. */
+  private final TransactionAttributeSource transactionAttributes =
+      new AnnotationTransactionAttributeSource();
 
   /**
    * Asks a JPA repository's factory bean to add the advice to the repository it builds.
@@ -49,6 +55,10 @@ public final class RepositoryAdvicePostProcessor implements BeanPostProcessor {
     proxy.addAdvice(
         0,
         new RepositoryPoolAdvice(
-            routing, repository.getName(), pools.poolOf(repository), entityManagerFactory));
+            routing,
+            repository,
+            pools.poolOf(repository),
+            entityManagerFactory,
+            transactionAttributes));
   }
 }
