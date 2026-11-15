@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
 import com.exepex.stratum.core.error.CoreErrorCode;
 import com.exepex.stratum.core.error.StratumException;
+import com.exepex.stratum.data.testsupport.NamedPoolTestData;
 import com.exepex.stratum.data.testsupport.ReportsPoolCustomizer;
 import java.io.IOException;
 import java.time.Duration;
@@ -18,8 +19,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.FieldSource;
-import org.springframework.boot.env.YamlPropertySourceLoader;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.mock.env.MockEnvironment;
 
 @DisplayName("DataProperties binds the named pools and the cap, and rejects values out of range")
@@ -99,10 +98,7 @@ class DataPropertiesTest {
     @Test
     @DisplayName("binds a named pool's keys and the cap")
     void bindsPoolAndCap() throws IOException {
-      var environment = new MockEnvironment();
-      new YamlPropertySourceLoader()
-          .load("named-pools", new ClassPathResource("named-pools.yml"))
-          .forEach(environment.getPropertySources()::addFirst);
+      var environment = NamedPoolTestData.withYaml("named-pools");
 
       var settings = DataProperties.resolve(environment);
 

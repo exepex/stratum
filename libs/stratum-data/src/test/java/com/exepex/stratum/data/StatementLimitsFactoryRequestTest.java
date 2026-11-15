@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 import com.exepex.stratum.core.error.CoreErrorCode;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.core.request.RequestTimeLeft;
+import com.exepex.stratum.data.testsupport.NamedPoolTestData;
 import com.exepex.stratum.data.testsupport.NoMarginSettings;
 import com.exepex.stratum.test.StarterTestSupport;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -28,9 +29,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.boot.env.YamlPropertySourceLoader;
 import org.springframework.core.env.ConfigurableEnvironment;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.mock.env.MockEnvironment;
 
 @DisplayName("StatementLimitsFactory gives each data source the web request's deadline")
@@ -108,10 +107,7 @@ class StatementLimitsFactoryRequestTest {
     @DisplayName("the margin is set in application.yml")
     void marginFromYaml() throws IOException {
       withBean(true);
-      var environment = new MockEnvironment();
-      new YamlPropertySourceLoader()
-          .load("deadline-margin", new ClassPathResource("deadline-margin.yml"))
-          .forEach(environment.getPropertySources()::addFirst);
+      var environment = NamedPoolTestData.withYaml("deadline-margin");
 
       assertThat(borrowWith(environment, UNDER_MARGIN)).isNull();
     }

@@ -1,12 +1,15 @@
 package com.exepex.stratum.data.testsupport;
 
+import java.io.IOException;
 import java.util.Map;
 import lombok.experimental.UtilityClass;
+import org.springframework.boot.env.YamlPropertySourceLoader;
 import org.springframework.core.env.StandardEnvironment;
 import org.springframework.core.env.SystemEnvironmentPropertySource;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.mock.env.MockEnvironment;
 
-/** The names, keys and secrets the tests of named pools share. */
+/** The names, keys, secrets and environments that the module's tests share. */
 @UtilityClass
 public class NamedPoolTestData {
 
@@ -52,6 +55,22 @@ public class NamedPoolTestData {
         .addFirst(
             new SystemEnvironmentPropertySource(
                 StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME, variables));
+    return environment;
+  }
+
+  /**
+   * Returns an environment holding the settings of a test {@code .yml} file, as a service's {@code
+   * application.yml} does.
+   *
+   * @param name the file's name on the test class path, without {@code .yml}
+   * @return the environment
+   * @throws IOException if the file cannot be read
+   */
+  public static MockEnvironment withYaml(String name) throws IOException {
+    var environment = new MockEnvironment();
+    new YamlPropertySourceLoader()
+        .load(name, new ClassPathResource(name + ".yml"))
+        .forEach(environment.getPropertySources()::addFirst);
     return environment;
   }
 }
