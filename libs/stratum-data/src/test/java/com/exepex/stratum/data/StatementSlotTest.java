@@ -123,7 +123,13 @@ class StatementSlotTest {
 
       var claim = slot.claimIfExpired(afterLimit());
 
-      assertThat(claim).isEqualTo(new StatementSlot.Claim(slot, running, statement));
+      assertThat(claim)
+          .isEqualTo(
+              StatementSlot.Claim.builder()
+                  .slot(slot)
+                  .running(running)
+                  .statement(statement)
+                  .build());
     }
 
     @Test
@@ -188,7 +194,8 @@ class StatementSlotTest {
       assertThat(slot.end(earlier, LONG_WAIT_MILLIS)).isEqualTo(Outcome.NOT_CLAIMED);
 
       assertThat(slot.claimIfExpired(afterLimit()))
-          .isEqualTo(new StatementSlot.Claim(slot, later, statement));
+          .isEqualTo(
+              StatementSlot.Claim.builder().slot(slot).running(later).statement(statement).build());
     }
 
     @Test

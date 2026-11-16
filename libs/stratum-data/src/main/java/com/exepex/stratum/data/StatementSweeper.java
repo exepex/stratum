@@ -110,6 +110,7 @@ public class StatementSweeper implements AutoCloseable {
    */
   void sweep() {
     long now = ticker.getAsLong();
+    // A loop, not a stream: each slot's step holds a try block, which no one-expression lambda can.
     for (var slot : slots) {
       var claim = slot.claimIfExpired(now);
       if (claim != null) {

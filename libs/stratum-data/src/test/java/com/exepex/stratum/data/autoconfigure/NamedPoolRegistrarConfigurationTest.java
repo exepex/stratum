@@ -208,6 +208,17 @@ class NamedPoolRegistrarConfigurationTest {
     }
 
     @Test
+    @DisplayName("a leak alarm threshold HikariCP would turn off stops startup with SX-DATA-1002")
+    void leakAlarmTurnedOff() {
+      withBatchPool()
+          .withPropertyValues(BATCH_KEYS + "hikari.leak-detection-threshold=500")
+          .run(
+              context ->
+                  assertThat(startupFailureOf(context, DataErrorCode.LEAK_ALARM_OFF))
+                      .hasMessageContaining(BATCH_KEYS + "hikari.leak-detection-threshold"));
+    }
+
+    @Test
     @DisplayName("with the module off, no pool is registered even with keys")
     void moduleOff() {
       withBatchPool()

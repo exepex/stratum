@@ -209,6 +209,8 @@ public final class JdbcWrapperClasses {
                     + SUFFIX
                     + RandomString.make())
             .implement(type);
+    // A loop, not a stream: each step adds to the builder the step before it returned, and a reduce
+    // would need a combiner of two builders, which Byte Buddy does not have.
     for (var method : delegatedMethods(type, base)) {
       builder =
           builder
@@ -310,6 +312,7 @@ public final class JdbcWrapperClasses {
   private Implementation callOf(Method method) {
     var delegateCall = MethodCall.invoke(method).onField("delegate");
     var parameterTypes = method.getParameterTypes();
+    // A loop, not a stream: each step adds an argument to the call the step before it returned.
     for (var index : IntStream.range(0, parameterTypes.length).toArray()) {
       delegateCall =
           isUnwrapped(parameterTypes[index])

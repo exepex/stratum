@@ -115,6 +115,8 @@ public class DatabaseTlsCheck implements SmartApplicationListener, DisposableBea
   Map<String, DataSource> dataSources() {
     var beanFactory = context.getBeanFactory();
     var dataSources = new LinkedHashMap<String, DataSource>();
+    // A loop, not a stream: two beans can hand out one pool under one name, and put keeps one entry
+    // in bean order, which a collector does only with a merge function and a map supplier.
     for (var name : beanFactory.getBeanNamesForType(DataSource.class, false, false)) {
       if (beanFactory.containsSingleton(name)) {
         var dataSource = beanFactory.getBean(name, DataSource.class);
@@ -149,6 +151,7 @@ public class DatabaseTlsCheck implements SmartApplicationListener, DisposableBea
    * @param dataSources the data sources, by pool name
    */
   void checkAll(Map<String, DataSource> dataSources) {
+    // A loop, not a stream: it stops between two data sources as soon as the application closes.
     for (var dataSource : dataSources.entrySet()) {
       if (closing.get()) {
         return;
