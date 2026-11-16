@@ -241,8 +241,9 @@ topic file wins.
   work the same with `./mvnw` in place of `mvn`.
 - `mvn verify` must pass before every push. It runs formatting (Spotless with google-java-format),
   Checkstyle (Stratum's rules, plus Google's `google_checks.xml` for Stratum's own code), PMD (with the rules
-  against hand-written boilerplate of ST-ENG-42 and the test-structure rules of ST-TEST-15 and ST-TEST-17 for
-  Stratum's own code), SpotBugs, the Maven Enforcer, unit tests
+  against hand-written boilerplate of ST-ENG-42 for Stratum's own code, and two checks that cover parts of
+  ST-TEST-15 and ST-TEST-17 in its tests: no inline `@ValueSource` and no test method beside `@Nested` groups),
+  SpotBugs, the Maven Enforcer, unit tests
   (`*Test.java`, Surefire), integration tests (`*IntegrationTest.java`, Failsafe) and the JaCoCo coverage gate,
   which `.mvn/maven.config` turns on for Stratum's own build.
   Each one fails the build, and so does a library or starter that has code but runs no tests.
