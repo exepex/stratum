@@ -30,13 +30,18 @@ class JavaConfigurationWinsTest {
               AutoConfigurations.of(
                   ValidationAutoConfiguration.class, GreetingAutoConfiguration.class));
 
-  @Test
-  @DisplayName("with nothing set, the module uses its defaults")
-  void usesDefaultsWhenNothingIsSet() {
-    contextRunner.run(
-        context ->
-            assertThat(context.getBean(Greeter.class).properties())
-                .isEqualTo(GreetingTestData.defaults().build()));
+  @Nested
+  @DisplayName("with nothing set")
+  class WithNothingSet {
+
+    @Test
+    @DisplayName("with nothing set, the module uses its defaults")
+    void usesDefaultsWhenNothingIsSet() {
+      contextRunner.run(
+          context ->
+              assertThat(context.getBean(Greeter.class).properties())
+                  .isEqualTo(GreetingTestData.defaults().build()));
+    }
   }
 
   @Nested

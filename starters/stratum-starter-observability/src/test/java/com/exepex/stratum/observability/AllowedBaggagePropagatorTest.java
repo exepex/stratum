@@ -87,9 +87,14 @@ class AllowedBaggagePropagatorTest {
     }
   }
 
-  @Test
-  @DisplayName("it names the same headers as the propagator it wraps")
-  void namesWrappedFields() {
-    assertThat(propagator.fields()).isEqualTo(W3CBaggagePropagator.getInstance().fields());
+  @Nested
+  @DisplayName("when asked which headers it uses")
+  class HeaderNames {
+
+    @Test
+    @DisplayName("it names the same headers as the propagator it wraps")
+    void namesWrappedFields() {
+      assertThat(propagator.fields()).isEqualTo(W3CBaggagePropagator.getInstance().fields());
+    }
   }
 }

@@ -101,40 +101,45 @@ class TokenRelayIntegrationTest {
         Jwt.withTokenValue(token).header("alg", "RS256").subject("user-1").build());
   }
 
-  @Test
-  @DisplayName("a verified JWT goes in Authorization")
-  void relaysVerifiedToken() {
-    signIn(verifiedCaller(CALLER_TOKEN));
+  @Nested
+  @DisplayName("with a verified access token")
+  class CallerToken {
 
-    assertThat(inventory.stock()).isEqualTo(ScriptedDownstream.BODY);
-    assertThat(SERVER.authorizations().getLast()).isEqualTo("Bearer " + CALLER_TOKEN);
-  }
+    @Test
+    @DisplayName("a verified JWT goes in Authorization")
+    void relaysVerifiedToken() {
+      signIn(verifiedCaller(CALLER_TOKEN));
 
-  @ParameterizedTest
-  @FieldSource(ClientBeanCalls.BOTH_BEANS)
-  @DisplayName("the client's RestClient and RestTemplate beans send the caller's token")
-  void beansRelayVerifiedToken(ClientBean bean, @Autowired ApplicationContext context) {
-    signIn(verifiedCaller(CALLER_TOKEN));
+      assertThat(inventory.stock()).isEqualTo(ScriptedDownstream.BODY);
+      assertThat(SERVER.authorizations().getLast()).isEqualTo("Bearer " + CALLER_TOKEN);
+    }
 
-    assertThat(
-            ClientBeanCalls.get(
-                context, bean, RestClientTestData.INVENTORY, ScriptedDownstream.STOCK))
-        .isEqualTo(ScriptedDownstream.BODY);
-    assertThat(SERVER.authorizations().getLast()).isEqualTo("Bearer " + CALLER_TOKEN);
-  }
+    @ParameterizedTest
+    @FieldSource(ClientBeanCalls.BOTH_BEANS)
+    @DisplayName("the client's RestClient and RestTemplate beans send the caller's token")
+    void beansRelayVerifiedToken(ClientBean bean, @Autowired ApplicationContext context) {
+      signIn(verifiedCaller(CALLER_TOKEN));
 
-  @Test
-  @DisplayName("a 401 is passed back as it is, without a second send")
-  void refusedTokenPassedBack() {
-    signIn(verifiedCaller("expired-caller"));
-    var callsBefore = SERVER.authorizations().size();
+      assertThat(
+              ClientBeanCalls.get(
+                  context, bean, RestClientTestData.INVENTORY, ScriptedDownstream.STOCK))
+          .isEqualTo(ScriptedDownstream.BODY);
+      assertThat(SERVER.authorizations().getLast()).isEqualTo("Bearer " + CALLER_TOKEN);
+    }
 
-    assertThatThrownBy(inventory::stock)
-        .isInstanceOfSatisfying(
-            DownstreamException.class,
-            refused -> assertThat(refused.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED));
-    assertThat(SERVER.authorizations()).hasSize(callsBefore + 1);
-    assertThat(SERVER.tokenRequests()).isZero();
+    @Test
+    @DisplayName("a 401 is passed back as it is, without a second send")
+    void refusedTokenPassedBack() {
+      signIn(verifiedCaller("expired-caller"));
+      var callsBefore = SERVER.authorizations().size();
+
+      assertThatThrownBy(inventory::stock)
+          .isInstanceOfSatisfying(
+              DownstreamException.class,
+              refused -> assertThat(refused.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED));
+      assertThat(SERVER.authorizations()).hasSize(callsBefore + 1);
+      assertThat(SERVER.tokenRequests()).isZero();
+    }
   }
 
   @Nested

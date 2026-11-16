@@ -152,20 +152,25 @@ class ClientErrorsIntegrationTest {
     }
   }
 
-  @Test
-  @DisplayName("a JSON body cut off by the timeout ends with SX-HTTPC-0001, its causes walked")
-  void cutOffJsonIsTimeout() {
-    CallChecks.assertEndsWith(orders::cutJson, HttpClientErrorCode.DOWNSTREAM_TIMEOUT)
-        .withRootCauseInstanceOf(SocketTimeoutException.class);
-  }
+  @Nested
+  @DisplayName("a JSON answer body")
+  class JsonBodies {
 
-  @Test
-  @DisplayName(
-      "a client reads JSON with Jackson 3 by default, though Jackson 2 is on the classpath")
-  void readsWithJackson3ByDefault() {
-    assertThatExceptionOfType(RestClientException.class)
-        .isThrownBy(orders::badJson)
-        .withRootCauseInstanceOf(JacksonException.class);
+    @Test
+    @DisplayName("a JSON body cut off by the timeout ends with SX-HTTPC-0001, its causes walked")
+    void cutOffJsonIsTimeout() {
+      CallChecks.assertEndsWith(orders::cutJson, HttpClientErrorCode.DOWNSTREAM_TIMEOUT)
+          .withRootCauseInstanceOf(SocketTimeoutException.class);
+    }
+
+    @Test
+    @DisplayName(
+        "a client reads JSON with Jackson 3 by default, though Jackson 2 is on the classpath")
+    void readsWithJackson3ByDefault() {
+      assertThatExceptionOfType(RestClientException.class)
+          .isThrownBy(orders::badJson)
+          .withRootCauseInstanceOf(JacksonException.class);
+    }
   }
 
   @Nested

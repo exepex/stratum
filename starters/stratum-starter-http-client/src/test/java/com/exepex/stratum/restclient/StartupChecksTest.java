@@ -35,81 +35,97 @@ class StartupChecksTest {
               RestClientTestData.setting(
                   RestClientTestData.PRICING_URL, RestClientTestData.UNUSED_URL));
 
-  @Test
-  @DisplayName("with every client's address set, the application starts")
-  void startsWhenSetUpRight() {
-    clients.run(context -> assertThat(context).hasNotFailed());
+  @Nested
+  @DisplayName("a client's address")
+  class Address {
+
+    @Test
+    @DisplayName("with every client's address set, the application starts")
+    void startsWhenSetUpRight() {
+      clients.run(context -> assertThat(context).hasNotFailed());
+    }
+
+    @Test
+    @DisplayName("a client without an address: SX-HTTPC-1004, naming the key")
+    void missingUrlStopsStartup() {
+      RestClientTestData.contextRunner()
+          .withUserConfiguration(InventoryClients.class)
+          .withPropertyValues(
+              RestClientTestData.setting(
+                  RestClientTestData.INVENTORY_URL, RestClientTestData.UNUSED_URL))
+          .run(
+              context ->
+                  assertStopped(context, "SX-HTTPC-1004")
+                      .hasMessageContaining(RestClientTestData.PRICING_URL));
+    }
+
+    @Test
+    @DisplayName("a client whose address is blank, as an unset ${VARIABLE:} gives: SX-HTTPC-1004")
+    void blankUrlStopsStartup() {
+      RestClientTestData.contextRunner()
+          .withUserConfiguration(InventoryClients.class)
+          .withPropertyValues(
+              RestClientTestData.setting(
+                  RestClientTestData.INVENTORY_URL, RestClientTestData.UNUSED_URL),
+              RestClientTestData.setting(RestClientTestData.PRICING_URL, " "))
+          .run(
+              context ->
+                  assertStopped(context, "SX-HTTPC-1004")
+                      .hasMessageContaining(RestClientTestData.PRICING_URL));
+    }
   }
 
-  @Test
-  @DisplayName("a Spring Boot spring.http.serviceclient key for a Stratum client: SX-HTTPC-1001")
-  void bootGroupKeyStopsStartup() {
-    clients
-        .withPropertyValues(
-            HttpClientConstants.BOOT_SERVICE_CLIENTS + ".inventory.read-timeout=20s")
-        .run(
-            context ->
-                assertStopped(context, "SX-HTTPC-1001")
-                    .hasMessageContaining(RestClientTestData.INVENTORY_SETTINGS + ".*")
-                    .hasMessageNotContaining("20s"));
+  @Nested
+  @DisplayName("Spring Boot's own service client keys")
+  class BootKeys {
+
+    @Test
+    @DisplayName("a Spring Boot spring.http.serviceclient key for a Stratum client: SX-HTTPC-1001")
+    void bootGroupKeyStopsStartup() {
+      clients
+          .withPropertyValues(
+              HttpClientConstants.BOOT_SERVICE_CLIENTS + ".inventory.read-timeout=20s")
+          .run(
+              context ->
+                  assertStopped(context, "SX-HTTPC-1001")
+                      .hasMessageContaining(RestClientTestData.INVENTORY_SETTINGS + ".*")
+                      .hasMessageNotContaining("20s"));
+    }
+
+    @Test
+    @DisplayName("a Spring Boot key for a group that is not a Stratum client is left alone")
+    void bootKeyOfOtherGroupAllowed() {
+      clients
+          .withPropertyValues(
+              HttpClientConstants.BOOT_SERVICE_CLIENTS + ".payments.read-timeout=20s")
+          .run(context -> assertThat(context).hasNotFailed());
+    }
   }
 
-  @Test
-  @DisplayName("a Spring Boot key for a group that is not a Stratum client is left alone")
-  void bootKeyOfOtherGroupAllowed() {
-    clients
-        .withPropertyValues(HttpClientConstants.BOOT_SERVICE_CLIENTS + ".payments.read-timeout=20s")
-        .run(context -> assertThat(context).hasNotFailed());
-  }
+  @Nested
+  @DisplayName("a scanned @StratumClient interface")
+  class ScannedInterfaces {
 
-  @Test
-  @DisplayName("a method that returns Mono: SX-HTTPC-1002, naming the method")
-  void reactiveMethodStopsStartup() {
-    RestClientTestData.contextRunner()
-        .withUserConfiguration(ReactiveClients.class)
-        .run(
-            context ->
-                assertStopped(context, "SX-HTTPC-1002")
-                    .hasMessageContaining("ReactiveStockClient.stock"));
-  }
+    @Test
+    @DisplayName("a method that returns Mono: SX-HTTPC-1002, naming the method")
+    void reactiveMethodStopsStartup() {
+      RestClientTestData.contextRunner()
+          .withUserConfiguration(ReactiveClients.class)
+          .run(
+              context ->
+                  assertStopped(context, "SX-HTTPC-1002")
+                      .hasMessageContaining("ReactiveStockClient.stock"));
+    }
 
-  @Test
-  @DisplayName("a client name that is not a valid key part: SX-HTTPC-1003, naming the interface")
-  void badClientNameStopsStartup() {
-    RestClientTestData.contextRunner()
-        .withUserConfiguration(BadNameClients.class)
-        .run(
-            context ->
-                assertStopped(context, "SX-HTTPC-1003").hasMessageContaining("BadNameClient"));
-  }
-
-  @Test
-  @DisplayName("a client without an address: SX-HTTPC-1004, naming the key")
-  void missingUrlStopsStartup() {
-    RestClientTestData.contextRunner()
-        .withUserConfiguration(InventoryClients.class)
-        .withPropertyValues(
-            RestClientTestData.setting(
-                RestClientTestData.INVENTORY_URL, RestClientTestData.UNUSED_URL))
-        .run(
-            context ->
-                assertStopped(context, "SX-HTTPC-1004")
-                    .hasMessageContaining(RestClientTestData.PRICING_URL));
-  }
-
-  @Test
-  @DisplayName("a client whose address is blank, as an unset ${VARIABLE:} gives: SX-HTTPC-1004")
-  void blankUrlStopsStartup() {
-    RestClientTestData.contextRunner()
-        .withUserConfiguration(InventoryClients.class)
-        .withPropertyValues(
-            RestClientTestData.setting(
-                RestClientTestData.INVENTORY_URL, RestClientTestData.UNUSED_URL),
-            RestClientTestData.setting(RestClientTestData.PRICING_URL, " "))
-        .run(
-            context ->
-                assertStopped(context, "SX-HTTPC-1004")
-                    .hasMessageContaining(RestClientTestData.PRICING_URL));
+    @Test
+    @DisplayName("a client name that is not a valid key part: SX-HTTPC-1003, naming the interface")
+    void badClientNameStopsStartup() {
+      RestClientTestData.contextRunner()
+          .withUserConfiguration(BadNameClients.class)
+          .run(
+              context ->
+                  assertStopped(context, "SX-HTTPC-1003").hasMessageContaining("BadNameClient"));
+    }
   }
 
   @Nested

@@ -238,20 +238,25 @@ class RequestDeadlineLimitsTest {
     }
   }
 
-  @Test
-  @DisplayName(
-      "in backward-compatible mode a request limit still applies, with the code in its message")
-  void backwardCompatible() throws SQLException {
-    var compatible = new StatementLimitsFixture(true);
-    compatible.requestLeft.set(Optional.of(UNDER_MARGIN));
-    try (var _ = compatible.sweeper) {
-      var failure = catchThrowable(() -> compatible.dataSource.getConnection().close());
+  @Nested
+  @DisplayName("in backward-compatible mode")
+  class BackwardCompatible {
 
-      assertThat(failure)
-          .isInstanceOf(StatementTimeoutException.class)
-          .hasMessageStartingWith(DataErrorCode.STATEMENT_TIMED_OUT.getCode());
-      assertThat(FailureCauses.findFailureWithErrorCode(failure)).isEmpty();
-      verify(compatible.pool, never()).getConnection();
+    @Test
+    @DisplayName(
+        "in backward-compatible mode a request limit still applies, with the code in its message")
+    void backwardCompatible() throws SQLException {
+      var compatible = new StatementLimitsFixture(true);
+      compatible.requestLeft.set(Optional.of(UNDER_MARGIN));
+      try (var _ = compatible.sweeper) {
+        var failure = catchThrowable(() -> compatible.dataSource.getConnection().close());
+
+        assertThat(failure)
+            .isInstanceOf(StatementTimeoutException.class)
+            .hasMessageStartingWith(DataErrorCode.STATEMENT_TIMED_OUT.getCode());
+        assertThat(FailureCauses.findFailureWithErrorCode(failure)).isEmpty();
+        verify(compatible.pool, never()).getConnection();
+      }
     }
   }
 }

@@ -89,14 +89,19 @@ class TracedRequestsTest {
     }
   }
 
-  @Test
-  @DisplayName("in a request that is not sampled, no span is kept")
-  void unsampled() throws SQLException {
-    traced.close();
-    traced = TracedRequests.unsampled();
+  @Nested
+  @DisplayName("in a request that is not sampled")
+  class Unsampled {
 
-    traced.inRequest(this::runStatement);
+    @Test
+    @DisplayName("in a request that is not sampled, no span is kept")
+    void unsampled() throws SQLException {
+      traced.close();
+      traced = TracedRequests.unsampled();
 
-    assertThat(traced.allSpans()).isEmpty();
+      traced.inRequest(TracedRequestsTest.this::runStatement);
+
+      assertThat(traced.allSpans()).isEmpty();
+    }
   }
 }

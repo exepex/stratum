@@ -160,21 +160,26 @@ class WebMvcErrorResponsesAutoConfigurationTest {
     }
   }
 
-  @Test
-  @DisplayName("a web customizer declared as a bean stops startup with SX-CORE-1004")
-  void customizerBeanStopsStartup() {
-    contextRunner
-        .withBean("webCustomizer", WebPropertiesCustomizer.class, () -> settings -> settings)
-        .run(
-            context ->
-                assertThat(context)
-                    .getFailure()
-                    .rootCause()
-                    .isInstanceOf(StratumException.class)
-                    .hasMessage(
-                        "SX-CORE-1004: "
-                            + CoreErrorCode.CUSTOMIZER_DECLARED_AS_BEAN.getDescription()
-                            + ": customizer beans webCustomizer (WebPropertiesCustomizer)"));
+  @Nested
+  @DisplayName("when the service declares a web customizer as a bean")
+  class CustomizerBean {
+
+    @Test
+    @DisplayName("a web customizer declared as a bean stops startup with SX-CORE-1004")
+    void customizerBeanStopsStartup() {
+      contextRunner
+          .withBean("webCustomizer", WebPropertiesCustomizer.class, () -> settings -> settings)
+          .run(
+              context ->
+                  assertThat(context)
+                      .getFailure()
+                      .rootCause()
+                      .isInstanceOf(StratumException.class)
+                      .hasMessage(
+                          "SX-CORE-1004: "
+                              + CoreErrorCode.CUSTOMIZER_DECLARED_AS_BEAN.getDescription()
+                              + ": customizer beans webCustomizer (WebPropertiesCustomizer)"));
+    }
   }
 
   /** Returns a factory with no error statuses. */
