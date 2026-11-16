@@ -91,14 +91,14 @@ record BomCheck(Path root, Path bom) {
   }
 
   /** Returns whether a module's own {@code <properties>} set {@code skipPublishing} to true. */
-  private static boolean skipsPublishing(Element project) {
+  private boolean skipsPublishing(Element project) {
     return children(project, "properties")
         .flatMap(properties -> children(properties, "skipPublishing"))
         .anyMatch(skip -> "true".equals(text(skip)));
   }
 
   /** Parses {@code pom} with DOCTYPE declarations refused, and returns its root element. */
-  private static Element parse(Path pom) {
+  private Element parse(Path pom) {
     try {
       DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
       factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
@@ -114,7 +114,7 @@ record BomCheck(Path root, Path bom) {
   }
 
   /** Returns the first child element of {@code parent} named {@code name}. */
-  private static Element child(Element parent, String name) {
+  private Element child(Element parent, String name) {
     return children(parent, name)
         .findFirst()
         .orElseThrow(
@@ -122,7 +122,7 @@ record BomCheck(Path root, Path bom) {
   }
 
   /** Returns the child elements of {@code parent} named {@code name}, in document order. */
-  private static Stream<Element> children(Element parent, String name) {
+  private Stream<Element> children(Element parent, String name) {
     return Stream.iterate(parent.getFirstChild(), Objects::nonNull, Node::getNextSibling)
         .filter(Element.class::isInstance)
         .map(Element.class::cast)
@@ -130,7 +130,7 @@ record BomCheck(Path root, Path bom) {
   }
 
   /** Returns the trimmed text of {@code element}. */
-  private static String text(Element element) {
+  private String text(Element element) {
     return element.getTextContent().trim();
   }
 }
