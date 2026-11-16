@@ -30,8 +30,10 @@ own timer never runs; that timer costs more per statement than Stratum's (see
 
 Each connection also gets a network timeout 30 seconds longer than its statement's limit, so a
 statement whose database stops answering ends too: from the borrow on, the pool's limit plus 30
-seconds, raised before a statement with a longer limit and never lowered. HikariCP restores its
-own value when the connection goes back to the pool.
+seconds, raised before a statement with a longer limit and never lowered. While the connection is
+borrowed, this value replaces the driver's own network timeout (its socket timeout), even a higher
+one. It bounds only a call that waits for the database's reply, never an idle connection. HikariCP
+restores the driver's value when the connection goes back to the pool.
 
 ## When a statement is cancelled
 
