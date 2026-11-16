@@ -15,12 +15,12 @@ the BOM and the starters used below are on Maven Central from version 0.1.0
 | Docker | Any recent version (only for integration tests) | `docker info` |
 
 > [!NOTE]
-> Examples use the latest released version, `0.1.0`; the [documentation home](../README.md) says what
+> Examples use the latest released version, `0.2.0`; the [documentation home](../README.md) says what
 > that means for the pages you read.
 
 ### Using a snapshot
 
-Stratum's owner publishes `main`'s next version, today `0.2.0-SNAPSHOT`, to Maven Central's
+Stratum's owner publishes `main`'s next version, today `0.3.0-SNAPSHOT`, to Maven Central's
 snapshot repository from time to time, not on each push, so it may not hold the latest changes on
 `main`. Use it to try a change made after the latest release. A *snapshot* is a build that changes
 each time it is published, and the repository deletes it after 90 days. Maven does not look there by default, so add the repository
@@ -89,7 +89,7 @@ service does. You can add more later.
 | Requires a valid token on its API | `stratum-starter-security` (**planned**: it brings no dependency yet and is not published) |
 | Calls other services over HTTP | `stratum-starter-http-client`, which gives each client its own timeouts, connection pool, retries and circuit breaker |
 | Calls secured services | `stratum-starter-oauth2-client` |
-| Uses a relational database | `stratum-starter-data-jpa` with JPA, or `stratum-starter-jdbc` with plain JDBC (both partly built; on Maven Central from 0.2.0, which is not released yet) |
+| Uses a relational database | `stratum-starter-data-jpa` with JPA, or `stratum-starter-jdbc` with plain JDBC (both partly built; on Maven Central from 0.2.0) |
 | Caches results | `stratum-starter-cache` |
 | Produces or consumes Kafka messages | `stratum-starter-kafka` (**planned**, not published) |
 | Uses cloud storage, queues or secrets | `stratum-starter-cloud-<provider>` (**planned**) |

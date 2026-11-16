@@ -13,10 +13,10 @@ them in the repository's `docs/` folder, not in the wiki
 > the design target and may change in a later release. The `groupId` is `io.github.exepex.stratum`
 > ([ADR 0018](adr/0018-group-id-io-github-exepex.md)).
 >
-> Examples use the latest released version, `0.1.0`. These pages describe Stratum's `main` branch, which
-> may hold changes made after 0.1.0: the [0.1.0 release notes](releases/0.1.0.md) say what 0.1.0
+> Examples use the latest released version, `0.2.0`. These pages describe Stratum's `main` branch, which
+> may hold changes made after 0.2.0: the [0.2.0 release notes](releases/0.2.0.md) say what 0.2.0
 > contains, and [Using a snapshot](getting-started/installation.md#using-a-snapshot) shows how to try
-> the latest published snapshot of `main`, `0.2.0-SNAPSHOT`.
+> the latest published snapshot of `main`, `0.3.0-SNAPSHOT`.
 
 ## Where to start
 
@@ -104,7 +104,7 @@ Each module page follows the same layout so you always know where to look:
 | [Error and warning codes](guides/error-codes.md) | What Stratum's codes look like, the internal and external error objects, using codes in your service, and every code with its fix. |
 | [Troubleshooting](guides/troubleshooting.md) | Finding out what Stratum configured, and fixes for common problems. |
 | [FAQ](guides/faq.md) | Short answers to common questions. |
-| [Release notes for 0.2.0](releases/0.2.0.md) | Not released yet: the changes on `main` since 0.1.0, with the steps to migrate. |
+| [Release notes for 0.2.0](releases/0.2.0.md) | What 0.2.0 changed since 0.1.0, with the steps to migrate. |
 | [Release notes for 0.1.0](releases/0.1.0.md) | What Stratum's first release contains, the modules left out of it and its known gaps. |
 
 ## Architecture decisions

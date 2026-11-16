@@ -19,7 +19,8 @@ tracks two: the company parent sets the Spring Boot version, and Stratum must su
 | Stratum | Java | Supported Spring Boot line | Tested with | Spring Framework | Status |
 | --- | --- | --- | --- | --- | --- |
 | 0.1.x | 25 | 4.1.x | 4.1.2 | 7.x | Released ([0.1.0](../releases/0.1.0.md)) |
-| 0.2.x | 25 | 4.1.x | 4.1.2 | 7.x | In development (`0.2.0-SNAPSHOT`) |
+| 0.2.x | 25 | 4.1.x | 4.1.2 | 7.x | Released ([0.2.0](../releases/0.2.0.md)) |
+| 0.3.x | 25 | 4.1.x | 4.1.2 | 7.x | In development (`0.3.0-SNAPSHOT`) |
 
 Stratum supports Java 25 and one Spring Boot line per release, nothing older. Your parent POM sets
 the Spring Boot version. With `stratum-parent` it is always the tested version. Under a company

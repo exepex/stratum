@@ -25,10 +25,11 @@ Add a starter. Set a few properties. Write only business code.
 > [!IMPORTANT]
 > **Stratum is under construction.** The parent, the BOM, the web, cache, logging and observability
 > modules are built, and the data and HTTP client modules are partly built. This README and the
-> [documentation](docs/README.md) also describe modules that are not built yet. Version 0.1.0 is on
-> Maven Central ([release notes](docs/releases/0.1.0.md)). Everything marked **Planned** is the design
-> target and may change. The Maven `groupId` is `io.github.exepex.stratum`; the
-> [documentation home](docs/README.md) says which version the examples use.
+> [documentation](docs/README.md) also describe modules that are not built yet. The latest release,
+> 0.2.0, is on Maven Central ([release notes](docs/releases/0.2.0.md)). Everything marked
+> **Planned** is the design target and may change. The Maven `groupId` is
+> `io.github.exepex.stratum`; the [documentation home](docs/README.md) says which version the
+> examples use.
 
 ## Table of contents
 
@@ -149,7 +150,7 @@ every step and explains each line.
 <parent>
   <groupId>io.github.exepex.stratum</groupId>
   <artifactId>stratum-microservice-parent</artifactId>
-  <version>0.1.0</version>
+  <version>0.2.0</version>
 </parent>
 ```
 
