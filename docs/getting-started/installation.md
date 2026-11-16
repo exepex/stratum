@@ -89,7 +89,7 @@ service does. You can add more later.
 | Requires a valid token on its API | `stratum-starter-security` (**planned**: it brings no dependency yet and is not published) |
 | Calls other services over HTTP | `stratum-starter-http-client`, which gives each client its own timeouts, connection pool, retries and circuit breaker |
 | Calls secured services | `stratum-starter-oauth2-client` |
-| Uses a relational database | `stratum-starter-data-jpa` with JPA, or `stratum-starter-jdbc` with plain JDBC (both partly built, and not published until they are built) |
+| Uses a relational database | `stratum-starter-data-jpa` with JPA, or `stratum-starter-jdbc` with plain JDBC (both partly built; on Maven Central from 0.2.0, which is not released yet) |
 | Caches results | `stratum-starter-cache` |
 | Produces or consumes Kafka messages | `stratum-starter-kafka` (**planned**, not published) |
 | Uses cloud storage, queues or secrets | `stratum-starter-cloud-<provider>` (**planned**) |

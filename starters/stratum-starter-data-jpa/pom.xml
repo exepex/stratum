@@ -16,24 +16,15 @@
   <name>Stratum starter: data JPA</name>
   <description>Spring Data JPA with safe defaults for the connection pool, Hibernate and transactions.</description>
 
-  <!-- Only partly built, so not published to Maven Central yet and not in stratum-bom
-       (docs/contributing.md#publishing). -->
-  <properties>
-    <skipPublishing>true</skipPublishing>
-  </properties>
-
   <dependencies>
     <dependency>
       <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-core</artifactId>
     </dependency>
-    <!-- The JDBC boundary and the pool and transaction defaults every data starter shares. It is
-         not in stratum-bom until it is published (docs/contributing.md#publishing), so its
-         version is this build's own. -->
+    <!-- The JDBC boundary and the pool and transaction defaults every data starter shares. -->
     <dependency>
       <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-data</artifactId>
-      <version>${project.version}</version>
     </dependency>
     <!-- Spring Boot's own JPA starter: Hibernate and Spring Data JPA, which this module gives
          its defaults. -->
@@ -58,7 +49,6 @@
     <dependency>
       <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-jdbc</artifactId>
-      <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <!-- The checks and set-up that every starter's tests share, and the PostgreSQL container that

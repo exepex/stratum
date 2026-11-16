@@ -94,6 +94,9 @@ That is at most 900 threads, each with one open connection, per pool per hour. A
 not accept the connection at all is different: the driver's `connectTimeout`, 10 seconds by
 default, ends each attempt's thread, so at most a few are alive per pool.
 
+The owner accepted this cost on 2026-11-13 when choosing the 3 s default
+([decision](https://github.com/exepex/stratum/pull/375#issuecomment-6845666829)).
+
 The driver also takes a `connectExecutor` property, the name of your own executor class for these
 attempts, instead of a new thread for each. It is **not tested by Stratum**. The driver requires
 that the executor "must support thread interrupts and clear interrupt flags after task execution".
