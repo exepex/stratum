@@ -30,8 +30,8 @@
   </properties>
 
   <!--
-    Tests for the PMD rules in stratum/pmd-lombok.xml and for the one exception in
-    stratum/pmd-ruleset.xml, with PMD's own rule-test harness.
+    Tests for the PMD rules in stratum/pmd-lombok.xml and stratum/pmd-tests.xml, and for the one
+    exception in stratum/pmd-ruleset.xml, with PMD's own rule-test harness.
   -->
   <dependencies>
     <dependency>

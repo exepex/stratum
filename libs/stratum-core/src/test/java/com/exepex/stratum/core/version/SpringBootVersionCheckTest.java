@@ -82,46 +82,56 @@ class SpringBootVersionCheckTest {
     }
   }
 
-  @Test
-  @DisplayName("a version Spring Boot cannot report logs nothing")
-  void unknownVersionLogsNothing(CapturedOutput output) {
-    runCheck(null);
+  @Nested
+  @DisplayName("with a version Spring Boot cannot report")
+  class WithoutVersion {
 
-    assertThat(output).doesNotContain(WARNING_CODE);
+    @Test
+    @DisplayName("a version Spring Boot cannot report logs nothing")
+    void unknownVersionLogsNothing(CapturedOutput output) {
+      runCheck(null);
+
+      assertThat(output).doesNotContain(WARNING_CODE);
+    }
   }
 
-  @Test
-  @DisplayName(
-      "the version the build writes into the jar is the Spring Boot version Stratum builds with")
-  void buildWritesTheSpringBootVersion() throws IOException {
-    var written =
-        PropertiesLoaderUtils.loadProperties(
-                new ClassPathResource("META-INF/stratum/spring-boot-version.properties"))
-            .getProperty("supported-version");
+  @Nested
+  @DisplayName("as shipped in Stratum's jar")
+  class AsShipped {
 
-    assertThat(written).isEqualTo(SpringBootVersion.getVersion());
-  }
+    @Test
+    @DisplayName(
+        "the version the build writes into the jar is the Spring Boot version Stratum builds with")
+    void buildWritesTheSpringBootVersion() throws IOException {
+      var written =
+          PropertiesLoaderUtils.loadProperties(
+                  new ClassPathResource("META-INF/stratum/spring-boot-version.properties"))
+              .getProperty("supported-version");
 
-  @Test
-  @DisplayName("the running application, built with the supported version, logs nothing")
-  void runningApplicationLogsNothing(CapturedOutput output) {
-    var logs = new DeferredLogs();
-    new SpringBootVersionCheck(logs)
-        .postProcessEnvironment(new MockEnvironment(), new SpringApplication());
-    logs.switchOverAll();
+      assertThat(written).isEqualTo(SpringBootVersion.getVersion());
+    }
 
-    assertThat(output).doesNotContain(WARNING_CODE);
-  }
+    @Test
+    @DisplayName("the running application, built with the supported version, logs nothing")
+    void runningApplicationLogsNothing(CapturedOutput output) {
+      var logs = new DeferredLogs();
+      new SpringBootVersionCheck(logs)
+          .postProcessEnvironment(new MockEnvironment(), new SpringApplication());
+      logs.switchOverAll();
 
-  @Test
-  @DisplayName("Spring Boot finds the check in spring.factories, so every service runs it")
-  void springBootLoadsTheCheck() {
-    var postProcessors =
-        SpringFactoriesLoader.forDefaultResourceLocation()
-            .load(
-                EnvironmentPostProcessor.class,
-                ArgumentResolver.of(DeferredLogFactory.class, new DeferredLogs()));
+      assertThat(output).doesNotContain(WARNING_CODE);
+    }
 
-    assertThat(postProcessors).hasAtLeastOneElementOfType(SpringBootVersionCheck.class);
+    @Test
+    @DisplayName("Spring Boot finds the check in spring.factories, so every service runs it")
+    void springBootLoadsTheCheck() {
+      var postProcessors =
+          SpringFactoriesLoader.forDefaultResourceLocation()
+              .load(
+                  EnvironmentPostProcessor.class,
+                  ArgumentResolver.of(DeferredLogFactory.class, new DeferredLogs()));
+
+      assertThat(postProcessors).hasAtLeastOneElementOfType(SpringBootVersionCheck.class);
+    }
   }
 }

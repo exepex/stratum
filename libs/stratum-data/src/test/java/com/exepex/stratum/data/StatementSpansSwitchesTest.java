@@ -284,28 +284,33 @@ class StatementSpansSwitchesTest {
     }
   }
 
-  @Test
-  @DisplayName("a request on a virtual thread gets its statement's span as a child")
-  void virtualThread() throws Exception {
-    var dataSource = dataSource(traced.tracers());
-    var thread = Thread.ofVirtual().start(() -> runRequestUnchecked(dataSource));
-    thread.join();
+  @Nested
+  @DisplayName("a request on a virtual thread")
+  class VirtualThreads {
 
-    var span = traced.statementSpans().getFirst();
-    var request =
-        traced.allSpans().stream()
-            .filter(ended -> TracedRequests.REQUEST.equals(ended.getName()))
-            .findFirst()
-            .orElseThrow();
-    assertThat(span.getParentSpanId()).isEqualTo(request.getSpanId());
-  }
+    @Test
+    @DisplayName("a request on a virtual thread gets its statement's span as a child")
+    void virtualThread() throws Exception {
+      var dataSource = dataSource(traced.tracers());
+      var thread = Thread.ofVirtual().start(() -> runRequestUnchecked(dataSource));
+      thread.join();
 
-  /** Runs the query inside a request, on the calling thread. */
-  private void runRequestUnchecked(DataSource dataSource) {
-    try {
-      traced.inRequest(() -> runQuery(dataSource));
-    } catch (SQLException failure) {
-      throw new IllegalStateException(failure);
+      var span = traced.statementSpans().getFirst();
+      var request =
+          traced.allSpans().stream()
+              .filter(ended -> TracedRequests.REQUEST.equals(ended.getName()))
+              .findFirst()
+              .orElseThrow();
+      assertThat(span.getParentSpanId()).isEqualTo(request.getSpanId());
+    }
+
+    /** Runs the query inside a request, on the calling thread. */
+    private void runRequestUnchecked(DataSource dataSource) {
+      try {
+        traced.inRequest(() -> runQuery(dataSource));
+      } catch (SQLException failure) {
+        throw new IllegalStateException(failure);
+      }
     }
   }
 }

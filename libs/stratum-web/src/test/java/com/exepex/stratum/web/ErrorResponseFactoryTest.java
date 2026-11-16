@@ -346,19 +346,24 @@ class ErrorResponseFactoryTest {
     }
   }
 
-  @Test
-  @DisplayName("lists a body's members in the order they are written")
-  void membersAreInWrittenOrder() {
-    var body = answer(new StratumException(OrderErrorCode.DUPLICATE_ORDER));
+  @Nested
+  @DisplayName("lists a body's members")
+  class ListsMembers {
 
-    assertThat(factory.membersOf(body))
-        .containsExactly(
-            Map.entry("type", "about:blank"),
-            Map.entry("title", "Conflict"),
-            Map.entry("status", HttpStatus.CONFLICT.value()),
-            Map.entry("detail", "Order already exists"),
-            Map.entry(WebConstants.CODE, DUPLICATE_ORDER_CODE),
-            Map.entry(WebConstants.SEVERITY, Severity.ERROR));
+    @Test
+    @DisplayName("lists a body's members in the order they are written")
+    void membersAreInWrittenOrder() {
+      var body = answer(new StratumException(OrderErrorCode.DUPLICATE_ORDER));
+
+      assertThat(factory.membersOf(body))
+          .containsExactly(
+              Map.entry("type", "about:blank"),
+              Map.entry("title", "Conflict"),
+              Map.entry("status", HttpStatus.CONFLICT.value()),
+              Map.entry("detail", "Order already exists"),
+              Map.entry(WebConstants.CODE, DUPLICATE_ORDER_CODE),
+              Map.entry(WebConstants.SEVERITY, Severity.ERROR));
+    }
   }
 
   /** Answers a failure that carries an error code. */

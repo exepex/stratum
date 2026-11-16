@@ -41,35 +41,6 @@ class ClientCallOutcomeTest {
   /** The time the call took. */
   private static final Duration TOOK = Duration.ofMillis(12);
 
-  /**
-   * How an attempt can end, and the call's outcome: each answer class, each failure with no answer,
-   * and a failure inside the service.
-   */
-  private static final List<Ending> ENDINGS =
-      List.of(
-          new Ending("2xx", null, CallOutcome.SUCCESS),
-          new Ending("4xx", error(HttpStatus.BAD_REQUEST), CallOutcome.CLIENT_ERROR),
-          new Ending("5xx", error(HttpStatus.SERVICE_UNAVAILABLE), CallOutcome.SERVER_ERROR),
-          new Ending(
-              "read timeout", noAnswer(new SocketTimeoutException("read")), CallOutcome.TIMEOUT),
-          new Ending(
-              "connect failure",
-              noAnswer(new ConnectException("refused")),
-              CallOutcome.UNAVAILABLE),
-          new Ending(
-              "connect timeout",
-              noAnswer(new ConnectTimeoutException("connect")),
-              CallOutcome.UNAVAILABLE),
-          new Ending(
-              "full pool",
-              noAnswer(new ConnectionRequestTimeoutException("pool")),
-              CallOutcome.UNAVAILABLE),
-          new Ending(
-              "body cut off by a read timeout",
-              new RestClientException("cut", new SocketTimeoutException("read")),
-              CallOutcome.TIMEOUT),
-          new Ending("unreadable answer", new RestClientException("bad JSON"), CallOutcome.ERROR));
-
   /** Returns Spring's exception for an error answer. */
   private static RuntimeException error(HttpStatus status) {
     return status.is4xxClientError()
@@ -93,14 +64,49 @@ class ClientCallOutcomeTest {
         .build();
   }
 
-  @ParameterizedTest(name = "{0}")
-  @FieldSource("ENDINGS")
-  @DisplayName("each ending maps to its outcome")
-  void outcomes(Ending ending) {
-    var outcome = ClientCallOutcome.of(CALL, sent(ending.failure()), null, 1, TOOK);
+  @Nested
+  @DisplayName("its outcome")
+  class Outcome {
 
-    assertThat(outcome.outcome()).isEqualTo(ending.expected());
-    assertThat(outcome.url()).isEqualTo(SENT_TO);
+    /**
+     * How an attempt can end, and the call's outcome: each answer class, each failure with no
+     * answer, and a failure inside the service.
+     */
+    private static final List<Ending> ENDINGS =
+        List.of(
+            new Ending("2xx", null, CallOutcome.SUCCESS),
+            new Ending("4xx", error(HttpStatus.BAD_REQUEST), CallOutcome.CLIENT_ERROR),
+            new Ending("5xx", error(HttpStatus.SERVICE_UNAVAILABLE), CallOutcome.SERVER_ERROR),
+            new Ending(
+                "read timeout", noAnswer(new SocketTimeoutException("read")), CallOutcome.TIMEOUT),
+            new Ending(
+                "connect failure",
+                noAnswer(new ConnectException("refused")),
+                CallOutcome.UNAVAILABLE),
+            new Ending(
+                "connect timeout",
+                noAnswer(new ConnectTimeoutException("connect")),
+                CallOutcome.UNAVAILABLE),
+            new Ending(
+                "full pool",
+                noAnswer(new ConnectionRequestTimeoutException("pool")),
+                CallOutcome.UNAVAILABLE),
+            new Ending(
+                "body cut off by a read timeout",
+                new RestClientException("cut", new SocketTimeoutException("read")),
+                CallOutcome.TIMEOUT),
+            new Ending(
+                "unreadable answer", new RestClientException("bad JSON"), CallOutcome.ERROR));
+
+    @ParameterizedTest(name = "{0}")
+    @FieldSource("ENDINGS")
+    @DisplayName("each ending maps to its outcome")
+    void outcomes(Ending ending) {
+      var outcome = ClientCallOutcome.of(CALL, sent(ending.failure()), null, 1, TOOK);
+
+      assertThat(outcome.outcome()).isEqualTo(ending.expected());
+      assertThat(outcome.url()).isEqualTo(SENT_TO);
+    }
   }
 
   @Nested

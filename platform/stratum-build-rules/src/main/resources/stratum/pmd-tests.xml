@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Stratum's rules for the structure of its own tests (ST-TEST-15, ST-TEST-17). Only
+  stratum-library-parent runs them, for Stratum's libraries and starters; services are not checked.
+  Each rule checks one narrow part of its rule, as its description says; the rest is left to review.
+-->
+<ruleset name="Stratum tests"
+    xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+  <description>The structure of Stratum's own tests.</description>
+
+  <rule name="TestOutsideNestedGroups"
+      language="java"
+      message="Move this test into the @Nested group for its behaviour: a class that groups its tests keeps none beside the groups (ST-TEST-17)."
+      class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+    <description>
+      A test method (@Test, @ParameterizedTest, @RepeatedTest, @TestFactory or @TestTemplate) directly
+      in a class that also declares a @Nested class, at any level. A flat class with no @Nested class,
+      which ST-TEST-17 allows for one behaviour, is never reported.
+    </description>
+    <priority>3</priority>
+    <properties>
+      <property name="xpath">
+        <value><![CDATA[
+//ClassDeclaration[ClassBody/ClassDeclaration[ModifierList/Annotation[@SimpleName = 'Nested']]]
+  /ClassBody/MethodDeclaration
+  [ModifierList/Annotation
+    [@SimpleName = ('Test', 'ParameterizedTest', 'RepeatedTest', 'TestFactory', 'TestTemplate')]]
+]]></value>
+      </property>
+    </properties>
+  </rule>
+
+  <rule name="TestDataInValueSource"
+      language="java"
+      message="Feed the data of this test from a documented private static final constant with @FieldSource, not an inline @ValueSource (ST-TEST-15)."
+      class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+    <description>
+      An inline @ValueSource. Only this part of ST-TEST-15 is checked: @MethodSource, and whether the
+      constant is documented, are left to review.
+    </description>
+    <priority>3</priority>
+    <properties>
+      <property name="xpath">
+        <value><![CDATA[
+//Annotation[@SimpleName = 'ValueSource']
+]]></value>
+      </property>
+    </properties>
+  </rule>
+</ruleset>

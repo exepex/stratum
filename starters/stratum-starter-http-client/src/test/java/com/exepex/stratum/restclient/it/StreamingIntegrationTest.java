@@ -123,13 +123,18 @@ class StreamingIntegrationTest {
     }
   }
 
-  @Test
-  @DisplayName("an answer read as text takes longer than timeout and is read in full")
-  void textAnswerTimeoutIsTheGapBetweenBytes() {
-    var startedAt = System.nanoTime();
+  @Nested
+  @DisplayName("an answer read as text")
+  class TextAnswers {
 
-    assertThat(filesClient.downloadText()).isEqualTo(StreamingDownstream.SLOW_BODY);
-    assertThat(Duration.ofNanos(System.nanoTime() - startedAt)).isGreaterThan(TIMEOUT);
+    @Test
+    @DisplayName("an answer read as text takes longer than timeout and is read in full")
+    void textAnswerTimeoutIsTheGapBetweenBytes() {
+      var startedAt = System.nanoTime();
+
+      assertThat(filesClient.downloadText()).isEqualTo(StreamingDownstream.SLOW_BODY);
+      assertThat(Duration.ofNanos(System.nanoTime() - startedAt)).isGreaterThan(TIMEOUT);
+    }
   }
 
   @Nested

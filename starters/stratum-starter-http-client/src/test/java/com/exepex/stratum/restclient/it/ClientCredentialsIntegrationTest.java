@@ -55,9 +55,6 @@ class ClientCredentialsIntegrationTest {
   /** The number of calls sent at once. */
   private static final int CALLS_AT_ONCE = 20;
 
-  /** The number of calls sent one after another. */
-  private static final int CALLS_IN_TURN = 3;
-
   /** The number of calls that wait for a token endpoint that does not answer. */
   private static final int WAITING_CALLS = 5;
 
@@ -76,31 +73,40 @@ class ClientCredentialsIntegrationTest {
     RestClientTestData.pointClientsAtTokenServer(registry, SERVER);
   }
 
-  @Test
-  @DisplayName("the token goes on every call, fetched once and kept")
-  void sendsServiceToken() {
-    IntStream.range(0, CALLS_IN_TURN).forEach(call -> inventory.stock());
+  @Nested
+  @DisplayName("when calls need a token one after another")
+  class InTurn {
 
-    var sent = SERVER.authorizations();
-    assertThat(sent.getLast()).startsWith("Bearer " + TokenDownstream.TOKEN_PREFIX);
-    assertThat(sent.subList(sent.size() - CALLS_IN_TURN, sent.size())).containsOnly(sent.getLast());
-    assertThat(SERVER.tokenRequests()).isEqualTo(1);
-  }
+    /** The number of calls sent one after another. */
+    private static final int CALLS_IN_TURN = 3;
 
-  @Test
-  @DisplayName("the client's ad-hoc calls send the same token")
-  void adHocCallSendsToken(@Autowired StratumHttpClients clients) {
-    inventory.stock();
-    var tokenSent = SERVER.authorizations().getLast();
+    @Test
+    @DisplayName("the token goes on every call, fetched once and kept")
+    void sendsServiceToken() {
+      IntStream.range(0, CALLS_IN_TURN).forEach(call -> inventory.stock());
 
-    clients
-        .restClient(RestClientTestData.INVENTORY)
-        .get()
-        .uri(ScriptedDownstream.STOCK)
-        .retrieve()
-        .body(String.class);
+      var sent = SERVER.authorizations();
+      assertThat(sent.getLast()).startsWith("Bearer " + TokenDownstream.TOKEN_PREFIX);
+      assertThat(sent.subList(sent.size() - CALLS_IN_TURN, sent.size()))
+          .containsOnly(sent.getLast());
+      assertThat(SERVER.tokenRequests()).isEqualTo(1);
+    }
 
-    assertThat(SERVER.authorizations().getLast()).isEqualTo(tokenSent);
+    @Test
+    @DisplayName("the client's ad-hoc calls send the same token")
+    void adHocCallSendsToken(@Autowired StratumHttpClients clients) {
+      inventory.stock();
+      var tokenSent = SERVER.authorizations().getLast();
+
+      clients
+          .restClient(RestClientTestData.INVENTORY)
+          .get()
+          .uri(ScriptedDownstream.STOCK)
+          .retrieve()
+          .body(String.class);
+
+      assertThat(SERVER.authorizations().getLast()).isEqualTo(tokenSent);
+    }
   }
 
   /** Sends calls of the inventory client at once and returns their results. */

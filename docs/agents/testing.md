@@ -29,7 +29,9 @@ conventions. Each rule has an ID so that reviews and judge verdicts can cite it.
 - **ST-TEST-15 Test data as constants.** Data for a parameterized test is a documented `private static final`
   constant fed with `@FieldSource`, not an inline `@ValueSource` list or a `@MethodSource` method. Inside a `@Nested`
   class the constant sits at the top of that class. Data that is large to hold, such as megabyte-long inputs, is a
-  `Supplier<Stream<...>>` constant, so it is built only when the test runs.
+  `Supplier<Stream<...>>` constant, so it is built only when the test runs. The build checks only the inline
+  `@ValueSource` part (PMD `TestDataInValueSource`, `stratum/pmd-tests.xml`); `@MethodSource` and whether the
+  constant is documented are left to review.
 - **ST-TEST-16 Fixtures and assertion helpers.** Setup used by two or more test classes, such as an environment with
   the module switched on, a context runner or a stub server, is one method in `testsupport`. When the same group of
   assertions appears in two or more tests, move it into a named assertion method, such as
@@ -37,7 +39,9 @@ conventions. Each rule has an ID so that reviews and judge verdicts can cite it.
   only when one module's tests use the same checks on one type in many classes.
 - **ST-TEST-17 Group with `@Nested`.** A test class that covers more than one behaviour groups its tests in `@Nested`
   classes, one per behaviour, such as each bullet of ST-TEST-20 or each public method under test. Shared setup stays in
-  the outer class. A class that tests one behaviour stays flat.
+  the outer class. A class that tests one behaviour stays flat. The build checks only classes that already have a
+  `@Nested` group: a test method beside the groups, at any level, fails it (PMD `TestOutsideNestedGroups`,
+  `stratum/pmd-tests.xml`). Whether a flat class should be grouped is left to review.
 
 ## Auto-configuration tests
 

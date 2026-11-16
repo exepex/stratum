@@ -126,36 +126,41 @@ class CaffeineFutureCacheTest {
     }
   }
 
-  @Test
-  @DisplayName("every other call is forwarded to the Caffeine cache")
-  void forwardsEveryOtherCall() {
-    var delegate = new StubCache(ProductCatalog.PRODUCTS);
-    var forwarding = new CaffeineFutureCache(delegate);
+  @Nested
+  @DisplayName("the rest of the Cache interface")
+  class RestOfCacheInterface {
 
-    forwarding.getName();
-    forwarding.getNativeCache();
-    forwarding.get(KEY);
-    forwarding.get(KEY, String.class);
-    forwarding.get(KEY, () -> VALUE);
-    forwarding.put(KEY, VALUE);
-    forwarding.putIfAbsent(KEY, VALUE);
-    forwarding.evict(KEY);
-    forwarding.evictIfPresent(KEY);
-    forwarding.clear();
-    forwarding.invalidate();
+    @Test
+    @DisplayName("every other call is forwarded to the Caffeine cache")
+    void forwardsEveryOtherCall() {
+      var delegate = new StubCache(ProductCatalog.PRODUCTS);
+      var forwarding = new CaffeineFutureCache(delegate);
 
-    assertThat(delegate.calls())
-        .containsExactly(
-            "getName",
-            "getNativeCache",
-            "get",
-            "getTyped",
-            "getWithLoader",
-            "put",
-            "putIfAbsent",
-            "evict",
-            "evictIfPresent",
-            "clear",
-            "invalidate");
+      forwarding.getName();
+      forwarding.getNativeCache();
+      forwarding.get(KEY);
+      forwarding.get(KEY, String.class);
+      forwarding.get(KEY, () -> VALUE);
+      forwarding.put(KEY, VALUE);
+      forwarding.putIfAbsent(KEY, VALUE);
+      forwarding.evict(KEY);
+      forwarding.evictIfPresent(KEY);
+      forwarding.clear();
+      forwarding.invalidate();
+
+      assertThat(delegate.calls())
+          .containsExactly(
+              "getName",
+              "getNativeCache",
+              "get",
+              "getTyped",
+              "getWithLoader",
+              "put",
+              "putIfAbsent",
+              "evict",
+              "evictIfPresent",
+              "clear",
+              "invalidate");
+    }
   }
 }

@@ -147,6 +147,21 @@ class ClientResilienceCallTest {
 
       assertThat(outcome.outcome()).isEqualTo(CallOutcome.ERROR);
     }
+
+    @Test
+    @DisplayName("an attempt a full pool refused is counted, once")
+    void poolFullCounted() {
+      var outcome =
+          reported(
+              () ->
+                  failWith(
+                      new ResourceAccessException(
+                          "full", new ConnectionRequestTimeoutException("no connection"))),
+              ResourceAccessException.class);
+
+      assertThat(outcome.outcome()).isEqualTo(CallOutcome.UNAVAILABLE);
+      assertThat(meters.getPoolRefusals()).containsExactly(RestClientTestData.INVENTORY);
+    }
   }
 
   @Nested
@@ -180,20 +195,5 @@ class ClientResilienceCallTest {
       assertThat(outcome.status()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE.value());
       assertThat(outcome.attempts()).isEqualTo(2);
     }
-  }
-
-  @Test
-  @DisplayName("an attempt a full pool refused is counted, once")
-  void poolFullCounted() {
-    var outcome =
-        reported(
-            () ->
-                failWith(
-                    new ResourceAccessException(
-                        "full", new ConnectionRequestTimeoutException("no connection"))),
-            ResourceAccessException.class);
-
-    assertThat(outcome.outcome()).isEqualTo(CallOutcome.UNAVAILABLE);
-    assertThat(meters.getPoolRefusals()).containsExactly(RestClientTestData.INVENTORY);
   }
 }

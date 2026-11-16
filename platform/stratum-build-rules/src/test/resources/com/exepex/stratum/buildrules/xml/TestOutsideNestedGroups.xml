@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Cases for the TestOutsideNestedGroups rule in stratum/pmd-tests.xml: code it must report, then code it must not. -->
+<test-data
+    xmlns="http://pmd.sourceforge.net/rule-tests"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://pmd.sourceforge.net/rule-tests http://pmd.sourceforge.net/rule-tests_1_0_0.xsd">
+
+  <test-code>
+    <description>each kind of test method beside a @Nested group</description>
+    <expected-problems>5</expected-problems>
+    <expected-linenumbers>9,11,13,15,17</expected-linenumbers>
+    <code><![CDATA[
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+class OrdersTest {
+  @Nested
+  class Totals {
+    @Test void sums() {}
+  }
+  @Test
+  void stray() {}
+  @ParameterizedTest
+  void strayParameterized(String value) {}
+  @RepeatedTest(2)
+  void strayRepeated() {}
+  @TestFactory
+  java.util.List<DynamicTest> strayFactory() { return java.util.List.of(); }
+  @TestTemplate
+  void strayTemplate() {}
+}
+]]></code>
+  </test-code>
+
+  <test-code>
+    <description>fully qualified annotations are reported too</description>
+    <expected-problems>1</expected-problems>
+    <expected-linenumbers>7</expected-linenumbers>
+    <expected-messages>
+      <message>Move this test into the @Nested group for its behaviour: a class that groups its tests keeps none beside the groups (ST-TEST-17).</message>
+    </expected-messages>
+    <code><![CDATA[
+class OrdersTest {
+  @org.junit.jupiter.api.Nested
+  class Totals {
+    @org.junit.jupiter.api.Test void sums() {}
+  }
+  @org.junit.jupiter.api.Test
+  void stray() {}
+}
+]]></code>
+  </test-code>
+
+  <test-code>
+    <description>a test beside a sub-group inside a @Nested group is reported</description>
+    <expected-problems>1</expected-problems>
+    <expected-linenumbers>10</expected-linenumbers>
+    <code><![CDATA[
+import org.junit.jupiter.api.*;
+class OrdersTest {
+  @Nested
+  class Totals {
+    @Nested
+    class WithTax {
+      @Test void addsTax() {}
+    }
+    @Test
+    void stray() {}
+  }
+}
+]]></code>
+  </test-code>
+
+  <test-code>
+    <description>a flat class with no @Nested group is not reported</description>
+    <expected-problems>0</expected-problems>
+    <code><![CDATA[
+import org.junit.jupiter.api.Test;
+class OrdersTest {
+  @Test void sums() {}
+  @Test void rounds() {}
+}
+]]></code>
+  </test-code>
+
+  <test-code>
+    <description>tests inside the groups, and setup and helpers in the outer class, are not reported</description>
+    <expected-problems>0</expected-problems>
+    <code><![CDATA[
+import org.junit.jupiter.api.*;
+class OrdersTest {
+  @BeforeEach void setUp() {}
+  private int total() { return 1; }
+  @Nested
+  class Totals {
+    @Test void sums() {}
+  }
+  @Nested
+  class Rounding {
+    @Test void rounds() {}
+  }
+}
+]]></code>
+  </test-code>
+
+  <test-code>
+    <description>a static nested class that is not @Nested does not make the outer class grouped</description>
+    <expected-problems>0</expected-problems>
+    <code><![CDATA[
+import org.junit.jupiter.api.Test;
+class OrdersTest {
+  static class Fixture {}
+  @Test void sums() {}
+}
+]]></code>
+  </test-code>
+</test-data>

@@ -117,22 +117,32 @@ class ErrorResponseFactoryDatabaseTest {
     }
   }
 
-  @Test
-  @DisplayName("a code the failure carries wins over the database failure beneath it")
-  void carriedCodeWins() {
-    var failure =
-        new StratumException(OrderErrorCode.STORE_DOWN, "store", new SQLTimeoutException());
+  @Nested
+  @DisplayName("a database failure beneath a code the failure carries")
+  class BeneathCarriedCode {
 
-    assertThat(answer(strictFactory, failure).getProperties())
-        .containsEntry(WebConstants.CODE, OrderErrorCode.STORE_DOWN.getCode());
+    @Test
+    @DisplayName("a code the failure carries wins over the database failure beneath it")
+    void carriedCodeWins() {
+      var failure =
+          new StratumException(OrderErrorCode.STORE_DOWN, "store", new SQLTimeoutException());
+
+      assertThat(answer(strictFactory, failure).getProperties())
+          .containsEntry(WebConstants.CODE, OrderErrorCode.STORE_DOWN.getCode());
+    }
   }
 
-  @Test
-  @DisplayName("in backward-compatible mode, a database failure is left to Spring Boot")
-  void compatibleModeLeavesIt() {
-    var compatibleFactory = new ErrorResponseFactory(WebTestData.defaults().build(), true);
+  @Nested
+  @DisplayName("in backward-compatible mode")
+  class BackwardCompatible {
 
-    assertThat(compatibleFactory.forFailureWithErrorCode(TIMEOUT)).isEmpty();
-    assertThat(compatibleFactory.forFailureWithErrorCode(duplicateKey())).isEmpty();
+    @Test
+    @DisplayName("in backward-compatible mode, a database failure is left to Spring Boot")
+    void compatibleModeLeavesIt() {
+      var compatibleFactory = new ErrorResponseFactory(WebTestData.defaults().build(), true);
+
+      assertThat(compatibleFactory.forFailureWithErrorCode(TIMEOUT)).isEmpty();
+      assertThat(compatibleFactory.forFailureWithErrorCode(duplicateKey())).isEmpty();
+    }
   }
 }

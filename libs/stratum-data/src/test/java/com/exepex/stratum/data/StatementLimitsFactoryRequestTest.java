@@ -156,11 +156,16 @@ class StatementLimitsFactoryRequestTest {
     }
   }
 
-  @Test
-  @DisplayName("without the web module's bean there is no request limit")
-  void noBean() {
-    withBean(false);
+  @Nested
+  @DisplayName("without the web module's bean")
+  class WithoutBean {
 
-    assertThat(borrowWith(new MockEnvironment(), Duration.ofMillis(-1))).isNull();
+    @Test
+    @DisplayName("without the web module's bean there is no request limit")
+    void noBean() {
+      withBean(false);
+
+      assertThat(borrowWith(new MockEnvironment(), Duration.ofMillis(-1))).isNull();
+    }
   }
 }

@@ -127,35 +127,41 @@ class ModuleSwitchStartupIntegrationTest {
     }
   }
 
-  @Test
-  @DisplayName("set off only in a @PropertySource file stops startup instead of a half-off module")
-  void lateSwitchStopsStartup() {
-    assertThatExceptionOfType(Exception.class)
-        .isThrownBy(() -> application(LateSwitchedHttpClient.class).run())
-        .havingRootCause()
-        .isInstanceOf(StratumException.class)
-        .withMessageStartingWith("SX-CORE-1007: ")
-        .withMessageContaining(CLIENT_SWITCH + " in class path resource [" + LATE_SWITCH_FILE);
-  }
+  @Nested
+  @DisplayName("set after the modules' startup steps run")
+  class SetLate {
 
-  @Test
-  @DisplayName("turned on later stops startup instead of a module with beans but no defaults")
-  void switchTurnedOnLaterStopsStartup() {
-    var application = application(HttpClientModule.class);
-    application.setDefaultProperties(Map.of(CLIENT_SWITCH, false));
-    application.addInitializers(
-        context ->
-            context
-                .getEnvironment()
-                .getPropertySources()
-                .addFirst(new MapPropertySource("remote-config", Map.of(CLIENT_SWITCH, true))));
+    @Test
+    @DisplayName(
+        "set off only in a @PropertySource file stops startup instead of a half-off module")
+    void lateSwitchStopsStartup() {
+      assertThatExceptionOfType(Exception.class)
+          .isThrownBy(() -> application(LateSwitchedHttpClient.class).run())
+          .havingRootCause()
+          .isInstanceOf(StratumException.class)
+          .withMessageStartingWith("SX-CORE-1007: ")
+          .withMessageContaining(CLIENT_SWITCH + " in class path resource [" + LATE_SWITCH_FILE);
+    }
 
-    assertThatExceptionOfType(Exception.class)
-        .isThrownBy(application::run)
-        .havingRootCause()
-        .isInstanceOf(StratumException.class)
-        .withMessageStartingWith("SX-CORE-1006: ")
-        .withMessageContaining(CLIENT_SWITCH + " in remote-config");
+    @Test
+    @DisplayName("turned on later stops startup instead of a module with beans but no defaults")
+    void switchTurnedOnLaterStopsStartup() {
+      var application = application(HttpClientModule.class);
+      application.setDefaultProperties(Map.of(CLIENT_SWITCH, false));
+      application.addInitializers(
+          context ->
+              context
+                  .getEnvironment()
+                  .getPropertySources()
+                  .addFirst(new MapPropertySource("remote-config", Map.of(CLIENT_SWITCH, true))));
+
+      assertThatExceptionOfType(Exception.class)
+          .isThrownBy(application::run)
+          .havingRootCause()
+          .isInstanceOf(StratumException.class)
+          .withMessageStartingWith("SX-CORE-1006: ")
+          .withMessageContaining(CLIENT_SWITCH + " in remote-config");
+    }
   }
 
   /** A property source that answers only the test module's switch and cannot list its keys. */

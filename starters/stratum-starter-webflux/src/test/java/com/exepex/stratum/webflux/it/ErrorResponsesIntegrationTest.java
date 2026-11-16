@@ -66,6 +66,16 @@ class ErrorResponsesIntegrationTest {
   @DisplayName("when the request fails with a StratumException")
   class StratumExceptions {
 
+    /**
+     * Each path whose exception has a status of its own and a cause with a mapped code, with the
+     * status and code Spring's status gives.
+     */
+    private static final List<Arguments> STATUSES_OVER_CODE_OF_CAUSE =
+        List.of(
+            Arguments.of("/orders/duplicate-with-status/404", 404, "SX-WEB-1003"),
+            Arguments.of("/orders/duplicate-with-status/500", 500, "SX-WEB-1005"),
+            Arguments.of("/orders/duplicate-gone", 410, "SX-WEB-1004"));
+
     @Test
     @DisplayName(
         "a mapped StratumException gets its status, code and trace ID, and no stack trace or path")
@@ -127,46 +137,36 @@ class ErrorResponsesIntegrationTest {
       assertThat(JsonPath.<String>read(response.body(), "$.detail"))
           .isEqualTo("Order already exists: order 42");
     }
-  }
 
-  @Test
-  @DisplayName("a FailureWithErrorCode with @ResponseStatus gets its code's status and is logged")
-  void failureWithErrorCodeWinsOverResponseStatus(CapturedOutput output) throws Exception {
-    WebTestSupport.checkProblemDetails(
-        getFromService(port, "/orders/duplicate-annotated", ACCEPT, APPLICATION_JSON_VALUE),
-        HttpStatus.CONFLICT.value(),
-        DUPLICATE_ORDER_CODE);
-    assertThat(output).contains(DUPLICATE_ORDER_CODE + ": Order already exists: order 42");
-  }
+    @Test
+    @DisplayName("a FailureWithErrorCode with @ResponseStatus gets its code's status and is logged")
+    void failureWithErrorCodeWinsOverResponseStatus(CapturedOutput output) throws Exception {
+      WebTestSupport.checkProblemDetails(
+          getFromService(port, "/orders/duplicate-annotated", ACCEPT, APPLICATION_JSON_VALUE),
+          HttpStatus.CONFLICT.value(),
+          DUPLICATE_ORDER_CODE);
+      assertThat(output).contains(DUPLICATE_ORDER_CODE + ": Order already exists: order 42");
+    }
 
-  @Test
-  @DisplayName("a code in the cause of a plain exception gets the code's status and is logged")
-  void codeOfCauseReplaces500(CapturedOutput output) throws Exception {
-    WebTestSupport.checkProblemDetails(
-        getFromService(port, "/orders/duplicate-wrapped", ACCEPT, APPLICATION_JSON_VALUE),
-        HttpStatus.CONFLICT.value(),
-        DUPLICATE_ORDER_CODE);
-    assertThat(output).contains(DUPLICATE_ORDER_CODE + ": Order already exists: order 42");
-  }
+    @Test
+    @DisplayName("a code in the cause of a plain exception gets the code's status and is logged")
+    void codeOfCauseReplaces500(CapturedOutput output) throws Exception {
+      WebTestSupport.checkProblemDetails(
+          getFromService(port, "/orders/duplicate-wrapped", ACCEPT, APPLICATION_JSON_VALUE),
+          HttpStatus.CONFLICT.value(),
+          DUPLICATE_ORDER_CODE);
+      assertThat(output).contains(DUPLICATE_ORDER_CODE + ": Order already exists: order 42");
+    }
 
-  /**
-   * Each path whose exception has a status of its own and a cause with a mapped code, with the
-   * status and code Spring's status gives.
-   */
-  private static final List<Arguments> STATUSES_OVER_CODE_OF_CAUSE =
-      List.of(
-          Arguments.of("/orders/duplicate-with-status/404", 404, "SX-WEB-1003"),
-          Arguments.of("/orders/duplicate-with-status/500", 500, "SX-WEB-1005"),
-          Arguments.of("/orders/duplicate-gone", 410, "SX-WEB-1004"));
-
-  @ParameterizedTest
-  @FieldSource("STATUSES_OVER_CODE_OF_CAUSE")
-  @DisplayName(
-      "a code in the cause of a status Spring is given, even an explicit 500 or @ResponseStatus,"
-          + " keeps Spring's answer")
-  void springStatusWinsOverCodeOfCause(String path, int status, String code) throws Exception {
-    WebTestSupport.checkProblemDetails(
-        getFromService(port, path, ACCEPT, APPLICATION_JSON_VALUE), status, code);
+    @ParameterizedTest
+    @FieldSource("STATUSES_OVER_CODE_OF_CAUSE")
+    @DisplayName(
+        "a code in the cause of a status Spring is given, even an explicit 500 or @ResponseStatus,"
+            + " keeps Spring's answer")
+    void springStatusWinsOverCodeOfCause(String path, int status, String code) throws Exception {
+      WebTestSupport.checkProblemDetails(
+          getFromService(port, path, ACCEPT, APPLICATION_JSON_VALUE), status, code);
+    }
   }
 
   @Nested

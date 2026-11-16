@@ -3,12 +3,13 @@ package com.exepex.stratum.core.reactor;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.mock.env.MockEnvironment;
 import reactor.core.publisher.Hooks;
@@ -24,6 +25,10 @@ class ReactorOperatorContextPropagationTest {
   /** The same value in capitals, which Spring Boot also accepts. */
   private static final String EVERY_OPERATOR_IN_CAPITALS = "AUTO";
 
+  /** Each spelling of the value for every operator that Spring Boot accepts. */
+  private static final List<String> EVERY_OPERATOR_SPELLINGS =
+      List.of(EVERY_OPERATOR, EVERY_OPERATOR_IN_CAPITALS);
+
   /** Reactor's switch is global, so every test starts and ends with it off. */
   @BeforeEach
   @AfterEach
@@ -37,7 +42,7 @@ class ReactorOperatorContextPropagationTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {EVERY_OPERATOR, EVERY_OPERATOR_IN_CAPITALS})
+  @FieldSource("EVERY_OPERATOR_SPELLINGS")
   @DisplayName("when the setting is auto, in any case, as Spring Boot reads it")
   void turnsOnWhenSetToEveryOperator(String reactorSetting) {
     ReactorOperatorContextPropagation.enableWhenSetToEveryOperator(
