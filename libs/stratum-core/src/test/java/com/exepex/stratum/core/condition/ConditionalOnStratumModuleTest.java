@@ -43,24 +43,15 @@ class ConditionalOnStratumModuleTest {
         .getMessage();
   }
 
-  @Test
-  @DisplayName("the condition report says whether the property is false")
-  void reportSaysWhetherPropertyIsFalse() {
-    contextRunner
-        .withPropertyValues("stratum.greeting.enabled=false")
-        .run(
-            context ->
-                assertThat(reportMessage(context)).endsWith("stratum.greeting.enabled is false"));
-    contextRunner.run(
-        context ->
-            assertThat(reportMessage(context))
-                .endsWith("stratum.greeting.enabled is not false, so it is on"));
-  }
+  @Nested
+  @DisplayName("with the property unset")
+  class WithoutProperty {
 
-  @Test
-  @DisplayName("with the property unset, the module is on, including every bean inside it")
-  void moduleIsOnWhenPropertyIsUnset() {
-    contextRunner.run(context -> assertThat(context).hasBean(GREETING).hasBean(GREETING_FORMAT));
+    @Test
+    @DisplayName("with the property unset, the module is on, including every bean inside it")
+    void moduleIsOnWhenPropertyIsUnset() {
+      contextRunner.run(context -> assertThat(context).hasBean(GREETING).hasBean(GREETING_FORMAT));
+    }
   }
 
   @Nested
@@ -137,6 +128,25 @@ class ConditionalOnStratumModuleTest {
           .withUserConfiguration(FarewellBean.class)
           .withPropertyValues("stratum.farewell.enabled=false")
           .run(context -> assertThat(context).hasBean("alwaysThere").doesNotHaveBean("farewell"));
+    }
+  }
+
+  @Nested
+  @DisplayName("in the condition report")
+  class InConditionReport {
+
+    @Test
+    @DisplayName("the condition report says whether the property is false")
+    void reportSaysWhetherPropertyIsFalse() {
+      contextRunner
+          .withPropertyValues("stratum.greeting.enabled=false")
+          .run(
+              context ->
+                  assertThat(reportMessage(context)).endsWith("stratum.greeting.enabled is false"));
+      contextRunner.run(
+          context ->
+              assertThat(reportMessage(context))
+                  .endsWith("stratum.greeting.enabled is not false, so it is on"));
     }
   }
 

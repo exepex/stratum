@@ -281,37 +281,42 @@ class StatementSpansTest {
     }
   }
 
-  /** A personal value as an SQL literal, which no span may carry. */
-  private static final String LITERAL = "'" + PERSONAL_VALUE + "'";
+  @Nested
+  @DisplayName("hostile SQL")
+  class HostileSql {
 
-  /** Hostile SQL, each with the operation its span must carry; none carries the literal. */
-  private static final List<Arguments> HOSTILE_SQL =
-      List.of(
-          arguments("/* DROP TABLE customers */ SELECT " + LITERAL, SELECT),
-          arguments("-- DELETE FROM customers\nSELECT " + LITERAL, SELECT),
-          arguments("/* unterminated SELECT " + LITERAL, UNKNOWN),
-          arguments(LITERAL + "; DROP TABLE customers", UNKNOWN),
-          arguments("SELECTED " + LITERAL, UNKNOWN),
-          arguments("select " + LITERAL, SELECT),
-          arguments(" \n\t INSERT INTO t VALUES (" + LITERAL + ")", INSERT),
-          arguments("WITH secret AS (SELECT " + LITERAL + ") SELECT 1", "WITH"),
-          arguments("{call archive(" + LITERAL + ")}", UNKNOWN),
-          arguments(PERSONAL_VALUE, UNKNOWN));
+    /** A personal value as an SQL literal, which no span may carry. */
+    private static final String LITERAL = "'" + PERSONAL_VALUE + "'";
 
-  @ParameterizedTest(name = "{1} for {0}")
-  @FieldSource("HOSTILE_SQL")
-  @DisplayName("hostile SQL gets an allowed operation or UNKNOWN, and its span carries no value")
-  void hostile(String sql, String operation) throws Exception {
-    traced.inRequest(() -> runPlain(sql));
+    /** Hostile SQL, each with the operation its span must carry; none carries the literal. */
+    private static final List<Arguments> HOSTILE_SQL =
+        List.of(
+            arguments("/* DROP TABLE customers */ SELECT " + LITERAL, SELECT),
+            arguments("-- DELETE FROM customers\nSELECT " + LITERAL, SELECT),
+            arguments("/* unterminated SELECT " + LITERAL, UNKNOWN),
+            arguments(LITERAL + "; DROP TABLE customers", UNKNOWN),
+            arguments("SELECTED " + LITERAL, UNKNOWN),
+            arguments("select " + LITERAL, SELECT),
+            arguments(" \n\t INSERT INTO t VALUES (" + LITERAL + ")", INSERT),
+            arguments("WITH secret AS (SELECT " + LITERAL + ") SELECT 1", "WITH"),
+            arguments("{call archive(" + LITERAL + ")}", UNKNOWN),
+            arguments(PERSONAL_VALUE, UNKNOWN));
 
-    assertStatementSpan(onlySpan(), operation, PERSONAL_VALUE);
-  }
+    @ParameterizedTest(name = "{1} for {0}")
+    @FieldSource("HOSTILE_SQL")
+    @DisplayName("hostile SQL gets an allowed operation or UNKNOWN, and its span carries no value")
+    void hostile(String sql, String operation) throws Exception {
+      traced.inRequest(() -> runPlain(sql));
 
-  /** Runs a plain query. */
-  private void runPlain(String sql) throws SQLException {
-    try (var connection = dataSource.getConnection();
-        var statement = connection.createStatement()) {
-      statement.executeQuery(sql);
+      assertStatementSpan(onlySpan(), operation, PERSONAL_VALUE);
+    }
+
+    /** Runs a plain query. */
+    private void runPlain(String sql) throws SQLException {
+      try (var connection = dataSource.getConnection();
+          var statement = connection.createStatement()) {
+        statement.executeQuery(sql);
+      }
     }
   }
 

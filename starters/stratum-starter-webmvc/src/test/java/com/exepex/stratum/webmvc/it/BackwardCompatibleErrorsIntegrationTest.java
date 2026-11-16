@@ -98,18 +98,24 @@ class BackwardCompatibleErrorsIntegrationTest {
     }
   }
 
-  @Test
-  @DisplayName("a StratumException, which has no older body, always gets Stratum's body")
-  void stratumExceptionGetsStandardBody() throws Exception {
-    BackwardCompatibleErrorChecks.checkCodedFailureBody(
-        port, "/orders/duplicate", HttpStatus.CONFLICT.value(), "ORD-0001");
-  }
+  @Nested
+  @DisplayName("an error a StratumException reports")
+  class StratumExceptionError {
 
-  @Test
-  @DisplayName("a StratumException wrapped in an exception with no status gets Stratum's body too")
-  void wrappedStratumExceptionGetsStandardBody() throws Exception {
-    BackwardCompatibleErrorChecks.checkCodedFailureBody(
-        port, "/orders/duplicate-wrapped", HttpStatus.CONFLICT.value(), "ORD-0001");
+    @Test
+    @DisplayName("a StratumException, which has no older body, always gets Stratum's body")
+    void stratumExceptionGetsStandardBody() throws Exception {
+      BackwardCompatibleErrorChecks.checkCodedFailureBody(
+          port, "/orders/duplicate", HttpStatus.CONFLICT.value(), "ORD-0001");
+    }
+
+    @Test
+    @DisplayName(
+        "a StratumException wrapped in an exception with no status gets Stratum's body too")
+    void wrappedStratumExceptionGetsStandardBody() throws Exception {
+      BackwardCompatibleErrorChecks.checkCodedFailureBody(
+          port, "/orders/duplicate-wrapped", HttpStatus.CONFLICT.value(), "ORD-0001");
+    }
   }
 
   @Nested

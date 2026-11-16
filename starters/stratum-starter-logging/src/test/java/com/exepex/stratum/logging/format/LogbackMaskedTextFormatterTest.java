@@ -271,6 +271,19 @@ class LogbackMaskedTextFormatterTest {
 
       assertThat(line).hasSizeLessThan((int) CUT_LINE_MAX_LENGTH).contains("...[truncated]");
     }
+
+    @Test
+    @DisplayName("a service's extra key is masked in text too")
+    void appliesExtraKeys() {
+      moduleOn.setProperty(LoggingConstants.PREFIX + ".redaction.extra-keys[0]", "badge_no");
+      var event = event(ORDERS, "badge checked", null, Map.of("badge_no", "B-77"));
+
+      assertThat(
+              MaskedTextFormats.createdBySpringBoot(
+                      ILoggingEvent.class, LogbackMaskedTextFormatter.class.getName(), moduleOn)
+                  .format(event))
+          .contains("badge_no=****");
+    }
   }
 
   @Nested
@@ -330,18 +343,5 @@ class LogbackMaskedTextFormatterTest {
       }
       return "order-42";
     }
-  }
-
-  @Test
-  @DisplayName("a service's extra key is masked in text too")
-  void appliesExtraKeys() {
-    moduleOn.setProperty(LoggingConstants.PREFIX + ".redaction.extra-keys[0]", "badge_no");
-    var event = event(ORDERS, "badge checked", null, Map.of("badge_no", "B-77"));
-
-    assertThat(
-            MaskedTextFormats.createdBySpringBoot(
-                    ILoggingEvent.class, LogbackMaskedTextFormatter.class.getName(), moduleOn)
-                .format(event))
-        .contains("badge_no=****");
   }
 }

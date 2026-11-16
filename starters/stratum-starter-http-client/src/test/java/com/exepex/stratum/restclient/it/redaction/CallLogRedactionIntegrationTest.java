@@ -38,9 +38,6 @@ import org.springframework.web.client.RestClientException;
 @DisplayName("With the logging starter's redaction, a failed call's line carries the masked url")
 class CallLogRedactionIntegrationTest {
 
-  /** The most a line holding a url cut at the logging starter's 16 KB can take, 20 KB. */
-  private static final int LINE_LIMIT = 20 * 1024;
-
   /** The other service, which answers each request with the next queued status. */
   @AutoClose private static final QueuedDownstream DOWNSTREAM = QueuedDownstream.start();
 
@@ -76,80 +73,94 @@ class CallLogRedactionIntegrationTest {
     return URI.create(DOWNSTREAM.url() + pathAndQuery);
   }
 
-  @Test
-  @DisplayName("a named secret, a JWT, a card and an IBAN in the url are masked")
-  void urlRedacted(CapturedOutput output) {
-    callFailing(
-        "/orders/{id}?api_key={key}&jwt={jwt}&q={card}&r={iban}",
-        CallsTestData.ORDER_ID,
-        CallsTestData.API_KEY,
-        CallsTestData.JWT,
-        CallsTestData.CARD,
-        CallsTestData.IBAN);
+  @Nested
+  @DisplayName("a value the logging starter masks")
+  class Masked {
 
-    assertCallLine(
-        output,
-        CallsTestData.ORDERS,
-        "\"message\":\"HTTP client call failed\"",
-        "\"client\":\"orders\"",
-        "\"uri\":\"/orders/{id}?api_key=****",
-        "\"url\":\"http://127.0.0.1:",
-        "/orders/8812?api_key=****&jwt=****",
-        "q=****1111",
-        "r=****3000",
-        "\"status\":503",
-        "\"outcome\":\"SERVER_ERROR\"",
-        "\"attempts\":4");
-    assertThat(output.getAll())
-        .doesNotContain(CallsTestData.API_KEY)
-        .doesNotContain(CallsTestData.JWT)
-        .doesNotContain(CallsTestData.CARD)
-        .doesNotContain(CallsTestData.IBAN);
+    @Test
+    @DisplayName("a named secret, a JWT, a card and an IBAN in the url are masked")
+    void urlRedacted(CapturedOutput output) {
+      callFailing(
+          "/orders/{id}?api_key={key}&jwt={jwt}&q={card}&r={iban}",
+          CallsTestData.ORDER_ID,
+          CallsTestData.API_KEY,
+          CallsTestData.JWT,
+          CallsTestData.CARD,
+          CallsTestData.IBAN);
+
+      assertCallLine(
+          output,
+          CallsTestData.ORDERS,
+          "\"message\":\"HTTP client call failed\"",
+          "\"client\":\"orders\"",
+          "\"uri\":\"/orders/{id}?api_key=****",
+          "\"url\":\"http://127.0.0.1:",
+          "/orders/8812?api_key=****&jwt=****",
+          "q=****1111",
+          "r=****3000",
+          "\"status\":503",
+          "\"outcome\":\"SERVER_ERROR\"",
+          "\"attempts\":4");
+      assertThat(output.getAll())
+          .doesNotContain(CallsTestData.API_KEY)
+          .doesNotContain(CallsTestData.JWT)
+          .doesNotContain(CallsTestData.CARD)
+          .doesNotContain(CallsTestData.IBAN);
+    }
+
+    @Test
+    @DisplayName("a plain email in the url is masked by its shape")
+    void plainEmailMasked(CapturedOutput output) {
+      callFailing(sentAs("/orders?notify=" + CallsTestData.EMAIL));
+
+      assertCallLine(output, CallsTestData.ORDERS, "notify=****.com");
+      assertThat(output.getAll()).doesNotContain(CallsTestData.EMAIL);
+    }
+
+    @Test
+    @DisplayName("a secret joined into a team's own template is masked by its name in uri")
+    void joinedSecretMaskedInTemplate(CapturedOutput output) {
+      callFailing("/orders?api_key=" + CallsTestData.API_KEY);
+
+      assertCallLine(output, CallsTestData.ORDERS, "\"uri\":\"/orders?api_key=****\"");
+      assertThat(output.getAll()).doesNotContain(CallsTestData.API_KEY);
+    }
+
+    @Test
+    @DisplayName("a user and password in the url are masked as http://****@host")
+    void userInfoMasked(CapturedOutput output) {
+      callFailing(
+          URI.create("http://orders:pass-7f3e@127.0.0.1:" + DOWNSTREAM.url().split(":")[2]));
+
+      assertCallLine(output, CallsTestData.ORDERS, "\"url\":\"http://****@127.0.0.1");
+      assertThat(output.getAll()).doesNotContain("pass-7f3e");
+    }
   }
 
-  @Test
-  @DisplayName("a plain email in the url is masked by its shape")
-  void plainEmailMasked(CapturedOutput output) {
-    callFailing(sentAs("/orders?notify=" + CallsTestData.EMAIL));
+  @Nested
+  @DisplayName("a url that could break the log line")
+  class LineSafety {
 
-    assertCallLine(output, CallsTestData.ORDERS, "notify=****.com");
-    assertThat(output.getAll()).doesNotContain(CallsTestData.EMAIL);
-  }
+    /** The most a line holding a url cut at the logging starter's 16 KB can take, 20 KB. */
+    private static final int LINE_LIMIT = 20 * 1024;
 
-  @Test
-  @DisplayName("a secret joined into a team's own template is masked by its name in uri")
-  void joinedSecretMaskedInTemplate(CapturedOutput output) {
-    callFailing("/orders?api_key=" + CallsTestData.API_KEY);
+    @Test
+    @DisplayName("a 100 KB query is cut by the logging starter's 16 KB limit, in its own field")
+    void longUrlCut(CapturedOutput output) {
+      callFailing(sentAs("/orders?q=" + "a".repeat(CallsTestData.HOSTILE_LENGTH)));
 
-    assertCallLine(output, CallsTestData.ORDERS, "\"uri\":\"/orders?api_key=****\"");
-    assertThat(output.getAll()).doesNotContain(CallsTestData.API_KEY);
-  }
+      var line = assertCallLine(output, CallsTestData.ORDERS, "\"url\":\"...[truncated]\"");
+      assertThat(line).contains("\"outcome\":\"SERVER_ERROR\"").hasSizeLessThan(LINE_LIMIT);
+    }
 
-  @Test
-  @DisplayName("a user and password in the url are masked as http://****@host")
-  void userInfoMasked(CapturedOutput output) {
-    callFailing(URI.create("http://orders:pass-7f3e@127.0.0.1:" + DOWNSTREAM.url().split(":")[2]));
+    @Test
+    @DisplayName("a path value with a line break is written encoded, on one line")
+    void lineBreakEncoded(CapturedOutput output) {
+      callFailing(CallsTestData.ORDER_TEMPLATE, "a\r\nb");
 
-    assertCallLine(output, CallsTestData.ORDERS, "\"url\":\"http://****@127.0.0.1");
-    assertThat(output.getAll()).doesNotContain("pass-7f3e");
-  }
-
-  @Test
-  @DisplayName("a 100 KB query is cut by the logging starter's 16 KB limit, in its own field")
-  void longUrlCut(CapturedOutput output) {
-    callFailing(sentAs("/orders?q=" + "a".repeat(CallsTestData.HOSTILE_LENGTH)));
-
-    var line = assertCallLine(output, CallsTestData.ORDERS, "\"url\":\"...[truncated]\"");
-    assertThat(line).contains("\"outcome\":\"SERVER_ERROR\"").hasSizeLessThan(LINE_LIMIT);
-  }
-
-  @Test
-  @DisplayName("a path value with a line break is written encoded, on one line")
-  void lineBreakEncoded(CapturedOutput output) {
-    callFailing(CallsTestData.ORDER_TEMPLATE, "a\r\nb");
-
-    assertCallLine(output, CallsTestData.ORDERS, "/orders/a%0D%0Ab");
-    assertThat(output.getAll()).doesNotContain("a\r\nb").doesNotContain("a\nb");
+      assertCallLine(output, CallsTestData.ORDERS, "/orders/a%0D%0Ab");
+      assertThat(output.getAll()).doesNotContain("a\r\nb").doesNotContain("a\nb");
+    }
   }
 
   @Nested

@@ -89,14 +89,19 @@ class DataJpaEnvironmentPostProcessorTest {
     keys.forEach(key -> assertThat(environment.getProperty(key)).as(key).isNull());
   }
 
-  @Test
-  @DisplayName("with the module off, it sets nothing")
-  void setsNothingWithModuleOff() {
-    var environment =
-        runPostProcessor(new MockEnvironment().withProperty(DataConstants.ENABLED, OFF));
+  @Nested
+  @DisplayName("with the module off")
+  class WithModuleOff {
 
-    assertUnset(environment, INTERNAL_DEFAULTS.keySet());
-    assertUnset(environment, EXTERNAL_DEFAULTS.keySet());
+    @Test
+    @DisplayName("with the module off, it sets nothing")
+    void setsNothingWithModuleOff() {
+      var environment =
+          runPostProcessor(new MockEnvironment().withProperty(DataConstants.ENABLED, OFF));
+
+      assertUnset(environment, INTERNAL_DEFAULTS.keySet());
+      assertUnset(environment, EXTERNAL_DEFAULTS.keySet());
+    }
   }
 
   @Nested
@@ -130,12 +135,18 @@ class DataJpaEnvironmentPostProcessorTest {
     }
   }
 
-  @Test
-  @DisplayName("in backward-compatible mode, it sets only the defaults consumers cannot see")
-  void setsOnlyInternalDefaultsInBackwardCompatibleMode() {
-    var environment = runPostProcessor(new MockEnvironment().withProperty(BACKWARD_COMPATIBLE, ON));
+  @Nested
+  @DisplayName("in backward-compatible mode")
+  class InBackwardCompatibleMode {
 
-    assertSet(environment, INTERNAL_DEFAULTS);
-    assertUnset(environment, EXTERNAL_DEFAULTS.keySet());
+    @Test
+    @DisplayName("in backward-compatible mode, it sets only the defaults consumers cannot see")
+    void setsOnlyInternalDefaultsInBackwardCompatibleMode() {
+      var environment =
+          runPostProcessor(new MockEnvironment().withProperty(BACKWARD_COMPATIBLE, ON));
+
+      assertSet(environment, INTERNAL_DEFAULTS);
+      assertUnset(environment, EXTERNAL_DEFAULTS.keySet());
+    }
   }
 }

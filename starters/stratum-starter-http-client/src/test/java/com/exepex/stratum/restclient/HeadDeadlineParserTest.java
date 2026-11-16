@@ -91,12 +91,17 @@ class HeadDeadlineParserTest {
     return new ByteArrayInputStream(head.getBytes(StandardCharsets.US_ASCII));
   }
 
-  @Test
-  @DisplayName("with no deadline bound, the head is read as Apache reads it")
-  void noDeadlineReadsAsApache() throws IOException, HttpException {
-    assertThat(parsed(streamOf("HTTP/1.1 204 No Content\r\n\r\n")).getCode())
-        .isEqualTo(HttpStatus.SC_NO_CONTENT);
-    verifyNoInteractions(connection);
+  @Nested
+  @DisplayName("with no deadline bound")
+  class Unbound {
+
+    @Test
+    @DisplayName("with no deadline bound, the head is read as Apache reads it")
+    void noDeadlineReadsAsApache() throws IOException, HttpException {
+      assertThat(parsed(streamOf("HTTP/1.1 204 No Content\r\n\r\n")).getCode())
+          .isEqualTo(HttpStatus.SC_NO_CONTENT);
+      verifyNoInteractions(connection);
+    }
   }
 
   @Nested

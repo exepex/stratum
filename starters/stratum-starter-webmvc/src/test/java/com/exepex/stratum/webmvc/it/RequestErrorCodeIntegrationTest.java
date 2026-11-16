@@ -27,21 +27,26 @@ import org.springframework.test.context.TestPropertySource;
 @DisplayName("A Spring MVC request's timer and span carry the error code it failed with")
 class RequestErrorCodeIntegrationTest {
 
-  /** What each request records, the same on both web stacks. */
-  private static final List<Recorded> CASES = ServerRequestTelemetry.ORDERS_CASES;
-
   @LocalServerPort private int port;
 
   @Autowired private ServerRequestTelemetry telemetry;
 
-  @ParameterizedTest(name = "{0}")
-  @FieldSource("CASES")
-  @DisplayName(
-      "records the failure, and its code or its cause's, as WebFlux and Spring MVC both do")
-  void recordsErrorCode(Recorded expected) throws Exception {
-    WebTestSupport.getFromService(port, expected.path());
+  @Nested
+  @DisplayName("in the default mode")
+  class DefaultMode {
 
-    telemetry.check(expected);
+    /** What each request records, the same on both web stacks. */
+    private static final List<Recorded> CASES = ServerRequestTelemetry.ORDERS_CASES;
+
+    @ParameterizedTest(name = "{0}")
+    @FieldSource("CASES")
+    @DisplayName(
+        "records the failure, and its code or its cause's, as WebFlux and Spring MVC both do")
+    void recordsErrorCode(Recorded expected) throws Exception {
+      WebTestSupport.getFromService(port, expected.path());
+
+      telemetry.check(expected);
+    }
   }
 
   @Nested

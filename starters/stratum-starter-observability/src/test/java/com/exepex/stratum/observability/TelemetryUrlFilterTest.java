@@ -19,29 +19,6 @@ class TelemetryUrlFilterTest {
   /** What Spring records when a call has no URL or URI template. */
   private static final String NONE = "none";
 
-  /** URLs as Spring records them, each with the URL that must be kept: only the user info goes. */
-  private static final List<Arguments> URLS_AND_CLEANED_URLS =
-      List.of(
-          Arguments.of(
-              "https://partner.com/rates?currency=EUR&page=2",
-              "https://partner.com/rates?currency=EUR&page=2"),
-          Arguments.of("https://user:secret@partner.com/rates", "https://partner.com/rates"),
-          Arguments.of(
-              "https://user:secret@partner.com:8443/rates?currency=EUR#top",
-              "https://partner.com:8443/rates?currency=EUR#top"),
-          Arguments.of(
-              "http://inventory_service:8080/items/42", "http://inventory_service:8080/items/42"),
-          Arguments.of(NONE, NONE));
-
-  /** URI templates as Spring records them, each with the template that must be kept. */
-  private static final List<Arguments> URI_TEMPLATES_AND_CLEANED_TEMPLATES =
-      List.of(
-          Arguments.of("/rates?api_key=abc123", "/rates"),
-          Arguments.of("/rates#top", "/rates"),
-          Arguments.of("/orders/{id}?token={token}", "/orders/{id}"),
-          Arguments.of("/orders/{id}", "/orders/{id}"),
-          Arguments.of(NONE, NONE));
-
   private final TelemetryUrlFilter filter = new TelemetryUrlFilter();
 
   /**
@@ -82,41 +59,86 @@ class TelemetryUrlFilterTest {
     return filter.map(context).getLowCardinalityKeyValue(ObservabilityConstants.URI).getValue();
   }
 
-  @ParameterizedTest
-  @FieldSource("URLS_AND_CLEANED_URLS")
-  @DisplayName("the span keeps the URL, ordinary query values included, without its user info")
-  void removesUserInfo(String url, String expected) {
-    assertThat(recordedUrl(url)).isEqualTo(expected);
+  @Nested
+  @DisplayName("the URL on the span")
+  class SpanUrl {
+
+    /**
+     * URLs as Spring records them, each with the URL that must be kept: only the user info goes.
+     */
+    private static final List<Arguments> URLS_AND_CLEANED_URLS =
+        List.of(
+            Arguments.of(
+                "https://partner.com/rates?currency=EUR&page=2",
+                "https://partner.com/rates?currency=EUR&page=2"),
+            Arguments.of("https://user:secret@partner.com/rates", "https://partner.com/rates"),
+            Arguments.of(
+                "https://user:secret@partner.com:8443/rates?currency=EUR#top",
+                "https://partner.com:8443/rates?currency=EUR#top"),
+            Arguments.of(
+                "http://inventory_service:8080/items/42", "http://inventory_service:8080/items/42"),
+            Arguments.of(NONE, NONE));
+
+    @ParameterizedTest
+    @FieldSource("URLS_AND_CLEANED_URLS")
+    @DisplayName("the span keeps the URL, ordinary query values included, without its user info")
+    void removesUserInfo(String url, String expected) {
+      assertThat(recordedUrl(url)).isEqualTo(expected);
+    }
+
+    @Test
+    @DisplayName("a URL that cannot be parsed is replaced by a placeholder")
+    void replacesUnparsableUrl() {
+      assertThat(recordedUrl("https://partner.com:port/rates?currency=EUR"))
+          .isEqualTo(TelemetryUrlFilter.UNPARSABLE_URL);
+    }
+
+    @Test
+    @DisplayName("an observation without a URL is left as it is")
+    void leavesOtherObservations() {
+      var context = new Observation.Context();
+      context.addHighCardinalityKeyValue(KeyValue.of("order.id", "42"));
+
+      assertThat(filter.map(context).getHighCardinalityKeyValues())
+          .containsExactly(KeyValue.of("order.id", "42"));
+    }
   }
 
-  @ParameterizedTest
-  @FieldSource("URI_TEMPLATES_AND_CLEANED_TEMPLATES")
-  @DisplayName("the uri tag, on spans and metrics, loses its query string and fragment")
-  void removesQueryFromUriTag(String template, String expected) {
-    assertThat(recordedUriTemplate(template)).isEqualTo(expected);
-  }
+  @Nested
+  @DisplayName("the uri tag on spans and metrics")
+  class UriTag {
 
-  @Test
-  @DisplayName("a metric's uri tag loses its query string; its other tags are kept")
-  void removesQueryFromMetricUriTag() {
-    var registry = new SimpleMeterRegistry();
-    registry.config().meterFilter(filter);
+    /** URI templates as Spring records them, each with the template that must be kept. */
+    private static final List<Arguments> URI_TEMPLATES_AND_CLEANED_TEMPLATES =
+        List.of(
+            Arguments.of("/rates?api_key=abc123", "/rates"),
+            Arguments.of("/rates#top", "/rates"),
+            Arguments.of("/orders/{id}?token={token}", "/orders/{id}"),
+            Arguments.of("/orders/{id}", "/orders/{id}"),
+            Arguments.of(NONE, NONE));
 
-    var id =
-        registry
-            .counter("http.client.requests.active", ObservabilityConstants.URI, "/rates?key=abc")
-            .getId();
+    @ParameterizedTest
+    @FieldSource("URI_TEMPLATES_AND_CLEANED_TEMPLATES")
+    @DisplayName("the uri tag, on spans and metrics, loses its query string and fragment")
+    void removesQueryFromUriTag(String template, String expected) {
+      assertThat(recordedUriTemplate(template)).isEqualTo(expected);
+    }
 
-    assertThat(id.getTag(ObservabilityConstants.URI)).isEqualTo("/rates");
-    assertThat(registry.counter("orders.placed", "region", "eu").getId().getTag("region"))
-        .isEqualTo("eu");
-  }
+    @Test
+    @DisplayName("a metric's uri tag loses its query string; its other tags are kept")
+    void removesQueryFromMetricUriTag() {
+      var registry = new SimpleMeterRegistry();
+      registry.config().meterFilter(filter);
 
-  @Test
-  @DisplayName("a URL that cannot be parsed is replaced by a placeholder")
-  void replacesUnparsableUrl() {
-    assertThat(recordedUrl("https://partner.com:port/rates?currency=EUR"))
-        .isEqualTo(TelemetryUrlFilter.UNPARSABLE_URL);
+      var id =
+          registry
+              .counter("http.client.requests.active", ObservabilityConstants.URI, "/rates?key=abc")
+              .getId();
+
+      assertThat(id.getTag(ObservabilityConstants.URI)).isEqualTo("/rates");
+      assertThat(registry.counter("orders.placed", "region", "eu").getId().getTag("region"))
+          .isEqualTo("eu");
+    }
   }
 
   @Nested
@@ -240,15 +262,5 @@ class TelemetryUrlFilterTest {
     void keepsWholeParametersThatFit(String url, String expected) {
       assertThat(recordedUrl(shortFilter, url)).isEqualTo(expected);
     }
-  }
-
-  @Test
-  @DisplayName("an observation without a URL is left as it is")
-  void leavesOtherObservations() {
-    var context = new Observation.Context();
-    context.addHighCardinalityKeyValue(KeyValue.of("order.id", "42"));
-
-    assertThat(filter.map(context).getHighCardinalityKeyValues())
-        .containsExactly(KeyValue.of("order.id", "42"));
   }
 }

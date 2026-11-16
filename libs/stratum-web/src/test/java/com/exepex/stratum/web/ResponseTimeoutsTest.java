@@ -148,16 +148,21 @@ class ResponseTimeoutsTest {
     }
   }
 
-  @Test
-  @DisplayName(
-      "a request that ran out is answered with the timeout status and logged with its limit")
-  @ExtendWith(OutputCaptureExtension.class)
-  void timedOut(CapturedOutput output) {
-    var deadline = timeouts.start(DAILY_REPORTS, () -> expired.set(true));
-    var failure = timeouts.timedOut(deadline);
+  @Nested
+  @DisplayName("a request that ran out of time")
+  class TimedOut {
 
-    assertThat(failure.getStatusCode()).isEqualTo(HttpStatus.GATEWAY_TIMEOUT);
-    assertThat(output).contains("WARN", "The request ran out of time", "PT0.05S");
+    @Test
+    @DisplayName(
+        "a request that ran out is answered with the timeout status and logged with its limit")
+    @ExtendWith(OutputCaptureExtension.class)
+    void timedOut(CapturedOutput output) {
+      var deadline = timeouts.start(DAILY_REPORTS, () -> expired.set(true));
+      var failure = timeouts.timedOut(deadline);
+
+      assertThat(failure.getStatusCode()).isEqualTo(HttpStatus.GATEWAY_TIMEOUT);
+      assertThat(output).contains("WARN", "The request ran out of time", "PT0.05S");
+    }
   }
 
   /** Returns the handler method of {@link ReportController} with the name. */

@@ -38,21 +38,6 @@ class StatementSweeperTest {
 
   private StatementSweeper sweeper = sweeperStartingWith(startedCancels::add);
 
-  /** How many cancels the refusing starter was given. */
-  private final AtomicLong offeredCancels = new AtomicLong();
-
-  /** How many cancels the refusing starter ran. */
-  private final AtomicLong ranCancels = new AtomicLong();
-
-  /** Refuses the first cancel, as a scheduler with no carrier thread does, and runs the others. */
-  private void refuseFirstThenRun(Runnable cancel) {
-    if (offeredCancels.getAndIncrement() == 0) {
-      throw new RejectedExecutionException("no carrier thread");
-    }
-    ranCancels.incrementAndGet();
-    cancel.run();
-  }
-
   /** Returns a sweeper on the test's clock that starts each cancel with the given starter. */
   private StatementSweeper sweeperStartingWith(Consumer<Runnable> starter) {
     return new StatementSweeper(now::get, starter);
@@ -78,6 +63,23 @@ class StatementSweeperTest {
   @Nested
   @DisplayName("a statement past its limit")
   class PastLimit {
+
+    /** How many cancels the refusing starter was given. */
+    private final AtomicLong offeredCancels = new AtomicLong();
+
+    /** How many cancels the refusing starter ran. */
+    private final AtomicLong ranCancels = new AtomicLong();
+
+    /**
+     * Refuses the first cancel, as a scheduler with no carrier thread does, and runs the others.
+     */
+    private void refuseFirstThenRun(Runnable cancel) {
+      if (offeredCancels.getAndIncrement() == 0) {
+        throw new RejectedExecutionException("no carrier thread");
+      }
+      ranCancels.incrementAndGet();
+      cancel.run();
+    }
 
     @Test
     @DisplayName("is cancelled, and its end reports the claim")
@@ -127,56 +129,61 @@ class StatementSweeperTest {
       verify(next, never()).cancel();
       assertThat(slot.end(nextRunning, WAIT_MILLIS)).isEqualTo(Outcome.NOT_CLAIMED);
     }
+
+    @Test
+    @DisplayName("a cancel that cannot start frees its statement at once, and the sweeps go on")
+    void cancelThatCannotStart() throws SQLException {
+      sweeper.close();
+      sweeper = sweeperStartingWith(this::refuseFirstThenRun);
+      var first = new StatementSlot();
+      final long firstRunning = startIn(first, mock(Statement.class));
+      var second = new StatementSlot();
+      final long secondRunning = startIn(second, mock(Statement.class));
+      passLimits();
+
+      sweeper.sweep();
+      var later = mock(Statement.class);
+      startIn(new StatementSlot(), later);
+      passLimits();
+      sweeper.sweep();
+
+      assertThat(first.end(firstRunning, WAIT_MILLIS)).isEqualTo(Outcome.CLAIMED);
+      assertThat(second.end(secondRunning, WAIT_MILLIS)).isEqualTo(Outcome.CLAIMED);
+      assertThat(ranCancels).hasValue(2);
+      verify(later).cancel();
+    }
   }
 
-  @Test
-  @DisplayName("a statement within its limit is not cancelled")
-  void withinLimit() throws SQLException {
-    var slot = new StatementSlot();
-    var statement = mock(Statement.class);
-    startIn(slot, statement);
+  @Nested
+  @DisplayName("a statement that is not cancelled")
+  class NotCancelled {
 
-    now.addAndGet(ONE_SECOND.millis());
-    sweeper.sweep();
+    @Test
+    @DisplayName("a statement within its limit is not cancelled")
+    void withinLimit() throws SQLException {
+      var slot = new StatementSlot();
+      var statement = mock(Statement.class);
+      startIn(slot, statement);
 
-    assertThat(startedCancels).isEmpty();
-    verify(statement, never()).cancel();
-  }
+      now.addAndGet(ONE_SECOND.millis());
+      sweeper.sweep();
 
-  @Test
-  @DisplayName("a cancel that cannot start frees its statement at once, and the sweeps go on")
-  void cancelThatCannotStart() throws SQLException {
-    sweeper.close();
-    sweeper = sweeperStartingWith(this::refuseFirstThenRun);
-    var first = new StatementSlot();
-    final long firstRunning = startIn(first, mock(Statement.class));
-    var second = new StatementSlot();
-    final long secondRunning = startIn(second, mock(Statement.class));
-    passLimits();
+      assertThat(startedCancels).isEmpty();
+      verify(statement, never()).cancel();
+    }
 
-    sweeper.sweep();
-    var later = mock(Statement.class);
-    startIn(new StatementSlot(), later);
-    passLimits();
-    sweeper.sweep();
+    @Test
+    @DisplayName("a released slot is no longer checked")
+    void releasedSlot() {
+      var slot = new StatementSlot();
+      startIn(slot, mock(Statement.class));
 
-    assertThat(first.end(firstRunning, WAIT_MILLIS)).isEqualTo(Outcome.CLAIMED);
-    assertThat(second.end(secondRunning, WAIT_MILLIS)).isEqualTo(Outcome.CLAIMED);
-    assertThat(ranCancels).hasValue(2);
-    verify(later).cancel();
-  }
+      sweeper.release(slot);
+      passLimits();
+      sweeper.sweep();
 
-  @Test
-  @DisplayName("a released slot is no longer checked")
-  void releasedSlot() {
-    var slot = new StatementSlot();
-    startIn(slot, mock(Statement.class));
-
-    sweeper.release(slot);
-    passLimits();
-    sweeper.sweep();
-
-    assertThat(sweeper.size()).isZero();
-    assertThat(startedCancels).isEmpty();
+      assertThat(sweeper.size()).isZero();
+      assertThat(startedCancels).isEmpty();
+    }
   }
 }
