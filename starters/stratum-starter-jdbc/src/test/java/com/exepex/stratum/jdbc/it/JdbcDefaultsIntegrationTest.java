@@ -26,6 +26,7 @@ import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.EnumerablePropertySource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.jdbc.datasource.LazyConnectionDataSourceProxy;
 
 @SpringBootTest(classes = JdbcApplication.class)
 @Import(PostgresContainerConfiguration.class)
@@ -61,9 +62,11 @@ class JdbcDefaultsIntegrationTest {
   class Boundary {
 
     @Test
-    @DisplayName("the data source is behind the JDBC boundary")
+    @DisplayName("the data source is Spring Boot's lazy proxy, with the JDBC boundary inside it")
     void wrapsDataSource() {
-      assertThat(dataSource).isInstanceOf(JdbcWrapper.class);
+      assertThat(dataSource).isInstanceOf(LazyConnectionDataSourceProxy.class);
+      assertThat(((LazyConnectionDataSourceProxy) dataSource).getTargetDataSource())
+          .isInstanceOf(JdbcWrapper.class);
     }
 
     @Test
@@ -140,7 +143,7 @@ class JdbcDefaultsIntegrationTest {
 
       assertThat(defaults).isNotNull();
       assertThat(Arrays.asList(defaults.getPropertyNames()))
-          .contains(DataConstants.CONNECTION_TIMEOUT)
+          .contains(DataConstants.CONNECTION_TIMEOUT, DataConstants.CONNECTION_FETCH)
           .noneMatch(name -> name.startsWith("spring.jpa."));
     }
   }

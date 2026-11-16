@@ -209,6 +209,19 @@ class StatementLimitsTest {
       verify(fixture.driverStatement, never()).executeQuery();
       assertThat(fixture.counted).containsExactly(fixture.countOf(LimitSource.TRANSACTION));
     }
+
+    @Test
+    @DisplayName("bound under the routing data source, as JPA binds it, the limit is the same")
+    void routedTransactionLimits() throws SQLException {
+      var failure =
+          fixture.inRoutedTransaction(
+              PASSED_DEADLINE_MILLIS, StatementLimitsTest.this::failureOfQuery);
+
+      assertThat(failure)
+          .isInstanceOf(StatementTimeoutException.class)
+          .hasMessageContaining("set by transaction");
+      verify(fixture.driverStatement, never()).executeQuery();
+    }
   }
 
   @Nested

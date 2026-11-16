@@ -5,6 +5,7 @@ import static org.awaitility.Awaitility.await;
 
 import com.exepex.stratum.test.WebTestSupport;
 import com.jayway.jsonpath.JsonPath;
+import com.zaxxer.hikari.HikariDataSource;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -141,9 +142,10 @@ abstract class StrictModeAnswers {
   @Test
   @DisplayName("a wait for a pooled connection gets 503 and SX-WEB-1010, logged once at ERROR")
   void poolWait(CapturedOutput output) throws IOException, InterruptedException, SQLException {
-    try (var first = dataSource.getConnection();
-        var second = dataSource.getConnection();
-        var third = dataSource.getConnection()) {
+    var pool = dataSource.unwrap(HikariDataSource.class);
+    try (var first = pool.getConnection();
+        var second = pool.getConnection();
+        var third = pool.getConnection()) {
       assertThat(List.of(first, second, third)).hasSize(POOL_SIZE);
       checkAnswer(get(FailuresApplication.POOLED), output, BUSY_STATUS, BUSY, ERROR);
     }

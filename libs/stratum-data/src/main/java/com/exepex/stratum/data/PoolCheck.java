@@ -74,12 +74,18 @@ public final class PoolCheck implements SmartInitializingSingleton {
     return maximums;
   }
 
-  /** Adds one data source bean's pool, unless it was seen, and logs it. */
+  /**
+   * Adds one data source bean's pool, unless it was seen or is Stratum's routing data source, whose
+   * pools are beans of their own, and logs it.
+   */
   private void add(
       Map<String, Integer> maximums,
       Set<HikariConfigMXBean> seen,
       String beanName,
       DataSource dataSource) {
+    if (PoolRouters.routes(dataSource)) {
+      return;
+    }
     var pool = DataSourceUnwrapper.unwrap(dataSource, HikariConfigMXBean.class);
     if (pool != null && !seen.add(pool)) {
       return;

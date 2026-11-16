@@ -8,7 +8,8 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * The codes of the data module, each listed with its fix in {@code docs/guides/error-codes.md}.
- * {@code SX-DATA-1003} fails one statement; every other code stops the application at startup.
+ * {@code SX-DATA-1003} fails one statement and {@code SX-DATA-1008} one repository call or
+ * statement; every other code stops the application at startup.
  */
 @StratumInternal
 @Getter
@@ -83,7 +84,42 @@ public enum DataErrorCode implements ErrorCode {
       Severity.ERROR,
       "A bean with a named pool's bean name would replace Spring Boot's own",
       "Declare the bean with @Bean(defaultCandidate = false), so that unqualified injection keeps"
-          + " Spring Boot's own bean, or rename it.");
+          + " Spring Boot's own bean, or rename it."),
+
+  /**
+   * A mapping of repositories to named pools is not valid, or the routing it needs cannot be built.
+   * The detail names the key, package, repository or pool, never a value of the connection.
+   */
+  ROUTING_INVALID(
+      "SX-DATA-1007",
+      Severity.ERROR,
+      "A mapping of repositories to a named pool is not valid",
+      "Give each packages entry a Java package name with no wildcard and map it to one pool only,"
+          + " map only packages that hold JPA repositories, name only existing pools in"
+          + " @UseDataSource, keep every mapped pool on main's database product, and use Spring"
+          + " Boot's dataSource and no other primary DataSource, or drop the mapping."),
+
+  /**
+   * A transaction already on one pool reached a repository or a statement of another pool. The
+   * detail names the pools only, never a class, since a web answer can carry it.
+   */
+  POOL_MIXED(
+      "SX-DATA-1008",
+      Severity.ERROR,
+      "One transaction reached two pools",
+      "Keep each transaction on one pool: call the other pool's repositories in their own"
+          + " transaction, and use @Transactional with the JPA transaction manager, not a named"
+          + " pool's transaction manager, around mapped repositories."),
+
+  /**
+   * A servlet web application keeps open-in-view on while repositories are mapped to named pools,
+   * so one request's connection would serve every pool.
+   */
+  OPEN_IN_VIEW_WITH_ROUTING(
+      "SX-DATA-1009",
+      Severity.ERROR,
+      "open-in-view is on while repositories are mapped to named pools",
+      "Set spring.jpa.open-in-view=false.");
 
   /** The code, such as {@code SX-DATA-1001}. */
   private final String code;

@@ -11,7 +11,8 @@ calls it the `main` pool.
 Named pools need HikariCP, which every Stratum data starter brings through Spring Boot. A service
 that removes HikariCP keeps the boundary and the time limits on its own data source beans, but
 Stratum builds no named pool and checks no pool, though a `stratum.data.sources` value that breaks
-its rules still stops startup with `SX-CORE-1003`.
+its rules still stops startup with `SX-CORE-1003`, and so does a repository mapped to a named pool,
+with `SX-DATA-1007`.
 
 ## Add a pool
 
@@ -77,8 +78,116 @@ class NightlyExport {
 }
 ```
 
-A named pool serves `JdbcClient`, `JdbcTemplate` and your own JDBC code. Spring Data repositories
-and Hibernate keep the main pool: giving a repository a named pool is planned.
+A named pool serves `JdbcClient`, `JdbcTemplate` and your own JDBC code this way. With the data
+JPA starter, Spring Data JPA repositories can use it too: see
+[Repositories on a pool](#repositories-on-a-pool).
+A `@Qualifier("batchDataSource")` borrows its connection as soon as you ask for it, as before:
+Spring Boot's lazy fetch applies to `dataSource` only.
+
+## Repositories on a pool
+
+With the data JPA starter, a Spring Data JPA repository can run on a named pool, such as reports
+that read from a replica. Map the repositories by package, with `packages`:
+
+```properties
+stratum.data.sources.reporting.url=jdbc:postgresql://replica.internal:5432/orders?sslmode=verify-full
+stratum.data.sources.reporting.packages=com.acme.reporting,com.acme.audit
+```
+
+```yaml
+stratum:
+  data:
+    sources:
+      reporting:
+        url: jdbc:postgresql://replica.internal:5432/orders?sslmode=verify-full
+        packages:
+          - com.acme.reporting
+          - com.acme.audit
+```
+
+From environment variables, `STRATUM_DATA_SOURCES_REPORTING_PACKAGES=com.acme.reporting,com.acme.audit`
+or `STRATUM_DATA_SOURCES_REPORTING_PACKAGES_0=com.acme.reporting` set the same. Or name the pool on
+one repository interface:
+
+```java
+@UseDataSource("reporting")
+public interface MonthlyTotals extends JpaRepository<MonthlyTotal, Long> {}
+```
+
+Which pool a repository uses:
+
+- `@UseDataSource` wins over any package. `@UseDataSource("main")` keeps a repository on the main
+  pool inside a mapped package.
+- Otherwise the most specific mapped package that holds the interface wins, subpackages included:
+  `com.acme` holds `com.acme.reports`, never `com.acmex`.
+- A repository nothing maps stays on the main pool, or on its transaction's pool, as the next
+  section says.
+
+Only JPA repositories are mapped. Other Spring Data repositories, such as Redis ones, are left as
+they are. Code that uses the `EntityManager` or the plain `DataSource` itself runs on its
+transaction's pool, else on the main pool. There is one entity manager factory, so every repository
+shares one persistence context and one transaction manager, Spring Boot's own.
+
+At startup, Stratum logs one INFO line per mapped pool, which names its packages and annotated
+interfaces: `Pool 'reporting' serves repositories in 2 packages: com.acme.reporting, com.acme.audit`.
+A line names three and counts the rest. Startup stops with `SX-DATA-1007` when an entry of
+`packages` is not a Java package name, as one that is blank, starts or ends with a dot, or holds
+`*`; when a package is mapped to two pools; when a mapped package holds no JPA repository, as a
+typo would; when `@UseDataSource` names a pool that does not exist; or when a mapped pool's URL
+names another database product than the main pool's. A URL that does not show its product, such as
+`jdbc:tc:`, is not checked.
+
+### One pool per transaction
+
+A transaction uses one pool, the pool of its first repository call or statement, until it ends. A
+save or change that Hibernate writes only at commit therefore reaches the same pool.
+
+- A repository nothing maps, called after a mapped one in the same transaction, runs on the
+  transaction's pool.
+- A mapped repository called in a transaction that is already on another pool fails with
+  `SX-DATA-1008` before it sends any statement. That happens after a call of a repository on the
+  main pool, and after code that ran a statement on the main pool itself, such as a `JdbcTemplate`
+  or `EntityManager` call. Call the other pool's repositories in a transaction of their own, such
+  as one with `@Transactional(propagation = REQUIRES_NEW)`.
+- A repository method that runs in a transaction of its own, such as one declared
+  `@Transactional(propagation = REQUIRES_NEW)` on the repository interface, leaves the caller's
+  transaction alone: it runs on its own pool, and the caller's transaction picks its pool later.
+- Around mapped repositories, use `@Transactional` with Spring Boot's JPA transaction manager, the
+  default. A named pool's `<name>TransactionManager` does not reach JPA, so a mapped repository in
+  its transaction fails with `SX-DATA-1008`.
+
+A connection is borrowed at the first statement, not when the transaction begins: the transaction
+does not know its pool before then.
+
+### What a mapping changes
+
+A mapping adds the bean `stratumRoutingDataSource`, which picks the pool for each statement. It is
+the only primary `DataSource` ([ADR 0022](../adr/0022-routing-data-source-is-the-only-primary.md)),
+so Spring Boot's JPA and `JdbcTemplate` use it, and it picks the main pool for whatever no mapped
+repository runs. It changes a few things:
+
+- A plain `DataSource` is the routing data source, so `unwrap(HikariDataSource.class)` on it fails.
+  Inject `@Qualifier("dataSource")` to reach the main pool, as before.
+- Startup stops with `SX-DATA-1007` when the service defines its own `DataSource`, which makes
+  Spring Boot create none, another primary `DataSource` or a bean named `stratumRoutingDataSource`.
+  Use Spring Boot's `dataSource` and no other primary `DataSource`, or drop the mapping.
+- A servlet web application stops with `SX-DATA-1009` while `spring.jpa.open-in-view` is on: the
+  request's entity manager would hold one pool's connection for the whole request. Stratum turns
+  it off by default; with `stratum.backward-compatible=true`, set `spring.jpa.open-in-view=false`.
+- The `db` health check and the pool metrics list each pool, never the routing data source:
+  with a mapping, Stratum sets Spring Boot's `management.health.db.ignore-routing-data-sources`
+  to `true`. Without a mapping it sets nothing, so a routing data source of your own keeps its
+  entry. A value you set yourself wins.
+
+### Limits
+
+- Every mapped pool must hold the tables of every mapped entity, as a replica or a shard with the
+  same schema does. Hibernate speaks one dialect, the main pool's, and checks the schema of the
+  main pool only, so an entity's table must exist there too: startup otherwise stops with
+  `SX-DATA-1001`.
+- Leave Hibernate's second-level cache off, its default: it would share entities between pools.
+- Reactive repositories, and choosing a `JdbcTemplate`'s pool by package, are not covered: use the
+  pool's qualifier.
 
 ## Its beans
 
@@ -191,6 +300,7 @@ public class ReportsPool implements DataPropertiesCustomizer {
         .password(System.getenv("REPORTS_DB_PASSWORD"))
         .hikari(Map.of("maximum-pool-size", "4"))
         .queryTimeout(Duration.ofMinutes(2))
+        .packages(List.of("com.acme.reporting"))
         .build());
     return settings.toBuilder().sources(sources).build();
   }
@@ -260,8 +370,3 @@ class NightlyExportTest {
 `ContainerConnection` is your own class that implements `JdbcConnectionDetails`, such as a Lombok
 `@Getter` class with the three fields. The service's own bean still connects the pool `batch`, so the
 test must reach what that bean reads, such as its vault.
-
-## Planned
-
-Giving a Spring Data repository or Hibernate a named pool, and choosing the pool by package, are
-planned for a later release.

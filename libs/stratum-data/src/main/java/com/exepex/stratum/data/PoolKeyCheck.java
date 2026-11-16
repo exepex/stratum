@@ -7,7 +7,6 @@ import com.zaxxer.hikari.util.PropertyElf;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.springframework.boot.context.properties.source.ConfigurationPropertyName;
@@ -25,9 +24,6 @@ import org.springframework.core.env.Environment;
 @StratumInternal
 public class PoolKeyCheck {
 
-  /** A pool's name: lower-case letters and digits, starting with a letter, at most 31. */
-  private static final Pattern NAME = Pattern.compile("[a-z][a-z0-9]{0,30}");
-
   /** The keys of a pool other than HikariCP's, in uniform form. */
   private static final Set<String> KEYS =
       Set.of("url", "username", "password", "querytimeout", "transactiontimeout", "fetchsize");
@@ -42,6 +38,9 @@ public class PoolKeyCheck {
 
   /** Where a pool's name is among a key's elements. */
   private static final int NAME_ELEMENT = 3;
+
+  /** Tells a pool's name from any other text. */
+  private final NamedPoolNames poolNames = new NamedPoolNames();
 
   /** HikariCP's setting names, in uniform form. */
   private final Set<String> hikariKeys =
@@ -82,22 +81,12 @@ public class PoolKeyCheck {
    * @throws StratumException {@code SX-DATA-1004} if the name breaks its rule or is {@code main}
    */
   void checkName(String name) {
-    if (!isName(name)) {
+    if (!poolNames.isName(name)) {
       throw invalid(
           ("the pool name in %s.%s is not lower-case letters and digits starting with a letter, at"
                   + " most 31 characters, or it is main")
               .formatted(DataConstants.SOURCES, LogLines.oneLine(name)));
     }
-  }
-
-  /**
-   * Returns whether a text follows the rule of a pool's name and is not {@code main}.
-   *
-   * @param name the text
-   * @return whether it can name a pool
-   */
-  boolean isName(String name) {
-    return NAME.matcher(name).matches() && !DataConstants.MAIN_POOL.equals(name);
   }
 
   /** Checks the name and the HikariCP keys of a pool in the settings. */
@@ -121,9 +110,21 @@ public class PoolKeyCheck {
     checkName(key.getElement(NAME_ELEMENT, Form.ORIGINAL));
     boolean hikari =
         DataConstants.HIKARI_KEYS.equals(key.getElement(NAME_ELEMENT + 1, Form.UNIFORM));
-    if (!hikari && !KEYS.contains(uniformFrom(key, NAME_ELEMENT + 1))) {
+    if (!hikari && !isPackagesKey(key) && !KEYS.contains(uniformFrom(key, NAME_ELEMENT + 1))) {
       throw invalid("%s is not a key of a named pool".formatted(LogLines.oneLine(key.toString())));
     }
+  }
+
+  /**
+   * Returns whether a key is a pool's {@code packages}, as one value or as a list element, such as
+   * {@code packages[0]} or {@code PACKAGES_0}.
+   */
+  private boolean isPackagesKey(ConfigurationPropertyName key) {
+    if (!DataConstants.PACKAGES_KEY.equals(key.getElement(NAME_ELEMENT + 1, Form.UNIFORM))) {
+      return false;
+    }
+    return IntStream.range(NAME_ELEMENT + 2, key.getNumberOfElements())
+        .allMatch(key::isNumericIndex);
   }
 
   /** Returns whether a key after {@code hikari.}, in uniform form, is one of HikariCP's. */

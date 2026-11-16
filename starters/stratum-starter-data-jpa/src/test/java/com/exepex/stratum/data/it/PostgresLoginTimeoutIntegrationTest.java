@@ -109,10 +109,14 @@ class PostgresLoginTimeoutIntegrationTest {
       }
     }
 
-    /** Returns the properties of a service whose only data source is the silent database. */
+    /**
+     * Returns the properties of a service whose only data source is the silent database, which
+     * borrows when a connection is asked for, so the borrow itself is timed.
+     */
     private String[] startupProperties(String url) {
       return Stream.concat(
-              Stream.of("spring.datasource.url=" + url), SilentDatabase.STARTUP_PROPERTIES.stream())
+              Stream.of("spring.datasource.url=" + url, "spring.datasource.connection-fetch=eager"),
+              SilentDatabase.STARTUP_PROPERTIES.stream())
           .toArray(String[]::new);
     }
   }

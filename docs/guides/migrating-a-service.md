@@ -130,7 +130,11 @@ with the data JPA starter only:
 - database errors carry no data values: Stratum wraps every `DataSource` bean, so code that
   catches or casts a driver's class, such as PostgreSQL's `PSQLException`, no longer matches, and
   you inject `DataSource` instead of `HikariDataSource` (call
-  `dataSource.unwrap(HikariDataSource.class)` for the pool itself);
+  `dataSource.unwrap(HikariDataSource.class)` for the pool itself, on
+  `@Qualifier("dataSource")` once repositories are mapped to
+  [named pools](../modules/data-named-pools.md#repositories-on-a-pool));
+- the main pool lends a connection at the first statement, not when a transaction begins
+  (`spring.datasource.connection-fetch=lazy`);
 - Hibernate no longer logs JDBC errors and warnings itself
   (`spring.jpa.properties.hibernate.jdbc.log.errors=false` and `...log.warnings=false`).
 

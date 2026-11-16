@@ -111,8 +111,9 @@ Four rules shape every module:
    what is specific to your service, such as the URL of a service you call.
 2. **Opt-in.** You add only the starters you need. A service that never calls another service does
    not carry an HTTP client.
-3. **Never locked in.** Every bean Stratum creates steps aside when you define your own, and every
-   default is a property you can change. See [Overriding defaults](docs/configuration/overriding-defaults.md).
+3. **Never locked in.** Every bean Stratum creates steps aside when you define your own, except the
+   routing data source of [repositories on a pool](docs/adr/0022-routing-data-source-is-the-only-primary.md),
+   and every default is a property you can change. See [Overriding defaults](docs/configuration/overriding-defaults.md).
 4. **Plain Spring underneath.** Anything you know about Spring Boot still applies. Stratum builds on
    Spring's own extension points and adds no proprietary programming model.
 

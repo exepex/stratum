@@ -112,6 +112,14 @@ class DataJpaEnvironmentPostProcessorTest {
       assertSet(environment, EXTERNAL_DEFAULTS);
     }
 
+    @Test
+    @DisplayName("it leaves the health key unset, which the registrar sets only with a mapping")
+    void leavesHealthKeyUnset() {
+      var environment = runPostProcessor(new MockEnvironment());
+
+      assertThat(environment.getProperty(DataJpaConstants.IGNORE_ROUTING_HEALTH)).isNull();
+    }
+
     @ParameterizedTest(name = "{0}={1}")
     @FieldSource("com.exepex.stratum.datajpa.DataJpaEnvironmentPostProcessorTest#SERVICE_VALUES")
     @DisplayName("the service's own value wins")

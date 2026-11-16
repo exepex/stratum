@@ -101,6 +101,7 @@ public final class JdbcBoundaryPostProcessor
 
   /**
    * Returns the boundary around a data source bean the filter accepts, and any other bean as it is.
+   * Stratum's routing data source is left as it is: its pools already have the boundary.
    *
    * @param bean the bean, after its initialisation
    * @param beanName its name
@@ -110,6 +111,7 @@ public final class JdbcBoundaryPostProcessor
   public Object postProcessAfterInitialization(Object bean, String beanName) {
     if (bean instanceof DataSource dataSource
         && !(bean instanceof JdbcWrapper)
+        && !PoolRouters.routes(dataSource)
         && wrapsBean.test(beanName)) {
       return boundaryFor(beanName, poolNameOf(dataSource, beanName)).wrap(dataSource);
     }

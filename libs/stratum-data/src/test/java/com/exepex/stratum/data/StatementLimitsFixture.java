@@ -45,6 +45,9 @@ final class StatementLimitsFixture {
   /** The pool, which hands out the connection. */
   final DataSource pool = mock(DataSource.class);
 
+  /** The routing data source a JPA transaction binds its connection under. */
+  final DataSource router = mock(DataSource.class);
+
   /** The sweeper's clock, which only moves when a test moves it. */
   final AtomicLong now = new AtomicLong(1_000);
 
@@ -122,6 +125,7 @@ final class StatementLimitsFixture {
         StatementLimits.builder()
             .pool(POOL)
             .outermost(wrapped::get)
+            .router(() -> Optional.of(router))
             .poolMillis(POOL_MILLIS)
             .backwardCompatible(backwardCompatible)
             .sweeper(sweeper)
@@ -159,14 +163,32 @@ final class StatementLimitsFixture {
    * @return what the work returned
    */
   <T> T inTransaction(long deadlineMillis, Supplier<T> work) {
+    return inTransactionOf(dataSource, deadlineMillis, work);
+  }
+
+  /**
+   * Runs work with the connection bound under the routing data source, as JPA binds it when Stratum
+   * routes repositories, and unbinds it afterwards.
+   *
+   * @param deadlineMillis how far away the transaction's deadline is; negative when it has passed
+   * @param work the work to run in the transaction
+   * @param <T> what the work returns
+   * @return what the work returned
+   */
+  <T> T inRoutedTransaction(long deadlineMillis, Supplier<T> work) {
+    return inTransactionOf(router, deadlineMillis, work);
+  }
+
+  /** Runs work with the connection bound to a transaction under a data source. */
+  private <T> T inTransactionOf(DataSource key, long deadlineMillis, Supplier<T> work) {
     var holder = new ConnectionHolder(driverConnection);
     holder.setTimeoutInMillis(deadlineMillis);
     TransactionSynchronizationManager.initSynchronization();
-    TransactionSynchronizationManager.bindResource(dataSource, holder);
+    TransactionSynchronizationManager.bindResource(key, holder);
     try {
       return work.get();
     } finally {
-      TransactionSynchronizationManager.unbindResource(dataSource);
+      TransactionSynchronizationManager.unbindResource(key);
       TransactionSynchronizationManager.clear();
     }
   }

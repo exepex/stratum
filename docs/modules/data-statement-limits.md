@@ -147,8 +147,10 @@ issue #365 tracks a cheaper registration.
   only.
 - One connection runs one statement at a time, as JDBC requires. Two threads that run statements
   on the same connection at once leave the earlier statement with only the network timeout.
-- A routing data source over several data source beans finds no transaction under those beans, so
-  there only the code's own limit, the pool's and the web request's deadline apply.
+- A routing data source of your own over several data source beans finds no transaction under
+  those beans, so there only the code's own limit, the pool's and the web request's deadline apply.
+  Stratum's own routing data source, `stratumRoutingDataSource`, is the exception: a statement
+  there still ends at its transaction's deadline, which SX-DATA-1003 names as `transaction`.
 - The cancel is standard JDBC `cancel()`, tested on PostgreSQL only.
 - A connection the service never closes stays registered while it stays borrowed; with HikariCP
   that is at most `maximum-pool-size` connections.

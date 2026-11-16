@@ -90,6 +90,7 @@ public class StatementLimitsFactory implements AutoCloseable {
     return StatementLimits.builder()
         .pool(poolName)
         .outermost(SingletonSupplier.of(() -> beanFactory.getBean(beanName, DataSource.class)))
+        .router(SingletonSupplier.of(this::router))
         .poolMillis(
             queryTimeout.compareTo(LONGEST_LIMIT) > 0
                 ? StatementSlot.MAX_DEADLINE
@@ -132,6 +133,13 @@ public class StatementLimitsFactory implements AutoCloseable {
                 .get(beanName.substring(0, beanName.length() - suffix.length()))
             : null;
     return found == null ? NO_SETTINGS : found;
+  }
+
+  /** Returns Stratum's routing data source, which exists only when repositories are mapped. */
+  private Optional<DataSource> router() {
+    return beanFactory.containsBean(DataConstants.ROUTING_BEAN)
+        ? Optional.of(beanFactory.getBean(DataConstants.ROUTING_BEAN, DataSource.class))
+        : Optional.empty();
   }
 
   /** Stops the sweeper thread, if it was started. */

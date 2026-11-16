@@ -1,2 +1,3 @@
 com.exepex.stratum.datajpa.autoconfigure.DataJpaAutoConfiguration
 com.exepex.stratum.datajpa.autoconfigure.DataJpaBoundaryAutoConfiguration
+com.exepex.stratum.datajpa.autoconfigure.DataJpaRoutingAutoConfiguration

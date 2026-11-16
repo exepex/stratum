@@ -1,12 +1,21 @@
 package com.exepex.stratum.data.testsupport;
 
+import static org.mockito.Mockito.mock;
+
+import com.exepex.stratum.data.DataConstants;
+import com.exepex.stratum.data.routing.PoolRouting;
+import com.exepex.stratum.data.routing.RoutingDataSource;
 import java.io.IOException;
 import java.util.Map;
+import javax.sql.DataSource;
 import lombok.experimental.UtilityClass;
+import org.springframework.beans.factory.support.BeanDefinitionRegistryPostProcessor;
+import org.springframework.beans.factory.support.RootBeanDefinition;
 import org.springframework.boot.env.YamlPropertySourceLoader;
 import org.springframework.core.env.StandardEnvironment;
 import org.springframework.core.env.SystemEnvironmentPropertySource;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.jdbc.datasource.LazyConnectionDataSourceProxy;
 import org.springframework.mock.env.MockEnvironment;
 
 /** The names, keys, secrets and environments that the module's tests share. */
@@ -72,5 +81,31 @@ public class NamedPoolTestData {
         .load(name, new ClassPathResource(name + ".yml"))
         .forEach(environment.getPropertySources()::addFirst);
     return environment;
+  }
+
+  /**
+   * Returns Stratum's routing data source behind a lazy proxy, as the data JPA starter registers
+   * it, routing every call to the given main data source.
+   *
+   * @param main the main data source
+   * @return the routing data source
+   */
+  public static DataSource lazyRouter(DataSource main) {
+    return new LazyConnectionDataSourceProxy(
+        new RoutingDataSource(new PoolRouting(), Map.of(), main));
+  }
+
+  /**
+   * Returns a registry post-processor that registers {@link #lazyRouter} as {@code
+   * stratumRoutingDataSource} once every configuration class is read, as the data JPA starter does,
+   * so that Spring Boot still creates its main pool.
+   *
+   * @return the post-processor
+   */
+  public static BeanDefinitionRegistryPostProcessor routerRegistrar() {
+    return registry ->
+        registry.registerBeanDefinition(
+            DataConstants.ROUTING_BEAN,
+            new RootBeanDefinition(DataSource.class, () -> lazyRouter(mock(DataSource.class))));
   }
 }

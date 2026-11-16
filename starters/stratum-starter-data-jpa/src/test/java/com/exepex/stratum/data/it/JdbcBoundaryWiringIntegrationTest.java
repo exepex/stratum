@@ -21,8 +21,10 @@ import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.boot.health.contributor.Status;
+import org.springframework.test.context.TestPropertySource;
 
 @BoundaryServiceTest
+@TestPropertySource(properties = "spring.datasource.connection-fetch=eager")
 @DisplayName("The boundary wraps Spring Boot's pool, which Boot's metrics and health still find")
 class JdbcBoundaryWiringIntegrationTest {
 

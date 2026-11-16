@@ -43,6 +43,12 @@ public class StatementLimits {
   /** Finds the data source bean, wrapped by any proxy, that transactions bind their holder to. */
   private final Supplier<DataSource> outermost;
 
+  /**
+   * Finds Stratum's routing data source, which JPA transactions bind their holder to when
+   * repositories are mapped to pools; empty without it.
+   */
+  @Builder.Default private final Supplier<Optional<DataSource>> router = Optional::empty;
+
   /** The pool's {@code query-timeout}, in milliseconds; 0 for none. */
   private final long poolMillis;
 
@@ -226,6 +232,14 @@ public class StatementLimits {
     return both;
   }
 
+  /** Returns the connection holder a transaction bound to a data source, if any. */
+  private Optional<ConnectionHolder> holderOf(DataSource dataSource) {
+    return TransactionSynchronizationManager.getResource(dataSource)
+            instanceof ConnectionHolder holder
+        ? Optional.of(holder)
+        : Optional.empty();
+  }
+
   /** Returns a list of the one deadline, or an empty list. */
   private List<TimeLeft> listOf(@Nullable TimeLeft deadline) {
     return deadline == null ? List.of() : List.of(deadline);
@@ -237,10 +251,10 @@ public class StatementLimits {
       return null;
     }
     var deadline =
-        TransactionSynchronizationManager.getResource(outermost.get())
-                instanceof ConnectionHolder holder
-            ? holder.getDeadline()
-            : null;
+        holderOf(outermost.get())
+            .or(() -> router.get().flatMap(this::holderOf))
+            .map(ConnectionHolder::getDeadline)
+            .orElse(null);
     return deadline == null
         ? null
         : new TimeLeft(deadline.getTime() - wallClock.millis(), LimitSource.TRANSACTION);

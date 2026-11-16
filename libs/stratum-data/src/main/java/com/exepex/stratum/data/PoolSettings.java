@@ -2,6 +2,7 @@ package com.exepex.stratum.data;
 
 import jakarta.validation.constraints.AssertTrue;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import lombok.Builder;
 import org.jspecify.annotations.Nullable;
@@ -25,6 +26,8 @@ import org.jspecify.annotations.Nullable;
  *     sets none of its own. Defaults to spring.transaction.default-timeout.
  * @param fetchSize How many rows the driver fetches at a time for each statement on this pool,
  *     until the code sets its own. Unset means the driver's default.
+ * @param packages The packages whose JPA repositories run on this pool, such as com.acme.reporting,
+ *     each with its subpackages. A repository's @UseDataSource wins. Unset means none.
  */
 @Builder(toBuilder = true)
 public record PoolSettings(
@@ -32,6 +35,7 @@ public record PoolSettings(
     @Nullable String username,
     @Nullable String password,
     Map<String, String> hikari,
+    List<String> packages,
     @Nullable Duration queryTimeout,
     @Nullable Duration transactionTimeout,
     @Nullable Integer fetchSize) {
@@ -49,9 +53,10 @@ public record PoolSettings(
         && (fetchSize == null || fetchSize >= 0);
   }
 
-  /** Keeps HikariCP's settings a fixed map, empty when none is set. */
+  /** Keeps HikariCP's settings and the packages fixed, empty when none is set. */
   public PoolSettings {
     hikari = hikari == null ? Map.of() : Map.copyOf(hikari);
+    packages = packages == null ? List.of() : List.copyOf(packages);
   }
 
   /**
@@ -61,10 +66,12 @@ public record PoolSettings(
    */
   @Override
   public String toString() {
-    return "PoolSettings[url=%s, hikari=%s, queryTimeout=%s, transactionTimeout=%s, fetchSize=%s]"
+    return ("PoolSettings[url=%s, hikari=%s, packages=%s, queryTimeout=%s, transactionTimeout=%s,"
+            + " fetchSize=%s]")
         .formatted(
             url == null ? "unset" : "set",
             hikari.keySet(),
+            packages,
             queryTimeout,
             transactionTimeout,
             fetchSize);

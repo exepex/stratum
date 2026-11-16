@@ -220,7 +220,9 @@ topic file wins.
   system sits behind one. Before writing something new, use the Stratum module that already does it.
 - A service can replace every bean Stratum defines (`@ConditionalOnMissingBean`) and change every default through a
   typed `stratum.<module>.*` property, or Spring Boot's own key where Boot has one (except the HTTP client starters,
-  ADR 0011), set in `application.properties`, in `application.yml` or in Java.
+  ADR 0011), set in `application.properties`, in `application.yml` or in Java. The exception is the routing data
+  source, which stops startup instead of backing off
+  ([ADR 0022](docs/adr/0022-routing-data-source-is-the-only-primary.md)).
 - Names and Javadoc describe what things do for the service, in plain words. Every class, method and configuration
   property has Javadoc. Dependencies are injected through constructors only.
 - Generate boilerplate with Lombok and MapStruct. Use the JDK, Spring or an established library from Maven Central

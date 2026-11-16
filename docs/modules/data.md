@@ -57,12 +57,15 @@ sees and apply in both modes
 | `stratum.data.sources.<name>.query-timeout` | duration | `stratum.data.query-timeout` | How long one statement on the named pool may run when its code sets no limit. |
 | `stratum.data.sources.<name>.transaction-timeout` | duration | `spring.transaction.default-timeout` | The time limit of a transaction on the named pool's transaction manager that sets none. |
 | `stratum.data.sources.<name>.fetch-size` | int | unset: the driver's own | How many rows each statement on the named pool fetches at a time, until its code sets its own. |
+| `stratum.data.sources.<name>.packages` | list of strings | unset | The packages whose Spring Data JPA repositories run on the named pool, subpackages included; data JPA starter only. See [Repositories on a pool](data-named-pools.md#repositories-on-a-pool). |
 
 Spring Boot properties this module and the data JPA starter give a default (your values win):
 
 | Spring Boot property | Type | Stratum default | Spring Boot's default | Meaning |
 | --- | --- | --- | --- | --- |
 | `spring.datasource.hikari.connection-timeout` | long (ms) | `3000` | `30000` (HikariCP) | How long a caller waits for a free connection. |
+| `spring.datasource.connection-fetch` | `eager` or `lazy` | `lazy` | `eager` | When the main pool lends a connection: at the first statement, not when a transaction begins. Spring Boot's lazy proxy wraps the bean `dataSource` only, so a named pool reached by its qualifier still lends at once. |
+| `management.health.db.ignore-routing-data-sources` | boolean | `true`, only when repositories are [mapped to named pools](data-named-pools.md#repositories-on-a-pool); data JPA starter only | `false` | Whether the `db` health check leaves out routing data sources, which it checks pool by pool instead. With a mapping it also hides a service's own routing data source; set `false` to see it. |
 | `spring.transaction.default-timeout` | duration | `60s` (strict mode, without Spring Batch) | unset: no limit | The time limit of a transaction that sets none. |
 | `spring.jpa.hibernate.ddl-auto` | string | `validate`, see [Schema check](data-jpa.md#schema-check); data JPA starter only | `none`, or `create-drop` for an in-memory database | What Hibernate does with the schema at startup. |
 | `spring.jpa.properties.hibernate.jdbc.batch_size` | int | `50`; data JPA starter only | unset: no batching | How many rows Hibernate sends in one batch. |
@@ -154,10 +157,12 @@ To run the benchmark yourself, see
   support.
 - You can no longer inject `HikariDataSource`: inject `DataSource` and call
   `dataSource.unwrap(HikariDataSource.class)`. Spring Boot's pool metrics and `db` health check
-  still find the pool.
-- With `spring.datasource.connection-fetch=lazy` and `spring.jmx.enabled=true`, Spring Boot no
-  longer registers the pool as an MBean, because it checks the wrapper's class. HikariCP's own
-  `spring.datasource.hikari.register-mbeans=true` still works.
+  still find the pool. When repositories are mapped to named pools, a plain `DataSource` is the
+  routing data source, which unwraps to nothing: inject `@Qualifier("dataSource") DataSource`
+  instead ([What a mapping changes](data-named-pools.md#what-a-mapping-changes)).
+- With Stratum's default `spring.datasource.connection-fetch=lazy` and `spring.jmx.enabled=true`,
+  Spring Boot no longer registers the pool as an MBean, because it checks the wrapper's class.
+  HikariCP's own `spring.datasource.hikari.register-mbeans=true` still works.
 - Hibernate and Spring messages can name an entity and its identifier, such as
   `[PlacedOrder#42]`. That is your own identifier, not a driver value: do not use personal data,
   such as an email address, as an entity's identifier.
@@ -348,7 +353,9 @@ With Spring Boot's actuator, which the observability starter brings, the databas
 `db` is part of `/actuator/health`, with one entry for each pool, named after its bean, such as
 `dataSource` and `batchDataSource`. It is not in the readiness group (`/actuator/health/readiness`),
 and Stratum does not add it. The pools' metrics, such as `hikaricp.connections.pending`, come from
-Spring Boot and carry each pool's name as their `pool` tag, such as `main`.
+Spring Boot and carry each pool's name as their `pool` tag, such as `main`. When repositories are
+mapped to named pools, neither lists the routing data source `stratumRoutingDataSource`: it is no
+pool, and each pool behind it has its own entry.
 
 ## Configure in Java
 

@@ -20,7 +20,8 @@ class DataArchTest {
           DataProperties.DataPropertiesBuilder.class,
           PoolSettings.class,
           PoolSettings.PoolSettingsBuilder.class,
-          DataPropertiesCustomizer.class);
+          DataPropertiesCustomizer.class,
+          UseDataSource.class);
 
   @Test
   @DisplayName(
