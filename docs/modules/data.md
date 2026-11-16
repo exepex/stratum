@@ -322,7 +322,8 @@ Run the jobs in their own application, or with their own profile, and set
 `spring.transaction.default-timeout` to the longest chunk, such as `30m`. Or give them a
 [named pool](data-named-pools.md) with its own `transaction-timeout`. If you turn the leak alarm on,
 set its threshold to that plus 10 seconds, and raise `max-lifetime` above it. A named pool's
-`hikari.leak-detection-threshold` is checked against its own `hikari.max-lifetime` the same way.
+`hikari.leak-detection-threshold` is checked against its own `hikari.max-lifetime` the same way,
+whether a key or a [`DataPropertiesCustomizer`](#configure-in-java) sets them.
 
 ### Streaming and fetch size
 

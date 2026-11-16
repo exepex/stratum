@@ -124,23 +124,29 @@ public final class RoutingRegistrar
             DataSource.class, () -> routingDataSource(beanFactory, routing, pools));
     routingBean.setPrimary(true);
     registry.registerBeanDefinition(DataConstants.ROUTING_BEAN, routingBean);
-    define(registry, DataJpaConstants.REPOSITORY_POOLS, RepositoryPools.class, () -> pools);
+    define(
+        registry,
+        DataJpaConstants.REPOSITORY_POOLS,
+        RepositoryPools.class,
+        () -> pools,
+        BeanDefinition.ROLE_APPLICATION);
     Supplier<EntityManagerFactory> entityManagerFactory =
         SingletonSupplier.of(
             () ->
                 beanFactory.getBean(
                     DataJpaConstants.ENTITY_MANAGER_FACTORY, EntityManagerFactory.class));
     define(
-            registry,
-            DataJpaConstants.REPOSITORY_ADVICE,
-            RepositoryAdvicePostProcessor.class,
-            () -> new RepositoryAdvicePostProcessor(routing, pools, entityManagerFactory))
-        .setRole(BeanDefinition.ROLE_INFRASTRUCTURE);
+        registry,
+        DataJpaConstants.REPOSITORY_ADVICE,
+        RepositoryAdvicePostProcessor.class,
+        () -> new RepositoryAdvicePostProcessor(routing, pools, entityManagerFactory),
+        BeanDefinition.ROLE_INFRASTRUCTURE);
     define(
         registry,
         DataJpaConstants.ROUTING_CHECK,
         RoutingCheck.class,
-        () -> new RoutingCheck(beanFactory, pools));
+        () -> new RoutingCheck(beanFactory, pools),
+        BeanDefinition.ROLE_APPLICATION);
   }
 
   /**
@@ -166,12 +172,23 @@ public final class RoutingRegistrar
     return new LazyConnectionDataSourceProxy(new RoutingDataSource(routing, targets, mainTarget));
   }
 
-  /** Registers a bean that is no default candidate and returns its definition. */
-  private <T> RootBeanDefinition define(
-      BeanDefinitionRegistry registry, String beanName, Class<T> type, Supplier<T> supplier) {
+  /**
+   * Registers a bean that is no default candidate and is a fallback, as {@code NamedPoolRegistrar}
+   * registers the pools' beans, unless the service defines one of that name, which it keeps.
+   */
+  private <T> void define(
+      BeanDefinitionRegistry registry,
+      String beanName,
+      Class<T> type,
+      Supplier<T> supplier,
+      int role) {
+    if (registry.containsBeanDefinition(beanName)) {
+      return;
+    }
     var definition = new RootBeanDefinition(type, supplier);
     definition.setDefaultCandidate(false);
+    definition.setFallback(true);
+    definition.setRole(role);
     registry.registerBeanDefinition(beanName, definition);
-    return definition;
   }
 }

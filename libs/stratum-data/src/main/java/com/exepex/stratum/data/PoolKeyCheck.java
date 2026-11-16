@@ -56,6 +56,7 @@ public class PoolKeyCheck {
    * @throws StratumException {@code SX-DATA-1004} naming the first key that breaks a rule
    */
   void checkKeys(Environment environment) {
+    // A loop, not a stream: the sources are an Iterable, which streams only through StreamSupport.
     for (var source : ConfigurationPropertySources.get(environment)) {
       if (source instanceof IterableConfigurationPropertySource keys) {
         keys.stream().filter(SOURCES::isAncestorOf).forEach(this::checkKey);

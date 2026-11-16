@@ -36,6 +36,9 @@ public final class NamedPoolRegistrar
   /** Checks the pools' names and keys. */
   private final PoolKeyCheck keyCheck = new PoolKeyCheck();
 
+  /** Checks the pools' leak alarm thresholds. */
+  private final LeakAlarmCheck leakAlarmCheck = new LeakAlarmCheck();
+
   /** Finds the pools' names. */
   private final NamedPoolNames poolNames = new NamedPoolNames();
 
@@ -50,8 +53,9 @@ public final class NamedPoolRegistrar
    *
    * @param registry the application's bean definitions
    * @throws StratumException {@code SX-DATA-1004} if a name or key breaks its rules or a pool has
-   *     no connection, {@code SX-DATA-1006} if a service's bean of a pool's bean name is a default
-   *     candidate, or {@code SX-CORE-1003} if a setting breaks its rules
+   *     no connection, {@code SX-DATA-1002} if HikariCP would turn a pool's leak alarm off, {@code
+   *     SX-DATA-1006} if a service's bean of a pool's bean name is a default candidate, or {@code
+   *     SX-CORE-1003} if a setting breaks its rules
    */
   @Override
   public void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry registry) {
@@ -59,11 +63,12 @@ public final class NamedPoolRegistrar
     keyCheck.checkKeys(env);
     var settings = DataProperties.resolve(env);
     keyCheck.checkSettings(settings);
+    leakAlarmCheck.checkNamedPools(env, settings);
     var beans =
         new NamedPoolBeans(env, Objects.requireNonNull(beanFactory, "the bean factory is not set"));
-    for (var name : poolNames.names(registry, settings)) {
-      register(registry, beans, name, settings.sources().get(name));
-    }
+    poolNames
+        .names(registry, settings)
+        .forEach(name -> register(registry, beans, name, settings.sources().get(name)));
   }
 
   /** Registers the beans of one pool that the service does not define itself. */
@@ -103,6 +108,8 @@ public final class NamedPoolRegistrar
    * Fails when the service defines a bean of one of the pool's bean names as a default candidate.
    */
   private void rejectDefaultCandidates(BeanDefinitionRegistry registry, String... beanNames) {
+    // A loop, not a stream: it throws at the first bean that breaks the rule, which a stream could
+    // do only through a helper that exists just to throw.
     for (var beanName : beanNames) {
       if (registry.containsBeanDefinition(beanName)
           && poolNames.isDefaultCandidate(registry, beanName)) {

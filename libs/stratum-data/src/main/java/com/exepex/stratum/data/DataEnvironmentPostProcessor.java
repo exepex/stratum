@@ -44,7 +44,7 @@ public class DataEnvironmentPostProcessor implements EnvironmentPostProcessor, O
   private static final Map<String, Object> TRANSACTION_TIMEOUT =
       Map.of(DataConstants.TRANSACTION_TIMEOUT, "60s");
 
-  /** Checks the leak alarm threshold the service set. */
+  /** Checks the leak alarm threshold the service set for the main pool. */
   private final LeakAlarmCheck leakAlarmCheck = new LeakAlarmCheck();
 
   /**
@@ -62,12 +62,12 @@ public class DataEnvironmentPostProcessor implements EnvironmentPostProcessor, O
    * Adds the defaults below the service's own values: the pool wait and lazy fetch when the module
    * is on, and the statement timeout's status and the transaction limit when {@code
    * stratum.backward-compatible} is off too. Then it checks the leak alarm threshold the service
-   * set.
+   * set for the main pool; the named pools' are checked once their settings are resolved.
    *
    * @param environment the application's environment
    * @param application the application being started, whose class loader shows Spring Batch
    * @throws com.exepex.stratum.core.error.StratumException {@code SX-DATA-1002} if HikariCP would
-   *     turn the leak alarm off
+   *     turn the main pool's leak alarm off
    */
   @Override
   public void postProcessEnvironment(
@@ -79,7 +79,7 @@ public class DataEnvironmentPostProcessor implements EnvironmentPostProcessor, O
     if (!BackwardCompatibleMode.isOn(environment)) {
       addExternalDefaults(environment, application);
     }
-    leakAlarmCheck.check(environment);
+    leakAlarmCheck.checkMainPool(environment);
   }
 
   /**

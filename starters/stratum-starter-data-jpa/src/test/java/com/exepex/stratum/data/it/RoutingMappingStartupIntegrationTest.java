@@ -1,5 +1,6 @@
 package com.exepex.stratum.data.it;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.exepex.stratum.data.DataConstants;
@@ -7,6 +8,7 @@ import com.exepex.stratum.data.DataErrorCode;
 import com.exepex.stratum.data.it.pools.PoolsApplication;
 import com.exepex.stratum.data.testsupport.PoolDatabases;
 import com.exepex.stratum.data.testsupport.ServiceDataSources;
+import com.exepex.stratum.datajpa.DataJpaConstants;
 import com.exepex.stratum.test.PostgresContainerConfiguration;
 import com.zaxxer.hikari.HikariDataSource;
 import java.util.List;
@@ -15,16 +17,20 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.FieldSource;
+import org.springframework.beans.factory.support.AbstractBeanDefinition;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.BeanDefinitionRegistryPostProcessor;
 import org.springframework.beans.factory.support.RootBeanDefinition;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.support.GenericApplicationContext;
 
 @DisplayName(
-    "A mapping of repositories to pools that breaks a rule stops startup with SX-DATA-1007")
+    "A mapping of repositories to pools stops startup with SX-DATA-1007 when it breaks a rule, and"
+        + " keeps the service's own beans")
 class RoutingMappingStartupIntegrationTest {
 
   /** The key of the pool {@code batch}'s packages. */
@@ -134,6 +140,44 @@ class RoutingMappingStartupIntegrationTest {
       assertStopsWith(
           pools(OwnRoutingName.class).properties(PoolDatabases.MAPPING),
           "the service defines a bean named " + DataConstants.ROUTING_BEAN);
+    }
+  }
+
+  @Nested
+  @DisplayName("the service's own beans")
+  class ServiceBeans {
+
+    /** The names of the mapping's beans, other than the routing data source, that back off. */
+    private static final List<String> MAPPING_BEANS =
+        List.of(
+            DataJpaConstants.REPOSITORY_POOLS,
+            DataJpaConstants.REPOSITORY_ADVICE,
+            DataJpaConstants.ROUTING_CHECK);
+
+    /** The service's bean, which only takes the name. */
+    private static final String SERVICE_BEAN = "the service's";
+
+    @ParameterizedTest(name = "{0}")
+    @FieldSource("MAPPING_BEANS")
+    @DisplayName("a bean of a mapping bean's name is kept, and the service starts with routing")
+    void kept(String beanName) {
+      ApplicationContextInitializer<GenericApplicationContext> own =
+          context -> context.registerBean(beanName, String.class, () -> SERVICE_BEAN);
+      try (var context = pools().initializers(own).properties(PoolDatabases.MAPPING).run()) {
+        assertThat(context.getBean(beanName)).isEqualTo(SERVICE_BEAN);
+        assertThat(context.containsBean(DataConstants.ROUTING_BEAN)).isTrue();
+        MAPPING_BEANS.stream()
+            .filter(other -> !other.equals(beanName))
+            .map(context.getBeanFactory()::getBeanDefinition)
+            .map(AbstractBeanDefinition.class::cast)
+            .forEach(this::assertFallbackNoDefaultCandidate);
+      }
+    }
+
+    /** Checks that one of Stratum's mapping beans gives way to any other bean of its type. */
+    private void assertFallbackNoDefaultCandidate(AbstractBeanDefinition definition) {
+      assertThat(definition.isFallback()).isTrue();
+      assertThat(definition.isDefaultCandidate()).isFalse();
     }
   }
 

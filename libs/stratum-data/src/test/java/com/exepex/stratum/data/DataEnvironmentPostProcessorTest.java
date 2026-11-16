@@ -64,21 +64,12 @@ class DataEnvironmentPostProcessorTest {
           arguments(TRANSACTION_TIMEOUT, "300s"),
           arguments(STATEMENT_TIMEOUT_STATUS, "500"));
 
-  /** The leak alarm threshold of the named pool {@code batch}. */
-  private static final String POOL_THRESHOLD =
-      "stratum.data.sources.batch.hikari.leak-detection-threshold";
-
-  /** The connection lifetime of the named pool {@code batch}. */
-  private static final String POOL_LIFETIME = "stratum.data.sources.batch.hikari.max-lifetime";
-
   /** Thresholds HikariCP would turn off with its default {@code max-lifetime} of 30 minutes. */
   private static final List<Arguments> THRESHOLDS_TURNED_OFF =
       List.of(
           arguments(LEAK_THRESHOLD, "1999"),
           arguments(LEAK_THRESHOLD, "1800001"),
-          arguments("spring.datasource.hikari.leakDetectionThreshold", "1000"),
-          arguments(POOL_THRESHOLD, "1999"),
-          arguments(POOL_THRESHOLD, "1800001"));
+          arguments("spring.datasource.hikari.leakDetectionThreshold", "1000"));
 
   /** Thresholds and lifetimes HikariCP keeps the alarm on with, or that turn it off on purpose. */
   private static final List<Arguments> THRESHOLDS_KEPT =
@@ -244,26 +235,11 @@ class DataEnvironmentPostProcessorTest {
     }
 
     @Test
-    @DisplayName("checks a named pool against its own max-lifetime, and names its keys")
-    void checksNamedPool() {
+    @DisplayName("leaves a named pool's keys to the registrar, which checks them with Java's")
+    void leavesNamedPools() {
       var environment =
           new MockEnvironment()
-              .withProperty(LEAK_THRESHOLD, "2000")
-              .withProperty(POOL_THRESHOLD, "600000")
-              .withProperty(POOL_LIFETIME, "300000");
-
-      assertThatThrownBy(() -> runPostProcessor(environment))
-          .isInstanceOf(StratumException.class)
-          .hasMessageContaining(POOL_THRESHOLD + " is more than " + POOL_LIFETIME);
-    }
-
-    @Test
-    @DisplayName("lets a named pool start with a threshold under its own longer max-lifetime")
-    void keepsNamedPool() {
-      var environment =
-          new MockEnvironment()
-              .withProperty(POOL_THRESHOLD, "2400000")
-              .withProperty(POOL_LIFETIME, "3600000");
+              .withProperty("stratum.data.sources.batch.hikari.leak-detection-threshold", "500");
 
       assertThatCode(() -> runPostProcessor(environment)).doesNotThrowAnyException();
     }

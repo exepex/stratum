@@ -151,6 +151,10 @@ after Stratum's and wins. `stratum.data.query-timeout` is set in Java as in
 - Every `spring.jpa.*` property works and wins; the pool and transaction keys are in
   [Data → Customize](data.md#customize).
 - A bean named `stratumSchemaValidationDefault` replaces Stratum's schema default.
+- With a [mapping](data-named-pools.md#repositories-on-a-pool), a bean named
+  `stratumRepositoryPools`, `stratumRepositoryPoolAdvice` or `stratumRoutingCheck` replaces
+  Stratum's bean of that name. A bean named `stratumRoutingDataSource` stops startup instead
+  ([ADR 0022](../adr/0022-routing-data-source-is-the-only-primary.md)).
 - The beans of the JDBC boundary, such as `stratumJdbcBoundary`, are replaced as
   [Data → Customize](data.md#customize) shows.
 

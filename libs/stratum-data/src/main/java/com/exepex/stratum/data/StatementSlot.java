@@ -7,6 +7,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import org.jspecify.annotations.Nullable;
 
@@ -137,7 +138,9 @@ public final class StatementSlot {
     }
     // Read right after the claim: no later statement can start while the slot is claimed.
     var claimedStatement = statement;
-    return claimedStatement == null ? null : new Claim(this, running, claimedStatement);
+    return claimedStatement == null
+        ? null
+        : Claim.builder().slot(this).running(running).statement(claimedStatement).build();
   }
 
   /**
@@ -154,6 +157,7 @@ public final class StatementSlot {
     long until = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(maxWaitMillis);
     boolean interrupted = false;
     try {
+      // A loop, not a stream: it waits for a value to change, and walks over no values.
       while (state.get() == claimed) {
         if (until - System.nanoTime() <= 0) {
           return false;
@@ -192,5 +196,6 @@ public final class StatementSlot {
    * @param running the value the sweeper claimed
    * @param statement the driver's statement to cancel
    */
+  @Builder
   record Claim(StatementSlot slot, long running, Statement statement) {}
 }

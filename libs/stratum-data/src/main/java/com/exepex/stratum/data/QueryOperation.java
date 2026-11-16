@@ -67,6 +67,7 @@ enum QueryOperation {
   static QueryOperation of(String sql) {
     int start = firstWord(sql);
     int end = start;
+    // A loop, not a stream: each step reads the index the step before it left.
     while (end < sql.length() && end - start <= LONGEST && Character.isLetter(sql.charAt(end))) {
       end++;
     }
@@ -86,6 +87,7 @@ enum QueryOperation {
   static QueryOperation ofBatch(List<String> batch) {
     var first = batch.getFirst();
     var operation = of(first);
+    // A loop, not a stream: it runs on every batch a service executes, and allocates nothing.
     for (var sql : batch) {
       if (!sql.equals(first) && of(sql) != operation) {
         return BATCH;
@@ -109,6 +111,8 @@ enum QueryOperation {
   /** Returns where the first word starts, after white space, line comments and block comments. */
   private static int firstWord(String sql) {
     int at = 0;
+    // A loop, not a stream: each step jumps past a space or a whole comment, to where the next
+    // starts.
     while (at < sql.length()) {
       if (Character.isWhitespace(sql.charAt(at))) {
         at++;
@@ -138,6 +142,7 @@ enum QueryOperation {
     int depth = 0;
     int at = from;
     int star = sql.indexOf('*', at);
+    // A loop, not a stream: each step moves from one star to the next and keeps the nesting depth.
     while (star >= 0) {
       if (star > at && sql.charAt(star - 1) == '/') {
         depth++;
