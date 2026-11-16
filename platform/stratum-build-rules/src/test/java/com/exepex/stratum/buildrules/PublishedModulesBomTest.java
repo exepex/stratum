@@ -84,7 +84,8 @@ class PublishedModulesBomTest {
     @DisplayName("a BOM that declares a DOCTYPE is refused, and the error names its file")
     void refusesDoctype() {
       Path bom = fixture("boms/doctype.xml");
-      assertThatThrownBy(() -> new BomCheck(reactor(), bom).problems())
+      BomCheck check = new BomCheck(reactor(), bom);
+      assertThatThrownBy(check::problems)
           .isInstanceOf(IllegalStateException.class)
           .hasMessageContaining(bom.toString())
           .rootCause()
@@ -94,7 +95,8 @@ class PublishedModulesBomTest {
     @Test
     @DisplayName("a BOM without <dependencyManagement> is refused, and the error names the element")
     void refusesIncompleteBom() {
-      assertThatThrownBy(() -> new BomCheck(reactor(), reactor().resolve("pom.xml")).problems())
+      BomCheck check = new BomCheck(reactor(), reactor().resolve("pom.xml"));
+      assertThatThrownBy(check::problems)
           .isInstanceOf(IllegalStateException.class)
           .hasMessage("No <dependencyManagement> in <project>");
     }
