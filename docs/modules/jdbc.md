@@ -32,8 +32,8 @@ does comes from [`stratum-data`](data.md), which the starter brings.
 ```
 
 > [!NOTE]
-> Until this starter is fully built, it is not published to Maven Central or listed in `stratum-bom`, so
-> this dependency does not resolve yet ([Publishing](../contributing.md#publishing)).
+> This starter is on Maven Central, and in `stratum-bom`, from version 0.2.0, which is not released
+> yet; version 0.1.0 does not have it ([Release notes](../releases/0.2.0.md)).
 
 The starter brings Spring Boot's `spring-boot-starter-jdbc`: HikariCP, `JdbcTemplate` and
 `JdbcClient`, and Stratum's `stratum-data`. It brings no migration tool: add
