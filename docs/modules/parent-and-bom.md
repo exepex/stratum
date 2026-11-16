@@ -144,7 +144,9 @@ Stratum's own libraries and starters are checked further, by rules that only
 `stratum-library-parent` runs and your service does not get: Google's Checkstyle configuration,
 Javadoc on every type and method, at most 400 lines per Java file, and PMD rules that fail the build
 on getters, setters, builders, loggers, constructors, `equals`, `hashCode` and `toString` written by
-hand where Lombok can generate them.
+hand where Lombok can generate them. Further PMD rules check two parts of the structure of Stratum's
+own tests and fail the build on either: a test method beside a class's `@Nested` groups, and an
+inline `@ValueSource`.
 Layout is left to Google Java Format. The PMD rules are PMD's best-practice, error-prone,
 multithreading, performance and security categories, without the few rules that conflict with
 Stratum's conventions; each exclusion is explained in the rule file.

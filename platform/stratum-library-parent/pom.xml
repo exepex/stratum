@@ -4,8 +4,10 @@
   with the annotation processors Stratum's code uses (ST-ENG-42), ArchUnit for the architecture
   tests (ST-TEST-21), and checks: Google's Checkstyle configuration, the Javadoc rules
   (ST-ENG-14, ST-ENG-15), the 400-line limit on Java files
-  (ST-AG-10), the rules against boilerplate that Lombok generates (ST-ENG-42) and a rule that a
-  module with code runs tests, so that the coverage gate can check it. Services use
+  (ST-AG-10), the rules against boilerplate that Lombok generates (ST-ENG-42), two checks on the
+  structure of its tests (no test method beside @Nested groups and no inline @ValueSource, parts
+  of ST-TEST-17 and ST-TEST-15) and a rule that a module with code runs tests, so that the
+  coverage gate can check it. Services use
   stratum-parent, which does not inherit this POM, because these choices are their team's.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
@@ -24,7 +26,7 @@
   <packaging>pom</packaging>
 
   <name>Stratum library parent</name>
-  <description>Parent POM for Stratum's libraries and starters: stratum-build-parent plus Lombok, annotation processors, and Google style, Javadoc, file length and Lombok rules.</description>
+  <description>Parent POM for Stratum's libraries and starters: stratum-build-parent plus Lombok, annotation processors, and Google style, Javadoc, file length, Lombok and test-structure rules.</description>
 
   <!-- Every library and starter generates its boilerplate with Lombok (ST-ENG-42). Lombok works only at
        compile time, so it never reaches a service's classpath. -->
@@ -113,6 +115,7 @@
         <configuration>
           <rulesets combine.children="append">
             <ruleset>stratum/pmd-lombok.xml</ruleset>
+            <ruleset>stratum/pmd-tests.xml</ruleset>
           </rulesets>
         </configuration>
       </plugin>

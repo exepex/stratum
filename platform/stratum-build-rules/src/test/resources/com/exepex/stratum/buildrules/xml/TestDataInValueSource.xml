@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Cases for the TestDataInValueSource rule in stratum/pmd-tests.xml: code it must report, then code it must not. -->
+<test-data
+    xmlns="http://pmd.sourceforge.net/rule-tests"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://pmd.sourceforge.net/rule-tests http://pmd.sourceforge.net/rule-tests_1_0_0.xsd">
+
+  <test-code>
+    <description>an inline @ValueSource, imported or fully qualified</description>
+    <expected-problems>2</expected-problems>
+    <expected-linenumbers>5,8</expected-linenumbers>
+    <expected-messages>
+      <message>Feed the data of this test from a documented private static final constant with @FieldSource, not an inline @ValueSource (ST-TEST-15).</message>
+      <message>Feed the data of this test from a documented private static final constant with @FieldSource, not an inline @ValueSource (ST-TEST-15).</message>
+    </expected-messages>
+    <code><![CDATA[
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+class OrdersTest {
+  @ParameterizedTest
+  @ValueSource(strings = {"a", "b"})
+  void accepts(String value) {}
+  @ParameterizedTest
+  @org.junit.jupiter.params.provider.ValueSource(ints = {1, 2})
+  void counts(int value) {}
+}
+]]></code>
+  </test-code>
+
+  <test-code>
+    <description>data from a constant with @FieldSource is not reported</description>
+    <expected-problems>0</expected-problems>
+    <code><![CDATA[
+import java.util.List;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.FieldSource;
+class OrdersTest {
+  /** The names every order accepts. */
+  private static final List<String> NAMES = List.of("a", "b");
+  @ParameterizedTest
+  @FieldSource("NAMES")
+  void accepts(String value) {}
+}
+]]></code>
+  </test-code>
+</test-data>
