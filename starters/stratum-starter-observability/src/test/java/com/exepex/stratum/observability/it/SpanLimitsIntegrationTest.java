@@ -54,15 +54,6 @@ class SpanLimitsIntegrationTest {
   /** How long the test waits for the span to be sent. */
   private static final Duration EXPORT_TIMEOUT = Duration.ofSeconds(10);
 
-  /** Stratum's default longest attribute value, in characters. */
-  private static final int MAX_VALUE_LENGTH = 1024;
-
-  /** Stratum's default number of attributes kept on one span. */
-  private static final int MAX_ATTRIBUTES = 64;
-
-  /** Stratum's default number of events kept on one span. */
-  private static final int MAX_EVENTS = 16;
-
   /** A higher attribute limit a service sets for itself. */
   private static final int SERVICE_MAX_ATTRIBUTES = 100;
 
@@ -90,27 +81,41 @@ class SpanLimitsIntegrationTest {
   /** The spans Spring Boot sent. */
   @Autowired private ExportedSpans exportedSpans;
 
-  @Test
-  @DisplayName("Spring Boot builds its span limits from Stratum's defaults")
-  void usesStratumLimits() {
-    assertThat(spanLimits.getMaxAttributeValueLength()).isEqualTo(MAX_VALUE_LENGTH);
-    assertThat(spanLimits.getMaxNumberOfAttributes()).isEqualTo(MAX_ATTRIBUTES);
-    assertThat(spanLimits.getMaxNumberOfEvents()).isEqualTo(MAX_EVENTS);
-  }
+  @Nested
+  @DisplayName("with Stratum's defaults")
+  class WithStratumDefaults {
 
-  @Test
-  @DisplayName(
-      "a 2 MB value is cut to 1,024 characters, and attributes past 64 and events past 16 are"
-          + " dropped")
-  void boundsOversizedSpan() {
-    sendOversizedSpan();
+    /** Stratum's default longest attribute value, in characters. */
+    private static final int MAX_VALUE_LENGTH = 1024;
 
-    // Micrometer's exporter rebuilds each span with its kept attributes and events only
-    // (OtelFinishedSpan.MutableSpanData), so the dropped counts do not reach any exporter.
-    var span = exportedSpans.named(OVERSIZED_SPAN);
-    assertThat(span.getAttributes().get(LONG_VALUE)).hasSize(MAX_VALUE_LENGTH);
-    assertThat(span.getAttributes().size()).isEqualTo(MAX_ATTRIBUTES);
-    assertThat(span.getEvents()).hasSize(MAX_EVENTS);
+    /** Stratum's default number of attributes kept on one span. */
+    private static final int MAX_ATTRIBUTES = 64;
+
+    /** Stratum's default number of events kept on one span. */
+    private static final int MAX_EVENTS = 16;
+
+    @Test
+    @DisplayName("Spring Boot builds its span limits from Stratum's defaults")
+    void usesStratumLimits() {
+      assertThat(spanLimits.getMaxAttributeValueLength()).isEqualTo(MAX_VALUE_LENGTH);
+      assertThat(spanLimits.getMaxNumberOfAttributes()).isEqualTo(MAX_ATTRIBUTES);
+      assertThat(spanLimits.getMaxNumberOfEvents()).isEqualTo(MAX_EVENTS);
+    }
+
+    @Test
+    @DisplayName(
+        "a 2 MB value is cut to 1,024 characters, and attributes past 64 and events past 16 are"
+            + " dropped")
+    void boundsOversizedSpan() {
+      sendOversizedSpan();
+
+      // Micrometer's exporter rebuilds each span with its kept attributes and events only
+      // (OtelFinishedSpan.MutableSpanData), so the dropped counts do not reach any exporter.
+      var span = exportedSpans.named(OVERSIZED_SPAN);
+      assertThat(span.getAttributes().get(LONG_VALUE)).hasSize(MAX_VALUE_LENGTH);
+      assertThat(span.getAttributes().size()).isEqualTo(MAX_ATTRIBUTES);
+      assertThat(span.getEvents()).hasSize(MAX_EVENTS);
+    }
   }
 
   /** Ends one span filled past every limit and sends it at once. */

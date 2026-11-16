@@ -23,67 +23,72 @@ import org.springframework.mock.env.MockEnvironment;
 @DisplayName("WebProperties come from properties, changed by Java configuration, which wins")
 class WebPropertiesTest {
 
-  /** The code of a duplicate order. */
-  private static final String DUPLICATE_ORDER = OrderErrorCode.DUPLICATE_ORDER.getCode();
+  @Nested
+  @DisplayName("the error status settings")
+  class ErrorStatusSettings {
 
-  /** The key of the status of a duplicate order in a {@code .properties} file. */
-  private static final String DUPLICATE_ORDER_STATUS =
-      WebConstants.ERROR_STATUSES + "." + DUPLICATE_ORDER;
+    /** The code of a duplicate order. */
+    private static final String DUPLICATE_ORDER = OrderErrorCode.DUPLICATE_ORDER.getCode();
 
-  @Test
-  @DisplayName("with nothing set, no code has a status")
-  void defaultsToNoStatuses() {
-    assertThat(WebProperties.resolve(new MockEnvironment()).error().statuses()).isEmpty();
-  }
+    /** The key of the status of a duplicate order in a {@code .properties} file. */
+    private static final String DUPLICATE_ORDER_STATUS =
+        WebConstants.ERROR_STATUSES + "." + DUPLICATE_ORDER;
 
-  @Test
-  @DisplayName("statuses are read from a .properties file, with the code as written")
-  void statusesFromProperties() {
-    var environment = new MockEnvironment().withProperty(DUPLICATE_ORDER_STATUS, "409");
+    @Test
+    @DisplayName("with nothing set, no code has a status")
+    void defaultsToNoStatuses() {
+      assertThat(WebProperties.resolve(new MockEnvironment()).error().statuses()).isEmpty();
+    }
 
-    assertThat(WebProperties.resolve(environment).error().statuses())
-        .isEqualTo(Map.of(DUPLICATE_ORDER, HttpStatus.CONFLICT.value()));
-  }
+    @Test
+    @DisplayName("statuses are read from a .properties file, with the code as written")
+    void statusesFromProperties() {
+      var environment = new MockEnvironment().withProperty(DUPLICATE_ORDER_STATUS, "409");
 
-  @Test
-  @DisplayName("statuses are read from a .yml file, with the code as written")
-  void statusesFromYaml() throws IOException {
-    var environment = WebTestData.yamlEnvironment();
+      assertThat(WebProperties.resolve(environment).error().statuses())
+          .isEqualTo(Map.of(DUPLICATE_ORDER, HttpStatus.CONFLICT.value()));
+    }
 
-    assertThat(WebProperties.resolve(environment).error().statuses())
-        .isEqualTo(
-            Map.of(
-                "ORD-0001",
-                HttpStatus.CONFLICT.value(),
-                OrderErrorCode.STORE_DOWN.getCode(),
-                HttpStatus.SERVICE_UNAVAILABLE.value()));
-  }
+    @Test
+    @DisplayName("statuses are read from a .yml file, with the code as written")
+    void statusesFromYaml() throws IOException {
+      var environment = WebTestData.yamlEnvironment();
 
-  @Test
-  @DisplayName(WebTestData.JAVA_CONFIGURATION_WINS)
-  void javaConfigurationWins(@TempDir Path folder) throws IOException {
-    var environment = new MockEnvironment().withProperty(DUPLICATE_ORDER_STATUS, "409");
+      assertThat(WebProperties.resolve(environment).error().statuses())
+          .isEqualTo(
+              Map.of(
+                  "ORD-0001",
+                  HttpStatus.CONFLICT.value(),
+                  OrderErrorCode.STORE_DOWN.getCode(),
+                  HttpStatus.SERVICE_UNAVAILABLE.value()));
+    }
 
-    var properties =
-        StarterTestSupport.withCustomizers(
-            folder,
-            WebPropertiesCustomizer.class,
-            List.of(GoneOrderWebSettings.class),
-            () -> WebProperties.resolve(environment));
+    @Test
+    @DisplayName(WebTestData.JAVA_CONFIGURATION_WINS)
+    void javaConfigurationWins(@TempDir Path folder) throws IOException {
+      var environment = new MockEnvironment().withProperty(DUPLICATE_ORDER_STATUS, "409");
 
-    assertThat(properties.error().statuses())
-        .isEqualTo(Map.of(DUPLICATE_ORDER, HttpStatus.GONE.value()));
-  }
+      var properties =
+          StarterTestSupport.withCustomizers(
+              folder,
+              WebPropertiesCustomizer.class,
+              List.of(GoneOrderWebSettings.class),
+              () -> WebProperties.resolve(environment));
 
-  @Test
-  @DisplayName("a status that is not an error stops startup with SX-CORE-1003, without the code")
-  void nonErrorStatusIsRejected() {
-    var environment = new MockEnvironment().withProperty(DUPLICATE_ORDER_STATUS, "200");
+      assertThat(properties.error().statuses())
+          .isEqualTo(Map.of(DUPLICATE_ORDER, HttpStatus.GONE.value()));
+    }
 
-    assertThatExceptionOfType(StratumException.class)
-        .isThrownBy(() -> WebProperties.resolve(environment))
-        .withMessageStartingWith(WebTestData.INVALID_SETTINGS + WebConstants.ERROR_STATUSES)
-        .withMessageNotContaining(DUPLICATE_ORDER);
+    @Test
+    @DisplayName("a status that is not an error stops startup with SX-CORE-1003, without the code")
+    void nonErrorStatusIsRejected() {
+      var environment = new MockEnvironment().withProperty(DUPLICATE_ORDER_STATUS, "200");
+
+      assertThatExceptionOfType(StratumException.class)
+          .isThrownBy(() -> WebProperties.resolve(environment))
+          .withMessageStartingWith(WebTestData.INVALID_SETTINGS + WebConstants.ERROR_STATUSES)
+          .withMessageNotContaining(DUPLICATE_ORDER);
+    }
   }
 
   @Nested

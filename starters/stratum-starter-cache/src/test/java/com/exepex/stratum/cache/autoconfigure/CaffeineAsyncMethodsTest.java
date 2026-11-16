@@ -65,21 +65,26 @@ class CaffeineAsyncMethodsTest {
     }
   }
 
-  @Test
-  @DisplayName("an empty Mono is not stored: the method runs on each call and nothing fails")
-  void emptyMonoRunsEachTime() {
-    contextRunner.run(context -> assertEmptyMonoRunsEachTime(context));
-  }
+  @Nested
+  @DisplayName("a method without a value")
+  class WithoutValue {
 
-  /** Calls the method of a product without a price twice and checks it ran each time. */
-  private void assertEmptyMonoRunsEachTime(AssertableApplicationContext context) {
-    var catalog = context.getBean(AsyncProductCatalog.class);
+    @Test
+    @DisplayName("an empty Mono is not stored: the method runs on each call and nothing fails")
+    void emptyMonoRunsEachTime() {
+      contextRunner.run(context -> assertEmptyMonoRunsEachTime(context));
+    }
 
-    assertThat(catalog.monoUnpricedPriceOf(SKU).block()).isNull();
-    assertThat(catalog.monoUnpricedPriceOf(SKU).block()).isNull();
+    /** Calls the method of a product without a price twice and checks it ran each time. */
+    private void assertEmptyMonoRunsEachTime(AssertableApplicationContext context) {
+      var catalog = context.getBean(AsyncProductCatalog.class);
 
-    assertThat(catalog.lookups()).isEqualTo(2);
-    assertThat(context.getBean(RecordingCacheCounters.class).failureSeries()).isZero();
+      assertThat(catalog.monoUnpricedPriceOf(SKU).block()).isNull();
+      assertThat(catalog.monoUnpricedPriceOf(SKU).block()).isNull();
+
+      assertThat(catalog.lookups()).isEqualTo(2);
+      assertThat(context.getBean(RecordingCacheCounters.class).failureSeries()).isZero();
+    }
   }
 
   @Nested

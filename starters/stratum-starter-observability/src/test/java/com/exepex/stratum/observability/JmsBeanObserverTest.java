@@ -154,11 +154,16 @@ class JmsBeanObserverTest {
     }
   }
 
-  @Test
-  @DisplayName("any other bean is returned as it is")
-  void otherBeanUnchanged() {
-    var bean = new Object();
+  @Nested
+  @DisplayName("a bean that is not a JMS bean")
+  class NonJmsBean {
 
-    assertThat(observer().postProcessAfterInitialization(bean, BEAN_NAME)).isSameAs(bean);
+    @Test
+    @DisplayName("any other bean is returned as it is")
+    void otherBeanUnchanged() {
+      var bean = new Object();
+
+      assertThat(observer().postProcessAfterInitialization(bean, BEAN_NAME)).isSameAs(bean);
+    }
   }
 }

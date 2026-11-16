@@ -179,39 +179,44 @@ class StatementTimeoutIntegrationTest {
     }
   }
 
-  @Test
-  @DisplayName("the database's own statement_timeout stays PostgreSQL's error, not SX-DATA-1003")
-  void databaseTimeout() throws SQLException {
-    double before = cancelledBy(QUERY_TIMEOUT_CAUSE);
-    try (var connection = dataSource.getConnection();
-        var statement = connection.createStatement()) {
-      statement.execute("SET statement_timeout = 100");
-      try {
-        var failure = catchThrowable(() -> statement.execute("SELECT pg_sleep(0.3)"));
+  @Nested
+  @DisplayName("a limit set outside stratum.data.query-timeout")
+  class LimitSetElsewhere {
 
-        assertThat(failure)
-            .isInstanceOf(SQLException.class)
-            .isNotInstanceOf(StatementTimeoutException.class);
-        assertThat(((SQLException) failure).getSQLState()).isEqualTo("57014");
-        assertThat(FailureCauses.findFailureWithErrorCode(failure)).isEmpty();
-      } finally {
-        statement.execute("RESET statement_timeout");
+    @Test
+    @DisplayName("the database's own statement_timeout stays PostgreSQL's error, not SX-DATA-1003")
+    void databaseTimeout() throws SQLException {
+      double before = cancelledBy(QUERY_TIMEOUT_CAUSE);
+      try (var connection = dataSource.getConnection();
+          var statement = connection.createStatement()) {
+        statement.execute("SET statement_timeout = 100");
+        try {
+          var failure = catchThrowable(() -> statement.execute("SELECT pg_sleep(0.3)"));
+
+          assertThat(failure)
+              .isInstanceOf(SQLException.class)
+              .isNotInstanceOf(StatementTimeoutException.class);
+          assertThat(((SQLException) failure).getSQLState()).isEqualTo("57014");
+          assertThat(FailureCauses.findFailureWithErrorCode(failure)).isEmpty();
+        } finally {
+          statement.execute("RESET statement_timeout");
+        }
       }
+      assertThat(cancelledBy(QUERY_TIMEOUT_CAUSE)).isEqualTo(before);
     }
-    assertThat(cancelledBy(QUERY_TIMEOUT_CAUSE)).isEqualTo(before);
-  }
 
-  @Test
-  @DisplayName("a transaction's time limit ends its statement, as SX-DATA-1003 too")
-  void transactionDeadline() {
-    var shortTransaction = new TransactionTemplate(transactionTemplate.getTransactionManager());
-    shortTransaction.setTimeout(1);
+    @Test
+    @DisplayName("a transaction's time limit ends its statement, as SX-DATA-1003 too")
+    void transactionDeadline() {
+      var shortTransaction = new TransactionTemplate(transactionTemplate.getTransactionManager());
+      shortTransaction.setTimeout(1);
 
-    var failure =
-        catchThrowable(
-            () -> shortTransaction.executeWithoutResult(status -> jdbcTemplate.execute(SLOW)));
+      var failure =
+          catchThrowable(
+              () -> shortTransaction.executeWithoutResult(status -> jdbcTemplate.execute(SLOW)));
 
-    assertThat(FailureCauses.causesOf(failure))
-        .anyMatch(StatementTimeoutException.class::isInstance);
+      assertThat(FailureCauses.causesOf(failure))
+          .anyMatch(StatementTimeoutException.class::isInstance);
+    }
   }
 }

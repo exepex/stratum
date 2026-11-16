@@ -103,23 +103,29 @@ class ClientErrorsTest {
                   assertThat(code.getReport().getExternal().message())
                       .isEqualTo(HttpClientErrorCode.DOWNSTREAM_UNAVAILABLE.getDescription()));
     }
+
+    @Test
+    @DisplayName("a body that is not valid stays Spring's own exception")
+    void invalidBodyUnchanged() {
+      var failure =
+          new RestClientException(
+              "bad JSON",
+              new HttpMessageNotReadableException(
+                  "bad JSON", new MockHttpInputMessage(new byte[0])));
+
+      assertThat(errors.noAnswer(failure)).isEmpty();
+    }
   }
 
-  @Test
-  @DisplayName("a body that is not valid stays Spring's own exception")
-  void invalidBodyUnchanged() {
-    var failure =
-        new RestClientException(
-            "bad JSON",
-            new HttpMessageNotReadableException("bad JSON", new MockHttpInputMessage(new byte[0])));
+  @Nested
+  @DisplayName("its place among Stratum's decorators")
+  class DecoratorOrder {
 
-    assertThat(errors.noAnswer(failure)).isEmpty();
-  }
-
-  @Test
-  @DisplayName("the decorator is the outermost of Stratum's, outside the retries")
-  void outermost() {
-    assertThat(errors.getOrder()).isLessThan(HttpClientConstants.RESILIENCE_ORDER);
+    @Test
+    @DisplayName("the decorator is the outermost of Stratum's, outside the retries")
+    void outermost() {
+      assertThat(errors.getOrder()).isLessThan(HttpClientConstants.RESILIENCE_ORDER);
+    }
   }
 
   /** Returns a check of the code a call that got no answer ends with. */

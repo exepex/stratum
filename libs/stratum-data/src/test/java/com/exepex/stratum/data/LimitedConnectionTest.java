@@ -106,6 +106,27 @@ class LimitedConnectionTest {
       }
       verify(fixture.driverConnection).setNetworkTimeout(any(), eq(Integer.MAX_VALUE));
     }
+
+    @Test
+    @DisplayName(
+        "without statement limits, as for Flyway's own connection, the driver keeps the limit")
+    void withoutLimits() throws SQLException {
+      var pool = mock(DataSource.class);
+      var driverConnection = mock(Connection.class);
+      var driverStatement = mock(PreparedStatement.class);
+      when(pool.getConnection()).thenReturn(driverConnection);
+      when(driverConnection.prepareStatement(anyString())).thenReturn(driverStatement);
+      var dataSource = new JdbcBoundary(new JdbcWrapperClasses(), List.of()).wrap(pool);
+
+      try (var connection = dataSource.getConnection();
+          var statement = connection.prepareStatement(QUERY)) {
+        statement.setQueryTimeout(CALLER_SECONDS);
+        statement.executeQuery();
+      }
+
+      verify(driverStatement).setQueryTimeout(CALLER_SECONDS);
+      verify(driverConnection, never()).setNetworkTimeout(any(), anyInt());
+    }
   }
 
   @Nested
@@ -204,26 +225,5 @@ class LimitedConnectionTest {
         assertThat(fixture.sweeper.size()).isZero();
       }
     }
-  }
-
-  @Test
-  @DisplayName(
-      "without statement limits, as for Flyway's own connection, the driver keeps the limit")
-  void withoutLimits() throws SQLException {
-    var pool = mock(DataSource.class);
-    var driverConnection = mock(Connection.class);
-    var driverStatement = mock(PreparedStatement.class);
-    when(pool.getConnection()).thenReturn(driverConnection);
-    when(driverConnection.prepareStatement(anyString())).thenReturn(driverStatement);
-    var dataSource = new JdbcBoundary(new JdbcWrapperClasses(), List.of()).wrap(pool);
-
-    try (var connection = dataSource.getConnection();
-        var statement = connection.prepareStatement(QUERY)) {
-      statement.setQueryTimeout(CALLER_SECONDS);
-      statement.executeQuery();
-    }
-
-    verify(driverStatement).setQueryTimeout(CALLER_SECONDS);
-    verify(driverConnection, never()).setNetworkTimeout(any(), anyInt());
   }
 }

@@ -143,30 +143,40 @@ class SslBundleIntegrationTest {
     registry.add(BUNDLE + ".reload-on-update", () -> "true");
   }
 
-  @Test
-  @DisplayName("the bank sees the bundle's client certificate")
-  void sendsClientCertificate() {
-    inventoryClient.stock();
+  @Nested
+  @DisplayName("with the bundle's first certificate")
+  class FirstCertificate {
 
-    assertThat(bank.clientSubjects()).contains(FIRST_SUBJECT);
+    @Test
+    @DisplayName("the bank sees the bundle's client certificate")
+    void sendsClientCertificate() {
+      inventoryClient.stock();
+
+      assertThat(bank.clientSubjects()).contains(FIRST_SUBJECT);
+    }
+
+    @ParameterizedTest
+    @FieldSource(ClientBeanCalls.BOTH_BEANS)
+    @DisplayName("the client's RestClient and RestTemplate beans present the bundle's certificate")
+    void beansSendClientCertificate(ClientBean bean, @Autowired ApplicationContext context) {
+      var callsBefore = bank.clientSubjects().size();
+
+      ClientBeanCalls.get(context, bean, RestClientTestData.INVENTORY, ScriptedDownstream.STOCK);
+
+      var subjects = bank.clientSubjects();
+      assertThat(subjects.subList(callsBefore, subjects.size())).containsExactly(FIRST_SUBJECT);
+    }
   }
 
-  @ParameterizedTest
-  @FieldSource(ClientBeanCalls.BOTH_BEANS)
-  @DisplayName("the client's RestClient and RestTemplate beans present the bundle's certificate")
-  void beansSendClientCertificate(ClientBean bean, @Autowired ApplicationContext context) {
-    var callsBefore = bank.clientSubjects().size();
+  @Nested
+  @DisplayName("for another client, without a bundle")
+  class OtherClient {
 
-    ClientBeanCalls.get(context, bean, RestClientTestData.INVENTORY, ScriptedDownstream.STOCK);
-
-    var subjects = bank.clientSubjects();
-    assertThat(subjects.subList(callsBefore, subjects.size())).containsExactly(FIRST_SUBJECT);
-  }
-
-  @Test
-  @DisplayName("a client without a bundle is not changed by another client's bundle")
-  void otherClientWithoutBundle(@Autowired PricingClient pricingClient) {
-    assertThat(pricingClient.price()).isEqualTo(ScriptedDownstream.BODY);
+    @Test
+    @DisplayName("a client without a bundle is not changed by another client's bundle")
+    void otherClientWithoutBundle(@Autowired PricingClient pricingClient) {
+      assertThat(pricingClient.price()).isEqualTo(ScriptedDownstream.BODY);
+    }
   }
 
   @Nested
