@@ -29,9 +29,6 @@ import org.springframework.core.env.Environment;
 @RequiredArgsConstructor
 public final class PoolCheck implements SmartInitializingSingleton {
 
-  /** HikariCP's maximum when nothing sets one. */
-  private static final int HIKARI_MAXIMUM_POOL_SIZE = 10;
-
   /** Finds the data source beans. */
   private final ListableBeanFactory beanFactory;
 
@@ -102,12 +99,9 @@ public final class PoolCheck implements SmartInitializingSingleton {
     logPool(name, pool, maximum);
   }
 
-  /** Returns a pool's maximum, HikariCP's own when nothing set one, or 0 for no HikariCP pool. */
+  /** Returns a pool's maximum, or 0 for no HikariCP pool. */
   private int maximumOf(@Nullable HikariConfigMXBean pool) {
-    if (pool == null) {
-      return 0;
-    }
-    return pool.getMaximumPoolSize() > 0 ? pool.getMaximumPoolSize() : HIKARI_MAXIMUM_POOL_SIZE;
+    return pool == null ? 0 : pool.getMaximumPoolSize();
   }
 
   /** Logs a pool's name and maximum, or that a data source is no HikariCP pool. */
