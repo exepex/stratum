@@ -3,10 +3,10 @@ package com.exepex.stratum.buildrules;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
+import java.util.Objects;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -23,8 +23,11 @@ import org.xml.sax.SAXException;
  * {@code <artifactId>}. A Stratum entry is a BOM dependency whose {@code <groupId>} is Stratum's.
  * The entries must be in strictly increasing {@link String#compareTo} order, so a name listed twice
  * is out of order too.
+ *
+ * @param root the directory of the reactor's root {@code pom.xml}
+ * @param bom the BOM's {@code pom.xml}
  */
-final class BomCheck {
+record BomCheck(Path root, Path bom) {
 
   /** The group of every Stratum module; the BOM's other entries are third-party libraries. */
   static final String STRATUM_GROUP = "io.github.exepex.stratum";
@@ -32,67 +35,66 @@ final class BomCheck {
   /** The directory of the parent POMs, which are not in the BOM. */
   private static final String PLATFORM_DIRECTORY = "platform/";
 
-  private BomCheck() {}
-
   /**
-   * Returns every difference between the Stratum entries of {@code bom} and the modules that the
-   * reactor at {@code root} publishes, or an empty list when they match.
+   * Returns every difference between the BOM's Stratum entries and the modules the reactor
+   * publishes.
+   *
+   * @return one sentence per difference, each naming its module: first the missing modules, then
+   *     the entries that are not published modules, the repeated entries and the entries out of
+   *     name order; empty when the BOM and the reactor match
    */
-  static List<String> problems(Path root, Path bom) {
-    List<String> published = publishedModules(root);
-    List<String> entries = stratumEntries(bom);
-    List<String> problems = new ArrayList<>();
-    for (String module : published) {
-      if (!entries.contains(module)) {
-        problems.add("missing from the BOM: " + module);
-      }
-    }
-    Set<String> seen = new HashSet<>();
-    String previous = null;
-    for (String entry : entries) {
-      if (!published.contains(entry)) {
-        problems.add("in the BOM but not a published module: " + entry);
-      }
-      if (!seen.add(entry)) {
-        problems.add("listed twice in the BOM: " + entry);
-      }
-      if (previous != null && entry.compareTo(previous) <= 0) {
-        problems.add("out of name order in the BOM: " + entry + " after " + previous);
-      }
-      previous = entry;
-    }
-    return problems;
+  List<String> problems() {
+    List<String> published = publishedModules();
+    List<String> entries = stratumEntries();
+    Stream<String> missing =
+        published.stream()
+            .filter(module -> !entries.contains(module))
+            .map(module -> "missing from the BOM: " + module);
+    Stream<String> unknown =
+        entries.stream()
+            .filter(entry -> !published.contains(entry))
+            .map(entry -> "in the BOM but not a published module: " + entry);
+    Stream<String> repeated =
+        IntStream.range(0, entries.size())
+            .filter(index -> entries.subList(0, index).contains(entries.get(index)))
+            .mapToObj(index -> "listed twice in the BOM: " + entries.get(index));
+    Stream<String> unordered =
+        IntStream.range(1, entries.size())
+            .filter(index -> entries.get(index).compareTo(entries.get(index - 1)) <= 0)
+            .mapToObj(
+                index ->
+                    "out of name order in the BOM: "
+                        + entries.get(index)
+                        + " after "
+                        + entries.get(index - 1));
+    return Stream.of(missing, unknown, repeated, unordered).flatMap(problem -> problem).toList();
   }
 
-  /** Returns the artifactIds of the modules the reactor at {@code root} publishes. */
-  private static List<String> publishedModules(Path root) {
-    List<String> published = new ArrayList<>();
-    Element modules = child(parse(root.resolve("pom.xml")), "modules");
-    for (Element module : children(modules, "module")) {
-      String path = module.getTextContent().trim();
-      if (path.startsWith(PLATFORM_DIRECTORY)) {
-        continue;
-      }
-      Element project = parse(root.resolve(path).resolve("pom.xml"));
-      Element properties = child(project, "properties");
-      Element skip = properties == null ? null : child(properties, "skipPublishing");
-      if (skip == null || !"true".equals(skip.getTextContent().trim())) {
-        published.add(child(project, "artifactId").getTextContent().trim());
-      }
-    }
-    return published;
+  /** Returns the artifactIds of the modules the reactor publishes, in the root POM's order. */
+  private List<String> publishedModules() {
+    return children(child(parse(root.resolve("pom.xml")), "modules"), "module")
+        .map(module -> module.getTextContent().trim())
+        .filter(path -> !path.startsWith(PLATFORM_DIRECTORY))
+        .map(path -> parse(root.resolve(path).resolve("pom.xml")))
+        .filter(project -> !skipsPublishing(project))
+        .map(project -> text(child(project, "artifactId")))
+        .toList();
   }
 
-  /** Returns the artifactIds of the Stratum entries of {@code bom}, in the order it lists them. */
-  private static List<String> stratumEntries(Path bom) {
+  /** Returns the artifactIds of the BOM's Stratum entries, in the order the BOM lists them. */
+  private List<String> stratumEntries() {
     Element management = child(parse(bom), "dependencyManagement");
-    List<String> entries = new ArrayList<>();
-    for (Element dependency : children(child(management, "dependencies"), "dependency")) {
-      if (STRATUM_GROUP.equals(child(dependency, "groupId").getTextContent().trim())) {
-        entries.add(child(dependency, "artifactId").getTextContent().trim());
-      }
-    }
-    return entries;
+    return children(child(management, "dependencies"), "dependency")
+        .filter(dependency -> STRATUM_GROUP.equals(text(child(dependency, "groupId"))))
+        .map(dependency -> text(child(dependency, "artifactId")))
+        .toList();
+  }
+
+  /** Returns whether a module's own {@code <properties>} set {@code skipPublishing} to true. */
+  private static boolean skipsPublishing(Element project) {
+    return children(project, "properties")
+        .flatMap(properties -> children(properties, "skipPublishing"))
+        .anyMatch(skip -> "true".equals(text(skip)));
   }
 
   /** Parses {@code pom} with DOCTYPE declarations refused, and returns its root element. */
@@ -106,25 +108,29 @@ final class BomCheck {
       try (var in = Files.newInputStream(pom)) {
         return factory.newDocumentBuilder().parse(in).getDocumentElement();
       }
-    } catch (IOException | ParserConfigurationException | SAXException e) {
-      throw new IllegalStateException("Cannot read " + pom, e);
+    } catch (IOException | ParserConfigurationException | SAXException unreadablePom) {
+      throw new IllegalStateException("Cannot read " + pom, unreadablePom);
     }
   }
 
-  /** Returns the first child element of {@code parent} named {@code name}, or null. */
+  /** Returns the first child element of {@code parent} named {@code name}. */
   private static Element child(Element parent, String name) {
-    List<Element> found = children(parent, name);
-    return found.isEmpty() ? null : found.get(0);
+    return children(parent, name)
+        .findFirst()
+        .orElseThrow(
+            () -> new IllegalStateException("No <" + name + "> in <" + parent.getTagName() + ">"));
   }
 
   /** Returns the child elements of {@code parent} named {@code name}, in document order. */
-  private static List<Element> children(Element parent, String name) {
-    List<Element> found = new ArrayList<>();
-    for (Node node = parent.getFirstChild(); node != null; node = node.getNextSibling()) {
-      if (node instanceof Element element && name.equals(element.getTagName())) {
-        found.add(element);
-      }
-    }
-    return found;
+  private static Stream<Element> children(Element parent, String name) {
+    return Stream.iterate(parent.getFirstChild(), Objects::nonNull, Node::getNextSibling)
+        .filter(Element.class::isInstance)
+        .map(Element.class::cast)
+        .filter(element -> name.equals(element.getTagName()));
+  }
+
+  /** Returns the trimmed text of {@code element}. */
+  private static String text(Element element) {
+    return element.getTextContent().trim();
   }
 }

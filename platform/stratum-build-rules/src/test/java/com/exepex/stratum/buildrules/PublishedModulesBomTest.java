@@ -37,7 +37,8 @@ class PublishedModulesBomTest {
     @DisplayName("the BOM and the published modules match")
     void match() {
       assertThat(ROOT.resolve("platform/stratum-build-rules")).isDirectory();
-      assertThat(BomCheck.problems(ROOT, ROOT.resolve("platform/stratum-bom/pom.xml"))).isEmpty();
+      assertThat(new BomCheck(ROOT, ROOT.resolve("platform/stratum-bom/pom.xml")).problems())
+          .isEmpty();
     }
   }
 
@@ -67,14 +68,14 @@ class PublishedModulesBomTest {
         "a BOM that lists the published modules in order, and third-party entries in any order,"
             + " passes")
     void passes() {
-      assertThat(BomCheck.problems(fixture("reactor"), fixture("boms/valid.xml"))).isEmpty();
+      assertThat(new BomCheck(fixture("reactor"), fixture("boms/valid.xml")).problems()).isEmpty();
     }
 
     @ParameterizedTest(name = "{0}")
     @FieldSource("BOMS_AND_PROBLEMS")
     @DisplayName("a BOM that differs is reported by module name")
     void reports(String bom, List<String> problems) {
-      assertThat(BomCheck.problems(fixture("reactor"), fixture("boms/" + bom)))
+      assertThat(new BomCheck(fixture("reactor"), fixture("boms/" + bom)).problems())
           .containsExactlyElementsOf(problems);
     }
 
@@ -82,8 +83,8 @@ class PublishedModulesBomTest {
     private Path fixture(String name) {
       try {
         return Path.of(PublishedModulesBomTest.class.getResource("bom/" + name).toURI());
-      } catch (URISyntaxException e) {
-        throw new IllegalStateException(e);
+      } catch (URISyntaxException invalidResourceUri) {
+        throw new IllegalStateException(invalidResourceUri);
       }
     }
   }
