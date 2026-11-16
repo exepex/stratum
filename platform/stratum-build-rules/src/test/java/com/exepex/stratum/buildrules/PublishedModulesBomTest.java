@@ -1,6 +1,7 @@
 package com.exepex.stratum.buildrules;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import java.net.URISyntaxException;
@@ -77,6 +78,25 @@ class PublishedModulesBomTest {
     void reports(String bom, List<String> problems) {
       assertThat(new BomCheck(reactor(), fixture("boms/" + bom)).problems())
           .containsExactlyElementsOf(problems);
+    }
+
+    @Test
+    @DisplayName("a BOM that declares a DOCTYPE is refused, and the error names its file")
+    void refusesDoctype() {
+      Path bom = fixture("boms/doctype.xml");
+      assertThatThrownBy(() -> new BomCheck(reactor(), bom).problems())
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessageContaining(bom.toString())
+          .rootCause()
+          .hasMessageContaining("DOCTYPE");
+    }
+
+    @Test
+    @DisplayName("a BOM without <dependencyManagement> is refused, and the error names the element")
+    void refusesIncompleteBom() {
+      assertThatThrownBy(() -> new BomCheck(reactor(), reactor().resolve("pom.xml")).problems())
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessage("No <dependencyManagement> in <project>");
     }
 
     /** Returns the fixture reactor's root directory. */

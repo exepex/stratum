@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Matches the fixture reactor, but declares a DOCTYPE, which BomCheck refuses to parse. -->
+<!DOCTYPE project>
+<project>
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>io.github.exepex.stratum</groupId>
+        <artifactId>stratum-alpha</artifactId>
+      </dependency>
+      <dependency>
+        <groupId>io.github.exepex.stratum</groupId>
+        <artifactId>stratum-beta</artifactId>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+</project>
