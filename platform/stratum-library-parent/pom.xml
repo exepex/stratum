@@ -113,6 +113,7 @@
         <configuration>
           <rulesets combine.children="append">
             <ruleset>stratum/pmd-lombok.xml</ruleset>
+            <ruleset>stratum/pmd-tests.xml</ruleset>
           </rulesets>
         </configuration>
       </plugin>
