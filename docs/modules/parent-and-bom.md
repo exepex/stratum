@@ -99,7 +99,7 @@ one. With a BOM import, put it above the import to make that clear to readers:
     <dependency>
       <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-bom</artifactId>
-      <version>0.1.0</version>
+      <version>0.2.0</version>
       <type>pom</type>
       <scope>import</scope>
     </dependency>

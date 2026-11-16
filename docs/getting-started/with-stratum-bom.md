@@ -1,7 +1,7 @@
 # Stratum as a dependency, under another parent
 
 **Status: Built, released in 0.1.0.** `stratum-bom` exists and builds both examples below. The examples
-use the latest released version, `0.1.0`; the [documentation home](../README.md) says what that means
+use the latest released version, `0.2.0`; the [documentation home](../README.md) says what that means
 for the pages you read.
 
 This guide sets up a service that keeps its own parent POM and gets Stratum through `stratum-bom`.
@@ -95,7 +95,7 @@ section adds back what `stratum-parent` would have given: the JDK check, `git.pr
       <dependency>
         <groupId>io.github.exepex.stratum</groupId>
         <artifactId>stratum-bom</artifactId>
-        <version>0.1.0</version>
+        <version>0.2.0</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -228,7 +228,7 @@ itself, sets Java 25 and writes the plugin versions.
       <dependency>
         <groupId>io.github.exepex.stratum</groupId>
         <artifactId>stratum-bom</artifactId>
-        <version>0.1.0</version>
+        <version>0.2.0</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -349,8 +349,8 @@ use the `<build>` section of [example 1](#example-1-under-spring-boot-starter-pa
 Stratum's Checkstyle and PMD rule files are in the artifact `stratum-build-rules`, which
 `stratum-bom` does not manage. A service under another parent cannot use them without writing
 Stratum's version a second time, so they are not available to it yet. Whether `stratum-bom` will
-manage `stratum-build-rules` is decided with the 0.1.0 release
-([#205](https://github.com/exepex/stratum/issues/205)). Until then, keep your parent's own checks.
+manage `stratum-build-rules` is not decided yet
+([#399](https://github.com/exepex/stratum/issues/399)). Until then, keep your parent's own checks.
 
 **You do not need the flatten plugin.** Stratum uses `flatten-maven-plugin` only to write fixed
 version numbers into its own published POMs. Importing `stratum-bom` does not bring it, and a service
