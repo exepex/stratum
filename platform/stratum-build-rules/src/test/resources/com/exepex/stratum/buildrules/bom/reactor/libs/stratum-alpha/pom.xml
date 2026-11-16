@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A published module of the fixture reactor. -->
+<project>
+  <parent>
+    <artifactId>fixture</artifactId>
+  </parent>
+  <artifactId>stratum-alpha</artifactId>
+</project>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A reactor for BomCheck's tests: two published modules, one that is not published and two
+     platform POMs, which are never read. -->
+<project>
+  <artifactId>fixture</artifactId>
+  <modules>
+    <module>platform/stratum-bom</module>
+    <module>platform/stratum-parent</module>
+    <module>libs/stratum-beta</module>
+    <module>libs/stratum-alpha</module>
+    <module>starters/stratum-starter-gamma</module>
+  </modules>
+</project>
