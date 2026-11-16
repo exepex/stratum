@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Lists stratum-beta before stratum-alpha. -->
+<project>
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>io.github.exepex.stratum</groupId>
+        <artifactId>stratum-beta</artifactId>
+      </dependency>
+      <dependency>
+        <groupId>io.github.exepex.stratum</groupId>
+        <artifactId>stratum-alpha</artifactId>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+</project>

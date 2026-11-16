@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Lists stratum-delta, which is not a module of the reactor. -->
+<project>
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>io.github.exepex.stratum</groupId>
+        <artifactId>stratum-alpha</artifactId>
+      </dependency>
+      <dependency>
+        <groupId>io.github.exepex.stratum</groupId>
+        <artifactId>stratum-beta</artifactId>
+      </dependency>
+      <dependency>
+        <groupId>io.github.exepex.stratum</groupId>
+        <artifactId>stratum-delta</artifactId>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+</project>

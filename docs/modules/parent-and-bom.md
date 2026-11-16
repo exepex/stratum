@@ -41,7 +41,8 @@ used next to a company framework. The reasons are in
 The BOM manages versions of:
 
 - every Stratum module that is published to Maven Central, including the [bundle starters](bundles.md);
-  the security, resilience and Kafka starters are added when they are built,
+  the security, resilience and Kafka starters are added when they are built. The build checks that
+  these entries are exactly the published modules, in name order,
 - the extra libraries Stratum uses or recommends that Spring Boot does not manage (Resilience4j,
   cloud SDKs, and so on),
 - the container images used in tests, as Maven properties (`testcontainers.image.postgres` and
@@ -146,7 +147,8 @@ Javadoc on every type and method, at most 400 lines per Java file, and PMD rules
 on getters, setters, builders, loggers, constructors, `equals`, `hashCode` and `toString` written by
 hand where Lombok can generate them. Further PMD rules check two parts of the structure of Stratum's
 own tests and fail the build on either: a test method beside a class's `@Nested` groups, and an
-inline `@ValueSource`.
+inline `@ValueSource`. A test in `stratum-build-rules` fails the build when `stratum-bom` does not
+list exactly the modules Stratum publishes, in name order.
 Layout is left to Google Java Format. The PMD rules are PMD's best-practice, error-prone,
 multithreading, performance and security categories, without the few rules that conflict with
 Stratum's conventions; each exclusion is explained in the rule file.

@@ -32,7 +32,8 @@ stratum/
 ├── platform/
 │   ├── stratum-bom/                # versions of Stratum's modules and the extra libraries it uses
 │   ├── stratum-build-parent/       # the BOM and the build checks
-│   ├── stratum-build-rules/        # Checkstyle, PMD and Enforcer rules, packaged as a jar
+│   ├── stratum-build-rules/        # Checkstyle, PMD and Enforcer rules, packaged as a jar; its tests
+│   │                               # also check the BOM's list of Stratum modules
 │   ├── stratum-library-parent/     # parent POM for libs and starters: adds Lombok and Stratum-only checks
 │   ├── stratum-microservice-parent/ # parent POM for a microservice: stratum-parent plus its bundle and test libraries
 │   └── stratum-parent/             # parent POM for services: adds the executable jar and build info,
@@ -75,7 +76,7 @@ cloud provider is chosen, and `samples/`, small example services built and teste
 | Stratum's own version | `.mvn/maven.config`, as `-Drevision=...` | Every POM says `${revision}`; `flatten-maven-plugin` writes the real version into each POM it installs |
 | Spring Boot and every library and plugin it manages | The `<parent>` of the root `pom.xml`: `spring-boot-starter-parent` and its version | Stratum never overrides these versions ([ADR 0001](../adr/0001-coexistence-with-company-frameworks.md)) |
 | Java, the tools and plugins Spring Boot does not manage, the libraries `stratum-bom` manages, and the test container images (next row) | The root `pom.xml`, in `<properties>` | One property each, sorted by name ([ADR 0005](../adr/0005-versions-in-the-root-pom.md)) |
-| Which of Stratum's modules and extra libraries a service can use | `platform/stratum-bom` | One `<dependencyManagement>` list, sorted by name, with its versions from the root `pom.xml` |
+| Which of Stratum's modules and extra libraries a service can use | `platform/stratum-bom` | One `<dependencyManagement>` list, sorted by name, with its versions from the root `pom.xml`; a test in `stratum-build-rules` checks that its Stratum entries are exactly the published modules, in name order |
 | Maven itself | `.mvn/wrapper/maven-wrapper.properties` | `./mvnw` downloads that version and checks its SHA-256 |
 | The Docker image of each test container, such as PostgreSQL's | One `testcontainers.image.<container>` property in the root `pom.xml`, holding the full image, which the build filters into `stratum-test`'s jar for the container classes to read | Pinned to an exact tag, never `latest` (ST-TEST-32); no bot updates it, so a maintainer changes it by hand |
 

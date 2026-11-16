@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A module of the fixture reactor that is not published. -->
+<project>
+  <parent>
+    <artifactId>fixture</artifactId>
+  </parent>
+  <artifactId>stratum-starter-gamma</artifactId>
+  <properties>
+    <skipPublishing>true</skipPublishing>
+  </properties>
+</project>

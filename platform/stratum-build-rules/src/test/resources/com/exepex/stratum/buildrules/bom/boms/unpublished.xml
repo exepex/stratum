@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Lists stratum-starter-gamma, which sets skipPublishing. -->
+<project>
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>io.github.exepex.stratum</groupId>
+        <artifactId>stratum-alpha</artifactId>
+      </dependency>
+      <dependency>
+        <groupId>io.github.exepex.stratum</groupId>
+        <artifactId>stratum-beta</artifactId>
+      </dependency>
+      <dependency>
+        <groupId>io.github.exepex.stratum</groupId>
+        <artifactId>stratum-starter-gamma</artifactId>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+</project>

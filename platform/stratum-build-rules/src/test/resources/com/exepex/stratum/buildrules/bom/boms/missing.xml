@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Leaves out the published module stratum-beta. -->
+<project>
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>io.github.exepex.stratum</groupId>
+        <artifactId>stratum-alpha</artifactId>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+</project>

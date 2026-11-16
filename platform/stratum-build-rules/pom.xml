@@ -4,6 +4,7 @@
   can load them from the classpath in every build. Its parent is the root POM: stratum-build-parent
   depends on it, so it cannot inherit stratum-build-parent. Its versions, and the PMD version its tests
   check the rules with, come from the root POM, so they match the ones stratum-build-parent runs.
+  Its tests also check that stratum-bom lists exactly the modules the reactor publishes.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -21,7 +22,7 @@
   <packaging>jar</packaging>
 
   <name>Stratum build rules</name>
-  <description>Checkstyle, PMD and Maven Enforcer rules that every Stratum and service build is checked against.</description>
+  <description>Checkstyle, PMD and Maven Enforcer rules that every Stratum and service build is checked against, and a check of stratum-bom's module list.</description>
 
   <!-- No Java code, so Maven Central gets an empty Javadoc jar (root POM, stratum-release). Its
        sources jar holds the rule files. -->
@@ -31,7 +32,8 @@
 
   <!--
     Tests for the PMD rules in stratum/pmd-lombok.xml and stratum/pmd-tests.xml, and for the one
-    exception in stratum/pmd-ruleset.xml, with PMD's own rule-test harness.
+    exception in stratum/pmd-ruleset.xml, with PMD's own rule-test harness; and a test that
+    stratum-bom lists exactly the published modules, in name order (PublishedModulesBomTest).
   -->
   <dependencies>
     <dependency>
@@ -47,8 +49,18 @@
       <scope>test</scope>
     </dependency>
     <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-engine</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-params</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
