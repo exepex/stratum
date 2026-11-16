@@ -68,15 +68,20 @@ class PublishedModulesBomTest {
         "a BOM that lists the published modules in order, and third-party entries in any order,"
             + " passes")
     void passes() {
-      assertThat(new BomCheck(fixture("reactor"), fixture("boms/valid.xml")).problems()).isEmpty();
+      assertThat(new BomCheck(reactor(), fixture("boms/valid.xml")).problems()).isEmpty();
     }
 
     @ParameterizedTest(name = "{0}")
     @FieldSource("BOMS_AND_PROBLEMS")
     @DisplayName("a BOM that differs is reported by module name")
     void reports(String bom, List<String> problems) {
-      assertThat(new BomCheck(fixture("reactor"), fixture("boms/" + bom)).problems())
+      assertThat(new BomCheck(reactor(), fixture("boms/" + bom)).problems())
           .containsExactlyElementsOf(problems);
+    }
+
+    /** Returns the fixture reactor's root directory. */
+    private Path reactor() {
+      return fixture("reactor");
     }
 
     /** Returns the path of a file or directory under this package's {@code bom} test resources. */

@@ -72,12 +72,12 @@ record BomCheck(Path root, Path bom) {
 
   /** Returns the artifactIds of the modules the reactor publishes, in the root POM's order. */
   private List<String> publishedModules() {
-    return children(child(parse(root.resolve("pom.xml")), "modules"), "module")
+    return children(child(pom(root), "modules"), "module")
         .map(module -> module.getTextContent().trim())
         .filter(path -> !path.startsWith(PLATFORM_DIRECTORY))
-        .map(path -> parse(root.resolve(path).resolve("pom.xml")))
+        .map(path -> pom(root.resolve(path)))
         .filter(project -> !skipsPublishing(project))
-        .map(project -> text(child(project, "artifactId")))
+        .map(this::artifactId)
         .toList();
   }
 
@@ -86,7 +86,7 @@ record BomCheck(Path root, Path bom) {
     Element management = child(parse(bom), "dependencyManagement");
     return children(child(management, "dependencies"), "dependency")
         .filter(dependency -> STRATUM_GROUP.equals(text(child(dependency, "groupId"))))
-        .map(dependency -> text(child(dependency, "artifactId")))
+        .map(this::artifactId)
         .toList();
   }
 
@@ -97,6 +97,16 @@ record BomCheck(Path root, Path bom) {
         .anyMatch(skip -> "true".equals(text(skip)));
   }
 
+  /** Returns the root element of the {@code pom.xml} in {@code directory}. */
+  private Element pom(Path directory) {
+    return parse(directory.resolve("pom.xml"));
+  }
+
+  /** Returns the {@code <artifactId>} of a module's project element or of a BOM dependency. */
+  private String artifactId(Element projectOrDependency) {
+    return text(child(projectOrDependency, "artifactId"));
+  }
+
   /** Parses {@code pom} with DOCTYPE declarations refused, and returns its root element. */
   private Element parse(Path pom) {
     try {
@@ -105,8 +115,8 @@ record BomCheck(Path root, Path bom) {
       factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
       factory.setXIncludeAware(false);
       factory.setExpandEntityReferences(false);
-      try (var in = Files.newInputStream(pom)) {
-        return factory.newDocumentBuilder().parse(in).getDocumentElement();
+      try (var pomContent = Files.newInputStream(pom)) {
+        return factory.newDocumentBuilder().parse(pomContent).getDocumentElement();
       }
     } catch (IOException | ParserConfigurationException | SAXException unreadablePom) {
       throw new IllegalStateException("Cannot read " + pom, unreadablePom);
