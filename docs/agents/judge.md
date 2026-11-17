@@ -186,6 +186,10 @@ Judge honestly in both directions. Do not invent findings to look thorough, and 
 - A behaviour finding comes with a failing test that the judge ran: the test, or its steps, and the wrong result.
 - A structure, naming or documentation finding quotes the exact lines.
 - A case that is only theoretical is a Note, not a finding, and is never built.
+- A case that needs someone already inside the company's network, or that infrastructure already guards (access
+  rules, network, topic setup), is not Stratum's to build; a rare failure that operators can recover by replaying
+  data gets a runbook line, not code. Both are Notes, not findings, and neither excuses breaking a written rule in
+  [security](security.md).
 
 ### Deferring a finding
 
@@ -206,8 +210,8 @@ line and each finding at most three.
 2. **Gap list:** each requirement from the request, MET, PARTLY or NOT MET, with the judge's evidence in a few words.
 3. **Findings** (FAIL only): numbered, with severity, evidence and the fix expected.
 4. **Planted faults:** how many were planted, how many were caught, and which survived.
-5. **Notes**, if any: only cases that are theoretical ([the finding bar](#the-finding-bar)); a real defect of any
-   size is a numbered finding.
+5. **Notes**, if any: only the cases that [the finding bar](#the-finding-bar) makes Notes; any other defect, of any
+   size, is a numbered finding.
 
 Quote the implementer only where a claim is wrong. No praise and no summary of the change.
 
