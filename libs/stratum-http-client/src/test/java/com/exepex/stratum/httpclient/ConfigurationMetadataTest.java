@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
@@ -62,15 +61,6 @@ class ConfigurationMetadataTest {
           "auth.client-credentials",
           "auth.token-relay");
 
-  /**
-   * The removed keys, with the key that replaces each, which IDEs flag as errors under defaults.
-   */
-  private static final Map<String, String> REMOVED_KEYS =
-      Map.of(
-          "retries", "retry.max-retries",
-          "retry-delay", "retry.delay",
-          "circuit-breaker", "circuit-breaker.enabled");
-
   @Test
   @DisplayName("every property is listed with a description")
   void listsEveryProperty() throws IOException {
@@ -78,8 +68,7 @@ class ConfigurationMetadataTest {
     var expected =
         Stream.of(
                 Stream.of(HttpClientConstants.ENABLED, HttpClientConstants.CLIENTS),
-                CLIENT_KEYS.stream().map(this::sharedKey),
-                REMOVED_KEYS.keySet().stream().map(this::sharedKey))
+                CLIENT_KEYS.stream().map(this::sharedKey))
             .flatMap(Function.identity())
             .toList();
 
@@ -88,22 +77,6 @@ class ConfigurationMetadataTest {
     assertThat(JsonPath.<List<String>>read(metadata, "$.properties[*].description"))
         .hasSameSizeAs(expected)
         .doesNotContainNull();
-  }
-
-  @Test
-  @DisplayName("each removed key is flagged as an error, with the key that replaces it")
-  void flagsRemovedKeys() throws IOException {
-    var metadata = Files.readString(METADATA);
-
-    REMOVED_KEYS.forEach((removed, replacement) -> assertRemoved(metadata, removed, replacement));
-  }
-
-  /** Checks that one removed key is flagged as an error and names its replacement. */
-  private void assertRemoved(String metadata, String removed, String replacement) {
-    var entry = "$.properties[?(@.name == '" + sharedKey(removed) + "')].deprecation";
-    assertThat(JsonPath.<List<String>>read(metadata, entry + ".level")).containsExactly("error");
-    assertThat(JsonPath.<List<String>>read(metadata, entry + ".replacement"))
-        .containsExactly(sharedKey(replacement));
   }
 
   /** Returns the key under the shared defaults. */

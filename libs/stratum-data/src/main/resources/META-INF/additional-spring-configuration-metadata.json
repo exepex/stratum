@@ -5,6 +5,18 @@
       "type": "java.lang.Boolean",
       "description": "Whether the data module is on. With false, Stratum sets none of its defaults for the connection pool and transactions, nor a data starter's own, and wraps no data source in the boundary that cleans database errors.",
       "defaultValue": true
+    },
+    {
+      "name": "stratum.data.query-timeout",
+      "defaultValue": "30s"
+    },
+    {
+      "name": "stratum.data.deadline-margin",
+      "defaultValue": "150ms"
+    },
+    {
+      "name": "stratum.data.max-connections",
+      "defaultValue": 30
     }
   ]
 }

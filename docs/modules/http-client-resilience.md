@@ -289,5 +289,3 @@ Three keys were replaced by the groups ([ADR 0013](../adr/0013-http-client-retry
   its report names the key.
 - An old `retries` or `retry-delay` is ignored, as any unknown key is, so the client keeps Stratum's values. Search
   your files for both.
-- IDEs mark `defaults.retries`, `defaults.retry-delay` and `defaults.circuit-breaker` in red, with the new key. They
-  cannot mark the keys of one client, because `clients` is a map.
