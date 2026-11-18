@@ -222,7 +222,6 @@ Module page: [HTTP client → Properties](../modules/http-client.md#properties).
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `stratum.http-client.defaults.call-log` | `CallLog` | `errors` | Which calls write a log line: errors, one WARN per failed call after its retries; all, also one INFO per successful call; or none. Defaults to errors. |
-| `stratum.http-client.defaults.circuit-breaker` | `Boolean` | none | Removed: whether the client has a circuit breaker. Use circuit-breaker.enabled. |
 | `stratum.http-client.defaults.connect-timeout` | `Duration` | `2s` | The time allowed to open a connection, such as 2s. A value below 1ms is used as 1ms. Defaults to 2s. |
 | `stratum.http-client.defaults.connection-lifetime` | `Duration` | `5m` | How old a connection may get before it is closed instead of used again, so that calls follow changes of address. Defaults to 5m. |
 | `stratum.http-client.defaults.copy-headers` | `List<String>` | none | The names of headers copied from the request the service is answering, such as X-Tenant, onto every call made while answering it. A name the request does not have, or a call made outside a request, sends nothing. A client's names are joined with those under defaults. The same headers as in headers are refused. None by default. |
@@ -234,8 +233,6 @@ Module page: [HTTP client → Properties](../modules/http-client.md#properties).
 | `stratum.http-client.defaults.max-wait` | `Duration` | `2s` | How long a call waits for a free connection before it fails, such as 2s or 500ms. A value below 1ms is used as 1ms. Defaults to 2s. |
 | `stratum.http-client.defaults.mock` | `Boolean` | `false` | Whether the client answers from files under stratum-mocks and from test scripts instead of calling the other service, for a service that is not deployed yet and for tests. Logs a warning at every startup. Defaults to false. |
 | `stratum.http-client.defaults.response-body-limit` | `DataSize` | `32MB` | The most of a successful answer's body the client reads, such as 32MB, from 1B to 1GB, or -1 for no limit. Reading a larger body fails with SX-HTTPC-0006; a body the call does not read is dropped once it passes the limit. A method that returns an InputStream is not limited. Defaults to 32MB. |
-| `stratum.http-client.defaults.retries` | `Integer` | none | Removed: how many times a failed call is sent again. Use retry.max-retries. |
-| `stratum.http-client.defaults.retry-delay` | `Duration` | none | Removed: the wait before the first retry. Use retry.delay. |
 | `stratum.http-client.defaults.shared-pool` | `Boolean` | `false` | Whether the client uses the one pool shared by every client that sets it, instead of its own. That pool takes its size, connect timeout, idle timeout and lifetime from defaults. Defaults to false. |
 | `stratum.http-client.defaults.ssl-bundle` | `String` | none | The name of a spring.ssl.bundle bundle whose certificate the client presents and whose trust material it checks the other service with (mutual TLS), such as bank. None by default. Not allowed under defaults, nor with shared-pool. |
 | `stratum.http-client.defaults.timeout` | `Duration` | `5s` | The longest wait for the first byte of an answer and between two of its bytes, such as 5s or 20s for a slow report. A slow answer whose bytes keep coming takes as long as it needs. A value below 1ms is used as 1ms. Defaults to 5s. |
@@ -291,10 +288,10 @@ Module page: [Data → Properties](../modules/data.md#properties).
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.data.deadline-margin` | `Duration` | none | How much earlier than the web request's time limit its statements and connection borrows must end, so that a slow statement is cancelled and answered before the web module has to interrupt the request. A statement in a web request with a time limit ends by that limit minus this margin. Defaults to 150ms. |
+| `stratum.data.deadline-margin` | `Duration` | `150ms` | How much earlier than the web request's time limit its statements and connection borrows must end, so that a slow statement is cancelled and answered before the web module has to interrupt the request. A statement in a web request with a time limit ends by that limit minus this margin. Defaults to 150ms. |
 | `stratum.data.enabled` | `Boolean` | `true` | Whether the data module is on. With false, Stratum sets none of its defaults for the connection pool and transactions, nor a data starter's own, and wraps no data source in the boundary that cleans database errors. |
-| `stratum.data.max-connections` | `Integer` | none | The most connections all pools together may open, the main pool included. Startup stops when their maximum-pool-size values add up to more. Defaults to 30. |
-| `stratum.data.query-timeout` | `Duration` | none | How long one SQL statement may run before Stratum cancels it, when the code that runs it sets no time limit of its own. A statement in a transaction with a time limit ends by that limit too. 0 means no limit. Defaults to 30s, or to 0 with stratum.backward-compatible=true. |
+| `stratum.data.max-connections` | `Integer` | `30` | The most connections all pools together may open, the main pool included. Startup stops when their maximum-pool-size values add up to more. Defaults to 30. |
+| `stratum.data.query-timeout` | `Duration` | `30s` | How long one SQL statement may run before Stratum cancels it, when the code that runs it sets no time limit of its own. A statement in a transaction with a time limit ends by that limit too. 0 means no limit. Defaults to 30s, or to 0 with stratum.backward-compatible=true. |
 | `stratum.data.sources` | `Map<String, PoolSettings>` | none | The named pools, by name, beside the main pool that spring.datasource.\* sets. A name is lower-case letters and digits, starts with a letter and is not main; the pool's beans are named after it, such as batchDataSource and batchTransactionManager. |
 
 ## Cache

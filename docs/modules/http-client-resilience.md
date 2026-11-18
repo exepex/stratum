@@ -274,20 +274,3 @@ rules check `defaults` and each client's own keys; the two rules that join two k
 A `backoff-policy` other than `exponential` or `fixed` stops startup with Spring Boot's own report, which names the key,
 such as `stratum.http-client.clients.payments.retry.backoff-policy`, and the value it could not read. IDEs offer only
 the two values.
-
-## Moving from the old keys
-
-Three keys were replaced by the groups ([ADR 0013](../adr/0013-http-client-retry-and-circuit-breaker-keys.md)):
-
-| Old | New |
-| --- | --- |
-| `retries: 3` | `retry.max-retries: 3` |
-| `retry-delay: 200ms` | `retry.delay: 200ms` |
-| `circuit-breaker: false` | `circuit-breaker.enabled: false` |
-
-- An old `circuit-breaker: true` or `false` stops startup: Spring Boot cannot read a value where the group goes, and
-  its report names the key.
-- An old `retries` or `retry-delay` is ignored, as any unknown key is, so the client keeps Stratum's values. Search
-  your files for both.
-- IDEs mark `defaults.retries`, `defaults.retry-delay` and `defaults.circuit-breaker` in red, with the new key. They
-  cannot mark the keys of one client, because `clients` is a map.
