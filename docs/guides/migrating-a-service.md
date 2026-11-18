@@ -101,9 +101,7 @@ client its own timeouts, connection pool, retries and circuit breaker. A client'
    `resilience4j.circuitbreaker.instances.<name>.*` and `resilience4j.retry.instances.<name>.*`, to the client's
    `circuit-breaker` and `retry` groups. The breaker keys have the same names, such as `failure-rate-threshold`.
    The retry keys are named as in Spring's `@Retryable`: Resilience4j's `max-attempts` counts the first attempt, so
-   `max-retries` is one less, and `wait-duration` becomes `delay`. A client written for an earlier Stratum moves `retries`, `retry-delay` and
-   `circuit-breaker: true|false` to `retry.max-retries`, `retry.delay` and `circuit-breaker.enabled`
-   ([retries and the circuit breaker](../modules/http-client-resilience.md#moving-from-the-old-keys)).
+   `max-retries` is one less, and `wait-duration` becomes `delay`.
 3. Delete the old `RestTemplate` or `RestClient` bean and its interceptors. Code that keeps a `RestTemplate` or
    `RestClient`, such as a generated client, injects the client's own bean instead
    ([clients Stratum did not build](../modules/http-client-own-clients.md)).

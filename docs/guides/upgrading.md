@@ -79,12 +79,9 @@ in `stratum-test` is internal today except `PostgresContainerConfiguration` and
 
 Stratum logs no deprecation warning at startup, and before 1.0 a renamed key is not promised to keep working
 (see the table above). A renamed key can be marked as deprecated in the configuration metadata shipped with
-the module, as the HTTP client's old keys are, so your IDE shows it in `application.yml` and
-`application.properties` with the new key. What the service does with the old key depends on the key: an
-unknown key is ignored, so the setting falls back to Stratum's default, and a key whose value no longer fits
-fails startup. The HTTP client's rename is the example ([ADR
-0013](../adr/0013-http-client-retry-and-circuit-breaker-keys.md), and the [old and new
-keys](../modules/http-client-resilience.md#moving-from-the-old-keys)). Search your files for each key the
+the module, so your IDE shows it in `application.yml` and `application.properties` with the new key. What the
+service does with the old key depends on the key: an unknown key is ignored, so the setting falls back to
+Stratum's default, and a key whose value no longer fits fails startup. Search your files for each key the
 release notes name.
 
 ## Security fixes
