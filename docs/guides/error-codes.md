@@ -222,6 +222,12 @@ Correct the named properties. See SX-CORE-1003 in https://github.com/exepex/stra
 The report covers every Stratum code that stops startup. Your service's own codes are left to
 Spring Boot's usual report.
 
+A code a caller gets, such as `SX-HTTPC-0002` from a failed call or `SX-DATA-1003` from a
+statement that ran out of time, is never shown as a startup failure, even when it ends the run of
+a command-line tool or a one-shot job in a `CommandLineRunner` or `ApplicationRunner`, which
+Spring Boot runs as the last step of startup. Spring Boot then logs `Application run failed` with
+the exception and its stack trace, and the logging module writes the code in `error.code`.
+
 ## stratum-core
 
 Each of these but `SX-CORE-1005` is an error that stops the application at startup.

@@ -40,7 +40,8 @@ public interface ErrorCode extends Serializable {
   /**
    * How to fix an error that stops startup, in fixed text, which Spring Boot's failure report shows
    * as its action. The Fix column of the error codes page starts with the same text. Empty for
-   * none, such as a warning or an error a caller gets.
+   * none, such as a warning or an error a caller gets; Spring Boot then reports a Stratum code as
+   * any other failure, with its stack trace.
    *
    * @return the fix, or an empty string
    */

@@ -10,7 +10,9 @@ import org.springframework.boot.diagnostics.FailureAnalyzer;
 /**
  * Turns a Stratum error that stops startup into Spring Boot's "APPLICATION FAILED TO START" report:
  * the description says what went wrong and where, such as the property key or class, and the action
- * says how to fix it and where the error codes page explains it. Spring Boot loads it from {@code
+ * says how to fix it and where the error codes page explains it. A code with no fix, such as a
+ * failed call or a timed-out statement in a {@code CommandLineRunner}, is left to Spring Boot,
+ * which logs "Application run failed" with the stack trace. Spring Boot loads it from {@code
  * META-INF/spring.factories}.
  */
 @StratumInternal
@@ -24,33 +26,37 @@ public final class StratumStartupFailureAnalyzer implements FailureAnalyzer {
       "https://github.com/exepex/stratum/blob/main/docs/guides/error-codes.md";
 
   /**
-   * Describes the first failure with a Stratum code among the failure and its causes.
+   * Describes the first failure with a Stratum startup code among the failure and its causes.
    *
    * @param failure what stopped startup
-   * @return the report, or {@code null} to leave a failure without a Stratum code to Spring Boot
+   * @return the report, or {@code null} to leave a failure without a Stratum startup code to Spring
+   *     Boot
    */
   @Override
   public @Nullable FailureAnalysis analyze(Throwable failure) {
     return Stream.iterate(failure, Objects::nonNull, Throwable::getCause)
         .filter(FailureWithErrorCode.class::isInstance)
         .map(FailureWithErrorCode.class::cast)
-        .filter(this::hasStratumCode)
+        .filter(this::hasStartupCode)
         .findFirst()
         .map(codedFailure -> analysisOf(codedFailure, failure))
         .orElse(null);
   }
 
-  /** Returns whether the failure's code is one of Stratum's own. */
-  private boolean hasStratumCode(FailureWithErrorCode codedFailure) {
-    return codedFailure.getErrorCode().getCode().startsWith(STRATUM_CODE_PREFIX);
+  /**
+   * Returns whether the failure's code is one of Stratum's own that stops startup: only those have
+   * a fix, while a code a caller gets has none.
+   */
+  private boolean hasStartupCode(FailureWithErrorCode codedFailure) {
+    var errorCode = codedFailure.getErrorCode();
+    return errorCode.getCode().startsWith(STRATUM_CODE_PREFIX) && !errorCode.getFix().isEmpty();
   }
 
   /** Makes the report: the code and message, then the fix and the page that explains the code. */
   private FailureAnalysis analysisOf(FailureWithErrorCode codedFailure, Throwable failure) {
     var errorCode = codedFailure.getErrorCode();
-    var fix = errorCode.getFix();
-    var pointer = "See " + errorCode.getCode() + " in " + ERROR_CODES_PAGE + ".";
-    var action = fix.isEmpty() ? pointer : fix + " " + pointer;
+    var action =
+        errorCode.getFix() + " See " + errorCode.getCode() + " in " + ERROR_CODES_PAGE + ".";
     return new FailureAnalysis(codedFailure.getReport().getCodeAndMessage(), action, failure);
   }
 }

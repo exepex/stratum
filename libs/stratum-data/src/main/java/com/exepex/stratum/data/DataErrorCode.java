@@ -9,7 +9,8 @@ import lombok.RequiredArgsConstructor;
 /**
  * The codes of the data module, each listed with its fix in {@code docs/guides/error-codes.md}.
  * {@code SX-DATA-1003} fails one statement and {@code SX-DATA-1008} one repository call or
- * statement; every other code stops the application at startup.
+ * statement, so they have no fix text, as no code a caller gets has; every other code stops the
+ * application at startup.
  */
 @StratumInternal
 @Getter
@@ -48,8 +49,7 @@ public enum DataErrorCode implements ErrorCode {
       "SX-DATA-1003",
       Severity.ERROR,
       "A SQL statement ran past its time limit and was cancelled",
-      "Make the statement faster, or give it more time: stratum.data.query-timeout, the time limit"
-          + " the code sets on the statement, or the transaction's timeout."),
+      ""),
 
   /**
    * A named pool's name or key breaks its rules, a pool has no connection, or two pools share one
@@ -103,13 +103,7 @@ public enum DataErrorCode implements ErrorCode {
    * A transaction already on one pool reached a repository or a statement of another pool. The
    * detail names the pools only, never a class, since a web answer can carry it.
    */
-  POOL_MIXED(
-      "SX-DATA-1008",
-      Severity.ERROR,
-      "One transaction reached two pools",
-      "Keep each transaction on one pool: call the other pool's repositories in their own"
-          + " transaction, and use @Transactional with the JPA transaction manager, not a named"
-          + " pool's transaction manager, around mapped repositories."),
+  POOL_MIXED("SX-DATA-1008", Severity.ERROR, "One transaction reached two pools", ""),
 
   /**
    * A servlet web application keeps open-in-view on while repositories are mapped to named pools,
