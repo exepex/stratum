@@ -42,20 +42,21 @@ class RunFailureIntegrationTest {
 
     // Command-line arguments, as a tool gets them, rank above the test's application.properties,
     // which turns logging off.
+    String[] arguments = {
+      "--stratum.logging.enabled=true",
+      "--spring.application.name=stock-report",
+      "--" + RestClientTestData.NO_RETRIES,
+      // Nothing listens on this port: the inventory service is down.
+      "--"
+          + RestClientTestData.setting(
+              RestClientTestData.INVENTORY_URL, RestClientTestData.UNUSED_URL),
+      "--"
+          + RestClientTestData.setting(
+              RestClientTestData.PRICING_URL, RestClientTestData.UNUSED_URL)
+    };
+
     assertThatExceptionOfType(StratumException.class)
-        .isThrownBy(
-            () ->
-                tool.run(
-                    "--stratum.logging.enabled=true",
-                    "--spring.application.name=stock-report",
-                    "--" + RestClientTestData.NO_RETRIES,
-                    // Nothing listens on this port: the inventory service is down.
-                    "--"
-                        + RestClientTestData.setting(
-                            RestClientTestData.INVENTORY_URL, RestClientTestData.UNUSED_URL),
-                    "--"
-                        + RestClientTestData.setting(
-                            RestClientTestData.PRICING_URL, RestClientTestData.UNUSED_URL)))
+        .isThrownBy(() -> tool.run(arguments))
         .withMessageStartingWith("SX-HTTPC-0002: ");
 
     var runFailures =
