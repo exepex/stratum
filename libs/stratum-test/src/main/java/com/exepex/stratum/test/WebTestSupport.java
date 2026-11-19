@@ -23,6 +23,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import lombok.experimental.UtilityClass;
+import org.springframework.boot.test.system.CapturedOutput;
 
 /**
  * The calls and checks that the web modules' tests share: requests to a service under test, checks
@@ -282,5 +283,21 @@ public class WebTestSupport {
   public static void checkNoTimeLimit(HttpResponse<String> answer) {
     assertThat(answer.statusCode()).isEqualTo(HttpURLConnection.HTTP_OK);
     assertThat(answer.body()).isEqualTo(NO_TIME_LIMIT);
+  }
+
+  /**
+   * Checks that a failure was logged in exactly one ERROR line that carries its code.
+   *
+   * @param output the output captured while the request ran
+   * @param code the failure's code
+   */
+  public static void checkLoggedOnceAtError(CapturedOutput output, String code) {
+    assertThat(
+            output
+                .getAll()
+                .lines()
+                .filter(line -> line.contains("ERROR") && line.contains(code))
+                .count())
+        .isOne();
   }
 }

@@ -198,10 +198,11 @@ class ClientErrorsIntegrationTest {
     @Test
     @DisplayName("a request body no converter writes stays Spring's failure and is never sent")
     void unwritableRequestIsNotUnreadableAnswer() {
+      var unwritable = new Order(ORDER_ID, List.of());
       var requestsBefore = DOWNSTREAM.bodyRequests();
 
       assertThatExceptionOfType(RestClientException.class)
-          .isThrownBy(() -> orders.sendUnwritable(new Order(ORDER_ID, List.of())))
+          .isThrownBy(() -> orders.sendUnwritable(unwritable))
           .isExactlyInstanceOf(RestClientException.class)
           .withMessageStartingWith("No HttpMessageConverter");
       assertThat(DOWNSTREAM.bodyRequests()).isEqualTo(requestsBefore);

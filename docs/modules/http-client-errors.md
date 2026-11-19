@@ -55,8 +55,9 @@ statuses.put("SX-HTTPC-0002", 502);
 return properties.toBuilder().error(properties.error().toBuilder().statuses(statuses).build()).build();
 ```
 
-Even in [backward-compatible mode](web-compatible-mode.md), a call that ends with a code, error answers and answers
-that cannot be read included, is answered with `500` and Stratum's error body, as every `StratumException` is.
+Even in [backward-compatible mode](web-compatible-mode.md), a call that ends with a code is answered with Stratum's
+error body and the status in the table above, as every failure with a Stratum code is. Error answers and answers that
+cannot be read are answered with `500` in both modes.
 
 What your service returns instead when a call fails, such as the last value it read, is your own business logic:
 catch the failure, as [resilience: use it](resilience.md#use-it) shows. The resilience starter is **Planned**. Do not

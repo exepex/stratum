@@ -51,8 +51,10 @@ class DownstreamErrorsIntegrationTest {
       var response = WebTestSupport.getFromService(port, path);
 
       WebTestSupport.checkProblemDetails(response, HttpStatus.INTERNAL_SERVER_ERROR.value(), code);
-      assertNothingOfTheOtherService(response.body());
-      assertLoggedOnceAtError(output, code);
+      assertThat(response.body())
+          .doesNotContain(
+              DownstreamFailuresApplication.SECRET, DownstreamFailuresApplication.CLIENT);
+      WebTestSupport.checkLoggedOnceAtError(output, code);
     }
   }
 
@@ -69,25 +71,9 @@ class DownstreamErrorsIntegrationTest {
     void answers500WithStandardBody(String path, String code) throws Exception {
       BackwardCompatibleErrorChecks.checkCodedFailureBody(
           compatiblePort, path, HttpStatus.INTERNAL_SERVER_ERROR.value(), code);
-      assertNothingOfTheOtherService(WebTestSupport.getFromService(compatiblePort, path).body());
+      assertThat(WebTestSupport.getFromService(compatiblePort, path).body())
+          .doesNotContain(
+              DownstreamFailuresApplication.SECRET, DownstreamFailuresApplication.CLIENT);
     }
-  }
-
-  /** Checks a body names neither the other service nor any part of its answer. */
-  private void assertNothingOfTheOtherService(String body) {
-    assertThat(body)
-        .doesNotContain(DownstreamFailuresApplication.SECRET)
-        .doesNotContain(DownstreamFailuresApplication.CLIENT);
-  }
-
-  /** Checks the failure was logged in one ERROR line with its code. */
-  private void assertLoggedOnceAtError(CapturedOutput output, String code) {
-    assertThat(
-            output
-                .getAll()
-                .lines()
-                .filter(line -> line.contains("ERROR") && line.contains(code))
-                .count())
-        .isOne();
   }
 }

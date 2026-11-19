@@ -14,6 +14,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.system.CapturedOutput;
 
 @DisplayName("WebTestSupport gives the web modules' tests the same values and checks")
 class WebTestSupportTest {
@@ -185,6 +186,45 @@ class WebTestSupportTest {
       when(response.statusCode()).thenReturn(OK);
       when(response.body()).thenReturn(body);
       return response;
+    }
+  }
+
+  @Nested
+  @DisplayName("checkLoggedOnceAtError")
+  class CheckLoggedOnceAtError {
+
+    /** The code of the failure under test. */
+    private static final String CODE = "SX-HTTPC-0007";
+
+    /** The ERROR line the failure is logged with. */
+    private static final String ERROR_LINE = "ERROR Request failed " + CODE;
+
+    /** A WARN line that carries the same code, as a client's call line does. */
+    private static final String WARN_LINE = "WARN Call failed " + CODE;
+
+    @Test
+    @DisplayName("passes one ERROR line with the code, beside a WARN line with it")
+    void passesOneErrorLine() {
+      WebTestSupport.checkLoggedOnceAtError(output(WARN_LINE, ERROR_LINE), CODE);
+    }
+
+    @Test
+    @DisplayName("fails no ERROR line with the code, and two of them")
+    void failsNoneOrTwo() {
+      var none = output(WARN_LINE);
+      var two = output(ERROR_LINE, ERROR_LINE);
+
+      assertThatExceptionOfType(AssertionError.class)
+          .isThrownBy(() -> WebTestSupport.checkLoggedOnceAtError(none, CODE));
+      assertThatExceptionOfType(AssertionError.class)
+          .isThrownBy(() -> WebTestSupport.checkLoggedOnceAtError(two, CODE));
+    }
+
+    /** Returns captured output made of the lines. */
+    private CapturedOutput output(String... lines) {
+      CapturedOutput output = mock();
+      when(output.getAll()).thenReturn(String.join(System.lineSeparator(), lines));
+      return output;
     }
   }
 }
