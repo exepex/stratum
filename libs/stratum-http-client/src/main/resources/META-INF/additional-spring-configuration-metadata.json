@@ -11,7 +11,7 @@
       "defaultValue": "2s"
     },
     {
-      "name": "stratum.http-client.defaults.timeout",
+      "name": "stratum.http-client.defaults.read-timeout",
       "defaultValue": "5s"
     },
     {

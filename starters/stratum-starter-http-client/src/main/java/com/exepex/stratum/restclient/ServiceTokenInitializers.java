@@ -53,7 +53,7 @@ public class ServiceTokenInitializers implements TokenInitializers {
   /**
    * Returns the initializer that sends the service's token, for a client with {@code
    * client-credentials}. It waits for another caller's fetch at most for the call's time left, or
-   * the client's {@code timeout} outside a call of its interface.
+   * the client's {@code read-timeout} outside a call of its interface.
    *
    * @param client the client's name
    * @param settings the client's settings
@@ -62,7 +62,7 @@ public class ServiceTokenInitializers implements TokenInitializers {
   @Override
   public Optional<ClientHttpRequestInitializer> initializerFor(
       String client, ClientSettings settings) {
-    var timeout = Objects.requireNonNull(settings.timeout());
+    var timeout = Objects.requireNonNull(settings.readTimeout());
     return Optional.ofNullable(settings.auth())
         .map(ClientAuth::clientCredentials)
         .map(registration -> sendToken(client, registration, timeout, tokens.getObject()));

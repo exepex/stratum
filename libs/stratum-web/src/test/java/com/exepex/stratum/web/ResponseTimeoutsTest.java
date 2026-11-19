@@ -48,18 +48,20 @@ class ResponseTimeoutsTest {
   /** The limit of a request when nothing sets one, outside backward-compatible mode. */
   private static final Duration STANDARD_LIMIT = Duration.ofSeconds(10);
 
+  /** The status the service maps to SX-WEB-1007. */
+  private static final Map<String, Integer> TIMED_OUT_AS_504 =
+      Map.of(WebErrorCode.REQUEST_TIMED_OUT.getCode(), HttpStatus.GATEWAY_TIMEOUT.value());
+
   /**
    * The timeouts in backward-compatible mode: a 10 second default, daily reports with a short
-   * limit, other reports none.
+   * limit, other reports none, and SX-WEB-1007 mapped to 504.
    */
   private final ResponseTimeouts timeouts =
       new ResponseTimeouts(
-          WebTestData.defaults()
+          WebTestData.withErrorStatuses(TIMED_OUT_AS_504).toBuilder()
               .timeout(
                   new WebProperties.TimeoutSettings(
-                      DEFAULT_LIMIT,
-                      Map.of("/reports/**", Duration.ZERO, DAILY_REPORTS, SHORT),
-                      HttpStatus.GATEWAY_TIMEOUT.value()))
+                      DEFAULT_LIMIT, Map.of("/reports/**", Duration.ZERO, DAILY_REPORTS, SHORT)))
               .build(),
           true);
 
@@ -154,7 +156,7 @@ class ResponseTimeoutsTest {
 
     @Test
     @DisplayName(
-        "a request that ran out is answered with the timeout status and logged with its limit")
+        "a request that ran out gets the status mapped to SX-WEB-1007 and is logged with its limit")
     @ExtendWith(OutputCaptureExtension.class)
     void timedOut(CapturedOutput output) {
       var deadline = timeouts.start(DAILY_REPORTS, () -> expired.set(true));
@@ -162,6 +164,20 @@ class ResponseTimeoutsTest {
 
       assertThat(failure.getStatusCode()).isEqualTo(HttpStatus.GATEWAY_TIMEOUT);
       assertThat(output).contains("WARN", "The request ran out of time", "PT0.05S");
+    }
+
+    @Test
+    @DisplayName("with no status mapped to SX-WEB-1007, a request that ran out is answered 503")
+    void unmappedIs503() {
+      try (var standard =
+          new ResponseTimeouts(
+              WebTestData.withErrorStatuses(Map.of("ORD-0001", HttpStatus.CONFLICT.value())),
+              false)) {
+        var deadline = standard.start(ORDER, () -> expired.set(true));
+
+        assertThat(standard.timedOut(deadline).getStatusCode())
+            .isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+      }
     }
   }
 

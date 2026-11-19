@@ -137,7 +137,7 @@ stratum:
           token-relay: true
       payments:
         url: http://payments-service
-        timeout: 10s
+        read-timeout: 10s
         retry:
           max-retries: 0
 ```
@@ -156,10 +156,10 @@ stratum.environment=prod
 # Planned: the security starter is not built yet
 stratum.security.resource-server.issuer-uri=https://idp.acme.com/realms/acme
 stratum.security.resource-server.audiences=order-service
-# HTTP client keys (ADR 0011): url, timeout, retry.max-retries and token-relay are built
+# HTTP client keys (ADR 0011): url, read-timeout, retry.max-retries and token-relay are built
 stratum.http-client.clients.inventory.url=http://inventory-service
 stratum.http-client.clients.inventory.auth.token-relay=true
 stratum.http-client.clients.payments.url=http://payments-service
-stratum.http-client.clients.payments.timeout=10s
+stratum.http-client.clients.payments.read-timeout=10s
 stratum.http-client.clients.payments.retry.max-retries=0
 ```

@@ -20,7 +20,8 @@ class RestClientArchTest {
           RecordedCall.class,
           DownstreamException.class,
           StratumClientCustomizer.class,
-          StratumHttpClients.class);
+          StratumHttpClients.class,
+          UnreadableAnswerException.class);
 
   @Test
   @DisplayName(

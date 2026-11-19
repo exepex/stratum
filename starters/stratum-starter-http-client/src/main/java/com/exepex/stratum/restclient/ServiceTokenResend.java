@@ -65,10 +65,12 @@ public class ServiceTokenResend {
     }
   }
 
-  /** Returns how long a token fetch may take: the call's time left, else the client's timeout. */
+  /**
+   * Returns how long a token fetch may take: the call's time left, else the client's read-timeout.
+   */
   private Duration waitLimit(String client) {
     return AttemptTimeLeft.timeLeft()
-        .orElse(Objects.requireNonNull(properties.clientSettings(client).timeout()));
+        .orElse(Objects.requireNonNull(properties.clientSettings(client).readTimeout()));
   }
 
   /** Runs the attempt again, and warns once a minute when the new token is refused too. */

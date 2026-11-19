@@ -31,7 +31,7 @@ import org.junit.jupiter.api.Test;
     "An answer's head is read by the deadline bound for it, and as Apache reads it outside")
 class HeadDeadlineParserTest {
 
-  /** The client's timeout, the longest wait for one read. */
+  /** The client's read-timeout, the longest wait for one read. */
   private static final Duration TIMEOUT = Duration.ofMillis(100);
 
   /** A deadline far enough away that the timeout is the smaller. */

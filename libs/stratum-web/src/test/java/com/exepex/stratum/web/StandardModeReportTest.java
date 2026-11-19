@@ -16,7 +16,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
-import org.springframework.http.HttpStatus;
 import org.springframework.mock.env.MockEnvironment;
 import org.springframework.util.unit.DataSize;
 
@@ -79,9 +78,7 @@ class StandardModeReportTest {
       @Nullable Duration timeLimit, @Nullable DataSize bodyLimit, boolean backwardCompatible) {
     var settings =
         WebTestData.defaults()
-            .timeout(
-                new WebProperties.TimeoutSettings(
-                    timeLimit, Map.of(), HttpStatus.SERVICE_UNAVAILABLE.value()))
+            .timeout(new WebProperties.TimeoutSettings(timeLimit, Map.of()))
             .bodyLimit(new WebProperties.BodyLimitSettings(bodyLimit, Map.of()))
             .build();
     var environment =

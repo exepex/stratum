@@ -31,13 +31,18 @@ import org.mockito.ArgumentCaptor;
 @DisplayName("AnswerDeadline ends an answer's body by the deadline of the call's attempt")
 class AnswerDeadlineTest {
 
-  /** The client's timeout, below the time left of an attempt with {@link #TEN_SECONDS} left. */
+  /**
+   * The client's read-timeout, below the time left of an attempt with {@link #TEN_SECONDS} left.
+   */
   private static final Duration TIMEOUT = Duration.ofSeconds(5);
 
   /** The time left of an attempt that still has time. */
   private static final Duration TEN_SECONDS = Duration.ofSeconds(10);
 
-  /** A client's timeout above {@link #TEN_SECONDS}, so that the time left sets each read's wait. */
+  /**
+   * A client's read-timeout above {@link #TEN_SECONDS}, so that the time left sets each read's
+   * wait.
+   */
   private static final Duration LONG_TIMEOUT = Duration.ofSeconds(30);
 
   /** The body of every answer. */
@@ -90,7 +95,7 @@ class AnswerDeadlineTest {
   class WithTimeLeft {
 
     @Test
-    @DisplayName("a read waits at most the time left when it is below timeout")
+    @DisplayName("a read waits at most the time left when it is below read-timeout")
     void readWaitsAtMostTimeLeft() throws IOException {
       var longTimeout = new AnswerDeadline(LONG_TIMEOUT, true);
       var response =

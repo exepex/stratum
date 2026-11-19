@@ -30,7 +30,7 @@ public class AnswerChecks {
       RestClientTestData.INVENTORY_SETTINGS + ".max-wait=300ms";
 
   /**
-   * Checks that a call fails with {@code SX-HTTPC-0006} well before the client's timeout.
+   * Checks that a call fails with {@code SX-HTTPC-0006} well before the client's read-timeout.
    *
    * @param call the call
    */
@@ -39,7 +39,7 @@ public class AnswerChecks {
   }
 
   /**
-   * Checks that a check, such as a call and its result, ends well before the client's timeout.
+   * Checks that a check, such as a call and its result, ends well before the client's read-timeout.
    *
    * @param check the check
    */

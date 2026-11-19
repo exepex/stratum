@@ -10,8 +10,10 @@ import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
+import org.springframework.web.client.UnknownContentTypeException;
 import org.springframework.web.service.invoker.HttpExchangeAdapter;
 import org.springframework.web.service.invoker.HttpRequestValues;
 
@@ -20,8 +22,9 @@ import org.springframework.web.service.invoker.HttpRequestValues;
  * service sees: an error answer becomes a {@link DownstreamException}, or the team's own exception
  * thrown in {@link StratumClientCustomizer#mapError}; no answer becomes {@code SX-HTTPC-0001} after
  * a read timeout and {@code SX-HTTPC-0002} otherwise; an answer larger than {@code
- * response-body-limit} becomes {@code SX-HTTPC-0006}. Any other failure, such as a body that is not
- * valid, stays as it is. It is the outermost of Stratum's decorators, so the retries and breaker
+ * response-body-limit} becomes {@code SX-HTTPC-0006}; an answer whose body cannot be read becomes
+ * an {@link UnreadableAnswerException}. Any other failure, such as a request body no converter can
+ * write, stays as it is. It is the outermost of Stratum's decorators, so the retries and breaker
  * see Spring's own exceptions.
  */
 @StratumInternal
@@ -95,6 +98,32 @@ public class ClientErrors implements ClientExchangeDecorator {
         .filter(ResponseBodyTooLarge.class::isInstance)
         .findFirst()
         .map(cause -> new StratumException(HttpClientErrorCode.RESPONSE_TOO_LARGE, "", cause));
+  }
+
+  /**
+   * Returns the exception of a call whose answer came but cannot be read: a content type that no
+   * converter reads, or Spring's failure to extract the body, whose cause is the converter's {@code
+   * HttpMessageNotReadableException} or an {@code IOException} that is not a lost connection, which
+   * {@link #noAnswer} takes first. A request body that could not be written fails with no such
+   * cause, and nothing was sent.
+   *
+   * @param client the client's name
+   * @param values the call
+   * @param failure the failure that ended the call
+   * @return the exception, or empty when the failure is not an answer that cannot be read
+   */
+  public Optional<UnreadableAnswerException> unreadable(
+      String client, HttpRequestValues values, RestClientException failure) {
+    return Optional.of(failure)
+        .filter(this::isUnreadableAnswer)
+        .map(answer -> new UnreadableAnswerException(client, endpointOf(values), answer));
+  }
+
+  /** Returns whether the failure is one of Spring's failures to read an answer's body. */
+  private boolean isUnreadableAnswer(RestClientException failure) {
+    return failure instanceof UnknownContentTypeException
+        || failure.getCause() instanceof HttpMessageNotReadableException
+        || failure.getCause() instanceof IOException;
   }
 
   /**

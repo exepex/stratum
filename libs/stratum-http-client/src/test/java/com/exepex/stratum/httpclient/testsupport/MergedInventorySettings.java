@@ -14,7 +14,7 @@ public class MergedInventorySettings implements HttpClientPropertiesCustomizer {
   public HttpClientProperties customize(HttpClientProperties properties) {
     var inventory =
         properties.clientSettings(HttpClientTestData.INVENTORY).toBuilder()
-            .timeout(HttpClientTestData.REPORT_TIMEOUT)
+            .readTimeout(HttpClientTestData.REPORT_TIMEOUT)
             .build();
     var clients = new HashMap<>(properties.clients());
     clients.put(HttpClientTestData.INVENTORY, inventory);

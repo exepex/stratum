@@ -112,12 +112,13 @@ public class ClientConnectionPools implements DisposableBean {
   private ClientHttpRequestFactory requestFactory(
       String poolKey, ClientSettings settings, boolean streamsAnswers) {
     var answerDeadline =
-        new AnswerDeadline(Objects.requireNonNull(settings.timeout()), streamsAnswers);
+        new AnswerDeadline(Objects.requireNonNull(settings.readTimeout()), streamsAnswers);
     var requestConfig =
         RequestConfig.custom()
             .setConnectionRequestTimeout(
                 atLeastOneMillisecond(Objects.requireNonNull(settings.maxWait())))
-            .setResponseTimeout(atLeastOneMillisecond(Objects.requireNonNull(settings.timeout())))
+            .setResponseTimeout(
+                atLeastOneMillisecond(Objects.requireNonNull(settings.readTimeout())))
             .build();
     var httpClient =
         HttpClients.custom()
@@ -214,7 +215,7 @@ public class ClientConnectionPools implements DisposableBean {
                 within(Objects.requireNonNull(settings.maxWait()), timeLeft));
     if (answerDeadline.boundsAnswer()) {
       attemptConfig.setResponseTimeout(
-          within(Objects.requireNonNull(settings.timeout()), timeLeft));
+          within(Objects.requireNonNull(settings.readTimeout()), timeLeft));
     }
     var context = HttpClientContext.create();
     context.setRequestConfig(attemptConfig.build());

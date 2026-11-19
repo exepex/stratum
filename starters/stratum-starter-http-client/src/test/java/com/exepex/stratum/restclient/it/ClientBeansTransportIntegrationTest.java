@@ -52,7 +52,7 @@ import org.springframework.web.client.HttpServerErrorException;
       RestClientTestData.PRICING_SETTINGS + ".auth.basic.password=" + RestClientTestData.SECRET,
       RestClientTestData.PARTNER_SETTINGS + ".auth.api-key=" + RestClientTestData.SECRET,
       ClientBeansTransportIntegrationTest.INVOICING_SETTINGS + ".auth.client-credentials=invoices",
-      ClientBeansTransportIntegrationTest.INVOICING_SETTINGS + ".timeout=5s",
+      ClientBeansTransportIntegrationTest.INVOICING_SETTINGS + ".read-timeout=5s",
       ClientBeansTransportIntegrationTest.INVOICING_SETTINGS + ".total-timeout=1s",
       ClientBeansTransportIntegrationTest.INVOICING_SETTINGS + ".max-connections=1",
       ClientBeansTransportIntegrationTest.INVOICING_SETTINGS + ".max-wait=1s",

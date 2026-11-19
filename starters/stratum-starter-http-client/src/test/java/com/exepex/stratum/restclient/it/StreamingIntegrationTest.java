@@ -36,7 +36,7 @@ import org.springframework.web.client.RestTemplate;
 @SpringBootTest(
     classes = FilesApplication.class,
     properties = {
-      RestClientTestData.FILES_SETTINGS + ".timeout=500ms",
+      RestClientTestData.FILES_SETTINGS + ".read-timeout=500ms",
       RestClientTestData.FILES_SETTINGS + ".max-connections=1",
       RestClientTestData.FILES_SETTINGS + ".max-wait=300ms"
     })
@@ -47,7 +47,7 @@ class StreamingIntegrationTest {
   /** The size of an upload, large enough that a buffered body would show. */
   private static final int UPLOAD_SIZE = 5_000_000;
 
-  /** The client's {@code timeout}, below the whole time of a slow answer. */
+  /** The client's {@code read-timeout}, below the whole time of a slow answer. */
   private static final Duration TIMEOUT = Duration.ofMillis(500);
 
   /** The server the files client calls. */
@@ -111,7 +111,7 @@ class StreamingIntegrationTest {
     }
 
     @Test
-    @DisplayName("fails when the answer stops for longer than timeout")
+    @DisplayName("fails when the answer stops for longer than read-timeout")
     void stallFailsTheRead() throws IOException {
       var startedAt = System.nanoTime();
 

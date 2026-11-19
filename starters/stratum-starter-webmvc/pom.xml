@@ -66,5 +66,12 @@
       <artifactId>spring-boot-starter-restclient</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Throws the HTTP client's failures from a controller, to prove how an uncaught one is
+         answered. -->
+    <dependency>
+      <groupId>io.github.exepex.stratum</groupId>
+      <artifactId>stratum-starter-http-client</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 </project>

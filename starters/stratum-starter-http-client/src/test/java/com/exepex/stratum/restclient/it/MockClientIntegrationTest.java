@@ -64,7 +64,7 @@ class MockClientIntegrationTest {
   /** The payment a test scripts. */
   private static final Payment SCRIPTED_PAYMENT = new Payment("p-2", "PAID");
 
-  /** A delay within the client's timeout. */
+  /** A delay within the client's read-timeout. */
   private static final Duration DELAY = Duration.ofMillis(200);
 
   /** The method with an answer file. */
@@ -221,7 +221,7 @@ class MockClientIntegrationTest {
   class Delays {
 
     @Test
-    @DisplayName("within the client's timeout answers after the delay")
+    @DisplayName("within the client's read-timeout answers after the delay")
     void withinLimitAnswers() {
       paymentsMock.on(PAYMENT).delay(DELAY).respond(SCRIPTED_PAYMENT);
       var startedAt = System.nanoTime();
@@ -234,7 +234,7 @@ class MockClientIntegrationTest {
   @Nested
   @TestPropertySource(
       properties = {
-        RestClientTestData.PAYMENTS_SETTINGS + ".timeout=300ms",
+        RestClientTestData.PAYMENTS_SETTINGS + ".read-timeout=300ms",
         RestClientTestData.PAYMENTS_SETTINGS + ".total-timeout=500ms"
       })
   @DisplayName("a delay beyond the time limits")

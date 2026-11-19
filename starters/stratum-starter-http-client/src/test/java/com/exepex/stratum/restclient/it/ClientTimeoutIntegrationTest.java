@@ -28,7 +28,7 @@ import org.springframework.test.context.TestPropertySource;
     classes = ClientsApplication.class,
     properties = {
       RestClientTestData.NO_RETRIES,
-      RestClientTestData.INVENTORY_SETTINGS + ".timeout=300ms",
+      RestClientTestData.INVENTORY_SETTINGS + ".read-timeout=300ms",
       RestClientTestData.PRICING_SETTINGS + ".connect-timeout=300ms"
     })
 @Timeout(30)
@@ -69,7 +69,8 @@ class ClientTimeoutIntegrationTest {
   class Timeouts {
 
     @Test
-    @DisplayName("an answer slower than the client's timeout fails the call after that timeout")
+    @DisplayName(
+        "an answer slower than the client's read-timeout fails the call after that timeout")
     void readTimeout() {
       CallChecks.assertFailsFast(inventoryClient::held, SocketTimeoutException.class);
 
@@ -87,7 +88,7 @@ class ClientTimeoutIntegrationTest {
   }
 
   @Nested
-  @TestPropertySource(properties = RestClientTestData.INVENTORY_SETTINGS + ".timeout=500us")
+  @TestPropertySource(properties = RestClientTestData.INVENTORY_SETTINGS + ".read-timeout=500us")
   @DisplayName("a timeout under 1ms")
   class SubMillisecondTimeout {
 

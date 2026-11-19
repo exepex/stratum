@@ -35,7 +35,7 @@ import org.springframework.test.context.DynamicPropertySource;
 @SpringBootTest(
     classes = {ErrorsApplication.class, GsonProtobufClientIntegrationTest.GsonAndProtobuf.class},
     properties = {
-      HttpClientConstants.CLIENTS + "." + RestClientTestData.ORDERS + ".timeout=300ms",
+      HttpClientConstants.CLIENTS + "." + RestClientTestData.ORDERS + ".read-timeout=300ms",
       HttpClientConstants.DEFAULTS + ".retry.delay=10ms",
       HttpClientConstants.DEFAULTS
           + ".retry.max-retries="

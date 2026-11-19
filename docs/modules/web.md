@@ -340,7 +340,7 @@ it is listed in [Configuration reference](../configuration/reference.md) and exp
 | Property | Type | Stratum's default | Spring Boot's default | Description |
 | --- | --- | --- | --- | --- |
 | `stratum.web.enabled` | boolean | `true` | no such key | Whether the module is on. With `false`, the starter sets up nothing of its own. |
-| `stratum.web.error.statuses` | map of code to status | empty | no such key | The HTTP status of each of your error codes, such as `ORD-0001: 409`. It also changes the status of a Stratum code, such as `SX-WEB-1011`, whose default is `409`; see [Database failures](web-database-errors.md). |
+| `stratum.web.error.statuses` | map of code to status | empty | no such key | The HTTP status of each of your error codes, such as `ORD-0001: 409`. It also changes the status of a Stratum code, such as `SX-WEB-1011`, whose default is `409` (see [Database failures](web-database-errors.md)), or `SX-WEB-1007`, a request that ran out of time, whose default is `503` (see [Response timeouts](web-timeouts.md)). |
 | `stratum.web.correlation.accept-from-caller` | boolean | `true` | no such key | Whether a caller's `X-Correlation-Id`, or the `correlationId` in its baggage, is used. Set it to `false` on a service that faces the internet, to always use the trace ID. |
 | `stratum.web.client-ip.trusted-proxies` | list of address ranges | `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `127.0.0.0/8`, `::1/128`, `fc00::/7` | no such key | The load balancers and proxies whose `X-Forwarded-For` header is trusted. An empty list trusts none. |
 | `stratum.web.user-agent.parse` | boolean | `false` | no such key | Whether device, OS and browser are read from the user agent. Adds about 110 MB of memory and 3 seconds of startup. |
@@ -350,7 +350,6 @@ it is listed in [Configuration reference](../configuration/reference.md) and exp
 | `stratum.web.request-fields.max-value-length` | integer, 16 to 8192 | `512` | no such key | The most characters a request field keeps. |
 | `stratum.web.timeout.default-limit` | duration | `10s`, or none while `stratum.backward-compatible` is `true` | no such key | How long any request may take until its response starts. `0` means no limit. |
 | `stratum.web.timeout.routes` | map of path pattern to duration | empty | no such key | The limit of the requests whose path matches a pattern, such as `/reports/**`. The most specific pattern wins. |
-| `stratum.web.timeout.status` | HTTP status, `400` to `599` | `503` | no such key | The status a request that ran out of time is answered with. |
 | `stratum.web.body-limit.default-limit` | data size | `256KB`, or none while `stratum.backward-compatible` is `true` | no such key | How large any request's body may be. `0` means no limit. |
 | `stratum.web.body-limit.routes` | map of path pattern to data size | empty | no such key | The limit of the bodies of the requests whose path matches a pattern, such as `/uploads/**`. The most specific pattern wins. |
 | `stratum.web.request-log.enabled` | boolean | `true` | no such key | Whether each request writes one log line when it is answered. |

@@ -34,7 +34,7 @@ final class MockRequestFactory implements ClientHttpRequestFactory {
   /** The client's name. */
   private final String client;
 
-  /** The client's {@code timeout}, the longest wait for an answer. */
+  /** The client's {@code read-timeout}, the longest wait for an answer. */
   private final Duration timeout;
 
   /** The client's {@code response-body-limit}, in bytes, or -1 for none. */
@@ -61,8 +61,8 @@ final class MockRequestFactory implements ClientHttpRequestFactory {
 
     /**
      * Waits an answer's delay, or the call's time limit and fails when the delay is longer. The
-     * limit is {@code timeout}, cut to the time {@code total-timeout} leaves, except for a streamed
-     * download, which keeps its full {@code timeout} as with a real service.
+     * limit is {@code read-timeout}, cut to the time {@code total-timeout} leaves, except for a
+     * streamed download, which keeps its full {@code read-timeout} as with a real service.
      */
     private void await(Duration delay) throws IOException {
       var limit =

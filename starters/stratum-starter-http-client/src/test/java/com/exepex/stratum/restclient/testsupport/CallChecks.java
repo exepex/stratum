@@ -8,6 +8,7 @@ import static org.awaitility.Awaitility.await;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.httpclient.HttpClientErrorCode;
 import com.exepex.stratum.restclient.ClientResilience;
+import com.exepex.stratum.restclient.UnreadableAnswerException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
@@ -120,8 +121,10 @@ public class CallChecks {
   }
 
   /**
-   * Checks that a call whose 200 body is not valid fails with Spring's exception, caused by its
-   * parser's failure, after one request, and that the client's breaker counted no failure.
+   * Checks that a call whose 200 body is not valid fails with {@code SX-HTTPC-0008}, an {@link
+   * UnreadableAnswerException} that a catch of Spring's {@code RestClientException} still catches,
+   * caused by its parser's failure, after one request, and that the client's breaker counted no
+   * failure.
    *
    * @param call the call
    * @param parserFailure the parser's failure at the root of Spring's exception
@@ -135,10 +138,24 @@ public class CallChecks {
       CircuitBreaker breaker) {
     var requestsBefore = requests.getAsInt();
 
-    assertThatExceptionOfType(RestClientException.class)
+    assertThatExceptionOfType(UnreadableAnswerException.class)
         .isThrownBy(call)
-        .withRootCauseInstanceOf(parserFailure);
+        .isInstanceOf(RestClientException.class)
+        .withRootCauseInstanceOf(parserFailure)
+        .satisfies(CallChecks::assertUnreadableAnswer);
     assertThat(requests.getAsInt() - requestsBefore).isEqualTo(1);
     assertThat(breaker.getMetrics().getNumberOfFailedCalls()).isZero();
+  }
+
+  /**
+   * Checks that an answer that cannot be read carries {@code SX-HTTPC-0008} and no detail, and that
+   * its message names neither a body nor a path value.
+   *
+   * @param failure the failure of the call
+   */
+  public static void assertUnreadableAnswer(UnreadableAnswerException failure) {
+    assertThat(failure.getErrorCode()).isEqualTo(HttpClientErrorCode.ANSWER_UNREADABLE);
+    assertThat(failure.getErrorDetail()).isEmpty();
+    assertThat(failure.getMessage()).startsWith(failure.getClient() + " could not read the answer");
   }
 }

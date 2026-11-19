@@ -9,12 +9,17 @@ import java.util.Optional;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.service.annotation.GetExchange;
+import org.springframework.web.service.annotation.PostExchange;
 
 /** The orders service's client, with one method per answer of {@link ErrorDownstream}. */
 @StratumClient(RestClientTestData.ORDERS)
 public interface OrdersClient {
+
+  /** A content type that no converter writes. */
+  String UNWRITABLE_TYPE = "application/x-stratum-unwritable";
 
   /**
    * Reads an order the service does not have.
@@ -195,4 +200,21 @@ public interface OrdersClient {
    */
   @GetExchange(ErrorDownstream.LARGE_ANSWER)
   Optional<String> findLargeAnswer();
+
+  /**
+   * Reads an order from an answer whose body is text, which no converter reads as an order.
+   *
+   * @return never, as the body cannot be read
+   */
+  @GetExchange(ErrorDownstream.LARGE_ANSWER)
+  Order largeAnswerAsOrder();
+
+  /**
+   * Sends an order as a content type that no converter writes, so the request is never sent.
+   *
+   * @param order the order
+   * @return never, as the body cannot be written
+   */
+  @PostExchange(url = ErrorDownstream.BAD_JSON, contentType = OrdersClient.UNWRITABLE_TYPE)
+  Order sendUnwritable(@RequestBody Order order);
 }

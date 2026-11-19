@@ -27,7 +27,7 @@ In `application.properties`:
 stratum.web.timeout.default-limit=5s
 stratum.web.timeout.routes[/reports/**]=60s
 stratum.web.timeout.routes[/internal/exports/*]=0
-stratum.web.timeout.status=504
+stratum.web.error.statuses.SX-WEB-1007=504
 ```
 
 or in `application.yml`:
@@ -40,7 +40,9 @@ stratum:
       routes:
         "[/reports/**]": 60s
         "[/internal/exports/*]": 0
-      status: 504
+    error:
+      statuses:
+        SX-WEB-1007: 504
 ```
 
 - A limit is a duration, such as `500ms`, `5s` or `2m`. `0` means no limit.
@@ -48,7 +50,8 @@ stratum:
   so Spring Boot keeps its `/` and `*`. When several patterns match a path, the most specific wins.
   A pattern that is not valid, such as `/api/{id`, stops startup with `SX-WEB-1009`, which names the
   key and the pattern.
-- `status` is any status from `400` to `599`. `503` tells callers the service is too busy now and
+- The status of `SX-WEB-1007` is set in `stratum.web.error.statuses`, as every code's is, and can be
+  any status from `400` to `599`. `503`, the default, tells callers the service is too busy now and
   that a retry later can work; some gateways expect `504`.
 - Behind a gateway or load balancer, keep every limit, route and `@ResponseTimeout` limits included,
   below the gateway's own timeout. With a 30s gateway and a 10s limit, the caller gets Stratum's

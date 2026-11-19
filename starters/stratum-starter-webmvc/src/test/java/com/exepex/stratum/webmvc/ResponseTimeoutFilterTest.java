@@ -44,7 +44,7 @@ class ResponseTimeoutFilterTest {
           WebProperties.resolve(
               new MockEnvironment()
                   .withProperty(WebConstants.TIMEOUT_DEFAULT_LIMIT, "100ms")
-                  .withProperty(WebConstants.TIMEOUT_STATUS, "504")),
+                  .withProperty(WebConstants.ERROR_STATUSES + ".SX-WEB-1007", "504")),
           false);
 
   /** The filter. */

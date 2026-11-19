@@ -36,7 +36,7 @@ import org.springframework.web.client.RestClientException;
 @SpringBootTest(
     classes = FilesApplication.class,
     properties = {
-      RestClientTestData.FILES_SETTINGS + ".timeout=5s",
+      RestClientTestData.FILES_SETTINGS + ".read-timeout=5s",
       RestClientTestData.FILES_SETTINGS + ".total-timeout=1s",
       RestClientTestData.FILES_SETTINGS + ".max-connections=1",
       RestClientTestData.FILES_SETTINGS + ".max-wait=300ms"
@@ -152,7 +152,7 @@ class TricklingBodyIntegrationTest {
   @Nested
   @TestPropertySource(
       properties = {
-        RestClientTestData.FILES_SETTINGS + ".timeout=300ms",
+        RestClientTestData.FILES_SETTINGS + ".read-timeout=300ms",
         RestClientTestData.FILES_SETTINGS + ".total-timeout=5s",
         RestClientTestData.NO_RETRIES
       })

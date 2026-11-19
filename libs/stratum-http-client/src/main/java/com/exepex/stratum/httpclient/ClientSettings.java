@@ -25,7 +25,7 @@ import org.springframework.util.unit.DataSize;
  *     each client; it is not allowed under defaults.
  * @param connectTimeout The time allowed to open a connection, such as 2s. A value below 1ms is
  *     used as 1ms. Defaults to 2s.
- * @param timeout The longest wait for the first byte of an answer and between two of its bytes,
+ * @param readTimeout The longest wait for the first byte of an answer and between two of its bytes,
  *     such as 5s or 20s for a slow report. A slow answer whose bytes keep coming takes as long as
  *     it needs. A value below 1ms is used as 1ms. Defaults to 5s.
  * @param maxConnections The most connections the client keeps open at once, from 1 to 10000. A call
@@ -80,7 +80,7 @@ import org.springframework.util.unit.DataSize;
 public record ClientSettings(
     @Nullable String url,
     @Nullable Duration connectTimeout,
-    @Nullable Duration timeout,
+    @Nullable Duration readTimeout,
     @Nullable Integer maxConnections,
     @Nullable Duration maxWait,
     @Nullable Duration idleTimeout,
@@ -111,7 +111,7 @@ public record ClientSettings(
   static final ClientSettings STRATUM_DEFAULTS =
       ClientSettings.builder()
           .connectTimeout(HttpClientConstants.DEFAULT_CONNECT_TIMEOUT)
-          .timeout(HttpClientConstants.DEFAULT_TIMEOUT)
+          .readTimeout(HttpClientConstants.DEFAULT_READ_TIMEOUT)
           .maxConnections(HttpClientConstants.DEFAULT_MAX_CONNECTIONS)
           .maxWait(HttpClientConstants.DEFAULT_MAX_WAIT)
           .idleTimeout(HttpClientConstants.DEFAULT_IDLE_TIMEOUT)
@@ -152,7 +152,7 @@ public record ClientSettings(
     return ClientSettings.builder()
         .url(either(url, fallback.url))
         .connectTimeout(either(connectTimeout, fallback.connectTimeout))
-        .timeout(either(timeout, fallback.timeout))
+        .readTimeout(either(readTimeout, fallback.readTimeout))
         .maxConnections(either(maxConnections, fallback.maxConnections))
         .maxWait(either(maxWait, fallback.maxWait))
         .idleTimeout(either(idleTimeout, fallback.idleTimeout))
@@ -189,7 +189,7 @@ public record ClientSettings(
     return Stream.of(
             "url=" + url,
             "connectTimeout=" + connectTimeout,
-            "timeout=" + timeout,
+            "readTimeout=" + readTimeout,
             "maxConnections=" + maxConnections,
             "maxWait=" + maxWait,
             "idleTimeout=" + idleTimeout,
@@ -295,7 +295,12 @@ public record ClientSettings(
   Stream<Duration> durations() {
     return Stream.of(
             Stream.of(
-                connectTimeout, timeout, maxWait, idleTimeout, connectionLifetime, totalTimeout),
+                connectTimeout,
+                readTimeout,
+                maxWait,
+                idleTimeout,
+                connectionLifetime,
+                totalTimeout),
             Stream.ofNullable(retry).flatMap(ClientRetry::durations),
             Stream.ofNullable(circuitBreaker).flatMap(ClientCircuitBreaker::durations))
         .flatMap(Function.identity())
