@@ -33,8 +33,8 @@ Gateways and other client libraries have their own rules, which Stratum does not
 | Another service's answer cannot be read | `SX-HTTPC-0008` | `500` | no | yes |
 | Another service still answered `429`, `502`, `503` or `504` after the client's retries | `SX-HTTPC-0009` | `500` | no | yes after a `502` or `504` from a gateway in front of it |
 | Your own request ran out of its time limit before its response started | `SX-WEB-1007` | `503` | yes | yes |
-| The database was busy or too slow (strict mode only) | `SX-WEB-1010` | `503` | yes | not when its transaction was rolled back |
-| The request conflicts with the stored data (strict mode only) | `SX-WEB-1011` | `409` | no | no |
+| The database was busy or too slow (outside [backward-compatible mode](../modules/web-compatible-mode.md)) | `SX-WEB-1010` | `503` | yes | not when its transaction was rolled back |
+| The request conflicts with the stored data (outside [backward-compatible mode](../modules/web-compatible-mode.md)) | `SX-WEB-1011` | `409` | no | no |
 | Anything else your service did not handle | `SX-WEB-1005` | `500` | no | yes |
 
 The codes `SX-HTTPC-0001` to `SX-HTTPC-0009` come from calls of a `@StratumClient` interface only, as

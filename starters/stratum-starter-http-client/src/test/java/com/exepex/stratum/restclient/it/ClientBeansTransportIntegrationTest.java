@@ -211,7 +211,7 @@ class ClientBeansTransportIntegrationTest {
 
     /**
      * The latest end of a call whose token fetch is held: the client's total-timeout of 1s, its
-     * first fetch's start-up and some slack, well below its timeout of 5s.
+     * first fetch's start-up and some slack, well below its read-timeout of 5s.
      */
     private static final Duration TOKEN_WAIT_ENDS_BEFORE = Duration.ofSeconds(3);
 

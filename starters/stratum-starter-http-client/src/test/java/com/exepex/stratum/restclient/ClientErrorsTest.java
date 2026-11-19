@@ -161,7 +161,11 @@ class ClientErrorsTest {
           .get()
           .satisfies(CallChecks::assertUnreadableAnswer)
           .satisfies(answer -> assertThat(answer).hasCause(failure))
-          .satisfies(answer -> assertThat(answer.getEndpoint()).isEqualTo("GET /orders/{id}"));
+          .satisfies(answer -> assertThat(answer.getEndpoint()).isEqualTo("GET /orders/{id}"))
+          .satisfies(
+              answer ->
+                  assertThat(answer)
+                      .hasMessage("orders could not read the answer to GET /orders/{id}"));
     }
 
     @Test

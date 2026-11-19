@@ -43,7 +43,8 @@ class MockRequestFactoryTest {
   class Delay {
 
     @Test
-    @DisplayName("a streamed download keeps its full timeout, past the time total-timeout leaves")
+    @DisplayName(
+        "a streamed download keeps its full read-timeout, past the time total-timeout leaves")
     void streamedDownloadKeepsTimeout() {
       scriptDelayedAnswer();
 

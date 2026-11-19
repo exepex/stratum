@@ -117,7 +117,7 @@ class TotalTimeoutIntegrationTest {
     }
 
     @Test
-    @DisplayName("a streamed download keeps its full timeout, so its late answer is read")
+    @DisplayName("a streamed download keeps its full read-timeout, so its late answer is read")
     void streamedDownloadKeepsItsTimeout() throws IOException {
       releaseLater();
 

@@ -156,6 +156,7 @@ public class CallChecks {
   public static void assertUnreadableAnswer(UnreadableAnswerException failure) {
     assertThat(failure.getErrorCode()).isEqualTo(HttpClientErrorCode.ANSWER_UNREADABLE);
     assertThat(failure.getErrorDetail()).isEmpty();
-    assertThat(failure.getMessage()).startsWith(failure.getClient() + " could not read the answer");
+    assertThat(failure)
+        .hasMessage(failure.getClient() + " could not read the answer to " + failure.getEndpoint());
   }
 }

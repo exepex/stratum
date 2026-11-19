@@ -194,7 +194,7 @@ timeouts from `stratum.http-client.*`, and it does not follow redirects.
 
 ## Examples
 
-A fast service with the defaults, and a slow report service with a longer timeout and a smaller pool:
+A fast service with the defaults, and a slow report service with a longer read-timeout and a smaller pool:
 
 ```properties
 stratum.http-client.defaults.read-timeout=3s

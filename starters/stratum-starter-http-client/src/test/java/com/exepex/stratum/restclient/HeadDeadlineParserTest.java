@@ -34,7 +34,7 @@ class HeadDeadlineParserTest {
   /** The client's read-timeout, the longest wait for one read. */
   private static final Duration TIMEOUT = Duration.ofMillis(100);
 
-  /** A deadline far enough away that the timeout is the smaller. */
+  /** A deadline far enough away that the read-timeout is the smaller. */
   private static final Duration TEN_SECONDS = Duration.ofSeconds(10);
 
   /** The message of the failure past the deadline. */
@@ -109,7 +109,7 @@ class HeadDeadlineParserTest {
   class Bound {
 
     @Test
-    @DisplayName("each read waits at most the timeout, and the head is read")
+    @DisplayName("each read waits at most the read-timeout, and the head is read")
     void readsWithinTimeout() throws IOException, HttpException {
       try (var answer =
           answerDeadline.readHead(

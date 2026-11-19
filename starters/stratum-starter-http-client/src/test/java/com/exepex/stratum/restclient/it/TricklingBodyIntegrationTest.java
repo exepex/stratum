@@ -156,7 +156,7 @@ class TricklingBodyIntegrationTest {
         RestClientTestData.FILES_SETTINGS + ".total-timeout=5s",
         RestClientTestData.NO_RETRIES
       })
-  @DisplayName("with timeout shorter than the total-timeout left, and no retry")
+  @DisplayName("with a read-timeout shorter than the total-timeout left, and no retry")
   class ShortTimeout {
 
     @Test

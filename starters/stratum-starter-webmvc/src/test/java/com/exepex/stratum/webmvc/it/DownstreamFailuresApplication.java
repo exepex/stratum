@@ -35,6 +35,9 @@ public class DownstreamFailuresApplication {
   /** The client's name, which the caller must never see. */
   static final String CLIENT = "inventory";
 
+  /** The endpoint of the client's failed calls. */
+  static final String ENDPOINT = "GET /stock/{sku}";
+
   /** A controller whose calls of the inventory service failed. */
   @RestController
   static class InventoryController {
@@ -66,8 +69,7 @@ public class DownstreamFailuresApplication {
      */
     @GetMapping(UNREADABLE_PATH)
     String unreadable() {
-      throw new UnreadableAnswerException(
-          CLIENT, "GET /stock/{sku}", new RestClientException(SECRET));
+      throw new UnreadableAnswerException(CLIENT, ENDPOINT, new RestClientException(SECRET));
     }
 
     /** Returns the failure of a call the inventory service answered with the status. */
@@ -76,7 +78,7 @@ public class DownstreamFailuresApplication {
       headers.setContentType(MediaType.TEXT_PLAIN);
       return new DownstreamException(
           CLIENT,
-          "GET /stock/{sku}",
+          ENDPOINT,
           new RestClientResponseException(
               status.getReasonPhrase(),
               status,

@@ -12,6 +12,7 @@ import com.exepex.stratum.restclient.testsupport.CallChecks;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import com.exepex.stratum.restclient.testsupport.errors.ErrorDownstream;
 import com.exepex.stratum.restclient.testsupport.errors.ErrorsApplication;
+import com.exepex.stratum.restclient.testsupport.errors.JsonReadFailures;
 import com.exepex.stratum.restclient.testsupport.errors.Order;
 import com.exepex.stratum.restclient.testsupport.errors.OrdersClient;
 import java.net.SocketTimeoutException;
@@ -178,12 +179,14 @@ class ClientErrorsIntegrationTest {
     }
 
     @Test
-    @DisplayName("a body Jackson 3 cannot read is SX-HTTPC-0008, still a RestClientException")
+    @DisplayName("a body Jackson 3 cannot read is SX-HTTPC-0008, its message free of the body")
     void badJsonIsUnreadableAnswer() {
       assertThatExceptionOfType(UnreadableAnswerException.class)
           .isThrownBy(orders::badJson)
           .isInstanceOf(RestClientException.class)
-          .satisfies(CallChecks::assertUnreadableAnswer);
+          .satisfies(CallChecks::assertUnreadableAnswer)
+          .withMessage("orders could not read the answer to GET " + ErrorDownstream.BAD_JSON)
+          .withMessageNotContaining(JsonReadFailures.BAD_JSON);
     }
 
     @Test

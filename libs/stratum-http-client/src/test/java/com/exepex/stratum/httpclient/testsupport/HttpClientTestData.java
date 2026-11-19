@@ -82,8 +82,8 @@ public class HttpClientTestData {
   public static final List<String> PARTNER_INTERFACES =
       List.of("com.partner.OrdersApi", "com.partner.CustomersApi");
 
-  /** A timeout a slow report endpoint needs. */
-  public static final Duration REPORT_TIMEOUT = Duration.ofSeconds(20);
+  /** A read-timeout a slow report endpoint needs. */
+  public static final Duration REPORT_READ_TIMEOUT = Duration.ofSeconds(20);
 
   /** A total timeout a slow report endpoint needs, also set in {@code http-client.yml}. */
   public static final Duration REPORT_TOTAL_TIMEOUT = Duration.ofSeconds(25);
@@ -115,11 +115,11 @@ public class HttpClientTestData {
           .slowCallDurationThreshold(SLOW_CALL)
           .build();
 
-  /** The shared timeout in {@code http-client.yml}. */
-  public static final Duration SHARED_TIMEOUT = Duration.ofSeconds(3);
+  /** The shared read-timeout in {@code http-client.yml}. */
+  public static final Duration SHARED_READ_TIMEOUT = Duration.ofSeconds(3);
 
-  /** The inventory client's own timeout in {@code http-client.yml}. */
-  public static final Duration INVENTORY_TIMEOUT = Duration.ofSeconds(10);
+  /** The inventory client's own read-timeout in {@code http-client.yml}. */
+  public static final Duration INVENTORY_READ_TIMEOUT = Duration.ofSeconds(10);
 
   /** A shared pool size other than Stratum's default. */
   public static final int SHARED_MAX_CONNECTIONS = 20;
@@ -132,9 +132,9 @@ public class HttpClientTestData {
       "a customizer listed in spring.factories wins over the files";
 
   /**
-   * Returns an environment that holds {@code http-client.yml}: a shared timeout of 3s, retry delay
-   * of 1s and open state of 30s, and the inventory client's address with its own timeout of 10s,
-   * total timeout of 25s, {@link #FLAKY_RETRY}, {@link #STRICT_BREAKER} and two generated
+   * Returns an environment that holds {@code http-client.yml}: a shared read-timeout of 3s, retry
+   * delay of 1s and open state of 30s, and the inventory client's address with its own read-timeout
+   * of 10s, total timeout of 25s, {@link #FLAKY_RETRY}, {@link #STRICT_BREAKER} and two generated
    * interfaces.
    *
    * @return the environment

@@ -71,7 +71,7 @@ class HttpClientPropertiesTest {
           HttpClientProperties.resolve(environment).clientSettings(HttpClientTestData.INVENTORY);
 
       assertThat(settings.url()).isEqualTo(HttpClientTestData.INVENTORY_URL);
-      assertThat(settings.readTimeout()).isEqualTo(HttpClientTestData.REPORT_TIMEOUT);
+      assertThat(settings.readTimeout()).isEqualTo(HttpClientTestData.REPORT_READ_TIMEOUT);
       assertThat(settings.maxConnections()).isEqualTo(HttpClientTestData.SHARED_MAX_CONNECTIONS);
       assertThat(settings.connectTimeout()).isEqualTo(HttpClientConstants.DEFAULT_CONNECT_TIMEOUT);
       assertThat(settings.retry().maxRetries()).isZero();
@@ -84,9 +84,10 @@ class HttpClientPropertiesTest {
     void readFromYaml() throws IOException {
       var properties = HttpClientProperties.resolve(HttpClientTestData.yamlEnvironment());
 
-      assertThat(properties.defaults().readTimeout()).isEqualTo(HttpClientTestData.SHARED_TIMEOUT);
+      assertThat(properties.defaults().readTimeout())
+          .isEqualTo(HttpClientTestData.SHARED_READ_TIMEOUT);
       assertThat(properties.clientSettings(HttpClientTestData.INVENTORY).readTimeout())
-          .isEqualTo(HttpClientTestData.INVENTORY_TIMEOUT);
+          .isEqualTo(HttpClientTestData.INVENTORY_READ_TIMEOUT);
       assertThat(properties.clientSettings(HttpClientTestData.INVENTORY).url())
           .isEqualTo(HttpClientTestData.INVENTORY_URL);
       assertThat(properties.clientSettings(HttpClientTestData.INVENTORY).interfaces())

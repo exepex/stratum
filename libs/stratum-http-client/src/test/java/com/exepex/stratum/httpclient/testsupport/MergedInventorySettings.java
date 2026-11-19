@@ -6,7 +6,8 @@ import java.util.HashMap;
 
 /**
  * A service's Java configuration written as the module page shows it: it starts from the inventory
- * client's merged settings, changes only its timeout, and stores them back as the client's own.
+ * client's merged settings, changes only its read-timeout, and stores them back as the client's
+ * own.
  */
 public class MergedInventorySettings implements HttpClientPropertiesCustomizer {
 
@@ -14,7 +15,7 @@ public class MergedInventorySettings implements HttpClientPropertiesCustomizer {
   public HttpClientProperties customize(HttpClientProperties properties) {
     var inventory =
         properties.clientSettings(HttpClientTestData.INVENTORY).toBuilder()
-            .readTimeout(HttpClientTestData.REPORT_TIMEOUT)
+            .readTimeout(HttpClientTestData.REPORT_READ_TIMEOUT)
             .build();
     var clients = new HashMap<>(properties.clients());
     clients.put(HttpClientTestData.INVENTORY, inventory);

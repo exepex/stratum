@@ -35,7 +35,7 @@ class HttpClientPropertiesCustomizerTest {
             () -> HttpClientProperties.resolve(environment));
 
     var settings = properties.clientSettings(HttpClientTestData.INVENTORY);
-    assertThat(settings.readTimeout()).isEqualTo(HttpClientTestData.REPORT_TIMEOUT);
+    assertThat(settings.readTimeout()).isEqualTo(HttpClientTestData.REPORT_READ_TIMEOUT);
     assertThat(settings.totalTimeout()).isEqualTo(HttpClientTestData.REPORT_TOTAL_TIMEOUT);
     assertThat(settings.url()).isEqualTo(HttpClientTestData.INVENTORY_URL);
   }
