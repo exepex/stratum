@@ -17,6 +17,9 @@ class HttpClientArchTest {
   private static final Set<Class<?>> API_TYPES =
       Set.of(
           StratumClient.class,
+          StratumOperation.class,
+          OperationSettings.class,
+          OperationSettings.OperationSettingsBuilder.class,
           ClientInterceptor.class,
           GlobalClientInterceptor.class,
           OutgoingRequest.class,

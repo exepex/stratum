@@ -219,7 +219,7 @@ downloads, raise `total-timeout` for that client, or use an interface method tha
 - **Spring's own exceptions.** A failed call throws `HttpClientErrorException`, `HttpServerErrorException` or
   `ResourceAccessException`, as a `RestClient` or `RestTemplate` you built would, because a generated client's own
   error handling expects them. A 404 is `HttpClientErrorException.NotFound`. `DownstreamException`,
-  `UnreadableAnswerException` and their codes `SX-HTTPC-0007` to `SX-HTTPC-0009`, `mapError` and the empty
+  `UnreadableAnswerException` and their codes `SX-HTTPC-0007` to `SX-HTTPC-0009`, `errors`, `mapError` and the empty
   `Optional` on a 404 are for interfaces only ([errors](http-client-errors.md)). Three Stratum codes remain, as for an
   interface: `SX-HTTPC-0003` for a call refused by an open breaker, `SX-HTTPC-0002` for a token
   that cannot be fetched, and `SX-HTTPC-0004` for a token-relay call with no verified caller.

@@ -15,8 +15,8 @@ service then gets. Part of the [HTTP client](http-client.md) page.
 | Was not sent, as a client with `auth.token-relay: true` has no verified caller token ([auth](http-client-auth.md#token-relay)) | `StratumException` with `SX-HTTPC-0004` | `500` |
 | Was not sent, as an interceptor read a body larger than the client's `interceptor-body-limit` ([bodies](http-client-headers.md#bodies)) | `StratumException` with `SX-HTTPC-0005` | `500` |
 | Got a `404`, and its method returns `Optional` | Nothing: the method returns an empty `Optional` | no error |
-| Got `429`, `502`, `503` or `504` after its retries: the other service cannot take the call for now | `DownstreamException` with `SX-HTTPC-0009`, or your own exception from `mapError` | `500` |
-| Got any other error answer, `4xx` or `5xx`, such as `400`, `404` or `500`: a final answer | `DownstreamException` with `SX-HTTPC-0007`, or your own exception from `mapError` | `500` |
+| Got `429`, `502`, `503` or `504` after its retries: the other service cannot take the call for now | `DownstreamException` with `SX-HTTPC-0009`, or with your own code from `errors`, or your own exception from `mapError` | `500`, or the status you give your own code |
+| Got any other error answer, `4xx` or `5xx`, such as `400`, `404` or `500`: a final answer | `DownstreamException` with `SX-HTTPC-0007`, or with your own code from `errors`, or your own exception from `mapError` | `500`, or the status you give your own code |
 | Got an answer whose body cannot be read, such as JSON that does not match or ends too soon, with Jackson 3, Jackson 2's converter or Gson's, bytes that are not valid protobuf, or a content type no converter reads. The other service may have done the work. It is never sent again and never counts for the circuit breaker. A body cut off by the network is not this case: it ends with `SX-HTTPC-0001` or `SX-HTTPC-0002` | `UnreadableAnswerException` with `SX-HTTPC-0008`, a Spring `RestClientException`, so a `catch` of that still catches it | `500` |
 
 These codes say only what went wrong, such as "The other service did not answer in time". The body your caller
@@ -24,8 +24,9 @@ gets never names the other service, its address or its path. Your own log does: 
 `ResourceAccessException`, carries the address in the stack trace the web starter logs. Each code is also in the
 `error.code` field of that log line and in the `error.code` tag of the request's `http.server.requests` timer.
 
-A request that fails because another service answered with an error gets `500`, whatever that service answered:
-your caller must not send the request again because of it. Stratum's clients never resend a `500`, while they resend
+A request that fails because another service answered with an error gets `500`, whatever that service answered,
+unless you map that status to your own code and give your code a status
+([below](#your-own-code-for-an-error-status)): your caller must not send the request again because of it. Stratum's clients never resend a `500`, while they resend
 a `502`, `503`, `504` or `429` ([ADR 0011](../adr/0011-http-client-starters.md), decision 4.2), so a `503` passed on
 by each service in a chain would multiply the calls that reach the last one. Which code your caller gets, and what it
 may do then, is in [What your caller learns](../guides/what-your-caller-learns.md).
@@ -75,17 +76,19 @@ It extends Spring's `RestClientResponseException`, so `getStatusCode()`, `getRes
 | `getEndpoint()` | The method and URI template, such as `GET /stock/{sku}`, or the method alone, such as `GET`, for a call given a whole `URI`; never a path or query value. |
 | `getTraceId()` | The trace ID of the call, to find its logs; empty when none was being logged. |
 | `getDownstreamCode()` | The `code` of an `application/problem+json` body, such as another Stratum service's `ORD-0001`; empty for any other body. |
-| `getErrorCode()` | `SX-HTTPC-0009` for `429`, `502`, `503` or `504`, and `SX-HTTPC-0007` for any other status. |
+| `getErrorCode()` | Your own code when the client's `errors` maps the status ([below](#your-own-code-for-an-error-status)); otherwise `SX-HTTPC-0009` for `429`, `502`, `503` or `504`, and `SX-HTTPC-0007` for any other status. |
 | `getErrorDetail()` | Always empty, so that your caller's body never names the other service. |
 | `getReport()` | The report Stratum answers and logs the failure with: the code, its message and the request's IDs. |
 
 Its message is `inventory answered 404 to GET /stock/{sku}`. It never holds the body or a path or query value, so
-logging it leaks no data. Uncaught, your caller gets `500` with its code and Stratum's body, never the other
-service's body.
+logging it leaks no data. Uncaught, your caller gets its code and Stratum's body, never the other service's body,
+with `500` unless you map the status to your own code and give that code a status.
 
 A job, a message listener or a command-line application has no caller to answer. It can read the code to tell a
 failure that may pass from one that will not: `SX-HTTPC-0009`, like `SX-HTTPC-0001` to `SX-HTTPC-0003`, may pass;
-`SX-HTTPC-0007` will not ([Outside a web request](../guides/what-your-caller-learns.md#outside-a-web-request)).
+`SX-HTTPC-0007` will not ([Outside a web request](../guides/what-your-caller-learns.md#outside-a-web-request)). A
+status you map to your own code carries that code instead, so a job that tests for `SX-HTTPC-0009` tests for your
+code too when you map `429`, `502`, `503` or `504`.
 
 ## `UnreadableAnswerException`
 
@@ -167,6 +170,76 @@ StratumClientCustomizer stockNotFound() {
 }
 ```
 
+## Your own code for an error status
+
+To give one status of the other service your own error code everywhere, without code, list it in the client's
+`errors`. Only the statuses you list change; every other one keeps `SX-HTTPC-0007` or `SX-HTTPC-0009`. A call
+answered with a listed status still throws a `DownstreamException`, with its status, headers and body, but its
+`getErrorCode()` is your code, so a `catch` of `DownstreamException` keeps working, and a job or a listener reads your
+code. Your caller gets your code with the status `stratum.web.error.statuses` gives it, or `500` when you give it
+none. The message your caller gets is the same fixed text as for `SX-HTTPC-0007`, "The other service answered with
+an error", whatever your own code's description says, and never the other service's body.
+
+A status under `defaults` applies to every client, a client's own wins over it, and an operation's wins over its
+client's. An operation is the methods marked `@StratumOperation` with its name:
+
+```java
+@StratumClient("inventory")
+public interface InventoryClient {
+
+  @StratumOperation("list-orders")
+  @GetExchange("/orders")
+  List<Order> listOrders();
+}
+```
+
+```yaml
+stratum:
+  http-client:
+    clients:
+      inventory:
+        errors:
+          "409": ORD-0409
+          "422": ORD-0422
+        operations:
+          list-orders:
+            errors:
+              "404": ORD-0404
+  web:
+    error:
+      statuses:
+        ORD-0409: 409
+```
+
+```properties
+stratum.http-client.clients.inventory.errors[409]=ORD-0409
+stratum.http-client.clients.inventory.errors[422]=ORD-0422
+stratum.http-client.clients.inventory.operations.list-orders.errors[404]=ORD-0404
+stratum.web.error.statuses.ORD-0409=409
+```
+
+In Java, set them on the client's settings in an `HttpClientPropertiesCustomizer`
+([Configure in Java](http-client.md#configure-in-java)):
+
+```java
+var inventory =
+    properties.clientSettings("inventory").toBuilder()
+        .errors(Map.of(409, "ORD-0409", 422, "ORD-0422"))
+        .operations(
+            Map.of("list-orders", OperationSettings.builder().errors(Map.of(404, "ORD-0404")).build()))
+        .build();
+```
+
+- **What it does not change.** The retries and the circuit breaker see the same answer as before, so a listed `503`
+  is still sent again and counted. A customizer's `mapError` runs after the code is set, sees it in `getErrorCode()`,
+  and may still throw your own exception. A `404` of a method that returns `Optional` is still an empty `Optional`.
+- **Where it applies.** Calls of a client's interfaces only, not its `RestClient` or `RestTemplate` bean. A generated
+  interface named in `interfaces` has no `@StratumOperation`, so it takes the client's and the defaults' codes.
+- **What stops startup.** A status outside `400` to `599`, or a code that is empty, holds whitespace or starts with
+  `SX-`, stops startup with `SX-CORE-1003`. An operation's name that is not lowercase letters, digits and hyphens, or
+  that two methods of one client carry, stops it with `SX-HTTPC-1009`; an operation under `operations` that no method
+  carries, or any `operations` under `defaults`, with `SX-HTTPC-1010`.
+
 ## The error body is read up to 64 KB
 
 Of an error answer's body, at most 64 KB is read and kept, after gzip is undone, so a huge error body never fills the
@@ -215,7 +288,7 @@ throws Spring's own exceptions, as a `RestClient` you built would, except for th
 for a call refused by an open circuit breaker, `SX-HTTPC-0002` for a service token that cannot be fetched, and
 `SX-HTTPC-0004` for a token-relay call with no verified caller (an answer over `response-body-limit` fails with
 Spring's `RestClientException`, whose cause's message starts with `SX-HTTPC-0006`)
-([ADR 0014](../adr/0014-http-client-beans-that-retry.md)). `mapError` reaches
+([ADR 0014](../adr/0014-http-client-beans-that-retry.md)). `mapError` and `errors` reach
 interfaces only. The error body of such a call is still read up to 64 KB
 ([clients Stratum did not build](http-client-own-clients.md#what-differs-from-an-interface)).
 
@@ -229,5 +302,7 @@ interfaces only. The error body of such a call is still read up to 64 KB
 | `SX-HTTPC-1004` | A client has no `url`. |
 | `SX-HTTPC-1007` | A client's `interfaces` names a type that is not an interface on the classpath. |
 | `SX-HTTPC-1008` | An interface marked `@StratumClient` for one client is named in another client's `interfaces`. |
+| `SX-HTTPC-1009` | A `@StratumOperation` name is not lowercase letters, digits and hyphens, or two methods of one client carry it. |
+| `SX-HTTPC-1010` | A client's `operations` names an operation no method of its interfaces carries, or `operations` is set under `defaults`. |
 
 Each code, with its fix, is in [Error codes](../guides/error-codes.md#stratum-starter-http-client).

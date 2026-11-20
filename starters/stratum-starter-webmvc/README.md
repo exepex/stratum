@@ -125,7 +125,7 @@ whatever `spring.web.error.include-*` says.
 | Any other status, such as `405` or an exception annotated `@ResponseStatus` | that status | `SX-WEB-1004` |
 | A database that is busy or too slow, such as a statement timeout, a wait for a pooled connection or a deadlock, outside backward-compatible mode ([details](../../docs/modules/web-database-errors.md)) | `503` | `SX-WEB-1010` |
 | A request that conflicts with the stored data, outside backward-compatible mode: a duplicate key, or an `@Version` row changed meanwhile | `409` | `SX-WEB-1011` |
-| A call of a Stratum HTTP client interface that failed and was not caught ([details](../../docs/guides/what-your-caller-learns.md)) | `500`; `504` or `503` for `SX-HTTPC-0001` to `SX-HTTPC-0003` | the call's code, such as `SX-HTTPC-0007` |
+| A call of a Stratum HTTP client interface that failed and was not caught ([details](../../docs/guides/what-your-caller-learns.md)) | `500`; `504` or `503` for `SX-HTTPC-0001` to `SX-HTTPC-0003`; for your own code from the client's `errors`, the status `stratum.web.error.statuses` gives it | the call's code, such as `SX-HTTPC-0007` or your `ORD-0409` |
 | Any other exception | `500` | `SX-WEB-1005`, with a fixed message |
 | A request whose response had not started within its [time limit](#timeouts) | `503`, unless `stratum.web.error.statuses` maps `SX-WEB-1007` | `SX-WEB-1007` |
 | A request whose body is larger than its [limit](#body-size-limit) | `413` | `SX-WEB-1008` |

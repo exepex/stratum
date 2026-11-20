@@ -19,9 +19,11 @@ import org.springframework.web.client.RestClientResponseException;
 /**
  * Another service answered a call of a Stratum client with an error status, 4xx or 5xx, after the
  * client's retries. It carries what the answer said, with at most 64 KB of its body, and where the
- * call went, so the service can decide what to do. Its code is {@code SX-HTTPC-0009} for 429, 502,
- * 503 or 504, which the other service may accept later, and {@code SX-HTTPC-0007} for any other
- * status; uncaught, its caller gets {@code 500} with that code and never the other service's body.
+ * call went, so the service can decide what to do. Its code is the service's own when the client's
+ * {@code errors} setting maps the status, such as {@code ORD-0409}; otherwise {@code SX-HTTPC-0009}
+ * for 429, 502, 503 or 504, which the other service may accept later, and {@code SX-HTTPC-0007} for
+ * any other status. Uncaught, its caller gets the status {@code stratum.web.error.statuses} gives
+ * that code, {@code 500} by default, and never the other service's body.
  *
  * <pre>{@code
  * try {
@@ -54,6 +56,9 @@ public final class DownstreamException extends RestClientResponseException
   /** The trace ID of the call, or null when none was being logged. */
   private final @Nullable String traceId;
 
+  /** The service's own code for the answer's status, or null when its {@code errors} has none. */
+  private final @Nullable ErrorCode mappedCode;
+
   /**
    * Makes the exception from Spring's exception for the error answer.
    *
@@ -62,6 +67,24 @@ public final class DownstreamException extends RestClientResponseException
    * @param answer Spring's exception for the error answer, whose converters read the body
    */
   public DownstreamException(String client, String endpoint, RestClientResponseException answer) {
+    this(client, endpoint, answer, null);
+  }
+
+  /**
+   * Makes the exception from Spring's exception for the error answer, with the service's own code
+   * for its status.
+   *
+   * @param client the client's name
+   * @param endpoint the call's method and URI template
+   * @param answer Spring's exception for the error answer, whose converters read the body
+   * @param mappedCode the service's own code for the status, such as {@code ORD-0409}, or {@code
+   *     null} to keep {@code SX-HTTPC-0007} or {@code SX-HTTPC-0009}
+   */
+  public DownstreamException(
+      String client,
+      String endpoint,
+      RestClientResponseException answer,
+      @Nullable ErrorCode mappedCode) {
     super(
         client + " answered " + answer.getStatusCode().value() + " to " + endpoint,
         answer.getStatusCode(),
@@ -75,6 +98,7 @@ public final class DownstreamException extends RestClientResponseException
     this.client = client;
     this.endpoint = endpoint;
     this.traceId = traceIdOrNull();
+    this.mappedCode = mappedCode;
     // Spring's exception is not the cause, as its message holds part of the body; it only converts.
     setBodyConvertFunction(
         type -> answer.getResponseBodyAs(ParameterizedTypeReference.forType(type.getType())));
@@ -90,13 +114,17 @@ public final class DownstreamException extends RestClientResponseException
   }
 
   /**
-   * Returns the code of the failure: {@code SX-HTTPC-0009} when the other service answered 429,
-   * 502, 503 or 504, and {@code SX-HTTPC-0007} for any other status.
+   * Returns the code of the failure: the service's own when the client's {@code errors} maps the
+   * status, else {@code SX-HTTPC-0009} when the other service answered 429, 502, 503 or 504, and
+   * {@code SX-HTTPC-0007} for any other status.
    *
    * @return the code
    */
   @Override
   public ErrorCode getErrorCode() {
+    if (mappedCode != null) {
+      return mappedCode;
+    }
     return RetryRules.isTemporaryRefusal(getStatusCode().value())
         ? HttpClientErrorCode.DOWNSTREAM_REFUSED_FOR_NOW
         : HttpClientErrorCode.DOWNSTREAM_ERROR;

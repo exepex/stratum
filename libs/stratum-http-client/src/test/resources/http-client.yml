@@ -12,6 +12,9 @@ stratum:
         "[X-Partner-Id]": orders
       copy-headers: [X-Tenant]
       interceptor-body-limit: 2MB
+      errors:
+        "401": ORD-0401
+        "409": ORD-9409
     clients:
       inventory:
         url: http://inventory:8080
@@ -36,6 +39,13 @@ stratum:
         interfaces:
           - com.partner.OrdersApi
           - com.partner.CustomersApi
+        errors:
+          "409": ORD-0409
+          422: ORD-0422
+        operations:
+          list-orders:
+            errors:
+              "404": ORD-0404
       partner:
         url: http://partner:8080
         auth:

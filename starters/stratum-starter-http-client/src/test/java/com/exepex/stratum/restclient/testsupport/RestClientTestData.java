@@ -1,9 +1,11 @@
 package com.exepex.stratum.restclient.testsupport;
 
+import com.exepex.stratum.core.error.ErrorCode;
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientProperties;
 import com.exepex.stratum.restclient.ClientAttempt;
 import com.exepex.stratum.restclient.ClientConnectionPools;
+import com.exepex.stratum.restclient.ClientErrors;
 import com.exepex.stratum.restclient.ClientMeters;
 import com.exepex.stratum.restclient.DownstreamException;
 import com.exepex.stratum.restclient.MockAnswers;
@@ -302,6 +304,16 @@ public class RestClientTestData {
   }
 
   /**
+   * Returns the error translation of a service with no customizer and no client that maps an error
+   * status to its own code.
+   *
+   * @return the translation
+   */
+  public static ClientErrors clientErrors() {
+    return new ClientErrors(noCustomizers(), HttpClientProperties.builder().build());
+  }
+
+  /**
    * Returns the failure of a call of the orders client that the other service answered with an
    * error status and a text body that holds {@link #SECRET}.
    *
@@ -309,18 +321,39 @@ public class RestClientTestData {
    * @return the failure
    */
   public static DownstreamException downstream(HttpStatus status) {
+    return new DownstreamException(ORDERS, ORDERS_ENDPOINT, errorAnswer(status));
+  }
+
+  /**
+   * Returns the failure of a call of the orders client that the other service answered with an
+   * error status the client maps to the service's own code, and a text body that holds {@link
+   * #SECRET}.
+   *
+   * @param status the answer's status
+   * @param code the service's own code for the status, such as {@code ORD-0409}
+   * @return the failure
+   */
+  public static DownstreamException downstream(HttpStatus status, ErrorCode code) {
+    return new DownstreamException(ORDERS, ORDERS_ENDPOINT, errorAnswer(status), code);
+  }
+
+  /**
+   * Returns Spring's exception for an error answer with the status and a text body that holds
+   * {@link #SECRET}.
+   *
+   * @param status the answer's status
+   * @return the exception
+   */
+  public static RestClientResponseException errorAnswer(HttpStatus status) {
     var headers = new HttpHeaders();
     headers.setContentType(MediaType.TEXT_PLAIN);
-    return new DownstreamException(
-        ORDERS,
-        ORDERS_ENDPOINT,
-        new RestClientResponseException(
-            status.getReasonPhrase(),
-            status,
-            status.getReasonPhrase(),
-            headers,
-            SECRET.getBytes(StandardCharsets.UTF_8),
-            StandardCharsets.UTF_8));
+    return new RestClientResponseException(
+        status.getReasonPhrase(),
+        status,
+        status.getReasonPhrase(),
+        headers,
+        SECRET.getBytes(StandardCharsets.UTF_8),
+        StandardCharsets.UTF_8);
   }
 
   /**

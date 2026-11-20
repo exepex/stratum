@@ -59,7 +59,9 @@ class ConfigurationMetadataTest {
           "auth.basic.username",
           "auth.basic.password",
           "auth.client-credentials",
-          "auth.token-relay");
+          "auth.token-relay",
+          "errors",
+          "operations");
 
   @Test
   @DisplayName("every property is listed with a description")

@@ -255,13 +255,15 @@ public final class RestClientAutoConfiguration {
    * {@code DownstreamException} or a code.
    *
    * @param customizers the service's changes to the clients, which may map an error answer
+   * @param environment the service's environment, from which the clients' error codes are resolved
    * @return the translation
    */
   @Bean
   @Fallback
   @ConditionalOnMissingBean
-  public ClientErrors stratumClientErrors(ObjectProvider<StratumClientCustomizer> customizers) {
-    return new ClientErrors(customizers);
+  public ClientErrors stratumClientErrors(
+      ObjectProvider<StratumClientCustomizer> customizers, Environment environment) {
+    return new ClientErrors(customizers, HttpClientProperties.resolve(environment));
   }
 
   /**

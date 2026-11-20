@@ -6,9 +6,16 @@ import com.exepex.stratum.httpclient.ClientAuth;
 import com.exepex.stratum.httpclient.ClientSettings;
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientErrorCode;
+import com.exepex.stratum.httpclient.HttpClientProperties;
 import com.exepex.stratum.httpclient.StratumClient;
+import com.exepex.stratum.httpclient.StratumOperation;
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import lombok.experimental.UtilityClass;
@@ -120,6 +127,71 @@ public class StratumClientChecks {
         || Stream.concat(
                 Stream.ofNullable(type.getSuperclass()), Arrays.stream(type.getInterfaces()))
             .anyMatch(StratumClientChecks::isPublisher);
+  }
+
+  /**
+   * Checks the operations of every client: each {@code @StratumOperation} name on its interfaces,
+   * and each operation its settings name.
+   *
+   * @param interfacesByClient the interfaces of each client
+   * @param settings the settings of every client
+   * @throws StratumException {@code SX-HTTPC-1009} if a name is not lowercase letters, digits and
+   *     hyphens, or two methods of one client carry it, or {@code SX-HTTPC-1010} if a client's
+   *     {@code operations} names one that no method of its interfaces carries, or {@code
+   *     operations} is set under {@code defaults}
+   */
+  public static void checkOperations(
+      Map<String, List<Class<?>>> interfacesByClient, HttpClientProperties settings) {
+    if (!settings.defaults().operations().isEmpty()) {
+      throw new StratumException(
+          HttpClientErrorCode.OPERATION_UNKNOWN, HttpClientConstants.DEFAULTS + ".operations");
+    }
+    var operationsByClient = new HashMap<String, Set<String>>();
+    interfacesByClient.forEach(
+        (client, interfaces) -> operationsByClient.put(client, operationsOf(interfaces)));
+    settings
+        .clients()
+        .forEach(
+            (client, own) ->
+                checkConfiguredOperations(
+                    client, own, operationsByClient.getOrDefault(client, Set.of())));
+  }
+
+  /** Returns the operation names that the methods of one client's interfaces carry, once each. */
+  private static Set<String> operationsOf(List<Class<?>> interfaces) {
+    var names = new HashSet<String>();
+    interfaces.stream()
+        .flatMap(clientInterface -> Arrays.stream(clientInterface.getMethods()))
+        .distinct()
+        .filter(method -> method.isAnnotationPresent(StratumOperation.class))
+        .forEach(method -> addOperation(method, names));
+    return names;
+  }
+
+  /** Adds a method's operation name, and stops startup when it is not valid or already taken. */
+  private static void addOperation(Method method, Set<String> names) {
+    var name = method.getAnnotation(StratumOperation.class).value();
+    if (!HttpClientConstants.OPERATION_NAME.matcher(name).matches() || !names.add(name)) {
+      throw new StratumException(
+          HttpClientErrorCode.OPERATION_NAME_INVALID,
+          "method " + method.getDeclaringClass().getName() + "." + method.getName());
+    }
+  }
+
+  /** Stops startup when a client's settings name an operation that none of its methods carries. */
+  private static void checkConfiguredOperations(
+      String client, ClientSettings own, Set<String> operations) {
+    own.operations().keySet().stream()
+        .filter(name -> !operations.contains(name))
+        .findFirst()
+        .ifPresent(name -> rejectUnknownOperation(client, name));
+  }
+
+  /** Stops startup for an operation that a client's settings name and none of its methods carry. */
+  private static void rejectUnknownOperation(String client, String operation) {
+    throw new StratumException(
+        HttpClientErrorCode.OPERATION_UNKNOWN,
+        HttpClientConstants.CLIENTS + "." + client + ".operations." + operation);
   }
 
   /**

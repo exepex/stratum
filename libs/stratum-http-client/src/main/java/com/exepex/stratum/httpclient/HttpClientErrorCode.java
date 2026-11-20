@@ -132,6 +132,24 @@ public enum HttpClientErrorCode implements ErrorCode {
       "Keep the interface in one client: remove it from the other client's interfaces, or change"
           + " its @StratumClient name."),
 
+  /** A {@code @StratumOperation} name is not valid, or is used twice in one client. */
+  OPERATION_NAME_INVALID(
+      "SX-HTTPC-1009",
+      Severity.ERROR,
+      "A @StratumOperation name is not lowercase letters, digits and hyphens, or two methods of"
+          + " one client carry the same name",
+      "Give each operation of the client its own name, such as list-orders, and rename its"
+          + " settings with it."),
+
+  /** A client's {@code operations} names an operation that no method of the client carries. */
+  OPERATION_UNKNOWN(
+      "SX-HTTPC-1010",
+      Severity.ERROR,
+      "A client's operations setting names an operation that no method of its interfaces carries,"
+          + " or operations is set under defaults",
+      "Mark the method with @StratumOperation and that name, or correct the name in the"
+          + " setting; set operations for a client only."),
+
   /** A client's {@code client-credentials} names no client-credentials registration. */
   REGISTRATION_INVALID(
       "SX-HTTPC-1005",

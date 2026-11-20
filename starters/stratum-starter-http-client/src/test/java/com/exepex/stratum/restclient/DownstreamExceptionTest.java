@@ -5,6 +5,7 @@ import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
 import com.exepex.stratum.httpclient.HttpClientErrorCode;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
+import com.exepex.stratum.restclient.testsupport.mapped.MappedTestData;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -81,6 +82,50 @@ class DownstreamExceptionTest {
       assertThat(failure.getStatusCode()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
       assertThat(failure.getResponseBodyAsString()).isEqualTo(RestClientTestData.SECRET);
       assertThat(failure.getClient()).isEqualTo(RestClientTestData.ORDERS);
+    }
+  }
+
+  @Nested
+  @DisplayName("with the service's own code for its status")
+  class MappedCode {
+
+    /** The service's own code for a conflict. */
+    private final MappedErrorCode conflict = new MappedErrorCode(MappedTestData.CONFLICT_CODE);
+
+    @Test
+    @DisplayName("its code is the service's, also for a status that would be SX-HTTPC-0009")
+    void codeIsTheServices() {
+      assertThat(RestClientTestData.downstream(HttpStatus.CONFLICT, conflict).getErrorCode())
+          .isEqualTo(conflict);
+      assertThat(
+              RestClientTestData.downstream(HttpStatus.SERVICE_UNAVAILABLE, conflict)
+                  .getErrorCode()
+                  .getCode())
+          .isEqualTo(MappedTestData.CONFLICT_CODE);
+    }
+
+    @Test
+    @DisplayName("its caller is told the code and the fixed text, never the client or the body")
+    void reportHidesTheOtherService() {
+      var external =
+          RestClientTestData.downstream(HttpStatus.CONFLICT, conflict).getReport().getExternal();
+
+      assertThat(external.code()).isEqualTo(MappedTestData.CONFLICT_CODE);
+      assertThat(external.message())
+          .isEqualTo(HttpClientErrorCode.DOWNSTREAM_ERROR.getDescription())
+          .doesNotContain(RestClientTestData.ORDERS)
+          .doesNotContain(RestClientTestData.SECRET);
+    }
+
+    @Test
+    @DisplayName("it keeps the other service's status, headers and body")
+    void keepsTheAnswer() {
+      var failure = RestClientTestData.downstream(HttpStatus.CONFLICT, conflict);
+
+      assertThat(failure.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+      assertThat(failure.getResponseHeaders()).isNotNull();
+      assertThat(failure.getResponseBodyAsString()).isEqualTo(RestClientTestData.SECRET);
+      assertThat(failure.getErrorDetail()).isEmpty();
     }
   }
 }

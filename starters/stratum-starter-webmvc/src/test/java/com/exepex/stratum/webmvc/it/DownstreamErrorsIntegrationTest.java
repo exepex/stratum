@@ -8,6 +8,7 @@ import com.exepex.stratum.test.WebTestSupport;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -25,7 +26,8 @@ import org.springframework.test.context.TestPropertySource;
     properties = {
       "management.tracing.sampling.probability=1.0",
       "management.tracing.export.otlp.enabled=false",
-      "management.otlp.metrics.export.enabled=false"
+      "management.otlp.metrics.export.enabled=false",
+      "stratum.web.error.statuses.ORD-0409=409"
     })
 @ExtendWith(OutputCaptureExtension.class)
 @DisplayName("A Spring MVC request whose call of another service failed uncaught is answered 500")
@@ -55,6 +57,39 @@ class DownstreamErrorsIntegrationTest {
           .doesNotContain(
               DownstreamFailuresApplication.SECRET, DownstreamFailuresApplication.CLIENT);
       WebTestSupport.checkLoggedOnceAtError(output, code);
+    }
+  }
+
+  @Nested
+  @DisplayName("with a status the client maps to the service's own code")
+  class MappedCode {
+
+    @Test
+    @DisplayName("gets the status the service gives the code, and nothing of the other service")
+    void answersWithTheServicesStatus() throws Exception {
+      var response =
+          WebTestSupport.getFromService(port, DownstreamFailuresApplication.CONFLICT_PATH);
+
+      WebTestSupport.checkProblemDetails(
+          response, HttpStatus.CONFLICT.value(), TeamErrorCode.CONFLICT.getCode());
+      assertThat(response.body())
+          .contains(TeamErrorCode.CONFLICT.getDescription())
+          .doesNotContain(
+              DownstreamFailuresApplication.SECRET, DownstreamFailuresApplication.CLIENT);
+    }
+
+    @Test
+    @DisplayName("gets 500 with the code when the service gives the code no status")
+    void unmappedCodeAnswers500(CapturedOutput output) throws Exception {
+      var response =
+          WebTestSupport.getFromService(port, DownstreamFailuresApplication.UNPROCESSABLE_PATH);
+
+      WebTestSupport.checkProblemDetails(
+          response,
+          HttpStatus.INTERNAL_SERVER_ERROR.value(),
+          TeamErrorCode.UNPROCESSABLE.getCode());
+      assertThat(response.body()).doesNotContain(DownstreamFailuresApplication.SECRET);
+      WebTestSupport.checkLoggedOnceAtError(output, TeamErrorCode.UNPROCESSABLE.getCode());
     }
   }
 
