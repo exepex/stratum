@@ -171,14 +171,19 @@ class ErrorCodeSettingsTest {
     @Test
     @DisplayName("a status set in Java outside 400 to 599 is refused after the customizer ran")
     void javaValueOutOfRangeRefused(@TempDir Path folder) {
+      var environment = SettingsChecks.environmentOf();
+      var customizers =
+          List.<Class<? extends HttpClientPropertiesCustomizer>>of(
+              OutOfRangeErrorCodeSettings.class);
+
       assertThatExceptionOfType(StratumException.class)
           .isThrownBy(
               () ->
                   StarterTestSupport.withCustomizers(
                       folder,
                       HttpClientPropertiesCustomizer.class,
-                      List.of(OutOfRangeErrorCodeSettings.class),
-                      () -> HttpClientProperties.resolve(SettingsChecks.environmentOf())))
+                      customizers,
+                      () -> HttpClientProperties.resolve(environment)))
           .withMessageStartingWith(HttpClientTestData.INVALID_SETTINGS)
           .withMessageNotContaining("700");
     }
