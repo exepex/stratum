@@ -294,6 +294,27 @@ stratum:
         response-body-limit: 128MB
 ```
 
+The reports service's `409` becomes your code `ORD-0409`, and a `404` of its `list-reports` operation `ORD-0404`
+([your own code for an error status](http-client-errors.md#your-own-code-for-an-error-status)):
+
+```properties
+stratum.http-client.clients.reports.errors[409]=ORD-0409
+stratum.http-client.clients.reports.operations.list-reports.errors[404]=ORD-0404
+```
+
+```yaml
+stratum:
+  http-client:
+    clients:
+      reports:
+        errors:
+          "409": ORD-0409
+        operations:
+          list-reports:
+            errors:
+              "404": ORD-0404
+```
+
 > [!TIP]
 > Pick a timeout from the other service's real latency: a little above its p99 is a good start. Then make sure the
 > timeouts of your own callers are longer than yours.
