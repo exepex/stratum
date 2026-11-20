@@ -7,13 +7,17 @@ import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientErrorCode;
 import com.exepex.stratum.restclient.DownstreamException;
+import com.exepex.stratum.restclient.UnreadableAnswerException;
 import com.exepex.stratum.restclient.testsupport.CallChecks;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import com.exepex.stratum.restclient.testsupport.errors.ErrorDownstream;
 import com.exepex.stratum.restclient.testsupport.errors.ErrorsApplication;
+import com.exepex.stratum.restclient.testsupport.errors.JsonReadFailures;
+import com.exepex.stratum.restclient.testsupport.errors.Order;
 import com.exepex.stratum.restclient.testsupport.errors.OrdersClient;
 import java.net.SocketTimeoutException;
 import java.net.URI;
+import java.util.List;
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -28,12 +32,13 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.UnknownContentTypeException;
 import tools.jackson.core.JacksonException;
 
 @SpringBootTest(
     classes = ErrorsApplication.class,
     properties = {
-      HttpClientConstants.CLIENTS + "." + RestClientTestData.ORDERS + ".timeout=300ms",
+      HttpClientConstants.CLIENTS + "." + RestClientTestData.ORDERS + ".read-timeout=300ms",
       HttpClientConstants.DEFAULTS + ".retry.delay=10ms"
     })
 @Timeout(30)
@@ -82,6 +87,7 @@ class ClientErrorsIntegrationTest {
                     .isEqualTo(MediaType.TEXT_PLAIN);
                 assertThat(failure.getResponseBodyAsString()).contains(RestClientTestData.SECRET);
                 assertThat(failure.getCause()).isNull();
+                assertThat(failure.getErrorCode()).isEqualTo(HttpClientErrorCode.DOWNSTREAM_ERROR);
               });
     }
 
@@ -153,7 +159,7 @@ class ClientErrorsIntegrationTest {
   }
 
   @Nested
-  @DisplayName("a JSON answer body")
+  @DisplayName("an answer body that cannot be read, and a request body that cannot be written")
   class JsonBodies {
 
     @Test
@@ -170,6 +176,39 @@ class ClientErrorsIntegrationTest {
       assertThatExceptionOfType(RestClientException.class)
           .isThrownBy(orders::badJson)
           .withRootCauseInstanceOf(JacksonException.class);
+    }
+
+    @Test
+    @DisplayName("a body Jackson 3 cannot read is SX-HTTPC-0008, its message free of the body")
+    void badJsonIsUnreadableAnswer() {
+      assertThatExceptionOfType(UnreadableAnswerException.class)
+          .isThrownBy(orders::badJson)
+          .isInstanceOf(RestClientException.class)
+          .satisfies(CallChecks::assertUnreadableAnswer)
+          .withMessage("orders could not read the answer to GET " + ErrorDownstream.BAD_JSON)
+          .withMessageNotContaining(JsonReadFailures.BAD_JSON);
+    }
+
+    @Test
+    @DisplayName("a content type no converter reads is SX-HTTPC-0008, with Spring's failure kept")
+    void unknownContentTypeIsUnreadableAnswer() {
+      assertThatExceptionOfType(UnreadableAnswerException.class)
+          .isThrownBy(orders::largeAnswerAsOrder)
+          .withCauseInstanceOf(UnknownContentTypeException.class)
+          .satisfies(CallChecks::assertUnreadableAnswer);
+    }
+
+    @Test
+    @DisplayName("a request body no converter writes stays Spring's failure and is never sent")
+    void unwritableRequestIsNotUnreadableAnswer() {
+      var unwritable = new Order(ORDER_ID, List.of());
+      var requestsBefore = DOWNSTREAM.bodyRequests();
+
+      assertThatExceptionOfType(RestClientException.class)
+          .isThrownBy(() -> orders.sendUnwritable(unwritable))
+          .isExactlyInstanceOf(RestClientException.class)
+          .withMessageStartingWith("No HttpMessageConverter");
+      assertThat(DOWNSTREAM.bodyRequests()).isEqualTo(requestsBefore);
     }
   }
 

@@ -6,8 +6,9 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Answers a request that ran out of time before its response started with the status of {@code
- * stratum.web.timeout.status}. Its error body carries {@code SX-WEB-1007}.
+ * Answers a request that ran out of time before its response started with the status that {@code
+ * stratum.web.error.statuses} maps to {@code SX-WEB-1007}, 503 by default. Its error body carries
+ * {@code SX-WEB-1007}.
  */
 public class RequestTimedOutException extends ResponseStatusException {
 

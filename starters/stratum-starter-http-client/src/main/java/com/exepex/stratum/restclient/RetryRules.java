@@ -70,6 +70,17 @@ public class RetryRules {
   private static final double BACK_OFF_SPREAD = 0.5;
 
   /**
+   * Returns whether an error answer says the other service cannot take the call for now: 429, 502,
+   * 503 or 504, the answers after which an idempotent call is sent again.
+   *
+   * @param status the answer's status
+   * @return whether the answer is a refusal for now
+   */
+  static boolean isTemporaryRefusal(int status) {
+    return RETRIED_STATUSES.contains(status);
+  }
+
+  /**
    * Returns whether Stratum sends the call again after this attempt: its rules allow it, and the
    * next wait still leaves the least time for one more attempt before {@code total-timeout}.
    *
@@ -101,7 +112,7 @@ public class RetryRules {
     return switch (attempt.getFailure().orElse(null)) {
       case RestClientResponseException answer ->
           IDEMPOTENT.contains(attempt.getMethod())
-              && RETRIED_STATUSES.contains(answer.getStatusCode().value());
+              && isTemporaryRefusal(answer.getStatusCode().value());
       case ResourceAccessException noAnswer ->
           isRetryableWithoutAnswer(attempt.getMethod(), noAnswer);
       case RestClientException failed when isBodyCutOff(failed) ->

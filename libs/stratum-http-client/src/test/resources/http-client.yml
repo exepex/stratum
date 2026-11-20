@@ -1,7 +1,7 @@
 stratum:
   http-client:
     defaults:
-      timeout: 3s
+      read-timeout: 3s
       call-log: none
       trace-headers: false
       retry:
@@ -15,7 +15,7 @@ stratum:
     clients:
       inventory:
         url: http://inventory:8080
-        timeout: 10s
+        read-timeout: 10s
         total-timeout: 25s
         retry:
           max-retries: 5

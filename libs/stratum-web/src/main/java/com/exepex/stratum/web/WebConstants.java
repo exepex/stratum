@@ -74,9 +74,6 @@ public class WebConstants {
   /** The setting that limits how long the requests on some paths may take. */
   public static final String TIMEOUT_ROUTES = PREFIX + ".timeout.routes";
 
-  /** The setting that names the status of a request that ran out of time. */
-  public static final String TIMEOUT_STATUS = PREFIX + ".timeout.status";
-
   /** The property with how large any request's body may be. */
   public static final String BODY_LIMIT_DEFAULT_LIMIT = PREFIX + ".body-limit.default-limit";
 

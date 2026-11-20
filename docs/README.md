@@ -101,9 +101,11 @@ Each module page follows the same layout so you always know where to look:
 | [Log fields across threads](guides/context-across-threads.md) | Which log fields follow a request to `@Async` methods, executors, event listeners, Reactor and virtual threads, and what your own threads need. |
 | [Linking work that runs later](guides/linking-later-work.md) | When a job's trace and correlation ID should link to the API request that caused it, and how to link work a request saves for later. |
 | [Architecture](guides/architecture.md) | How Stratum is built inside: repository layout, how defaults are applied, module rules. |
+| [What your caller learns](guides/what-your-caller-learns.md) | The status and code a caller gets for each failure Stratum answers, whether it sends the request again, whether the work may be done, what jobs and listeners see, and timeouts in a chain of services. |
 | [Error and warning codes](guides/error-codes.md) | What Stratum's codes look like, the internal and external error objects, using codes in your service, and every code with its fix. |
 | [Troubleshooting](guides/troubleshooting.md) | Finding out what Stratum configured, and fixes for common problems. |
 | [FAQ](guides/faq.md) | Short answers to common questions. |
+| [Release notes for 0.3.0](releases/0.3.0.md) | Not released yet: the changes made on `main` since 0.2.0, with the steps to migrate. |
 | [Release notes for 0.2.0](releases/0.2.0.md) | What 0.2.0 changed since 0.1.0, with the steps to migrate. |
 | [Release notes for 0.1.0](releases/0.1.0.md) | What Stratum's first release contains, the modules left out of it and its known gaps. |
 

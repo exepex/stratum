@@ -11,7 +11,6 @@ import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.FieldSource;
-import org.springframework.http.HttpStatus;
 import org.springframework.util.unit.DataSize;
 
 @DisplayName("A path pattern in the web settings that is not valid stops startup with SX-WEB-1009")
@@ -29,11 +28,7 @@ class PathPatternSettingsTest {
   void timeoutRoute(String pattern) {
     var settings =
         WebTestData.defaults()
-            .timeout(
-                new WebProperties.TimeoutSettings(
-                    null,
-                    Map.of(pattern, ROUTE_TIME_LIMIT),
-                    HttpStatus.SERVICE_UNAVAILABLE.value()))
+            .timeout(new WebProperties.TimeoutSettings(null, Map.of(pattern, ROUTE_TIME_LIMIT)))
             .build();
 
     assertNamesKeyAndPattern(

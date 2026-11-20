@@ -21,7 +21,7 @@ final class ReadDeadline {
   /** The call's deadline, in {@link System#nanoTime()}. */
   private final long deadlineNanos;
 
-  /** The client's {@code timeout}, the longest wait for one read. */
+  /** The client's {@code read-timeout}, the longest wait for one read. */
   private final Duration timeout;
 
   /** The message of the failure once the deadline has passed. */

@@ -39,9 +39,9 @@ import org.springframework.web.client.RestClientResponseException;
     classes = {ClientsApplication.class, TotalTimeoutIntegrationTest.LongPricingWait.class},
     properties = {
       HttpClientConstants.DEFAULTS + ".retry.delay=10ms",
-      RestClientTestData.INVENTORY_SETTINGS + ".timeout=1s",
+      RestClientTestData.INVENTORY_SETTINGS + ".read-timeout=1s",
       RestClientTestData.INVENTORY_SETTINGS + ".total-timeout=1500ms",
-      RestClientTestData.PRICING_SETTINGS + ".timeout=2s",
+      RestClientTestData.PRICING_SETTINGS + ".read-timeout=2s",
       RestClientTestData.PRICING_SETTINGS + ".total-timeout=500ms"
     })
 @Timeout(30)
@@ -117,7 +117,7 @@ class TotalTimeoutIntegrationTest {
     }
 
     @Test
-    @DisplayName("a streamed download keeps its full timeout, so its late answer is read")
+    @DisplayName("a streamed download keeps its full read-timeout, so its late answer is read")
     void streamedDownloadKeepsItsTimeout() throws IOException {
       releaseLater();
 

@@ -5,11 +5,14 @@ import com.exepex.stratum.httpclient.HttpClientProperties;
 import com.exepex.stratum.restclient.ClientAttempt;
 import com.exepex.stratum.restclient.ClientConnectionPools;
 import com.exepex.stratum.restclient.ClientMeters;
+import com.exepex.stratum.restclient.DownstreamException;
 import com.exepex.stratum.restclient.MockAnswers;
 import com.exepex.stratum.restclient.StratumClientCustomizer;
+import com.exepex.stratum.restclient.UnreadableAnswerException;
 import com.exepex.stratum.restclient.autoconfigure.RestClientAutoConfiguration;
 import com.exepex.stratum.restclient.autoconfigure.RestClientTokenAutoConfiguration;
 import com.exepex.stratum.restclient.testsupport.clients.ClientsApplication;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import lombok.experimental.UtilityClass;
 import org.jspecify.annotations.Nullable;
@@ -27,8 +30,15 @@ import org.springframework.boot.security.oauth2.client.autoconfigure.OAuth2Clien
 import org.springframework.boot.ssl.SslBundles;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.mock.http.MockHttpInputMessage;
 import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 import tools.jackson.databind.json.JsonMapper;
 
 /** Names, values and set-up shared by the blocking HTTP client starter's tests. */
@@ -91,6 +101,9 @@ public class RestClientTestData {
    * hidden.
    */
   public static final String SECRET = "not-a-real-secret-4f2a";
+
+  /** The endpoint of a call of the orders client that reads one order. */
+  public static final String ORDERS_ENDPOINT = "GET /orders/{id}";
 
   /**
    * The setting that turns Stratum's retries off for every client, for a test of one attempt of a
@@ -286,5 +299,42 @@ public class RestClientTestData {
    */
   public static ObjectProvider<StratumClientCustomizer> noCustomizers() {
     return new DefaultListableBeanFactory().getBeanProvider(StratumClientCustomizer.class);
+  }
+
+  /**
+   * Returns the failure of a call of the orders client that the other service answered with an
+   * error status and a text body that holds {@link #SECRET}.
+   *
+   * @param status the answer's status
+   * @return the failure
+   */
+  public static DownstreamException downstream(HttpStatus status) {
+    var headers = new HttpHeaders();
+    headers.setContentType(MediaType.TEXT_PLAIN);
+    return new DownstreamException(
+        ORDERS,
+        ORDERS_ENDPOINT,
+        new RestClientResponseException(
+            status.getReasonPhrase(),
+            status,
+            status.getReasonPhrase(),
+            headers,
+            SECRET.getBytes(StandardCharsets.UTF_8),
+            StandardCharsets.UTF_8));
+  }
+
+  /**
+   * Returns the failure of a call of the orders client whose answer's body cannot be read.
+   *
+   * @return the failure
+   */
+  public static UnreadableAnswerException unreadableAnswer() {
+    return new UnreadableAnswerException(
+        ORDERS,
+        ORDERS_ENDPOINT,
+        new RestClientException(
+            "Error while extracting response",
+            new HttpMessageNotReadableException(
+                "not JSON", new MockHttpInputMessage(SECRET.getBytes(StandardCharsets.UTF_8)))));
   }
 }

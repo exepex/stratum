@@ -245,7 +245,7 @@ class ClientCredentialsIntegrationTest {
   }
 
   @Nested
-  @TestPropertySource(properties = RestClientTestData.INVENTORY_SETTINGS + ".timeout=300ms")
+  @TestPropertySource(properties = RestClientTestData.INVENTORY_SETTINGS + ".read-timeout=300ms")
   @DisplayName("when the identity provider does not answer")
   class Held {
 

@@ -53,7 +53,7 @@ public class HttpClientConstants {
   /**
    * Stratum's default longest wait for the first byte of an answer and between two of its bytes.
    */
-  public static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(5);
+  public static final Duration DEFAULT_READ_TIMEOUT = Duration.ofSeconds(5);
 
   /** Stratum's default size of each client's connection pool. */
   public static final int DEFAULT_MAX_CONNECTIONS = 50;

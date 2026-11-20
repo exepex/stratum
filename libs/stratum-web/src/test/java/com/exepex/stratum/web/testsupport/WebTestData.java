@@ -1,5 +1,7 @@
 package com.exepex.stratum.web.testsupport;
 
+import com.exepex.stratum.web.WebConstants;
+import com.exepex.stratum.web.WebErrorCode;
 import com.exepex.stratum.web.WebProperties;
 import java.io.IOException;
 import java.util.Map;
@@ -21,6 +23,10 @@ public class WebTestData {
 
   /** How every message about a broken setting starts. */
   public static final String INVALID_SETTINGS = "SX-CORE-1003: Invalid settings: ";
+
+  /** The key of the status of a request that ran out of time, as a .properties file writes it. */
+  public static final String REQUEST_TIMED_OUT_STATUS =
+      WebConstants.ERROR_STATUSES + "." + WebErrorCode.REQUEST_TIMED_OUT.getCode();
 
   /** The name of the tests that show a service's Java configuration wins. */
   public static final String JAVA_CONFIGURATION_WINS =

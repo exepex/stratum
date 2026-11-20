@@ -20,8 +20,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * Ends the reading of an answer, its status line and headers, its body, and the reading of its rest
  * when the answer is closed, when the call's {@code total-timeout} runs out, however slowly it
- * comes. A streamed download through a pool that streams answers keeps only its {@code timeout}
- * between bytes.
+ * comes. A streamed download through a pool that streams answers keeps only its {@code
+ * read-timeout} between bytes.
  */
 @RequiredArgsConstructor
 class AnswerDeadline extends HttpRequestExecutor {
@@ -33,10 +33,10 @@ class AnswerDeadline extends HttpRequestExecutor {
   private static final String HEAD_TOO_SLOW =
       "The answer's status line and headers did not arrive within total-timeout";
 
-  /** The client's {@code timeout}, the longest wait for one read of the answer. */
+  /** The client's {@code read-timeout}, the longest wait for one read of the answer. */
   private final Duration timeout;
 
-  /** Whether a streamed download through this pool keeps its {@code timeout}. */
+  /** Whether a streamed download through this pool keeps its {@code read-timeout}. */
   private final boolean streamsAnswers;
 
   /**

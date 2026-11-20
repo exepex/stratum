@@ -162,7 +162,7 @@ class OwnClientsIntegrationTest {
 
       assertThat(settings.url()).isEqualTo(DOWNSTREAM.url());
       assertThat(settings.maxConnections()).isEqualTo(1);
-      assertThat(settings.timeout()).isEqualTo(HttpClientConstants.DEFAULT_TIMEOUT);
+      assertThat(settings.readTimeout()).isEqualTo(HttpClientConstants.DEFAULT_READ_TIMEOUT);
     }
   }
 

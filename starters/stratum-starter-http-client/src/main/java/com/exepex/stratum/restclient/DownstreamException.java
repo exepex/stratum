@@ -1,6 +1,9 @@
 package com.exepex.stratum.restclient;
 
+import com.exepex.stratum.core.error.ErrorCode;
+import com.exepex.stratum.core.error.FailureWithErrorCode;
 import com.exepex.stratum.core.logging.LoggingContextConstants;
+import com.exepex.stratum.httpclient.HttpClientErrorCode;
 import java.io.Serial;
 import java.util.Optional;
 import lombok.Getter;
@@ -16,8 +19,9 @@ import org.springframework.web.client.RestClientResponseException;
 /**
  * Another service answered a call of a Stratum client with an error status, 4xx or 5xx, after the
  * client's retries. It carries what the answer said, with at most 64 KB of its body, and where the
- * call went, so the service can decide what to do; uncaught, its caller gets {@code 500} and never
- * the other service's body.
+ * call went, so the service can decide what to do. Its code is {@code SX-HTTPC-0009} for 429, 502,
+ * 503 or 504, which the other service may accept later, and {@code SX-HTTPC-0007} for any other
+ * status; uncaught, its caller gets {@code 500} with that code and never the other service's body.
  *
  * <pre>{@code
  * try {
@@ -33,7 +37,8 @@ import org.springframework.web.client.RestClientResponseException;
  * <p>Its message names the client, the status and the endpoint's template, never the body or a
  * value of the path or query, so that logging it leaks no data.
  */
-public final class DownstreamException extends RestClientResponseException {
+public final class DownstreamException extends RestClientResponseException
+    implements FailureWithErrorCode {
 
   @Serial private static final long serialVersionUID = 1L;
 
@@ -82,6 +87,29 @@ public final class DownstreamException extends RestClientResponseException {
    */
   public Optional<String> getTraceId() {
     return Optional.ofNullable(traceId);
+  }
+
+  /**
+   * Returns the code of the failure: {@code SX-HTTPC-0009} when the other service answered 429,
+   * 502, 503 or 504, and {@code SX-HTTPC-0007} for any other status.
+   *
+   * @return the code
+   */
+  @Override
+  public ErrorCode getErrorCode() {
+    return RetryRules.isTemporaryRefusal(getStatusCode().value())
+        ? HttpClientErrorCode.DOWNSTREAM_REFUSED_FOR_NOW
+        : HttpClientErrorCode.DOWNSTREAM_ERROR;
+  }
+
+  /**
+   * Returns no detail, so that the caller's error body never names the other service.
+   *
+   * @return an empty detail
+   */
+  @Override
+  public String getErrorDetail() {
+    return "";
   }
 
   /**

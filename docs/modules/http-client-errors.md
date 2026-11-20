@@ -9,21 +9,30 @@ service then gets. Part of the [HTTP client](http-client.md) page.
 
 | The call | It throws | Your caller gets, if you do not catch it |
 | --- | --- | --- |
-| Got no answer in time: the answer, or a byte of it, took longer than `timeout`, or its body was still arriving when `total-timeout` ran out | `StratumException` with `SX-HTTPC-0001` | `504` |
+| Got no answer in time: the answer, or a byte of it, took longer than `read-timeout`, or its body was still arriving when `total-timeout` ran out | `StratumException` with `SX-HTTPC-0001` | `504` |
 | Got no answer for another reason: the connection was refused or timed out, the host is unknown, the pool stayed full for `max-wait`, or the connection dropped; or, with `auth.client-credentials`, the client's token cannot be fetched and the call is not sent | `StratumException` with `SX-HTTPC-0002` | `503` |
 | Was not sent, as the client's circuit breaker is open | `StratumException` with `SX-HTTPC-0003` | `503` |
 | Was not sent, as a client with `auth.token-relay: true` has no verified caller token ([auth](http-client-auth.md#token-relay)) | `StratumException` with `SX-HTTPC-0004` | `500` |
 | Was not sent, as an interceptor read a body larger than the client's `interceptor-body-limit` ([bodies](http-client-headers.md#bodies)) | `StratumException` with `SX-HTTPC-0005` | `500` |
 | Got a `404`, and its method returns `Optional` | Nothing: the method returns an empty `Optional` | no error |
-| Got any other error answer, `4xx` or `5xx` | `DownstreamException`, or your own exception from `mapError` | `500` |
-| Got an answer whose body cannot be read, such as JSON that does not match or ends too soon, with Jackson 3, Jackson 2's converter or Gson's, or bytes that are not valid protobuf. It is never sent again and never counts for the circuit breaker. A body cut off by the network is not this case: it ends with `SX-HTTPC-0001` or `SX-HTTPC-0002` | Spring's `RestClientException`, as without Stratum | `500` |
+| Got `429`, `502`, `503` or `504` after its retries: the other service cannot take the call for now | `DownstreamException` with `SX-HTTPC-0009`, or your own exception from `mapError` | `500` |
+| Got any other error answer, `4xx` or `5xx`, such as `400`, `404` or `500`: a final answer | `DownstreamException` with `SX-HTTPC-0007`, or your own exception from `mapError` | `500` |
+| Got an answer whose body cannot be read, such as JSON that does not match or ends too soon, with Jackson 3, Jackson 2's converter or Gson's, bytes that are not valid protobuf, or a content type no converter reads. The other service may have done the work. It is never sent again and never counts for the circuit breaker. A body cut off by the network is not this case: it ends with `SX-HTTPC-0001` or `SX-HTTPC-0002` | `UnreadableAnswerException` with `SX-HTTPC-0008`, a Spring `RestClientException`, so a `catch` of that still catches it | `500` |
 
 These codes say only what went wrong, such as "The other service did not answer in time". The body your caller
 gets never names the other service, its address or its path. Your own log does: the code's cause, Spring's
-`ResourceAccessException`, carries the address in the stack trace the web starter logs.
+`ResourceAccessException`, carries the address in the stack trace the web starter logs. Each code is also in the
+`error.code` field of that log line and in the `error.code` tag of the request's `http.server.requests` timer.
+
+A request that fails because another service answered with an error gets `500`, whatever that service answered:
+your caller must not send the request again because of it. Stratum's clients never resend a `500`, while they resend
+a `502`, `503`, `504` or `429` ([ADR 0011](../adr/0011-http-client-starters.md), decision 4.2), so a `503` passed on
+by each service in a chain would multiply the calls that reach the last one. Which code your caller gets, and what it
+may do then, is in [What your caller learns](../guides/what-your-caller-learns.md).
 
 The statuses are Stratum's defaults in the web starter's `stratum.web.error.statuses`. You change one the way you map
-your own codes, and your value wins:
+your own codes, and your value wins. Before you give `SX-HTTPC-0009` a status such as `503`, check that your callers
+resend it only for requests that are safe to send twice:
 
 ```yaml
 stratum:
@@ -47,7 +56,8 @@ return properties.toBuilder().error(properties.error().toBuilder().statuses(stat
 ```
 
 Even in [backward-compatible mode](web-compatible-mode.md), a call that ends with a code is answered with Stratum's
-error body, as every `StratumException` is.
+error body and the status in the table above, as every failure with a Stratum code is. Error answers and answers that
+cannot be read are answered with `500` in both modes.
 
 What your service returns instead when a call fails, such as the last value it read, is your own business logic:
 catch the failure, as [resilience: use it](resilience.md#use-it) shows. The resilience starter is **Planned**. Do not
@@ -65,9 +75,28 @@ It extends Spring's `RestClientResponseException`, so `getStatusCode()`, `getRes
 | `getEndpoint()` | The method and URI template, such as `GET /stock/{sku}`, or the method alone, such as `GET`, for a call given a whole `URI`; never a path or query value. |
 | `getTraceId()` | The trace ID of the call, to find its logs; empty when none was being logged. |
 | `getDownstreamCode()` | The `code` of an `application/problem+json` body, such as another Stratum service's `ORD-0001`; empty for any other body. |
+| `getErrorCode()` | `SX-HTTPC-0009` for `429`, `502`, `503` or `504`, and `SX-HTTPC-0007` for any other status. |
+| `getErrorDetail()` | Always empty, so that your caller's body never names the other service. |
+| `getReport()` | The report Stratum answers and logs the failure with: the code, its message and the request's IDs. |
 
 Its message is `inventory answered 404 to GET /stock/{sku}`. It never holds the body or a path or query value, so
-logging it leaks no data. Uncaught, your caller gets `500` and Stratum's body, never the other service's body.
+logging it leaks no data. Uncaught, your caller gets `500` with its code and Stratum's body, never the other
+service's body.
+
+A job, a message listener or a command-line application has no caller to answer. It can read the code to tell a
+failure that may pass from one that will not: `SX-HTTPC-0009`, like `SX-HTTPC-0001` to `SX-HTTPC-0003`, may pass;
+`SX-HTTPC-0007` will not ([Outside a web request](../guides/what-your-caller-learns.md#outside-a-web-request)).
+
+## `UnreadableAnswerException`
+
+The other service answered, but the client cannot read the answer's body as the method's type. It extends Spring's
+`RestClientException`, so code that catches that keeps working, and its cause is Spring's own exception, which says
+why. It adds `getClient()`, `getEndpoint()` and, with `SX-HTTPC-0008`, the same `getErrorCode()`, `getErrorDetail()`
+and `getReport()` as `DownstreamException`. Its message is `inventory could not read the answer to GET
+/stock/{sku}`. The other service may have done the work, so do not send a write again without checking first.
+
+A request body that no converter can write, such as one with a content type no converter knows, is not this case:
+the call fails with Spring's `RestClientException` before anything is sent.
 
 A client you move to Stratum no longer throws Spring's subtypes, such as `HttpClientErrorException.NotFound`. For a
 `404`, return `Optional` from the method ([below](#a-404-read-as-an-empty-optional)). For another status, catch
@@ -116,7 +145,8 @@ Only a client's interfaces do this. A call through the client's `RestClient` or 
 
 To turn one client's error answer into your own exception everywhere, throw it from `mapError` in a
 `StratumClientCustomizer`; return to keep the `DownstreamException`. It is asked on each call that ends with an error
-answer, in the customizers' order, so the first that throws wins. The three codes are never passed to it.
+answer, in the customizers' order, so the first that throws wins. A call that ends with one of the codes
+`SX-HTTPC-0001` to `SX-HTTPC-0006`, or with an answer that cannot be read, is never passed to it.
 
 ```java
 @Bean

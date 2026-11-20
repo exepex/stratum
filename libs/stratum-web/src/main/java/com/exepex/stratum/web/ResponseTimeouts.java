@@ -6,6 +6,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.web.method.HandlerMethod;
 
@@ -20,6 +21,9 @@ public class ResponseTimeouts implements AutoCloseable {
 
   /** How long a request may take when nothing sets a limit, outside backward-compatible mode. */
   private static final Duration STANDARD_TIMEOUT = Duration.ofSeconds(10);
+
+  /** The status of a request that ran out of time when error.statuses does not map SX-WEB-1007. */
+  private static final int DEFAULT_STATUS = HttpStatus.SERVICE_UNAVAILABLE.value();
 
   /** The limit of a request whose path matches no route. */
   @Getter(AccessLevel.PACKAGE)
@@ -37,7 +41,8 @@ public class ResponseTimeouts implements AutoCloseable {
   /**
    * Makes the timeouts and starts their timer thread.
    *
-   * @param settings the web settings, whose timeout settings it uses
+   * @param settings the web settings, whose timeout settings and status of {@code SX-WEB-1007} it
+   *     uses
    * @param backwardCompatible whether {@code stratum.backward-compatible} is on, which leaves a
    *     request with no limit set unlimited, so an existing service's requests are not cut off;
    *     otherwise such a request may take 10s
@@ -50,7 +55,12 @@ public class ResponseTimeouts implements AutoCloseable {
         Optional.ofNullable(timeout.defaultLimit())
             .orElse(backwardCompatible ? Duration.ZERO : STANDARD_TIMEOUT);
     this.routeLimits = new RouteValues<>(WebConstants.TIMEOUT_ROUTES, timeout.routes());
-    this.status = HttpStatusCode.valueOf(timeout.status());
+    this.status =
+        HttpStatusCode.valueOf(
+            settings
+                .error()
+                .statuses()
+                .getOrDefault(WebErrorCode.REQUEST_TIMED_OUT.getCode(), DEFAULT_STATUS));
     this.timer =
         new ScheduledThreadPoolExecutor(
             1, Thread.ofPlatform().name("stratum-response-timeout").daemon().factory());

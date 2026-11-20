@@ -101,7 +101,7 @@ Module page: [Web → Properties](../modules/web.md#properties).
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stratum.web.error.statuses` | `Map<String, Integer>` | none | The HTTP status, from 400 to 599, of each of the service's error codes that a StratumException carries, such as ORD-0001 to 409. A code with no status is answered with 500 and logged. It also changes a Stratum code's own default, such as 409 for SX-WEB-1011. None by default. |
+| `stratum.web.error.statuses` | `Map<String, Integer>` | none | The HTTP status, from 400 to 599, of each of the service's error codes that a StratumException carries, such as ORD-0001 to 409. A code with no status is answered with 500 and logged. It also changes a Stratum code's own default, such as 409 for SX-WEB-1011 or 503 for SX-WEB-1007, a request that ran out of time. None by default. |
 
 ### `stratum.web.request-fields`
 
@@ -127,7 +127,6 @@ Module page: [Web → Properties](../modules/web.md#properties).
 | --- | --- | --- | --- |
 | `stratum.web.timeout.default-limit` | `Duration` | `10s` | How long any request may take until its response starts, such as 10s or 500ms. 0 means no limit. Defaults to 10s, or to no limit while stratum.backward-compatible is true, so an existing service's requests are not cut off. |
 | `stratum.web.timeout.routes` | `Map<String, Duration>` | none | The limit of the requests whose path matches a pattern, such as /reports/\*\* to 60s. When several patterns match, the most specific one wins. 0 means no limit on those paths. None by default. |
-| `stratum.web.timeout.status` | `Integer` | `503` | The HTTP status, from 400 to 599, that a request which ran out of time is answered with. Defaults to 503. |
 
 ### `stratum.web.user-agent`
 
@@ -232,10 +231,10 @@ Module page: [HTTP client → Properties](../modules/http-client.md#properties).
 | `stratum.http-client.defaults.max-connections` | `Integer` | `50` | The most connections the client keeps open at once, from 1 to 10000. A call that finds them all busy waits for one. Defaults to 50. |
 | `stratum.http-client.defaults.max-wait` | `Duration` | `2s` | How long a call waits for a free connection before it fails, such as 2s or 500ms. A value below 1ms is used as 1ms. Defaults to 2s. |
 | `stratum.http-client.defaults.mock` | `Boolean` | `false` | Whether the client answers from files under stratum-mocks and from test scripts instead of calling the other service, for a service that is not deployed yet and for tests. Logs a warning at every startup. Defaults to false. |
+| `stratum.http-client.defaults.read-timeout` | `Duration` | `5s` | The longest wait for the first byte of an answer and between two of its bytes, such as 5s or 20s for a slow report. A slow answer whose bytes keep coming takes as long as it needs. A value below 1ms is used as 1ms. Defaults to 5s. |
 | `stratum.http-client.defaults.response-body-limit` | `DataSize` | `32MB` | The most of a successful answer's body the client reads, such as 32MB, from 1B to 1GB, or -1 for no limit. Reading a larger body fails with SX-HTTPC-0006; a body the call does not read is dropped once it passes the limit. A method that returns an InputStream is not limited. Defaults to 32MB. |
 | `stratum.http-client.defaults.shared-pool` | `Boolean` | `false` | Whether the client uses the one pool shared by every client that sets it, instead of its own. That pool takes its size, connect timeout, idle timeout and lifetime from defaults. Defaults to false. |
 | `stratum.http-client.defaults.ssl-bundle` | `String` | none | The name of a spring.ssl.bundle bundle whose certificate the client presents and whose trust material it checks the other service with (mutual TLS), such as bank. None by default. Not allowed under defaults, nor with shared-pool. |
-| `stratum.http-client.defaults.timeout` | `Duration` | `5s` | The longest wait for the first byte of an answer and between two of its bytes, such as 5s or 20s for a slow report. A slow answer whose bytes keep coming takes as long as it needs. A value below 1ms is used as 1ms. Defaults to 5s. |
 | `stratum.http-client.defaults.total-timeout` | `Duration` | `8s` | The time allowed for a whole call, retries, waits and the answer's head and body included, except a streamed download's body, such as 8s. Defaults to 8s. |
 | `stratum.http-client.defaults.trace-headers` | `Boolean` | `true` | Whether calls carry the correlation ID: true sends X-Correlation-Id when the call has none, beside the trace headers Spring Boot's tracing sends; false sends no trace, baggage or correlation header, such as to a third party. Defaults to true. |
 | `stratum.http-client.defaults.url` | `String` | none | The address of the other service, such as http://inventory:8080. Required. Set it for each client; it is not allowed under defaults. |

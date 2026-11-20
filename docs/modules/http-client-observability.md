@@ -80,7 +80,7 @@ response header, a body, the exception or its message, or the status text.
 | `SUCCESS` | An answer that is not an error, or a `404` that a method returning `Optional` reads as empty. |
 | `CLIENT_ERROR` | An error answer of 4xx. |
 | `SERVER_ERROR` | An error answer of 5xx. |
-| `TIMEOUT` | No answer within the client's `timeout`. |
+| `TIMEOUT` | No answer within the client's `read-timeout`. |
 | `UNAVAILABLE` | No answer for any other reason: a failed connection or connect timeout, an unknown host, a full pool, a dropped connection, or a service token that could not be fetched. |
 | `ERROR` | A failure inside your service, such as an answer that cannot be read. |
 | `REFUSED` | The open breaker refused the call before any attempt was sent. Counted, never logged. |

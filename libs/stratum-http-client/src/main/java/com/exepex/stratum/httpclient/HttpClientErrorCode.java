@@ -57,6 +57,28 @@ public enum HttpClientErrorCode implements ErrorCode {
       "The other service's answer is larger than the client's response-body-limit",
       ""),
 
+  /** The other service answered with a final error, such as 404 or 500; the caller gets 500. */
+  DOWNSTREAM_ERROR("SX-HTTPC-0007", Severity.ERROR, "The other service answered with an error", ""),
+
+  /**
+   * The answer of the other service cannot be read, such as JSON that does not match; its work may
+   * be done. The caller gets 500.
+   */
+  ANSWER_UNREADABLE(
+      "SX-HTTPC-0008",
+      Severity.ERROR,
+      "The other service's answer cannot be read, though its work may be done",
+      ""),
+
+  /**
+   * The other service still answered 429, 502, 503 or 504 after the retries; the caller gets 500.
+   */
+  DOWNSTREAM_REFUSED_FOR_NOW(
+      "SX-HTTPC-0009",
+      Severity.ERROR,
+      "The other service answered that it cannot take the call for now",
+      ""),
+
   /**
    * A Spring Boot setting of an HTTP service group is set for a Stratum client, which ignores it.
    */
@@ -68,7 +90,7 @@ public enum HttpClientErrorCode implements ErrorCode {
           + ".<name> is set for a Stratum client, which does not read it",
       "Move the setting to "
           + HttpClientConstants.CLIENTS
-          + ".<name>, such as url instead of base-url and timeout instead of read-timeout."),
+          + ".<name>, such as url instead of base-url; read-timeout keeps its name."),
 
   /** A Stratum client returns {@code Mono} or {@code Flux}, which the blocking starter cannot. */
   REACTIVE_METHOD(

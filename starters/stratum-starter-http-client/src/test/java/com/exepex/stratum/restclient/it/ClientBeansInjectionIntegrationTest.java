@@ -236,7 +236,7 @@ class ClientBeansInjectionIntegrationTest {
     @Test
     @DisplayName("a client without url stops startup with SX-HTTPC-1004, naming the key")
     void clientWithoutUrlStopsStartup() {
-      var billingTimeout = HttpClientConstants.CLIENTS + ".billing.timeout";
+      var billingTimeout = HttpClientConstants.CLIENTS + ".billing.read-timeout";
 
       assertThatThrownBy(() -> startWith(RestClientTestData.setting(billingTimeout, "1s")).close())
           .rootCause()

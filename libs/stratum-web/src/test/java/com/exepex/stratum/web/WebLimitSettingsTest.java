@@ -16,7 +16,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.springframework.http.HttpStatus;
 import org.springframework.mock.env.MockEnvironment;
 import org.springframework.util.unit.DataSize;
 
@@ -35,7 +34,7 @@ class WebLimitSettingsTest {
         Map.of("/reports/**", Duration.ofSeconds(60));
 
     @Test
-    @DisplayName("with nothing set, no default limit of the service's own and 503")
+    @DisplayName("with nothing set, no default limit of the service's own")
     void defaults() {
       var settings = WebProperties.resolve(new MockEnvironment());
       var teamSet =
@@ -44,7 +43,6 @@ class WebLimitSettingsTest {
 
       assertThat(settings.timeout().defaultLimit()).isNull();
       assertThat(teamSet.timeout().defaultLimit()).isEqualTo(FILE_LIMIT);
-      assertThat(settings.timeout().status()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE.value());
     }
 
     @Test
@@ -53,13 +51,10 @@ class WebLimitSettingsTest {
       var environment =
           new MockEnvironment()
               .withProperty(WebConstants.TIMEOUT_DEFAULT_LIMIT, "5s")
-              .withProperty(WebConstants.TIMEOUT_ROUTES + "[/reports/**]", "60s")
-              .withProperty(WebConstants.TIMEOUT_STATUS, "504");
+              .withProperty(WebConstants.TIMEOUT_ROUTES + "[/reports/**]", "60s");
 
       assertThat(WebProperties.resolve(environment).timeout())
-          .isEqualTo(
-              new WebProperties.TimeoutSettings(
-                  FILE_LIMIT, REPORT_ROUTES, HttpStatus.GATEWAY_TIMEOUT.value()));
+          .isEqualTo(new WebProperties.TimeoutSettings(FILE_LIMIT, REPORT_ROUTES));
     }
 
     @Test
@@ -68,9 +63,7 @@ class WebLimitSettingsTest {
       var environment = WebTestData.yamlEnvironment();
 
       assertThat(WebProperties.resolve(environment).timeout())
-          .isEqualTo(
-              new WebProperties.TimeoutSettings(
-                  FILE_LIMIT, REPORT_ROUTES, HttpStatus.GATEWAY_TIMEOUT.value()));
+          .isEqualTo(new WebProperties.TimeoutSettings(FILE_LIMIT, REPORT_ROUTES));
     }
 
     @Test
@@ -90,13 +83,14 @@ class WebLimitSettingsTest {
     }
 
     @Test
-    @DisplayName("a status that is not an error stops startup with SX-CORE-1003")
+    @DisplayName("a status of SX-WEB-1007 that is not an error stops startup with SX-CORE-1003")
     void nonErrorStatusIsRejected() {
-      var environment = new MockEnvironment().withProperty(WebConstants.TIMEOUT_STATUS, "200");
+      var environment =
+          new MockEnvironment().withProperty(WebTestData.REQUEST_TIMED_OUT_STATUS, "200");
 
       assertThatExceptionOfType(StratumException.class)
           .isThrownBy(() -> WebProperties.resolve(environment))
-          .withMessageStartingWith(WebTestData.INVALID_SETTINGS + WebConstants.TIMEOUT_STATUS);
+          .withMessageStartingWith(WebTestData.INVALID_SETTINGS + WebConstants.ERROR_STATUSES);
     }
   }
 

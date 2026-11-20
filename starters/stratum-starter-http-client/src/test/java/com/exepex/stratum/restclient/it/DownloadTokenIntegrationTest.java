@@ -20,14 +20,14 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 /**
- * The files client sends the service's own token, with a {@code timeout} far above its {@code
+ * The files client sends the service's own token, with a {@code read-timeout} far above its {@code
  * total-timeout}. A streamed download keeps its full answer timeout, but its token request must
  * not.
  */
 @SpringBootTest(
     classes = FilesApplication.class,
     properties = {
-      RestClientTestData.FILES_SETTINGS + ".timeout=30s",
+      RestClientTestData.FILES_SETTINGS + ".read-timeout=30s",
       RestClientTestData.FILES_SETTINGS + ".total-timeout=300ms",
       RestClientTestData.FILES_SETTINGS
           + ".auth.client-credentials="
@@ -54,7 +54,7 @@ class DownloadTokenIntegrationTest {
   }
 
   @Test
-  @DisplayName("not by the client's timeout, which the download itself keeps")
+  @DisplayName("not by the client's read-timeout, which the download itself keeps")
   void tokenRequestEndsDuringDownload() {
     IDENTITY_PROVIDER.tokenAnswer(TokenAnswer.HOLD);
     var started = System.nanoTime();

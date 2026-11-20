@@ -40,8 +40,9 @@ when:
 
 - the consumer asks for it with `Accept: application/problem+json`, request by request, so each
   consumer moves when it is ready;
-- the error is Stratum's own, which no consumer has seen before: a `StratumException`, a timeout
-  or a body too large;
+- the error is Stratum's own, which no consumer has seen before: a `StratumException`, a timeout,
+  a body too large, or a call of a Stratum HTTP client that failed uncaught, which gets `500` with
+  its code ([HTTP client: errors](http-client-errors.md));
 - the exception implements `FailureWithErrorCode`, so mark an existing exception only as the
   next section says;
 - the service sets `stratum.backward-compatible=false`, or leaves it unset, as a new service does.

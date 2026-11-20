@@ -93,7 +93,7 @@ stratum:
     clients:
       partner:
         url: https://api.partner.example
-        timeout: 5s                     # longest wait for the answer, and between bytes
+        read-timeout: 5s                # longest wait for the answer, and between bytes
         total-timeout: 8s               # the whole call: attempts, the answer's head and body, waits for a connection and between attempts
         retry:
           max-retries: 3                # extra attempts, 0 to 9; a call with a body is sent once
@@ -109,7 +109,7 @@ stratum:
 
 ```properties
 stratum.http-client.clients.partner.url=https://api.partner.example
-stratum.http-client.clients.partner.timeout=5s
+stratum.http-client.clients.partner.read-timeout=5s
 stratum.http-client.clients.partner.total-timeout=8s
 stratum.http-client.clients.partner.retry.max-retries=3
 stratum.http-client.clients.partner.retry.backoff-policy=exponential
@@ -138,7 +138,7 @@ public class PartnerClientSettings implements HttpClientPropertiesCustomizer {
     var partner =
         properties.clientSettings("partner").toBuilder()
             .url("https://api.partner.example")   // a client set only in Java needs its url here
-            .timeout(Duration.ofSeconds(3))
+            .readTimeout(Duration.ofSeconds(3))
             .build();
     var clients = new HashMap<>(properties.clients());
     clients.put("partner", partner);
@@ -201,7 +201,7 @@ A call through either bean runs through the client's retries and circuit breaker
 | A 401 on a client with `auth.client-credentials` | Sent once more with a new token, for a call with no body; a call with a body gets its 401 |
 
 The whole call, its retries, waits and the reading of its answer's head and body included, ends by `total-timeout`,
-8s by default: each attempt waits for the answer at most `timeout` or the time left, whichever is less, as an
+8s by default: each attempt waits for the answer at most `read-timeout` or the time left, whichever is less, as an
 interface's call does. To call a slow service, raise `total-timeout` for that client or under `defaults`, for example
 to 30s.
 
@@ -218,9 +218,10 @@ downloads, raise `total-timeout` for that client, or use an interface method tha
 
 - **Spring's own exceptions.** A failed call throws `HttpClientErrorException`, `HttpServerErrorException` or
   `ResourceAccessException`, as a `RestClient` or `RestTemplate` you built would, because a generated client's own
-  error handling expects them. A 404 is `HttpClientErrorException.NotFound`. `DownstreamException`, `mapError` and the
-  empty `Optional` on a 404 are for interfaces only ([errors](http-client-errors.md)). Three Stratum codes
-  remain, as for an interface: `SX-HTTPC-0003` for a call refused by an open breaker, `SX-HTTPC-0002` for a token
+  error handling expects them. A 404 is `HttpClientErrorException.NotFound`. `DownstreamException`,
+  `UnreadableAnswerException` and their codes `SX-HTTPC-0007` to `SX-HTTPC-0009`, `mapError` and the empty
+  `Optional` on a 404 are for interfaces only ([errors](http-client-errors.md)). Three Stratum codes remain, as for an
+  interface: `SX-HTTPC-0003` for a call refused by an open breaker, `SX-HTTPC-0002` for a token
   that cannot be fetched, and `SX-HTTPC-0004` for a token-relay call with no verified caller.
 - **A body is never sent twice.** An interface may resend a `POST` whose connection never opened, and a `PUT`.
 - **A body cut off after the answer's head** is neither retried nor counted by the breaker.
@@ -237,7 +238,7 @@ downloads, raise `total-timeout` for that client, or use an interface method tha
 ## A client with its own engine
 
 A vendor SDK with its own HTTP engine, not Spring's, reads the client's settings, its own merged with `defaults`,
-from `stratumHttpClients.settings("partner")`, for example `settings.url()` and `settings.timeout()`. Retry and
+from `stratumHttpClients.settings("partner")`, for example `settings.url()` and `settings.readTimeout()`. Retry and
 circuit breaker for such an engine are planned ([#262](https://github.com/exepex/stratum/issues/262)).
 
 ## A generated interface

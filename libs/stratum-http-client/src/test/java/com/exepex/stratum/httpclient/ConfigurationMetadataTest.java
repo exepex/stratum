@@ -24,7 +24,7 @@ class ConfigurationMetadataTest {
       List.of(
           "url",
           "connect-timeout",
-          "timeout",
+          "read-timeout",
           "max-connections",
           "max-wait",
           "idle-timeout",

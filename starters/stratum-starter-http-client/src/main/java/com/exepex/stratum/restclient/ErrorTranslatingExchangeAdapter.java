@@ -55,7 +55,14 @@ public class ErrorTranslatingExchangeAdapter extends AroundCallExchangeAdapter {
     } catch (RestClientResponseException answer) {
       throw errors.downstream(client, values, answer);
     } catch (RestClientException failure) {
-      throw errors.tooLarge(failure).or(() -> errors.noAnswer(failure)).orElseThrow(() -> failure);
+      var coded = errors.tooLarge(failure).or(() -> errors.noAnswer(failure));
+      if (coded.isPresent()) {
+        throw coded.get();
+      }
+      throw errors
+          .unreadable(client, values, failure)
+          .<RestClientException>map(RestClientException.class::cast)
+          .orElse(failure);
     }
   }
 }

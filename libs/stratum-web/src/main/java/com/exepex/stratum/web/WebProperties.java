@@ -28,7 +28,7 @@ import org.springframework.util.unit.DataSize;
  * @param clientLocation Where the client's country and city come from.
  * @param requestFields The fields every log line of a request carries.
  * @param requestLog The one log line each request writes when it ends.
- * @param timeout How long a request may take before it is answered with the timeout status.
+ * @param timeout How long a request may take before it is answered with SX-WEB-1007.
  * @param bodyLimit How large a request's body may be before it is answered with 413.
  */
 @Builder(toBuilder = true)
@@ -64,8 +64,8 @@ public record WebProperties(
    *
    * @param statuses The HTTP status, from 400 to 599, of each of the service's error codes that a
    *     StratumException carries, such as ORD-0001 to 409. A code with no status is answered with
-   *     500 and logged. It also changes a Stratum code's own default, such as 409 for SX-WEB-1011.
-   *     None by default.
+   *     500 and logged. It also changes a Stratum code's own default, such as 409 for SX-WEB-1011
+   *     or 503 for SX-WEB-1007, a request that ran out of time. None by default.
    */
   @Builder(toBuilder = true)
   public record ErrorSettings(@DefaultValue Map<String, @Min(400) @Max(599) Integer> statuses) {
@@ -212,10 +212,11 @@ public record WebProperties(
   }
 
   /**
-   * How long a request may take until its response starts, before it is answered with the timeout
-   * status. A response that has started, such as a stream or a download, is not cut off, though on
-   * Spring MVC with a data starter its SQL statements still end by the limit. A method's
-   * {@code @ResponseTimeout} wins over a route, and a route wins over the default.
+   * How long a request may take until its response starts, before it is answered with SX-WEB-1007,
+   * whose status is 503 unless error.statuses maps it. A response that has started, such as a
+   * stream or a download, is not cut off, though on Spring MVC with a data starter its SQL
+   * statements still end by the limit. A method's {@code @ResponseTimeout} wins over a route, and a
+   * route wins over the default.
    *
    * @param defaultLimit How long any request may take until its response starts, such as 10s or
    *     500ms. 0 means no limit. Defaults to 10s, or to no limit while stratum.backward-compatible
@@ -223,14 +224,10 @@ public record WebProperties(
    * @param routes The limit of the requests whose path matches a pattern, such as /reports/** to
    *     60s. When several patterns match, the most specific one wins. 0 means no limit on those
    *     paths. None by default.
-   * @param status The HTTP status, from 400 to 599, that a request which ran out of time is
-   *     answered with. Defaults to 503.
    */
   @Builder(toBuilder = true)
   public record TimeoutSettings(
-      @Nullable Duration defaultLimit,
-      @DefaultValue Map<String, Duration> routes,
-      @DefaultValue("503") @Min(400) @Max(599) int status) {
+      @Nullable Duration defaultLimit, @DefaultValue Map<String, Duration> routes) {
 
     /** Keeps an unchangeable copy of the routes. */
     public TimeoutSettings {

@@ -52,7 +52,7 @@ import org.springframework.web.client.HttpServerErrorException;
       RestClientTestData.PRICING_SETTINGS + ".auth.basic.password=" + RestClientTestData.SECRET,
       RestClientTestData.PARTNER_SETTINGS + ".auth.api-key=" + RestClientTestData.SECRET,
       ClientBeansTransportIntegrationTest.INVOICING_SETTINGS + ".auth.client-credentials=invoices",
-      ClientBeansTransportIntegrationTest.INVOICING_SETTINGS + ".timeout=5s",
+      ClientBeansTransportIntegrationTest.INVOICING_SETTINGS + ".read-timeout=5s",
       ClientBeansTransportIntegrationTest.INVOICING_SETTINGS + ".total-timeout=1s",
       ClientBeansTransportIntegrationTest.INVOICING_SETTINGS + ".max-connections=1",
       ClientBeansTransportIntegrationTest.INVOICING_SETTINGS + ".max-wait=1s",
@@ -211,7 +211,7 @@ class ClientBeansTransportIntegrationTest {
 
     /**
      * The latest end of a call whose token fetch is held: the client's total-timeout of 1s, its
-     * first fetch's start-up and some slack, well below its timeout of 5s.
+     * first fetch's start-up and some slack, well below its read-timeout of 5s.
      */
     private static final Duration TOKEN_WAIT_ENDS_BEFORE = Duration.ofSeconds(3);
 

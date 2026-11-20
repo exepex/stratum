@@ -105,7 +105,7 @@ sealed interface ClientTransport {
     public ClientHttpRequestFactory requestFactory(String client, ClientSettings settings) {
       return new MockRequestFactory(
           client,
-          Objects.requireNonNull(settings.timeout()),
+          Objects.requireNonNull(settings.readTimeout()),
           Objects.requireNonNull(settings.responseBodyLimit()).toBytes(),
           mockAnswers);
     }

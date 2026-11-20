@@ -44,11 +44,11 @@ sent again.
 A `503` or `429` with a `Retry-After` of whole seconds or an HTTP date waits that long instead of the back-off. A wait
 set in `customizeRetry` replaces both and is checked against `total-timeout` the same way. A call is sent again only
 while the wait still leaves at least 100ms before `total-timeout`; otherwise the last answer or failure is the call's
-result. Each attempt's connection wait, connect timeout and `timeout` are cut to the time left, and reading an
+result. Each attempt's connection wait, connect timeout and `read-timeout` are cut to the time left, and reading an
 answer, its status line, headers and body, stops when `total-timeout` runs out, with `SX-HTTPC-0001`, however
 slowly it comes. A method that returns an `InputStream`, a streamed download, is the exception: no new attempt
-starts after `total-timeout`, but each attempt keeps its full `timeout`, the longest gap between bytes, so a long
-download is never cut off. Its status line and headers, like the stream, are then bounded only by `timeout` between
+starts after `total-timeout`, but each attempt keeps its full `read-timeout`, the longest gap between bytes, so a long
+download is never cut off. Its status line and headers, like the stream, are then bounded only by `read-timeout` between
 bytes, so they may arrive after `total-timeout`.
 
 ## The `retry` group

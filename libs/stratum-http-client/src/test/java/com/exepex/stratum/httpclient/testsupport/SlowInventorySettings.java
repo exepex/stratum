@@ -16,7 +16,7 @@ public class SlowInventorySettings implements HttpClientPropertiesCustomizer {
     var inventory = properties.clients().get(HttpClientTestData.INVENTORY);
     var slow =
         (inventory == null ? ClientSettings.builder() : inventory.toBuilder())
-            .timeout(HttpClientTestData.REPORT_TIMEOUT)
+            .readTimeout(HttpClientTestData.REPORT_READ_TIMEOUT)
             .totalTimeout(HttpClientTestData.REPORT_TOTAL_TIMEOUT)
             .build();
     return properties.toBuilder().clients(Map.of(HttpClientTestData.INVENTORY, slow)).build();

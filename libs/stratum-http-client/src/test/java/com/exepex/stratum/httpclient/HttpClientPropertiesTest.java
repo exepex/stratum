@@ -29,7 +29,7 @@ class HttpClientPropertiesTest {
           .isEqualTo(
               ClientSettings.builder()
                   .connectTimeout(HttpClientConstants.DEFAULT_CONNECT_TIMEOUT)
-                  .timeout(HttpClientConstants.DEFAULT_TIMEOUT)
+                  .readTimeout(HttpClientConstants.DEFAULT_READ_TIMEOUT)
                   .maxConnections(HttpClientConstants.DEFAULT_MAX_CONNECTIONS)
                   .maxWait(HttpClientConstants.DEFAULT_MAX_WAIT)
                   .idleTimeout(HttpClientConstants.DEFAULT_IDLE_TIMEOUT)
@@ -56,13 +56,13 @@ class HttpClientPropertiesTest {
     void clientValueWins() {
       var environment =
           new MockEnvironment()
-              .withProperty(HttpClientConstants.DEFAULTS + ".timeout", "3s")
+              .withProperty(HttpClientConstants.DEFAULTS + ".read-timeout", "3s")
               .withProperty(
                   HttpClientConstants.DEFAULTS + ".max-connections",
                   String.valueOf(HttpClientTestData.SHARED_MAX_CONNECTIONS))
               .withProperty(
                   HttpClientTestData.INVENTORY_SETTINGS + ".url", HttpClientTestData.INVENTORY_URL)
-              .withProperty(HttpClientTestData.INVENTORY_SETTINGS + ".timeout", "20s")
+              .withProperty(HttpClientTestData.INVENTORY_SETTINGS + ".read-timeout", "20s")
               .withProperty(HttpClientTestData.DEFAULTS_RETRY + ".max-retries", "5")
               .withProperty(HttpClientTestData.INVENTORY_RETRY + ".max-retries", "0")
               .withProperty(HttpClientTestData.INVENTORY_BREAKER + ".enabled", "false");
@@ -71,7 +71,7 @@ class HttpClientPropertiesTest {
           HttpClientProperties.resolve(environment).clientSettings(HttpClientTestData.INVENTORY);
 
       assertThat(settings.url()).isEqualTo(HttpClientTestData.INVENTORY_URL);
-      assertThat(settings.timeout()).isEqualTo(HttpClientTestData.REPORT_TIMEOUT);
+      assertThat(settings.readTimeout()).isEqualTo(HttpClientTestData.REPORT_READ_TIMEOUT);
       assertThat(settings.maxConnections()).isEqualTo(HttpClientTestData.SHARED_MAX_CONNECTIONS);
       assertThat(settings.connectTimeout()).isEqualTo(HttpClientConstants.DEFAULT_CONNECT_TIMEOUT);
       assertThat(settings.retry().maxRetries()).isZero();
@@ -84,9 +84,10 @@ class HttpClientPropertiesTest {
     void readFromYaml() throws IOException {
       var properties = HttpClientProperties.resolve(HttpClientTestData.yamlEnvironment());
 
-      assertThat(properties.defaults().timeout()).isEqualTo(HttpClientTestData.SHARED_TIMEOUT);
-      assertThat(properties.clientSettings(HttpClientTestData.INVENTORY).timeout())
-          .isEqualTo(HttpClientTestData.INVENTORY_TIMEOUT);
+      assertThat(properties.defaults().readTimeout())
+          .isEqualTo(HttpClientTestData.SHARED_READ_TIMEOUT);
+      assertThat(properties.clientSettings(HttpClientTestData.INVENTORY).readTimeout())
+          .isEqualTo(HttpClientTestData.INVENTORY_READ_TIMEOUT);
       assertThat(properties.clientSettings(HttpClientTestData.INVENTORY).url())
           .isEqualTo(HttpClientTestData.INVENTORY_URL);
       assertThat(properties.clientSettings(HttpClientTestData.INVENTORY).interfaces())

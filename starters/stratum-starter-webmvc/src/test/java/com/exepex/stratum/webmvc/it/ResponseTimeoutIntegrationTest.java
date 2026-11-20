@@ -28,7 +28,7 @@ import org.springframework.http.HttpStatus;
     properties = {
       WebConstants.TIMEOUT_DEFAULT_LIMIT + "=30s",
       WebConstants.TIMEOUT_ROUTES + "[/slow/**]=1s",
-      WebConstants.TIMEOUT_STATUS + "=504",
+      WebConstants.ERROR_STATUSES + ".SX-WEB-1007=504",
       "management.tracing.sampling.probability=1.0",
       "management.tracing.export.otlp.enabled=false",
       "management.otlp.metrics.export.enabled=false"

@@ -114,12 +114,12 @@ in proxy and server logs that Stratum does not control. Send it in the request b
 
 | What | Behaviour |
 | --- | --- |
-| Timeouts | A connection must open within `connect-timeout` (2s). The first byte of an answer, and each byte after it, must come within `timeout` (5s). An answer whose status line, headers or body keep coming is cut off when `total-timeout` runs out, except a streamed download ([Streaming](#streaming)). |
+| Timeouts | A connection must open within `connect-timeout` (2s). The first byte of an answer, and each byte after it, must come within `read-timeout` (5s). An answer whose status line, headers or body keep coming is cut off when `total-timeout` runs out, except a streamed download ([Streaming](#streaming)). |
 | A pool per client | At most `max-connections` (50) connections. A call that finds them all busy waits at most `max-wait` (2s), then fails. A slow service fills only its own client's pool. |
 | Safe retries | A call is sent again only when that is safe ([retries and the circuit breaker](http-client-resilience.md)). Apache HttpClient 5's own retries are off. |
 | A time limit per call | The whole call, retries, waits and the answer's head and body included, ends within `total-timeout` (8s), except a streamed download's answer. A call that does not read the body, such as a method that returns `void`, gets its status and headers, and the rest of the body is dropped. |
 | A circuit breaker | When most recent calls fail, the client stops calling the service for a while and fails at once. |
-| Clear errors | A timeout ends with `SX-HTTPC-0001` (`504`), no answer with `SX-HTTPC-0002` (`503`), an open breaker with `SX-HTTPC-0003` (`503`), and an error answer with a `DownstreamException` holding at most 64 KB of its body ([errors](http-client-errors.md)). |
+| Clear errors | A timeout ends with `SX-HTTPC-0001` (`504`), no answer with `SX-HTTPC-0002` (`503`), an open breaker with `SX-HTTPC-0003` (`503`), an error answer with a `DownstreamException` holding at most 64 KB of its body, `SX-HTTPC-0007` or `SX-HTTPC-0009` (`500`), and an answer that cannot be read with `SX-HTTPC-0008` (`500`) ([errors](http-client-errors.md)). |
 | A limit on answers | A successful answer's body is read up to `response-body-limit` (32 MB); a larger one fails with `SX-HTTPC-0006` ([errors](http-client-errors.md#the-answer-body-is-read-up-to-32-mb)). A method returning `InputStream` is not limited. |
 | No redirects | A `3xx` answer is returned as it is and never followed. |
 | No answer cache | A client never caches answers. To reuse one, put `@Cacheable` from the [cache starter](cache.md#use-it) on the service method that calls the client. |
@@ -141,7 +141,7 @@ the shared default, which wins over Stratum's.
 | `stratum.http-client.enabled` | boolean | `true` | no such key | Whether the starter is on. With `false`, it sets up nothing. |
 | `url` | URL | **required** per client | no such key | The address of the other service, such as `http://inventory:8080`. Not allowed under `defaults`, since each client calls its own service. |
 | `connect-timeout` | duration | `2s` | no such key | The time allowed to open a connection. A value below 1 ms is used as 1 ms. |
-| `timeout` | duration | `5s` | no such key | The longest wait for the first byte of an answer and between two of its bytes. It does not limit the whole call. A value below 1 ms is used as 1 ms. |
+| `read-timeout` | duration | `5s` | no such key | The longest wait for the first byte of an answer and between two of its bytes. It does not limit the whole call. A value below 1 ms is used as 1 ms. |
 | `max-connections` | int | `50` | no such key | The most connections the client keeps open at once, from 1 to 10000. |
 | `max-wait` | duration | `2s` | no such key | How long a call waits for a free connection before it fails. A value below 1 ms is used as 1 ms. |
 | `idle-timeout` | duration | `30s` | no such key | How long a connection may stay unused before it is closed. |
@@ -160,7 +160,7 @@ the shared default, which wins over Stratum's.
 | `circuit-breaker.permitted-number-of-calls-in-half-open-state` | int | `10` | no such key | How many trial calls go through after the open state, from 1 to 1000. |
 | `circuit-breaker.slow-call-duration-threshold` | duration | unset: Resilience4j's `60s` | no such key | How long an attempt may take before it counts as slow ([the slow-call rule](http-client-resilience.md#the-circuit-breaker-group)). |
 | `circuit-breaker.slow-call-rate-threshold` | percent | unset: Resilience4j's `100` | no such key | The share of slow attempts, from 1 to 100, that opens the breaker. Only with `slow-call-duration-threshold`. |
-| `shared-pool` | boolean | `false` | no such key | With `true`, the client uses one pool shared by every client that sets it, instead of its own. That pool takes its size, connect timeout, idle timeout and lifetime from `defaults`; the client keeps its own `timeout` and `max-wait`. |
+| `shared-pool` | boolean | `false` | no such key | With `true`, the client uses one pool shared by every client that sets it, instead of its own. That pool takes its size, connect timeout, idle timeout and lifetime from `defaults`; the client keeps its own `read-timeout` and `max-wait`. |
 | `interfaces` | list of interface names | none | no such key | Generated interfaces, by full name such as `com.partner.OrdersApi`, that call this client's service with all its settings, as a `@StratumClient` interface does ([Clients Stratum did not build](#clients-stratum-did-not-build)). Not allowed under `defaults`. |
 | `call-log` | `errors`, `all` or `none` | `errors` | no such key | Which calls write a log line: `errors`, one WARN per failed call; `all`, also one INFO per success; `none`, no line ([call log and meters](http-client-observability.md)). |
 | `trace-headers` | boolean | `true` | no such key | With `true`, each call sends `X-Correlation-Id` from the logging context when it has none; with `false`, it sends no trace, baggage or correlation header, such as to a third party ([trace headers](http-client-observability.md#trace-headers)). |
@@ -194,13 +194,13 @@ timeouts from `stratum.http-client.*`, and it does not follow redirects.
 
 ## Examples
 
-A fast service with the defaults, and a slow report service with a longer timeout and a smaller pool:
+A fast service with the defaults, and a slow report service with a longer read-timeout and a smaller pool:
 
 ```properties
-stratum.http-client.defaults.timeout=3s
+stratum.http-client.defaults.read-timeout=3s
 stratum.http-client.clients.inventory.url=http://inventory:8080
 stratum.http-client.clients.reports.url=http://reports:8080
-stratum.http-client.clients.reports.timeout=20s
+stratum.http-client.clients.reports.read-timeout=20s
 stratum.http-client.clients.reports.max-connections=10
 ```
 
@@ -208,13 +208,13 @@ stratum.http-client.clients.reports.max-connections=10
 stratum:
   http-client:
     defaults:
-      timeout: 3s
+      read-timeout: 3s
     clients:
       inventory:
         url: http://inventory:8080
       reports:
         url: http://reports:8080
-        timeout: 20s
+        read-timeout: 20s
         max-connections: 10
 ```
 
@@ -314,7 +314,7 @@ public class ReportClientSettings implements HttpClientPropertiesCustomizer {
   public HttpClientProperties customize(HttpClientProperties properties) {
     var reports =
         properties.clientSettings("reports").toBuilder()
-            .timeout(Duration.ofSeconds(20))
+            .readTimeout(Duration.ofSeconds(20))
             .maxConnections(10)
             .maxWait(Duration.ofMillis(500))
             .connectionLifetime(Duration.ofMinutes(10))
@@ -372,7 +372,7 @@ A client streams a download when its method returns `InputStream` or `ResponseEn
 returns once the answer's headers arrive, and the body comes in as you read it. Every other return type, `byte[]` and
 `Resource` included, reads the whole body into memory first, so it is limited by `response-body-limit`; a download is
 not. `ResponseEntity<InputStreamResource>` is not supported by Spring as a return type. A streamed download is not cut
-off by `total-timeout`: only `timeout` between bytes bounds it, so close the stream when you are done with it.
+off by `total-timeout`: only `read-timeout` between bytes bounds it, so close the stream when you are done with it.
 
 A client streams an upload when its `@RequestBody` is a `StreamingHttpOutputMessage.Body` or an `InputStreamResource`.
 The body is sent in chunks as it is written, never held in memory.
@@ -397,10 +397,10 @@ documents.archive(out -> Files.copy(path, out));
 Close every download, as `try-with-resources` does above. An open download holds one of the client's connections until
 it is closed; when all of them are held, the next call fails after `max-wait`. Closing a download before its end reads
 the rest of it first, so that the connection can be used again: the thread and the connection stay busy until the
-download ends, and a pause in it longer than `timeout` ends the close with `SocketTimeoutException`.
+download ends, and a pause in it longer than `read-timeout` ends the close with `SocketTimeoutException`.
 
-`timeout` is the longest wait for the next byte, not for the whole download, so a large file that keeps arriving is
-read in full. A download that stops for longer than `timeout` fails with `SocketTimeoutException` as you read it.
+`read-timeout` is the longest wait for the next byte, not for the whole download, so a large file that keeps arriving is
+read in full. A download that stops for longer than `read-timeout` fails with `SocketTimeoutException` as you read it.
 
 ## Clients Stratum did not build
 
@@ -474,9 +474,9 @@ What a failed call writes, with and without the logging starter, what its redact
 
 ## Errors
 
-What a failed call throws, `DownstreamException`, a `404` read as an empty `Optional`, mapping an error answer to your
-own exception, the 64 KB read of an error body, the limit on a successful answer and the startup errors are on
-[HTTP client: errors](http-client-errors.md).
+What a failed call throws, `DownstreamException`, `UnreadableAnswerException`, a `404` read as an empty `Optional`,
+mapping an error answer to your own exception, the 64 KB read of an error body, the limit on a successful answer and
+the startup errors are on [HTTP client: errors](http-client-errors.md).
 
 ## Planned
 
@@ -493,8 +493,8 @@ These parts of [ADR 0011](../adr/0011-http-client-starters.md) are not built yet
 | --- | --- |
 | Startup fails with `SX-HTTPC-1004` | The client has no `url`, or the name in the settings differs from the one in `@StratumClient`. |
 | No bean of your client interface | The interface is outside your application's packages, or `stratum.http-client.enabled=false`. |
-| Calls fail after exactly 5 s | The default `timeout`, for a call that is not sent again, such as a `POST`. Raise it for that client if the other service is slow for a reason. |
-| `GET` calls fail after about 8 s | The default `timeout` of 5 s ran out, and the retry ran out of `total-timeout`. Raise both for that client if the other service is slow for a reason. |
+| Calls fail after exactly 5 s | The default `read-timeout`, for a call that is not sent again, such as a `POST`. Raise it for that client if the other service is slow for a reason. |
+| `GET` calls fail after about 8 s | The default `read-timeout` of 5 s ran out, and the retry ran out of `total-timeout`. Raise both for that client if the other service is slow for a reason. |
 | Calls fail with `SX-HTTPC-0006` | The other service's answer is larger than the client's `response-body-limit`, 32 MB by default. Raise it for that client, or return an `InputStream` to stream the answer. |
 | Calls fail at once with `SX-HTTPC-0003` | The client's circuit breaker is open: most recent calls to the service failed. Look at the service, and at the `WARN` line that names the client. |
 | Calls fail after 2 s with a connection request timeout | The client's pool is full: raise `max-connections`, or find what holds its connections. |

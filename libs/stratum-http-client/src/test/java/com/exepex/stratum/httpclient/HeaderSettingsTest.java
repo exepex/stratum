@@ -220,7 +220,7 @@ class HeaderSettingsTest {
               () -> HttpClientProperties.resolve(environment));
 
       var settings = properties.clientSettings(HttpClientTestData.INVENTORY);
-      assertThat(settings.timeout()).isEqualTo(HttpClientTestData.REPORT_TIMEOUT);
+      assertThat(settings.readTimeout()).isEqualTo(HttpClientTestData.REPORT_READ_TIMEOUT);
       assertThat(settings.headers()).doesNotContainEntry(ORIGIN, SHOP);
       assertThat(settings.copyHeaders()).containsExactly(TENANT, REGION);
     }

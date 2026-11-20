@@ -46,10 +46,10 @@ import org.springframework.web.client.RestClientException;
 
 /**
  * Each client of this test shows one timeout through its beans: held a pool of one with a short
- * total-timeout, hung a second attempt with less time left than its timeout, stalled a body read
- * with a total-timeout far below its timeout, and slow its own timeout next to Spring Boot's;
- * inventory has a pool of one and a server whose next error may have a large body, for the wait
- * between attempts.
+ * total-timeout, hung a second attempt with less time left than its read-timeout, stalled a body
+ * read with a total-timeout far below its read-timeout, and slow its own read-timeout next to
+ * Spring Boot's; inventory has a pool of one and a server whose next error may have a large body,
+ * for the wait between attempts.
  */
 @SpringBootTest(
     classes = ClientsApplication.class,
@@ -57,12 +57,12 @@ import org.springframework.web.client.RestClientException;
       ClientBeansTimeoutIntegrationTest.HELD_SETTINGS + ".max-connections=1",
       ClientBeansTimeoutIntegrationTest.HELD_SETTINGS + ".max-wait=5s",
       ClientBeansTimeoutIntegrationTest.HELD_SETTINGS + ".total-timeout=1s",
-      ClientBeansTimeoutIntegrationTest.HUNG_SETTINGS + ".timeout=1s",
+      ClientBeansTimeoutIntegrationTest.HUNG_SETTINGS + ".read-timeout=1s",
       ClientBeansTimeoutIntegrationTest.HUNG_SETTINGS + ".total-timeout=1500ms",
       ClientBeansTimeoutIntegrationTest.HUNG_SETTINGS + ".retry.delay=100ms",
       ClientBeansTimeoutIntegrationTest.STALLED_SETTINGS + ".total-timeout=300ms",
       ClientBeansTimeoutIntegrationTest.SLOW_SETTINGS + ".retry.max-retries=0",
-      ClientBeansTimeoutIntegrationTest.SLOW_SETTINGS + ".timeout=600ms",
+      ClientBeansTimeoutIntegrationTest.SLOW_SETTINGS + ".read-timeout=600ms",
       RestClientTestData.INVENTORY_SETTINGS + ".max-connections=1",
       RestClientTestData.INVENTORY_SETTINGS + ".max-wait=300ms",
       RestClientTestData.INVENTORY_SETTINGS + ".retry.max-retries=1",
@@ -76,13 +76,13 @@ class ClientBeansTimeoutIntegrationTest {
   /** A client with a pool of one connection and a short total-timeout. */
   static final String HELD = "held";
 
-  /** A client whose second attempt has less time left than its timeout. */
+  /** A client whose second attempt has less time left than its read-timeout. */
   static final String HUNG = "hung";
 
-  /** A client whose total-timeout is far below its timeout. */
+  /** A client whose total-timeout is far below its read-timeout. */
   static final String STALLED = "stalled";
 
-  /** A client with a short timeout and no retries. */
+  /** A client with a short read-timeout and no retries. */
   static final String SLOW = "slow";
 
   /** The settings of the held client. */

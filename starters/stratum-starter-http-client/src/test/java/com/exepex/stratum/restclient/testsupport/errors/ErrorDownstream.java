@@ -286,7 +286,7 @@ public final class ErrorDownstream implements AutoCloseable {
 
   /**
    * Counts the request and sends a 200 that promises a body, sends the given start of it and then
-   * nothing more until the server closes, far longer than the client's timeout.
+   * nothing more until the server closes, far longer than the client's read-timeout.
    */
   private void sendCut(HttpExchange exchange, String contentType, byte[] start) throws IOException {
     bodyCount.incrementAndGet();

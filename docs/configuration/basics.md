@@ -42,7 +42,7 @@ stratum:
   http-client:
     defaults:
       connect-timeout: 1s
-      timeout: 5s
+      read-timeout: 5s
 ```
 
 ```properties
@@ -51,7 +51,7 @@ spring.application.name=order-service
 
 stratum.logging.format=ecs
 stratum.http-client.defaults.connect-timeout=1s
-stratum.http-client.defaults.timeout=5s
+stratum.http-client.defaults.read-timeout=5s
 ```
 
 > [!TIP]
@@ -66,7 +66,7 @@ Each level of YAML indentation becomes one dot-separated part of the key:
 stratum:                    →  stratum
   http-client:              →  stratum.http-client
     defaults:               →  stratum.http-client.defaults
-      timeout: 5s      →  stratum.http-client.defaults.timeout=5s
+      read-timeout: 5s      →  stratum.http-client.defaults.read-timeout=5s
 ```
 
 ## How property names are built
@@ -151,13 +151,13 @@ stratum:
         url: https://inventory.internal
       payments:
         url: https://payments.internal
-        timeout: 10s
+        read-timeout: 10s
 ```
 
 ```properties
 stratum.http-client.clients.inventory.url=https://inventory.internal
 stratum.http-client.clients.payments.url=https://payments.internal
-stratum.http-client.clients.payments.timeout=10s
+stratum.http-client.clients.payments.read-timeout=10s
 ```
 
 Use lower-case kebab-case for the names you choose (`inventory`, `payment-gateway`). If a name
@@ -174,7 +174,7 @@ environment in containers and Kubernetes.
 | Property | Environment variable |
 | --- | --- |
 | `stratum.logging.format` | `STRATUM_LOGGING_FORMAT` |
-| `stratum.http-client.defaults.timeout` | `STRATUM_HTTPCLIENT_DEFAULTS_TIMEOUT` |
+| `stratum.http-client.defaults.read-timeout` | `STRATUM_HTTPCLIENT_DEFAULTS_READTIMEOUT` |
 | `stratum.http-client.clients.inventory.url` | `STRATUM_HTTPCLIENT_CLIENTS_INVENTORY_URL` |
 | `stratum.security.public-paths[0]` | `STRATUM_SECURITY_PUBLICPATHS_0` |
 

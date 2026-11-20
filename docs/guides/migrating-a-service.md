@@ -92,7 +92,11 @@ Add `stratum-starter-http-client` (and `stratum-starter-oauth2-client` if you ne
 client its own timeouts, connection pool, retries and circuit breaker. A client's error answer becomes a
 `DownstreamException` instead of Spring's subtypes, such as `HttpClientErrorException.NotFound`
 ([HTTP client: errors](../modules/http-client-errors.md)). A method that returns `Optional` gets an empty one for a
-`404`, so a `catch` of `NotFound` around it can go. For each downstream service:
+`404`, so a `catch` of `NotFound` around it can go. An answer whose body cannot be read becomes an
+`UnreadableAnswerException`, which is still a `RestClientException`. Uncaught, both are answered with `500` and
+Stratum's error body with their code, `SX-HTTPC-0007`, `SX-HTTPC-0008` or `SX-HTTPC-0009`, even in
+backward-compatible mode, where Spring Boot's body was answered before; tell the consumers of the endpoints that call
+the client. For each downstream service:
 
 1. Turn the hand-written client class into an interface with `@StratumClient("<name>")` and
    Spring's `@GetExchange`, `@PostExchange`, ... Stratum finds it by scanning
