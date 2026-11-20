@@ -47,6 +47,24 @@ public class HttpClientConstants {
   /** What a client's name looks like: lowercase letters, digits and hyphens, from a letter. */
   public static final Pattern CLIENT_NAME = Pattern.compile("[a-z][a-z0-9-]*");
 
+  /** What an operation's name looks like: lowercase letters, digits and hyphens. */
+  public static final String OPERATION_NAME_FORMAT = "[a-z0-9-]+";
+
+  /** {@link #OPERATION_NAME_FORMAT}, compiled once. */
+  public static final Pattern OPERATION_NAME = Pattern.compile(OPERATION_NAME_FORMAT);
+
+  /**
+   * What a service's own error code looks like, as for a code declared in Java: not empty, no
+   * whitespace, and not Stratum's prefix {@code SX-}.
+   */
+  public static final String ERROR_CODE_FORMAT = "(?!SX-)\\S+";
+
+  /** The lowest error status a client's {@code errors} may map. */
+  public static final int MIN_ERROR_STATUS = 400;
+
+  /** The highest error status a client's {@code errors} may map. */
+  public static final int MAX_ERROR_STATUS = 599;
+
   /** Stratum's default time allowed to open a connection. */
   public static final Duration DEFAULT_CONNECT_TIMEOUT = Duration.ofSeconds(2);
 
@@ -156,6 +174,12 @@ public class HttpClientConstants {
    * so that a 404 answers it with an empty {@code Optional}.
    */
   public static final String OPTIONAL_ANSWER = PREFIX + ".optional-answer";
+
+  /**
+   * The attribute that carries the name of a call's operation, from the {@link StratumOperation} on
+   * its method, so that the call's error answer takes that operation's {@code errors}.
+   */
+  public static final String OPERATION = PREFIX + ".operation";
 
   /** The web starter's key that maps an error code to the HTTP status its caller gets. */
   public static final String WEB_ERROR_STATUSES = "stratum.web.error.statuses";

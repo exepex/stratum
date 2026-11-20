@@ -2,11 +2,15 @@ package com.exepex.stratum.restclient;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.exepex.stratum.httpclient.ClientSettings;
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientErrorCode;
+import com.exepex.stratum.httpclient.OperationSettings;
 import com.exepex.stratum.restclient.testsupport.CallChecks;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
 import com.exepex.stratum.restclient.testsupport.errors.Order;
+import com.exepex.stratum.restclient.testsupport.mapped.MappedTestData;
+import com.exepex.stratum.restclient.testsupport.mapped.StockClient;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.ConnectException;
@@ -14,6 +18,7 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.List;
+import java.util.Map;
 import org.apache.hc.client5.http.ConnectTimeoutException;
 import org.apache.hc.core5.http.ConnectionRequestTimeoutException;
 import org.apache.hc.core5.http.NoHttpResponseException;
@@ -51,7 +56,7 @@ class ClientErrorsTest {
   private static final String READ_TIMEOUT = "read timed out";
 
   /** The translation. */
-  private final ClientErrors errors = new ClientErrors(RestClientTestData.noCustomizers());
+  private final ClientErrors errors = RestClientTestData.clientErrors();
 
   @Nested
   @DisplayName("a call that got no answer")
@@ -174,6 +179,71 @@ class ClientErrorsTest {
       var failure = new RestClientException("No HttpMessageConverter for an order");
 
       assertThat(errors.unreadable(RestClientTestData.ORDERS, call, failure)).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("a call that ended with an error answer")
+  class ErrorAnswer {
+
+    /** The stock client's codes: a 404 is ORD-0404, and ORD-4040 for the list-orders operation. */
+    private final MappedErrorCodes codes =
+        new MappedErrorCodes(
+            ClientSettings.builder()
+                .errors(Map.of(HttpStatus.NOT_FOUND.value(), MappedTestData.NOT_FOUND_CODE))
+                .operations(
+                    Map.of(
+                        MappedTestData.LIST_ORDERS,
+                        OperationSettings.builder()
+                            .errors(
+                                Map.of(
+                                    HttpStatus.NOT_FOUND.value(),
+                                    MappedTestData.LIST_NOT_FOUND_CODE))
+                            .build()))
+                .build());
+
+    @Test
+    @DisplayName("of a method with @StratumOperation is marked with its name; another is not")
+    void operationMarked() throws NoSuchMethodException {
+      assertThat(callOf("listOrders").getAttributes())
+          .containsEntry(HttpClientConstants.OPERATION, MappedTestData.LIST_ORDERS);
+      assertThat(callOf("orders").getAttributes()).doesNotContainKey(HttpClientConstants.OPERATION);
+    }
+
+    @Test
+    @DisplayName("takes the operation's code, or the client's for a method with none")
+    void takesTheMappedCode() throws NoSuchMethodException {
+      var answer = RestClientTestData.errorAnswer(HttpStatus.NOT_FOUND);
+
+      assertThat(errors.downstream(MappedTestData.STOCK, callOf("listOrders"), answer, codes))
+          .satisfies(
+              failure ->
+                  assertThat(failure.getErrorCode().getCode())
+                      .isEqualTo(MappedTestData.LIST_NOT_FOUND_CODE));
+      assertThat(errors.downstream(MappedTestData.STOCK, callOf("orders"), answer, codes))
+          .satisfies(
+              failure ->
+                  assertThat(failure.getErrorCode().getCode())
+                      .isEqualTo(MappedTestData.NOT_FOUND_CODE));
+    }
+
+    @Test
+    @DisplayName("an unlisted status keeps SX-HTTPC-0007")
+    void unlistedStatusKeepsCode() throws NoSuchMethodException {
+      var answer = RestClientTestData.errorAnswer(HttpStatus.CONFLICT);
+
+      assertThat(
+              errors
+                  .downstream(MappedTestData.STOCK, callOf("listOrders"), answer, codes)
+                  .getErrorCode())
+          .isEqualTo(HttpClientErrorCode.DOWNSTREAM_ERROR);
+    }
+
+    /** Returns a call of a method of the stock client, marked as Stratum marks it. */
+    private HttpRequestValues callOf(String method) throws NoSuchMethodException {
+      var values = HttpRequestValues.builder().setHttpMethod(HttpMethod.GET);
+      errors.prepare(StockClient.class.getMethod(method), values);
+      return values.build();
     }
   }
 

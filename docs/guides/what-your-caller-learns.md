@@ -32,13 +32,14 @@ Gateways and other client libraries have their own rules, which Stratum does not
 | Another service answered with a final error, such as `400`, `404`, `409` or `500` | `SX-HTTPC-0007` | `500` | no | not as a rule; a `5xx` may follow part of the work |
 | Another service's answer cannot be read | `SX-HTTPC-0008` | `500` | no | yes |
 | Another service still answered `429`, `502`, `503` or `504` after the client's retries | `SX-HTTPC-0009` | `500` | no | yes after a `502` or `504` from a gateway in front of it |
+| Another service answered with an error status the client's `errors` maps to your own code | your code, such as `ORD-0409` | the status you give your code, else `500` | as you choose | as for `SX-HTTPC-0007` or `SX-HTTPC-0009` |
 | Your own request ran out of its time limit before its response started | `SX-WEB-1007` | `503` | yes | yes |
 | The database was busy or too slow (outside [backward-compatible mode](../modules/web-compatible-mode.md)) | `SX-WEB-1010` | `503` | yes | not when its transaction was rolled back |
 | The request conflicts with the stored data (outside [backward-compatible mode](../modules/web-compatible-mode.md)) | `SX-WEB-1011` | `409` | no | no |
 | Anything else your service did not handle | `SX-WEB-1005` | `500` | no | yes |
 
-The codes `SX-HTTPC-0001` to `SX-HTTPC-0009` come from calls of a `@StratumClient` interface only, as
-[Scope](#scope) says.
+The codes `SX-HTTPC-0001` to `SX-HTTPC-0009`, and your own codes from a client's `errors`, come from calls of a
+`@StratumClient` interface only, as [Scope](#scope) says.
 
 ### Why another service's failure is answered with `500`
 
@@ -47,7 +48,9 @@ your service passed `503` on, its own caller would send the request again too, a
 multiply the calls that reach the last one. A caller would also read "send it again" for a payment whose `502` from a
 gateway may mean it was done. So a downstream error answer, of any status, is answered with `500`, and the code tells
 your caller what happened: `SX-HTTPC-0009` for "it cannot take the call for now", `SX-HTTPC-0007` for a final answer.
-Stratum never passes another service's status, headers or body on to your caller.
+Stratum never passes another service's status, headers or body on to your caller. Only a status you list in a
+client's `errors` gets your own code instead, with the status you give that code
+([HTTP client: errors](../modules/http-client-errors.md#your-own-code-for-an-error-status)).
 
 If your callers need a status that sends a request again, such as `503` for `SX-HTTPC-0009`, set it for that code,
 and keep it only for requests that are safe to send twice:
@@ -79,6 +82,7 @@ so `getErrorCode()` tells a failure that may pass from one that will not:
 | `StratumException` | `SX-HTTPC-0001`, `SX-HTTPC-0002`, `SX-HTTPC-0003` | yes |
 | `DownstreamException` | `SX-HTTPC-0009` | yes; `getResponseHeaders()` holds the other service's `Retry-After`, if it sent one |
 | `DownstreamException` | `SX-HTTPC-0007` | no |
+| `DownstreamException` | your own code for a status the client's `errors` maps, such as `ORD-0409` | as the status says: a mapped `429`, `502`, `503` or `504` no longer reads as `SX-HTTPC-0009`, so test for your code too |
 | `UnreadableAnswerException`, a Spring `RestClientException` | `SX-HTTPC-0008` | no |
 | `StratumException` | `SX-HTTPC-0004`, `SX-HTTPC-0005`, `SX-HTTPC-0006` | no |
 

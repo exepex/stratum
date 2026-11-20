@@ -30,7 +30,8 @@ import org.springframework.web.service.registry.AbstractHttpServiceRegistrar;
  * names, and makes each client name one HTTP service group, and registers {@link
  * ClientInterceptors} from the interceptors the interfaces name. Two interfaces with the same name
  * join one group. Each interface is checked as it is found ({@link
- * StratumClientChecks#checkInterface}, {@link StratumClientChecks#namedInterface}).
+ * StratumClientChecks#checkInterface}, {@link StratumClientChecks#namedInterface}), and each
+ * client's operations once all are found ({@link StratumClientChecks#checkOperations}).
  */
 @StratumInternal
 public class StratumClientRegistrar extends AbstractHttpServiceRegistrar {
@@ -95,6 +96,8 @@ public class StratumClientRegistrar extends AbstractHttpServiceRegistrar {
                 Collectors.groupingBy(
                     Map.Entry::getKey,
                     Collectors.mapping(Map.Entry::getValue, Collectors.toList())));
+    StratumClientChecks.checkOperations(
+        interfacesByClient, HttpClientProperties.resolve(Objects.requireNonNull(environment)));
     interfacesByClient.forEach((client, interfaces) -> register(registry, client, interfaces));
     registerInterceptors(interfacesByClient);
   }

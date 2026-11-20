@@ -1,7 +1,12 @@
 package com.exepex.stratum.httpclient;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -75,6 +80,16 @@ import org.springframework.util.unit.DataSize;
  * @param traceHeaders Whether calls carry the correlation ID: true sends X-Correlation-Id when the
  *     call has none, beside the trace headers Spring Boot's tracing sends; false sends no trace,
  *     baggage or correlation header, such as to a third party. Defaults to true.
+ * @param errors The service's own error code for each error status, from 400 to 599, that the other
+ *     service may answer, such as 409: ORD-0409. A call of the client's interface answered with
+ *     that status throws a DownstreamException whose error code is this one; any other status keeps
+ *     SX-HTTPC-0007 or SX-HTTPC-0009. A code is not empty, has no whitespace and does not start
+ *     with SX-. A client's codes are added to those under defaults; for the same status the
+ *     client's wins. None by default.
+ * @param operations The settings of each operation of the client, by the name a method carries in
+ *     its @StratumOperation, such as list-orders, which win over the client's own. A name that no
+ *     method of the client's interfaces carries stops startup. Only for a client; not allowed under
+ *     defaults. None by default.
  */
 @Builder(toBuilder = true)
 public record ClientSettings(
@@ -98,13 +113,27 @@ public record ClientSettings(
     @Nullable DataSize interceptorBodyLimit,
     @Nullable CallLog callLog,
     @Nullable DataSize responseBodyLimit,
-    @Nullable Boolean traceHeaders) {
+    @Nullable Boolean traceHeaders,
+    Map<
+            @Min(HttpClientConstants.MIN_ERROR_STATUS) @Max(HttpClientConstants.MAX_ERROR_STATUS)
+            Integer,
+            @Pattern(regexp = HttpClientConstants.ERROR_CODE_FORMAT) String>
+        errors,
+    Map<
+            @Pattern(regexp = HttpClientConstants.OPERATION_NAME_FORMAT) String,
+            @Valid OperationSettings>
+        operations) {
 
-  /** Keeps the interfaces, headers and copied headers fixed, empty when none is named. */
+  /**
+   * Keeps the interfaces, headers, copied headers, error codes and operations fixed, empty when
+   * none is named.
+   */
   public ClientSettings {
     interfaces = interfaces == null ? List.of() : List.copyOf(interfaces);
     headers = headers == null ? Map.of() : Map.copyOf(headers);
     copyHeaders = copyHeaders == null ? List.of() : List.copyOf(copyHeaders);
+    errors = errors == null ? Map.of() : Map.copyOf(errors);
+    operations = operations == null ? Map.of() : Map.copyOf(operations);
   }
 
   /** Stratum's default for every setting but the address. */
@@ -174,7 +203,24 @@ public record ClientSettings(
         .callLog(either(callLog, fallback.callLog))
         .responseBodyLimit(either(responseBodyLimit, fallback.responseBodyLimit))
         .traceHeaders(either(traceHeaders, fallback.traceHeaders))
+        .errors(mapOver(errors, fallback.errors))
+        // An operation belongs to one client, so the fallback's are never merged in.
+        .operations(operations)
         .build();
+  }
+
+  /**
+   * Returns the error codes of one operation's calls: the operation's own over the client's, for
+   * the same status the operation's.
+   *
+   * @param operation the operation's name, or {@code null} for a call of a method with none
+   * @return the error code of each mapped status
+   */
+  public Map<Integer, String> errorsOf(@Nullable String operation) {
+    return Optional.ofNullable(operation)
+        .map(operations::get)
+        .map(own -> mapOver(own.errors(), errors))
+        .orElse(errors);
   }
 
   /**
@@ -207,7 +253,9 @@ public record ClientSettings(
             "interceptorBodyLimit=" + interceptorBodyLimit,
             "responseBodyLimit=" + responseBodyLimit,
             "traceHeaders=" + traceHeaders,
-            "callLog=" + callLog)
+            "callLog=" + callLog,
+            "errors=" + new TreeMap<>(errors),
+            "operations=" + new TreeSet<>(operations.keySet()))
         .collect(Collectors.joining(", ", "ClientSettings[", "]"));
   }
 
@@ -272,6 +320,13 @@ public record ClientSettings(
     // Removed first, so that the name keeps this side's spelling.
     headers.keySet().forEach(merged::remove);
     merged.putAll(headers);
+    return Map.copyOf(merged);
+  }
+
+  /** Returns the entries of the first map added to the second's, the first winning on a key. */
+  private <K, V> Map<K, V> mapOver(Map<K, V> winning, Map<K, V> fallback) {
+    var merged = new HashMap<>(fallback);
+    merged.putAll(winning);
     return Map.copyOf(merged);
   }
 

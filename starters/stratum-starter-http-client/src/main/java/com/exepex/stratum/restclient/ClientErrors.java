@@ -5,7 +5,10 @@ import com.exepex.stratum.core.error.FailureCauses;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientErrorCode;
+import com.exepex.stratum.httpclient.HttpClientProperties;
+import com.exepex.stratum.httpclient.StratumOperation;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -19,13 +22,14 @@ import org.springframework.web.service.invoker.HttpRequestValues;
 
 /**
  * Turns the failure that ends a call of a client's interface, after its retries, into what the
- * service sees: an error answer becomes a {@link DownstreamException}, or the team's own exception
- * thrown in {@link StratumClientCustomizer#mapError}; no answer becomes {@code SX-HTTPC-0001} after
- * a read timeout and {@code SX-HTTPC-0002} otherwise; an answer larger than {@code
- * response-body-limit} becomes {@code SX-HTTPC-0006}; an answer whose body cannot be read becomes
- * an {@link UnreadableAnswerException}. Any other failure, such as a request body no converter can
- * write, stays as it is. It is the outermost of Stratum's decorators, so the retries and breaker
- * see Spring's own exceptions.
+ * service sees: an error answer becomes a {@link DownstreamException}, whose code is the service's
+ * own when the client's {@code errors} maps its status, or the team's own exception thrown in
+ * {@link StratumClientCustomizer#mapError}; no answer becomes {@code SX-HTTPC-0001} after a read
+ * timeout and {@code SX-HTTPC-0002} otherwise; an answer larger than {@code response-body-limit}
+ * becomes {@code SX-HTTPC-0006}; an answer whose body cannot be read becomes an {@link
+ * UnreadableAnswerException}. Any other failure, such as a request body no converter can write,
+ * stays as it is. It is the outermost of Stratum's decorators, so the retries and breaker see
+ * Spring's own exceptions.
  */
 @StratumInternal
 @RequiredArgsConstructor
@@ -33,6 +37,11 @@ public class ClientErrors implements ClientExchangeDecorator {
 
   /** The service's changes to the clients, which may map an error answer to its own exception. */
   private final ObjectProvider<StratumClientCustomizer> customizers;
+
+  /**
+   * The settings of every client, whose {@code errors} map an error status to the service's code.
+   */
+  private final HttpClientProperties settings;
 
   /**
    * Returns the client's calls with their failures translated.
@@ -43,7 +52,23 @@ public class ClientErrors implements ClientExchangeDecorator {
    */
   @Override
   public HttpExchangeAdapter decorate(String client, HttpExchangeAdapter exchange) {
-    return new ErrorTranslatingExchangeAdapter(exchange, client, this);
+    return new ErrorTranslatingExchangeAdapter(
+        exchange, client, this, new MappedErrorCodes(settings.clientSettings(client)));
+  }
+
+  /**
+   * Marks a call whose method carries {@link StratumOperation} with the operation's name, so that
+   * its error answer takes that operation's codes.
+   *
+   * @param method the method of the client's interface that was called
+   * @param values the call being built
+   */
+  @Override
+  public void prepare(Method method, HttpRequestValues.Builder values) {
+    var operation = method.getAnnotation(StratumOperation.class);
+    if (operation != null) {
+      values.addAttribute(HttpClientConstants.OPERATION, operation.value());
+    }
   }
 
   /**
@@ -57,18 +82,24 @@ public class ClientErrors implements ClientExchangeDecorator {
   }
 
   /**
-   * Returns the exception of a call that ended with an error answer, after the service's
-   * customizers had their turn: the first that throws its own exception in {@link
-   * StratumClientCustomizer#mapError} replaces it.
+   * Returns the exception of a call that ended with an error answer, with the service's own code
+   * when the client maps its status, after the service's customizers had their turn: the first that
+   * throws its own exception in {@link StratumClientCustomizer#mapError} replaces it.
    *
    * @param client the client's name
    * @param values the call
    * @param answer Spring's exception for the error answer
+   * @param codes the client's own codes for error statuses
    * @return the exception to throw when no customizer threw its own
    */
   public DownstreamException downstream(
-      String client, HttpRequestValues values, RestClientResponseException answer) {
-    var downstream = new DownstreamException(client, endpointOf(values), answer);
+      String client,
+      HttpRequestValues values,
+      RestClientResponseException answer,
+      MappedErrorCodes codes) {
+    var operation = (String) values.getAttributes().get(HttpClientConstants.OPERATION);
+    var code = codes.codeFor(answer.getStatusCode().value(), operation).orElse(null);
+    var downstream = new DownstreamException(client, endpointOf(values), answer, code);
     customizers.orderedStream().forEach(customizer -> customizer.mapError(client, downstream));
     return downstream;
   }

@@ -54,7 +54,7 @@ class JsonBodyFailuresTest {
               JsonReadFailures.WRONG_TYPE_IN_LINES));
 
   /** The translation, for a service with no customizers. */
-  private final ClientErrors errors = new ClientErrors(RestClientTestData.noCustomizers());
+  private final ClientErrors errors = RestClientTestData.clientErrors();
 
   @Nested
   @DisplayName("with Jackson 2's converter, a body that is not valid")

@@ -12,6 +12,7 @@ import com.exepex.stratum.restclient.RecordedCall;
 import com.exepex.stratum.restclient.StratumHttpClients;
 import com.exepex.stratum.restclient.testsupport.CallChecks;
 import com.exepex.stratum.restclient.testsupport.RestClientTestData;
+import com.exepex.stratum.restclient.testsupport.mapped.MappedTestData;
 import com.exepex.stratum.restclient.testsupport.payments.Payment;
 import com.exepex.stratum.restclient.testsupport.payments.PaymentClient;
 import com.exepex.stratum.restclient.testsupport.payments.PaymentMissingException;
@@ -46,7 +47,8 @@ import org.springframework.web.client.HttpServerErrorException;
       RestClientTestData.PAYMENTS_SETTINGS + ".auth.bearer=" + RestClientTestData.SECRET,
       RestClientTestData.PAYMENTS_SETTINGS + ".retry.max-retries=1",
       RestClientTestData.PAYMENTS_SETTINGS + ".retry.delay=50ms",
-      RestClientTestData.PAYMENTS_SETTINGS + ".circuit-breaker.enabled=false"
+      RestClientTestData.PAYMENTS_SETTINGS + ".circuit-breaker.enabled=false",
+      RestClientTestData.PAYMENTS_SETTINGS + ".errors[409]=" + MappedTestData.CONFLICT_CODE
     })
 @Timeout(30)
 @DisplayName("A client with mock: true answers from files and scripts and never calls its service")
@@ -200,6 +202,19 @@ class MockClientIntegrationTest {
 
       assertThatExceptionOfType(PaymentMissingException.class)
           .isThrownBy(() -> payments.payment(PAYMENT_ID));
+    }
+
+    @Test
+    @DisplayName("of a status the client's errors map carries the service's own code")
+    void carriesTheMappedCode() {
+      paymentsMock.on(PAYMENT).fail(HttpStatus.CONFLICT);
+
+      assertThatExceptionOfType(DownstreamException.class)
+          .isThrownBy(() -> payments.payment(PAYMENT_ID))
+          .satisfies(
+              failure ->
+                  assertThat(failure.getErrorCode().getCode())
+                      .isEqualTo(MappedTestData.CONFLICT_CODE));
     }
 
     @Test

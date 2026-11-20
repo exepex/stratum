@@ -1,8 +1,10 @@
 package com.exepex.stratum.webmvc.it;
 
+import com.exepex.stratum.core.error.ErrorCode;
 import com.exepex.stratum.restclient.DownstreamException;
 import com.exepex.stratum.restclient.UnreadableAnswerException;
 import java.nio.charset.StandardCharsets;
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.context.annotation.Import;
@@ -28,6 +30,12 @@ public class DownstreamFailuresApplication {
 
   /** The path whose call the other service answered with 404. */
   static final String MISSING_PATH = "/stock/missing";
+
+  /** The path whose call the other service answered with 409, which the client maps. */
+  static final String CONFLICT_PATH = "/stock/conflict";
+
+  /** The path whose call the other service answered with 422, which the client maps. */
+  static final String UNPROCESSABLE_PATH = "/stock/unprocessable";
 
   /** The path whose call got an answer that cannot be read. */
   static final String UNREADABLE_PATH = "/stock/unreadable";
@@ -63,6 +71,26 @@ public class DownstreamFailuresApplication {
     }
 
     /**
+     * Fails as a call the inventory service answered with 409, which the client maps to ORD-0409.
+     *
+     * @return never
+     */
+    @GetMapping(CONFLICT_PATH)
+    String conflict() {
+      throw downstream(HttpStatus.CONFLICT, TeamErrorCode.CONFLICT);
+    }
+
+    /**
+     * Fails as a call the inventory service answered with 422, which the client maps to ORD-0422.
+     *
+     * @return never
+     */
+    @GetMapping(UNPROCESSABLE_PATH)
+    String unprocessable() {
+      throw downstream(HttpStatus.UNPROCESSABLE_CONTENT, TeamErrorCode.UNPROCESSABLE);
+    }
+
+    /**
      * Fails as a call whose answer cannot be read.
      *
      * @return never
@@ -74,6 +102,14 @@ public class DownstreamFailuresApplication {
 
     /** Returns the failure of a call the inventory service answered with the status. */
     private DownstreamException downstream(HttpStatus status) {
+      return downstream(status, null);
+    }
+
+    /**
+     * Returns the failure of a call the inventory service answered with the status, with the
+     * service's own code for it, as the client's {@code errors} setting gives it, or none.
+     */
+    private DownstreamException downstream(HttpStatus status, @Nullable ErrorCode code) {
       var headers = new HttpHeaders();
       headers.setContentType(MediaType.TEXT_PLAIN);
       return new DownstreamException(
@@ -85,7 +121,8 @@ public class DownstreamFailuresApplication {
               status.getReasonPhrase(),
               headers,
               SECRET.getBytes(StandardCharsets.UTF_8),
-              StandardCharsets.UTF_8));
+              StandardCharsets.UTF_8),
+          code);
     }
   }
 }

@@ -20,18 +20,23 @@ public class ErrorTranslatingExchangeAdapter extends AroundCallExchangeAdapter {
   /** The translation of a call's failure. */
   private final ClientErrors errors;
 
+  /** The client's own codes for error statuses. */
+  private final MappedErrorCodes codes;
+
   /**
    * Makes the adapter.
    *
    * @param exchange the client's calls
    * @param client the client's name
    * @param errors the translation of a call's failure
+   * @param codes the client's own codes for error statuses
    */
   public ErrorTranslatingExchangeAdapter(
-      HttpExchangeAdapter exchange, String client, ClientErrors errors) {
+      HttpExchangeAdapter exchange, String client, ClientErrors errors, MappedErrorCodes codes) {
     super(exchange);
     this.client = client;
     this.errors = errors;
+    this.codes = codes;
   }
 
   /**
@@ -53,7 +58,7 @@ public class ErrorTranslatingExchangeAdapter extends AroundCallExchangeAdapter {
       failure.throwOriginal();
       throw failure;
     } catch (RestClientResponseException answer) {
-      throw errors.downstream(client, values, answer);
+      throw errors.downstream(client, values, answer, codes);
     } catch (RestClientException failure) {
       var coded = errors.tooLarge(failure).or(() -> errors.noAnswer(failure));
       if (coded.isPresent()) {

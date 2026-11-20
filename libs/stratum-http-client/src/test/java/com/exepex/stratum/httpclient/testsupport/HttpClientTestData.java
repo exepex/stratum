@@ -124,6 +124,24 @@ public class HttpClientTestData {
   /** A shared pool size other than Stratum's default. */
   public static final int SHARED_MAX_CONNECTIONS = 20;
 
+  /** An error status: 401, the caller is not known. */
+  public static final int UNAUTHORIZED = 401;
+
+  /** An error status: 404, not found. */
+  public static final int NOT_FOUND = 404;
+
+  /** An error status: 409, a conflict. */
+  public static final int CONFLICT = 409;
+
+  /** An error status: 422, a request that cannot be processed. */
+  public static final int UNPROCESSABLE = 422;
+
+  /** A status that is no error status: 700. */
+  public static final int NOT_AN_ERROR = 700;
+
+  /** The name of the inventory client's operation that lists orders. */
+  public static final String LIST_ORDERS = "list-orders";
+
   /** The start of every message about settings that break their rules. */
   public static final String INVALID_SETTINGS = "SX-CORE-1003: Invalid settings: ";
 
