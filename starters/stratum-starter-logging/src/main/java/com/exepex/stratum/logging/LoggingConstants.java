@@ -37,6 +37,9 @@ public class LoggingConstants {
   /** Spring Boot's key for a logging configuration file of the service's own. */
   public static final String LOGGING_CONFIG = "logging.config";
 
+  /** Spring Boot's key for Log4j2 configuration files merged into its own, with Log4j2 only. */
+  public static final String LOG4J2_CONFIG_OVERRIDE = "logging.log4j2.config.override";
+
   /**
    * The Logback configuration files Spring Boot loads on its own when they are on the class path.
    */
@@ -50,6 +53,37 @@ public class LoggingConstants {
           "logback-test-spring.xml",
           "logback-spring.groovy",
           "logback-spring.xml");
+
+  /**
+   * The Log4j2 configuration files Spring Boot loads on its own when they are on the class path:
+   * Log4j2's own names and their {@code -spring} forms, in each file type Log4j2 reads.
+   */
+  public static final List<String> LOG4J2_CONFIGURATION_FILES =
+      List.of(
+          "log4j2-test.properties",
+          "log4j2-test.yml",
+          "log4j2-test.yaml",
+          "log4j2-test.json",
+          "log4j2-test.jsn",
+          "log4j2-test.xml",
+          "log4j2.properties",
+          "log4j2.yml",
+          "log4j2.yaml",
+          "log4j2.json",
+          "log4j2.jsn",
+          "log4j2.xml",
+          "log4j2-test-spring.properties",
+          "log4j2-test-spring.yml",
+          "log4j2-test-spring.yaml",
+          "log4j2-test-spring.json",
+          "log4j2-test-spring.jsn",
+          "log4j2-test-spring.xml",
+          "log4j2-spring.properties",
+          "log4j2-spring.yml",
+          "log4j2-spring.yaml",
+          "log4j2-spring.json",
+          "log4j2-spring.jsn",
+          "log4j2-spring.xml");
 
   /** Logback's log event, present when the service logs with Logback. */
   public static final String LOGBACK_EVENT = "ch.qos.logback.classic.spi.ILoggingEvent";

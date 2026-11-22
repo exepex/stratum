@@ -75,8 +75,12 @@ Spring Boot already sets up Logback for you, with no XML file, and can write
 when `logging.structured.format.console` is set. This starter builds on that setup and does not
 replace it:
 
-- It ships no Logback XML. With the module on, your own Logback file (`logback*.xml`), `logging.config`
-  or a formatter class of your own stops startup with `SX-LOGGING-1003`: Stratum masks only its own formats.
+- It ships no Logback or Log4j2 XML. With the module on, `logging.config`, a formatter class of your own, or
+  your own configuration for the backend Spring Boot logs with stops startup with `SX-LOGGING-1003`. With
+  Logback, that is `logback.xml`, `logback-spring.xml`, their `-test` forms, or the same names ending in
+  `.groovy`. With Log4j2, it is `log4j2.xml`, `log4j2-spring.xml`, their `-test` forms, or the same names
+  ending in `.properties`, `.yml`, `.yaml`, `.json` or `.jsn`, and `logging.log4j2.config.override`.
+  Stratum masks only its own formats.
 - At startup, before any bean exists, it sets a few of Spring Boot's `logging.structured.*`
   properties and `spring.task.execution.propagate-context`, listed [below](#properties). A value
   you set in a configuration file, an environment variable, a system property or a command-line
@@ -245,10 +249,10 @@ Outputs that Stratum does not write are not masked by it:
 | Output | Masked by Stratum |
 | --- | --- |
 | The console and the log file, in any `stratum.logging.format`, with Logback or Log4j2 | Yes |
-| Your own appender, encoder, layout, pattern, formatter class, Logback file or `logging.config` | Not allowed: startup stops with SX-LOGGING-1003 |
+| Your own appender, encoder, layout, pattern, formatter class or `logging.config`; with Logback, a Logback file; with Log4j2, a Log4j2 file or `logging.log4j2.config.override` | Not allowed: startup stops with SX-LOGGING-1003 |
 | The OpenTelemetry Java agent or OpenTelemetry's log appender | No: they read each event before any format. Mask in the OpenTelemetry Collector instead |
 | A logging backend other than Logback or Log4j2 | Not allowed: startup stops |
-| A Log4j2 configuration file | Not checked: Stratum cannot see it; do not add one |
+| Log4j's own `log4j.configurationFile`, `log4j1.compatibility` or `log4j.configuration` property | Not checked: Stratum does not read them, and a file they choose is not masked; do not set them ([#412](https://github.com/exepex/stratum/issues/412)) |
 | An appender, encoder or layout your code adds at run time | Not checked: Stratum cannot see it, and it is not masked; do not add one |
 | A `LoggingSystem` of your own, set with the `org.springframework.boot.logging.LoggingSystem` system property | Not checked: Stratum cannot see it, and it is not masked; do not set one |
 
@@ -421,10 +425,11 @@ shows. A Stratum endpoint that switches DEBUG on for a limited time is [planned]
   bean; Stratum's then backs off.
 - **Not replaceable:** the startup checks, the redaction and the `error.code` field run before any
   bean exists, so only `stratum.logging.enabled` turns them off.
-- **Not allowed:** your own formatter class, encoder, layout, pattern, Logback file or `logging.config`.
-  Stratum could not mask their lines, so startup stops with SX-LOGGING-1003. Set levels, a log file and the
-  format with `logging.*` and `stratum.logging.*` properties; in tests, set levels in the test's
-  `application.properties`, not in a `logback-test.xml`.
+- **Not allowed:** your own formatter class, encoder, layout, pattern or `logging.config`, a Logback file
+  with Logback, and a Log4j2 file or `logging.log4j2.config.override` with Log4j2. Stratum could not mask
+  their lines, so startup stops with SX-LOGGING-1003. Set levels, a log file and the format with `logging.*`
+  and `stratum.logging.*` properties; in tests, set levels in the test's `application.properties`, not in a
+  `logback-test.xml` or `log4j2-test.xml`.
 
 ## Switch it on or off
 

@@ -38,7 +38,9 @@ dependencies the BOM manages. Run `mvn dependency:tree` before and after, and co
 
 Add `stratum-starter-logging`. Remove:
 
-- your `logback-spring.xml`, `logback.xml` or `logging.config`: with the logging module on, Stratum refuses them;
+- your `logging.config`, and your own file for the backend you log with: `logback-spring.xml` or `logback.xml`
+  with Logback, `log4j2-spring.xml` or `log4j2.xml` (or the same names in another file type Log4j2 reads) and
+  `logging.log4j2.config.override` with Log4j2. With the logging module on, Stratum refuses them;
 - custom JSON encoders and MDC filters for trace IDs.
 
 Check: log lines are JSON with `service.name`. After step 3, lines written inside a traced operation

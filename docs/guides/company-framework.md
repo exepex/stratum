@@ -149,9 +149,10 @@ stratum.security.enabled=false
 stratum.logging.enabled=false
 ```
 
-A company framework that ships its own Logback file or `logging.config` needs this line: with the
-logging module on, such a file stops startup with `SX-LOGGING-1003`, whose fix names
-`stratum.logging.enabled=false` ([error codes](error-codes.md)).
+A company framework that ships its own `logging.config`, or its own configuration for the backend the
+service logs with (a Logback file with Logback, a Log4j2 file or `logging.log4j2.config.override` with
+Log4j2), needs this line: with the logging module on, each of them stops startup with `SX-LOGGING-1003`,
+whose fix names `stratum.logging.enabled=false` ([error codes](error-codes.md)).
 
 Each module page lists the beans the module creates under **What you get**, so you can compare them
 with the company framework's beans. More ways to switch parts off are in

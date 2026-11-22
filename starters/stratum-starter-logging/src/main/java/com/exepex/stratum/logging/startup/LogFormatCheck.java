@@ -5,8 +5,11 @@ import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.LoggingErrorCode;
 import com.exepex.stratum.logging.StructuredLogFormats;
+import java.util.List;
 import lombok.experimental.UtilityClass;
 import org.jspecify.annotations.Nullable;
+import org.springframework.boot.context.properties.bind.Bindable;
+import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.core.env.Environment;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.util.ClassUtils;
@@ -25,7 +28,8 @@ public class LogFormatCheck {
 
   /**
    * Stops startup with {@code SX-LOGGING-1003} when the service has no Logback or Log4j2, sets
-   * {@code logging.config}, has a Logback configuration file on the class path, or gives the
+   * {@code logging.config}, has a configuration file of its own for the backend Spring Boot logs
+   * with on the class path, sets {@code logging.log4j2.config.override} with Log4j2, or gives the
    * console or the log file a format other than {@code ecs}, {@code logstash}, {@code gelf} or
    * Stratum's text format.
    *
@@ -39,7 +43,7 @@ public class LogFormatCheck {
       Environment environment, ClassLoader classLoader, @Nullable String maskedTextFormatter) {
     requireBackend(maskedTextFormatter);
     requireNoLoggingConfig(environment);
-    requireNoLogbackFile(classLoader);
+    requireNoOwnConfiguration(environment, classLoader);
     requireStratumFormat(environment, LoggingConstants.CONSOLE_FORMAT, maskedTextFormatter);
     requireStratumFormat(environment, LoggingConstants.FILE_FORMAT, maskedTextFormatter);
   }
@@ -59,17 +63,42 @@ public class LogFormatCheck {
     }
   }
 
-  /** Stops startup when Spring Boot would load a Logback configuration file of the service's. */
-  private static void requireNoLogbackFile(ClassLoader classLoader) {
-    if (!ClassUtils.isPresent(LoggingConstants.LOGBACK_EVENT, classLoader)) {
-      return;
+  /**
+   * Stops startup when Spring Boot would load a configuration of the service's own for the backend
+   * it logs with.
+   */
+  private static void requireNoOwnConfiguration(Environment environment, ClassLoader classLoader) {
+    // Spring Boot logs with Logback whenever Logback is present, even next to Log4j2.
+    if (ClassUtils.isPresent(LoggingConstants.LOGBACK_EVENT, classLoader)) {
+      requireNoOwnFile(LoggingConstants.LOGBACK_CONFIGURATION_FILES, classLoader);
+    } else {
+      requireNoOwnFile(LoggingConstants.LOG4J2_CONFIGURATION_FILES, classLoader);
+      requireNoLog4j2Override(environment);
     }
+  }
+
+  /** Stops startup when one of the configuration files is on the class path. */
+  private static void requireNoOwnFile(List<String> fileNames, ClassLoader classLoader) {
     var ownFile =
-        LoggingConstants.LOGBACK_CONFIGURATION_FILES.stream()
+        fileNames.stream()
             .filter(name -> new ClassPathResource(name, classLoader).exists())
             .findFirst();
     if (ownFile.isPresent()) {
       throw notStratum(ownFile.get() + " is on the classpath");
+    }
+  }
+
+  /**
+   * Stops startup when {@code logging.log4j2.config.override} names a file, as Spring Boot binds
+   * it.
+   */
+  private static void requireNoLog4j2Override(Environment environment) {
+    var overrides =
+        Binder.get(environment)
+            .bind(LoggingConstants.LOG4J2_CONFIG_OVERRIDE, Bindable.listOf(String.class))
+            .orElseGet(List::of);
+    if (!overrides.isEmpty()) {
+      throw notStratum(LoggingConstants.LOG4J2_CONFIG_OVERRIDE + " is set");
     }
   }
 
