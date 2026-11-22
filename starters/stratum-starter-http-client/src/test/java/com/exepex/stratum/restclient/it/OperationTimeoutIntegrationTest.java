@@ -97,10 +97,10 @@ class OperationTimeoutIntegrationTest {
     @DisplayName("leaves a call through the client's RestClient bean on the client's read-timeout")
     void beanKeepsClientTimeout() {
       REPORTS.answerAfter(TimedTestData.SLOW_ANSWER);
+      RestClient.ResponseSpec report = reportsBean.get().uri(TimedTestData.REPORT_PATH).retrieve();
 
       assertThatExceptionOfType(ResourceAccessException.class)
-          .isThrownBy(
-              () -> reportsBean.get().uri(TimedTestData.REPORT_PATH).retrieve().body(String.class))
+          .isThrownBy(() -> report.body(String.class))
           .withRootCauseInstanceOf(SocketTimeoutException.class);
     }
 
