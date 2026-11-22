@@ -16,6 +16,8 @@ import org.springframework.http.HttpMethod;
  * @param streamedDownload whether the answer is streamed, which keeps its full answer timeout
  * @param notFoundIsEmpty whether a 404 answers the call with nothing, as for a method that returns
  *     {@code Optional}
+ * @param operation the name in the called method's {@code @StratumOperation}, whose timeouts the
+ *     call takes, or {@code null} for a method with none and for a call through a client's beans
  */
 @StratumInternal
 @Builder
@@ -25,7 +27,8 @@ public record ClientCall(
     @Nullable String uriTemplate,
     boolean streamedBody,
     boolean streamedDownload,
-    boolean notFoundIsEmpty) {
+    boolean notFoundIsEmpty,
+    @Nullable String operation) {
 
   /** Builds the call; Lombok writes its methods, the label keeps it internal. */
   @StratumInternal

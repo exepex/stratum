@@ -54,6 +54,7 @@ public class ResilientExchangeAdapter extends AroundCallExchangeAdapter {
             .streamedBody(StreamedBody.isStreamed(values.getBodyValue()))
             .streamedDownload(streamedDownload)
             .notFoundIsEmpty(isOptionalAnswer(values))
+            .operation(operationOf(values))
             .build(),
         call);
   }

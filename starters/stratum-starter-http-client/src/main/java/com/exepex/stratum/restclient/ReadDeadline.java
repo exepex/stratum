@@ -9,8 +9,8 @@ import org.apache.hc.core5.util.Timeout;
 
 /**
  * The deadline of the reads of one answer, its head or its body: each read fails once the call's
- * {@code total-timeout} has passed, and else waits at most the smaller of the client's {@code
- * timeout} and the time left, so that no read waits past the deadline.
+ * {@code total-timeout} has passed, and else waits at most the smaller of the call's {@code
+ * read-timeout} and the time left, so that no read waits past the deadline.
  */
 @RequiredArgsConstructor
 final class ReadDeadline {
@@ -21,7 +21,10 @@ final class ReadDeadline {
   /** The call's deadline, in {@link System#nanoTime()}. */
   private final long deadlineNanos;
 
-  /** The client's {@code read-timeout}, the longest wait for one read. */
+  /**
+   * The call's {@code read-timeout}, its operation's, else the client's: the longest wait for one
+   * read.
+   */
   private final Duration timeout;
 
   /** The message of the failure once the deadline has passed. */

@@ -87,9 +87,9 @@ import org.springframework.util.unit.DataSize;
  *     with SX-. A client's codes are added to those under defaults; for the same status the
  *     client's wins. None by default.
  * @param operations The settings of each operation of the client, by the name a method carries in
- *     its @StratumOperation, such as list-orders, which win over the client's own. A name that no
- *     method of the client's interfaces carries stops startup. Only for a client; not allowed under
- *     defaults. None by default.
+ *     its @StratumOperation, such as list-orders: its errors, read-timeout and total-timeout, which
+ *     win over the client's own. A name that no method of the client's interfaces carries stops
+ *     startup. Only for a client; not allowed under defaults. None by default.
  */
 @Builder(toBuilder = true)
 public record ClientSettings(
@@ -342,8 +342,8 @@ public record ClientSettings(
   }
 
   /**
-   * Returns the durations that are set, those of {@code retry} and {@code circuit-breaker}
-   * included.
+   * Returns the durations that are set, those of {@code retry}, {@code circuit-breaker} and each
+   * operation included.
    *
    * @return the set durations
    */
@@ -357,7 +357,8 @@ public record ClientSettings(
                 connectionLifetime,
                 totalTimeout),
             Stream.ofNullable(retry).flatMap(ClientRetry::durations),
-            Stream.ofNullable(circuitBreaker).flatMap(ClientCircuitBreaker::durations))
+            Stream.ofNullable(circuitBreaker).flatMap(ClientCircuitBreaker::durations),
+            operations.values().stream().flatMap(OperationSettings::durations))
         .flatMap(Function.identity())
         .filter(Objects::nonNull);
   }

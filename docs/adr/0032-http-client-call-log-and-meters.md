@@ -4,7 +4,7 @@
 [#266](https://github.com/exepex/stratum/issues/266)); each gives its date.
 
 One of four records on the HTTP client starters. The key `call-log` and its default are in
-[ADR 0029](0029-http-client-starters-and-settings.md); this record owns what the line and the meters hold.
+[ADR 0033](0033-http-client-starters-and-settings.md); this record owns what the line and the meters hold.
 
 [← Documentation home](../README.md) · How to use it:
 [HTTP client: call log and meters](../modules/http-client-observability.md)

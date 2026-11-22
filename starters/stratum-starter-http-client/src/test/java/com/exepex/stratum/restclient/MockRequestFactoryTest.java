@@ -10,11 +10,14 @@ import java.io.UncheckedIOException;
 import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.client.ClientHttpResponse;
@@ -42,6 +45,9 @@ class MockRequestFactoryTest {
   @DisplayName("in its delay")
   class Delay {
 
+    /** Whether the call is a streamed download: a streamed download, then any other call. */
+    private static final List<Boolean> STREAMED_AND_NOT = List.of(true, false);
+
     @Test
     @DisplayName(
         "a streamed download keeps its full read-timeout, past the time total-timeout leaves")
@@ -50,7 +56,11 @@ class MockRequestFactoryTest {
 
       assertThat(
               AttemptTimeLeft.runWithin(
-                  deadline(), true, new AtomicReference<>(), MockRequestFactoryTest.this::call))
+                  deadline(),
+                  true,
+                  null,
+                  new AtomicReference<>(),
+                  MockRequestFactoryTest.this::call))
           .isEqualTo(HttpStatus.OK);
     }
 
@@ -65,7 +75,28 @@ class MockRequestFactoryTest {
           .isThrownBy(
               () ->
                   AttemptTimeLeft.runWithin(
-                      deadline, false, sentTo, MockRequestFactoryTest.this::call))
+                      deadline, false, null, sentTo, MockRequestFactoryTest.this::call))
+          .withCauseInstanceOf(SocketTimeoutException.class);
+    }
+
+    @ParameterizedTest(name = "streamed download: {0}")
+    @FieldSource("STREAMED_AND_NOT")
+    @DisplayName(
+        "a call of an operation waits at most the operation's read-timeout, not the client's")
+    void operationReadTimeoutCutsDelay(boolean streamedDownload) {
+      scriptDelayedAnswer();
+      var farDeadline = System.nanoTime() + RestClientTestData.WAIT.toNanos();
+      var sentTo = new AtomicReference<@Nullable URI>();
+
+      assertThatExceptionOfType(UncheckedIOException.class)
+          .isThrownBy(
+              () ->
+                  AttemptTimeLeft.runWithin(
+                      farDeadline,
+                      streamedDownload,
+                      TIME_LEFT,
+                      sentTo,
+                      MockRequestFactoryTest.this::call))
           .withCauseInstanceOf(SocketTimeoutException.class);
     }
   }
@@ -119,7 +150,11 @@ class MockRequestFactoryTest {
 
       assertThat(
               AttemptTimeLeft.runWithin(
-                  deadline(), true, new AtomicReference<>(), MockRequestFactoryTest.this::length))
+                  deadline(),
+                  true,
+                  null,
+                  new AtomicReference<>(),
+                  MockRequestFactoryTest.this::length))
           .isEqualTo(LIMIT + 1);
     }
 

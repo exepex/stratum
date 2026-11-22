@@ -7,7 +7,7 @@ its calls, with retries, a time limit for the whole call, a circuit breaker, its
 one log line per failed call, its meters and its trace headers ([call log and meters](http-client-observability.md)).
 
 [← Documentation home](../README.md) · Property prefix: `stratum.http-client` ·
-Design: [ADR 0029](../adr/0029-http-client-starters-and-settings.md), [ADR 0030](../adr/0030-http-client-auth-resilience-and-connections.md),
+Design: [ADR 0033](../adr/0033-http-client-starters-and-settings.md), [ADR 0034](../adr/0034-http-client-auth-resilience-and-connections.md),
 [ADR 0031](../adr/0031-http-client-errors-and-body-limits.md),
 [ADR 0032](../adr/0032-http-client-call-log-and-meters.md)
 
@@ -175,6 +175,8 @@ the shared default, which wins over Stratum's.
 | `ssl-bundle` | text | unset | no such key | The name of a `spring.ssl.bundle.*` bundle whose certificate the client presents (mutual TLS). Not allowed under `defaults`, nor with `shared-pool`. |
 | `errors` | map of status to code | none | no such key | Your own error code for each error status, from `400` to `599`, that the other service may answer, such as `"[409]": ORD-0409`. A call of the client's interface answered with that status throws a `DownstreamException` whose code is yours; any other status keeps `SX-HTTPC-0007` or `SX-HTTPC-0009`. A code is not empty, has no whitespace and does not start with `SX-`. A client's codes are added to those under `defaults`; for the same status the client's wins ([your own code for an error status](http-client-errors.md#your-own-code-for-an-error-status)). |
 | `operations.<operation>.errors` | map of status to code | none | no such key | The codes of one operation: the methods marked `@StratumOperation("<operation>")`. For the same status they win over the client's. Not allowed under `defaults`; an operation that no method carries stops startup with `SX-HTTPC-1010`. |
+| `operations.<operation>.read-timeout` | duration | unset: the client's `read-timeout` | no such key | The `read-timeout` of one operation's calls, such as `20s` for a slow report ([operations](http-client-operations.md)). Not allowed under `defaults`. |
+| `operations.<operation>.total-timeout` | duration | unset: the client's `total-timeout` | no such key | The `total-timeout` of one operation's calls, retries included, such as `30s` ([operations](http-client-operations.md)). Not allowed under `defaults`. |
 | `spring.http.clients.imperative.factory` | `http-components`, `jetty`, `reactor`, `jdk` or `simple` | `jdk` | unset: detects the engine, Apache HttpClient 5 first | The engine of the RestClients Stratum did not build. Stratum's own clients always use Apache HttpClient 5 ([Clients Stratum did not build](#clients-stratum-did-not-build)). |
 
 Every duration must be above 0, `auth` holds exactly one kind, no refused header is in `headers` or
@@ -185,7 +187,7 @@ rules of `retry` and `circuit-breaker` are listed on
 Spring Boot's own settings of an HTTP service group, `spring.http.serviceclient.<name>.*`, do not apply to a Stratum
 client: Stratum builds its client. Setting one for a Stratum client's name stops startup with `SX-HTTPC-1001`, naming
 the Stratum key to use instead. This is the one exception to Stratum's rule of using Spring Boot's keys where they
-exist ([ADR 0029](../adr/0029-http-client-starters-and-settings.md), decision 2).
+exist ([ADR 0033](../adr/0033-http-client-starters-and-settings.md), decision 2).
 
 Spring Boot's global `spring.http.clients.connect-timeout`, `spring.http.clients.read-timeout` and
 `spring.http.clients.redirects` apply only to the RestClients Stratum did not build. A Stratum client takes its
@@ -291,26 +293,9 @@ stratum:
         response-body-limit: 128MB
 ```
 
-The reports service's `409` becomes your code `ORD-0409`, and a `404` of its `list-reports` operation `ORD-0404`
-([your own code for an error status](http-client-errors.md#your-own-code-for-an-error-status)):
-
-```properties
-stratum.http-client.clients.reports.errors[409]=ORD-0409
-stratum.http-client.clients.reports.operations.list-reports.errors[404]=ORD-0404
-```
-
-```yaml
-stratum:
-  http-client:
-    clients:
-      reports:
-        errors:
-          "409": ORD-0409
-        operations:
-          list-reports:
-            errors:
-              "404": ORD-0404
-```
+Your own codes for error statuses are on
+[your own code for an error status](http-client-errors.md#your-own-code-for-an-error-status), and one method's own
+timeouts on [operations](http-client-operations.md).
 
 > [!TIP]
 > Pick a timeout from the other service's real latency: a little above its p99 is a good start. Then make sure the
@@ -339,11 +324,6 @@ public class ReportClientSettings implements HttpClientPropertiesCustomizer {
             .maxWait(Duration.ofMillis(500))
             .connectionLifetime(Duration.ofMinutes(10))
             .responseBodyLimit(DataSize.ofMegabytes(128))
-            .errors(Map.of(409, "ORD-0409"))
-            .operations(
-                Map.of(
-                    "list-reports",
-                    OperationSettings.builder().errors(Map.of(404, "ORD-0404")).build()))
             .build();
     var clients = new HashMap<>(properties.clients());
     clients.put("reports", reports);
@@ -474,7 +454,7 @@ the startup errors are on [HTTP client: errors](http-client-errors.md).
 
 ## Planned
 
-These parts of [ADR 0029](../adr/0029-http-client-starters-and-settings.md) are not built yet, and none of their keys is read:
+These parts of [ADR 0033](../adr/0033-http-client-starters-and-settings.md) are not built yet, and none of their keys is read:
 
 - `urls` ([#308](https://github.com/exepex/stratum/issues/308));
 - the retry and circuit breaker of a client with its own engine

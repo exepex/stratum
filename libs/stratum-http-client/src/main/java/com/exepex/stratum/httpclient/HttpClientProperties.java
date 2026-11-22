@@ -71,8 +71,8 @@ public record HttpClientProperties(
   }
 
   /**
-   * Returns whether every duration, shared or of one client, is above 0. Validation reports one
-   * that is not as {@code stratum.http-client.durations-positive breaks @AssertTrue}.
+   * Returns whether every duration, shared, of one client or of one operation, is above 0.
+   * Validation reports one that is not as {@code stratum.http-client.durations-positive}.
    *
    * @return whether every duration is above 0
    */

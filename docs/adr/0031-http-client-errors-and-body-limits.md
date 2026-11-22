@@ -4,7 +4,7 @@
 gives its date.
 
 One of four records on the HTTP client starters. The keys and their defaults and ranges are in
-[ADR 0029](0029-http-client-starters-and-settings.md); this record owns what a failed call throws and answers, the
+[ADR 0033](0033-http-client-starters-and-settings.md); this record owns what a failed call throws and answers, the
 body limits and streaming.
 
 [← Documentation home](../README.md) · How to use it: [HTTP client: errors](../modules/http-client-errors.md) ·
@@ -53,7 +53,7 @@ body limits and streaming.
       `FailureWithErrorCode` (ADR 0026, decision 7). A status such as `503` is not the default for an error answer,
       because it would make each caller in a chain send the request again.
    4. With token relay, a `401` is thrown as a `DownstreamException` with status `401`
-      ([ADR 0030](0030-http-client-auth-resilience-and-connections.md), decision 1.3).
+      ([ADR 0034](0034-http-client-auth-resilience-and-connections.md), decision 1.3).
    5. The other service's body is never passed on to our caller.
 3. **The service's own code for an error status** (owner, 2026-11-20).
    1. A status listed in `errors`, under `defaults`, a client or an operation, still throws a `DownstreamException`,

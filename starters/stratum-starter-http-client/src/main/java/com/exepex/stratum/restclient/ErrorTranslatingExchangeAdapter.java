@@ -58,7 +58,7 @@ public class ErrorTranslatingExchangeAdapter extends AroundCallExchangeAdapter {
       failure.throwOriginal();
       throw failure;
     } catch (RestClientResponseException answer) {
-      throw errors.downstream(client, values, answer, codes);
+      throw errors.downstream(client, values, operationOf(values), answer, codes);
     } catch (RestClientException failure) {
       var coded = errors.tooLarge(failure).or(() -> errors.noAnswer(failure));
       if (coded.isPresent()) {

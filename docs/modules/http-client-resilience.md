@@ -5,8 +5,8 @@ for a while. Each client sets these in two groups, `retry` and `circuit-breaker`
 or under one client. Part of the [HTTP client](http-client.md) page, whose property table lists every key with its
 type and default.
 
-[← HTTP client](http-client.md) · Design: [ADR 0030](../adr/0030-http-client-auth-resilience-and-connections.md), decision 2, and
-[ADR 0029](../adr/0029-http-client-starters-and-settings.md), decision 2.4
+[← HTTP client](http-client.md) · Design: [ADR 0034](../adr/0034-http-client-auth-resilience-and-connections.md), decision 2, and
+[ADR 0033](../adr/0033-http-client-starters-and-settings.md), decision 2.4
 
 ## With nothing set
 
@@ -44,7 +44,8 @@ sent again.
 A `503` or `429` with a `Retry-After` of whole seconds or an HTTP date waits that long instead of the back-off. A wait
 set in `customizeRetry` replaces both and is checked against `total-timeout` the same way. A call is sent again only
 while the wait still leaves at least 100ms before `total-timeout`; otherwise the last answer or failure is the call's
-result. Each attempt's connection wait, connect timeout and `read-timeout` are cut to the time left, and reading an
+result. For a method marked `@StratumOperation`, `total-timeout` and `read-timeout` are the operation's when it sets
+them ([operations](http-client-operations.md)); the retries and the breaker stay the client's. Each attempt's connection wait, connect timeout and `read-timeout` are cut to the time left, and reading an
 answer, its status line, headers and body, stops when `total-timeout` runs out, with `SX-HTTPC-0001`, however
 slowly it comes. A method that returns an `InputStream`, a streamed download, is the exception: no new attempt
 starts after `total-timeout`, but each attempt keeps its full `read-timeout`, the longest gap between bytes, so a long
@@ -93,8 +94,10 @@ then could not get a new token also ends with `SX-HTTPC-0002`, but counts as the
 **Without `slow-call-duration-threshold`, the slow-call rule is Resilience4j's own: 60s at 100%.** Resilience4j has no
 switch to turn it off. The breaker then opens on slow calls only when every attempt in its window took longer than
 60s. With Stratum's `total-timeout` of 8s no attempt lasts that long, so in practice the rule never acts. A client
-whose `total-timeout` is above 60s can reach it: set `slow-call-duration-threshold` above that client's longest
-expected attempt, or to the value you want. Setting `slow-call-rate-threshold` without the duration stops startup, so
+whose `total-timeout`, or one of whose operations' `total-timeout`, is above 60s can reach it: set
+`slow-call-duration-threshold` above that client's longest expected attempt, or to the value you want. The breaker
+serves all of a client's operations, so set the threshold above the longest attempt of any operation, at most that
+operation's `total-timeout`, or a long operation counts as slow for every method of the client. Setting `slow-call-rate-threshold` without the duration stops startup, so
 no team thinks it changed the rule when it did not.
 
 When the breaker is open, a call fails with `SX-HTTPC-0003`, which answers `503` ([errors](http-client-errors.md)).

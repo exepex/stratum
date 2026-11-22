@@ -5,7 +5,7 @@ generated interface. A client with its own HTTP engine gets the client's setting
 are planned ([#262](https://github.com/exepex/stratum/issues/262)).
 
 [← HTTP client](http-client.md) · [Documentation home](../README.md) ·
-Design: [ADR 0029](../adr/0029-http-client-starters-and-settings.md), decision 3, [ADR 0030](../adr/0030-http-client-auth-resilience-and-connections.md), decision 2.7, and
+Design: [ADR 0033](../adr/0033-http-client-starters-and-settings.md), decision 3, [ADR 0034](../adr/0034-http-client-auth-resilience-and-connections.md), decision 2.7, and
 [ADR 0031](../adr/0031-http-client-errors-and-body-limits.md), decision 4
 
 Teams also call other services through code they did not write: an OpenAPI generator's client, a partner's SDK jar,
@@ -203,8 +203,9 @@ A call through either bean runs through the client's retries and circuit breaker
 
 The whole call, its retries, waits and the reading of its answer's head and body included, ends by `total-timeout`,
 8s by default: each attempt waits for the answer at most `read-timeout` or the time left, whichever is less, as an
-interface's call does. To call a slow service, raise `total-timeout` for that client or under `defaults`, for example
-to 30s.
+interface's call does. These calls have no operation, so they keep the client's timeouts, never an operation's
+([operations](http-client-operations.md)). To call a slow service, raise `total-timeout` for that client or under
+`defaults`, for example to 30s.
 
 An error answer is read inside its attempt, at most 64 KB, and its connection freed before any wait for the next
 attempt, as an interface's is. A success answer is handed over unread after the last attempt, and read up to

@@ -222,7 +222,7 @@ topic file wins.
   system sits behind one. Before writing something new, use the Stratum module that already does it.
 - A service can replace every bean Stratum defines (`@ConditionalOnMissingBean`) and change every default through a
   typed `stratum.<module>.*` property, or Spring Boot's own key where Boot has one (except the HTTP client starters,
-  ADR 0029), set in `application.properties`, in `application.yml` or in Java. The exception is the routing data
+  ADR 0033), set in `application.properties`, in `application.yml` or in Java. The exception is the routing data
   source, which stops startup instead of backing off
   ([ADR 0023](docs/adr/0023-stratum-next-to-a-company-framework.md)).
 - Names and Javadoc describe what things do for the service, in plain words. Every class, method and configuration

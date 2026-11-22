@@ -64,7 +64,10 @@ class AnswerDeadline extends HttpRequestExecutor {
     }
     var head =
         new ReadDeadline(
-            connection, System.nanoTime() + timeLeft.get().toNanos(), timeout, HEAD_TOO_SLOW);
+            connection,
+            System.nanoTime() + timeLeft.get().toNanos(),
+            answerTimeout(),
+            HEAD_TOO_SLOW);
     return bounded(
         readHead(head, () -> super.execute(request, connection, informationCallback, context)),
         connection);
@@ -85,6 +88,17 @@ class AnswerDeadline extends HttpRequestExecutor {
     return ScopedValue.where(HeadDeadlineParser.DEADLINE, deadline)
         .call(() -> Outcome.of(exchange))
         .answerOrThrow();
+  }
+
+  /**
+   * Returns the longest wait for one read of the answer of the attempt running on this thread: its
+   * operation's {@code read-timeout} through a pool that streams answers, a client's own pool, else
+   * the client's, as for a token request.
+   *
+   * @return the answer timeout
+   */
+  Duration answerTimeout() {
+    return streamsAnswers ? AttemptTimeLeft.readTimeout().orElse(timeout) : timeout;
   }
 
   /**
@@ -113,7 +127,7 @@ class AnswerDeadline extends HttpRequestExecutor {
     if (response.getEntity() != null && timeLeft.isPresent() && boundsAnswer()) {
       var deadline =
           new ReadDeadline(
-              connection, System.nanoTime() + timeLeft.get().toNanos(), timeout, TOO_SLOW);
+              connection, System.nanoTime() + timeLeft.get().toNanos(), answerTimeout(), TOO_SLOW);
       response.setEntity(new DeadlineEntity(response.getEntity(), deadline));
     }
     return response;

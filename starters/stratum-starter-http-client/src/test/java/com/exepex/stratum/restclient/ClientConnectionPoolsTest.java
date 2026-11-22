@@ -59,6 +59,7 @@ class ClientConnectionPoolsTest {
     AttemptTimeLeft.runWithin(
         System.nanoTime() + ATTEMPT_TIME.toNanos(),
         false,
+        null,
         sentTo,
         () -> createRequest(requestFactory));
     return sentTo.get();

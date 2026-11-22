@@ -194,7 +194,7 @@ Micrometer's public extension points:
 | Logs show trace IDs | Micrometer Tracing puts IDs in the MDC; logging writes them |
 | Logs show correlation IDs | Observability puts the ID in the MDC from tracing baggage, or the trace ID; logging writes it. The web starters set the baggage from the `X-Correlation-Id` header |
 | HTTP client sends tokens | A request interceptor backed by Spring Security's `OAuth2AuthorizedClientManager` |
-| HTTP client retries and circuit breaker | Resilience4j inside the HTTP client starters, without the resilience starter ([ADR 0030](../adr/0030-http-client-auth-resilience-and-connections.md)) |
+| HTTP client retries and circuit breaker | Resilience4j inside the HTTP client starters, without the resilience starter ([ADR 0034](../adr/0034-http-client-auth-resilience-and-connections.md)) |
 | Errors from HTTP clients become `503`/`504` | The HTTP client starter throws a `StratumException` with an `SX-HTTPC-*` code, and the web starters answer it with that code's status ([errors](../modules/http-client-errors.md#what-a-failed-call-throws)) |
 
 Shared names (header names, MDC keys, metric names) are constants in `stratum-core`, so every

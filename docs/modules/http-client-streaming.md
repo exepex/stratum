@@ -11,7 +11,8 @@ A client streams a download when its method returns `InputStream` or `ResponseEn
 returns once the answer's headers arrive, and the body comes in as you read it. Every other return type, `byte[]` and
 `Resource` included, reads the whole body into memory first, so it is limited by `response-body-limit`; a download is
 not. `ResponseEntity<InputStreamResource>` is not supported by Spring as a return type. A streamed download is not cut
-off by `total-timeout`: only `read-timeout` between bytes bounds it, so close the stream when you are done with it.
+off by `total-timeout`: only `read-timeout` between bytes bounds it, the operation's when the method carries
+`@StratumOperation` ([operations](http-client-operations.md)), so close the stream when you are done with it.
 
 A client streams an upload when its `@RequestBody` is a `StreamingHttpOutputMessage.Body` or an `InputStreamResource`.
 The body is sent in chunks as it is written, never held in memory.
@@ -38,5 +39,5 @@ it is closed; when all of them are held, the next call fails after `max-wait`. C
 the rest of it first, so that the connection can be used again: the thread and the connection stay busy until the
 download ends, and a pause in it longer than `read-timeout` ends the close with `SocketTimeoutException`.
 
-`read-timeout` is the longest wait for the next byte, not for the whole download, so a large file that keeps arriving is
+`read-timeout`, the operation's or else the client's, is the longest wait for the next byte, not for the whole download, so a large file that keeps arriving is
 read in full. A download that stops for longer than `read-timeout` fails with `SocketTimeoutException` as you read it.

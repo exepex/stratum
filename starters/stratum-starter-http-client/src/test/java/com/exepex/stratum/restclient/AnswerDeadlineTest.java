@@ -211,6 +211,43 @@ class AnswerDeadlineTest {
     }
   }
 
+  @Nested
+  @DisplayName("the longest wait for one read")
+  class AnswerTimeout {
+
+    /** An operation's read-timeout, below the client's. */
+    private static final Duration OPERATION_TIMEOUT = Duration.ofSeconds(2);
+
+    @Test
+    @DisplayName("is the operation's in a client's own pool, during a call of that operation")
+    void operationsInOwnPool() {
+      assertThat(answerTimeoutDuringOperation(answerDeadline)).isEqualTo(OPERATION_TIMEOUT);
+    }
+
+    @Test
+    @DisplayName("stays the client's in a token pool, even during a call of an operation")
+    void clientsInTokenPool() {
+      assertThat(answerTimeoutDuringOperation(new AnswerDeadline(TIMEOUT, false)))
+          .isEqualTo(TIMEOUT);
+    }
+
+    @Test
+    @DisplayName("is the client's outside a call")
+    void clientsOutsideCall() {
+      assertThat(answerDeadline.answerTimeout()).isEqualTo(TIMEOUT);
+    }
+
+    /** Returns the executor's answer timeout inside an attempt of an operation. */
+    private Duration answerTimeoutDuringOperation(AnswerDeadline executor) {
+      return AttemptTimeLeft.runWithin(
+          System.nanoTime() + TEN_SECONDS.toNanos(),
+          false,
+          OPERATION_TIMEOUT,
+          new AtomicReference<>(),
+          executor::answerTimeout);
+    }
+  }
+
   /** Returns a 200 answer whose body is the given stream. */
   private ClassicHttpResponse answerOf(InputStream body) {
     var response = new BasicClassicHttpResponse(HttpStatus.SC_OK);
@@ -227,6 +264,7 @@ class AnswerDeadlineTest {
     return AttemptTimeLeft.runWithin(
         System.nanoTime() + timeLeft.toNanos(),
         keepsAnswerTimeout,
+        null,
         new AtomicReference<>(),
         () -> bounded(executor, response));
   }
