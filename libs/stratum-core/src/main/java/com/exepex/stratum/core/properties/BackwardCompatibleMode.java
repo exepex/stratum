@@ -8,7 +8,7 @@ import org.springframework.core.env.Environment;
 
 /**
  * Reads {@code stratum.backward-compatible}, the one switch with which every module keeps the
- * service's external contracts as they were before Stratum (ADR 0010).
+ * service's external contracts as they were before Stratum (ADR 0026).
  */
 @StratumInternal
 @UtilityClass

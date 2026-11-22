@@ -33,7 +33,7 @@
       <artifactId>spring-boot-starter-data-jpa</artifactId>
     </dependency>
     <!-- The two web starters, for the tests of the answer to a request whose statement Stratum
-         cancelled, on both stacks (ADR 0006). -->
+         cancelled, on both stacks (ADR 0025). -->
     <dependency>
       <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-webmvc</artifactId>

@@ -35,7 +35,7 @@ root POM. So your service gets everything Spring Boot's parent gives, plus:
 
 The full list, with every setting, is in [Parent POM and BOM](../modules/parent-and-bom.md#the-parent-pom).
 Why there is one parent per kind of application is in
-[ADR 0019](../adr/0019-one-parent-per-kind-of-application.md).
+[ADR 0024](../adr/0024-bundles-parents-and-module-switches.md).
 
 ## Before you start
 

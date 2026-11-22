@@ -35,7 +35,7 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
 /**
- * The retry and circuit breaker rules of Stratum's clients (ADR 0011, decisions 4.2 to 4.5): which
+ * The retry and circuit breaker rules of Stratum's clients (ADR 0030, decisions 2.2 to 2.5): which
  * failed attempt is sent again, how long to wait first, which failure the breaker counts, and the
  * back-off and breaker rules a client's settings give.
  */

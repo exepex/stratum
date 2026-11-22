@@ -3,8 +3,7 @@
 How a Stratum client answers without calling its service: from files in a demo, or from a test's script. Part of the
 [HTTP client](http-client.md) page, which lists every key.
 
-[← HTTP client](http-client.md) · Design: [ADR 0011](../adr/0011-http-client-starters.md), decision 10, and
-[ADR 0012](../adr/0012-http-client-changes-found-while-building.md), decision 2
+[← HTTP client](http-client.md) · Design: [ADR 0029](../adr/0029-http-client-starters-and-settings.md), decision 4
 
 ## Turn a client's mock on
 

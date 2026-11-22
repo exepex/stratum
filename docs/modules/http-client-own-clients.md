@@ -5,7 +5,8 @@ generated interface. A client with its own HTTP engine gets the client's setting
 are planned ([#262](https://github.com/exepex/stratum/issues/262)).
 
 [← HTTP client](http-client.md) · [Documentation home](../README.md) ·
-Design: [ADR 0014](../adr/0014-http-client-beans-that-retry.md)
+Design: [ADR 0029](../adr/0029-http-client-starters-and-settings.md), decision 3, [ADR 0030](../adr/0030-http-client-auth-resilience-and-connections.md), decision 2.7, and
+[ADR 0031](../adr/0031-http-client-errors-and-body-limits.md), decision 4
 
 Teams also call other services through code they did not write: an OpenAPI generator's client, a partner's SDK jar,
 or an older class built on `RestTemplate`. Each configured client gives that code the same set-up a `@StratumClient`

@@ -171,7 +171,7 @@ Customizers Stratum supports:
 | Customizer | Adjusts | Module | Status |
 | --- | --- | --- | --- |
 | `RestClientCustomizer` (Spring Boot) | Every HTTP client built from Spring Boot's `RestClient.Builder` | http-client | Works today: Spring Boot applies it. On a Stratum client it runs first, and Stratum's pool replaces any request factory it sets ([HTTP client](../modules/http-client.md#customize)) |
-| `StratumClientCustomizer` | One named client's builder, for what has no key ([ADR 0011](../adr/0011-http-client-starters.md)); its keys go through `HttpClientPropertiesCustomizer` | http-client | Works today in the blocking starter |
+| `StratumClientCustomizer` | One named client's builder, for what has no key ([ADR 0029](../adr/0029-http-client-starters-and-settings.md)); its keys go through `HttpClientPropertiesCustomizer` | http-client | Works today in the blocking starter |
 | `StratumSecurityCustomizer` | The `HttpSecurity` before Stratum's chain is built | security | Planned |
 | `StratumErrorResponseCustomizer` | Extra fields on every error response | web | Planned |
 | `MeterFilter` / `ObservationFilter` (Micrometer) | Metric names, tags and observations | observability | Works today: Spring Boot applies them |
@@ -187,7 +187,7 @@ of the same type, Stratum's version is not created and yours is used. The same h
 your company's framework; see
 [Using Stratum with a company framework](../guides/company-framework.md#rule-2-the-companys-bean-wins).
 The one exception is the routing data source, which stops startup instead
-([ADR 0022](../adr/0022-routing-data-source-is-the-only-primary.md)).
+([ADR 0023](../adr/0023-stratum-next-to-a-company-framework.md)).
 
 Example: a service with very specific security rules defines its own filter chain:
 

@@ -12,7 +12,7 @@ import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 
 /**
  * Checks, when repositories are mapped, that the routing data source can be the application's only
- * primary {@link DataSource} (ADR 0022): Spring Boot defines {@code dataSource}, no other data
+ * primary {@link DataSource} (ADR 0023): Spring Boot defines {@code dataSource}, no other data
  * source is primary, and no bean already has the routing data source's name.
  */
 @StratumInternal

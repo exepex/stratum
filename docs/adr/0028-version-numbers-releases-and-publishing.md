@@ -1,9 +1,10 @@
-# ADR 0020: Version numbers and releases
+# ADR 0028: Version numbers, releases, and publishing only when the owner runs it
 
-**Status:** Accepted, 2026-11-12, by the owner.
+**Status:** Accepted, 2026-11-22, by the owner. Its decisions were taken on 2026-11-12.
 
 [← Documentation home](../README.md) · How to use it:
-[Versioning and upgrades](../guides/upgrading.md) · [Publishing](../contributing.md#publishing)
+[Versioning and upgrades](../guides/upgrading.md) · [Publishing](../contributing.md#publishing) ·
+[Using a snapshot](../getting-started/installation.md#using-a-snapshot)
 
 ## Context
 
@@ -12,14 +13,15 @@
 - Stratum's API is its `stratum.*` keys, their defaults and every public type without `@StratumInternal`
   ([ADR 0009](0009-public-api-and-no-package-cycles.md)). What each kind of version means for a service is described
   in [Versioning and upgrades](../guides/upgrading.md#semantic-versioning).
-- The [Publish workflow](../contributing.md#publishing) deploys `main`'s `-SNAPSHOT` version on each push, and
-  uploads a release for each tag `v<version>`, which waits until the owner clicks **Publish** in the Central Portal.
-  It checks only that the tag holds no `SNAPSHOT`. The Build workflow runs on pull requests and on pushes to `main`.
+- The [Publish workflow](../contributing.md#publishing) uploads a release for each tag `v<version>`, which waits
+  until the owner clicks **Publish** in the Central Portal, and deploys a `-SNAPSHOT` version. The Build workflow
+  runs on pull requests and on pushes to `main`.
 - Maven Central limits each organisation's releases per calendar month, by number of files (signatures and checksums
   included), size and number of releases. Exceeding one starts a 30-day grace period. Sonatype publishes no fixed
   numbers: its Usage Center holds them, and its table of the top 10% of publishers shows about 1,167 files, 78 MB and
   7 releases a month ([Sonatype: Maven Central Publishing Limits](https://central.sonatype.org/publish/maven-central-publishing-limits/),
-  read 2026-11-12). Release 0.1.0 is 468 files and 4.7 MB on Central, so files limit Stratum first.
+  read 2026-11-12). Release 0.1.0 is 468 files and 4.7 MB on Central, so files limit Stratum first. The owner wants
+  to decide when anything, a snapshot included, is uploaded.
 
 ## Decision
 
@@ -36,12 +38,19 @@
    it, and clicks **Publish** in the Central Portal.
 5. **At most one planned release a calendar month.** This is a policy, not a Sonatype number: it keeps the second
    release a month free for a security patch. Before each tag, the owner checks the Central Portal's Usage Center.
+6. **Nothing is published on a push to `main`.** The Publish workflow runs only for a tag `v<version>` that the owner
+   creates, and when the owner clicks **Run workflow** in the Actions tab.
+7. **A manual run publishes only from `main` or a `release/*` branch.** There it deploys the `-SNAPSHOT` version in
+   `.mvn/maven.config`; on any other branch, or for a version without `-SNAPSHOT`, it publishes nothing. A tag still
+   uploads a deployment that waits until the owner clicks **Publish** in the Central Portal.
 
 ## Consequences
 
 - A service on a released version upgrades within a minor line without changes, and reads the migration notes for a
   new minor.
 - A service on a snapshot moves to the new `-SNAPSHOT` after each release; an old snapshot stops changing and the
-  snapshot repository deletes it after 90 days.
+  snapshot repository deletes it after 90 days. The snapshot changes only when the owner runs the workflow, so it may
+  lag `main`.
 - No maintenance branch exists until an urgent security fix needs one.
-- Whether snapshot deploys count toward the monthly limits is not known; the owner checks it in the Usage Center.
+- Whether snapshot deploys count toward the monthly limits is not known; it concerns only the runs the owner starts,
+  and the owner checks it in the Usage Center.

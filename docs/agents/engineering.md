@@ -56,10 +56,10 @@ cite it.
 - **ST-ENG-10 One concern per starter.** Logging, observability, security, HTTP clients, resilience, data access,
   caching and messaging each have their own `stratum-starter-*`. A service only gets what it adds. Bundle starters,
   such as `stratum-starter-microservice`, contain no code and only list the single starters one kind of application
-  needs (ADR 0003). A parent per kind of application, such as `stratum-microservice-parent`, brings that kind's
-  bundle and the test starters `stratum-test` and `spring-boot-starter-test`, and nothing else (ADR 0019). No single
+  needs (ADR 0024). A parent per kind of application, such as `stratum-microservice-parent`, brings that kind's
+  bundle and the test starters `stratum-test` and `spring-boot-starter-test`, and nothing else (ADR 0024). No single
   starter depends on another starter, except in test scope. Starters share code and settings through a library in
-  `libs/`, and shared code moves there only when a second starter needs it (ADR 0010).
+  `libs/`, and shared code moves there only when a second starter needs it (ADR 0024).
 - **ST-ENG-11 Starters meet through Spring.** When one starter needs another's behaviour, it uses the public extension
   points of Spring and Micrometer, which the other starter configures. It never imports another starter's internal
   classes. Example: the HTTP client starter propagates traces through Micrometer's observation API, not through
@@ -128,12 +128,12 @@ Every starter follows these rules:
 - **ST-ENG-21** Every bean has conditions: `@ConditionalOnMissingBean` so a service or another framework can supply
   its own, `@ConditionalOnClass` when it needs an optional library, and every auto-configuration of a module carries
   `@ConditionalOnStratumModule("<module>")` from `stratum-core`, so the whole module is on when its starter is present
-  and a service turns it off with `stratum.<module>.enabled=false` (ADR 0010). The missing-bean condition checks the
+  and a service turns it off with `stratum.<module>.enabled=false` (ADR 0024). The missing-bean condition checks the
   type that services inject, such as Resilience4j's `CircuitBreakerRegistry`, not a Stratum class. Every bean is also
   marked `@Fallback`, so that when another framework's bean of the same type exists, Spring injects that one
-  ([ADR 0001](../adr/0001-coexistence-with-company-frameworks.md)). Only the routing data source breaks this: it
+  ([ADR 0023](../adr/0023-stratum-next-to-a-company-framework.md)). Only the routing data source breaks this: it
   is `@Primary`, with neither `@ConditionalOnMissingBean` nor `@Fallback`
-  ([ADR 0022](../adr/0022-routing-data-source-is-the-only-primary.md)). For a type that Spring Boot already
+  ([ADR 0023](../adr/0023-stratum-next-to-a-company-framework.md)). For a type that Spring Boot already
   auto-configures, such as `RestClient.Builder`, Stratum does not define its own bean: it adjusts Boot's bean through
   a customizer (ST-ENG-24). One exception: when Spring Boot backs off from its `applicationTaskExecutor` because the
   service declares an executor of another kind, `stratum-core` defines that executor with Boot's own builder, so
@@ -144,7 +144,7 @@ Every starter follows these rules:
 - **ST-ENG-22** Ordering between auto-configurations is declared with `before` and `after` on `@AutoConfiguration`,
   never left to classpath order. Every Stratum auto-configuration also has an `@AutoConfigureOrder` value later than
   the default, defined once in `stratum-core`, so that auto-configurations from other frameworks that declare no
-  order run first and their beans win (ADR 0001).
+  order run first and their beans win (ADR 0023).
 - **ST-ENG-23** The `autoconfigure` package only creates and wires beans. Behaviour lives in ordinary classes that can
   be unit tested without Spring.
 - **ST-ENG-24** Services adjust behaviour through customizers instead of replacing whole beans: Spring's customizer
@@ -153,11 +153,10 @@ Every starter follows these rules:
   (ST-ENG-34).
 - **ST-ENG-25** The defaults are safe for production: timeouts set, sensitive values redacted, endpoints secured,
   resources bounded. A service needs no configuration to be safe. A missing required value stops startup with a
-  message naming the key and `stratum.<module>.enabled=false`; a module never switches itself off quietly (ADR 0010).
+  message naming the key and `stratum.<module>.enabled=false`; a module never switches itself off quietly (ADR 0024).
   One exception: while `stratum.backward-compatible` is `true` (its default is `false`), the web module sets no
   default response time limit, request body size limit or WebFlux multipart limit, so a running service's requests
-  are not refused or cut off ([ADR 0008](../adr/0008-error-format-and-backward-compatible-mode.md),
-  [ADR 0010](../adr/0010-modules-on-when-present-and-one-compatibility-switch.md)). Backward-compatible mode keeps
+  are not refused or cut off ([ADR 0026](../adr/0026-error-format-and-backward-compatible-switch.md)). Backward-compatible mode keeps
   external contracts unchanged; everything internal always follows Stratum's defaults.
 - **ST-ENG-26** Dependencies are injected through constructors (in auto-configuration, through `@Bean` method
   parameters). Never field injection (`@Autowired` on a field) or setter injection. Constructor injection makes
@@ -217,7 +216,7 @@ Every starter follows these rules:
   A `stratum.*` key is added only for what Spring Boot has no key for. Keep the number of keys low: every new key
   has a safe default, so most services set no `stratum.*` key. One exception: the HTTP client starters keep every
   setting of a client, base URL and timeouts included, under `stratum.http-client.clients.<name>.*`, and the shared
-  values under `stratum.http-client.defaults.*` ([ADR 0011](../adr/0011-http-client-starters.md)). Spring Boot's
+  values under `stratum.http-client.defaults.*` ([ADR 0029](../adr/0029-http-client-starters-and-settings.md)). Spring Boot's
   `spring.http.serviceclient.<name>.*` keys do not apply to a Stratum client.
 - **ST-ENG-35** A team's configuration always wins over Stratum's defaults, including its own lists such as the
   logging starter's `extra-keys` and `extra-patterns`. Stratum guards against mistakes, not against a team's
@@ -276,7 +275,7 @@ Every starter follows these rules:
   503, connection resets), with a limit on attempts and backoff with jitter. Retrying a non-idempotent write is a
   bug. A write that was never sent (a connect failure), or that the server rejected before doing any work (a 401 to
   an expired service token, retried once), may be retried; that is not a retried write
-  ([ADR 0011](../adr/0011-http-client-starters.md)). Use a circuit breaker for a dependency that can fail.
+  ([ADR 0030](../adr/0030-http-client-auth-resilience-and-connections.md)). Use a circuit breaker for a dependency that can fail.
 - **ST-ENG-52 Bound everything.** Pools, queues, caches, batch sizes, request bodies and page sizes all have limits.
   Never build an unbounded collection from external input. Bound the whole output too, such as one log line or one
   response, not only each part of it. One exception: request bodies have no default limit while
@@ -315,10 +314,10 @@ These rules apply to every published module: the libraries, the starters and `st
 ## Dependencies
 
 - **ST-ENG-60** Every version Stratum chooses is a property in the root `pom.xml`, and no other POM writes a
-  version number (ADR 0005). `stratum-bom`, which `stratum-parent` imports, lists Stratum's modules and the
+  version number (ADR 0027). `stratum-bom`, which `stratum-parent` imports, lists Stratum's modules and the
   libraries Spring Boot does not manage. Spring Boot's versions come from the parent: the root `pom.xml`, and so
   `stratum-parent`, inherits `spring-boot-starter-parent`, and the installed `stratum-bom` has no parent and does
-  not import Spring Boot's BOM, so a service under a company parent gets one Spring Boot version (ADR 0001). No
+  not import Spring Boot's BOM, so a service under a company parent gets one Spring Boot version (ADR 0023). No
   version ranges and no `LATEST`.
 - **ST-ENG-61** Do not override a version that Spring Boot manages, in `stratum-bom` or in `stratum-parent`. Such an
   override would not reach services that import the BOM under their own parent. When a security fix cannot wait for

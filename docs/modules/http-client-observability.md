@@ -7,8 +7,7 @@ connection pool is. Every call also carries the correlation ID, unless the clien
 ([Trace headers](#trace-headers)).
 
 [← HTTP client](http-client.md) · [← Documentation home](../README.md) · Property prefix: `stratum.http-client` ·
-Design: [ADR 0016](../adr/0016-http-client-call-log-and-meters.md), [ADR 0011](../adr/0011-http-client-starters.md),
-decision 8
+Design: [ADR 0032](../adr/0032-http-client-call-log-and-meters.md)
 
 ## What every call gets
 

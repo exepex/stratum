@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   A bundle starter: it contains no code and only lists the single starters that a reactive REST
-  microservice needs, so that a service adds one dependency instead of several (ADR 0003). It is
-  the microservice bundle with WebFlux in place of Spring MVC (ADR 0006). A service adds any other
+  microservice needs, so that a service adds one dependency instead of several (ADR 0024). It is
+  the microservice bundle with WebFlux in place of Spring MVC (ADR 0025). A service adds any other
   starter next to it, and excludes one it does not want. A bundle never lists a starter that this
   kind of application does not need.
 -->
@@ -31,7 +31,7 @@
 
   <!-- Keep the starters sorted by name. -->
   <!-- No HTTP client starter until the reactive one exists: the blocking one would give a
-       WebFlux service a blocking client and Apache HttpClient 5 (ADR 0011). -->
+       WebFlux service a blocking client and Apache HttpClient 5 (ADR 0025). -->
   <dependencies>
     <dependency>
       <groupId>io.github.exepex.stratum</groupId>

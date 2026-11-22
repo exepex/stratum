@@ -62,12 +62,12 @@ issue. Mark each line met, missing or parked. Do not build the scope from earlie
   module reads. Measure its worst-case cost and size, and check that the guard test fails on a 10× slowdown.
 - **D. Volume and back pressure:** what happens when a downstream system is down or slow? Check the queue limit, what is
   dropped, whether the drops are counted, and whether any request thread blocks (ST-ENG-53, ST-ENG-54).
-- **E. Parity:** MVC and WebFlux (ADR 0006), virtual threads, `@Async`, executors, Reactor, and each backend the page
+- **E. Parity:** MVC and WebFlux (ADR 0025), virtual threads, `@Async`, executors, Reactor, and each backend the page
   names. A missing feature is stated on the module page with its issue (ST-DOC-08).
 - **F. Secrets and personal data** (ST-SEC-02, ST-SEC-03), checked by a probe.
 - **G. Promises:** every "always", "never", "every", "only" and "cannot" on the module page and in `docs/`, checked by a
   probe or a named test, and searched across pages ([documentation](documentation.md#how-documentation-is-checked)).
-- **H. Switches and replacement:** the module off (ADR 0010), each bean backing off, the Spring Boot keys used instead
+- **H. Switches and replacement:** the module off (ADR 0024), each bean backing off, the Spring Boot keys used instead
   of new keys (ST-ENG-34).
 - **I. Parked issues:** each open issue of the module, with its measured risk.
 - **J. Checkable rules:** run the most-broken list of ST-AG-17 on the module's public nested types, records with three

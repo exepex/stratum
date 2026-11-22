@@ -101,7 +101,7 @@ the client. For each downstream service:
 
 1. Turn the hand-written client class into an interface with `@StratumClient("<name>")` and
    Spring's `@GetExchange`, `@PostExchange`, ... Stratum finds it by scanning
-   ([ADR 0011](../adr/0011-http-client-starters.md)); remove any `@ImportHttpServices` for it.
+   ([ADR 0029](../adr/0029-http-client-starters-and-settings.md)); remove any `@ImportHttpServices` for it.
 2. Move its URL and timeouts to `stratum.http-client.clients.<name>.*`. Move its Resilience4j settings,
    `resilience4j.circuitbreaker.instances.<name>.*` and `resilience4j.retry.instances.<name>.*`, to the client's
    `circuit-breaker` and `retry` groups. The breaker keys have the same names, such as `failure-rate-threshold`.

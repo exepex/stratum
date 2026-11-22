@@ -12,7 +12,7 @@ service starts.
 | --- | --- |
 | **Convention over configuration** | Every module works with zero configuration and production-safe defaults. |
 | **Opt-in** | One starter per concern; a service carries only what it uses. |
-| **Never locked in** | Every bean is `@ConditionalOnMissingBean`, except the routing data source ([ADR 0022](../adr/0022-routing-data-source-is-the-only-primary.md)); every default is a property; every module is on when its starter is present and has an `enabled` switch that turns it off. |
+| **Never locked in** | Every bean is `@ConditionalOnMissingBean`, except the routing data source ([ADR 0023](../adr/0023-stratum-next-to-a-company-framework.md)); every default is a property; every module is on when its starter is present and has an `enabled` switch that turns it off. |
 | **Plain Spring** | Stratum uses Spring Boot's auto-configuration and Spring's extension points. No custom programming model. |
 | **Secure by default** | Secrets redacted, timeouts on every remote call, minimal Actuator exposure, validation of tokens. |
 | **Fail fast** | Missing or invalid configuration stops startup with a clear message. |
@@ -74,8 +74,8 @@ cloud provider is chosen, and `samples/`, small example services built and teste
 | What | Set in | Rule |
 | --- | --- | --- |
 | Stratum's own version | `.mvn/maven.config`, as `-Drevision=...` | Every POM says `${revision}`; `flatten-maven-plugin` writes the real version into each POM it installs |
-| Spring Boot and every library and plugin it manages | The `<parent>` of the root `pom.xml`: `spring-boot-starter-parent` and its version | Stratum never overrides these versions ([ADR 0001](../adr/0001-coexistence-with-company-frameworks.md)) |
-| Java, the tools and plugins Spring Boot does not manage, the libraries `stratum-bom` manages, and the test container images (next row) | The root `pom.xml`, in `<properties>` | One property each, sorted by name ([ADR 0005](../adr/0005-versions-in-the-root-pom.md)) |
+| Spring Boot and every library and plugin it manages | The `<parent>` of the root `pom.xml`: `spring-boot-starter-parent` and its version | Stratum never overrides these versions ([ADR 0023](../adr/0023-stratum-next-to-a-company-framework.md)) |
+| Java, the tools and plugins Spring Boot does not manage, the libraries `stratum-bom` manages, and the test container images (next row) | The root `pom.xml`, in `<properties>` | One property each, sorted by name ([ADR 0027](../adr/0027-versions-and-dependency-updates.md)) |
 | Which of Stratum's modules and extra libraries a service can use | `platform/stratum-bom` | One `<dependencyManagement>` list, sorted by name, with its versions from the root `pom.xml`; a test in `stratum-build-rules` checks that its Stratum entries are exactly the published modules, in name order |
 | Maven itself | `.mvn/wrapper/maven-wrapper.properties` | `./mvnw` downloads that version and checks its SHA-256 |
 | The Docker image of each test container, such as PostgreSQL's | One `testcontainers.image.<container>` property in the root `pom.xml`, holding the full image, which the build filters into `stratum-test`'s jar for the container classes to read | Pinned to an exact tag, never `latest` (ST-TEST-32); no bot updates it, so a maintainer changes it by hand |
@@ -124,7 +124,7 @@ flowchart TD
   ([Tuning the checks](../modules/parent-and-bom.md#tuning-the-checks)).
 - `stratum-microservice-parent` inherits `stratum-parent` and adds a microservice's dependencies: the
   `stratum-starter-microservice` bundle, and `stratum-test` and `spring-boot-starter-test` in test scope
-  ([ADR 0019](../adr/0019-one-parent-per-kind-of-application.md)).
+  ([ADR 0024](../adr/0024-bundles-parents-and-module-switches.md)).
 - `stratum-bom` and `stratum-build-rules` inherit the root `pom.xml` directly: `stratum-build-parent`
   imports the BOM and loads the build rules, so neither can inherit `stratum-build-parent`. The BOM
   is installed without a parent, so it never brings Spring Boot's versions to a service.
@@ -155,7 +155,7 @@ stratum-starter-http-client/
 - Auto-configurations are registered in the `AutoConfiguration.imports` file (never by component
   scanning), with explicit ordering against Spring Boot's own. They sort after auto-configurations
   that declare no order, so a company framework's beans are created first and Stratum's back off
-  (see [ADR 0001](../adr/0001-coexistence-with-company-frameworks.md)).
+  (see [ADR 0023](../adr/0023-stratum-next-to-a-company-framework.md)).
 
 ## What happens at startup
 
@@ -194,7 +194,7 @@ Micrometer's public extension points:
 | Logs show trace IDs | Micrometer Tracing puts IDs in the MDC; logging writes them |
 | Logs show correlation IDs | Observability puts the ID in the MDC from tracing baggage, or the trace ID; logging writes it. The web starters set the baggage from the `X-Correlation-Id` header |
 | HTTP client sends tokens | A request interceptor backed by Spring Security's `OAuth2AuthorizedClientManager` |
-| HTTP client retries and circuit breaker | Resilience4j inside the HTTP client starters, without the resilience starter ([ADR 0011](../adr/0011-http-client-starters.md)) |
+| HTTP client retries and circuit breaker | Resilience4j inside the HTTP client starters, without the resilience starter ([ADR 0030](../adr/0030-http-client-auth-resilience-and-connections.md)) |
 | Errors from HTTP clients become `503`/`504` | The HTTP client starter throws a `StratumException` with an `SX-HTTPC-*` code, and the web starters answer it with that code's status ([errors](../modules/http-client-errors.md#what-a-failed-call-throws)) |
 
 Shared names (header names, MDC keys, metric names) are constants in `stratum-core`, so every
@@ -202,22 +202,6 @@ module uses the same spelling.
 
 ## Architecture decisions
 
-Significant decisions are recorded as ADRs (architecture decision records) in `docs/adr/`, numbered
-in order. An accepted ADR is never edited; a new one replaces it. Decisions so far, and the ones
-planned next:
-
-| Topic | Status |
-| --- | --- |
-| [0001: Stratum next to a company framework](../adr/0001-coexistence-with-company-frameworks.md) | Accepted; the startup version check in it is replaced by 0002 |
-| [0002: No startup check of the Spring Boot version](../adr/0002-no-startup-version-check.md) | Accepted; amended by 0007, which adds a startup warning |
-| [0003: Bundle starters and module switches](../adr/0003-bundle-starters-and-module-switches.md) | Accepted; decision 3 replaced by 0019 |
-| [0004: Weekly dependency updates with Dependabot](../adr/0004-dependency-updates.md) | Accepted; two parts replaced by 0005 |
-| [0005: Every version in the root POM](../adr/0005-versions-in-the-root-pom.md) | Accepted |
-| [0006: Separate starters for Spring MVC and WebFlux](../adr/0006-separate-mvc-and-webflux-starters.md) | Accepted |
-| [0007: Warn when Spring Boot is outside the supported line](../adr/0007-spring-boot-version-warning.md) | Accepted |
-| [0008: One error format, with a backward-compatible mode on by default](../adr/0008-error-format-and-backward-compatible-mode.md) | Accepted |
-| [0009: Mark internal types with `@StratumInternal`, and keep packages free of cycles](../adr/0009-public-api-and-no-package-cycles.md) | Accepted |
-| [0018: The Maven `groupId` is `io.github.exepex.stratum`; Java packages stay under `com.exepex.stratum`](../adr/0018-group-id-io-github-exepex.md) | Accepted |
-| [0019: One parent per kind of application, which brings its bundle; one BOM](../adr/0019-one-parent-per-kind-of-application.md) | Accepted |
-| Resilience4j as the resilience engine | Proposed |
-| First cloud provider | Open |
+Significant decisions are recorded as ADRs (architecture decision records) in `docs/adr/`, one record per decision;
+a change that contradicts one writes a new, complete record in its place (ST-DOC-11). They are listed in the
+[documentation home](../README.md#architecture-decisions).

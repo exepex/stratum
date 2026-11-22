@@ -4,7 +4,7 @@
 Spring Boot, and how to make the two work together without conflicts. The parent, the BOM and the
 module switches described here are built.
 
-[← Documentation home](../README.md) · Decision record: [ADR 0001](../adr/0001-coexistence-with-company-frameworks.md)
+[← Documentation home](../README.md) · Decision record: [ADR 0023](../adr/0023-stratum-next-to-a-company-framework.md)
 
 ## Who this page is for
 
@@ -43,7 +43,7 @@ does not compete with the company parent for that decision:
   [compatibility table](upgrading.md#compatibility) lists it.
 - Stratum never stops a service over the Spring Boot version. When the version is outside the
   supported line, it logs one `SX-CORE-1005` warning at startup that names the version found and
-  the supported line ([ADR 0007](../adr/0007-spring-boot-version-warning.md)). Before the company
+  the supported line ([ADR 0023](../adr/0023-stratum-next-to-a-company-framework.md)). Before the company
   parent moves to a new Spring Boot version, check that a Stratum release supports it.
 
 So the company decides when to move to a new Spring Boot version, and the compatibility table tells
@@ -68,7 +68,7 @@ steps back. Stratum does this in three ways:
    adds its settings to Boot's bean through a customizer. A company bean of that type then replaces
    Boot's bean, and Stratum's settings are applied to it only if the company builds it from Boot's
    customizers. The one exception is the routing data source, which stops startup instead of
-   stepping back ([ADR 0022](../adr/0022-routing-data-source-is-the-only-primary.md)).
+   stepping back ([ADR 0023](../adr/0023-stratum-next-to-a-company-framework.md)).
 2. **Stratum's auto-configurations run late.** Spring Boot creates auto-configured beans in a
    sorted order. Stratum's auto-configurations sort after every auto-configuration that does not
    declare its own order, so the company's beans exist by the time Stratum checks for them.
@@ -78,7 +78,7 @@ steps back. Stratum does this in three ways:
    a list of all beans of that type still receives both. `@Fallback` only chooses between beans
    that exist: it cannot bring back a company bean that backed off because Stratum's was there
    first. The routing data source is not a fallback either: it is `@Primary`
-   ([ADR 0022](../adr/0022-routing-data-source-is-the-only-primary.md)).
+   ([ADR 0023](../adr/0023-stratum-next-to-a-company-framework.md)).
 
 What this means in practice:
 
@@ -101,7 +101,7 @@ One bean does not step back: the routing data source of the data JPA starter, wh
 when a service maps repositories to [named pools](../modules/data-named-pools.md#repositories-on-a-pool).
 It must be the one primary `DataSource`, so a company's own `DataSource` or primary `DataSource`
 next to a mapping stops startup with `SX-DATA-1007` instead
-([ADR 0022](../adr/0022-routing-data-source-is-the-only-primary.md)). Drop the mapping and reach
+([ADR 0023](../adr/0023-stratum-next-to-a-company-framework.md)). Drop the mapping and reach
 the pool by its qualifier, or keep Spring Boot's `dataSource`.
 
 A company auto-configuration that sets its own late order can still run before Stratum's by naming
@@ -118,9 +118,9 @@ two correlation IDs per request. Choose one framework for each such concern.
 
 Every Stratum module is **on when its starter is on the classpath**, including a starter that a
 [bundle](../modules/bundles.md) brings
-([ADR 0010](../adr/0010-modules-on-when-present-and-one-compatibility-switch.md)). Where the company
+([ADR 0024](../adr/0024-bundles-parents-and-module-switches.md)). Where the company
 framework covers a concern, turn Stratum's module off with `stratum.<module>.enabled=false`, as
-[ADR 0001](../adr/0001-coexistence-with-company-frameworks.md) decision 2 says, or exclude that
+[ADR 0023](../adr/0023-stratum-next-to-a-company-framework.md) decision 3 says, or exclude that
 starter from the bundle:
 
 | Overlap | Symptom when both run | Turn Stratum's off |

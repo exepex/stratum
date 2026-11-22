@@ -7,12 +7,9 @@ its calls, with retries, a time limit for the whole call, a circuit breaker, its
 one log line per failed call, its meters and its trace headers ([call log and meters](http-client-observability.md)).
 
 [← Documentation home](../README.md) · Property prefix: `stratum.http-client` ·
-Design: [ADR 0011](../adr/0011-http-client-starters.md), [ADR 0012](../adr/0012-http-client-changes-found-while-building.md),
-[ADR 0013](../adr/0013-http-client-retry-and-circuit-breaker-keys.md),
-[ADR 0014](../adr/0014-http-client-beans-that-retry.md),
-[ADR 0015](../adr/0015-http-client-interceptor-body-limit.md),
-[ADR 0016](../adr/0016-http-client-call-log-and-meters.md),
-[ADR 0017](../adr/0017-http-client-response-body-limit.md)
+Design: [ADR 0029](../adr/0029-http-client-starters-and-settings.md), [ADR 0030](../adr/0030-http-client-auth-resilience-and-connections.md),
+[ADR 0031](../adr/0031-http-client-errors-and-body-limits.md),
+[ADR 0032](../adr/0032-http-client-call-log-and-meters.md)
 
 ## What it does
 
@@ -188,7 +185,7 @@ rules of `retry` and `circuit-breaker` are listed on
 Spring Boot's own settings of an HTTP service group, `spring.http.serviceclient.<name>.*`, do not apply to a Stratum
 client: Stratum builds its client. Setting one for a Stratum client's name stops startup with `SX-HTTPC-1001`, naming
 the Stratum key to use instead. This is the one exception to Stratum's rule of using Spring Boot's keys where they
-exist ([ADR 0011](../adr/0011-http-client-starters.md), decision 2).
+exist ([ADR 0029](../adr/0029-http-client-starters-and-settings.md), decision 2).
 
 Spring Boot's global `spring.http.clients.connect-timeout`, `spring.http.clients.read-timeout` and
 `spring.http.clients.redirects` apply only to the RestClients Stratum did not build. A Stratum client takes its
@@ -477,7 +474,7 @@ the startup errors are on [HTTP client: errors](http-client-errors.md).
 
 ## Planned
 
-These parts of [ADR 0011](../adr/0011-http-client-starters.md) are not built yet, and none of their keys is read:
+These parts of [ADR 0029](../adr/0029-http-client-starters-and-settings.md) are not built yet, and none of their keys is read:
 
 - `urls` ([#308](https://github.com/exepex/stratum/issues/308));
 - the retry and circuit breaker of a client with its own engine

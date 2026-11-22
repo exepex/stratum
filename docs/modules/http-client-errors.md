@@ -3,7 +3,7 @@
 What a call of a `@StratumClient` interface throws when it fails, after its retries, and what the caller of your
 service then gets. Part of the [HTTP client](http-client.md) page.
 
-[← HTTP client](http-client.md) · Design: [ADR 0011](../adr/0011-http-client-starters.md), decision 6
+[← HTTP client](http-client.md) · Design: [ADR 0031](../adr/0031-http-client-errors-and-body-limits.md), decisions 1 and 2
 
 ## What a failed call throws
 
@@ -27,7 +27,7 @@ gets never names the other service, its address or its path. Your own log does: 
 A request that fails because another service answered with an error gets `500`, whatever that service answered,
 unless you map that status to your own code and give your code a status
 ([below](#your-own-code-for-an-error-status)): your caller must not send the request again because of it. Stratum's clients never resend a `500`, while they resend
-a `502`, `503`, `504` or `429` ([ADR 0011](../adr/0011-http-client-starters.md), decision 4.2), so a `503` passed on
+a `502`, `503`, `504` or `429` ([ADR 0030](../adr/0030-http-client-auth-resilience-and-connections.md), decision 2.2), so a `503` passed on
 by each service in a chain would multiply the calls that reach the last one. Which code your caller gets, and what it
 may do then, is in [What your caller learns](../guides/what-your-caller-learns.md).
 
@@ -63,7 +63,7 @@ cannot be read are answered with `500` in both modes.
 What your service returns instead when a call fails, such as the last value it read, is your own business logic:
 catch the failure, as [resilience: use it](resilience.md#use-it) shows. The resilience starter is **Planned**. Do not
 add a second retry layer, such as Resilience4j's `@Retry`, around a client: the client already retries
-([ADR 0011](../adr/0011-http-client-starters.md), decision 4.1).
+([ADR 0030](../adr/0030-http-client-auth-resilience-and-connections.md), decision 2.1).
 
 ## `DownstreamException`
 
@@ -259,7 +259,7 @@ lose their connection without an error, and are accepted as they are:
 ## The answer body is read up to 32 MB
 
 Of a successful answer, status below 400, a client reads at most `response-body-limit`, 32 MB by default, after gzip
-is undone ([ADR 0017](../adr/0017-http-client-response-body-limit.md)). Set it per client or under `defaults`, from
+is undone ([ADR 0031](../adr/0031-http-client-errors-and-body-limits.md)). Set it per client or under `defaults`, from
 `1B` to `1GB`, or `-1` for no limit ([properties](http-client.md#properties)).
 
 - A read that passes the limit fails with `SX-HTTPC-0006`, status `500`, as does an answer whose `Content-Length` is
@@ -288,7 +288,7 @@ throws Spring's own exceptions, as a `RestClient` you built would, except for th
 for a call refused by an open circuit breaker, `SX-HTTPC-0002` for a service token that cannot be fetched, and
 `SX-HTTPC-0004` for a token-relay call with no verified caller (an answer over `response-body-limit` fails with
 Spring's `RestClientException`, whose cause's message starts with `SX-HTTPC-0006`)
-([ADR 0014](../adr/0014-http-client-beans-that-retry.md)). `mapError` and `errors` reach
+([ADR 0031](../adr/0031-http-client-errors-and-body-limits.md)). `mapError` and `errors` reach
 interfaces only. The error body of such a call is still read up to 64 KB
 ([clients Stratum did not build](http-client-own-clients.md#what-differs-from-an-interface)).
 

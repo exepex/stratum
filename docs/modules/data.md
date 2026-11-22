@@ -40,7 +40,7 @@ running with consumers sets `stratum.backward-compatible=true` while it moves to
 "Strict mode" rows are left at Spring Boot's own defaults, because they can change what the
 service's callers see: a slower response or an error. The "Always" rows change nothing a caller
 sees and apply in both modes
-([ADR 0010](../adr/0010-modules-on-when-present-and-one-compatibility-switch.md)).
+([ADR 0026](../adr/0026-error-format-and-backward-compatible-switch.md)).
 
 ## Properties
 

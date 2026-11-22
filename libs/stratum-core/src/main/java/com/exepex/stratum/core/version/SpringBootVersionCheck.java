@@ -20,7 +20,7 @@ import org.springframework.core.io.support.PropertiesLoaderUtils;
 /**
  * Logs one {@code SX-CORE-1005} warning at startup when the running Spring Boot version is outside
  * the line this Stratum release supports, such as {@code 4.1.x}. It never stops startup: the
- * service's parent POM decides the version (ADR 0007). Any patch of the supported line is quiet,
+ * service's parent POM decides the version (ADR 0023). Any patch of the supported line is quiet,
  * and so is a version Spring Boot cannot report, such as from a repackaged jar.
  */
 @StratumInternal
