@@ -101,7 +101,9 @@ do with them.
 
 - Every default is safe without configuration (ST-ENG-25): total 8s, below the inbound 10s; a 2s pool wait; a
   5-minute connection lifetime; no network at startup. An operation may set a `total-timeout` above the inbound
-  limit; its caller then gets `503` when that limit passes, as for a client that does the same.
+  limit, as a client may. Its caller then gets `503` at that limit on WebFlux and on Spring MVC with virtual threads;
+  on Spring MVC with platform threads, the default, the socket read ignores the interrupt, so the caller gets `503`
+  only when the call ends, at the latest at the operation's `total-timeout`.
 - One breaker serves all of a client's operations, so an operation with long attempts counts as slow for the whole
   client once its attempts pass `slow-call-duration-threshold`.
 - A retried call through a bean is one span and one `http.client.requests` metric, with the last answer; an interface

@@ -113,8 +113,11 @@ com.exepex.stratum.httpclient.HttpClientPropertiesCustomizer=com.acme.orders.Rep
   `total-timeout`, or the long operation counts as slow for every method of the client
   ([the slow-call rule](http-client-resilience.md#the-circuit-breaker-group)).
 - **Above your own time limit.** With an operation's `total-timeout` longer than your service's own response time
-  limit, 10s by default ([response timeouts](web-timeouts.md)), your caller is answered `503` at that limit, and a
-  call that ignores the interrupt, such as a socket read on a platform thread, may run on until its own deadline.
+  limit, 10s by default ([response timeouts](web-timeouts.md)), your caller gets `503`, but not always at that limit.
+  On WebFlux, and on Spring MVC with virtual threads, it gets `503` at the limit. On Spring MVC with ordinary platform
+  threads, the default, the call's socket read ignores the interrupt, so the call runs on and your caller gets `503`
+  only when it ends: at the latest at the operation's `total-timeout`
+  ([how each stack stops the work](web-timeouts.md#how-each-stack-stops-the-work)).
 
 ## Startup errors
 

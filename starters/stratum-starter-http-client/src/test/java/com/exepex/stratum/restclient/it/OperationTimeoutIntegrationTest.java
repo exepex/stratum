@@ -86,6 +86,14 @@ class OperationTimeoutIntegrationTest {
     }
 
     @Test
+    @DisplayName("waits between the bytes of a slow body for the operation's read-timeout")
+    void slowBodyArrives() {
+      REPORTS.pauseBody(TimedTestData.SLOW_ANSWER);
+
+      assertThat(reports.monthlyReport()).isEqualTo(wholeBody());
+    }
+
+    @Test
     @DisplayName("leaves a method with no operation on the client's read-timeout")
     void plainMethodKeepsClientTimeout() {
       REPORTS.answerAfter(TimedTestData.SLOW_ANSWER);
