@@ -158,6 +158,9 @@ skips step 4: a text-only change needs no build (AGENTS.md, Build).
      "How documentation is checked" lists (ST-DOC-05 and the other documentation rules).
    - For a change to a rule or an ADR, check that every file that states or depends on that rule was updated
      (ST-AG-17).
+   - For a change to a key, default, status, code or behaviour, search docs/adr/ yourself, and check that each ADR the
+     change contradicts is replaced by a new, complete ADR and deleted in the same pull request, with no link left
+     pointing to it (ST-DOC-11).
 4. **Behaviour.**
    - Run the build and the tests, and any small check or probe you need.
    - Look for what the Claims do not mention: bugs, edge cases (empty input, a property unset, an optional library

@@ -19,7 +19,7 @@ the documentation must work for both. Documentation is part of every change and 
 | `docs/modules/<module>.md` | The page of a module that has no `README.md` of its own yet, with the same content. |
 | `docs/contributing.md` | How a person proposes a change: issues, branches, build commands. It links to `AGENTS.md` for the rules and repeats none of them. |
 | The GitHub wiki | A copy of `docs/README.md` (as Home), the pages it links, the project `README.md` (as Project-README) and a sidebar, made on every merge by the sync in [contributing](../contributing.md#the-wiki). Edit `docs/`, never a copied wiki page. Audit reports live only in the wiki. |
-| `docs/adr/` | Architecture decision records, numbered in order. An accepted record is never edited, which is the one exception to ST-DOC-03; a new record replaces it. Each is linked from `docs/README.md`. |
+| `docs/adr/` | Architecture decision records, numbered in order, one per decision (ST-DOC-11). Each is linked from `docs/README.md`. |
 | `docs/guides/` | Topics that span modules: architecture, migrating a service, upgrading, troubleshooting, FAQ. |
 | `docs/releases/<version>.md` | The release notes: what changed in each release, breaking changes and the steps to migrate. Each is linked from `docs/README.md`. |
 | `AGENTS.md` and `docs/agents/` | The rules for agents. `AGENTS.md` links every file in `docs/agents/`. |
@@ -60,6 +60,10 @@ the documentation must work for both. Documentation is part of every change and 
 - **ST-DOC-10 Breaking changes.** From 0.1.0 on, every breaking change (to API, a `stratum.*` key or a default) has a
   migration note in the release notes of the version that ships it: what changed, who is affected and the exact
   steps.
+- **ST-DOC-11 One ADR per decision.** Until the owner says otherwise, a change that contradicts an accepted ADR writes a
+  new, complete ADR under the next free number and deletes the old one in the same pull request; this is the one
+  exception to ST-DOC-03. It updates every link to the old ADR, inside other ADRs too, and git keeps the old text. An
+  ADR the change does not contradict is left as it is.
 
 ## How documentation is checked
 

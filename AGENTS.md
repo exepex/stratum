@@ -151,6 +151,8 @@ rather than handing it on. It never starts or chooses its own judge.
   - the faults it planted and the tests that caught them (ST-TEST-01), in the Claims' broken-code proof;
   - a search of the repository for every name, key and default the change adds, renames or changes, with the
     command and its number of hits;
+  - a search of docs/adr/ for every key, default, status, code and behaviour the change touches, with the command and
+    its number of hits (ST-DOC-11);
   - the rules broken most often: ST-ENG-42, ST-ENG-46, ST-ENG-47, ST-ENG-56 (nested types too), ST-DOC-05, ST-TEST-15,
     ST-TEST-17, and the use of shared helpers (ST-ENG-18, ST-TEST-16);
   - after each review fix to code, the module's `mvn -pl <module> -am verify` again, and a test of the sibling
