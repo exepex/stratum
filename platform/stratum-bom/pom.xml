@@ -6,7 +6,7 @@
   no parent and manages only the entries below. It also carries the root POM's properties, so that
   the versions below resolve when a service imports it; Maven imports only <dependencyManagement>, so
   those properties do not change the service. The BOM never brings Spring Boot's versions, so a
-  service under a company parent gets them from that parent only (ADR 0001, ST-ENG-60).
+  service under a company parent gets them from that parent only (ADR 0023, ST-ENG-60).
   It lists only the modules that are published to Maven Central; a module that sets skipPublishing
   (docs/contributing.md#publishing) is added here when it no longer does.
   Keep <dependencyManagement> sorted by name. The build checks the Stratum entries: they must be

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  The parent POM for a REST microservice (ADR 0019). It is stratum-parent, with all its build setup,
+  The parent POM for a REST microservice (ADR 0024). It is stratum-parent, with all its build setup,
   plus the dependencies every microservice needs: the stratum-starter-microservice bundle, and
   stratum-test and spring-boot-starter-test for its tests. A service then writes only <parent>. It adds
   a starter by declaring it, and drops a bundled one by declaring the bundle again with an <exclusion>.

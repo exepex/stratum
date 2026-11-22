@@ -36,7 +36,7 @@ class OnStratumModuleCondition extends SpringBootCondition {
   private static final Pattern KEBAB_CASE_CHARACTERS = Pattern.compile("[a-z0-9-]+");
 
   /**
-   * Reads {@code stratum.<module>.enabled}; a module whose property is not set is on (ADR 0010).
+   * Reads {@code stratum.<module>.enabled}; a module whose property is not set is on (ADR 0024).
    *
    * @param context the context whose environment holds the property
    * @param metadata the annotated class or method

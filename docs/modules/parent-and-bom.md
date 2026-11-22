@@ -33,7 +33,7 @@ Spring Boot's versions always come from the parent, never from the BOM. A servic
 `stratum-parent` gets them from `spring-boot-starter-parent`; a service with a company parent gets
 them from that parent. This way a service never receives two Spring Boot versions, and Stratum can be
 used next to a company framework. The reasons are in
-[ADR 0001](../adr/0001-coexistence-with-company-frameworks.md), and how to set it up is in
+[ADR 0023](../adr/0023-stratum-next-to-a-company-framework.md), and how to set it up is in
 [Using Stratum with a company framework](../guides/company-framework.md).
 
 ## The BOM
@@ -66,8 +66,7 @@ Spring Boot version. With `stratum-parent` it is always the tested version. Unde
 parent, check that its version is in the [supported line](../guides/upgrading.md#compatibility)
 before you upgrade either one. When it is not, Stratum logs one `SX-CORE-1005` warning at startup
 and the service keeps running; it never stops the service
-([ADR 0007](../adr/0007-spring-boot-version-warning.md), which amends
-[ADR 0002](../adr/0002-no-startup-version-check.md)).
+([ADR 0023](../adr/0023-stratum-next-to-a-company-framework.md), decision 2).
 
 ### Overriding one managed version
 
@@ -123,7 +122,7 @@ On top of Spring Boot's parent and the BOM, `stratum-parent` sets the following.
 the build info and packaging rows, and the one SpotBugs pattern that services skip, comes from
 `stratum-build-parent`, its own parent, which Stratum's libraries and starters also inherit, through
 `stratum-library-parent`. Every version comes from `stratum`, the parent of `stratum-build-parent`,
-which is the one place Stratum sets versions ([ADR 0005](../adr/0005-versions-in-the-root-pom.md)).
+which is the one place Stratum sets versions ([ADR 0027](../adr/0027-versions-and-dependency-updates.md)).
 
 | Area | Setting |
 | --- | --- |
@@ -251,7 +250,7 @@ Your own `excludeFilterFile` does not change this setting: Stratum's `omitVisito
 ## The microservice parent
 
 `stratum-microservice-parent` is the parent for a REST microservice
-([ADR 0019](../adr/0019-one-parent-per-kind-of-application.md)). It inherits `stratum-parent`, so a
+([ADR 0024](../adr/0024-bundles-parents-and-module-switches.md)). It inherits `stratum-parent`, so a
 service on it gets every setting above, and it adds three dependencies, nothing else:
 
 | Dependency | Scope |

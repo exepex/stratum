@@ -16,7 +16,7 @@ failing dependency slows one feature down instead of taking the whole service wi
 
 You define these as **policies** with a name in configuration and apply a policy by name to any
 method with an annotation. HTTP clients have their own retries and circuit breaker
-([ADR 0011](../adr/0011-http-client-starters.md)). The implementation uses
+([ADR 0030](../adr/0030-http-client-auth-resilience-and-connections.md)). The implementation uses
 [Resilience4j](https://resilience4j.readme.io/), with Stratum's defaults and metrics.
 
 ```mermaid
@@ -62,7 +62,7 @@ stratum:
 ## Use it
 
 **On an HTTP client:** the HTTP client starters set up their own retries and circuit breaker, with their own
-keys, and do not use this starter's policies ([ADR 0011](../adr/0011-http-client-starters.md)). Do not put
+keys, and do not use this starter's policies ([ADR 0030](../adr/0030-http-client-auth-resilience-and-connections.md)). Do not put
 `@Retry` or `@CircuitBreaker` around a call of a `@StratumClient` interface: each of your attempts would run all of
 the client's own retries, and your breaker would also count the client's open-breaker refusals (`SX-HTTPC-0003`). To
 return something else when the call fails, catch the client's failures in plain Java. Here `RatesClient` is a
@@ -210,7 +210,7 @@ The starter is on when it is on the classpath. Leaving `stratum.resilience.enabl
 is the same as `true`.
 
 `stratum.resilience.enabled=false` removes all policies. It does not change the HTTP clients, which have their
-own switches ([ADR 0011](../adr/0011-http-client-starters.md)).
+own switches ([ADR 0030](../adr/0030-http-client-auth-resilience-and-connections.md)).
 
 ## Troubleshooting
 

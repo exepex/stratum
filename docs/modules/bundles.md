@@ -6,9 +6,7 @@ observability and HTTP client starters are partly built, as their pages say. The
 their Spring web stack, Spring MVC or WebFlux, so a bundle starts a web server. The security,
 resilience, data-jpa and jdbc starters join no bundle until they are built.
 
-[← Documentation home](../README.md) · Decision records: [ADR 0003](../adr/0003-bundle-starters-and-module-switches.md),
-[ADR 0010](../adr/0010-modules-on-when-present-and-one-compatibility-switch.md),
-[ADR 0019](../adr/0019-one-parent-per-kind-of-application.md)
+[← Documentation home](../README.md) · Decision record: [ADR 0024](../adr/0024-bundles-parents-and-module-switches.md)
 
 ## What a bundle is
 

@@ -96,7 +96,7 @@ Based on the answers it decides which beans to create. These checks are called *
 most important one for you is `@ConditionalOnMissingBean`: it means "create this bean only if the
 application has not defined one already". Every bean Stratum creates has this condition, which is
 why you can always replace it with your own. The one exception is the routing data source
-([ADR 0022](../adr/0022-routing-data-source-is-the-only-primary.md)).
+([ADR 0023](../adr/0023-stratum-next-to-a-company-framework.md)).
 
 You can see every decision Spring Boot made by starting the application with `--debug`. See
 [Troubleshooting](../guides/troubleshooting.md#see-what-stratum-configured).

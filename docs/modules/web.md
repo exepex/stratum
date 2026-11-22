@@ -11,7 +11,7 @@ in the READMEs of [`stratum-starter-webmvc`](../../starters/stratum-starter-webm
 [Database failures](web-database-errors.md), and the rest on this page.
 
 [← Documentation home](../README.md) · Property prefix: `stratum.web` · Decision record:
-[ADR 0006](../adr/0006-separate-mvc-and-webflux-starters.md)
+[ADR 0025](../adr/0025-web-starters-for-mvc-and-webflux.md)
 
 ## What it does
 

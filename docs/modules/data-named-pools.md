@@ -162,7 +162,7 @@ does not know its pool before then.
 ### What a mapping changes
 
 A mapping adds the bean `stratumRoutingDataSource`, which picks the pool for each statement. It is
-the only primary `DataSource` ([ADR 0022](../adr/0022-routing-data-source-is-the-only-primary.md)),
+the only primary `DataSource` ([ADR 0023](../adr/0023-stratum-next-to-a-company-framework.md)),
 so Spring Boot's JPA and `JdbcTemplate` use it, and it picks the main pool for whatever no mapped
 repository runs. It changes a few things:
 

@@ -99,14 +99,14 @@ contradicts.
 
 1. **Who uses it, and does anything change for them?** The consumers; a new, an existing and a hybrid service (old
    endpoints kept, new ones on Stratum); how a service adopts it, with Stratum as its parent or next to a company
-   framework (ADR 0001); each change a consumer sees, or none with the test that proves it; which new types are API
+   framework (ADR 0023); each change a consumer sees, or none with the test that proves it; which new types are API
    and which carry `@StratumInternal` (ST-ENG-56); the lines a service writes to use it.
 2. **How is it built, and why this way?** What Stratum, Spring Boot or a library already provides, and whether it is
    reused; the simplest way and one alternative, with why it was not chosen; the existing class it is modelled on;
    its module and package, and why no package cycle results (ST-ENG-57); each key with its default and a real case
    that changes it, a Spring Boot key first, and the Java customizer (ST-ENG-34).
 3. **Is it safe and fast?** The eight parameters of ST-AG-14; the hostile inputs, each written as a test; for web
-   code, the table of cases, each tested on both stacks (ADR 0006); each thread hop and how the logging and tracing
+   code, the table of cases, each tested on both stacks (ADR 0025); each thread hop and how the logging and tracing
    context moves with it (ST-ENG-53); for code that parses, matches a regex or masks, the test with a large hostile
    input, whose limit fails on a 10× slowdown of the measured cost; for a matching rule that replaces another, which
    inputs the old rule matched that the new one does not.

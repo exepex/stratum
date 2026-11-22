@@ -98,7 +98,7 @@ mapped by package or by `@UseDataSource`: see
 `stratum.backward-compatible=true`, the "Strict mode" rows are left at Spring Boot's own defaults,
 because they can change what the service's callers see: a slower response, an error, or data
 loaded differently. The "Always" rows change nothing a caller sees and apply in both modes
-([ADR 0010](../adr/0010-modules-on-when-present-and-one-compatibility-switch.md)).
+([ADR 0026](../adr/0026-error-format-and-backward-compatible-switch.md)).
 
 ## Properties
 
@@ -154,7 +154,7 @@ after Stratum's and wins. `stratum.data.query-timeout` is set in Java as in
 - With a [mapping](data-named-pools.md#repositories-on-a-pool), a bean named
   `stratumRepositoryPools`, `stratumRepositoryPoolAdvice` or `stratumRoutingCheck` replaces
   Stratum's bean of that name. A bean named `stratumRoutingDataSource` stops startup instead
-  ([ADR 0022](../adr/0022-routing-data-source-is-the-only-primary.md)).
+  ([ADR 0023](../adr/0023-stratum-next-to-a-company-framework.md)).
 - The beans of the JDBC boundary, such as `stratumJdbcBoundary`, are replaced as
   [Data → Customize](data.md#customize) shows.
 

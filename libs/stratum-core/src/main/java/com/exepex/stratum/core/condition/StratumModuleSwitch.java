@@ -11,7 +11,7 @@ import org.springframework.core.env.Environment;
 public class StratumModuleSwitch {
 
   /**
-   * Returns whether a module is switched on. A module whose property is not set is on (ADR 0010).
+   * Returns whether a module is switched on. A module whose property is not set is on (ADR 0024).
    *
    * @param environment the application's environment
    * @param module the module's kebab-case name, such as {@code http-client}

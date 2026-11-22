@@ -113,7 +113,7 @@ Four rules shape every module:
 2. **Opt-in.** You add only the starters you need. A service that never calls another service does
    not carry an HTTP client.
 3. **Never locked in.** Every bean Stratum creates steps aside when you define your own, except the
-   routing data source of [repositories on a pool](docs/adr/0022-routing-data-source-is-the-only-primary.md),
+   routing data source of [repositories on a pool](docs/adr/0023-stratum-next-to-a-company-framework.md),
    and every default is a property you can change. See [Overriding defaults](docs/configuration/overriding-defaults.md).
 4. **Plain Spring underneath.** Anything you know about Spring Boot still applies. Stratum builds on
    Spring's own extension points and adds no proprietary programming model.
@@ -230,7 +230,7 @@ One dependency per kind of application; each lists only the single starters that
 [Bundle starters](docs/modules/bundles.md).
 
 `stratum-microservice-parent` brings the microservice bundle, so a service on it does not declare it
-([ADR 0019](docs/adr/0019-one-parent-per-kind-of-application.md)).
+([ADR 0024](docs/adr/0024-bundles-parents-and-module-switches.md)).
 
 A bundle lists only single starters that have code. The security, resilience, data-jpa and
 jdbc starters join no bundle until they are built. The microservice bundle's cache starter caches
@@ -358,7 +358,7 @@ In setups B and C three rules keep the two frameworks from conflicting:
   or excludes that starter.
 
 Step-by-step setup and configuration: [Using Stratum with a company framework](docs/guides/company-framework.md).
-The decision behind it: [ADR 0001](docs/adr/0001-coexistence-with-company-frameworks.md).
+The decision behind it: [ADR 0023](docs/adr/0023-stratum-next-to-a-company-framework.md).
 
 ## Testing your service
 

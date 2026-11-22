@@ -1,5 +1,5 @@
 # Publishes Stratum to Maven Central under io.github.exepex.stratum (docs/contributing.md#publishing).
-# It runs only when the owner starts it (docs/adr/0021-publish-only-when-the-owner-runs-it.md):
+# It runs only when the owner starts it (docs/adr/0028-version-numbers-releases-and-publishing.md):
 # - A manual run (Run workflow in the Actions tab) on main or a release/* branch deploys the -SNAPSHOT
 #   version set in .mvn/maven.config to Central's snapshot repository. A version without -SNAPSHOT,
 #   or a run on any other branch, deploys nothing.

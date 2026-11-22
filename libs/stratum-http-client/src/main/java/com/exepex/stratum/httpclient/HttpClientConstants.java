@@ -99,7 +99,7 @@ public class HttpClientConstants {
 
   /**
    * Stratum's default longest wait between two attempts, after growth and random spread, used when
-   * {@code max-delay} is unset and {@code delay} is shorter (ADR 0011, 2.4).
+   * {@code max-delay} is unset and {@code delay} is shorter (ADR 0029, 2.4).
    */
   public static final Duration MAX_RETRY_DELAY = Duration.ofSeconds(2);
 
@@ -142,7 +142,7 @@ public class HttpClientConstants {
   /** Stratum's default time allowed for a whole call, below the web starter's 10s answer limit. */
   public static final Duration DEFAULT_TOTAL_TIMEOUT = Duration.ofSeconds(8);
 
-  /** The least time left before a call's deadline for another attempt to start (ADR 0011, 4.4). */
+  /** The least time left before a call's deadline for another attempt to start (ADR 0030, 2.4). */
   public static final Duration MIN_ATTEMPT_TIME = Duration.ofMillis(100);
 
   /**
@@ -165,7 +165,7 @@ public class HttpClientConstants {
 
   /**
    * The most of an error answer's body that is read, 64 KB; the rest is never held. Fixed, with no
-   * key (ADR 0011, decision 6.2).
+   * key (ADR 0031, decision 2.1).
    */
   public static final int ERROR_BODY_LIMIT = 64 * 1024;
 
@@ -186,13 +186,13 @@ public class HttpClientConstants {
 
   /**
    * How long a connection may sit unused before it is checked before its next use, so that one the
-   * server closed meanwhile is not used. Fixed, with no key (ADR 0011, decision 5.2).
+   * server closed meanwhile is not used. Fixed, with no key (ADR 0030, decision 3.2).
    */
   public static final Duration STALE_CHECK_AFTER = Duration.ofSeconds(2);
 
   /**
    * The most characters of a URI template the call log writes when no redaction runs over the line,
-   * cut at its first {@code ?} too. Fixed, with no key, as ADR 0011 decision 2.4 fixes the keys.
+   * cut at its first {@code ?} too. Fixed, with no key, as ADR 0029 decision 2.4 fixes the keys.
    */
   public static final int MAX_LOGGED_URI_LENGTH = 256;
 
@@ -225,7 +225,7 @@ public class HttpClientConstants {
 
   /**
    * The headers never accepted in {@code headers} or {@code copy-headers}, since they carry a
-   * user's identity or a credential (ADR 0011, decision 3.4). A client's API key header is refused
+   * user's identity or a credential (ADR 0030, decision 1.4). A client's API key header is refused
    * too.
    */
   public static final List<String> REFUSED_HEADERS =

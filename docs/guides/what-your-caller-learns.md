@@ -15,7 +15,7 @@ Each status below is Stratum's default. You change any of them in `stratum.web.e
 
 "Sent again" says what a Stratum HTTP client in the calling service does with that status: it sends a `GET`, `HEAD`,
 `OPTIONS`, `PUT` or `DELETE` again after a `502`, `503`, `504` or `429`, and never after a `500` or a `409`. A `POST`
-or a `PATCH` is not sent again after any answer ([ADR 0011](../adr/0011-http-client-starters.md), decision 4.2).
+or a `PATCH` is not sent again after any answer ([ADR 0030](../adr/0030-http-client-auth-resilience-and-connections.md), decision 2.2).
 Gateways and other client libraries have their own rules, which Stratum does not check.
 
 "Work may be done" says whether the work the request asked for may have happened, though the request failed.

@@ -33,8 +33,8 @@
       <groupId>org.apache.httpcomponents.client5</groupId>
       <artifactId>httpclient5</artifactId>
     </dependency>
-    <!-- The one retry layer and the circuit breaker of each client (ADR 0011, decision 4.1),
-         for its interfaces and its RestClient and RestTemplate beans (ADR 0014). Spring Boot does
+    <!-- The one retry layer and the circuit breaker of each client (ADR 0030, decisions 2.1 and
+         2.7), for its interfaces and its RestClient and RestTemplate beans. Spring Boot does
          not manage Resilience4j; a client with its own engine gets them in the planned #262. -->
     <dependency>
       <groupId>io.github.resilience4j</groupId>
@@ -52,7 +52,7 @@
       <artifactId>jakarta.servlet-api</artifactId>
       <optional>true</optional>
     </dependency>
-    <!-- Optional: the meters of each call, retry, breaker state and pool (ADR 0016). Micrometer's
+    <!-- Optional: the meters of each call, retry, breaker state and pool (ADR 0032). Micrometer's
          core holds the registry and the Apache HttpClient 5 pool binder; a service gets it with
          Spring Boot's Actuator or the observability starter, and without it the starter makes no
          meters. Spring Boot manages its version. -->

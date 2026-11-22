@@ -49,7 +49,7 @@ conventions. Each rule has an ID so that reviews and judge verdicts can cite it.
   web starters) that cover:
   - the beans created by default;
   - each bean backing off when the service defines its own, and when an auto-configuration with no declared order
-    defines one, as a company framework would (ADR 0001 in `docs/adr/`). An auto-configuration ordered before
+    defines one, as a company framework would (ADR 0023 in `docs/adr/`). An auto-configuration ordered before
     a Spring Boot one (ST-ENG-21) instead has a test showing which bean wins, and its module page says so;
   - the module on when `stratum.<module>.enabled` is unset, and off when it is `false`;
   - an optional library missing from the classpath (`FilteredClassLoader`);

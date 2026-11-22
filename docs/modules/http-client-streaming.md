@@ -3,7 +3,7 @@
 How a call of a `@StratumClient` interface streams a large download or upload instead of holding it in memory. Part
 of the [HTTP client](http-client.md) page.
 
-[← HTTP client](http-client.md) · Design: [ADR 0011](../adr/0011-http-client-starters.md), decision 7
+[← HTTP client](http-client.md) · Design: [ADR 0031](../adr/0031-http-client-errors-and-body-limits.md), decision 7
 
 ## Downloads and uploads
 

@@ -128,7 +128,7 @@ they never block a pull request.
 
 Dependabot also opens pull requests that upgrade dependencies every week. They run these same
 checks; how they are grouped and reviewed is in
-[ADR 0004](adr/0004-dependency-updates.md). A security update, the pull request Dependabot opens
+[ADR 0027](adr/0027-versions-and-dependency-updates.md). A security update, the pull request Dependabot opens
 from an alert, comes only once Dependabot security updates are switched on in the repository
 settings. The Maven plugins whose versions Spring Boot sets, such as Compiler and Surefire, move only
 with a Spring Boot upgrade, so a fix to one of them also arrives only through that upgrade.
@@ -217,10 +217,10 @@ service's own `release` profile never turns it on. The workflow skips the tests,
 | When | What is published | Where |
 | --- | --- | --- |
 | **Run workflow** in the Actions tab, by the owner, on `main` or a `release/*` branch | The `-SNAPSHOT` version in `.mvn/maven.config`. A version without `-SNAPSHOT`, or a run on any other branch, publishes nothing | `https://central.sonatype.com/repository/maven-snapshots/`, which keeps a snapshot for 90 days |
-| A tag `v<version>`, such as `v0.1.0`, that the owner creates on a commit of `main`, or of a patch branch `release/0.<minor>.x` ([ADR 0020](adr/0020-version-numbers-and-releases.md)), whose Build passed | That version; a tag that contains `SNAPSHOT` fails the run | The Central Portal, as a deployment that waits until the owner clicks **Publish** there |
+| A tag `v<version>`, such as `v0.1.0`, that the owner creates on a commit of `main`, or of a patch branch `release/0.<minor>.x` ([ADR 0028](adr/0028-version-numbers-releases-and-publishing.md)), whose Build passed | That version; a tag that contains `SNAPSHOT` fails the run | The Central Portal, as a deployment that waits until the owner clicks **Publish** there |
 
 Nothing is published on a push to `main`: the workflow runs only when the owner starts it
-([ADR 0021](adr/0021-publish-only-when-the-owner-runs-it.md)). Snapshots are published only after
+([ADR 0028](adr/0028-version-numbers-releases-and-publishing.md)). Snapshots are published only after
 the owner enables SNAPSHOTs for the `io.github.exepex` namespace in the Central Portal. How a service uses a snapshot is in
 [Installation](getting-started/installation.md#using-a-snapshot).
 

@@ -1,7 +1,7 @@
 # Opens pull requests that upgrade Stratum's Maven dependencies and plugins and its GitHub Actions.
 # Every such pull request runs the full build in build.yml, and the owner merges it; nothing merges
-# automatically. The reasons and the review steps are in docs/adr/0004-dependency-updates.md.
-# Every Maven version Stratum sets is in the root pom.xml (docs/adr/0005-versions-in-the-root-pom.md).
+# automatically. The reasons and the review steps are in docs/adr/0027-versions-and-dependency-updates.md.
+# Every Maven version Stratum sets is in the root pom.xml (docs/adr/0027-versions-and-dependency-updates.md).
 version: 2
 updates:
   - package-ecosystem: maven

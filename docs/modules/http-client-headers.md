@@ -4,7 +4,8 @@ Fixed headers, headers copied from the request your service is answering, and in
 changes each call before it is sent, such as to sign it. Part of [`stratum-starter-http-client`](http-client.md).
 
 [← HTTP client](http-client.md) · [Documentation home](../README.md) ·
-Design: [ADR 0011](../adr/0011-http-client-starters.md), decisions 1.3, 2.1 and 3.4
+Design: [ADR 0029](../adr/0029-http-client-starters-and-settings.md), decisions 1.3 and 2.1, and
+[ADR 0030](../adr/0030-http-client-auth-resilience-and-connections.md), decision 1.4
 
 ## Fixed headers
 
@@ -194,7 +195,7 @@ class PartnerOnly implements GlobalClientInterceptor {
 ```
 
 Interceptors run inside Stratum's request factory, not as Spring's `ClientHttpRequestInterceptor`, which would make
-Spring hold every request body in memory ([ADR 0012](../adr/0012-http-client-changes-found-while-building.md)). A
+Spring hold every request body in memory ([ADR 0030](../adr/0030-http-client-auth-resilience-and-connections.md)). A
 `StratumClientCustomizer` that replaces a client's request factory replaces the pool, the copied headers, the
 interceptors and the [trace headers](http-client-observability.md#trace-headers) too.
 

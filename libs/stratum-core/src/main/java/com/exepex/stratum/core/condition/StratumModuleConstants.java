@@ -92,7 +92,7 @@ public class StratumModuleConstants {
   /**
    * The {@code @AutoConfigureOrder} of every Stratum auto-configuration: later than the default, so
    * that a company framework's auto-configurations with no order run first and their beans win (ADR
-   * 0001).
+   * 0023).
    */
   public static final int AUTO_CONFIGURATION_ORDER = AutoConfigureOrder.DEFAULT_ORDER + 1000;
 

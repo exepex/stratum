@@ -5,8 +5,8 @@ for a while. Each client sets these in two groups, `retry` and `circuit-breaker`
 or under one client. Part of the [HTTP client](http-client.md) page, whose property table lists every key with its
 type and default.
 
-[← HTTP client](http-client.md) · Design: [ADR 0011](../adr/0011-http-client-starters.md), decision 4, and
-[ADR 0013](../adr/0013-http-client-retry-and-circuit-breaker-keys.md)
+[← HTTP client](http-client.md) · Design: [ADR 0030](../adr/0030-http-client-auth-resilience-and-connections.md), decision 2, and
+[ADR 0029](../adr/0029-http-client-starters-and-settings.md), decision 2.4
 
 ## With nothing set
 
