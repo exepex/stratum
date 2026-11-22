@@ -61,16 +61,18 @@ final class MockRequestFactory implements ClientHttpRequestFactory {
 
     /**
      * Waits an answer's delay, or the call's time limit and fails when the delay is longer. The
-     * limit is {@code read-timeout}, cut to the time {@code total-timeout} leaves, except for a
-     * streamed download, which keeps its full {@code read-timeout} as with a real service.
+     * limit is the operation's {@code read-timeout}, else the client's, cut to the time {@code
+     * total-timeout} leaves, except for a streamed download, which keeps its full {@code
+     * read-timeout} as with a real service.
      */
     private void await(Duration delay) throws IOException {
+      var answerTimeout = AttemptTimeLeft.readTimeout().orElse(timeout);
       var limit =
           AttemptTimeLeft.keepsAnswerTimeout()
-              ? timeout
+              ? answerTimeout
               : AttemptTimeLeft.timeLeft()
-                  .filter(timeLeft -> timeLeft.compareTo(timeout) < 0)
-                  .orElse(timeout);
+                  .filter(timeLeft -> timeLeft.compareTo(answerTimeout) < 0)
+                  .orElse(answerTimeout);
       if (delay.compareTo(limit) <= 0) {
         answers.pause(delay);
         return;

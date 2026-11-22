@@ -26,8 +26,9 @@ public final class MockScript {
   private Duration answerTime = Duration.ZERO;
 
   /**
-   * Makes the answer take this long. A delay longer than the call's time limit, the client's {@code
-   * timeout} or the time its {@code total-timeout} leaves, fails the call as a read timeout would.
+   * Makes the answer take this long. A delay longer than the call's time limit, the {@code
+   * read-timeout} of its operation, else the client's, or the time its {@code total-timeout}
+   * leaves, fails the call as a read timeout would.
    *
    * @param time how long the answer takes
    * @return this script

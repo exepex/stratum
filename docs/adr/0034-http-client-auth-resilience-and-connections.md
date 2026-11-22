@@ -1,10 +1,10 @@
-# ADR 0030: HTTP client auth, retries, circuit breaker and connections
+# ADR 0034: HTTP client auth, retries, circuit breaker and connections
 
 **Status:** Accepted, 2026-11-22, by the owner. Its decisions were taken from 2026-11-06 to 2026-11-20; each
 gives its date.
 
 One of four records on the HTTP client starters. The keys and their defaults are in
-[ADR 0029](0029-http-client-starters-and-settings.md); this record owns what auth, retries, the breaker and the pool
+[ADR 0033](0033-http-client-starters-and-settings.md); this record owns what auth, retries, the breaker and the pool
 do with them.
 
 [← Documentation home](../README.md) · How to use it: [Auth and mTLS](../modules/http-client-auth.md) ·
@@ -65,8 +65,11 @@ do with them.
 3. `Retry-After` on 429 or 503 is honoured within the time left. There is no retry while the breaker is open, and a
    streamed upload is never retried.
 4. Each attempt's connection wait, connect timeout and `read-timeout` are cut to the time left under
-   `total-timeout`. No new attempt starts with less than about 100ms left. The default of 8s stays below the web
-   starter's 10s answer timeout.
+   `total-timeout`. For a call of a method marked `@StratumOperation`, `read-timeout` and `total-timeout` are the
+   operation's, and each one the operation leaves unset is the client's; the connection wait and connect timeout stay
+   the client's (owner, 2026-11-17 and 2026-11-20). A service token is fetched with the client's `read-timeout`. No
+   new attempt starts with less than about 100ms left. The default of 8s stays below the web starter's 10s answer
+   timeout.
 5. There is one breaker per client. **Counted as failure:** timeouts, I/O errors, 5xx and 429. **Never counted:**
    other 4xx and a 404 read as empty. When open, the call stops with `SX-HTTPC-0003`. A state change is logged once,
    and refused calls are counted.
@@ -74,7 +77,7 @@ do with them.
    which failures are retried and which the breaker counts, a `POST` never sent again once written, and one breaker
    per client. A `StratumClientCustomizer` runs after the keys, for what they cannot express.
 7. **A client's beans retry and guard their calls too** (owner, 2026-11-10). A call through the `RestClient` or
-   `RestTemplate` bean of [ADR 0029](0029-http-client-starters-and-settings.md) decision 3.2 uses the client's
+   `RestTemplate` bean of [ADR 0033](0033-http-client-starters-and-settings.md) decision 3.2 uses the client's
    settings and its one breaker, shared with its interfaces: a call without a body is retried under decision 2.2; a
    call with a body is sent once; an open breaker refuses a call with `SX-HTTPC-0003`. Each attempt waits for the
    answer at most `read-timeout` or the time left under `total-timeout`, so the whole call has its answer by
@@ -97,7 +100,10 @@ do with them.
 ## Consequences
 
 - Every default is safe without configuration (ST-ENG-25): total 8s, below the inbound 10s; a 2s pool wait; a
-  5-minute connection lifetime; no network at startup.
+  5-minute connection lifetime; no network at startup. An operation may set a `total-timeout` above the inbound
+  limit; its caller then gets `503` when that limit passes, as for a client that does the same.
+- One breaker serves all of a client's operations, so an operation with long attempts counts as slow for the whole
+  client once its attempts pass `slow-call-duration-threshold`.
 - A retried call through a bean is one span and one `http.client.requests` metric, with the last answer; an interface
   records one per attempt. A body cut off after the answer's head is neither retried nor counted for a bean. An
   answer read on a late attempt has only that attempt's time left between bytes; a team that downloads large files

@@ -3,7 +3,7 @@
 How a Stratum client answers without calling its service: from files in a demo, or from a test's script. Part of the
 [HTTP client](http-client.md) page, which lists every key.
 
-[← HTTP client](http-client.md) · Design: [ADR 0029](../adr/0029-http-client-starters-and-settings.md), decision 4
+[← HTTP client](http-client.md) · Design: [ADR 0033](../adr/0033-http-client-starters-and-settings.md), decision 4
 
 ## Turn a client's mock on
 
@@ -83,7 +83,7 @@ class CheckoutTest {
 | --- | --- |
 | `on("method").respond(value)` | Answers `200` with the value: a text as it is, any other value as JSON written by the application's JSON mapper, no body for `null`. Pass the object, such as `new Payment(...)`, not its JSON text: a text is sent as `text/plain`, which the JSON converter does not read. |
 | `on("method").fail(HttpStatus.NOT_FOUND)` | Answers that status with no body; `fail(status, "{...}")` adds a JSON body. |
-| `on("method").delay(Duration.ofMillis(200)).respond(value)` | Answers after the delay. A delay longer than the call's limit, the client's `read-timeout` or the time its `total-timeout` leaves, waits that limit and fails the call with `SX-HTTPC-0001`, as a read timeout would ([Errors](http-client-errors.md)). |
+| `on("method").delay(Duration.ofMillis(200)).respond(value)` | Answers after the delay. A delay longer than the call's limit, the `read-timeout` of its operation, else the client's, or the time its `total-timeout` leaves, waits that limit and fails the call with `SX-HTTPC-0001`, as a read timeout would ([Errors](http-client-errors.md)). |
 | `calls("method")` | The calls of that method since `of` was called: each with its method name and arguments. |
 | `mockClients.reset()` | Clears every script and call, inside a test. |
 

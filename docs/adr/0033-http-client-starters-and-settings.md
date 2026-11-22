@@ -1,10 +1,10 @@
-# ADR 0029: HTTP client starters on Spring HTTP interfaces, with one settings block per client
+# ADR 0033: HTTP client starters on Spring HTTP interfaces, with one settings block per client
 
 **Status:** Accepted, 2026-11-22, by the owner. Its decisions were taken from 2026-11-07 to 2026-11-20; each
 gives its date.
 
 This is the first of four records on the HTTP client starters. It owns the starters, every key with its default and
-range, and clients Stratum did not build. [ADR 0030](0030-http-client-auth-resilience-and-connections.md) owns auth,
+range, and clients Stratum did not build. [ADR 0034](0034-http-client-auth-resilience-and-connections.md) owns auth,
 retries, the circuit breaker and connections; [ADR 0031](0031-http-client-errors-and-body-limits.md) owns errors,
 body limits and streaming; [ADR 0032](0032-http-client-call-log-and-meters.md) owns the call log and meters.
 
@@ -61,7 +61,8 @@ body limits and streaming; [ADR 0032](0032-http-client-call-log-and-meters.md) o
    `headers` are added to those under `defaults`, the client wins per name, and an empty value drops a default;
    `copy-headers` lists are joined, and a name with nothing to copy sends nothing; and a client's `errors` are added
    to those under `defaults`, the client winning per status (owner, 2026-11-20). An operation's settings win over its
-   client's (owner, 2026-11-20).
+   client's (owner, 2026-11-20), and a timeout an operation leaves unset is its client's (owner, 2026-11-17 and
+   2026-11-20).
 2. **Spring Boot's `spring.http.serviceclient.<name>.*` keys do not apply to a Stratum client** (owner, 2026-11-09).
    Startup stops with `SX-HTTPC-1001` when such a key is set for a Stratum client's name, naming the Stratum key to
    use instead. The check reads configuration only.
@@ -89,9 +90,12 @@ body limits and streaming; [ADR 0032](0032-http-client-call-log-and-meters.md) o
    - `call-log` `errors`, `all` or `none` (`errors`) (owner, 2026-11-10);
    - `response-body-limit` 32 MB, `-1` for none, otherwise from 1 byte to 1 GiB (owner, 2026-11-10);
    - `errors` (none): an error status from 400 to 599 mapped to the service's own code (owner, 2026-11-20);
-   - `operations.<operation>.errors` (none), under a client only (owner, 2026-11-20).
+   - `operations.<operation>.errors` (none), under a client only (owner, 2026-11-20);
+   - `operations.<operation>.read-timeout` and `operations.<operation>.total-timeout` (unset: the client's), under a
+     client only (owner, 2026-11-17 and 2026-11-20). The connect timeout, the pool, `max-wait`, the retries and the
+     circuit breaker stay per client.
 
-   That is 23 keys, each group counted as one and the kinds inside `auth` not counted.
+   That is 25 keys, each group counted as one and the kinds inside `auth` not counted.
 5. **What stops startup.**
    - A value out of range, a duration of 0 or less, a `max-delay` below `delay` on an exponential back-off, a
      slow-call rate without its duration, a status outside 400 to 599, and a code that is empty, holds whitespace or
@@ -117,7 +121,7 @@ body limits and streaming; [ADR 0032](0032-http-client-call-log-and-meters.md) o
    `stratum.http-client.<name>.rest-client` and `.rest-template`, injected with `@Qualifier("<name>")` (owner,
    2026-11-10). They are not default candidates, so a service's own unqualified bean stays the one injected without
    a qualifier, and a service's own bean with the same qualifier wins. `stratumHttpClients.restClient("<name>")`
-   returns the same `RestClient`. How they retry is in ADR 0030, and what they throw in ADR 0031.
+   returns the same `RestClient`. How they retry is in ADR 0034, and what they throw in ADR 0031.
 3. `StratumClientCustomizer` gets `RestTemplateBuilder customizeRestTemplate(String client, RestTemplateBuilder
    builder)`, whose default returns the builder unchanged; Stratum hands each customizer's result to the next, in
    their order (owner, 2026-11-10).

@@ -116,6 +116,16 @@ public abstract class AroundCallExchangeAdapter extends HttpExchangeAdapterDecor
   }
 
   /**
+   * Returns the operation of a call: the name in its method's {@code @StratumOperation}.
+   *
+   * @param values the call
+   * @return the operation's name, or {@code null} for a method with none
+   */
+  protected @Nullable String operationOf(HttpRequestValues values) {
+    return (String) values.getAttributes().get(HttpClientConstants.OPERATION);
+  }
+
+  /**
    * Returns a call's answer, which only a call whose method returns {@code Optional} may lack:
    * Spring then wraps the missing answer as an empty {@code Optional}. Any other missing answer
    * fails fast.

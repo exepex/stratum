@@ -199,10 +199,10 @@ public class ClientConnectionPools implements DisposableBean {
   }
 
   /**
-   * Returns a context whose pool wait and answer timeout are each the smaller of the client's and
-   * the time left; a streamed download through a factory that streams answers keeps its answer
-   * timeout, the longest gap between bytes. The pool cuts the connect timeout, in {@link
-   * #connectionConfig}.
+   * Returns a context whose pool wait and answer timeout are each the smaller of the call's and the
+   * time left, the answer timeout being its operation's in a client's own pool; a streamed download
+   * through a factory that streams answers keeps its full answer timeout, the longest gap between
+   * bytes. The pool cuts the connect timeout, in {@link #connectionConfig}.
    */
   private HttpContext contextWithin(
       RequestConfig requestConfig,
@@ -213,10 +213,11 @@ public class ClientConnectionPools implements DisposableBean {
         RequestConfig.copy(requestConfig)
             .setConnectionRequestTimeout(
                 within(Objects.requireNonNull(settings.maxWait()), timeLeft));
-    if (answerDeadline.boundsAnswer()) {
-      attemptConfig.setResponseTimeout(
-          within(Objects.requireNonNull(settings.readTimeout()), timeLeft));
-    }
+    var answerTimeout = answerDeadline.answerTimeout();
+    attemptConfig.setResponseTimeout(
+        answerDeadline.boundsAnswer()
+            ? within(answerTimeout, timeLeft)
+            : atLeastOneMillisecond(answerTimeout));
     var context = HttpClientContext.create();
     context.setRequestConfig(attemptConfig.build());
     return context;

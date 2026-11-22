@@ -50,7 +50,11 @@ class MockRequestFactoryTest {
 
       assertThat(
               AttemptTimeLeft.runWithin(
-                  deadline(), true, new AtomicReference<>(), MockRequestFactoryTest.this::call))
+                  deadline(),
+                  true,
+                  null,
+                  new AtomicReference<>(),
+                  MockRequestFactoryTest.this::call))
           .isEqualTo(HttpStatus.OK);
     }
 
@@ -65,7 +69,23 @@ class MockRequestFactoryTest {
           .isThrownBy(
               () ->
                   AttemptTimeLeft.runWithin(
-                      deadline, false, sentTo, MockRequestFactoryTest.this::call))
+                      deadline, false, null, sentTo, MockRequestFactoryTest.this::call))
+          .withCauseInstanceOf(SocketTimeoutException.class);
+    }
+
+    @Test
+    @DisplayName(
+        "a call of an operation waits at most the operation's read-timeout, not the client's")
+    void operationReadTimeoutCutsDelay() {
+      scriptDelayedAnswer();
+      var farDeadline = System.nanoTime() + RestClientTestData.WAIT.toNanos();
+      var sentTo = new AtomicReference<@Nullable URI>();
+
+      assertThatExceptionOfType(UncheckedIOException.class)
+          .isThrownBy(
+              () ->
+                  AttemptTimeLeft.runWithin(
+                      farDeadline, true, TIME_LEFT, sentTo, MockRequestFactoryTest.this::call))
           .withCauseInstanceOf(SocketTimeoutException.class);
     }
   }
@@ -119,7 +139,11 @@ class MockRequestFactoryTest {
 
       assertThat(
               AttemptTimeLeft.runWithin(
-                  deadline(), true, new AtomicReference<>(), MockRequestFactoryTest.this::length))
+                  deadline(),
+                  true,
+                  null,
+                  new AtomicReference<>(),
+                  MockRequestFactoryTest.this::length))
           .isEqualTo(LIMIT + 1);
     }
 

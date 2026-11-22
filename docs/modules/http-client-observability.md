@@ -79,7 +79,7 @@ response header, a body, the exception or its message, or the status text.
 | `SUCCESS` | An answer that is not an error, or a `404` that a method returning `Optional` reads as empty. |
 | `CLIENT_ERROR` | An error answer of 4xx. |
 | `SERVER_ERROR` | An error answer of 5xx. |
-| `TIMEOUT` | No answer within the client's `read-timeout`. |
+| `TIMEOUT` | No answer within the `read-timeout` of the call's operation, else the client's. |
 | `UNAVAILABLE` | No answer for any other reason: a failed connection or connect timeout, an unknown host, a full pool, a dropped connection, or a service token that could not be fetched. |
 | `ERROR` | A failure inside your service, such as an answer that cannot be read. |
 | `REFUSED` | The open breaker refused the call before any attempt was sent. Counted, never logged. |
@@ -246,7 +246,8 @@ same and makes no meters. Each meter is tagged `client`, the client's name.
 - No tag ever holds a path value, a query value or a header: `outcome` and `state` have the fixed values above.
 - The state gauge shows the three states a breaker goes through by itself. Resilience4j's other states, `DISABLED`,
   `FORCED_OPEN` and `METRICS_ONLY`, are set only by your own code, and show 0 on all three.
-- Spring Boot's own `http.client.requests` timer stays as it is: one per attempt, tagged with the template.
+- Spring Boot's own `http.client.requests` timer stays as it is: one per attempt, tagged with the template. Use it to
+  time each endpoint or [operation](http-client-operations.md): `stratum.http.client.calls` has no tag per method.
 - How long a call waits for a free connection is not measured yet
   ([#237](https://github.com/exepex/stratum/issues/237)).
 

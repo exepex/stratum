@@ -15,7 +15,7 @@ Each status below is Stratum's default. You change any of them in `stratum.web.e
 
 "Sent again" says what a Stratum HTTP client in the calling service does with that status: it sends a `GET`, `HEAD`,
 `OPTIONS`, `PUT` or `DELETE` again after a `502`, `503`, `504` or `429`, and never after a `500` or a `409`. A `POST`
-or a `PATCH` is not sent again after any answer ([ADR 0030](../adr/0030-http-client-auth-resilience-and-connections.md), decision 2.2).
+or a `PATCH` is not sent again after any answer ([ADR 0034](../adr/0034-http-client-auth-resilience-and-connections.md), decision 2.2).
 Gateways and other client libraries have their own rules, which Stratum does not check.
 
 "Work may be done" says whether the work the request asked for may have happened, though the request failed.
@@ -29,7 +29,7 @@ Gateways and other client libraries have their own rules, which Stratum does not
 | A client that relays the caller's token has none | `SX-HTTPC-0004` | `500` | no | no |
 | An interceptor read a request body over `interceptor-body-limit` | `SX-HTTPC-0005` | `500` | no | no |
 | Another service's successful answer is over `response-body-limit` | `SX-HTTPC-0006` | `500` | no | yes |
-| Another service answered with a final error, such as `400`, `404`, `409` or `500` | `SX-HTTPC-0007` | `500` | no | not as a rule; a `5xx` may follow part of the work |
+| Another service answered with a final error, such as `400`, `404`, `409` or `500`, not listed in `errors` | `SX-HTTPC-0007` | `500` | no | not as a rule; a `5xx` may follow part of the work |
 | Another service's answer cannot be read | `SX-HTTPC-0008` | `500` | no | yes |
 | Another service still answered `429`, `502`, `503` or `504` after the client's retries | `SX-HTTPC-0009` | `500` | no | yes after a `502` or `504` from a gateway in front of it |
 | Another service answered with an error status the client's `errors` maps to your own code | your code, such as `ORD-0409` | the status you give your code, else `500` | as you choose | as for `SX-HTTPC-0007` or `SX-HTTPC-0009` |
@@ -128,8 +128,8 @@ listener's redelivery and a batch step's retry of a chunk send the write again t
 When service A calls B, and B calls C, give each inner call less time than the call around it, so that an inner call
 ends, and its failure is answered, before the outer caller gives up:
 
-- B's `stratum.http-client.clients.<c>.total-timeout` is less than A's `total-timeout` for B, with room for B's own
-  work;
+- B's `stratum.http-client.clients.<c>.total-timeout`, or the `total-timeout` of the operation it calls, is less than
+  A's `total-timeout` for B, with room for B's own work;
 - B's own time limit, `stratum.web.timeout.default-limit` or a route's, is not more than A's `total-timeout` for B.
 
 Otherwise A gives up with `SX-HTTPC-0001` while B still waits for C, and the work at C may still be done. The client's

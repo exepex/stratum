@@ -3,9 +3,11 @@ package com.exepex.stratum.restclient;
 import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.httpclient.ClientCircuitBreaker;
+import com.exepex.stratum.httpclient.ClientSettings;
 import com.exepex.stratum.httpclient.HttpClientConstants;
 import com.exepex.stratum.httpclient.HttpClientErrorCode;
 import com.exepex.stratum.httpclient.HttpClientProperties;
+import com.exepex.stratum.httpclient.OperationSettings;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.core.IntervalBiFunction;
@@ -23,7 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
-import lombok.Builder;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.ObjectProvider;
@@ -104,8 +106,9 @@ public class ClientResilience implements ClientExchangeDecorator {
 
   /**
    * Runs one call of a client under its retries and breaker, each attempt within the time left
-   * before the client's {@code total-timeout}. When no attempt succeeds, the last one's failure is
-   * thrown. When the call ends, its log line is written and it is counted in the meters.
+   * before the call's {@code total-timeout}: its operation's, else the client's. When no attempt
+   * succeeds, the last one's failure is thrown. When the call ends, its log line is written and it
+   * is counted in the meters.
    *
    * @param call the call
    * @param exchange one attempt of the call
@@ -182,7 +185,7 @@ public class ClientResilience implements ClientExchangeDecorator {
       AtomicReference<@Nullable T> lastResult,
       UnaryOperator<ClientAttempt> noteEnded) {
     var guards = guards(call.client());
-    var deadlineNanos = System.nanoTime() + guards.totalTimeout().toNanos();
+    var deadlineNanos = System.nanoTime() + guards.totalTimeoutOf(call.operation()).toNanos();
     var attemptNumber = new AtomicInteger();
     var template =
         ClientAttempt.builder()
@@ -201,7 +204,7 @@ public class ClientResilience implements ClientExchangeDecorator {
                         template,
                         attemptNumber.incrementAndGet(),
                         deadlineNanos,
-                        call.streamedDownload(),
+                        call,
                         () ->
                             remember(
                                 lastResult,
@@ -238,13 +241,19 @@ public class ClientResilience implements ClientExchangeDecorator {
       ClientAttempt template,
       int attemptNumber,
       long deadlineNanos,
-      boolean streamedDownload,
+      ClientCall call,
       Supplier<@Nullable Object> exchange) {
     @Nullable Object result = null;
     @Nullable RuntimeException failure = null;
     var sentTo = new AtomicReference<@Nullable URI>();
     try {
-      result = AttemptTimeLeft.runWithin(deadlineNanos, streamedDownload, sentTo, exchange);
+      result =
+          AttemptTimeLeft.runWithin(
+              deadlineNanos,
+              call.streamedDownload(),
+              guards.readTimeoutOf(call.operation()),
+              sentTo,
+              exchange);
     } catch (RestClientException | CallNotPermittedException attemptFailure) {
       failure = attemptFailure;
     }
@@ -295,7 +304,10 @@ public class ClientResilience implements ClientExchangeDecorator {
     return value;
   }
 
-  /** Makes a client's retry, breaker and back-off from its settings and the customizers. */
+  /**
+   * Makes a client's retry, breaker, back-off and operation timeouts from its settings and the
+   * customizers.
+   */
   private ClientGuards newGuards(String client) {
     var settings = properties.clientSettings(client);
     var retrySettings = Objects.requireNonNull(settings.retry());
@@ -323,7 +335,16 @@ public class ClientResilience implements ClientExchangeDecorator {
         .breaker(newBreaker(client, Objects.requireNonNull(settings.circuitBreaker())))
         .waits(waits)
         .totalTimeout(Objects.requireNonNull(settings.totalTimeout()))
+        .operations(operationsOf(settings))
         .build();
+  }
+
+  /** Returns each operation's settings, with the timeouts it leaves unset taken from the client. */
+  private Map<String, OperationSettings> operationsOf(ClientSettings settings) {
+    return settings.operations().entrySet().stream()
+        .collect(
+            Collectors.toUnmodifiableMap(
+                Map.Entry::getKey, operation -> operation.getValue().orElse(settings)));
   }
 
   /**
@@ -341,32 +362,5 @@ public class ClientResilience implements ClientExchangeDecorator {
     var breaker = CircuitBreaker.of(client, breakerConfig.build());
     reports.breakerMade(client, breaker);
     return breaker;
-  }
-
-  /**
-   * The retry, breaker, waits and total time of one client.
-   *
-   * @param retry the client's retry
-   * @param breaker the client's breaker, or {@code null} when it has none
-   * @param waits the client's wait before each next attempt, Stratum's or the service's
-   * @param totalTimeout the time allowed for a whole call
-   */
-  @Builder
-  private record ClientGuards(
-      Retry retry,
-      @Nullable CircuitBreaker breaker,
-      IntervalBiFunction<ClientAttempt> waits,
-      Duration totalTimeout) {
-
-    /**
-     * Runs one attempt through the breaker, when the client has one.
-     *
-     * @param exchange the attempt
-     * @param <T> what the attempt returns
-     * @return what the attempt returned
-     */
-    <T> @Nullable T protect(Supplier<@Nullable T> exchange) {
-      return breaker == null ? exchange.get() : breaker.executeSupplier(exchange);
-    }
   }
 }

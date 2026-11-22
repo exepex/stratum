@@ -12,6 +12,7 @@ import java.lang.reflect.Method;
 import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.client.RestClientException;
@@ -58,7 +59,7 @@ public class ClientErrors implements ClientExchangeDecorator {
 
   /**
    * Marks a call whose method carries {@link StratumOperation} with the operation's name, so that
-   * its error answer takes that operation's codes.
+   * the call takes that operation's timeouts and its error answer that operation's codes.
    *
    * @param method the method of the client's interface that was called
    * @param values the call being built
@@ -88,6 +89,7 @@ public class ClientErrors implements ClientExchangeDecorator {
    *
    * @param client the client's name
    * @param values the call
+   * @param operation the call's operation, or {@code null} for a method with none
    * @param answer Spring's exception for the error answer
    * @param codes the client's own codes for error statuses
    * @return the exception to throw when no customizer threw its own
@@ -95,9 +97,9 @@ public class ClientErrors implements ClientExchangeDecorator {
   public DownstreamException downstream(
       String client,
       HttpRequestValues values,
+      @Nullable String operation,
       RestClientResponseException answer,
       MappedErrorCodes codes) {
-    var operation = (String) values.getAttributes().get(HttpClientConstants.OPERATION);
     var code = codes.codeFor(answer.getStatusCode().value(), operation).orElse(null);
     var downstream = new DownstreamException(client, endpointOf(values), answer, code);
     customizers.orderedStream().forEach(customizer -> customizer.mapError(client, downstream));

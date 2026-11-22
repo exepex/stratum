@@ -3,7 +3,7 @@
 How a Stratum client proves who it is to the service it calls: an API key, a bearer token, Basic credentials, the
 service's own token, the caller's token, or a client certificate (mutual TLS). Part of the [HTTP client](http-client.md) page, which lists every key.
 
-[← HTTP client](http-client.md) · Design: [ADR 0030](../adr/0030-http-client-auth-resilience-and-connections.md), decision 1
+[← HTTP client](http-client.md) · Design: [ADR 0034](../adr/0034-http-client-auth-resilience-and-connections.md), decision 1
 
 ## Choose a kind
 

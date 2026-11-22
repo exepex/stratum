@@ -46,6 +46,8 @@ stratum:
           list-orders:
             errors:
               "404": ORD-0404
+            read-timeout: 40s
+            total-timeout: 45s
       partner:
         url: http://partner:8080
         auth:

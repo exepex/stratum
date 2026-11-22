@@ -27,7 +27,7 @@ gets never names the other service, its address or its path. Your own log does: 
 A request that fails because another service answered with an error gets `500`, whatever that service answered,
 unless you map that status to your own code and give your code a status
 ([below](#your-own-code-for-an-error-status)): your caller must not send the request again because of it. Stratum's clients never resend a `500`, while they resend
-a `502`, `503`, `504` or `429` ([ADR 0030](../adr/0030-http-client-auth-resilience-and-connections.md), decision 2.2), so a `503` passed on
+a `502`, `503`, `504` or `429` ([ADR 0034](../adr/0034-http-client-auth-resilience-and-connections.md), decision 2.2), so a `503` passed on
 by each service in a chain would multiply the calls that reach the last one. Which code your caller gets, and what it
 may do then, is in [What your caller learns](../guides/what-your-caller-learns.md).
 
@@ -63,7 +63,7 @@ cannot be read are answered with `500` in both modes.
 What your service returns instead when a call fails, such as the last value it read, is your own business logic:
 catch the failure, as [resilience: use it](resilience.md#use-it) shows. The resilience starter is **Planned**. Do not
 add a second retry layer, such as Resilience4j's `@Retry`, around a client: the client already retries
-([ADR 0030](../adr/0030-http-client-auth-resilience-and-connections.md), decision 2.1).
+([ADR 0034](../adr/0034-http-client-auth-resilience-and-connections.md), decision 2.1).
 
 ## `DownstreamException`
 

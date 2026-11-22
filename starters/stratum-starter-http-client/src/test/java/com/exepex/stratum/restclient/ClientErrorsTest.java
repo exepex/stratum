@@ -36,6 +36,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.mock.http.MockHttpInputMessage;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.UnknownContentTypeException;
 import org.springframework.web.service.invoker.HttpRequestValues;
 
@@ -215,12 +216,12 @@ class ClientErrorsTest {
     void takesTheMappedCode() throws NoSuchMethodException {
       var answer = RestClientTestData.errorAnswer(HttpStatus.NOT_FOUND);
 
-      assertThat(errors.downstream(MappedTestData.STOCK, callOf("listOrders"), answer, codes))
+      assertThat(downstreamOf("listOrders", answer))
           .satisfies(
               failure ->
                   assertThat(failure.getErrorCode().getCode())
                       .isEqualTo(MappedTestData.LIST_NOT_FOUND_CODE));
-      assertThat(errors.downstream(MappedTestData.STOCK, callOf("orders"), answer, codes))
+      assertThat(downstreamOf("orders", answer))
           .satisfies(
               failure ->
                   assertThat(failure.getErrorCode().getCode())
@@ -232,11 +233,16 @@ class ClientErrorsTest {
     void unlistedStatusKeepsCode() throws NoSuchMethodException {
       var answer = RestClientTestData.errorAnswer(HttpStatus.CONFLICT);
 
-      assertThat(
-              errors
-                  .downstream(MappedTestData.STOCK, callOf("listOrders"), answer, codes)
-                  .getErrorCode())
+      assertThat(downstreamOf("listOrders", answer).getErrorCode())
           .isEqualTo(HttpClientErrorCode.DOWNSTREAM_ERROR);
+    }
+
+    /** Returns the exception of an error answer to a call of a method of the stock client. */
+    private DownstreamException downstreamOf(String method, RestClientResponseException answer)
+        throws NoSuchMethodException {
+      var values = callOf(method);
+      var operation = (String) values.getAttributes().get(HttpClientConstants.OPERATION);
+      return errors.downstream(MappedTestData.STOCK, values, operation, answer, codes);
     }
 
     /** Returns a call of a method of the stock client, marked as Stratum marks it. */

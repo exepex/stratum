@@ -95,7 +95,7 @@ the Spring Boot keys it sets, with both defaults:
 [Data](../modules/data.md#properties) and [Cache](../modules/cache.md#properties). The planned
 modules' pages list theirs. The HTTP client starters are the one exception: each client's settings live
 under `stratum.http-client.clients.<name>.*`, and Spring Boot's `spring.http.serviceclient.*` keys do not apply
-([ADR 0029](../adr/0029-http-client-starters-and-settings.md)).
+([ADR 0033](../adr/0033-http-client-starters-and-settings.md)).
 
 ## A complete example
 
@@ -129,7 +129,7 @@ stratum:
     resource-server:
       issuer-uri: https://idp.acme.com/realms/acme
       audiences: [order-service]
-  http-client:                   # token-relay sends the caller's verified token (ADR 0030)
+  http-client:                   # token-relay sends the caller's verified token (ADR 0034)
     clients:
       inventory:
         url: http://inventory-service
@@ -156,7 +156,7 @@ stratum.environment=prod
 # Planned: the security starter is not built yet
 stratum.security.resource-server.issuer-uri=https://idp.acme.com/realms/acme
 stratum.security.resource-server.audiences=order-service
-# HTTP client keys (ADR 0029): url, read-timeout, retry.max-retries and token-relay are built
+# HTTP client keys (ADR 0033): url, read-timeout, retry.max-retries and token-relay are built
 stratum.http-client.clients.inventory.url=http://inventory-service
 stratum.http-client.clients.inventory.auth.token-relay=true
 stratum.http-client.clients.payments.url=http://payments-service
