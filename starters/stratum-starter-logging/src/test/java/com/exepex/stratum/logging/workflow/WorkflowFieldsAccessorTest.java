@@ -18,6 +18,9 @@ class WorkflowFieldsAccessorTest {
   /** The trace ID tracing put in the MDC. */
   private static final String TRACE_ID = "4bf92f3577b34da6a3ce929d0e0e4736";
 
+  /** The ID of the workflow the tests run in. */
+  private static final String CHECKOUT_RUN_ID = "wf-41";
+
   /** The workflow the tests run in. */
   private static final String ORDER_CHECKOUT = "ORDER_CHECKOUT";
 
@@ -32,7 +35,7 @@ class WorkflowFieldsAccessorTest {
   @Test
   @DisplayName("setting the carried fields puts the new ones, removes the unset ones")
   void setsCarriedFieldsAndRemovesUnsetOnes() {
-    MDC.put(LoggingConstants.WORKFLOW_ID, "wf-41");
+    MDC.put(LoggingConstants.WORKFLOW_ID, CHECKOUT_RUN_ID);
     MDC.put(LoggingContextConstants.TRACE_ID, TRACE_ID);
     var carriedFields = new HashMap<String, String>();
     carriedFields.put(LoggingConstants.WORKFLOW, ORDER_CHECKOUT);
@@ -52,7 +55,7 @@ class WorkflowFieldsAccessorTest {
   void clearsWorkflowFieldsOnly() {
     MDC.put(LoggingConstants.WORKFLOW, ORDER_CHECKOUT);
     MDC.put(LoggingConstants.ROOT_WORKFLOW, ORDER_CHECKOUT);
-    MDC.put(LoggingConstants.WORKFLOW_ID, "wf-41");
+    MDC.put(LoggingConstants.WORKFLOW_ID, CHECKOUT_RUN_ID);
     MDC.put(LoggingContextConstants.TRACE_ID, TRACE_ID);
 
     accessor.setValue();

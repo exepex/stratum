@@ -48,6 +48,7 @@ public class WorkflowFieldsAccessor extends Slf4jThreadLocalAccessor {
    */
   @Override
   public void setValue(Map<String, String> carriedFields) {
+    // A loop, not a stream: Reactor calls this around every operator, and a stream allocates.
     for (var field : WORKFLOW_FIELD_NAMES) {
       var carriedValue = carriedFields.get(field);
       if (!Objects.equals(MDC.get(field), carriedValue)) {
@@ -63,6 +64,7 @@ public class WorkflowFieldsAccessor extends Slf4jThreadLocalAccessor {
   /** Removes the workflow fields that are set, leaving the MDC untouched when none is. */
   @Override
   public void setValue() {
+    // A loop, not a stream, for the same reason as in setValue(Map).
     for (var field : WORKFLOW_FIELD_NAMES) {
       if (MDC.get(field) != null) {
         MDC.remove(field);

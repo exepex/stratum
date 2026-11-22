@@ -34,6 +34,24 @@ import reactor.core.scheduler.Schedulers;
 @DisplayName("A service with AspectJ gets workflow fields and error codes on its log lines")
 class WorkflowIntegrationTest {
 
+  /** The order number the workflows run for. */
+  private static final String ORDER_NUMBER = "ORD-1042";
+
+  /** The checkout workflow's name. */
+  private static final String CHECKOUT = "ORDER_CHECKOUT";
+
+  /** The message logged when the receipt is sent. */
+  private static final String RECEIPT_SENT = "receipt sent";
+
+  /** The message logged when the payment is taken. */
+  private static final String PAYMENT_TAKEN = "payment taken";
+
+  /** The message logged when the payment is reserved, in a {@code map} operator. */
+  private static final String PAYMENT_RESERVED_IN_MAP = "payment reserved in map";
+
+  /** The message logged when a parcel is shipped, in a {@code map} operator. */
+  private static final String PARCEL_SHIPPED_IN_MAP = "parcel shipped in map";
+
   @Autowired private CheckoutService checkoutService;
 
   @Autowired private Workflows workflows;
@@ -55,7 +73,7 @@ class WorkflowIntegrationTest {
   @Test
   @DisplayName("a line written inside Workflows.run carries the workflow's ID")
   void workflowsWriteWorkflowId(CapturedOutput output) {
-    workflows.run("ORDER_REFUND", "ORD-1042", checkoutService::refund);
+    workflows.run("ORDER_REFUND", ORDER_NUMBER, checkoutService::refund);
 
     assertThat(output)
         .contains("\"workflow\":\"ORDER_REFUND\"")
@@ -67,9 +85,9 @@ class WorkflowIntegrationTest {
   @Test
   @DisplayName("a line written in an @Async method called inside a workflow carries its fields")
   void asyncMethodWritesWorkflowFields(CapturedOutput output) {
-    workflows.call("ORDER_CHECKOUT", "ORD-1042", checkoutService::sendReceipt).join();
+    workflows.call(CHECKOUT, ORDER_NUMBER, checkoutService::sendReceipt).join();
 
-    assertThat(lineWith(output, "receipt sent"))
+    assertThat(lineWith(output, RECEIPT_SENT))
         .contains("\"workflow\":\"ORDER_CHECKOUT\"")
         .contains("\"workflowId\":\"ORD-1042\"")
         .doesNotContain("\"process.thread.name\":\"main\"");
@@ -80,7 +98,7 @@ class WorkflowIntegrationTest {
   void annotatedMonoMethodWritesWorkflowFields(CapturedOutput output) {
     checkoutService.takePayment().block();
 
-    assertThat(lineWith(output, "payment taken")).contains("\"workflow\":\"PAYMENT\"");
+    assertThat(lineWith(output, PAYMENT_TAKEN)).contains("\"workflow\":\"PAYMENT\"");
   }
 
   @Test
@@ -89,7 +107,7 @@ class WorkflowIntegrationTest {
   void annotatedMonoMethodWritesWorkflowFieldsInMap(CapturedOutput output) {
     checkoutService.reservePaymentAfterThreadChange().block();
 
-    assertThat(lineWith(output, "payment reserved in map"))
+    assertThat(lineWith(output, PAYMENT_RESERVED_IN_MAP))
         .contains("\"workflow\":\"PAYMENT_RESERVATION\"")
         .doesNotContain("\"process.thread.name\":\"main\"");
   }
@@ -107,7 +125,7 @@ class WorkflowIntegrationTest {
                 .map(checkoutService::logParcelShippedInMap))
         .blockLast();
 
-    assertThat(lineWith(output, "parcel shipped in map"))
+    assertThat(lineWith(output, PARCEL_SHIPPED_IN_MAP))
         .contains("\"workflow\":\"ORDER_SHIPPING\"")
         .contains("\"workflowId\":\"ORD-2044\"");
   }
@@ -138,7 +156,7 @@ class WorkflowIntegrationTest {
   static class CheckoutService {
 
     /** Checks out an order, as the {@code ORDER_CHECKOUT} workflow. */
-    @Workflow("ORDER_CHECKOUT")
+    @Workflow(CHECKOUT)
     public void checkOut() {
       log.info("order checked out");
     }
@@ -155,7 +173,7 @@ class WorkflowIntegrationTest {
      */
     @Async
     public CompletableFuture<Void> sendReceipt() {
-      log.info("receipt sent");
+      log.info(RECEIPT_SENT);
       return CompletableFuture.completedFuture(null);
     }
 
@@ -166,7 +184,9 @@ class WorkflowIntegrationTest {
      */
     @Workflow("PAYMENT")
     public Mono<String> takePayment() {
-      return Mono.just("ORD-1042").publishOn(Schedulers.boundedElastic()).handle(this::logPayment);
+      return Mono.just(ORDER_NUMBER)
+          .publishOn(Schedulers.boundedElastic())
+          .handle(this::logPayment);
     }
 
     /**
@@ -184,7 +204,7 @@ class WorkflowIntegrationTest {
 
     /** Logs the reservation from a {@code map} operator and passes the order number on. */
     private String logPaymentReservedInMap(String orderNumber) {
-      log.info("payment reserved in map");
+      log.info(PAYMENT_RESERVED_IN_MAP);
       return orderNumber;
     }
 
@@ -195,13 +215,13 @@ class WorkflowIntegrationTest {
      * @return the same parcel
      */
     public String logParcelShippedInMap(String parcel) {
-      log.info("parcel shipped in map");
+      log.info(PARCEL_SHIPPED_IN_MAP);
       return parcel;
     }
 
     /** Logs the payment, where Reactor gives the workflow fields to the logging context. */
     private void logPayment(String orderNumber, SynchronousSink<String> sink) {
-      log.info("payment taken");
+      log.info(PAYMENT_TAKEN);
       sink.next(orderNumber);
     }
   }

@@ -8,11 +8,10 @@ import static org.awaitility.Awaitility.await;
 import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.testsupport.FinishedObservations;
 import com.exepex.stratum.logging.testsupport.MdcFieldsRegistrations;
-import io.micrometer.context.ContextRegistry;
-import io.micrometer.context.integration.Slf4jThreadLocalAccessor;
 import io.micrometer.observation.Observation;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -23,6 +22,7 @@ import org.springframework.aop.aspectj.annotation.AspectJProxyFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Hooks;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.SignalType;
 import reactor.core.publisher.SynchronousSink;
 import reactor.core.scheduler.Schedulers;
 
@@ -37,6 +37,9 @@ class ReactiveWorkflowsTest {
 
   /** A logging field of the service's own, outside the workflow fields. */
   private static final String CHANNEL = "channel";
+
+  /** The service's {@code channel} value for orders placed on the web. */
+  private static final String WEB_CHANNEL = "web";
 
   /** An order number used as the workflow's ID. */
   private static final String ORDER_NUMBER = "ORD-1042";
@@ -149,6 +152,16 @@ class ReactiveWorkflowsTest {
   }
 
   @Test
+  @DisplayName("a Mono's work completes after its value, and is not cancelled")
+  void monoWorkCompletesNotCancelled() {
+    var workSignals = new CopyOnWriteArrayList<SignalType>();
+
+    reactiveWorkflows.mono(PAYMENT, null, Mono.just(PAYMENT).doFinally(workSignals::add)).block();
+
+    assertThat(workSignals).containsExactly(SignalType.ON_COMPLETE);
+  }
+
+  @Test
   @DisplayName(
       "an @Workflow Flux runs as the workflow and records its failure, though declared Publisher")
   void annotatedFluxMethodRecordsFailure() {
@@ -167,22 +180,21 @@ class ReactiveWorkflowsTest {
   @Test
   @DisplayName("in auto mode, a service's accessor for the whole logging context keeps the fields")
   void wholeLoggingContextKeepsFields() {
-    ContextRegistry.getInstance().registerThreadLocalAccessor(new Slf4jThreadLocalAccessor());
+    MdcFieldsRegistrations.registerWholeLoggingContextAccessor();
     Hooks.enableAutomaticContextPropagation();
     try {
       var payment = reactiveWorkflows.mono(PAYMENT, ORDER_NUMBER, paymentOnAnotherThread());
       assertThat(payment.block()).containsExactly(PAYMENT, PAYMENT, ORDER_NUMBER);
 
-      MDC.put(CHANNEL, "web");
+      MDC.put(CHANNEL, WEB_CHANNEL);
       var channelInPayment =
           reactiveWorkflows
               .mono(PAYMENT, ORDER_NUMBER, Mono.just(PAYMENT).handle(this::emitChannel))
               .block();
-      assertThat(channelInPayment).isEqualTo("web");
+      assertThat(channelInPayment).isEqualTo(WEB_CHANNEL);
       assertThat(payment.block()).containsExactly(PAYMENT, PAYMENT, ORDER_NUMBER);
     } finally {
       Hooks.disableAutomaticContextPropagation();
-      ContextRegistry.getInstance().removeThreadLocalAccessor(Slf4jThreadLocalAccessor.KEY);
     }
   }
 

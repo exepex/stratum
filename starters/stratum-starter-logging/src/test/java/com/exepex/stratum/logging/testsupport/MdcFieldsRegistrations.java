@@ -4,13 +4,14 @@ import com.exepex.stratum.logging.LoggingConstants;
 import com.exepex.stratum.logging.mdc.MdcFieldsPropagation;
 import io.micrometer.context.ContextRegistry;
 import io.micrometer.context.ThreadLocalAccessor;
+import io.micrometer.context.integration.Slf4jThreadLocalAccessor;
 import java.util.List;
 import lombok.experimental.UtilityClass;
 
 /**
  * Registers, reads and clears the logging module's two entries in Micrometer's context registry,
- * which the module keeps for the rest of the JVM once it ran, so each test starts from a known
- * registry.
+ * which the module keeps for the rest of the JVM once it ran, and a service's own accessor for the
+ * whole logging context, so each test starts from a known registry.
  */
 @UtilityClass
 public class MdcFieldsRegistrations {
@@ -24,9 +25,21 @@ public class MdcFieldsRegistrations {
     new MdcFieldsPropagation().afterSingletonsInstantiated();
   }
 
-  /** Removes both accessors from the registry, as before the module first ran in this JVM. */
+  /**
+   * Registers an accessor for the whole logging context, as a service may do itself; {@link
+   * #remove()} removes it again.
+   */
+  public void registerWholeLoggingContextAccessor() {
+    ContextRegistry.getInstance().registerThreadLocalAccessor(new Slf4jThreadLocalAccessor());
+  }
+
+  /**
+   * Removes both accessors, and any accessor for the whole logging context, from the registry, as
+   * before the module first ran in this JVM.
+   */
   public void remove() {
     MDC_FIELDS_KEYS.forEach(ContextRegistry.getInstance()::removeThreadLocalAccessor);
+    ContextRegistry.getInstance().removeThreadLocalAccessor(Slf4jThreadLocalAccessor.KEY);
   }
 
   /**
