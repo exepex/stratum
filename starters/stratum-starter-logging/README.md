@@ -158,7 +158,7 @@ if anything in it is masked, it is written as a JSON string. It cannot be switch
 
 | What | Found by | Written as |
 | --- | --- | --- |
-| Credentials: any name that contains `password`, `passwd`, `passphrase`, `passcode`, `secret`, `token`, `apikey`, `credential`, `privatekey`, `sessionid`, `cookie` or `authorization`, such as `dbPassword`, `aws_secret_access_key`, `X-CSRF-Token` or `JSESSIONID`; and any name with the word `pwd`, `pass`, `auth`, `pin`, `otp`, `cvv`, `cvc`, `jwt`, `access key`, `encryption key` or `signing key`, such as `dbPwd`, `card_cvv` or `accessKey` | Field or key name | `****` |
+| Credentials: any name that contains `password`, `passwd`, `passphrase`, `passcode`, `secret`, `token`, `apikey`, `credential`, `privatekey`, `sessionid`, `cookie` or `authorization`, such as `dbPassword`, `aws_secret_access_key`, `X-CSRF-Token` or `JSESSIONID`; and any name with the word `pwd`, `pass`, `auth`, `pin`, `otp`, `cvv`, `cvc`, `jwt`, `access key`, `encryption key`, `signing key`, `sig`, `signature`, `subscription key` or `account key`, such as `dbPwd`, `card_cvv`, `accessKey`, Azure's SAS `sig`, AWS's `X-Amz-Signature`, Azure API Management's `Ocp-Apim-Subscription-Key` or Azure Storage's `AccountKey` | Field or key name | `****` |
 | Payment cards, accounts and national IDs: `card_number`, `pan`, `account_number`, `ssn`, `national_id`, `tax_id`, `passport` | Field or key name | `****1234` (last four kept) |
 | Card numbers in text | 13 to 19 digits that pass the Luhn check, in groups split by a space or `-`; or split by two spaces, `.`, `/` or `_` used between every group of a card layout (4-4-4-4, 4-4-4-4-3, or American Express's 4-6-5) | `****1111` |
 | JSON Web Tokens | `eyJ…` with two or three parts | `****` |
@@ -180,7 +180,9 @@ few words written together, is a listed word: `password`, `spring.datasource.pas
 whose last word only describes the value (`count`, `type`, `length`, `size`, `expiry`, `expires`,
 `enabled`, `required`, `consent` or `rotated`), such as `tokenCount`, is not masked. A name with no
 listed word is not found, whatever it holds: add your own to `extra-keys`, which match the whole
-name, compared without case, `_` or `-` on its last dot-separated part. A name is matched in a field, in an MDC
+name, compared without case, `_` or `-` on its last dot-separated part. Generic names that some APIs use for a
+secret, such as `key` or `code`, are not listed, because they hold ordinary values far more often: add them to
+`extra-keys` if your service sends a secret under one. A name is matched in a field, in an MDC
 entry, and in text such as `password=x`, `"token":"x"`, `'token': 'x'`, escaped JSON
 (`\"token\":\"x\"`), `?api_key=x&`, `password%3Dx` or Lombok's `User(email=x, …)`. An unquoted value in text runs until the next key, a comma, `;`, `&`, a closing
 bracket or the end of the line. The values of `Cookie`, `Set-Cookie` and `Authorization` run to the

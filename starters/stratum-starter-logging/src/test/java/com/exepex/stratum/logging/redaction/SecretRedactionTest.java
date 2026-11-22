@@ -84,7 +84,13 @@ class SecretRedactionTest {
             "aws_secret_access_key",
             "passcode",
             "passCode",
-            "user_passcode");
+            "user_passcode",
+            "sig",
+            "signature",
+            "X-Amz-Signature",
+            "subscription-key",
+            "Ocp-Apim-Subscription-Key",
+            "AccountKey");
 
     @ParameterizedTest
     @FieldSource("SECRET_FIELD_NAMES")

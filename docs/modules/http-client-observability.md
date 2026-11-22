@@ -88,7 +88,9 @@ response header, a body, the exception or its message, or the status text.
 
 With the logging starter on, its redaction masks, in `url` and in `uri`:
 
-- a secret under a telling name, such as `api_key=****` or `email=****`;
+- a secret under a telling name, such as `api_key=****`, `email=****`, or a cloud signature or key such as Azure's
+  SAS `sig=****`, AWS's `X-Amz-Signature=****` or Azure API Management's `subscription-key=****`
+  ([the names it knows](../../starters/stratum-starter-logging/README.md#redaction));
 - a JWT, and a user and password in the address, written `http://****@host`;
 - a plain email, card number or IBAN, found by its shape: `****.com`, `****1111`, `****3000`.
 
@@ -102,6 +104,8 @@ masked by its name, and a card or IBAN with dashes or no separator is still foun
 percent-escapes.
 
 **Never put personal data in a URL.** Free text with no telling name, such as `?name=Priya`, is written as it is.
+A secret under a generic name, such as `?key=` or `?code=`, is written as it is too: add the name to
+`stratum.logging.redaction.extra-keys` ([logging properties](../../starters/stratum-starter-logging/README.md#properties)).
 
 **Build every address with `{}` placeholders.** A team's own call can pass a whole address as its template:
 

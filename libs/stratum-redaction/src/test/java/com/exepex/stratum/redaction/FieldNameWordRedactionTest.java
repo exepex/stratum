@@ -114,6 +114,107 @@ class FieldNameWordRedactionTest {
   }
 
   @Nested
+  @DisplayName("a cloud provider's secret name")
+  class CloudSecretName {
+
+    /** Names under which Azure, AWS and Azure API Management send a signature or a key. */
+    private static final List<String> CLOUD_SECRET_NAMES =
+        List.of(
+            "sig",
+            "SIG",
+            "signature",
+            "X-Amz-Signature",
+            "X-AMZ-SIGNATURE",
+            "x-hub-signature-256",
+            "subscription-key",
+            "Ocp-Apim-Subscription-Key",
+            "OCP-APIM-SUBSCRIPTION-KEY",
+            "subscriptionKey",
+            "AccountKey",
+            "account_key");
+
+    /** Names that hold the letters of a cloud secret name, or only part of it. */
+    private static final List<String> LOOKALIKE_NAMES =
+        List.of(
+            "signal",
+            "design",
+            "assign",
+            "signed",
+            "isSigned",
+            "subscription",
+            "subscriptionId",
+            "account",
+            "accountId",
+            "key",
+            "sigCount",
+            "signatureType");
+
+    @ParameterizedTest
+    @FieldSource("CLOUD_SECRET_NAMES")
+    @DisplayName("is masked in full")
+    void cloudNameIsMaskedInFull(String name) {
+      assertThat(maskByName(name, VALUE)).isEqualTo(MaskedText.MASK);
+    }
+
+    @ParameterizedTest
+    @FieldSource("LOOKALIKE_NAMES")
+    @DisplayName("is not found in a name that only looks like it")
+    void lookalikeNameIsKept(String name) {
+      assertThat(maskByName(name, VALUE)).isEqualTo(VALUE);
+    }
+
+    @Test
+    @DisplayName("is masked with a describing word that is not a listed one, such as Algorithm")
+    void cloudNameWithOtherLastWordIsMasked() {
+      assertThat(maskByName("signatureAlgorithm", VALUE)).isEqualTo(MaskedText.MASK);
+      assertThat(maskByName("SignatureVersion", VALUE)).isEqualTo(MaskedText.MASK);
+      assertThat(maskByName("accountKey", VALUE)).isEqualTo(MaskedText.MASK);
+    }
+
+    @Test
+    @DisplayName("is masked in the query of a signed URL, and its other parameters are kept")
+    void signedUrlQueryIsMasked() {
+      assertThat(
+              maskUnnamedText(
+                  "https://acme.blob.core.windows.net/c/report.csv?sv=2024-11-04&sp=r"
+                      + "&sig=c2lnbmF0dXJl%3D&se=2026-12-01"))
+          .isEqualTo(
+              "https://acme.blob.core.windows.net/c/report.csv?sv=2024-11-04&sp=r"
+                  + "&sig=****&se=2026-12-01");
+      assertThat(
+              maskUnnamedText(
+                  "https://s3.amazonaws.com/b/k?X-Amz-Expires=60&X-Amz-Signature=fe5f80f7&x=1"))
+          .isEqualTo("https://s3.amazonaws.com/b/k?X-Amz-Expires=60&X-Amz-Signature=****&x=1");
+      assertThat(maskUnnamedText("/rates?subscription-key=fake0key&signature=fake1sig"))
+          .isEqualTo("/rates?subscription-key=****&signature=****");
+    }
+
+    @Test
+    @DisplayName("is masked in a header line, a connection string and JSON text")
+    void cloudNameInTextIsMasked() {
+      assertThat(maskUnnamedText("Ocp-Apim-Subscription-Key: fake0key"))
+          .isEqualTo("Ocp-Apim-Subscription-Key: ****");
+      assertThat(
+              maskUnnamedText(
+                  "DefaultEndpointsProtocol=https;AccountName=acme;AccountKey=ZmFrZQ==;"
+                      + "EndpointSuffix=core.windows.net"))
+          .isEqualTo(
+              "DefaultEndpointsProtocol=https;AccountName=acme;AccountKey=****;"
+                  + "EndpointSuffix=core.windows.net");
+      assertThat(maskUnnamedText("{\"signature\":\"fake1sig\",\"id\":7}"))
+          .isEqualTo("{\"signature\":\"****\",\"id\":7}");
+    }
+
+    @Test
+    @DisplayName("leaves the values of lookalike keys in text as they are")
+    void lookalikeKeysInTextAreKept() {
+      var text = "signal=on&design=flat&signed=true&subscription=gold&account=acme&key=k1";
+
+      assertThat(maskUnnamedText(text)).isEqualTo(text);
+    }
+  }
+
+  @Nested
   @DisplayName("a name in unusual case or written as one word")
   class UnusualCase {
 

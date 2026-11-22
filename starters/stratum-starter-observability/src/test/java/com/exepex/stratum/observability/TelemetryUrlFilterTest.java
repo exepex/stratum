@@ -158,6 +158,9 @@ class TelemetryUrlFilterTest {
                 "https://partner.com/me?access_token=abc123&page=2",
                 "https://partner.com/me?access_token=****&page=2"),
             Arguments.of(
+                "https://partner.com/f?sv=2024-11-04&sig=abc123&X-Amz-Signature=def456",
+                "https://partner.com/f?sv=2024-11-04&sig=****&X-Amz-Signature=****"),
+            Arguments.of(
                 "https://partner.com/pay?card=4111111111111111",
                 "https://partner.com/pay?card=****1111"),
             Arguments.of(
