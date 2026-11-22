@@ -209,6 +209,18 @@ class LoggingStartupIntegrationTest {
   }
 
   @Test
+  @DisplayName(
+      "with Logback next to Log4j2, Log4j2's override key lets the service start, as Spring Boot"
+          + " ignores it")
+  void log4j2OverrideWithLogbackStarts() {
+    try (var context =
+        start(
+            SERVICE_NAME, "--" + LoggingConstants.LOG4J2_CONFIG_OVERRIDE + "=classpath:own.xml")) {
+      assertThat(context.isActive()).isTrue();
+    }
+  }
+
+  @Test
   @DisplayName("an empty console format stops startup with SX-LOGGING-1003")
   void emptyFormatStopsStartup() {
     assertThatExceptionOfType(StratumException.class)

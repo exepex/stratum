@@ -41,9 +41,10 @@ public enum LoggingErrorCode implements ErrorCode {
       "SX-LOGGING-1003",
       Severity.ERROR,
       "A log output does not use one of Stratum's formats, so its lines would not be masked",
-      "Remove your own log format, Logback configuration file or logging.config, or add Logback or"
-          + " Log4j2, and choose the format with stratum.logging.format. To keep your own"
-          + " format, turn the module off with "
+      "Remove your own log format, Logback or Log4j2 configuration file, logging.config or "
+          + LoggingConstants.LOG4J2_CONFIG_OVERRIDE
+          + ", or add Logback or Log4j2, and choose the format with stratum.logging.format. To keep"
+          + " your own format, turn the module off with "
           + LoggingConstants.ENABLED
           + "=false.");
 

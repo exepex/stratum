@@ -3,6 +3,7 @@ package com.exepex.stratum.logging.startup;
 import static com.exepex.stratum.logging.testsupport.LoggingTestData.environmentWithServiceName;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import com.exepex.stratum.core.error.StratumException;
@@ -21,6 +22,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.test.context.FilteredClassLoader;
@@ -35,8 +37,18 @@ class LogFormatCheckTest {
   /** Stratum's text format for Log4j2. */
   private static final String LOG4J2_TEXT = Log4j2MaskedTextFormatter.class.getName();
 
-  /** The application's class loader on the test class path, which holds no Logback file. */
+  /**
+   * The application's class loader on the test class path, which holds Logback and Log4j2 and no
+   * logging file.
+   */
   private static final ClassLoader TEST_CLASS_LOADER = new SpringApplication().getClassLoader();
+
+  /** A class loader without Logback, so that Spring Boot would log with Log4j2. */
+  private static final ClassLoader LOG4J2_CLASS_LOADER =
+      new FilteredClassLoader(ILoggingEvent.class);
+
+  /** The directory that holds the service's own file, added to the class path. */
+  @TempDir Path classPathDirectory;
 
   /** Returns an environment whose console and log file both write the format. */
   private MockEnvironment environmentWithFormat(String format) {
@@ -48,6 +60,17 @@ class LogFormatCheckTest {
   /** Runs the check with Logback's text format on the test class path. */
   private void check(MockEnvironment environment) {
     LogFormatCheck.requireStratumFormats(environment, TEST_CLASS_LOADER, LOGBACK_TEXT);
+  }
+
+  /** Runs the check with Log4j2's text format and the class loader. */
+  private void checkLog4j2(MockEnvironment environment, ClassLoader classLoader) {
+    LogFormatCheck.requireStratumFormats(environment, classLoader, LOG4J2_TEXT);
+  }
+
+  /** Returns a class loader that also finds the file, written in the class path directory. */
+  private URLClassLoader classLoaderWith(String fileName, ClassLoader parent) throws IOException {
+    Files.writeString(classPathDirectory.resolve(fileName), "<configuration/>");
+    return new URLClassLoader(new URL[] {classPathDirectory.toUri().toURL()}, parent);
   }
 
   /** Checks that the call stops startup with SX-LOGGING-1003 and the detail. */
@@ -138,15 +161,6 @@ class LogFormatCheckTest {
             "logback-spring.groovy",
             "logback-spring.xml");
 
-    /** The directory that holds the service's own file, added to the class path. */
-    @TempDir Path classPathDirectory;
-
-    /** Returns a class loader that also finds the file, written in the class path directory. */
-    private URLClassLoader classLoaderWith(String fileName, ClassLoader parent) throws IOException {
-      Files.writeString(classPathDirectory.resolve(fileName), "<configuration/>");
-      return new URLClassLoader(new URL[] {classPathDirectory.toUri().toURL()}, parent);
-    }
-
     @Test
     @DisplayName("logging.config stops startup")
     void rejectsLoggingConfig() {
@@ -198,12 +212,144 @@ class LogFormatCheckTest {
     @DisplayName("without Logback, a Logback file is not looked for")
     void ignoresLogbackFileWithoutLogback() throws IOException {
       var environment = environmentWithFormat(LOG4J2_TEXT);
-      try (var classLoader =
-          classLoaderWith("logback-spring.xml", new FilteredClassLoader(ILoggingEvent.class))) {
+      try (var classLoader = classLoaderWith("logback-spring.xml", LOG4J2_CLASS_LOADER)) {
+        assertThatCode(() -> checkLog4j2(environment, classLoader)).doesNotThrowAnyException();
+      }
+    }
+  }
+
+  @Nested
+  @DisplayName("with a Log4j2 configuration of the service's own")
+  class WithOwnLog4j2Configuration {
+
+    /** Every Log4j2 file Spring Boot loads from the class path on its own, JSON and YAML too. */
+    private static final List<String> LOG4J2_FILE_NAMES =
+        List.of(
+            "log4j2-test.properties",
+            "log4j2-test.yml",
+            "log4j2-test.yaml",
+            "log4j2-test.json",
+            "log4j2-test.jsn",
+            "log4j2-test.xml",
+            "log4j2.properties",
+            "log4j2.yml",
+            "log4j2.yaml",
+            "log4j2.json",
+            "log4j2.jsn",
+            "log4j2.xml",
+            "log4j2-test-spring.properties",
+            "log4j2-test-spring.yml",
+            "log4j2-test-spring.yaml",
+            "log4j2-test-spring.json",
+            "log4j2-test-spring.jsn",
+            "log4j2-test-spring.xml",
+            "log4j2-spring.properties",
+            "log4j2-spring.yml",
+            "log4j2-spring.yaml",
+            "log4j2-spring.json",
+            "log4j2-spring.jsn",
+            "log4j2-spring.xml");
+
+    /** Files whose names start like a Log4j2 configuration but that Log4j2 never loads as one. */
+    private static final List<String> NOT_LOG4J2_CONFIGURATIONS =
+        List.of("log4j2.component.properties", "log4j2-orders.xml");
+
+    /** Each way to set the override key that Spring Boot binds: one value, a list, an index. */
+    private static final List<Arguments> OVERRIDE_FORMS =
+        List.of(
+            arguments(LoggingConstants.LOG4J2_CONFIG_OVERRIDE, "classpath:own.xml"),
+            arguments(LoggingConstants.LOG4J2_CONFIG_OVERRIDE, "classpath:a.xml,classpath:b.xml"),
+            arguments(LoggingConstants.LOG4J2_CONFIG_OVERRIDE + "[0]", "classpath:own.xml"));
+
+    /** Returns a Log4j2 environment with the override key set to the value. */
+    private MockEnvironment environmentWithOverride(String key, String value) {
+      return environmentWithFormat(LOG4J2_TEXT).withProperty(key, value);
+    }
+
+    @ParameterizedTest
+    @FieldSource("LOG4J2_FILE_NAMES")
+    @DisplayName("a Log4j2 file on the class path stops startup and is named")
+    void rejectsLog4j2File(String fileName) throws IOException {
+      var environment = environmentWithFormat(LOG4J2_TEXT);
+      try (var classLoader = classLoaderWith(fileName, LOG4J2_CLASS_LOADER)) {
+        assertStopsWith(
+            () -> checkLog4j2(environment, classLoader), fileName + " is on the classpath");
+      }
+    }
+
+    @ParameterizedTest
+    @FieldSource("NOT_LOG4J2_CONFIGURATIONS")
+    @DisplayName("a file that is no Log4j2 configuration lets the service start")
+    void acceptsFileThatIsNoConfiguration(String fileName) throws IOException {
+      var environment = environmentWithFormat(LOG4J2_TEXT);
+      try (var classLoader = classLoaderWith(fileName, LOG4J2_CLASS_LOADER)) {
+        assertThatCode(() -> checkLog4j2(environment, classLoader)).doesNotThrowAnyException();
+      }
+    }
+
+    @Test
+    @DisplayName("with no file and no override, the service starts")
+    void acceptsNoOwnConfiguration() {
+      var environment = environmentWithFormat(LOG4J2_TEXT);
+
+      assertThatCode(() -> checkLog4j2(environment, LOG4J2_CLASS_LOADER))
+          .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("with Logback next to Log4j2, a Log4j2 file is ignored, as Spring Boot ignores it")
+    void ignoresLog4j2FileWithLogback() throws IOException {
+      var environment = environmentWithFormat(LOGBACK_TEXT);
+      try (var classLoader = classLoaderWith("log4j2.xml", TEST_CLASS_LOADER)) {
         assertThatCode(
-                () -> LogFormatCheck.requireStratumFormats(environment, classLoader, LOG4J2_TEXT))
+                () -> LogFormatCheck.requireStratumFormats(environment, classLoader, LOGBACK_TEXT))
             .doesNotThrowAnyException();
       }
+    }
+
+    @ParameterizedTest
+    @FieldSource("OVERRIDE_FORMS")
+    @DisplayName("logging.log4j2.config.override stops startup and is named")
+    void rejectsOverride(String key, String value) {
+      var environment = environmentWithOverride(key, value);
+
+      assertStopsWith(
+          () -> checkLog4j2(environment, LOG4J2_CLASS_LOADER),
+          LoggingConstants.LOG4J2_CONFIG_OVERRIDE + " is set");
+    }
+
+    @Test
+    @DisplayName("with Logback next to Log4j2, the override is ignored, as Spring Boot ignores it")
+    void ignoresOverrideWithLogback() {
+      var environment =
+          environmentWithFormat(LOGBACK_TEXT)
+              .withProperty(LoggingConstants.LOG4J2_CONFIG_OVERRIDE, "classpath:own.xml");
+
+      assertThatCode(() -> check(environment)).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("the message names the override key, never its value")
+    void messageNamesOverrideKeyNotValue() {
+      var environment =
+          environmentWithOverride(
+              LoggingConstants.LOG4J2_CONFIG_OVERRIDE,
+              "https://user:secret@config.example/own.xml");
+
+      assertThatExceptionOfType(StratumException.class)
+          .isThrownBy(() -> checkLog4j2(environment, LOG4J2_CLASS_LOADER))
+          .withMessageContaining(LoggingConstants.LOG4J2_CONFIG_OVERRIDE)
+          .withMessageNotContaining("secret")
+          .withMessageNotContaining("config.example");
+    }
+
+    @Test
+    @DisplayName("an empty override lets the service start, as Spring Boot loads nothing for it")
+    void acceptsEmptyOverride() {
+      var environment = environmentWithOverride(LoggingConstants.LOG4J2_CONFIG_OVERRIDE, "");
+
+      assertThatCode(() -> checkLog4j2(environment, LOG4J2_CLASS_LOADER))
+          .doesNotThrowAnyException();
     }
   }
 
