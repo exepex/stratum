@@ -1,0 +1,70 @@
+package spike;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import io.micrometer.core.instrument.Meter;
+import io.micrometer.core.instrument.Tags;
+import io.micrometer.core.instrument.binder.httpcomponents.hc5.PoolingHttpClientConnectionManagerMetricsBinder;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
+import org.springframework.http.client.ClientHttpRequestFactory;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+import org.springframework.web.client.RestClient;
+
+/** Items 5 + 9: Micrometer HC5 pool binder; JVM proxy settings. */
+class MetricsAndProxyTest {
+
+  @Test
+  void binderGivesPoolGaugesTaggedByClient() {
+    PoolingHttpClientConnectionManager pool = PoolingHttpClientConnectionManagerBuilder.create().setMaxConnTotal(50).build();
+    SimpleMeterRegistry registry = new SimpleMeterRegistry();
+    new PoolingHttpClientConnectionManagerMetricsBinder(pool, "orders", Tags.of("client", "orders")).bindTo(registry);
+    for (Meter meter : registry.getMeters()) {
+      System.out.println("SPIKE binder meter: " + meter.getId().getName() + " " + meter.getId().getType()
+          + " " + meter.getId().getTags());
+    }
+    assertThat(registry.getMeters()).isNotEmpty();
+  }
+
+  static String viaProxy(ClientHttpRequestFactory factory) {
+    try {
+      RestClient.builder().requestFactory(factory).build().get().uri("http://downstream.example/ping")
+          .retrieve().toBodilessEntity();
+      return "sent";
+    } catch (RuntimeException e) { return e.getClass().getSimpleName(); }
+  }
+
+  @Test
+  void jvmProxySettingsAreHonouredByBootsBuilder() throws Exception {
+    String oldHost = System.getProperty("http.proxyHost");
+    String oldPort = System.getProperty("http.proxyPort");
+    String oldNon = System.getProperty("http.nonProxyHosts");
+    try (Downstream proxy = new Downstream()) {
+      System.setProperty("http.proxyHost", "127.0.0.1");
+      System.setProperty("http.proxyPort", String.valueOf(proxy.server.getAddress().getPort()));
+      System.setProperty("http.nonProxyHosts", "localhost");
+      String boot = viaProxy(ClientHttpRequestFactoryBuilder.httpComponents().build());
+      int afterBoot = proxy.calls();
+      CloseableHttpClient plain = HttpClients.custom().build();
+      String plainResult = viaProxy(new HttpComponentsClientHttpRequestFactory(plain));
+      int afterPlain = proxy.calls();
+      String system = viaProxy(new HttpComponentsClientHttpRequestFactory(HttpClients.custom().useSystemProperties().build()));
+      System.out.println("SPIKE proxy: bootBuilder=" + boot + " proxyHits=" + afterBoot
+          + " | plainBuilder=" + plainResult + " proxyHits+" + (afterPlain - afterBoot)
+          + " | useSystemProperties=" + system + " proxyHits+" + (proxy.calls() - afterPlain)
+          + " | paths seen by proxy=" + proxy.paths);
+      assertThat(afterBoot).isEqualTo(1);
+    } finally {
+      restore("http.proxyHost", oldHost); restore("http.proxyPort", oldPort); restore("http.nonProxyHosts", oldNon);
+    }
+  }
+
+  static void restore(String key, String value) {
+    if (value == null) System.clearProperty(key); else System.setProperty(key, value);
+  }
+}
