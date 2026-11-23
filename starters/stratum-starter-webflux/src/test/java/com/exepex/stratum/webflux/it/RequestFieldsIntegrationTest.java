@@ -6,9 +6,12 @@ import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.test.WebTestSupport;
 import com.exepex.stratum.web.WebConstants;
 import com.jayway.jsonpath.JsonPath;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpHeaders;
@@ -54,6 +57,14 @@ class RequestFieldsIntegrationTest {
   @DisplayName("with the default settings")
   class DefaultSettings {
 
+    /** X-Forwarded-For headers whose entries carry a port. */
+    private static final Set<String> ENTRIES_WITH_PORTS =
+        WebTestSupport.FORWARDED_FOR_WITH_PORTS.keySet();
+
+    /** X-Forwarded-For headers with a port that is not valid. */
+    private static final Set<String> ENTRIES_WITH_BAD_PORTS =
+        WebTestSupport.FORWARDED_FOR_WITH_BAD_PORTS.keySet();
+
     @LocalServerPort private int port;
 
     @Test
@@ -70,15 +81,25 @@ class RequestFieldsIntegrationTest {
     @Test
     @DisplayName("a request from a trusted proxy gets the client IP from X-Forwarded-For")
     void forwardedClientIp() throws Exception {
-      var response =
-          WebTestSupport.getFromService(
-              port,
-              ORDER_FIELDS_PATH,
-              "X-Forwarded-For",
-              INTERNET_CLIENT_ADDRESS + ", " + INNER_PROXY_ADDRESS);
+      WebTestSupport.checkClientIp(
+          port,
+          ORDER_FIELDS_PATH,
+          INTERNET_CLIENT_ADDRESS + ", " + INNER_PROXY_ADDRESS,
+          INTERNET_CLIENT_ADDRESS);
+    }
 
-      assertThat(JsonPath.<String>read(response.body(), "$." + LoggingContextConstants.CLIENT_IP))
-          .isEqualTo(INTERNET_CLIENT_ADDRESS);
+    @ParameterizedTest
+    @FieldSource("ENTRIES_WITH_PORTS")
+    @DisplayName("an X-Forwarded-For entry with a port gives the client IP without the port")
+    void forwardedClientIpWithPort(String forwardedFor) throws Exception {
+      WebTestSupport.checkClientIpOfEntryWithPort(port, ORDER_FIELDS_PATH, forwardedFor);
+    }
+
+    @ParameterizedTest
+    @FieldSource("ENTRIES_WITH_BAD_PORTS")
+    @DisplayName("an X-Forwarded-For entry with a bad port gives the trusted proxy's address")
+    void proxyAddressForBadPort(String forwardedFor) throws Exception {
+      WebTestSupport.checkClientIpOfEntryWithPort(port, ORDER_FIELDS_PATH, forwardedFor);
     }
 
     @Test
@@ -225,20 +246,52 @@ class RequestFieldsIntegrationTest {
   @DisplayName("with Netty's forwarded-header support on, as Spring Boot sets it on Kubernetes")
   class NettyForwardedHeaders {
 
+    /** X-Forwarded-For headers whose entries carry a port. */
+    private static final Set<String> ENTRIES_WITH_PORTS =
+        WebTestSupport.FORWARDED_FOR_WITH_PORTS.keySet();
+
+    /** An X-Forwarded-For entry whose port is a name, which Netty lets through. */
+    private static final String NAMED_PORT_ENTRY = INTERNET_CLIENT_ADDRESS + ":http";
+
+    /** An X-Forwarded-For entry whose port is above 65535, which Netty refuses. */
+    private static final String OUT_OF_RANGE_PORT_ENTRY = INTERNET_CLIENT_ADDRESS + ":65536";
+
     @LocalServerPort private int port;
 
     @Test
     @DisplayName("an address the client writes into X-Forwarded-For is not taken as its own")
     void spoofedForwardedAddressIgnored() throws Exception {
+      WebTestSupport.checkClientIp(
+          port,
+          ORDER_FIELDS_PATH,
+          SPOOFED_ADDRESS + ", " + INTERNET_CLIENT_ADDRESS,
+          INTERNET_CLIENT_ADDRESS);
+    }
+
+    @ParameterizedTest
+    @FieldSource("ENTRIES_WITH_PORTS")
+    @DisplayName("an X-Forwarded-For entry with a port gives the client IP without the port")
+    void forwardedClientIpWithPort(String forwardedFor) throws Exception {
+      WebTestSupport.checkClientIpOfEntryWithPort(port, ORDER_FIELDS_PATH, forwardedFor);
+    }
+
+    @Test
+    @DisplayName("an X-Forwarded-For entry whose port is a name gives the trusted proxy's address")
+    void proxyAddressForNamedPort() throws Exception {
+      WebTestSupport.checkClientIpOfEntryWithPort(port, ORDER_FIELDS_PATH, NAMED_PORT_ENTRY);
+    }
+
+    @Test
+    @DisplayName(
+        "Netty answers a leftmost entry with a port above 65535 with status 400 and no body,"
+            + " before Stratum's filter runs")
+    void nettyRefusesPortAboveRange() throws Exception {
       var response =
           WebTestSupport.getFromService(
-              port,
-              ORDER_FIELDS_PATH,
-              "X-Forwarded-For",
-              SPOOFED_ADDRESS + ", " + INTERNET_CLIENT_ADDRESS);
+              port, ORDER_FIELDS_PATH, "X-Forwarded-For", OUT_OF_RANGE_PORT_ENTRY);
 
-      assertThat(JsonPath.<String>read(response.body(), "$." + LoggingContextConstants.CLIENT_IP))
-          .isEqualTo(INTERNET_CLIENT_ADDRESS);
+      assertThat(response.statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+      assertThat(response.body()).isEmpty();
     }
   }
 }

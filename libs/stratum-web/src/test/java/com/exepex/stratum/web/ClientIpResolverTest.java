@@ -111,6 +111,45 @@ class ClientIpResolverTest {
   }
 
   @Nested
+  @DisplayName("with entries that carry a port, as Azure Application Gateway writes them")
+  class EntriesWithPorts {
+
+    @Test
+    @DisplayName("a trusted proxy with a port is passed, and the client's port is dropped")
+    void proxyAndClientWithPorts() {
+      var client =
+          resolver.clientIp(
+              LOAD_BALANCER,
+              List.of(
+                  SPOOFED_ADDRESS + ":1",
+                  INTERNET_CLIENT_ADDRESS + ":51234",
+                  INNER_PROXY_ADDRESS + ":80"));
+
+      assertThat(client).hasValue(INTERNET_CLIENT);
+    }
+
+    @Test
+    @DisplayName("an IPv6 client in brackets with a port is read")
+    void ipv6ClientWithPort() {
+      var client =
+          resolver.clientIp(
+              InetAddress.ofLiteral(IPV6_LOOPBACK), List.of("[" + IPV6_CLIENT_ADDRESS + "]:443"));
+
+      assertThat(client).hasValue(InetAddress.ofLiteral(IPV6_CLIENT_ADDRESS));
+    }
+
+    @Test
+    @DisplayName("an entry whose port is out of range stops the walk at the last good hop")
+    void badPortStopsWalk() {
+      var client =
+          resolver.clientIp(
+              LOAD_BALANCER, List.of(INTERNET_CLIENT_ADDRESS, INNER_PROXY_ADDRESS + ":65536"));
+
+      assertThat(client).hasValue(LOAD_BALANCER);
+    }
+  }
+
+  @Nested
   @DisplayName("with the service's own trusted proxies")
   class OwnProxies {
 

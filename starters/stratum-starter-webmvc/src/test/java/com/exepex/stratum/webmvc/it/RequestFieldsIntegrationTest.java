@@ -7,9 +7,12 @@ import com.exepex.stratum.test.WebTestSupport;
 import com.exepex.stratum.web.WebConstants;
 import com.jayway.jsonpath.JsonPath;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpHeaders;
@@ -54,6 +57,14 @@ class RequestFieldsIntegrationTest {
       })
   @DisplayName("with the default settings")
   class DefaultSettings {
+
+    /** X-Forwarded-For headers whose entries carry a port. */
+    private static final Set<String> ENTRIES_WITH_PORTS =
+        WebTestSupport.FORWARDED_FOR_WITH_PORTS.keySet();
+
+    /** X-Forwarded-For headers with a port that is not valid. */
+    private static final Set<String> ENTRIES_WITH_BAD_PORTS =
+        WebTestSupport.FORWARDED_FOR_WITH_BAD_PORTS.keySet();
 
     @LocalServerPort private int port;
 
@@ -102,15 +113,25 @@ class RequestFieldsIntegrationTest {
     @Test
     @DisplayName("a request from a trusted proxy gets the client IP from X-Forwarded-For")
     void forwardedClientIp() throws Exception {
-      var response =
-          WebTestSupport.getFromService(
-              port,
-              ORDER_FIELDS_PATH,
-              "X-Forwarded-For",
-              INTERNET_CLIENT_ADDRESS + ", " + INNER_PROXY_ADDRESS);
+      WebTestSupport.checkClientIp(
+          port,
+          ORDER_FIELDS_PATH,
+          INTERNET_CLIENT_ADDRESS + ", " + INNER_PROXY_ADDRESS,
+          INTERNET_CLIENT_ADDRESS);
+    }
 
-      assertThat(JsonPath.<String>read(response.body(), "$." + LoggingContextConstants.CLIENT_IP))
-          .isEqualTo(INTERNET_CLIENT_ADDRESS);
+    @ParameterizedTest
+    @FieldSource("ENTRIES_WITH_PORTS")
+    @DisplayName("an X-Forwarded-For entry with a port gives the client IP without the port")
+    void forwardedClientIpWithPort(String forwardedFor) throws Exception {
+      WebTestSupport.checkClientIpOfEntryWithPort(port, ORDER_FIELDS_PATH, forwardedFor);
+    }
+
+    @ParameterizedTest
+    @FieldSource("ENTRIES_WITH_BAD_PORTS")
+    @DisplayName("an X-Forwarded-For entry with a bad port gives the trusted proxy's address")
+    void proxyAddressForBadPort(String forwardedFor) throws Exception {
+      WebTestSupport.checkClientIpOfEntryWithPort(port, ORDER_FIELDS_PATH, forwardedFor);
     }
 
     @Test
@@ -203,6 +224,49 @@ class RequestFieldsIntegrationTest {
       var next = WebTestSupport.getFromService(port, "/orders/7/fields");
 
       assertThat(next.body()).doesNotContain(EXPAND_QUERY);
+    }
+  }
+
+  @Nested
+  @SpringBootTest(
+      classes = RequestFieldsApplication.class,
+      webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+      properties = {
+        "server.forward-headers-strategy=native",
+        "management.tracing.sampling.probability=1.0",
+        "management.opentelemetry.tracing.export.otlp.endpoint=http://localhost:1/v1/traces",
+        "management.otlp.metrics.export.enabled=false"
+      })
+  @DisplayName("with Tomcat's forwarded-header support on, as Spring Boot sets it on Kubernetes")
+  class TomcatForwardedHeaders {
+
+    /** X-Forwarded-For headers whose entries carry a port. */
+    private static final Set<String> ENTRIES_WITH_PORTS =
+        WebTestSupport.FORWARDED_FOR_WITH_PORTS.keySet();
+
+    /** X-Forwarded-For headers with a port that is not valid. */
+    private static final Set<String> ENTRIES_WITH_BAD_PORTS =
+        WebTestSupport.FORWARDED_FOR_WITH_BAD_PORTS.keySet();
+
+    @LocalServerPort private int port;
+
+    @ParameterizedTest
+    @FieldSource("ENTRIES_WITH_PORTS")
+    @DisplayName("the entry with a port that Tomcat passes on gives the client IP without the port")
+    void forwardedClientIpWithPort(String forwardedFor) throws Exception {
+      WebTestSupport.checkClientIpOfEntryWithPort(port, ORDER_FIELDS_PATH, forwardedFor);
+    }
+
+    @ParameterizedTest
+    @FieldSource("ENTRIES_WITH_BAD_PORTS")
+    @DisplayName(
+        "an entry with a bad port that Tomcat passes on leaves the request with no client IP")
+    void noClientIpForBadPort(String forwardedFor) throws Exception {
+      var response =
+          WebTestSupport.getFromService(port, ORDER_FIELDS_PATH, "X-Forwarded-For", forwardedFor);
+
+      Map<String, String> fields = JsonPath.read(response.body(), "$");
+      assertThat(fields).doesNotContainKey(LoggingContextConstants.CLIENT_IP);
     }
   }
 
