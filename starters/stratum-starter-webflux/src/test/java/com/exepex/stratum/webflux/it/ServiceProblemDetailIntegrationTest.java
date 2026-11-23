@@ -1,14 +1,16 @@
 package com.exepex.stratum.webflux.it;
 
+import static com.exepex.stratum.test.RefundProblemHandlers.SERVICE_INSTANCE;
 import static com.exepex.stratum.test.WebTestSupport.checkServiceProblemDetail;
 import static com.exepex.stratum.test.WebTestSupport.getFromService;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.HttpHeaders.ACCEPT;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
+import com.exepex.stratum.test.RefundProblemHandlers;
+import com.exepex.stratum.test.RefundProblemHandlers.ReceiptMissingException;
+import com.exepex.stratum.test.RefundProblemHandlers.RefundRefusedException;
 import com.jayway.jsonpath.JsonPath;
-import java.io.Serial;
-import java.net.URI;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -18,10 +20,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ProblemDetail;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.web.ErrorResponseException;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -45,9 +45,6 @@ class ServiceProblemDetailIntegrationTest {
 
   /** The path whose handler sets an instance of its own. */
   private static final String RECEIPT_PATH = "/refunds/7/receipt";
-
-  /** The instance the service's handler sets. */
-  private static final String SERVICE_INSTANCE = "urn:refund:7";
 
   /** The path that fails with Spring's own exception, which Spring's own handler answers. */
   private static final String STATE_PATH = "/refunds/7/state";
@@ -136,18 +133,6 @@ class ServiceProblemDetailIntegrationTest {
   @Import({RefundsApplication.RefundsController.class, RefundsApplication.RefundHandlers.class})
   static class RefundsApplication {
 
-    /** A refund the service refuses. */
-    static class RefundRefusedException extends RuntimeException {
-
-      @Serial private static final long serialVersionUID = 1L;
-    }
-
-    /** A receipt the service cannot find. */
-    static class ReceiptMissingException extends RuntimeException {
-
-      @Serial private static final long serialVersionUID = 1L;
-    }
-
     /** The endpoints. */
     @RestController
     static class RefundsController {
@@ -183,32 +168,8 @@ class ServiceProblemDetailIntegrationTest {
       }
     }
 
-    /** The service's handlers. */
+    /** The service's handlers, shared by the Spring MVC and WebFlux tests. */
     @RestControllerAdvice
-    static class RefundHandlers {
-
-      /**
-       * Answers a refused refund with a body that has no instance.
-       *
-       * @return the body
-       */
-      @ExceptionHandler(RefundRefusedException.class)
-      ProblemDetail refundRefused() {
-        return ProblemDetail.forStatusAndDetail(
-            HttpStatus.PAYMENT_REQUIRED, "The refund was refused");
-      }
-
-      /**
-       * Answers a missing receipt with a body that has an instance of its own.
-       *
-       * @return the body
-       */
-      @ExceptionHandler(ReceiptMissingException.class)
-      ProblemDetail receiptMissing() {
-        var body = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
-        body.setInstance(URI.create(SERVICE_INSTANCE));
-        return body;
-      }
-    }
+    static class RefundHandlers extends RefundProblemHandlers {}
   }
 }
