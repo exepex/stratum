@@ -42,6 +42,36 @@ public class WebTestSupport {
   /** The address that requests sent from this machine come from. */
   private static final String LOOPBACK_ADDRESS = ipAddress(127, 0, 0, 1);
 
+  /** A client on the internet, as a proxy names it in {@code X-Forwarded-For}. */
+  private static final String INTERNET_CLIENT_ADDRESS = ipAddress(203, 0, 113, 7);
+
+  /** A client on the internet with an IPv6 address, as Java writes it. */
+  private static final String IPV6_CLIENT_ADDRESS = ipAddress(0x2001, 0xdb8, 0, 0, 0, 0, 0, 1);
+
+  /** A proxy inside the service's own network, which the default trusted proxies cover. */
+  private static final String INNER_PROXY_ADDRESS = ipAddress(10, 1, 2, 3);
+
+  /**
+   * {@code X-Forwarded-For} headers whose entries carry a port, as Azure Application Gateway writes
+   * them, each with the client IP a web starter logs for it: the client's address without its port.
+   */
+  public static final Map<String, String> FORWARDED_FOR_WITH_PORTS =
+      Map.of(
+          INTERNET_CLIENT_ADDRESS + ":51234", INTERNET_CLIENT_ADDRESS,
+          "[" + IPV6_CLIENT_ADDRESS + "]:443", IPV6_CLIENT_ADDRESS,
+          INTERNET_CLIENT_ADDRESS + ":51234, " + INNER_PROXY_ADDRESS + ":80",
+              INTERNET_CLIENT_ADDRESS);
+
+  /**
+   * {@code X-Forwarded-For} headers whose port is not valid, each with the client IP a web starter
+   * logs for it on a request from this machine: this machine's address, as for any entry that is
+   * not an address.
+   */
+  public static final Map<String, String> FORWARDED_FOR_WITH_BAD_PORTS =
+      Map.of(
+          INTERNET_CLIENT_ADDRESS + ":65536", LOOPBACK_ADDRESS,
+          INTERNET_CLIENT_ADDRESS + ":http", LOOPBACK_ADDRESS);
+
   /** Calls the services under test; one client serves every test. */
   private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
 
@@ -236,6 +266,45 @@ public class WebTestSupport {
         .containsEntry(LoggingContextConstants.USER_AGENT, userAgent)
         .doesNotContainKeys(
             LoggingContextConstants.DEVICE_CLASS, LoggingContextConstants.CLIENT_COUNTRY);
+  }
+
+  /**
+   * Sends a GET request with an {@code X-Forwarded-For} header to a test endpoint that answers with
+   * its logging context, and checks the client IP it logs.
+   *
+   * @param port the service's port
+   * @param path the endpoint's path, such as {@code /orders/42/fields}
+   * @param forwardedFor the header's value
+   * @param clientIp the client IP the service must log
+   * @throws IOException if the request cannot be sent or the response read
+   * @throws InterruptedException if the thread is interrupted while it waits
+   */
+  public static void checkClientIp(int port, String path, String forwardedFor, String clientIp)
+      throws IOException, InterruptedException {
+    var response = getFromService(port, path, "X-Forwarded-For", forwardedFor);
+    assertThat(JsonPath.<String>read(response.body(), "$." + LoggingContextConstants.CLIENT_IP))
+        .as("the client IP logged for X-Forwarded-For: %s", forwardedFor)
+        .isEqualTo(clientIp);
+  }
+
+  /**
+   * Sends a GET request with one of the {@code X-Forwarded-For} headers of {@link
+   * #FORWARDED_FOR_WITH_PORTS} or {@link #FORWARDED_FOR_WITH_BAD_PORTS} to a test endpoint that
+   * answers with its logging context, and checks that it logs the client IP listed there.
+   *
+   * @param port the service's port
+   * @param path the endpoint's path, such as {@code /orders/42/fields}
+   * @param forwardedFor the header's value, from one of the two lists
+   * @throws IOException if the request cannot be sent or the response read
+   * @throws InterruptedException if the thread is interrupted while it waits
+   */
+  public static void checkClientIpOfEntryWithPort(int port, String path, String forwardedFor)
+      throws IOException, InterruptedException {
+    var clientIp =
+        FORWARDED_FOR_WITH_PORTS.containsKey(forwardedFor)
+            ? FORWARDED_FOR_WITH_PORTS.get(forwardedFor)
+            : FORWARDED_FOR_WITH_BAD_PORTS.get(forwardedFor);
+    checkClientIp(port, path, forwardedFor, String.valueOf(clientIp));
   }
 
   /**

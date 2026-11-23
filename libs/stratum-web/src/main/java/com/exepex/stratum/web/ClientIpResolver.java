@@ -11,8 +11,10 @@ import org.jspecify.annotations.Nullable;
 /**
  * Finds the IP address of the client that sent a request. Behind the service's own load balancers
  * and proxies, the {@code X-Forwarded-For} header is read from right to left, and the first address
- * that is not a trusted proxy is the client's. A request that does not come from a trusted proxy is
- * taken as it arrives, so a client cannot claim another address by sending the header itself.
+ * that is not a trusted proxy is the client's. An entry may carry a port, such as {@code
+ * 203.0.113.7:51234} or {@code [2001:db8::1]:443}; an entry that is not an address stops the walk.
+ * A request that does not come from a trusted proxy is taken as it arrives, so a client cannot
+ * claim another address by sending the header itself.
  */
 public class ClientIpResolver {
 
@@ -49,7 +51,7 @@ public class ClientIpResolver {
     // walk stops early and depends on the previous step, which a loop shows more plainly than a
     // stream.
     for (var hop = forwardedFor.size() - 1; hop >= 0 && isTrustedProxy(client); hop--) {
-      var forwardedAddress = parseAddress(forwardedFor.get(hop));
+      var forwardedAddress = IpAddressParser.addressOf(forwardedFor.get(hop));
       if (forwardedAddress.isEmpty()) {
         break;
       }
@@ -61,18 +63,6 @@ public class ClientIpResolver {
   /** Returns whether the address is one of the trusted proxies. */
   private boolean isTrustedProxy(InetAddress address) {
     return trustedProxies.stream().anyMatch(range -> range.contains(address));
-  }
-
-  /**
-   * Returns the address an {@code X-Forwarded-For} entry holds, or nothing when it is not an IP
-   * address, such as {@code unknown} or a forged value. It never looks up a host name.
-   */
-  private Optional<InetAddress> parseAddress(String entry) {
-    try {
-      return Optional.of(InetAddress.ofLiteral(entry));
-    } catch (IllegalArgumentException notAnAddress) {
-      return Optional.empty();
-    }
   }
 
   /**

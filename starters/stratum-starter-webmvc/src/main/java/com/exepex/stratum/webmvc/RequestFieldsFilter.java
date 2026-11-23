@@ -1,6 +1,7 @@
 package com.exepex.stratum.webmvc;
 
 import com.exepex.stratum.core.api.StratumInternal;
+import com.exepex.stratum.web.IpAddressParser;
 import com.exepex.stratum.web.RequestFieldValues;
 import com.exepex.stratum.web.RequestFieldsAccessor;
 import com.exepex.stratum.web.RequestFieldsReader;
@@ -79,16 +80,12 @@ public class RequestFieldsFilter extends OncePerRequestFilter {
     return false;
   }
 
-  /** Returns the address the request came from, without looking up a host name. */
+  /**
+   * Returns the address the request came from, without looking up a host name. With Tomcat's
+   * forwarded-header support on, this is an {@code X-Forwarded-For} entry, which can carry a port.
+   */
   private @Nullable InetAddress socketAddressOf(HttpServletRequest request) {
     var remoteAddress = request.getRemoteAddr();
-    if (remoteAddress == null) {
-      return null;
-    }
-    try {
-      return InetAddress.ofLiteral(remoteAddress);
-    } catch (IllegalArgumentException unknownAddress) {
-      return null;
-    }
+    return remoteAddress == null ? null : IpAddressParser.addressOf(remoteAddress).orElse(null);
   }
 }
