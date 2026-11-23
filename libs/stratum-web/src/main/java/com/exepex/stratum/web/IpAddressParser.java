@@ -30,7 +30,7 @@ public class IpAddressParser {
   public Optional<InetAddress> addressOf(String text) {
     try {
       return Optional.of(InetAddress.ofLiteral(withoutPort(text)));
-    } catch (IllegalArgumentException notAnAddress) {
+    } catch (IllegalArgumentException _) {
       return Optional.empty();
     }
   }

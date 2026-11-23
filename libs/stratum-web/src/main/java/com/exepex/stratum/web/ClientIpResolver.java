@@ -100,7 +100,7 @@ public class ClientIpResolver {
             new AddressRange(
                 InetAddress.ofLiteral(range.substring(0, slash)),
                 Integer.parseInt(range.substring(slash + 1))));
-      } catch (IllegalArgumentException | IndexOutOfBoundsException unreadableRange) {
+      } catch (IllegalArgumentException | IndexOutOfBoundsException _) {
         return Optional.empty();
       }
     }
