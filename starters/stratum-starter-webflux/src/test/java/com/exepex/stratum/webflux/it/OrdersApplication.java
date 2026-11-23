@@ -3,6 +3,8 @@ package com.exepex.stratum.webflux.it;
 import com.exepex.stratum.core.error.StratumException;
 import com.exepex.stratum.test.ExistingOrderException;
 import com.exepex.stratum.test.OrderErrorCode;
+import com.exepex.stratum.test.RefundProblemHandlers;
+import com.exepex.stratum.test.RefundProblemHandlers.RefundRefusedException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
@@ -14,7 +16,6 @@ import org.springframework.context.annotation.Import;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
-import org.springframework.http.ProblemDetail;
 import org.springframework.web.ErrorResponseException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -109,12 +110,6 @@ public class OrdersApplication {
     AnnotatedOrderException() {
       super(OrderErrorCode.DUPLICATE_ORDER, ORDER_DETAIL);
     }
-  }
-
-  /** An exception the service answers with its own Problem Details body. */
-  static class RefundRefusedException extends RuntimeException {
-
-    @Serial private static final long serialVersionUID = 1L;
   }
 
   /** An exception the service answers with a body of its own shape. */
@@ -326,20 +321,12 @@ public class OrdersApplication {
     }
   }
 
-  /** The service's own error handling, which Stratum must leave as it is. */
+  /**
+   * The service's own error handling, which Stratum must leave as it is: the refund handlers shared
+   * with the other web tests, and a body of its own shape.
+   */
   @RestControllerAdvice
-  static class ServiceErrorHandlers {
-
-    /**
-     * Answers a refused refund with the service's own Problem Details.
-     *
-     * @return the body
-     */
-    @ExceptionHandler(RefundRefusedException.class)
-    ProblemDetail refundRefused() {
-      return ProblemDetail.forStatusAndDetail(
-          HttpStatus.PAYMENT_REQUIRED, "The refund was refused");
-    }
+  static class ServiceErrorHandlers extends RefundProblemHandlers {
 
     /**
      * Answers in the shape an old client expects.
