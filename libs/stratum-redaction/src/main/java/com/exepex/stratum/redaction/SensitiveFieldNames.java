@@ -28,7 +28,11 @@ import org.jspecify.annotations.Nullable;
 @StratumInternal
 public final class SensitiveFieldNames {
 
-  /** Credential words, masked in full. */
+  /**
+   * Credential words, masked in full, including the cloud ones: Azure's SAS {@code sig}, AWS's
+   * {@code X-Amz-Signature}, Azure API Management's {@code subscription-key} and Azure Storage's
+   * {@code AccountKey}.
+   */
   private static final Set<String> SECRET_WORDS =
       Set.of(
           "pwd",
@@ -41,7 +45,11 @@ public final class SensitiveFieldNames {
           "jwt",
           "accesskey",
           "encryptionkey",
-          "signingkey");
+          "signingkey",
+          "sig",
+          "signature",
+          "subscriptionkey",
+          "accountkey");
 
   /** Payment cards, accounts and national IDs; the last four characters stay visible. */
   private static final Set<String> SECRET_IDENTIFIER_WORDS =

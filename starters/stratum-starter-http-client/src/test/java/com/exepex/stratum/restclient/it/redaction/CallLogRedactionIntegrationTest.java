@@ -29,7 +29,11 @@ import org.springframework.web.client.RestClientException;
 
 @SpringBootTest(
     classes = CallsApplication.class,
-    properties = {"stratum.logging.enabled=true", "spring.application.name=orders-service"})
+    properties = {
+      "stratum.logging.enabled=true",
+      "spring.application.name=orders-service",
+      "stratum.logging.redaction.extra-keys=key,code"
+    })
 @TestPropertySource(locations = CallsTestData.SETTINGS)
 // Closing the context resets logging, so the text-format test starts from Spring Boot's own.
 @DirtiesContext
@@ -106,6 +110,31 @@ class CallLogRedactionIntegrationTest {
           .doesNotContain(CallsTestData.JWT)
           .doesNotContain(CallsTestData.CARD)
           .doesNotContain(CallsTestData.IBAN);
+    }
+
+    @Test
+    @DisplayName("a cloud signature or subscription key in the url is masked by its name")
+    void cloudSecretsMasked(CapturedOutput output) {
+      callFailing(
+          sentAs(
+              "/files?sv=2024-11-04&sig=fake0sig&X-Amz-Signature=fake1sig"
+                  + "&subscription-key=fake2key&signature=fake3sig&signed=yes"));
+
+      assertCallLine(
+          output,
+          CallsTestData.ORDERS,
+          "/files?sv=2024-11-04&sig=****&X-Amz-Signature=****"
+              + "&subscription-key=****&signature=****&signed=yes");
+      assertThat(output.getAll()).doesNotContainPattern("fake[0-3](sig|key)");
+    }
+
+    @Test
+    @DisplayName("a secret under a generic name is masked once the team lists it in extra-keys")
+    void genericNameInExtraKeysMasked(CapturedOutput output) {
+      callFailing(sentAs("/rates?key=fake4key&code=fake5code&currency=EUR"));
+
+      assertCallLine(output, CallsTestData.ORDERS, "/rates?key=****&code=****&currency=EUR");
+      assertThat(output.getAll()).doesNotContain("fake4key").doesNotContain("fake5code");
     }
 
     @Test
