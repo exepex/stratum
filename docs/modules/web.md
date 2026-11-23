@@ -176,7 +176,8 @@ An entry may carry a port, as the entries Azure Application Gateway adds do by d
 logs `203.0.113.7`. An IPv6 address without brackets, such as `2001:db8::1:443`, is read whole as an
 address, because its last group cannot be told apart from a port. An entry that is not an address,
 such as `unknown`, a host name or an address with a port above 65535, stops the walk, and the last
-trusted hop's address is the client IP, which is wrong but safe.
+trusted hop's address is the client IP, which is wrong but safe. WebFlux with Netty's
+forwarded-header support on refuses some of these requests itself, as described below.
 
 The trusted proxies are `stratum.web.client-ip.trusted-proxies`, which defaults to the private and
 loopback ranges, where load balancers inside your own network live. If your service sits behind a
@@ -192,7 +193,11 @@ and also trusts the link-local (`169.254.0.0/16`, `fe80::/10`) and carrier-grade
 (`100.64.0.0/10`) ranges. Set the two lists to match. Tomcat passes on the entry it picks with its
 port, and Stratum drops the port as above; when that entry is not an address, such as one with a
 port above 65535, the request has no client IP. WebFlux always uses the connection's own address,
-so only Stratum's list applies there.
+so only Stratum's list applies there. With `server.forward-headers-strategy=native` on WebFlux,
+though, Reactor Netty reads the leftmost `X-Forwarded-For` entry itself, and answers a request whose
+leftmost entry has a port above 65535 with status 400 and an empty body, before Stratum or the
+service's code runs. An entry with a port that is not a number, such as `203.0.113.7:http`, gets
+through, and Stratum then treats it as above.
 
 The client IP is personal data. It is logged because support and security need it, so keep your
 log retention and access rules in line with that.

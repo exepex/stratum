@@ -121,9 +121,16 @@ class RequestFieldsIntegrationTest {
     }
 
     @ParameterizedTest
-    @FieldSource({"ENTRIES_WITH_PORTS", "ENTRIES_WITH_BAD_PORTS"})
+    @FieldSource("ENTRIES_WITH_PORTS")
     @DisplayName("an X-Forwarded-For entry with a port gives the client IP without the port")
     void forwardedClientIpWithPort(String forwardedFor) throws Exception {
+      WebTestSupport.checkClientIpOfEntryWithPort(port, ORDER_FIELDS_PATH, forwardedFor);
+    }
+
+    @ParameterizedTest
+    @FieldSource("ENTRIES_WITH_BAD_PORTS")
+    @DisplayName("an X-Forwarded-For entry with a bad port gives the trusted proxy's address")
+    void proxyAddressForBadPort(String forwardedFor) throws Exception {
       WebTestSupport.checkClientIpOfEntryWithPort(port, ORDER_FIELDS_PATH, forwardedFor);
     }
 

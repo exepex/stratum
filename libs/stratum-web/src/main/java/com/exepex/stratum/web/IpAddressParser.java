@@ -38,8 +38,7 @@ public class IpAddressParser {
   /**
    * Returns the text without its port. Only an IPv4 address, with a single colon, or an IPv6
    * address in brackets can carry one; an IPv6 address without brackets is read whole. A text whose
-   * port is not a number from 0 to 65535 is returned whole, or fails when the port is empty, so it
-   * is not an address.
+   * port is not a number from 0 to 65535 is returned whole, so it is not an address.
    */
   private String withoutPort(String text) {
     var portColon = text.lastIndexOf(':');
@@ -50,12 +49,10 @@ public class IpAddressParser {
         : text;
   }
 
-  /**
-   * Returns whether the text is a port: at most five ASCII digits, at most 65535. An empty text
-   * fails {@code parseInt}, whose {@link NumberFormatException} {@link #addressOf} catches.
-   */
+  /** Returns whether the text is a port: one to five ASCII digits, at most 65535. */
   private boolean isPort(String text) {
-    return text.length() <= MAX_PORT_DIGITS
+    return !text.isEmpty()
+        && text.length() <= MAX_PORT_DIGITS
         && text.chars().allMatch(character -> character >= '0' && character <= '9')
         && Integer.parseInt(text) <= MAX_PORT;
   }
