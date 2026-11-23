@@ -126,19 +126,19 @@ upload API that accepts more than they allow raises both.
 | Spring MVC on Tomcat | A form, `application/x-www-form-urlencoded` | `server.tomcat.max-http-form-post-size` | `2MB` |
 | WebFlux | A body decoded in memory, such as JSON or a `String` | `spring.http.codecs.max-in-memory-size` | `256KB` |
 | WebFlux | Each part of a multipart upload kept in memory | `spring.webflux.multipart.max-in-memory-size` | `256KB` |
-| WebFlux | Each part of a multipart upload written to disk | `spring.webflux.multipart.max-disk-usage-per-part` | `10MB`, set by Stratum in standard mode |
-| WebFlux | The number of parts of a multipart upload | `spring.webflux.multipart.max-parts` | `50`, set by Stratum in standard mode |
+| WebFlux | Each part of a multipart upload written to disk | `spring.webflux.multipart.max-disk-usage-per-part` | `10MB` in standard mode and `-1B` (no limit) in backward-compatible mode, set by Stratum; Spring Boot's own is `1MB` |
+| WebFlux | The number of parts of a multipart upload | `spring.webflux.multipart.max-parts` | `50` in standard mode and `-1` (no limit) in backward-compatible mode, set by Stratum; Spring Boot's own is `50` |
 
 Request headers are not part of the body. Their size is limited by Spring Boot's own key,
 `server.max-http-request-header-size` (`8KB` by default), and Stratum adds no key of its own for it.
 
-A WebFlux part larger than `max-in-memory-size` is written to disk. Spring Boot sets no limit on that
-disk use or on the number of parts, and a multipart upload sent in chunks is not limited by Stratum's
-own limit (see [What is counted](#what-is-counted)), so one request could fill the disk. With the
-web module on and `stratum.backward-compatible` unset or `false`, the WebFlux starter
-therefore gives each part `10MB` of disk and an upload `50` parts. In backward-compatible mode it
-sets neither, so an upload that worked before Stratum keeps working. Your own value for either key wins, from a file, an environment variable or
-Java. A part over its disk limit is answered with `413` and `SX-WEB-1008`, as a body over Stratum's
+A WebFlux part larger than `max-in-memory-size` is written to disk. A multipart upload sent in
+chunks is not limited by Stratum's own limit (see [What is counted](#what-is-counted)), so only
+these two keys stop one request from filling the disk. With the web module on and
+`stratum.backward-compatible` unset or `false`, the WebFlux starter gives each part `10MB` of disk
+and an upload `50` parts. In backward-compatible mode it sets both to no limit, `-1B` and `-1`, as
+Spring Boot did before 4.2, so an upload that worked before Stratum keeps working. Your own value
+for either key wins, from a file, an environment variable or Java. A part over its disk limit is answered with `413` and `SX-WEB-1008`, as a body over Stratum's
 limit is. An upload with more parts than allowed is answered with `400` and `SX-WEB-1002`, because
 Spring reports it as an upload it cannot read.
 

@@ -375,8 +375,8 @@ it is listed in [Configuration reference](../configuration/reference.md) and exp
 | `stratum.web.request-log.token-payload` | boolean | `false` | no such key | Whether the line carries the listed claims of the caller's bearer JWT. |
 | `stratum.web.request-log.token-claims` | list of claim names | `sub`, `azp`, `client_id`, `scope` | no such key | The claims written when `token-payload` is `true`. Replaces the default. |
 | `spring.reactor.context-propagation` | `limited` or `auto` | `auto`, on WebFlux only, in both modes | `limited` | With `auto`, Reactor carries the request's trace ID into every operator, so error bodies, error pages and log lines have it, as on Spring MVC. |
-| `spring.webflux.multipart.max-disk-usage-per-part` | data size | `10MB`, or none while `stratum.backward-compatible` is `true`; WebFlux only | `-1B`, no limit | The disk each part of a multipart upload may use. |
-| `spring.webflux.multipart.max-parts` | integer | `50`, or none while `stratum.backward-compatible` is `true`; WebFlux only | `-1`, no limit | The most parts a multipart upload may have. |
+| `spring.webflux.multipart.max-disk-usage-per-part` | data size | `10MB`, or `-1B` (no limit) while `stratum.backward-compatible` is `true`; WebFlux only | `1MB` | The disk each part of a multipart upload may use. |
+| `spring.webflux.multipart.max-parts` | integer | `50`, or `-1` (no limit) while `stratum.backward-compatible` is `true`; WebFlux only | `50` | The most parts a multipart upload may have. |
 
 For a service on the internet, behind a CDN, with the device fields on and a request field kept to 256
 characters, in `application.properties`:

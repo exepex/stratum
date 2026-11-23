@@ -21,11 +21,15 @@ With the module on, sending and handling a message are observed like an HTTP cal
   failure and logs the same warning, under the same logger, as Spring does. A container on which
   your service set its own error handler keeps it, and its failures are recorded only if that
   handler rethrows them.
-- **Kafka batch listeners.** Spring Kafka observes listeners that take one record at a time. A
-  `@KafkaListener` with `batch = "true"` does not join the sender's trace and has no correlation ID,
-  and its `spring.kafka.listener` timer carries Spring Kafka's older tags, `name`, `result` and
-  `exception`, instead of the ones below. Spring Kafka can observe each record of a batch, if you
-  turn on `setRecordObservationsInBatch(true)` on the listener container's properties.
+- **Kafka batch listeners.** A `@KafkaListener` with `batch = "true"` is observed once per batch:
+  Spring Kafka uses the batch's first record, so the span joins that record's trace, the log lines
+  carry its correlation ID, and the `spring.kafka.listener` timer has the same tags as a
+  single-record listener. Spring Kafka 4.2.0 ends that observation twice, so the timer counts each
+  batch twice. The other records' traces are not linked. Spring Kafka's
+  `setRecordObservationsInBatch(true)` gives each record its own observation instead, but then the
+  listener method joins no trace and its log lines carry no trace or correlation ID, as
+  [Spring Kafka's documentation](https://docs.spring.io/spring-kafka/reference/kafka/micrometer.html#batch-listener-obs)
+  says; Stratum does not turn it on.
 
 | Technology | Timers | How it is switched on |
 | --- | --- | --- |

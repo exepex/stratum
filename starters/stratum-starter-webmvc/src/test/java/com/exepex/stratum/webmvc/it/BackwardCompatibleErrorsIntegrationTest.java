@@ -1,6 +1,9 @@
 package com.exepex.stratum.webmvc.it;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.exepex.stratum.test.BackwardCompatibleErrorChecks;
+import com.exepex.stratum.test.WebTestSupport;
 import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebErrorCode;
 import io.micrometer.core.instrument.Counter;
@@ -12,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 
 @SpringBootTest(
@@ -115,6 +119,22 @@ class BackwardCompatibleErrorsIntegrationTest {
     void wrappedStratumExceptionGetsStandardBody() throws Exception {
       BackwardCompatibleErrorChecks.checkCodedFailureBody(
           port, "/orders/duplicate-wrapped", HttpStatus.CONFLICT.value(), "ORD-0001");
+    }
+  }
+
+  @Nested
+  @DisplayName("an error the service's own handler answers")
+  class ServiceError {
+
+    @Test
+    @DisplayName("keeps the service's Problem Details body, with the IDs and its path added")
+    void serviceProblemDetailKept() throws Exception {
+      var response =
+          WebTestSupport.getFromService(
+              port, OrdersApplication.REFUND_PATH, HttpHeaders.ACCEPT, JSON);
+
+      assertThat(response.statusCode()).isEqualTo(HttpStatus.PAYMENT_REQUIRED.value());
+      WebTestSupport.checkServiceProblemDetail(response, OrdersApplication.REFUND_PATH);
     }
   }
 

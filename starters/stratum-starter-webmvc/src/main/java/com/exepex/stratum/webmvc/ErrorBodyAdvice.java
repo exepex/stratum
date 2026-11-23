@@ -26,10 +26,11 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
 /**
  * Finishes every error body before it is written. It adds the request's trace and correlation IDs
  * to a {@link ProblemDetail}, Stratum's or the service's own, unless the body has them already, and
- * nothing else in the body changes. It also gives the JSON body that {@link StratumErrorAttributes}
- * made for Spring Boot's error controller the Problem Details media type, {@code
- * application/problem+json}, as every other error has, and counts each JSON body that kept Spring
- * Boot's format in backward-compatible mode, with the route of the service's handler.
+ * to the service's own the request path as its {@code instance}, unless it has one; nothing else in
+ * the body changes. It also gives the JSON body that {@link StratumErrorAttributes} made for Spring
+ * Boot's error controller the Problem Details media type, {@code application/problem+json}, as
+ * every other error has, and counts each JSON body that kept Spring Boot's format in
+ * backward-compatible mode, with the route of the service's handler.
  */
 @ControllerAdvice
 @ConditionalOnStratumModule(WebConstants.MODULE)
@@ -60,8 +61,8 @@ public class ErrorBodyAdvice implements ResponseBodyAdvice<Object> {
   }
 
   /**
-   * Adds the IDs from the logging context to a {@link ProblemDetail} body, sets the media type of
-   * the error controller's JSON body, or counts it when it is Spring Boot's.
+   * Adds the IDs from the logging context and the request path to a {@link ProblemDetail} body,
+   * sets the media type of the error controller's JSON body, or counts it when it is Spring Boot's.
    *
    * @param body the body to write
    * @param returnType the controller method's return type
@@ -84,6 +85,7 @@ public class ErrorBodyAdvice implements ResponseBodyAdvice<Object> {
           errorBody,
           MDC.get(LoggingContextConstants.TRACE_ID),
           MDC.get(LoggingContextConstants.CORRELATION_ID));
+      errorResponseFactory.addInstanceIfMissing(errorBody, request.getURI());
     } else if (request instanceof ServletServerHttpRequest servletRequest
         && MediaType.APPLICATION_JSON.isCompatibleWith(contentType)) {
       finishErrorControllerBody(servletRequest.getServletRequest(), body, response);

@@ -13,7 +13,8 @@ import lombok.RequiredArgsConstructor;
  * failure's own code, such as {@code ORD-0001}, or that of the first of its causes that has one,
  * else {@code none}. The span keeps it only when there is a code. It reads the failure Spring
  * recorded on the request's observation, so a failure the service's own handler answers is not
- * counted, on Spring MVC as on WebFlux.
+ * counted, on Spring MVC as on WebFlux, unless Spring records it: since Spring Framework 7.1, a 5xx
+ * that Spring's {@code ResponseEntityExceptionHandler} answers, also in the service's subclass.
  */
 @RequiredArgsConstructor
 public class RequestErrorCodeFilter implements ObservationFilter {

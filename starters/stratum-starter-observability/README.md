@@ -184,7 +184,7 @@ an HTTP call: the consumer joins the sender's trace, its log lines carry the sen
 correlation IDs, and each send and handled message is a [histogram](#timings). Stratum turns on
 Spring Boot's Kafka and RabbitMQ switches, which Spring Boot leaves off.
 [Messages](../../docs/modules/observability-messages.md) lists the timers, their tags, the cases
-that are not covered, such as Kafka batch listeners, and how to turn each switch off.
+that are not covered, such as the records after the first in a Kafka batch, and how to turn each switch off.
 
 ### Threads and reactive code
 
@@ -241,11 +241,12 @@ OpenTelemetry keeps at most 2048 waiting by default (Spring Boot's
 `BatchSpanProcessor dropped <n> span(s) since the last export because the queue is full`. Each
 dropped span is also counted ([dropped spans](../../docs/modules/observability-traces.md#dropped-spans)).
 
-To see the failed sends again, set the two log levels, in `application.properties`:
+To see the failed sends again, set the three log levels, in `application.properties`:
 
 ```properties
 logging.level.io.micrometer.registry.otlp.OtlpMeterRegistry=warn
-logging.level.io.opentelemetry.exporter.internal.http.HttpExporter=error
+logging.level.io.micrometer.registry.otlp.shaded.io.opentelemetry.exporter.otlp.internal.HttpExporter=error
+logging.level.io.opentelemetry.exporter.otlp.internal.HttpExporter=error
 ```
 
 or in `application.yml`:
@@ -254,10 +255,11 @@ or in `application.yml`:
 logging:
   level:
     io.micrometer.registry.otlp.OtlpMeterRegistry: warn
-    io.opentelemetry.exporter.internal.http.HttpExporter: error
+    io.micrometer.registry.otlp.shaded.io.opentelemetry.exporter.otlp.internal.HttpExporter: error
+    io.opentelemetry.exporter.otlp.internal.HttpExporter: error
 ```
 
-With the gRPC transport, the second logger is `io.opentelemetry.exporter.internal.grpc.GrpcExporter`.
+With the gRPC transport, the third logger is `io.opentelemetry.exporter.otlp.internal.GrpcExporter`.
 Any other address, such as `http://otel-collector:4318`, keeps both: a warning with a stack trace at
 every metrics push, every minute by default, and an error with a stack trace for each batch of
 spans that cannot be sent, so a broken Collector in a shared environment is noticed. The service
@@ -305,8 +307,8 @@ value you set wins, from any file, the environment, the command line or Java def
 | `spring.reactor.context-propagation` | `limited` or `auto` | `auto` | `limited` | Whether every Reactor operator keeps the trace, not only `handle` and `tap` ([threads](#threads-and-reactive-code)). |
 | `spring.kafka.template.observation-enabled`, `spring.kafka.listener.observation-enabled` | boolean | `true` | `false` | Whether Kafka sends and listeners are traced and timed ([messages](#messages)). |
 | `spring.rabbitmq.template.observation-enabled`, `spring.rabbitmq.listener.simple.observation-enabled`, `.direct.observation-enabled`, `.stream.observation-enabled` | boolean | `true` | `false` | Whether RabbitMQ sends and listeners are traced and timed ([messages](#messages)). |
-| `logging.level.io.micrometer.registry.otlp.OtlpMeterRegistry` | log level | `off` when `management.otlp.metrics.export.url` is on this machine, otherwise unset | unset, so the root level | Hides the warning of a failed metrics push ([running without a Collector](#running-without-a-collector)). |
-| `logging.level.io.opentelemetry.exporter.internal.http.HttpExporter`, `logging.level.io.opentelemetry.exporter.internal.grpc.GrpcExporter` | log level | `off` when `management.opentelemetry.tracing.export.otlp.endpoint` is on this machine, otherwise unset | unset, so the root level | Hides the error of a failed span send ([running without a Collector](#running-without-a-collector)). |
+| `logging.level.io.micrometer.registry.otlp.OtlpMeterRegistry`, `logging.level.io.micrometer.registry.otlp.shaded.io.opentelemetry.exporter.otlp.internal.HttpExporter` | log level | `off` when `management.otlp.metrics.export.url` is on this machine, otherwise unset | unset, so the root level | Hides the warning of a failed metrics push ([running without a Collector](#running-without-a-collector)). |
+| `logging.level.io.opentelemetry.exporter.otlp.internal.HttpExporter`, `logging.level.io.opentelemetry.exporter.otlp.internal.GrpcExporter` | log level | `off` when `management.opentelemetry.tracing.export.otlp.endpoint` is on this machine, otherwise unset | unset, so the root level | Hides the error of a failed span send ([running without a Collector](#running-without-a-collector)). |
 
 The shared [`stratum.environment`](../../docs/configuration/reference.md#shared-properties) sets the
 `environment` tag and the `deployment.environment.name` resource attribute. The shared context

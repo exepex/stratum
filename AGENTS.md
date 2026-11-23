@@ -37,7 +37,7 @@ These rules apply the same on every AI platform an agent runs on, whatever its v
 
 ## The project
 
-Stratum is an SDK built on the latest GA release of Spring Boot (4.1.x today; the exact version is set once, in
+Stratum is an SDK built on the latest GA release of Spring Boot (4.2.x today; the exact version is set once, in
 `stratum-parent`) and Java 25, using a multi-module Maven build. It gives microservices ready-made, auto-configured
 components for logging, observability, tracing, security, REST and OAuth2 clients, resilience, data access, caching,
 messaging, cloud services and Testcontainers-based testing. A team adds a starter, sets the `stratum.*` properties

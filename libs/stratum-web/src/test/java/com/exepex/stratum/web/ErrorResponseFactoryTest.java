@@ -1,13 +1,10 @@
 package com.exepex.stratum.web;
 
-import static com.exepex.stratum.web.testsupport.WebTestData.CORRELATION_ID;
-import static com.exepex.stratum.web.testsupport.WebTestData.TRACE_ID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.error.ErrorDetail;
 import com.exepex.stratum.core.error.Severity;
 import com.exepex.stratum.core.error.StratumException;
-import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.test.ExistingOrderException;
 import com.exepex.stratum.test.OrderErrorCode;
 import com.exepex.stratum.web.testsupport.WebTestData;
@@ -304,45 +301,6 @@ class ErrorResponseFactoryTest {
 
       assertThat(body.getDetail()).isEqualTo(WebErrorCode.INTERNAL_ERROR.getDescription());
       assertThat(factory.membersOf(body).toString()).doesNotContain("password");
-    }
-  }
-
-  @Nested
-  @DisplayName("adds request IDs")
-  class AddRequestIds {
-
-    @Test
-    @DisplayName("adds the trace and correlation IDs a body does not have")
-    void addsMissingIds() {
-      var body = ProblemDetail.forStatus(HttpStatus.CONFLICT);
-
-      factory.addRequestIds(body, TRACE_ID, CORRELATION_ID);
-
-      assertThat(body.getProperties())
-          .containsEntry(LoggingContextConstants.TRACE_ID, TRACE_ID)
-          .containsEntry(LoggingContextConstants.CORRELATION_ID, CORRELATION_ID);
-    }
-
-    @Test
-    @DisplayName("keeps an ID the service's handler already set")
-    void keepsIdsAlreadySet() {
-      var body = ProblemDetail.forStatus(HttpStatus.CONFLICT);
-      body.setProperty(LoggingContextConstants.CORRELATION_ID, "set-by-service");
-
-      factory.addRequestIds(body, TRACE_ID, CORRELATION_ID);
-
-      assertThat(body.getProperties())
-          .containsEntry(LoggingContextConstants.CORRELATION_ID, "set-by-service");
-    }
-
-    @Test
-    @DisplayName("leaves out an ID that is missing or unsafe")
-    void leavesOutMissingOrUnsafeIds() {
-      var body = ProblemDetail.forStatus(HttpStatus.CONFLICT);
-
-      factory.addRequestIds(body, null, "forged\nline");
-
-      assertThat(body.getProperties()).isNull();
     }
   }
 

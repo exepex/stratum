@@ -61,7 +61,7 @@ There are two ways. Both give you the same tested versions; they differ in what 
 | Java 25 | Set for you | You set one property |
 | Build info, Git info and the JDK 25 check | Set for you | You add three plugins |
 | Stratum's quality checks | Set for you | Not available yet |
-| Spring Boot version | Set by Stratum | Set by your parent, and it must be 4.1.x |
+| Spring Boot version | Set by Stratum | Set by your parent, and it must be 4.2.x |
 | Recommended | **Yes** | When the parent cannot change |
 | Guide, with a complete `pom.xml` | [Stratum as your parent POM](with-stratum-parent.md) | [Stratum as a dependency, under another parent](with-stratum-bom.md) |
 

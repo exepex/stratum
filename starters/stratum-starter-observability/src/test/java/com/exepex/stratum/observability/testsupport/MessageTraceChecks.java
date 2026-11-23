@@ -5,8 +5,10 @@ import static org.awaitility.Awaitility.await;
 
 import com.exepex.stratum.core.logging.LoggingContextConstants;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.Timer;
 import io.micrometer.tracing.Tracer;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -77,10 +79,13 @@ public class MessageTraceChecks {
    * Returns how many durations the timer recorded, or 0 before it exists.
    *
    * @param timerName the timer's name
+   * @param tags tags the timer must have, to tell it from others of the same name
    * @return its count
    */
-  public long timerCount(String timerName) {
-    return Optional.ofNullable(meterRegistry.find(timerName).timer()).map(Timer::count).orElse(0L);
+  public long timerCount(String timerName, Tag... tags) {
+    return Optional.ofNullable(meterRegistry.find(timerName).tags(List.of(tags)).timer())
+        .map(Timer::count)
+        .orElse(0L);
   }
 
   /**
@@ -89,10 +94,11 @@ public class MessageTraceChecks {
    *
    * @param timerName the timer's name
    * @param expectedCount the count to wait for
+   * @param tags tags the timer must have, to tell it from others of the same name
    */
-  public void assertTimerCount(String timerName, long expectedCount) {
+  public void assertTimerCount(String timerName, long expectedCount, Tag... tags) {
     await()
         .untilAsserted(
-            () -> assertThat(timerCount(timerName)).as(timerName).isEqualTo(expectedCount));
+            () -> assertThat(timerCount(timerName, tags)).as(timerName).isEqualTo(expectedCount));
   }
 }

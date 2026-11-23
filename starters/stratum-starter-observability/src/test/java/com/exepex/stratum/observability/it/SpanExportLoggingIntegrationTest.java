@@ -34,7 +34,7 @@ import org.springframework.test.context.TestPropertySource;
 class SpanExportLoggingIntegrationTest {
 
   /** OpenTelemetry's error when it cannot send spans. */
-  private static final String SPAN_EXPORT_FAILED = "Failed to export spans";
+  private static final String SPAN_EXPORT_FAILED = "Failed to export";
 
   /** How long to wait for spans to be sent. */
   private static final long FLUSH_TIMEOUT_SECONDS = 15;

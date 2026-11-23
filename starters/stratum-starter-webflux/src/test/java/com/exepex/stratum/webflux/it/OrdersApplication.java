@@ -52,6 +52,9 @@ public class OrdersApplication {
   /** The path that fails with Spring's {@code ErrorResponseException} and status 400. */
   static final String INVALID_STATE_PATH = "/orders/invalid-state";
 
+  /** The path that fails with an exception the service answers with its own Problem Details. */
+  static final String REFUND_PATH = "/orders/refund";
+
   /** The path that fails with an {@code ErrorResponseException} whose status has no name. */
   static final String UNLISTED_STATUS_PATH = "/orders/unlisted-status";
 
@@ -283,7 +286,7 @@ public class OrdersApplication {
      *
      * @return never succeeds
      */
-    @GetMapping("/orders/refund")
+    @GetMapping(REFUND_PATH)
     Mono<String> refund() {
       return Mono.error(new RefundRefusedException());
     }

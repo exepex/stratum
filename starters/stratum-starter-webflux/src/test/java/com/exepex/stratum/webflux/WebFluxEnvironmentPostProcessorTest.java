@@ -72,6 +72,12 @@ class WebFluxEnvironmentPostProcessorTest {
   @DisplayName("multipart limits")
   class MultipartLimits {
 
+    /** The disk limit per part a service sets itself. */
+    private static final String SERVICE_DISK_PER_PART = "25MB";
+
+    /** The limit of parts a service sets itself. */
+    private static final String SERVICE_PARTS = "5";
+
     @Test
     @DisplayName("sets 10MB of disk per part and 50 parts in standard mode")
     void limitsWhenModuleOn() {
@@ -86,19 +92,35 @@ class WebFluxEnvironmentPostProcessorTest {
     void serviceValuesWin() {
       var environment =
           runPostProcessor(
-              standardMode().withProperty(DISK_PER_PART, "25MB").withProperty(PARTS, "5"));
+              standardMode()
+                  .withProperty(DISK_PER_PART, SERVICE_DISK_PER_PART)
+                  .withProperty(PARTS, SERVICE_PARTS));
 
-      assertThat(environment.getProperty(DISK_PER_PART)).isEqualTo("25MB");
-      assertThat(environment.getProperty(PARTS)).isEqualTo("5");
+      assertThat(environment.getProperty(DISK_PER_PART)).isEqualTo(SERVICE_DISK_PER_PART);
+      assertThat(environment.getProperty(PARTS)).isEqualTo(SERVICE_PARTS);
     }
 
     @Test
-    @DisplayName("sets no limits in backward-compatible mode, so uploads that worked keep working")
-    void nothingInBackwardCompatibleMode() {
+    @DisplayName(
+        "sets no multipart limit in backward-compatible mode, so uploads that worked keep working")
+    void noLimitsInBackwardCompatibleMode() {
       var environment = runPostProcessor(backwardCompatibleMode());
 
-      assertThat(environment.getProperty(DISK_PER_PART)).isNull();
-      assertThat(environment.getProperty(PARTS)).isNull();
+      assertThat(environment.getProperty(DISK_PER_PART)).isEqualTo("-1B");
+      assertThat(environment.getProperty(PARTS)).isEqualTo("-1");
+    }
+
+    @Test
+    @DisplayName("keeps the service's own values in backward-compatible mode")
+    void serviceValuesWinInBackwardCompatibleMode() {
+      var environment =
+          runPostProcessor(
+              backwardCompatibleMode()
+                  .withProperty(DISK_PER_PART, SERVICE_DISK_PER_PART)
+                  .withProperty(PARTS, SERVICE_PARTS));
+
+      assertThat(environment.getProperty(DISK_PER_PART)).isEqualTo(SERVICE_DISK_PER_PART);
+      assertThat(environment.getProperty(PARTS)).isEqualTo(SERVICE_PARTS);
     }
   }
 

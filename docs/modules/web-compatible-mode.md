@@ -121,7 +121,7 @@ Stratum logs no warning for these two; turn them on only if your consumers need 
 ## Time and body size limits
 
 With nothing set, a backward-compatible service has no time limit and no body size limit, and the
-WebFlux starter adds no multipart upload limit, because a request that worked before Stratum must
+WebFlux starter sets Spring Boot's multipart limits to no limit (`-1B` and `-1`), because a request that worked before Stratum must
 not start failing with `503` or `413`. With `stratum.backward-compatible=false`, every request
 has 10 seconds until its response starts and a body of up to 256KB, and a WebFlux multipart upload
 may use 10MB of disk per part and have 50 parts. At every start in that mode, Stratum logs one INFO

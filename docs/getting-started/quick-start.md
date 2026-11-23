@@ -237,7 +237,6 @@ You get Stratum's standard error body, because `stratum.backward-compatible` is 
   "title": "Service Unavailable",
   "status": 503,
   "detail": "Downstream service 'inventory' is not reachable",
-  "instance": "/orders",
   "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
   "correlationId": "c0a8012e-7f3d-4a8e-9a43-2f9b6f1c2d10"
 }

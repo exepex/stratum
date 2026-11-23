@@ -54,7 +54,7 @@ services over HTTP, caches results and has tests:
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <!-- Stratum's microservice parent: Spring Boot 4.1, Java 25, Stratum's versions, its build checks,
+  <!-- Stratum's microservice parent: Spring Boot 4.2, Java 25, Stratum's versions, its build checks,
        the microservice bundle and the test libraries. -->
   <parent>
     <groupId>io.github.exepex.stratum</groupId>
@@ -129,7 +129,7 @@ is the complete `pom.xml` of a batch job:
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <!-- Stratum's parent: Spring Boot 4.1, Java 25, Stratum's versions and its build checks. -->
+  <!-- Stratum's parent: Spring Boot 4.2, Java 25, Stratum's versions and its build checks. -->
   <parent>
     <groupId>io.github.exepex.stratum</groupId>
     <artifactId>stratum-parent</artifactId>

@@ -7,7 +7,7 @@
 Add a starter. Set a few properties. Write only business code.
 
 ![Java 25](https://img.shields.io/badge/Java-25-orange?logo=openjdk)
-![Spring Boot 4.1.2](https://img.shields.io/badge/Spring%20Boot-4.1.2-6DB33F?logo=springboot&logoColor=white)
+![Spring Boot 4.2.0](https://img.shields.io/badge/Spring%20Boot-4.2.0-6DB33F?logo=springboot&logoColor=white)
 ![Maven](https://img.shields.io/badge/build-Maven-C71A36?logo=apachemaven)
 ![Status: pre-alpha](https://img.shields.io/badge/status-pre--alpha-lightgrey)
 ![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue)
@@ -61,7 +61,7 @@ Spring Boot and your business services.
 │   Stratum: logging, tracing, metrics, security, HTTP and     │  ← Stratum provides this,
 │   OAuth2 clients, resilience, data, cache, messaging, tests  │    the same in every service
 ├──────────────────────────────────────────────────────────────┤
-│   Spring Boot 4.1  ·  Spring Framework 7  ·  Java 25         │  ← the platform underneath
+│   Spring Boot 4.2  ·  Spring Framework 7  ·  Java 25         │  ← the platform underneath
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -387,10 +387,10 @@ Full guide: [Testing with stratum-test](docs/modules/test.md).
 
 ## Upgrades and versions
 
-| Component | Version in Stratum 0.1 |
+| Component | Version in Stratum 0.3 |
 | --- | --- |
 | Java | 25 |
-| Spring Boot | 4.1.2, the latest stable release on 27 October 2026 |
+| Spring Boot | 4.2.0, the latest stable release on 19 November 2026 |
 | Spring Framework | 7.x, managed by Spring Boot |
 | Maven | 3.9 or later |
 
@@ -401,7 +401,7 @@ Full guide: [Testing with stratum-test](docs/modules/test.md).
   in it. With a Stratum parent, upgrading Stratum upgrades Spring Boot and every managed library
   together. Under a company parent, the company parent sets the Spring Boot version. When it is
   outside the supported line, Stratum logs one `SX-CORE-1005` warning at startup and starts anyway.
-- Stratum needs Java 25 and the Spring Boot 4.1.x line. Older versions are not supported.
+- Stratum needs Java 25 and the Spring Boot 4.2.x line. Older versions are not supported.
 
 Details: [Versioning and upgrades](docs/guides/upgrading.md).
 
