@@ -111,6 +111,8 @@ The beans the starter adds, with their types:
 | `stratumCacheTimeToLive` | `RedisCacheManagerBuilderCustomizer` | A Redis connection is present; it sets each cache's own [time to live](cache-per-cache.md) |
 | `stratumCacheCommandTimeouts` | `CacheCommandTimeouts` | Lettuce is on the class path; it sets each cache's own [command timeout](cache-per-cache.md#command-timeout) |
 | `stratumCacheCommandTimeoutsCheck` | `SmartInitializingSingleton` | A Redis connection is present; it warns when caches set a command timeout but the client is not Lettuce |
+| `stratumRedisCacheNames`, `stratumCacheNameOnSpans` | `RedisCacheNames`, `ObservationFilter` | Lettuce, a Redis connection and an `ObservationRegistry` are present; they put the cache name on Redis command spans ([Traces](cache-traces.md)) |
+| `stratumCacheLayerLazyInitializationExcludeFilter` | `LazyInitializationExcludeFilter` | Always; it keeps `stratumCacheLayerHook` created at startup when `spring.main.lazy-initialization=true` |
 | `stratumCaffeine`, `stratumCaffeineNullValues`, `stratumCaffeineCacheSettings` | See [Caffeine](cache-caffeine.md#beans) | Caffeine is on the class path |
 
 Spring Boot's cache auto-configuration sets up a cache manager only once caching is switched on, so
@@ -151,8 +153,11 @@ Spring Boot properties this module gives a default (your values win):
 | `spring.data.redis.connect-timeout` | duration | `2s` | unset: Lettuce's 10 seconds | How long connecting to Redis may take. |
 
 These apply in both modes of `stratum.backward-compatible`, because no consumer of the service
-sees them. The two `spring.data.redis.*` timeouts apply to every Redis call of the service, a
-`RedisTemplate` included, not only to caches.
+sees them. Stratum's Redis settings, the two `spring.data.redis.*` timeouts and
+[Lettuce's refusal while disconnected](cache-redis-down.md), apply to all Redis use of the service,
+a `RedisTemplate` included, not only to caches. For blocking commands, such as `BLPOP`, or a Redis
+stream listener, whose poll waits 2 s by default, set `spring.data.redis.timeout` above the longest
+wait.
 
 Set your own values in `application.properties`:
 
@@ -428,6 +433,8 @@ then always run.
   Spring Boot's behaviour only. Caffeine's own limits are in [Caffeine](cache-caffeine.md#not-covered).
 - Redis memory is bounded by the server's `maxmemory` policy, which your team sets.
 - Redis reports no evictions to the metrics.
+- Transaction-aware caching, such as `transactionAware()` on Spring Data Redis's cache manager
+  builder, is not supported.
 - At most `stratum.cache.max-caches` cache names, 100 by default, get a cache. Calls for a name
   beyond that run uncached, through one shared no-op cache, and no cache is created for the name.
   Each such call is counted in `stratum.cache.skips` under `cache=_over-limit`, and

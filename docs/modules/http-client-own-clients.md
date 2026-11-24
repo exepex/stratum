@@ -228,7 +228,7 @@ downloads, raise `total-timeout` for that client, or use an interface method tha
 - **A body is never sent twice.** An interface may resend a `POST` whose connection never opened, and a `PUT`.
 - **A body cut off after the answer's head** is neither retried nor counted by the breaker.
 - **One span and one `http.client.requests` metric per call,** with the last answer; an interface records one per
-  attempt. Stratum has no retry metric yet.
+  attempt.
 - **Your own interceptor or request initializer,** added in `customize`, `customizeRestTemplate` or a
   `RestTemplateCustomizer` bean, runs once per call, outside the retries, and an interceptor makes Spring hold the
   request body in memory. A customizer that replaces the request factory also removes the retries and the breaker.

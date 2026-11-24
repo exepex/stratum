@@ -147,7 +147,8 @@ trace, MDC entries and key-value pairs. A key-value pair whose value is a number
 as `addKeyValue("customer", customer)`, is masked through the value's `toString()`, which is read
 once; a list, map or array is masked element by element and keeps only its first elements
 ([lists, maps and arrays](#lists-maps-and-arrays)). Ready-made JSON, such as a `WritableJson`, is masked through its text;
-if anything in it is masked, it is written as a JSON string. It cannot be switched off.
+if anything in it is masked, it is written as a JSON string. While the module is on, it cannot be
+switched off.
 
 > [!IMPORTANT]
 > Redaction is a safety net, not a licence to log personal data or secrets. A name, address, phone
@@ -242,8 +243,8 @@ as the console.
 
 ## What is masked
 
-Stratum's formats are always masked, `text` included, in every profile; no setting turns masking
-off. Only Stratum's formats are masked. Do not use your own encoder, layout, pattern, formatter class or
+Stratum's formats are always masked, `text` included, in every profile; while the module is on, no
+setting turns masking off. Only Stratum's formats are masked. Do not use your own encoder, layout, pattern, formatter class or
 logging file: with the module on, startup stops with SX-LOGGING-1003.
 
 Outputs that Stratum does not write are not masked by it:
@@ -447,6 +448,8 @@ with no checks and no redaction.
 | Management endpoint | Secured, timed switches for DEBUG on one logger and timing lines for one workflow, each switching back by itself ([issue #302](https://github.com/exepex/stratum/issues/302)) |
 | Sensitive data during incidents | Masked values carry a keyed fingerprint, so the same value can be matched without being shown. Unmasking stays off unless the service allows it in configuration; it is turned on through a secured endpoint, with a reason, for 15 minutes by default and never more than 1 day, for the listed fields only. Every use is recorded, and unmasked lines go only to a separate destination, never to the normal log ([issue #136](https://github.com/exepex/stratum/issues/136)) |
 | Rate limits for Log4j2 | The same limits and sampling for services on Log4j2, from the same keys ([issue #153](https://github.com/exepex/stratum/issues/153)) |
+| `error.code` on Log4j2 | The `error.code` field for services on Log4j2, which today do not write it ([issue #119](https://github.com/exepex/stratum/issues/119)) |
+| A limit on the whole JSON line | Each value, list, map and array is limited, but not the whole JSON line, so a value nested many levels deep can make a very large line ([issue #135](https://github.com/exepex/stratum/issues/135)) |
 | Body logging on demand | Request and response bodies in the logs when you need them, planned for the web and HTTP client starters rather than this one ([issue #203](https://github.com/exepex/stratum/issues/203), [issue #268](https://github.com/exepex/stratum/issues/268)) |
 
 ## Troubleshooting

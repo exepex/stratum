@@ -45,7 +45,8 @@ stratum:
 
 - A limit is a size, such as `256KB`, `5MB` or `20MB`. `0` means no limit.
 - `routes` maps a Spring path pattern to its limit. Write each pattern in square brackets, as above,
-  so Spring Boot keeps its `/` and `*`. When several patterns match a path, the most specific wins.
+  so Spring Boot keeps its `/` and `*`. A pattern matches the request's path only, not its HTTP method.
+  When several patterns match a path, the most specific wins.
   A pattern that is not valid, such as `/api/{id`, stops startup with `SX-WEB-1009`, which names the
   key and the pattern.
 
@@ -71,9 +72,10 @@ void updatePrice(@RequestBody PriceChange change) {
 ```
 
 The unit is megabytes unless you set another. `@RequestBodyLimit(0)` means no limit. The
-annotation works on `@RequestMapping` methods. A WebFlux router function has no method to annotate,
-so it uses the routes and the default. On Spring MVC, Spring's form filter reads a `PUT`, `PATCH` or
-`DELETE` form before the method is known, so a larger limit for such a form is set with a route.
+annotation works on `@RequestMapping` methods. A functional endpoint, a router function on Spring MVC
+or WebFlux, has no method to annotate, so it uses the routes and the default. On Spring MVC, Spring's
+form filter reads a `PUT`, `PATCH` or `DELETE` form before the method is known, so a larger limit for
+such a form is set with a route.
 
 So the limit of a request is, in order: its method's `@RequestBodyLimit`, then the most specific
 route that matches its path, then the default.
