@@ -20,9 +20,12 @@ import org.springframework.web.util.UriComponentsBuilder;
  * service's own {@code extra-keys} and {@code extra-patterns} mask its logs only. The {@code uri}
  * tag, on the span and on every metric, loses its query, {@code /rates}, because each distinct
  * value there would be a new time series. It is a {@link MeterFilter} as well as an {@link
- * ObservationFilter}, because Spring creates the {@code http.client.requests.active} metric when a
- * call starts, before an observation filter runs. When a call fails, Spring's exception message
- * names the URL with its user info; Stratum keeps that message off the span when it is sent.
+ * ObservationFilter}, because with Spring Boot's {@code
+ * management.metrics.observations.include-active-long-task-timer} set to {@code true}, Spring
+ * creates the {@code http.client.requests.active} metric when a call starts, before an observation
+ * filter runs; without it, that metric does not exist. When a call fails, Spring's exception
+ * message names the URL with its user info; Stratum keeps that message off the span when it is
+ * sent.
  */
 @RequiredArgsConstructor
 public class TelemetryUrlFilter implements ObservationFilter, MeterFilter {

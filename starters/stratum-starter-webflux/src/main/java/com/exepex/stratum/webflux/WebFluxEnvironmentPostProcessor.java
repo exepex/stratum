@@ -30,17 +30,17 @@ public class WebFluxEnvironmentPostProcessor implements EnvironmentPostProcessor
   /** Spring Boot's limits on a multipart upload and the values Stratum gives them. */
   private static final Map<String, Object> MULTIPART_LIMITS =
       Map.of(
-          "spring.webflux.multipart.max-disk-usage-per-part",
+          WebConstants.WEBFLUX_MULTIPART_MAX_DISK_USAGE_PER_PART,
           "10MB",
-          "spring.webflux.multipart.max-parts",
+          WebConstants.WEBFLUX_MULTIPART_MAX_PARTS,
           50);
 
   /** Spring Boot's limits on a multipart upload, lifted in backward-compatible mode. */
   private static final Map<String, Object> NO_MULTIPART_LIMITS =
       Map.of(
-          "spring.webflux.multipart.max-disk-usage-per-part",
+          WebConstants.WEBFLUX_MULTIPART_MAX_DISK_USAGE_PER_PART,
           "-1B",
-          "spring.webflux.multipart.max-parts",
+          WebConstants.WEBFLUX_MULTIPART_MAX_PARTS,
           -1);
 
   /**

@@ -91,8 +91,7 @@ public class CorrelationIdChooser {
    * @return the ID, or nothing when the request is not traced, as with the no-op tracer
    */
   public Optional<String> currentCorrelationId(Tracer tracer) {
-    return Optional.ofNullable(tracer.getBaggage(LoggingContextConstants.CORRELATION_ID))
-        .map(Baggage::get)
+    return baggageCorrelationId(tracer)
         .filter(LoggingContextConstants::isSafeForLogs)
         .or(
             () ->
@@ -100,6 +99,15 @@ public class CorrelationIdChooser {
                     .map(Span::context)
                     .map(TraceContext::traceId)
                     .filter(Predicate.not(String::isEmpty)));
+  }
+
+  /** Returns the {@code correlationId} in the request's baggage, with its key in any case. */
+  private Optional<String> baggageCorrelationId(Tracer tracer) {
+    // Tracer.getBaggage(name) would store a null value when the entry is missing, which
+    // OpenTelemetry reports as a wrong use of its API with a warning; this lookup stores nothing.
+    return Optional.ofNullable(tracer.currentTraceContext().context())
+        .map(context -> tracer.getBaggage(context, LoggingContextConstants.CORRELATION_ID))
+        .map(Baggage::get);
   }
 
   /** Returns the caller's ID to use: the header, then the baggage value, when usable. */

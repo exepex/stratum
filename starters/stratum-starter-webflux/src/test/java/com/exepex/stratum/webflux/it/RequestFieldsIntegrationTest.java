@@ -3,6 +3,7 @@ package com.exepex.stratum.webflux.it;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.logging.LoggingContextConstants;
+import com.exepex.stratum.test.OpenTelemetryUsageIssues;
 import com.exepex.stratum.test.WebTestSupport;
 import com.exepex.stratum.web.WebConstants;
 import com.jayway.jsonpath.JsonPath;
@@ -153,6 +154,15 @@ class RequestFieldsIntegrationTest {
       var traceId = JsonPath.<String>read(fields.body(), "$." + LoggingContextConstants.TRACE_ID);
       assertThat(fields.headers().firstValue(WebConstants.CORRELATION_ID_HEADER)).hasValue(traceId);
       assertThat(downstream.body()).doesNotContain(LoggingContextConstants.CORRELATION_ID);
+    }
+
+    @Test
+    @DisplayName("a request without a caller ID makes OpenTelemetry report no wrong use of its API")
+    void noOpenTelemetryUsageIssueWithoutCallerId() throws Exception {
+      assertThat(
+              OpenTelemetryUsageIssues.during(
+                  () -> WebTestSupport.getFromService(port, ORDER_FIELDS_PATH)))
+          .isEmpty();
     }
 
     @Test

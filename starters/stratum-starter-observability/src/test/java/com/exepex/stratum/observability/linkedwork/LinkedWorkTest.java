@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
 import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.observability.ObservabilityConstants;
 import com.exepex.stratum.observability.testsupport.RecordedSpans;
+import com.exepex.stratum.test.OpenTelemetryUsageIssues;
 import io.micrometer.common.KeyValue;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationHandler.FirstMatchingCompositeObservationHandler;
@@ -35,6 +36,9 @@ class LinkedWorkTest {
 
   /** The name of the scheduled job that runs the work. */
   private static final String NIGHTLY_EXPORT = "nightly-export";
+
+  /** A caller's correlation ID. */
+  private static final String CALLER_ID = "checkout-777";
 
   /** How long reactive work may take. */
   private static final Duration REACTIVE_TIMEOUT = Duration.ofSeconds(10);
@@ -91,12 +95,11 @@ class LinkedWorkTest {
     return registry;
   }
 
-  /** Returns the origin captured inside a span that has this correlation ID in baggage. */
-  private WorkOrigin originCapturedWith(String correlationId) {
+  /** Returns the origin captured inside a span that has this baggage entry. */
+  private WorkOrigin originCapturedWith(String baggageKey, String correlationId) {
     var span = tracer.nextSpan().name("place-order").start();
     try (var _ = tracer.withSpan(span);
-        var _ =
-            tracer.createBaggageInScope(LoggingContextConstants.CORRELATION_ID, correlationId)) {
+        var _ = tracer.createBaggageInScope(baggageKey, correlationId)) {
       return linkedWork.captureOrigin().orElseThrow();
     } finally {
       span.end();
@@ -150,8 +153,35 @@ class LinkedWorkTest {
   @Test
   @DisplayName("an unsafe correlation ID in incoming baggage is replaced by the trace ID")
   void unsafeBaggageFallsBackToTraceId() {
-    var origin = originCapturedWith("order 42\nforged=line");
+    var origin =
+        originCapturedWith(LoggingContextConstants.CORRELATION_ID, "order 42\nforged=line");
 
+    assertThat(origin.correlationId()).isEqualTo(origin.traceId());
+  }
+
+  @Test
+  @DisplayName(
+      "a correlation ID in baggage whose key has another case is kept, as tracing matches it")
+  void baggageKeyInOtherCaseIsKept() {
+    assertThat(originCapturedWith("CorrelationID", CALLER_ID).correlationId()).isEqualTo(CALLER_ID);
+  }
+
+  @Test
+  @DisplayName(
+      "with no correlation ID in baggage, the trace ID is used and OpenTelemetry reports no wrong"
+          + " use of its API")
+  void noBaggageUsesTraceIdWithoutUsageIssue() throws Exception {
+    var span = tracer.nextSpan().name("place-order").start();
+    List<String> usageIssues;
+    WorkOrigin origin;
+    try (var _ = tracer.withSpan(span)) {
+      usageIssues = OpenTelemetryUsageIssues.during(linkedWork::captureOrigin);
+      origin = linkedWork.captureOrigin().orElseThrow();
+    } finally {
+      span.end();
+    }
+
+    assertThat(usageIssues).isEmpty();
     assertThat(origin.correlationId()).isEqualTo(origin.traceId());
   }
 
