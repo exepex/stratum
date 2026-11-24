@@ -36,6 +36,9 @@ public class WebTestSupport {
   /** The media type of every error body the web starters send. */
   private static final String PROBLEM_JSON = "application/problem+json";
 
+  /** The member of a Problem Details body that identifies the occurrence, here the request path. */
+  private static final String INSTANCE = "instance";
+
   /** The media type of a text body. */
   private static final String TEXT_PLAIN = "text/plain";
 
@@ -92,7 +95,8 @@ public class WebTestSupport {
 
   /**
    * Checks an error answer of a web starter: its status, the Problem Details media type, the {@code
-   * status} and {@code code} members of the body, and a 32-hex {@code traceId}.
+   * status} and {@code code} members of the body, a 32-hex {@code traceId}, and no {@code
+   * instance}, because the request path can hold personal data.
    *
    * @param response the answer
    * @param status the HTTP status it must have
@@ -105,6 +109,22 @@ public class WebTestSupport {
     assertThat(JsonPath.<Integer>read(response.body(), "$.status")).isEqualTo(status);
     assertThat(JsonPath.<String>read(response.body(), "$." + LoggingContextConstants.TRACE_ID))
         .matches("\\p{XDigit}{32}");
+    assertThat(response.body()).doesNotContain("\"" + INSTANCE + "\"");
+  }
+
+  /**
+   * Checks a Problem Details body that the service's own handler returned: the request path as its
+   * {@code instance}, the trace ID Stratum adds, and no {@code code}, which only Stratum's own body
+   * has.
+   *
+   * @param response the answer
+   * @param path the path the request was sent to, without its query
+   */
+  public static void checkServiceProblemDetail(HttpResponse<String> response, String path) {
+    assertThat(JsonPath.<String>read(response.body(), "$." + INSTANCE)).isEqualTo(path);
+    assertThat(JsonPath.<String>read(response.body(), "$." + LoggingContextConstants.TRACE_ID))
+        .isNotBlank();
+    assertThat(response.body()).doesNotContain("\"code\"");
   }
 
   /**

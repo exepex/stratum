@@ -50,6 +50,9 @@ class ObservabilityStarterIntegrationTest {
   /** Micrometer's warning when it cannot push metrics. */
   private static final String PUSH_FAILED = "Failed to publish metrics";
 
+  /** The error of the OpenTelemetry exporter that Micrometer pushes with, when a push fails. */
+  private static final String EXPORT_FAILED = "Failed to export";
+
   /** Receives what the application sends, and answers the partner call. */
   private final CollectorStub collector = new CollectorStub();
 
@@ -198,7 +201,7 @@ class ObservabilityStarterIntegrationTest {
   void localhostWithoutCollectorIsQuiet(CapturedOutput output) {
     runWithMetricsAddress("http://localhost:1/v1/metrics");
 
-    assertThat(output).doesNotContain(PUSH_FAILED);
+    assertThat(output).doesNotContain(PUSH_FAILED, EXPORT_FAILED);
   }
 
   @Test

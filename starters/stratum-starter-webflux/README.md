@@ -164,9 +164,9 @@ class OrderErrorHandlers {
 ```
 
 - **Your handler returns a `ProblemDetail`:** it is sent as you made it, and Stratum adds only
-  `traceId` and `correlationId` when it does not have them. As in plain Spring, Spring sets its
-  `instance` to the request path when you leave it empty; set it yourself if your paths can hold
-  personal data.
+  `traceId`, `correlationId` and `instance` when it does not have them. Stratum sets its `instance`
+  to the request path when you leave it empty, as Spring did before Spring Framework 7.1, in both
+  modes; set it yourself if your paths can hold personal data.
 - **Your handler returns any other body:** it is sent untouched.
 - **Your handler handles `StratumException`, or your exception that implements
   `FailureWithErrorCode`, itself:** yours is used, and the mapping in `stratum.web.error.statuses`
@@ -268,10 +268,11 @@ Mono<DocumentId> upload(@RequestBody Flux<DataBuffer> body) {
 
 Spring's own limit of 256KB for a body decoded in memory, `spring.http.codecs.max-in-memory-size`,
 applies as well, so read a large upload as a `Flux<DataBuffer>`. Forms and multipart uploads are
-checked by their `Content-Length` only. Spring Boot sets no limit on a multipart upload's disk use or
-parts, so with the module on and `stratum.backward-compatible` not `true` this starter gives each part
-`10MB` of disk and an upload `50` parts; set
-`spring.webflux.multipart.max-disk-usage-per-part` or `max-parts` to change them. The details, with
+checked by their `Content-Length` only. With the module on and `stratum.backward-compatible` not
+`true`, this starter gives each part of a multipart upload `10MB` of disk and an upload `50` parts,
+in place of Spring Boot's `1MB` and `50`; in backward-compatible mode it sets both to no limit
+(`-1B` and `-1`). Set `spring.webflux.multipart.max-disk-usage-per-part` or `max-parts` to change
+them. The details, with
 `0` for no limit, are in
 [Request body size limit](../../docs/modules/web-body-limit.md).
 
@@ -330,7 +331,7 @@ Each bean below is Stratum's only until you declare your own:
 | `ErrorResponseFactory` | How every error body is made and how a `StratumException` is logged |
 | `ErrorAttributes` | The body of failures outside your exception handlers; yours gets Spring Boot's error handler with its plain JSON and HTML page, as before |
 | `ErrorWebExceptionHandler` | All of the error handling outside your exception handlers, Stratum's and Spring Boot's |
-| `ProblemDetailIdsInterceptor` | What adds the IDs to the `ProblemDetail` bodies your handlers return |
+| `ProblemDetailIdsInterceptor` | What adds the IDs and the request path as `instance` to the `ProblemDetail` bodies your handlers return |
 | `RequestFieldsWebFilter` or `CorrelationIdWebFilter` | The filter that puts the request fields in the logging context, or the one that returns the correlation ID in the response header |
 | `RequestRouteListener` | What puts the matched route in the logging context before your handler runs |
 | `ResponseTimeouts` or `ResponseTimeoutWebFilter` | How each request's time limit is chosen, or the filter that answers a request that ran out of time and applies `@ResponseTimeout` |

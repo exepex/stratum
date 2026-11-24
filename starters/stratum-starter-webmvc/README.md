@@ -180,9 +180,9 @@ class OrderErrorHandlers {
 ```
 
 - **Your handler returns a `ProblemDetail`:** it is sent as you made it, and Stratum adds only
-  `traceId` and `correlationId` when it does not have them. As in plain Spring, Spring sets its
-  `instance` to the request path when you leave it empty; set it yourself if your paths can hold
-  personal data.
+  `traceId`, `correlationId` and `instance` when it does not have them. Stratum sets its `instance`
+  to the request path when you leave it empty, as Spring did before Spring Framework 7.1, in both
+  modes; set it yourself if your paths can hold personal data.
 - **Your handler returns any other body:** it is sent untouched.
 - **Your handler handles `StratumException`, or your exception that implements
   `FailureWithErrorCode`, itself:** yours is used, and the mapping in `stratum.web.error.statuses`
@@ -383,7 +383,7 @@ Each bean below is Stratum's only until you declare your own:
 | `ErrorResponseFactory` | How every error body is made and how a `StratumException` is logged |
 | `ErrorAttributes` | The body of failures outside your controllers, such as `404`; yours gets Spring Boot's error controller and HTML page as before |
 | A `View` named `error` | The HTML error page |
-| `FailureWithErrorCodeResolver` or `ErrorBodyAdvice` | The answer to `StratumException` and `FailureWithErrorCode`, or the advice that adds the IDs and the media type |
+| `FailureWithErrorCodeResolver` or `ErrorBodyAdvice` | The answer to `StratumException` and `FailureWithErrorCode`, or the advice that adds the IDs, the request path as `instance` and the media type |
 | A bean named `stratumRequestIdsFilter` | The filter that keeps each request's IDs for its error page, which runs after tracing has ended |
 | A bean named `stratumRequestFieldsFilter` or `stratumCorrelationIdFilter` | The filter that puts the request fields in the logging context, or the one that returns the correlation ID in the response header |
 | A bean named `stratumCorrelationIdBaggageFilter` | The filter that writes a caller's correlation ID into the request's baggage before tracing reads it |

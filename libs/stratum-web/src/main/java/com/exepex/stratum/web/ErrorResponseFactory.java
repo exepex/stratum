@@ -158,6 +158,20 @@ public class ErrorResponseFactory {
   }
 
   /**
+   * Sets the {@code instance} of an error body the service's own handler returned to the request
+   * path, as Spring did before Spring Framework 7.1, unless the handler set one. Stratum's own body
+   * never gets it, because the path can hold personal data.
+   *
+   * @param body the service's error body
+   * @param requestUri the request's URI, whose path without the query is used
+   */
+  public void addInstanceIfMissing(ProblemDetail body, URI requestUri) {
+    if (body.getInstance() == null) {
+      body.setInstance(URI.create(requestUri.getRawPath()));
+    }
+  }
+
+  /**
    * Returns the members of an error body as a map, in the order they are written, for the error
    * handling of Spring Boot, which works with maps.
    *

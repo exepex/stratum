@@ -80,7 +80,7 @@ public class ErrorCodeChecks {
    * @return the failure
    */
   public static StratumException startupFailureOf(
-      ApplicationContextAssertProvider<?> context, ErrorCode code) {
+      ApplicationContextAssertProvider<?, ?> context, ErrorCode code) {
     assertThat(context.getStartupFailure()).as("the startup failure").isNotNull();
     var failure = NestedExceptionUtils.getMostSpecificCause(context.getStartupFailure());
     if (failure instanceof StratumException stratum) {

@@ -54,7 +54,7 @@ Before a module's gaps are planned, one reviewer audits the whole module, not on
 against this checklist (ST-AG-20). For each line, give `file:line`, a command and its output, a probe, or the parked
 issue. Mark each line met, missing or parked. Do not build the scope from earlier findings.
 
-- **A. Capabilities.** List what a service at high volume needs from the module. Compare each with Spring Boot 4.1 and
+- **A. Capabilities.** List what a service at high volume needs from the module. Compare each with Spring Boot 4.2 and
   the libraries it builds on, and record what the module adds, reuses or lacks, with the reason.
 - **B. Whole bounds** (ST-ENG-52): every collection, size and count, for each part and for the whole output; one probe
   of the worst case for each.

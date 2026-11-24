@@ -9,7 +9,6 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.test.BackwardCompatibleErrorChecks;
 import com.exepex.stratum.test.WebTestSupport;
-import com.exepex.stratum.web.WebConstants;
 import com.exepex.stratum.web.WebErrorCode;
 import com.jayway.jsonpath.JsonPath;
 import java.io.IOException;
@@ -45,9 +44,6 @@ import org.springframework.http.MediaType;
     })
 @DisplayName("A Spring MVC service with the web module on answers every error the same way")
 class ErrorResponsesIntegrationTest {
-
-  /** The member of the error body that holds the trace ID. */
-  private static final String TRACE_ID_PATH = "$." + LoggingContextConstants.TRACE_ID;
 
   /** The path that fails with a code the service maps to 409. */
   private static final String DUPLICATE_PATH = "/orders/duplicate";
@@ -260,15 +256,15 @@ class ErrorResponsesIntegrationTest {
   }
 
   @Test
-  @DisplayName("the service's own Problem Details body is kept, with only the IDs added")
+  @DisplayName("the service's own Problem Details body is kept, with the IDs and its path added")
   void serviceProblemDetailKept() throws Exception {
-    var response = getFromService(port, "/orders/refund", ACCEPT, APPLICATION_JSON_VALUE);
+    var response =
+        getFromService(port, OrdersApplication.REFUND_PATH, ACCEPT, APPLICATION_JSON_VALUE);
 
     assertThat(response.statusCode()).isEqualTo(HttpStatus.PAYMENT_REQUIRED.value());
     assertThat(JsonPath.<String>read(response.body(), "$.detail"))
         .isEqualTo("The refund was refused");
-    assertThat(JsonPath.<String>read(response.body(), TRACE_ID_PATH)).isNotBlank();
-    assertThat(response.body()).doesNotContain("\"" + WebConstants.CODE + "\"");
+    WebTestSupport.checkServiceProblemDetail(response, OrdersApplication.REFUND_PATH);
   }
 
   @Test

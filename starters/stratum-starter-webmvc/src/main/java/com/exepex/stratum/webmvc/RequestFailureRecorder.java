@@ -10,9 +10,9 @@ import org.springframework.web.filter.ServerHttpObservationFilter;
 /**
  * Records a failure that Stratum answers on the request's observation, as WebFlux does for every
  * failure it answers, so the request's timer gets its {@code error} and {@code exception} tags and
- * its span the {@code ERROR} status. Spring MVC records only a failure that leaves the servlet, and
- * Stratum answers the rest itself. Without an observation, as with no Spring Boot actuator, it does
- * nothing.
+ * its span the {@code ERROR} status. Spring MVC records a failure that leaves the servlet and,
+ * since Spring Framework 7.1, a 5xx that its own resolvers answer; Stratum answers and records the
+ * rest itself. Without an observation, as with no Spring Boot actuator, it does nothing.
  */
 @StratumInternal
 @UtilityClass

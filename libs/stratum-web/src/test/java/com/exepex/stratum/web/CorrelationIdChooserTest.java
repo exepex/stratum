@@ -1,6 +1,8 @@
 package com.exepex.stratum.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -8,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.exepex.stratum.core.logging.LoggingContextConstants;
 import com.exepex.stratum.web.testsupport.WebTestData;
 import io.micrometer.tracing.Baggage;
+import io.micrometer.tracing.TraceContext;
 import io.micrometer.tracing.Tracer;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -134,12 +137,18 @@ class CorrelationIdChooserTest {
     /** The request's tracer. */
     private final Tracer tracer = mock(Tracer.class, RETURNS_DEEP_STUBS);
 
+    /** Makes the request's baggage hold this correlation ID. */
+    private void baggageHolds(String correlationId) {
+      var baggage = mock(Baggage.class);
+      when(baggage.get()).thenReturn(correlationId);
+      when(tracer.getBaggage(any(TraceContext.class), eq(LoggingContextConstants.CORRELATION_ID)))
+          .thenReturn(baggage);
+    }
+
     @Test
     @DisplayName("is the baggage ID when the request has one")
     void baggageId() {
-      var baggage = mock(Baggage.class);
-      when(baggage.get()).thenReturn(BAGGAGE_ID);
-      when(tracer.getBaggage(LoggingContextConstants.CORRELATION_ID)).thenReturn(baggage);
+      baggageHolds(BAGGAGE_ID);
 
       assertThat(chooser.currentCorrelationId(tracer)).hasValue(BAGGAGE_ID);
     }
@@ -147,7 +156,8 @@ class CorrelationIdChooserTest {
     @Test
     @DisplayName("is the trace ID when the request has no baggage ID")
     void traceId() {
-      when(tracer.getBaggage(LoggingContextConstants.CORRELATION_ID)).thenReturn(null);
+      when(tracer.getBaggage(any(TraceContext.class), eq(LoggingContextConstants.CORRELATION_ID)))
+          .thenReturn(null);
       when(tracer.currentSpan().context().traceId()).thenReturn(WebTestData.TRACE_ID);
 
       assertThat(chooser.currentCorrelationId(tracer)).hasValue(WebTestData.TRACE_ID);
@@ -156,12 +166,19 @@ class CorrelationIdChooserTest {
     @Test
     @DisplayName("is the trace ID when the baggage ID is not safe for logs")
     void unsafeBaggageIdSkipped() {
-      var baggage = mock(Baggage.class);
-      when(baggage.get()).thenReturn("a\nb");
-      when(tracer.getBaggage(LoggingContextConstants.CORRELATION_ID)).thenReturn(baggage);
+      baggageHolds("a\nb");
       when(tracer.currentSpan().context().traceId()).thenReturn(WebTestData.TRACE_ID);
 
       assertThat(chooser.currentCorrelationId(tracer)).hasValue(WebTestData.TRACE_ID);
+    }
+
+    @Test
+    @DisplayName("is nothing when no tracing context is current")
+    void noTracingContext() {
+      when(tracer.currentTraceContext().context()).thenReturn(null);
+      when(tracer.currentSpan()).thenReturn(null);
+
+      assertThat(chooser.currentCorrelationId(tracer)).isEmpty();
     }
 
     @Test

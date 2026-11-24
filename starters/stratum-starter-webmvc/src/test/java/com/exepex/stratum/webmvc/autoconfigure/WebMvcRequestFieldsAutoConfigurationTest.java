@@ -39,7 +39,6 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.boot.web.servlet.ServletListenerRegistrationBean;
-import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.Ordered;
 import org.springframework.mock.env.MockEnvironment;
@@ -322,8 +321,7 @@ class WebMvcRequestFieldsAutoConfigurationTest {
   }
 
   /** Checks that none of the module's beans exists. */
-  private <C extends ApplicationContext> void assertNothingCreated(
-      ApplicationContextAssertProvider<C> context) {
+  private void assertNothingCreated(ApplicationContextAssertProvider<?, ?> context) {
     assertThat(context)
         .doesNotHaveBean(RequestFieldsReader.class)
         .doesNotHaveBean(FIELDS_FILTER)

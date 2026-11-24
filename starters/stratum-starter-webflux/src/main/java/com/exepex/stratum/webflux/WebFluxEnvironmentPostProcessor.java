@@ -17,10 +17,10 @@ import org.springframework.core.env.ConfigurableEnvironment;
  * Reactor carries the logging and tracing context into every operator ({@code
  * spring.reactor.context-propagation=auto}), so that error bodies, error pages and log lines have
  * the request's trace ID even when the logging and observability modules, which set the same
- * default, are off. With {@code stratum.backward-compatible=false}, its default, multipart uploads,
- * which Spring Boot leaves unlimited, are limited too: each part may use 10MB of disk and an upload
- * may have 50 parts. A multipart upload sent in chunks is limited by these only, so without them
- * one request could fill the disk. In backward-compatible mode they are left unset, so an upload
+ * default, are off. With {@code stratum.backward-compatible=false}, its default, each part of a
+ * multipart upload may use 10MB of disk and an upload may have 50 parts. A multipart upload sent in
+ * chunks is limited by these only, so without them one request could fill the disk. In
+ * backward-compatible mode both are set to no limit, as Spring Boot did before 4.2, so an upload
  * that worked before Stratum is not refused. Every value the service sets for these Spring Boot
  * keys wins.
  */
@@ -30,10 +30,18 @@ public class WebFluxEnvironmentPostProcessor implements EnvironmentPostProcessor
   /** Spring Boot's limits on a multipart upload and the values Stratum gives them. */
   private static final Map<String, Object> MULTIPART_LIMITS =
       Map.of(
-          "spring.webflux.multipart.max-disk-usage-per-part",
+          WebConstants.WEBFLUX_MULTIPART_MAX_DISK_USAGE_PER_PART,
           "10MB",
-          "spring.webflux.multipart.max-parts",
+          WebConstants.WEBFLUX_MULTIPART_MAX_PARTS,
           50);
+
+  /** Spring Boot's limits on a multipart upload, lifted in backward-compatible mode. */
+  private static final Map<String, Object> NO_MULTIPART_LIMITS =
+      Map.of(
+          WebConstants.WEBFLUX_MULTIPART_MAX_DISK_USAGE_PER_PART,
+          "-1B",
+          WebConstants.WEBFLUX_MULTIPART_MAX_PARTS,
+          -1);
 
   /**
    * Runs right after the configuration files are read, so that the module switch is known.
@@ -60,8 +68,8 @@ public class WebFluxEnvironmentPostProcessor implements EnvironmentPostProcessor
       return;
     }
     StratumDefaults.addBelowServiceValues(environment, StratumDefaults.REACTOR_CONTEXT_PROPAGATION);
-    if (!BackwardCompatibleMode.isOn(environment)) {
-      StratumDefaults.addBelowServiceValues(environment, MULTIPART_LIMITS);
-    }
+    StratumDefaults.addBelowServiceValues(
+        environment,
+        BackwardCompatibleMode.isOn(environment) ? NO_MULTIPART_LIMITS : MULTIPART_LIMITS);
   }
 }

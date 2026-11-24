@@ -1,6 +1,7 @@
 package com.exepex.stratum.observability.it;
 
 import com.exepex.stratum.observability.testsupport.ReceivedLoggingContexts;
+import java.util.List;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jms.annotation.JmsListener;
@@ -17,6 +18,9 @@ public class OrderEvents {
 
   /** The Kafka topic and the JMS queue the events travel on. */
   static final String DESTINATION = "order-events";
+
+  /** The Kafka topic whose events are handled in batches. */
+  static final String BATCH_DESTINATION = "order-batches";
 
   /** Sends events to Kafka. */
   private final KafkaTemplate<Object, Object> kafkaTemplate;
@@ -38,6 +42,16 @@ public class OrderEvents {
   }
 
   /**
+   * Sends an event to the Kafka topic whose events are handled in batches, and waits until the
+   * broker has it.
+   *
+   * @param event the event
+   */
+  void sendToKafkaBatch(String event) {
+    kafkaTemplate.send(BATCH_DESTINATION, event).join();
+  }
+
+  /**
    * Sends an event to the JMS queue.
    *
    * @param event the event
@@ -53,6 +67,16 @@ public class OrderEvents {
    */
   @KafkaListener(topics = DESTINATION, groupId = DESTINATION)
   void receiveFromKafka(String event) {
+    receivedLoggingContexts.keepCurrent();
+  }
+
+  /**
+   * Handles a batch of events from Kafka.
+   *
+   * @param events the events
+   */
+  @KafkaListener(topics = BATCH_DESTINATION, groupId = BATCH_DESTINATION, batch = "true")
+  void receiveBatchFromKafka(List<String> events) {
     receivedLoggingContexts.keepCurrent();
   }
 

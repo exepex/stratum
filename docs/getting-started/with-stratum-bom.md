@@ -24,7 +24,7 @@ no plugins: those come from your parent, or from you. The reasons are in
 
 ## Requirements that no parent can change
 
-Stratum works only with **Spring Boot 4.1.x and Java 25**. A service on Spring Boot 3.x, or on a JDK
+Stratum works only with **Spring Boot 4.2.x and Java 25**. A service on Spring Boot 3.x, or on a JDK
 older than 25, cannot use it:
 
 - Stratum's classes are compiled for Java 25 (class file version 69). A JDK 21 build of a service
@@ -45,9 +45,9 @@ tested. Moving a service from Spring Boot 3 to 4 is described in Spring's own
 
 | Your parent | Set | Why |
 | --- | --- | --- |
-| `spring-boot-starter-parent` 4.1.x | `java.version` = `25` | Spring Boot's parent sets `maven.compiler.release` from `java.version`, whose default there is 17 |
-| A company parent that extends `spring-boot-starter-parent` 4.1.x | `java.version` = `25` | The same: the company parent passes Spring Boot's properties on |
-| A company parent that does not extend it | `maven.compiler.release` = `25`, `maven.compiler.parameters` = `true`, `project.build.sourceEncoding` = `UTF-8`, and a Spring Boot version of your own, such as `spring-boot.version` = `4.1.2` | Without Spring Boot's parent, the compiler reads `maven.compiler.release` directly, and nothing keeps parameter names or manages Spring Boot's versions |
+| `spring-boot-starter-parent` 4.2.x | `java.version` = `25` | Spring Boot's parent sets `maven.compiler.release` from `java.version`, whose default there is 17 |
+| A company parent that extends `spring-boot-starter-parent` 4.2.x | `java.version` = `25` | The same: the company parent passes Spring Boot's properties on |
+| A company parent that does not extend it | `maven.compiler.release` = `25`, `maven.compiler.parameters` = `true`, `project.build.sourceEncoding` = `UTF-8`, and a Spring Boot version of your own, such as `spring-boot.version` = `4.2.0` | Without Spring Boot's parent, the compiler reads `maven.compiler.release` directly, and nothing keeps parameter names or manages Spring Boot's versions |
 
 A property you set in your `pom.xml` wins over the same property in any parent. If your company
 parent writes `<release>` inside its compiler plugin configuration, instead of using a property,
@@ -76,7 +76,7 @@ section adds back what `stratum-parent` would have given: the JDK check, `git.pr
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>4.1.2</version>
+    <version>4.2.0</version>
     <relativePath/>
   </parent>
 
@@ -206,7 +206,7 @@ itself, sets Java 25 and writes the plugin versions.
 
   <properties>
     <!-- The Spring Boot line Stratum supports. -->
-    <spring-boot.version>4.1.2</spring-boot.version>
+    <spring-boot.version>4.2.0</spring-boot.version>
     <!-- Java 25, whatever the company parent sets. -->
     <maven.compiler.release>25</maven.compiler.release>
     <!-- Keeps parameter names, which Spring reads for @PathVariable and constructor binding. -->
@@ -326,10 +326,10 @@ itself, sets Java 25 and writes the plugin versions.
 </project>
 ```
 
-The Enforcer and Git plugin versions are the ones Spring Boot 4.1.2 manages. When your company
+The Enforcer and Git plugin versions are the ones Spring Boot 4.2.0 manages. When your company
 parent manages a version of one of these plugins, leave that `<version>` out.
 
-**If your company parent extends `spring-boot-starter-parent` 4.1.x**, the service is simpler: leave
+**If your company parent extends `spring-boot-starter-parent` 4.2.x**, the service is simpler: leave
 out the `spring-boot-dependencies` import and the four properties, set `java.version` to `25`, and
 use the `<build>` section of [example 1](#example-1-under-spring-boot-starter-parent).
 
@@ -364,18 +364,18 @@ First check which Spring Boot version your service gets:
 mvn dependency:tree -Dincludes=org.springframework.boot:spring-boot
 ```
 
-If it is older than 4.1, what you can do depends on how the company parent sets it. Read its
+If it is older than 4.2, what you can do depends on how the company parent sets it. Read its
 `pom.xml`, or run `mvn help:effective-pom`:
 
 | How the company parent sets Spring Boot's version | What the service does |
 | --- | --- |
-| It imports `spring-boot-dependencies` with a version property, such as `${spring-boot.version}` | Set that property to `4.1.2` in the service's `<properties>` |
-| It imports `spring-boot-dependencies` with a fixed version | Import `spring-boot-dependencies` 4.1.2 in the service's own `<dependencyManagement>`, as in [example 2](#example-2-under-a-company-parent). A BOM the service imports is used before one its parent imports |
-| It extends `spring-boot-starter-parent` 3.x, or lists Spring Boot's versions directly in its `<dependencyManagement>` | Nothing in the service can override it: versions inherited from a parent win over every BOM the service imports. Ask for a company parent release on Spring Boot 4.1, or use [example 1](#example-1-under-spring-boot-starter-parent) |
+| It imports `spring-boot-dependencies` with a version property, such as `${spring-boot.version}` | Set that property to `4.2.0` in the service's `<properties>` |
+| It imports `spring-boot-dependencies` with a fixed version | Import `spring-boot-dependencies` 4.2.0 in the service's own `<dependencyManagement>`, as in [example 2](#example-2-under-a-company-parent). A BOM the service imports is used before one its parent imports |
+| It extends `spring-boot-starter-parent` 3.x, or lists Spring Boot's versions directly in its `<dependencyManagement>` | Nothing in the service can override it: versions inherited from a parent win over every BOM the service imports. Ask for a company parent release on Spring Boot 4.2, or use [example 1](#example-1-under-spring-boot-starter-parent) |
 
 In the first two cases, also give `spring-boot-maven-plugin` the version `${spring-boot.version}`, as
 example 2 does, because the company parent may manage an older plugin version. Then run the
-`dependency:tree` command again to check that it shows 4.1.2.
+`dependency:tree` command again to check that it shows 4.2.0.
 
 Your service's own code may also need changes to move from Spring Boot 3 to 4: follow the
 [Spring Boot 4.0 Migration Guide](https://github.com/spring-projects/spring-boot/wiki/Spring-Boot-4.0-Migration-Guide).

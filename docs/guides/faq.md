@@ -61,7 +61,7 @@ reactive code. See [Web](../modules/web.md).
 ## Versions
 
 **Which Spring Boot version does Stratum use?**
-Stratum 0.1 targets Spring Boot 4.1.2 and Java 25. See
+Stratum 0.3 targets Spring Boot 4.2.0 and Java 25. See
 [Versioning and upgrades](upgrading.md#compatibility).
 
 **Can I use a newer Spring Boot than Stratum's?**

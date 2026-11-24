@@ -35,8 +35,10 @@ import tools.jackson.databind.json.JsonMapper;
  * whose code is only in one of its causes is answered last, after Spring MVC's resolvers, so that a
  * wrapper with a status of its own, such as a {@code ResponseStatusException} or unreadable JSON,
  * keeps Spring's answer, and a plain wrapper gets the code's status instead of 500. It also records
- * every failure it sees on the request's observation, as WebFlux does, so a failure the service's
- * own handlers answer is not recorded on either stack.
+ * every failure it sees on the request's observation, as WebFlux does. A failure the service's own
+ * handlers answer is not recorded on either stack, except a 5xx that Spring's {@code
+ * ResponseEntityExceptionHandler} answers, also in the service's subclass of it, which Spring
+ * Framework 7.1 records.
  */
 @RequiredArgsConstructor
 public class FailureWithErrorCodeResolver implements HandlerExceptionResolver, WebMvcConfigurer {

@@ -48,10 +48,15 @@ class LocalCollectorLoggingTest {
    * misspelt logger in the module fails the test.
    */
   private static final String SPAN_HTTP_EXPORT_LOG_LEVEL =
-      "logging.level.io.opentelemetry.exporter.internal.http.HttpExporter";
+      "logging.level.io.opentelemetry.exporter.otlp.internal.HttpExporter";
 
   private static final String SPAN_GRPC_EXPORT_LOG_LEVEL =
-      "logging.level.io.opentelemetry.exporter.internal.grpc.GrpcExporter";
+      "logging.level.io.opentelemetry.exporter.otlp.internal.GrpcExporter";
+
+  /** The logger of the OpenTelemetry exporter that Micrometer pushes metrics with, spelled out. */
+  private static final String METRICS_HTTP_EXPORT_LOG_LEVEL =
+      "logging.level.io.micrometer.registry.otlp.shaded.io.opentelemetry.exporter.otlp.internal"
+          + ".HttpExporter";
 
   /** A span address on this machine. */
   private static final String LOCAL_SPAN_ADDRESS = "http://localhost:4318/v1/traces";
@@ -101,6 +106,7 @@ class LocalCollectorLoggingTest {
 
     assertThat(environment.getProperty(LocalCollectorLogging.METRICS_EXPORT_LOG_LEVEL))
         .isEqualTo(OFF);
+    assertThat(environment.getProperty(METRICS_HTTP_EXPORT_LOG_LEVEL)).isEqualTo(OFF);
   }
 
   @ParameterizedTest
@@ -112,6 +118,7 @@ class LocalCollectorLoggingTest {
     run(environment);
 
     assertThat(environment.getProperty(LocalCollectorLogging.METRICS_EXPORT_LOG_LEVEL)).isNull();
+    assertThat(environment.getProperty(METRICS_HTTP_EXPORT_LOG_LEVEL)).isNull();
   }
 
   @Test

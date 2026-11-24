@@ -20,7 +20,7 @@ tracks two: the company parent sets the Spring Boot version, and Stratum must su
 | --- | --- | --- | --- | --- | --- |
 | 0.1.x | 25 | 4.1.x | 4.1.2 | 7.x | Released ([0.1.0](../releases/0.1.0.md)) |
 | 0.2.x | 25 | 4.1.x | 4.1.2 | 7.x | Released ([0.2.0](../releases/0.2.0.md)) |
-| 0.3.x | 25 | 4.1.x | 4.1.2 | 7.x | In development (`0.3.0-SNAPSHOT`) |
+| 0.3.x | 25 | 4.2.x | 4.2.0 | 7.x | In development (`0.3.0-SNAPSHOT`) |
 
 Stratum supports Java 25 and one Spring Boot line per release, nothing older. Your parent POM sets
 the Spring Boot version. With `stratum-parent` it is always the tested version. Under a company
@@ -29,9 +29,8 @@ one. If it is not, Stratum logs one `SX-CORE-1005` warning at startup naming the
 the supported line, and starts anyway; it never stops a service over the version
 ([ADR 0023](../adr/0023-stratum-next-to-a-company-framework.md)).
 
-Spring Boot 4.1.2 was the latest stable release on 27 October 2026; 4.2.0 was at release candidate
-1. Stratum moves to a new Spring Boot minor release after it is generally available and has had its
-first patch release.
+Spring Boot 4.2.0 was the latest stable release on 19 November 2026. Stratum moves to a new Spring
+Boot minor release once it is generally available and Stratum's full build passes on it.
 
 ## Semantic versioning
 
@@ -93,9 +92,12 @@ release notes show which version to override as a temporary fix (see
 
 ### Open advisories
 
-These are known vulnerabilities in a library Spring Boot manages, where the fix is not yet in any
-Spring Boot release, so Stratum cannot ship it. Until it is, set the patched version in your
-service. With `stratum-parent`, or any parent that extends `spring-boot-starter-parent`, set Spring
+None for Stratum 0.3. Services on Stratum 0.1.x or 0.2.x (Spring Boot 4.1.2) keep the setting below
+until they upgrade.
+
+These are known vulnerabilities in a library Spring Boot manages, where the fix is not in the Spring
+Boot release a Stratum version uses, so Stratum cannot ship it. Until it is, set the patched
+version in your service. With `stratum-parent`, or any parent that extends `spring-boot-starter-parent`, set Spring
 Boot's version property (see
 [Overriding one managed version](../modules/parent-and-bom.md#overriding-one-managed-version)), and
 remove it when you upgrade to a Stratum release that no longer lists the advisory.
@@ -106,4 +108,4 @@ own BOM at the patched version above the Spring Boot import. For the advisory be
 
 | Advisory | Library | Affected | Set in your service |
 | --- | --- | --- | --- |
-| [GHSA-ccrj-gw8r-854m](https://osv.dev/GHSA-ccrj-gw8r-854m) (Medium, CVSS 5.3) | `io.opentelemetry:opentelemetry-api` | 1.62.0, from Spring Boot 4.1.2 | `<opentelemetry.version>1.67.0</opentelemetry.version>` |
+| [GHSA-ccrj-gw8r-854m](https://osv.dev/GHSA-ccrj-gw8r-854m) (Medium, CVSS 5.3) | `io.opentelemetry:opentelemetry-api` | 1.62.0, from Spring Boot 4.1.2 (Stratum 0.1.x and 0.2.x) | `<opentelemetry.version>1.67.0</opentelemetry.version>` |

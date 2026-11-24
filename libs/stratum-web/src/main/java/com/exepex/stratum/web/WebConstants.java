@@ -46,6 +46,13 @@ public class WebConstants {
   public static final String REQUEST_FIELDS_MAX_VALUE_LENGTH =
       PREFIX + ".request-fields.max-value-length";
 
+  /** Spring Boot's limit on the disk each part of a WebFlux multipart upload may use. */
+  public static final String WEBFLUX_MULTIPART_MAX_DISK_USAGE_PER_PART =
+      "spring.webflux.multipart.max-disk-usage-per-part";
+
+  /** Spring Boot's limit on the number of parts in a WebFlux multipart upload. */
+  public static final String WEBFLUX_MULTIPART_MAX_PARTS = "spring.webflux.multipart.max-parts";
+
   /** The switch for the one log line each request writes. */
   public static final String REQUEST_LOG_ENABLED = PREFIX + ".request-log.enabled";
 

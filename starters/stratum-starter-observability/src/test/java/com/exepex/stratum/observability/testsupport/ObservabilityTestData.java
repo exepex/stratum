@@ -35,8 +35,9 @@ public class ObservabilityTestData {
   private static final List<String> EXPORT_LOGGERS =
       List.of(
           "io.micrometer.registry.otlp.OtlpMeterRegistry",
-          "io.opentelemetry.exporter.internal.http.HttpExporter",
-          "io.opentelemetry.exporter.internal.grpc.GrpcExporter");
+          "io.micrometer.registry.otlp.shaded.io.opentelemetry.exporter.otlp.internal.HttpExporter",
+          "io.opentelemetry.exporter.otlp.internal.HttpExporter",
+          "io.opentelemetry.exporter.otlp.internal.GrpcExporter");
 
   /** Characters in each hostile input of the guard tests: 1MB. */
   public static final int HOSTILE_INPUT_LENGTH = 1_000_000;

@@ -117,9 +117,15 @@ public class LinkedWork {
     }
   }
 
-  /** Returns the baggage correlation ID, when it is set and safe for logs, or the fallback. */
+  /**
+   * Returns the baggage correlation ID, with its key in any case, when it is set and safe for logs,
+   * or the fallback.
+   */
   private String correlationIdOrElse(String fallback) {
-    return Optional.ofNullable(tracer.getBaggage(LoggingContextConstants.CORRELATION_ID))
+    // Tracer.getBaggage(name) would store a null value when the entry is missing, which
+    // OpenTelemetry reports as a wrong use of its API with a warning; this lookup stores nothing.
+    return Optional.ofNullable(tracer.currentTraceContext().context())
+        .map(context -> tracer.getBaggage(context, LoggingContextConstants.CORRELATION_ID))
         .map(BaggageView::get)
         .filter(LoggingContextConstants::isSafeForLogs)
         .orElse(fallback);

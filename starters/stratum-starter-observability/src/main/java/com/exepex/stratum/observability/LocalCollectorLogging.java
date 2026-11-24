@@ -29,19 +29,24 @@ public class LocalCollectorLogging
   static final String METRICS_EXPORT_LOG_LEVEL =
       "logging.level.io.micrometer.registry.otlp.OtlpMeterRegistry";
 
+  /** The log level that hides the error of the OpenTelemetry exporter Micrometer pushes with. */
+  static final String METRICS_HTTP_EXPORT_LOG_LEVEL =
+      "logging.level.io.micrometer.registry.otlp.shaded.io.opentelemetry.exporter.otlp.internal"
+          + ".HttpExporter";
+
   /** The log level that hides OpenTelemetry's error when it cannot send spans over HTTP. */
   static final String SPAN_HTTP_EXPORT_LOG_LEVEL =
-      "logging.level.io.opentelemetry.exporter.internal.http.HttpExporter";
+      "logging.level.io.opentelemetry.exporter.otlp.internal.HttpExporter";
 
   /** The log level that hides OpenTelemetry's error when it cannot send spans over gRPC. */
   static final String SPAN_GRPC_EXPORT_LOG_LEVEL =
-      "logging.level.io.opentelemetry.exporter.internal.grpc.GrpcExporter";
+      "logging.level.io.opentelemetry.exporter.otlp.internal.GrpcExporter";
 
   /** Each export address, with the log levels that hide its failed sends. */
   private static final Map<String, List<String>> LOG_LEVELS_BY_ADDRESS =
       Map.of(
           ObservabilityConstants.METRICS_EXPORT_URL,
-          List.of(METRICS_EXPORT_LOG_LEVEL),
+          List.of(METRICS_EXPORT_LOG_LEVEL, METRICS_HTTP_EXPORT_LOG_LEVEL),
           ObservabilityConstants.TRACING_EXPORT_ENDPOINT,
           List.of(SPAN_HTTP_EXPORT_LOG_LEVEL, SPAN_GRPC_EXPORT_LOG_LEVEL));
 

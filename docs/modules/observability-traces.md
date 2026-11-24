@@ -194,12 +194,15 @@ limit (`RequestBodyTooLargeException`). A code that only Stratum's error body ho
 `SX-WEB-1003` for an unknown path, is not a code the request failed with, so the tag is `none`.
 
 A failure that your own `@ExceptionHandler` answers is not recorded, on either stack, as Spring
-does not record it. To count it, record it yourself in the handler: on Spring MVC with
+does not record it. One exception, since Spring Framework 7.1: a 5xx that Spring's
+`ResponseEntityExceptionHandler` answers, also in your own subclass of it, is recorded. To count
+any other failure, record it yourself in the handler: on Spring MVC with
 `ServerHttpObservationFilter.findObservationContext(request).ifPresent(context ->
 context.setError(exception))`, and on WebFlux with
 `ServerRequestObservationContext.findCurrent(exchange.getAttributes())` in the same way. That
-tags the timer; the span keeps its status. With `stratum.web.enabled=false`, Spring MVC records
-none of the failures its own resolvers answer, as without Stratum, while WebFlux still does.
+tags the timer; the span keeps its status. With `stratum.web.enabled=false`, Spring MVC records a
+failure its own resolvers answer only when the answer is a 5xx, as without Stratum, while WebFlux
+records every failure it answers.
 
 Each distinct code adds one timer per route and status, within the
 [meter caps](observability-metrics.md).
