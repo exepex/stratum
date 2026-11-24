@@ -116,7 +116,7 @@ The line above comes out as one JSON object in the
 | `service.version` | Your jar's manifest, when it has a version |
 | `service.node.name` | The [instance ID](../../docs/configuration/shared-settings.md#instance-id) of this running copy; `instanceId` in Logstash, `_instanceId` in GELF |
 | `error.type`, `error.message`, `error.stack_trace` | The exception you pass to the log call. The root cause comes first, so a cut stack trace still shows why it failed. |
-| `error.code` | The code of a `StratumException`, or of an exception that implements [`FailureWithErrorCode`](../../docs/guides/error-codes.md#existing-exceptions-a-migration-path), such as `SX-CORE-1003` or your own `PAY-0001`, when it is the exception you log or one of its causes ([error codes](../../docs/guides/error-codes.md)). Search and count errors by this field. It is a separate key next to the `error` group, not inside it: Elasticsearch merges it into `error`, while Loki and Datadog see the literal `error.code`. In GELF it is `_error_code`; when the console and the file use different formats, the console format decides the name. |
+| `error.code` | The code of a `StratumException`, or of an exception that implements [`FailureWithErrorCode`](../../docs/guides/error-codes.md#existing-exceptions-a-migration-path), such as `SX-CORE-1003` or your own `PAY-0001`, when it is the exception you log or one of its causes ([error codes](../../docs/guides/error-codes.md)). Search and count errors by this field. It is a separate key next to the `error` group, not inside it: Elasticsearch merges it into `error`, while Loki and Datadog see the literal `error.code`. In GELF it is `_error_code`; when the console and the file use different formats, the console format decides the name. Services on Log4j2 do not get this field yet; it is [planned](#planned) ([issue #119](https://github.com/exepex/stratum/issues/119)). |
 | `workflow`, `rootWorkflow`, `workflowId` | The [workflow](#workflows) the line was written in |
 | Your own fields | Key-value pairs (`addKeyValue`) and MDC entries, at the top level |
 
@@ -147,8 +147,8 @@ trace, MDC entries and key-value pairs. A key-value pair whose value is a number
 as `addKeyValue("customer", customer)`, is masked through the value's `toString()`, which is read
 once; a list, map or array is masked element by element and keeps only its first elements
 ([lists, maps and arrays](#lists-maps-and-arrays)). Ready-made JSON, such as a `WritableJson`, is masked through its text;
-if anything in it is masked, it is written as a JSON string. While the module is on, it cannot be
-switched off.
+if anything in it is masked, it is written as a JSON string. While the module is on, redaction cannot
+be switched off.
 
 > [!IMPORTANT]
 > Redaction is a safety net, not a licence to log personal data or secrets. A name, address, phone
@@ -236,7 +236,8 @@ turn it into one string, such as `String.join(",", orderIds)`: a string is only 
 `max-field-length`. The limit applies to key-value pairs; MDC values are always strings, and a
 list in the message, as in `log.info("ids {}", orderIds)`, is turned into text by SLF4J before
 Stratum sees it, so it is only cut at `max-field-length`. You may lower the limit, never raise it
-above 20.
+above 20. The whole JSON line has no limit yet, so a value nested many levels deep can make a very
+large line; a limit is [planned](#planned) ([issue #135](https://github.com/exepex/stratum/issues/135)).
 
 A log file, written when you set `logging.file.name`, gets the same format and the same redaction
 as the console.
