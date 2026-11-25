@@ -250,8 +250,12 @@ same and makes no meters. Each meter is tagged `client`, the client's name.
 - No tag ever holds a path value, a query value or a header: `outcome` and `state` have the fixed values above.
 - The state gauge shows the three states a breaker goes through by itself. Resilience4j's other states, `DISABLED`,
   `FORCED_OPEN` and `METRICS_ONLY`, are set only by your own code, and show 0 on all three.
-- Spring Boot's own `http.client.requests` timer stays as it is: one per attempt, tagged with the template. Use it to
-  time each endpoint or [operation](http-client-operations.md): `stratum.http.client.calls` has no tag per method.
+- Spring Boot's own `http.client.requests` timer stays as it is, tagged with the template: one per attempt for a
+  call of an interface, and one per call, with the last answer, for `restClient(name)` and the `RestClient` and
+  `RestTemplate` beans. Use it to time each endpoint or [operation](http-client-operations.md):
+  `stratum.http.client.calls` has no tag per method.
+- Its `client.name` tag is the host the call went to, not the client's name, so two clients that call the same host
+  share its series. `stratum.http.client.calls` tells them apart by `client`.
 - How long a call waits for a free connection is not measured yet
   ([#237](https://github.com/exepex/stratum/issues/237)).
 

@@ -47,7 +47,8 @@ stratum:
 
 - A limit is a duration, such as `500ms`, `5s` or `2m`. `0` means no limit.
 - `routes` maps a Spring path pattern to its limit. Write each pattern in square brackets, as above,
-  so Spring Boot keeps its `/` and `*`. When several patterns match a path, the most specific wins.
+  so Spring Boot keeps its `/` and `*`. A pattern matches the request's path only, not its HTTP method.
+  When several patterns match a path, the most specific wins.
   A pattern that is not valid, such as `/api/{id`, stops startup with `SX-WEB-1009`, which names the
   key and the pattern.
 - The status of `SX-WEB-1007` is set in `stratum.web.error.statuses`, as every code's is, and can be
@@ -80,8 +81,8 @@ Price price(@PathVariable String sku) {
 ```
 
 The unit is seconds unless you set another. `@ResponseTimeout(0)` means no limit. The annotation
-works on `@RequestMapping` methods. A WebFlux router function has no method to annotate, so it
-uses the routes and the default.
+works on `@RequestMapping` methods. A functional endpoint, a router function on Spring MVC or
+WebFlux, has no method to annotate, so it uses the routes and the default.
 
 So the limit of a request is, in order: its method's `@ResponseTimeout`, then the most specific
 route that matches its path, then the default.
