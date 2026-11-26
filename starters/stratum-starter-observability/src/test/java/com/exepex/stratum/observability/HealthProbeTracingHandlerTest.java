@@ -3,7 +3,6 @@ package com.exepex.stratum.observability;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.request.HealthProbePaths;
-import com.exepex.stratum.observability.testsupport.ObservabilityTestData;
 import io.micrometer.common.KeyValue;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
@@ -78,17 +77,12 @@ class HealthProbeTracingHandlerTest {
   }
 
   @Test
-  @DisplayName("with health-probes=true takes no probe request, so probes are traced")
-  void containsNothingWhenProbesAreTraced() {
-    ObservabilityTestData.contextRunner()
-        .withPropertyValues(ObservabilityConstants.PREFIX + ".tracing.health-probes=true")
-        .run(
-            context ->
-                assertThat(
-                        context
-                            .getBean(HealthProbeTracingHandler.class)
-                            .supportsContext(withPath(receivedRequest(), PROBE_PATH)))
-                    .isFalse());
+  @DisplayName("built with no probe paths, takes no probe request, so probes are traced")
+  void takesNothingWithNoProbePaths() {
+    var tracedProbesHandler = new HealthProbeTracingHandler(HealthProbePaths.none());
+
+    assertThat(tracedProbesHandler.supportsContext(withPath(receivedRequest(), PROBE_PATH)))
+        .isFalse();
   }
 
   @Test
