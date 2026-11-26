@@ -1,4 +1,4 @@
-package com.exepex.stratum.observability;
+package com.exepex.stratum.core.request;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -137,10 +137,8 @@ class HealthProbePathsTest {
   }
 
   @Test
-  @DisplayName("with health-probes=true there are no probe paths, so probes are traced")
-  void containsNothingWhenProbesAreTraced() {
-    environment.setProperty("stratum.observability.tracing.health-probes", "true");
-
-    assertThat(contains(HEALTH_PATH)).isFalse();
+  @DisplayName("none() holds no path, not even the health endpoint's")
+  void noneContainsNothing() {
+    assertThat(HealthProbePaths.none().contains(HEALTH_PATH)).isFalse();
   }
 }

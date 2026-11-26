@@ -218,29 +218,4 @@ public class ObservabilityConstants {
 
   /** The attribute of {@link #PROCESSED_SPANS_INSTRUMENT} that is true for dropped spans. */
   public static final String DROPPED_ATTRIBUTE = "dropped";
-
-  /** Spring Boot's settings of the actuator endpoints served over HTTP, such as their base path. */
-  public static final String WEB_ENDPOINTS = "management.endpoints.web";
-
-  /** Spring Boot's settings of the health endpoint, such as its groups. */
-  public static final String HEALTH_ENDPOINT = "management.endpoint.health";
-
-  /** The health endpoint's ID, which is also its path when it is not mapped to another. */
-  public static final String HEALTH_ENDPOINT_ID = "health";
-
-  /** Spring Boot's switch that also serves the liveness and readiness probes on the main port. */
-  public static final String PROBE_ADDITIONAL_PATHS =
-      "management.endpoint.health.probes.add-additional-paths";
-
-  /** The main-port paths of the liveness and readiness probes, as Spring Boot serves them. */
-  public static final List<String> PROBE_PATHS = List.of("/livez", "/readyz");
-
-  /** The base path of every request on a servlet (MVC) server. */
-  public static final String SERVLET_CONTEXT_PATH = "server.servlet.context-path";
-
-  /** The base path of every request on a reactive (WebFlux) server. */
-  public static final String WEBFLUX_BASE_PATH = "spring.webflux.base-path";
-
-  /** The base path of every request on a separate management port. */
-  public static final String MANAGEMENT_BASE_PATH = "management.server.base-path";
 }

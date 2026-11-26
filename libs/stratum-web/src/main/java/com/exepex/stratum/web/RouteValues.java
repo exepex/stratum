@@ -1,5 +1,6 @@
 package com.exepex.stratum.web;
 
+import com.exepex.stratum.core.api.StratumInternal;
 import com.exepex.stratum.core.error.StratumException;
 import java.util.List;
 import java.util.Map;
@@ -15,7 +16,8 @@ import org.springframework.web.util.pattern.PatternParseException;
  *
  * @param <T> the type of the values
  */
-class RouteValues<T> {
+@StratumInternal
+public final class RouteValues<T> {
 
   /** The value of each pattern, the most specific pattern first. */
   private final List<Map.Entry<PathPattern, T>> routes;
@@ -27,7 +29,7 @@ class RouteValues<T> {
    * @param routes the value of each path pattern, such as {@code /reports/**}
    * @throws StratumException {@code SX-WEB-1009} if a pattern is not valid
    */
-  RouteValues(String key, Map<String, T> routes) {
+  public RouteValues(String key, Map<String, T> routes) {
     this.routes =
         routes.entrySet().stream()
             .map(route -> Map.entry(parse(key, route.getKey()), route.getValue()))
@@ -41,7 +43,7 @@ class RouteValues<T> {
    * @param pathWithinApplication the request's path, without the application's context path
    * @return the value, or empty when no pattern matches
    */
-  Optional<T> find(String pathWithinApplication) {
+  public Optional<T> find(String pathWithinApplication) {
     var path = PathContainer.parsePath(pathWithinApplication);
     return routes.stream()
         .filter(route -> route.getKey().matches(path))

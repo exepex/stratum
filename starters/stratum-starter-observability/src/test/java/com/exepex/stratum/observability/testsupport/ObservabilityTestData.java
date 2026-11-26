@@ -1,6 +1,6 @@
 package com.exepex.stratum.observability.testsupport;
 
-import com.exepex.stratum.observability.HealthProbePaths;
+import com.exepex.stratum.core.request.HealthProbePaths;
 import com.exepex.stratum.observability.HealthProbeTracingHandler;
 import com.exepex.stratum.observability.autoconfigure.ObservabilityAutoConfiguration;
 import io.micrometer.core.instrument.Meter;
