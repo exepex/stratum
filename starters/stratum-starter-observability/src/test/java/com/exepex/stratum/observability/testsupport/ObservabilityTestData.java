@@ -2,9 +2,13 @@ package com.exepex.stratum.observability.testsupport;
 
 import com.exepex.stratum.core.request.HealthProbePaths;
 import com.exepex.stratum.observability.HealthProbeTracingHandler;
+import com.exepex.stratum.observability.ObservabilityConstants;
 import com.exepex.stratum.observability.autoconfigure.ObservabilityAutoConfiguration;
+import io.micrometer.common.KeyValue;
 import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.Tags;
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.transport.ReceiverContext;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.TraceFlags;
@@ -38,6 +42,9 @@ public class ObservabilityTestData {
           "io.micrometer.registry.otlp.shaded.io.opentelemetry.exporter.otlp.internal.HttpExporter",
           "io.opentelemetry.exporter.otlp.internal.HttpExporter",
           "io.opentelemetry.exporter.otlp.internal.GrpcExporter");
+
+  /** A liveness probe's path, with Spring Boot's defaults. */
+  public static final String PROBE_PATH = "/actuator/health/liveness";
 
   /** Characters in each hostile input of the guard tests: 1MB. */
   public static final int HOSTILE_INPUT_LENGTH = 1_000_000;
@@ -90,6 +97,28 @@ public class ObservabilityTestData {
    */
   public static HealthProbeTracingHandler probeHandler() {
     return new HealthProbeTracingHandler(new HealthProbePaths(new MockEnvironment()));
+  }
+
+  /**
+   * Returns the context of a request the service received, before Spring sets its path.
+   *
+   * @return the context
+   */
+  public static ReceiverContext<Object> receivedRequest() {
+    return new ReceiverContext<>((carrier, key) -> null);
+  }
+
+  /**
+   * Sets the request path Spring puts on a server observation.
+   *
+   * @param context the observation's context
+   * @param path the request's path
+   * @param <T> the type of the context
+   * @return the same context
+   */
+  public static <T extends Observation.Context> T withPath(T context, String path) {
+    context.addHighCardinalityKeyValue(KeyValue.of(ObservabilityConstants.HTTP_URL, path));
+    return context;
   }
 
   /**

@@ -21,7 +21,6 @@ import io.micrometer.common.KeyValue;
 import io.micrometer.context.ContextExecutorService;
 import io.micrometer.core.instrument.config.MeterFilterReply;
 import io.micrometer.observation.Observation;
-import io.micrometer.observation.transport.ReceiverContext;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -67,9 +66,6 @@ class ObservabilityAutoConfigurationTest {
 
   /** A name a service gives its request observations through Spring Boot's key. */
   private static final String RENAMED_REQUESTS = "orders.requests";
-
-  /** A liveness probe's path, with Spring Boot's defaults. */
-  private static final String PROBE_PATH = "/actuator/health/liveness";
 
   private final ApplicationContextRunner contextRunner = ObservabilityTestData.contextRunner();
 
@@ -225,10 +221,11 @@ class ObservabilityAutoConfigurationTest {
 
     /** Returns whether the context's probe handler takes a request received on a probe path. */
     private boolean probeHandlerTakes(ApplicationContext context) {
-      var probeRequest = new ReceiverContext<Object>((carrier, key) -> null);
-      probeRequest.addHighCardinalityKeyValue(
-          KeyValue.of(ObservabilityConstants.HTTP_URL, PROBE_PATH));
-      return context.getBean(HealthProbeTracingHandler.class).supportsContext(probeRequest);
+      return context
+          .getBean(HealthProbeTracingHandler.class)
+          .supportsContext(
+              ObservabilityTestData.withPath(
+                  ObservabilityTestData.receivedRequest(), ObservabilityTestData.PROBE_PATH));
     }
 
     @Test

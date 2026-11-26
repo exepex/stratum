@@ -1,12 +1,13 @@
 package com.exepex.stratum.observability;
 
+import static com.exepex.stratum.observability.testsupport.ObservabilityTestData.PROBE_PATH;
+import static com.exepex.stratum.observability.testsupport.ObservabilityTestData.receivedRequest;
+import static com.exepex.stratum.observability.testsupport.ObservabilityTestData.withPath;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.core.request.HealthProbePaths;
-import io.micrometer.common.KeyValue;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
-import io.micrometer.observation.transport.ReceiverContext;
 import io.micrometer.tracing.handler.TracingObservationHandler;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,25 +16,11 @@ import org.springframework.mock.env.MockEnvironment;
 @DisplayName("HealthProbeTracingHandler makes no span for health probes")
 class HealthProbeTracingHandlerTest {
 
-  /** A liveness probe's path, with Spring Boot's defaults. */
-  private static final String PROBE_PATH = "/actuator/health/liveness";
-
   /** The path of an ordinary request. */
   private static final String ORDER_PATH = "/orders";
 
   private final HealthProbeTracingHandler handler =
       new HealthProbeTracingHandler(new HealthProbePaths(new MockEnvironment()));
-
-  /** Returns the context of a received request, before or after its path is set. */
-  private ReceiverContext<Object> receivedRequest() {
-    return new ReceiverContext<>((carrier, key) -> null);
-  }
-
-  /** Sets the request path Spring puts on a server observation. */
-  private <T extends Observation.Context> T withPath(T context, String path) {
-    context.addHighCardinalityKeyValue(KeyValue.of(ObservabilityConstants.HTTP_URL, path));
-    return context;
-  }
 
   @Test
   @DisplayName("takes a probe request")
