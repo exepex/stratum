@@ -6,11 +6,11 @@ import com.exepex.stratum.core.condition.StratumModuleConstants;
 import com.exepex.stratum.core.executor.ContextCarryingExecutorsConfiguration;
 import com.exepex.stratum.core.properties.StratumCustomizers;
 import com.exepex.stratum.core.reactor.ReactorOperatorContextPropagation;
+import com.exepex.stratum.core.request.HealthProbePaths;
 import com.exepex.stratum.observability.BaggageAllowList;
 import com.exepex.stratum.observability.CorrelationIdRecorder;
 import com.exepex.stratum.observability.DroppedSpanMeterProvider;
 import com.exepex.stratum.observability.ExceptionFreeSpans;
-import com.exepex.stratum.observability.HealthProbePaths;
 import com.exepex.stratum.observability.HealthProbeTracingHandler;
 import com.exepex.stratum.observability.JmsBeanObserver;
 import com.exepex.stratum.observability.JmsListenerContainerObserver;
@@ -207,8 +207,10 @@ public final class ObservabilityAutoConfiguration {
 
   /**
    * Makes no span for health probe requests, which keep their timers. Ordered before Spring Boot's
-   * tracing handlers, which would otherwise trace them. Reads only the environment, so a service
-   * health check that needs the observation registry closes no bean cycle.
+   * tracing handlers, which would otherwise trace them. With {@code
+   * stratum.observability.tracing.health-probes=true} it takes no request, so every probe is
+   * traced. Reads only the environment, so a service health check that needs the observation
+   * registry closes no bean cycle.
    *
    * @param environment the service's environment
    * @return the handler
@@ -218,7 +220,10 @@ public final class ObservabilityAutoConfiguration {
   @ConditionalOnMissingBean
   @Order(Ordered.HIGHEST_PRECEDENCE)
   public HealthProbeTracingHandler healthProbeTracingHandler(Environment environment) {
-    return new HealthProbeTracingHandler(new HealthProbePaths(environment));
+    return new HealthProbeTracingHandler(
+        ObservabilityProperties.resolve(environment).tracing().healthProbes()
+            ? HealthProbePaths.none()
+            : new HealthProbePaths(environment));
   }
 
   /**

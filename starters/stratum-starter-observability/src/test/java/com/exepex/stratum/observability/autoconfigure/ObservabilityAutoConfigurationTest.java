@@ -206,6 +206,29 @@ class ObservabilityAutoConfigurationTest {
     }
 
     @Test
+    @DisplayName("by default the probe handler takes a probe request, so probes make no span")
+    void probeHandlerTakesProbesByDefault() {
+      contextRunner.run(context -> assertThat(probeHandlerTakes(context)).isTrue());
+    }
+
+    @Test
+    @DisplayName("with health-probes=true the probe handler takes no probe request")
+    void containsNothingWhenProbesAreTraced() {
+      contextRunner
+          .withPropertyValues(ObservabilityConstants.PREFIX + ".tracing.health-probes=true")
+          .run(context -> assertThat(probeHandlerTakes(context)).isFalse());
+    }
+
+    /** Returns whether the context's probe handler takes a request received on a probe path. */
+    private boolean probeHandlerTakes(ApplicationContext context) {
+      return context
+          .getBean(HealthProbeTracingHandler.class)
+          .supportsContext(
+              ObservabilityTestData.withPath(
+                  ObservabilityTestData.receivedRequest(), ObservabilityTestData.PROBE_PATH));
+    }
+
+    @Test
     @DisplayName("a customizer declared as a bean stops startup with SX-CORE-1004")
     void customizerBeanStopsStartup() {
       contextRunner

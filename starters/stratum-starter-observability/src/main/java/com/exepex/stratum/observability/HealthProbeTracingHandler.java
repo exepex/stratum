@@ -1,6 +1,7 @@
 package com.exepex.stratum.observability;
 
 import com.exepex.stratum.core.api.StratumInternal;
+import com.exepex.stratum.core.request.HealthProbePaths;
 import io.micrometer.common.KeyValue;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationView;

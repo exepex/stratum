@@ -1,4 +1,4 @@
-package com.exepex.stratum.observability;
+package com.exepex.stratum.core.request;
 
 import com.exepex.stratum.core.api.StratumInternal;
 import java.util.List;
@@ -17,10 +17,9 @@ import org.springframework.util.StringUtils;
  * The request paths of the service's health endpoint and probes, read from Spring Boot's settings:
  * the health endpoint under its base path and mapping, each health group's additional path, and
  * {@code /livez} and {@code /readyz} when Spring Boot serves them on the main port. Each path is
- * taken behind the server's base path and behind the management port's. With {@code
- * stratum.observability.tracing.health-probes=true} there are none, so every probe is traced. Read
- * from the environment, not from actuator beans, so a service health check that needs the
- * observation registry does not close a bean cycle.
+ * taken behind the server's base path and behind the management port's. Read from the environment,
+ * not from actuator beans, so a service health check that needs the observation registry does not
+ * close a bean cycle.
  */
 @StratumInternal
 public final class HealthProbePaths {
@@ -35,10 +34,21 @@ public final class HealthProbePaths {
    * @param environment the service's environment
    */
   public HealthProbePaths(Environment environment) {
-    prefixes =
-        ObservabilityProperties.resolve(environment).tracing().healthProbes()
-            ? List.of()
-            : probePaths(environment);
+    prefixes = probePaths(environment);
+  }
+
+  /** Holds no path, for a module that treats probes like any other request. */
+  private HealthProbePaths() {
+    prefixes = List.of();
+  }
+
+  /**
+   * Returns paths that contain nothing, so every request, probes included, is handled alike.
+   *
+   * @return the empty paths
+   */
+  public static HealthProbePaths none() {
+    return new HealthProbePaths();
   }
 
   /**
@@ -59,16 +69,16 @@ public final class HealthProbePaths {
   private List<String> probePaths(Environment environment) {
     var binder = Binder.get(environment);
     var endpoints =
-        binder.bindOrCreate(ObservabilityConstants.WEB_ENDPOINTS, WebEndpointProperties.class);
+        binder.bindOrCreate(HealthProbeConstants.WEB_ENDPOINTS, WebEndpointProperties.class);
     var health =
-        binder.bindOrCreate(ObservabilityConstants.HEALTH_ENDPOINT, HealthEndpointProperties.class);
+        binder.bindOrCreate(HealthProbeConstants.HEALTH_ENDPOINT, HealthEndpointProperties.class);
     var serverBase =
         basePath(
             environment.getProperty(
-                ObservabilityConstants.SERVLET_CONTEXT_PATH,
-                environment.getProperty(ObservabilityConstants.WEBFLUX_BASE_PATH, "")));
+                HealthProbeConstants.SERVLET_CONTEXT_PATH,
+                environment.getProperty(HealthProbeConstants.WEBFLUX_BASE_PATH, "")));
     var managementBase =
-        basePath(environment.getProperty(ObservabilityConstants.MANAGEMENT_BASE_PATH, ""));
+        basePath(environment.getProperty(HealthProbeConstants.MANAGEMENT_BASE_PATH, ""));
     var healthPath =
         endpoints.getBasePath()
             + SLASH
@@ -76,12 +86,12 @@ public final class HealthProbePaths {
                 endpoints
                     .getPathMapping()
                     .getOrDefault(
-                        ObservabilityConstants.HEALTH_ENDPOINT_ID,
-                        ObservabilityConstants.HEALTH_ENDPOINT_ID),
+                        HealthProbeConstants.HEALTH_ENDPOINT_ID,
+                        HealthProbeConstants.HEALTH_ENDPOINT_ID),
                 SLASH);
     var probePaths =
-        Boolean.parseBoolean(environment.getProperty(ObservabilityConstants.PROBE_ADDITIONAL_PATHS))
-            ? ObservabilityConstants.PROBE_PATHS.stream().map(serverBase::concat)
+        Boolean.parseBoolean(environment.getProperty(HealthProbeConstants.PROBE_ADDITIONAL_PATHS))
+            ? HealthProbeConstants.PROBE_PATHS.stream().map(serverBase::concat)
             : Stream.<String>empty();
     var groupPaths =
         health.getGroup().values().stream()
