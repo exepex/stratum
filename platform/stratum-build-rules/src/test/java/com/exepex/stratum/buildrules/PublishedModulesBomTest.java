@@ -25,21 +25,11 @@ class PublishedModulesBomTest {
   @DisplayName("in this repository")
   class InThisRepository {
 
-    /**
-     * The repository's root: Surefire runs this module's tests in its own directory, which is two
-     * levels below the root.
-     */
-    private static final Path ROOT =
-        Path.of(System.getProperty("basedir", System.getProperty("user.dir")))
-            .resolve("../..")
-            .normalize();
-
     @Test
     @DisplayName("the BOM and the published modules match")
     void match() {
-      assertThat(ROOT.resolve("platform/stratum-build-rules")).isDirectory();
-      assertThat(new BomCheck(ROOT, ROOT.resolve("platform/stratum-bom/pom.xml")).problems())
-          .isEmpty();
+      assertThat(BomCheck.REPOSITORY_ROOT.resolve("platform/stratum-build-rules")).isDirectory();
+      assertThat(BomCheck.ofRepository().problems()).isEmpty();
     }
   }
 

@@ -29,6 +29,15 @@ import org.xml.sax.SAXException;
  */
 record BomCheck(Path root, Path bom) {
 
+  /**
+   * The repository's root, for the tests that read this repository's POMs: Surefire runs this
+   * module's tests in its own directory, which is two levels below the root.
+   */
+  static final Path REPOSITORY_ROOT =
+      Path.of(System.getProperty("basedir", System.getProperty("user.dir")))
+          .resolve("../..")
+          .normalize();
+
   /** The group of every Stratum module; the BOM's other entries are third-party libraries. */
   static final String STRATUM_GROUP = "io.github.exepex.stratum";
 
@@ -97,13 +106,34 @@ record BomCheck(Path root, Path bom) {
         .anyMatch(skip -> "true".equals(text(skip)));
   }
 
-  /** Returns the root element of the {@code pom.xml} in {@code directory}. */
-  private Element pom(Path directory) {
+  /**
+   * Returns the {@link BomCheck} of this repository's {@code stratum-bom}, which also reads any of
+   * its POMs.
+   *
+   * @return the check
+   */
+  static BomCheck ofRepository() {
+    return new BomCheck(REPOSITORY_ROOT, REPOSITORY_ROOT.resolve("platform/stratum-bom/pom.xml"));
+  }
+
+  /**
+   * Returns the root element of the {@code pom.xml} in {@code directory}, parsed with DOCTYPE
+   * declarations refused.
+   *
+   * @param directory the module's directory
+   * @return the project element
+   */
+  Element pom(Path directory) {
     return parse(directory.resolve("pom.xml"));
   }
 
-  /** Returns the {@code <artifactId>} of a module's project element or of a BOM dependency. */
-  private String artifactId(Element projectOrDependency) {
+  /**
+   * Returns the {@code <artifactId>} of a module's project element or of a dependency.
+   *
+   * @param projectOrDependency the element
+   * @return its artifactId
+   */
+  String artifactId(Element projectOrDependency) {
     return text(child(projectOrDependency, "artifactId"));
   }
 
@@ -123,24 +153,41 @@ record BomCheck(Path root, Path bom) {
     }
   }
 
-  /** Returns the first child element of {@code parent} named {@code name}. */
-  private Element child(Element parent, String name) {
+  /**
+   * Returns the first child element of {@code parent} named {@code name}.
+   *
+   * @param parent the element
+   * @param name the child's name
+   * @return the child
+   */
+  Element child(Element parent, String name) {
     return children(parent, name)
         .findFirst()
         .orElseThrow(
             () -> new IllegalStateException("No <" + name + "> in <" + parent.getTagName() + ">"));
   }
 
-  /** Returns the child elements of {@code parent} named {@code name}, in document order. */
-  private Stream<Element> children(Element parent, String name) {
+  /**
+   * Returns the child elements of {@code parent} named {@code name}, in document order.
+   *
+   * @param parent the element
+   * @param name the children's name
+   * @return the children
+   */
+  Stream<Element> children(Element parent, String name) {
     return Stream.iterate(parent.getFirstChild(), Objects::nonNull, Node::getNextSibling)
         .filter(Element.class::isInstance)
         .map(Element.class::cast)
         .filter(element -> name.equals(element.getTagName()));
   }
 
-  /** Returns the trimmed text of {@code element}. */
-  private String text(Element element) {
+  /**
+   * Returns the trimmed text of {@code element}.
+   *
+   * @param element the element
+   * @return its text
+   */
+  String text(Element element) {
     return element.getTextContent().trim();
   }
 }

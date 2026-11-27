@@ -37,7 +37,9 @@ public class RequestBodyLimits {
     this.defaultLimit =
         Optional.ofNullable(bodyLimit.defaultLimit())
             .orElse(backwardCompatible ? DataSize.ofBytes(0) : STANDARD_BODY_LIMIT);
-    this.routeLimits = new RouteValues<>(WebConstants.BODY_LIMIT_ROUTES, bodyLimit.routes());
+    this.routeLimits =
+        new RouteValues<>(
+            WebConstants.BODY_LIMIT_ROUTES, bodyLimit.routes(), WebErrorCode.INVALID_PATH_PATTERN);
   }
 
   /**

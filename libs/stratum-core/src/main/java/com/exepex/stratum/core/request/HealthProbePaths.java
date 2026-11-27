@@ -1,11 +1,13 @@
 package com.exepex.stratum.core.request;
 
 import com.exepex.stratum.core.api.StratumInternal;
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import org.springframework.boot.actuate.autoconfigure.endpoint.web.WebEndpointProperties;
+import org.springframework.boot.actuate.autoconfigure.web.server.ManagementPortType;
 import org.springframework.boot.actuate.endpoint.web.WebServerNamespace;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.boot.health.actuate.endpoint.AdditionalHealthEndpointPath;
@@ -19,7 +21,8 @@ import org.springframework.util.StringUtils;
  * {@code /livez} and {@code /readyz} when Spring Boot serves them on the main port. Each path is
  * taken behind the server's base path and behind the management port's. Read from the environment,
  * not from actuator beans, so a service health check that needs the observation registry does not
- * close a bean cycle.
+ * close a bean cycle. {@link #onMainPort} instead holds the paths within the application that the
+ * main port serves to actuator, for a module that must never count them.
  */
 @StratumInternal
 public final class HealthProbePaths {
@@ -42,6 +45,12 @@ public final class HealthProbePaths {
     prefixes = List.of();
   }
 
+  /** Reads the paths within the application that the main port serves to actuator. */
+  private HealthProbePaths(
+      Environment environment, String servletPath, Collection<String> actuatorEndpointPaths) {
+    prefixes = mainPortPaths(environment, servletPath, actuatorEndpointPaths);
+  }
+
   /**
    * Returns paths that contain nothing, so every request, probes included, is handled alike.
    *
@@ -49,6 +58,26 @@ public final class HealthProbePaths {
    */
   public static HealthProbePaths none() {
     return new HealthProbePaths();
+  }
+
+  /**
+   * Returns the paths within the application, without its context path, that the main port serves
+   * to actuator: each health group's {@code server:} path, {@code /livez} and {@code /readyz} when
+   * Spring Boot serves them there, and, when actuator shares the main port, the health endpoint,
+   * the endpoints' base path with its discovery page, and each given endpoint's path, each behind
+   * Spring MVC's servlet path, which serves them all. A path that is empty or {@code /}, such as
+   * the root base path, is left out, so it never holds every request.
+   *
+   * @param environment the service's environment
+   * @param servletPath the path of Spring MVC's dispatcher servlet, such as {@code /mvc}; empty for
+   *     the default {@code /}
+   * @param actuatorEndpointPaths the path of each endpoint actuator serves, such as {@code
+   *     /actuator/info}; empty without actuator
+   * @return the paths
+   */
+  public static HealthProbePaths onMainPort(
+      Environment environment, String servletPath, Collection<String> actuatorEndpointPaths) {
+    return new HealthProbePaths(environment, servletPath, actuatorEndpointPaths);
   }
 
   /**
@@ -68,10 +97,6 @@ public final class HealthProbePaths {
   /** Returns every probe path, each behind the server's and the management port's base path. */
   private List<String> probePaths(Environment environment) {
     var binder = Binder.get(environment);
-    var endpoints =
-        binder.bindOrCreate(HealthProbeConstants.WEB_ENDPOINTS, WebEndpointProperties.class);
-    var health =
-        binder.bindOrCreate(HealthProbeConstants.HEALTH_ENDPOINT, HealthEndpointProperties.class);
     var serverBase =
         basePath(
             environment.getProperty(
@@ -79,25 +104,10 @@ public final class HealthProbePaths {
                 environment.getProperty(HealthProbeConstants.WEBFLUX_BASE_PATH, "")));
     var managementBase =
         basePath(environment.getProperty(HealthProbeConstants.MANAGEMENT_BASE_PATH, ""));
-    var healthPath =
-        endpoints.getBasePath()
-            + SLASH
-            + StringUtils.trimLeadingCharacter(
-                endpoints
-                    .getPathMapping()
-                    .getOrDefault(
-                        HealthProbeConstants.HEALTH_ENDPOINT_ID,
-                        HealthProbeConstants.HEALTH_ENDPOINT_ID),
-                SLASH);
-    var probePaths =
-        Boolean.parseBoolean(environment.getProperty(HealthProbeConstants.PROBE_ADDITIONAL_PATHS))
-            ? HealthProbeConstants.PROBE_PATHS.stream().map(serverBase::concat)
-            : Stream.<String>empty();
+    var healthPath = healthPath(webEndpoints(binder));
+    var probePaths = mainPortProbePaths(environment).map(serverBase::concat);
     var groupPaths =
-        health.getGroup().values().stream()
-            .map(HealthEndpointProperties.Group::getAdditionalPath)
-            .filter(Objects::nonNull)
-            .map(AdditionalHealthEndpointPath::from)
+        groupPaths(binder)
             .map(
                 path ->
                     (path.hasNamespace(WebServerNamespace.MANAGEMENT) ? managementBase : serverBase)
@@ -107,6 +117,72 @@ public final class HealthProbePaths {
         .flatMap(Function.identity())
         .distinct()
         .toList();
+  }
+
+  /**
+   * Returns the main port's actuator paths within the application, leaving out the management
+   * port's group paths and, when actuator has its own port, every actuator path. The empty and root
+   * paths are left out before the servlet path comes first, so the servlet path alone never holds
+   * every request.
+   */
+  private List<String> mainPortPaths(
+      Environment environment, String servletPath, Collection<String> actuatorEndpointPaths) {
+    var binder = Binder.get(environment);
+    var endpoints = webEndpoints(binder);
+    var groupPaths =
+        groupPaths(binder)
+            .filter(path -> !path.hasNamespace(WebServerNamespace.MANAGEMENT))
+            .map(AdditionalHealthEndpointPath::getValue);
+    var actuatorPaths =
+        ManagementPortType.get(environment) == ManagementPortType.SAME
+            ? Stream.concat(
+                Stream.of(healthPath(endpoints), endpoints.getBasePath()),
+                actuatorEndpointPaths.stream())
+            : Stream.<String>empty();
+    return Stream.of(mainPortProbePaths(environment), groupPaths, actuatorPaths)
+        .flatMap(Function.identity())
+        .filter(path -> !path.isEmpty() && !path.equals(String.valueOf(SLASH)))
+        .map(servletPath::concat)
+        .distinct()
+        .toList();
+  }
+
+  /** Returns Spring Boot's settings of the actuator endpoints served over HTTP. */
+  private WebEndpointProperties webEndpoints(Binder binder) {
+    return binder.bindOrCreate(HealthProbeConstants.WEB_ENDPOINTS, WebEndpointProperties.class);
+  }
+
+  /** Returns the health endpoint's path: the endpoints' base path and the health mapping. */
+  private String healthPath(WebEndpointProperties endpoints) {
+    return endpoints.getBasePath()
+        + SLASH
+        + StringUtils.trimLeadingCharacter(
+            endpoints
+                .getPathMapping()
+                .getOrDefault(
+                    HealthProbeConstants.HEALTH_ENDPOINT_ID,
+                    HealthProbeConstants.HEALTH_ENDPOINT_ID),
+            SLASH);
+  }
+
+  /** Returns {@code /livez} and {@code /readyz} when Spring Boot serves them on the main port. */
+  private Stream<String> mainPortProbePaths(Environment environment) {
+    return Boolean.parseBoolean(
+            environment.getProperty(HealthProbeConstants.PROBE_ADDITIONAL_PATHS))
+        ? HealthProbeConstants.PROBE_PATHS.stream()
+        : Stream.empty();
+  }
+
+  /** Returns the additional path of each health group that has one. */
+  private Stream<AdditionalHealthEndpointPath> groupPaths(Binder binder) {
+    return binder
+        .bindOrCreate(HealthProbeConstants.HEALTH_ENDPOINT, HealthEndpointProperties.class)
+        .getGroup()
+        .values()
+        .stream()
+        .map(HealthEndpointProperties.Group::getAdditionalPath)
+        .filter(Objects::nonNull)
+        .map(AdditionalHealthEndpointPath::from);
   }
 
   /**

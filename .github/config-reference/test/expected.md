@@ -29,6 +29,8 @@ the Spring Boot keys the module gives a default. How to set a key is in
   - [`stratum.data`](#stratumdata)
 - [Cache](#cache)
   - [`stratum.cache`](#stratumcache)
+- [Resilience](#resilience)
+  - [`stratum.resilience`](#stratumresilience)
 
 ## Shared properties
 
@@ -113,3 +115,13 @@ Module page: [Cache → Properties](../modules/cache.md#properties).
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `stratum.cache.enabled` | `Boolean` | `true` | Whether the module is on. |
+
+## Resilience
+
+Module page: [Resilience → Properties](../modules/resilience.md#properties).
+
+### `stratum.resilience`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `stratum.resilience.enabled` | `Boolean` | `true` | Whether the module is on. |

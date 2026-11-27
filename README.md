@@ -24,7 +24,8 @@ Add a starter. Set a few properties. Write only business code.
 
 > [!IMPORTANT]
 > **Stratum is under construction.** The parent, the BOM, the web, cache, logging and observability
-> modules are built, and the data and HTTP client modules are partly built. This README and the
+> modules are built, and the data, HTTP client and resilience modules are partly built: the resilience
+> module has Spring MVC's per-route concurrency limits. This README and the
 > [documentation](docs/README.md) also describe modules that are not built yet. The latest release,
 > 0.2.0, is on Maven Central ([release notes](docs/releases/0.2.0.md)). Everything marked
 > **Planned** is the design target and may change. The Maven `groupId` is
@@ -158,7 +159,7 @@ Your service already has a parent, such as your company's? Import the Stratum BO
 [Installation](docs/getting-started/installation.md).
 
 **2. There is no step 2 in the `pom.xml`.** The parent brings the
-[microservice bundle](#bundles) (web MVC, logging, observability, HTTP client and cache) and the test
+[microservice bundle](#bundles) (web MVC, logging, observability, HTTP client, cache and resilience) and the test
 libraries `stratum-test` and `spring-boot-starter-test`. Each module is on as soon as its starter is on
 the classpath. To add a starter, declare it with no `<version>`; to leave a bundled one out, see
 [Stratum as your parent POM](docs/getting-started/with-stratum-parent.md#leave-a-bundled-starter-out).
@@ -232,16 +233,17 @@ One dependency per kind of application; each lists only the single starters that
 `stratum-microservice-parent` brings the microservice bundle, so a service on it does not declare it
 ([ADR 0024](docs/adr/0024-bundles-parents-and-module-switches.md)).
 
-A bundle lists only single starters that have code. The security, resilience, data-jpa and
-jdbc starters join no bundle until they are built. The microservice bundle's cache starter caches
+A bundle lists only single starters that have code. The security, data-jpa and jdbc starters join no
+bundle until they are built. The Spring MVC bundles bring the resilience starter, whose limits are off
+until the service sets a route ([Resilience](docs/modules/resilience.md)). The microservice bundle's cache starter caches
 `@Cacheable` methods in bounded Caffeine caches, or in Redis once the service adds it
 ([Cache](docs/modules/cache.md)).
 
 | Bundle | Single starters it adds |
 | --- | --- |
-| `stratum-starter-microservice` | webmvc, logging, observability, http-client, cache |
+| `stratum-starter-microservice` | webmvc, logging, observability, http-client, cache, resilience |
 | `stratum-starter-reactive-microservice` | webflux, logging, observability |
-| `stratum-starter-web-ui` | webmvc, logging, observability |
+| `stratum-starter-web-ui` | webmvc, logging, observability, resilience |
 | `stratum-starter-batch` | logging, observability |
 | `stratum-starter-cli` | logging |
 
@@ -259,7 +261,7 @@ Every starter's module is on when the starter is on the classpath. A service tur
 | [`stratum-starter-security`](docs/modules/security.md) | OAuth2 resource server: JWT validation, roles, public paths, CORS. | `stratum.security` |
 | [`stratum-starter-oauth2-client`](docs/modules/oauth2-client.md) | Spring Security's OAuth2 client, without its web lock-down, for the service's own token on an HTTP client's calls. | none; Spring's `spring.security.oauth2.client` |
 | [`stratum-starter-http-client`](docs/modules/http-client.md) | Clients of other services as `@StratumClient` interfaces, each with its own timeouts, bounded connection pool, retries, circuit breaker and tokens and trace headers. | `stratum.http-client` |
-| [`stratum-starter-resilience`](docs/modules/resilience.md) | Named retry, circuit breaker, bulkhead and time limit policies. | `stratum.resilience` |
+| [`stratum-starter-resilience`](docs/modules/resilience.md) | Per-route concurrency limits for Spring MVC requests, off until a route is set: a request over its route's limit gets 503 and `Retry-After` at once. WebFlux, listener pausing and outgoing policies are planned. | `stratum.resilience` |
 | [`stratum-starter-data-jpa`](docs/modules/data-jpa.md) | Spring Data JPA with safe defaults for the connection pool, Hibernate and transactions, and database errors that carry no data values. | `stratum.data` |
 | [`stratum-starter-jdbc`](docs/modules/jdbc.md) | Plain JDBC (`JdbcClient`, `JdbcTemplate`) with the same safe defaults for the connection pool and transactions, and database errors that carry no data values, with no ORM. | `stratum.data` |
 | [`stratum-starter-cache`](docs/modules/cache.md) | Spring's caching switched on, with a time to live, a service key prefix, statistics, short timeouts, SCAN clears, key and value size limits and plain JSON values for Redis, and bounded, expiring Caffeine caches; cached calls keep working when Redis is down. | `stratum.cache` |

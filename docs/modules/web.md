@@ -115,7 +115,8 @@ time or body size limit. A new service leaves it unset, at `false`. See
 - **`StratumException` with your own code:** you map each code to an HTTP status in
   `stratum.web.error.statuses`. A code with no status is answered with `500` and logged, so a
   missing mapping shows up in testing. A Stratum starter can give its own codes a default status
-  there, such as the HTTP client's `SX-HTTPC-0001: 504`; your value wins. Your existing exceptions can implement
+  there, such as the HTTP client's `SX-HTTPC-0001: 504` or the resilience starter's
+  `SX-RESILIENCE-0001: 503`, a request refused while its route was full; your value wins. Your existing exceptions can implement
   [`FailureWithErrorCode`](../guides/error-codes.md#existing-exceptions-a-migration-path) to be
   answered the same way while you move them to `StratumException`. That changes what their
   consumers get, even in backward-compatible mode; see
@@ -355,7 +356,7 @@ it is listed in [Configuration reference](../configuration/reference.md) and exp
 | Property | Type | Stratum's default | Spring Boot's default | Description |
 | --- | --- | --- | --- | --- |
 | `stratum.web.enabled` | boolean | `true` | no such key | Whether the module is on. With `false`, the starter sets up nothing of its own. |
-| `stratum.web.error.statuses` | map of code to status | empty | no such key | The HTTP status of each of your error codes, such as `ORD-0001: 409`. It also changes the status of a Stratum code, such as `SX-WEB-1011`, whose default is `409` (see [Database failures](web-database-errors.md)), or `SX-WEB-1007`, a request that ran out of time, whose default is `503` (see [Response timeouts](web-timeouts.md)). |
+| `stratum.web.error.statuses` | map of code to status | empty | no such key | The HTTP status of each of your error codes, such as `ORD-0001: 409`. It also changes the status of a Stratum code, such as `SX-WEB-1011`, whose default is `409` (see [Database failures](web-database-errors.md)), or `SX-WEB-1007`, a request that ran out of time, whose default is `503` (see [Response timeouts](web-timeouts.md)). Other starters add defaults below yours: the HTTP client's codes ([errors](http-client-errors.md)) and the resilience starter's `SX-RESILIENCE-0001: 503` ([Resilience](resilience.md)). |
 | `stratum.web.correlation.accept-from-caller` | boolean | `true` | no such key | Whether a caller's `X-Correlation-Id`, or the `correlationId` in its baggage, is used. Set it to `false` on a service that faces the internet, to always use the trace ID. |
 | `stratum.web.client-ip.trusted-proxies` | list of address ranges | `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `127.0.0.0/8`, `::1/128`, `fc00::/7` | no such key | The load balancers and proxies whose `X-Forwarded-For` header is trusted. An empty list trusts none. |
 | `stratum.web.user-agent.parse` | boolean | `false` | no such key | Whether device, OS and browser are read from the user agent. Adds about 110 MB of memory and 3 seconds of startup. |

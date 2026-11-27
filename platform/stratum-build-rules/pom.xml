@@ -32,8 +32,10 @@
 
   <!--
     Tests for the PMD rules in stratum/pmd-lombok.xml and stratum/pmd-tests.xml, and for the one
-    exception in stratum/pmd-ruleset.xml, with PMD's own rule-test harness; and a test that
-    stratum-bom lists exactly the published modules, in name order (PublishedModulesBomTest).
+    exception in stratum/pmd-ruleset.xml, with PMD's own rule-test harness; a test that
+    stratum-bom lists exactly the published modules, in name order (PublishedModulesBomTest); a test
+    that the Spring MVC bundles list the starters bundles.md names (BundleMembersTest); and a test that
+    starters keep their optional dependencies optional (OptionalDependenciesTest).
   -->
   <dependencies>
     <dependency>

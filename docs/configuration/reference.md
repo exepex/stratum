@@ -49,6 +49,9 @@ the Spring Boot keys the module gives a default. How to set a key is in
   - [`stratum.cache`](#stratumcache)
   - [`stratum.cache.caffeine`](#stratumcachecaffeine)
   - [`stratum.cache.serialization`](#stratumcacheserialization)
+- [Resilience](#resilience)
+  - [`stratum.resilience`](#stratumresilience)
+  - [`stratum.resilience.incoming`](#stratumresilienceincoming)
 
 ## Shared properties
 
@@ -323,3 +326,20 @@ Module page: [Cache → Properties](../modules/cache.md#properties).
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `stratum.cache.serialization.allowed-packages` | `List<String>` | none | Packages whose types Redis caches read, beside the service's own packages and java, such as com.acme.shared for shared types. Each one covers its subpackages. None by default. |
+
+## Resilience
+
+Module page: [Resilience → Properties](../modules/resilience.md#properties).
+
+### `stratum.resilience`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `stratum.resilience.enabled` | `Boolean` | `true` | Whether the resilience module is on. With false, no route is limited, no request is refused and SX-RESILIENCE-0001 gets no default status in stratum.web.error.statuses. |
+
+### `stratum.resilience.incoming`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `stratum.resilience.incoming.retry-after` | `Duration` | `1s` | How long a refused caller is told to wait, in the Retry-After header, in whole seconds rounded up: from 1s to 1h. Defaults to 1s. |
+| `stratum.resilience.incoming.routes` | `Map<String, RouteLimit>` | none | The limit of each route, by path pattern within the application, such as /reports/\*\*. A request on the most specific matching route is refused with SX-RESILIENCE-0001, 503 by default, while the route already runs max-concurrent requests. Limits count per instance. No route, so no limit, by default. |

@@ -14,11 +14,104 @@
   <artifactId>stratum-starter-resilience</artifactId>
 
   <name>Stratum starter: resilience</name>
-  <description>Planned: Named retry, circuit breaker, bulkhead and time limit policies.</description>
+  <description>Per-route concurrency limits for Spring MVC requests, off until a route is set: a request over its route's limit is refused at once with 503 and Retry-After.</description>
 
-  <!-- Not built yet, so not published to Maven Central and not in stratum-bom
-       (docs/contributing.md#publishing). -->
-  <properties>
-    <skipPublishing>true</skipPublishing>
-  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>io.github.exepex.stratum</groupId>
+      <artifactId>stratum-core</artifactId>
+    </dependency>
+    <!-- The web library: the route lookup by path pattern, the key of the error statuses this
+         starter gives its default, and the marker of a failure answered without a log line. -->
+    <dependency>
+      <groupId>io.github.exepex.stratum</groupId>
+      <artifactId>stratum-web</artifactId>
+    </dependency>
+    <!-- Resilience4j's semaphore bulkhead, which admits a route's requests up to its limit and
+         refuses the rest at once. -->
+    <dependency>
+      <groupId>io.github.resilience4j</groupId>
+      <artifactId>resilience4j-bulkhead</artifactId>
+    </dependency>
+    <!-- Spring Boot's Spring MVC starter: Spring MVC, the servlet API and Spring Boot's filter
+         registration, for the servlet filter. Optional: a Spring MVC service brings it with its web
+         starter, and an application with another web stack, or none, gets no filter. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-webmvc</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <!-- Actuator's endpoint paths and health settings, so actuator and probe requests are never
+         counted. Optional: without actuator there are no such paths. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-actuator</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-health</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <!-- Micrometer, for the meters of each limited route. Optional: without it no meter is made
+         and the limits work unchanged. -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-core</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <!-- The checks and set-up that every starter's tests share. -->
+    <dependency>
+      <groupId>io.github.exepex.stratum</groupId>
+      <artifactId>stratum-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- The single starters of the microservice bundle, which this starter joins, to prove that a
+         bundle service with no route behaves as before. The web starter also answers a refusal
+         with the code's status and Stratum's body. The starter cannot depend on the bundle itself,
+         which depends on it. -->
+    <dependency>
+      <groupId>io.github.exepex.stratum</groupId>
+      <artifactId>stratum-starter-cache</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.github.exepex.stratum</groupId>
+      <artifactId>stratum-starter-http-client</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.github.exepex.stratum</groupId>
+      <artifactId>stratum-starter-logging</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.github.exepex.stratum</groupId>
+      <artifactId>stratum-starter-observability</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.github.exepex.stratum</groupId>
+      <artifactId>stratum-starter-webmvc</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Actuator's endpoints, health probes and meter registry, to prove that their paths are never
+         counted and that the meters are recorded. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Spring WebFlux, to prove that a reactive application with routes stops at startup. -->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-webflux</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
 </project>

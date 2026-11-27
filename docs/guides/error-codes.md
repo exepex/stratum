@@ -339,6 +339,19 @@ startup. Each is used only while the module is on, which it is unless `stratum.h
 | `SX-HTTPC-1009` | A `@StratumOperation` name is not lowercase letters, digits and hyphens, so it cannot be a part of `stratum.http-client.clients.<name>.operations.<operation>`, or two methods of one client's interfaces carry the same name. The message names the interface and the method. | Give each operation of the client its own name, such as `list-orders`, and rename its settings with it. See [HTTP client: errors](../modules/http-client-errors.md#your-own-code-for-an-error-status). |
 | `SX-HTTPC-1010` | A client's `stratum.http-client.clients.<name>.operations` names an operation that no method of the client's interfaces carries in `@StratumOperation`, or `stratum.http-client.defaults.operations` is set. The message names the key. | Mark the method with `@StratumOperation` and that name, or correct the name in the setting; set `operations` for a client only. See [HTTP client: errors](../modules/http-client-errors.md#your-own-code-for-an-error-status). |
 
+## stratum-starter-resilience
+
+`SX-RESILIENCE-0001` is a request your service refused, and your caller gets the status shown, a default in
+`stratum.web.error.statuses` that you can change. The codes from `SX-RESILIENCE-1001` stop the application at startup.
+Each is used only while the module is on, which it is unless `stratum.resilience.enabled=false`. See
+[Resilience](../modules/resilience.md).
+
+| Code | Meaning | Fix |
+| --- | --- | --- |
+| `SX-RESILIENCE-0001` | `503`, with a `Retry-After` header. Your service refused the request at once, without running it: its route, set in `stratum.resilience.incoming.routes`, already had `max-concurrent` requests in progress on this instance. No log line is written while the code has a status; the request log line records the status, and `stratum.resilience.requests.refused` counts it. | Nothing failed. If the route refuses too often, look at why its requests are slow, add instances, or raise its `max-concurrent`. See [Resilience](../modules/resilience.md). |
+| `SX-RESILIENCE-1001` | A route of `stratum.resilience.incoming.routes` is not a valid Spring path pattern, such as `/api/{id` or `/api/**/orders`. The message names the key, the pattern and Spring's reason. | Correct the pattern, or remove the route, or turn the module off with `stratum.resilience.enabled=false`. Spring's path patterns allow {name}, * and **, and ** only at the end. |
+| `SX-RESILIENCE-1002` | `stratum.resilience.incoming.routes` is set in a reactive (WebFlux) application, where the limits do not work yet; WebFlux is planned in [issue #420](https://github.com/exepex/stratum/issues/420). The message names the key and the number of routes. | Remove the routes from `stratum.resilience.incoming.routes`, or turn the module off with `stratum.resilience.enabled=false`. |
+
 ## stratum-starter-webmvc and stratum-starter-webflux
 
 These apply only while the module is on, which it is unless `stratum.web.enabled=false`. A caller gets all but `SX-WEB-1006` and `SX-WEB-1009` in the error

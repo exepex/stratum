@@ -104,7 +104,7 @@ or fully off.
 | Type | Write it as | Examples |
 | --- | --- | --- |
 | Boolean | `true` or `false` | `stratum.cache.enabled=false` |
-| Number | Digits | `stratum.resilience.policies.default.retry.max-attempts=3` |
+| Number | Digits | `stratum.resilience.incoming.routes[/reports/**].max-concurrent=10` |
 | Text | As is; quote in YAML if it contains `:` or `#` | `stratum.web.client-location.database=/data/geoip/GeoLite2-City.mmdb` |
 | Duration | Number plus unit: `ms`, `s`, `m`, `h`, `d` | `500ms`, `5s`, `10m`, `1h` |
 | Data size | Number plus unit: `B`, `KB`, `MB`, `GB` | `256KB`, `10MB` |

@@ -87,7 +87,8 @@ public final class RequestLogWriter {
             WebConstants.REQUEST_LOG_SKIP_PATHS,
             requestLog.skipPaths().stream()
                 .distinct()
-                .collect(Collectors.toMap(Function.identity(), skipPath -> Boolean.TRUE)));
+                .collect(Collectors.toMap(Function.identity(), skipPath -> Boolean.TRUE)),
+            WebErrorCode.INVALID_PATH_PATTERN);
     this.requestHeaderFields = allowedOnly(requestLog.requestHeaders(), deniedHeaders);
     this.responseHeaderFields = allowedOnly(requestLog.responseHeaders(), deniedHeaders);
     this.tokenPayload = requestLog.tokenPayload();

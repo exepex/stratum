@@ -125,6 +125,7 @@ Each module page follows the same layout so you always know where to look:
 | [ADR 0032: The HTTP client's call log, meters and spans](adr/0032-http-client-call-log-and-meters.md) | One line per failed call, with the masked `url` only while the logging starter's redaction runs; templates only in tags and span names; Stratum's own meters per client. |
 | [ADR 0033: HTTP client starters on Spring HTTP interfaces, with one settings block per client](adr/0033-http-client-starters-and-settings.md) | Each client is a `@StratumClient` interface with its own `stratum.http-client.clients.<name>` block; every key with its default and range; `RestClient` and `RestTemplate` beans per client; clients Stratum did not build; mocks. |
 | [ADR 0034: HTTP client auth, retries, circuit breaker and connections](adr/0034-http-client-auth-resilience-and-connections.md) | One kind of `auth` per client, token relay only after Spring Security's resource server verified the token; Resilience4j as the only retry layer with fixed rules; one breaker per client; bounded pools. |
+| [ADR 0035: Incoming resilience: per-route concurrency limits on Spring MVC](adr/0035-incoming-resilience-per-route-concurrency-limits.md) | A limit per route, off by default, held for the whole request; a refusal gets `503` and `Retry-After` through the web starter, with no log line; actuator and probe paths never counted; Spring MVC only, WebFlux parked in #420; joins the Spring MVC bundles. |
 
 ## Contributing
 

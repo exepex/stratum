@@ -99,20 +99,21 @@ public class ErrorResponseFactory {
    * Returns the body of a failure that carries an error code, a {@link StratumException} or an
    * exception that implements {@link FailureWithErrorCode}, itself or as a cause of the failure,
    * with the status mapped to its code, and logs it once: a 5xx at ERROR with its stack trace, a
-   * 4xx at WARN with its code and message. A warning code, which is never thrown, gets 500 and
-   * {@code SX-WEB-1005}. With {@code stratum.backward-compatible=false}, a failure with no code
-   * whose causes show a busy database or a data conflict gets {@code SX-WEB-1010} and 503, or
-   * {@code SX-WEB-1011} and 409, unless the code is mapped, and is logged once with its stack
-   * trace, a 409 at WARN. Each web stack calls it for a cause only when Spring has no status of its
-   * own for the failure, so a wrapper such as {@code ResponseStatusException} keeps its status. A
-   * chain of causes that loops back on itself is followed once.
+   * 4xx at WARN with its code and message. An {@link UnloggedFailure} whose code is mapped is not
+   * logged. A warning code, which is never thrown, gets 500 and {@code SX-WEB-1005}. With {@code
+   * stratum.backward-compatible=false}, a failure with no code whose causes show a busy database or
+   * a data conflict gets {@code SX-WEB-1010} and 503, or {@code SX-WEB-1011} and 409, unless the
+   * code is mapped, and is logged once with its stack trace, a 409 at WARN. Each web stack calls it
+   * for a cause only when Spring has no status of its own for the failure, so a wrapper such as
+   * {@code ResponseStatusException} keeps its status. A chain of causes that loops back on itself
+   * is followed once.
    *
    * @param failure what the request failed with
    * @return the body, which holds the status; empty if the failure carries no error code
    */
   public Optional<ProblemDetail> forFailureWithErrorCode(Throwable failure) {
     return FailureCauses.findFailureWithErrorCode(failure)
-        .map(codedFailure -> answerAndLog(failure, codedFailure.getReport()))
+        .map(codedFailure -> answerAndLog(failure, codedFailure))
         .or(() -> forDatabaseFailure(failure));
   }
 
@@ -228,8 +229,12 @@ public class ErrorResponseFactory {
     }
   }
 
-  /** Logs a failure with an error code once, and returns its body with the mapped status. */
-  private ProblemDetail answerAndLog(Throwable failure, ErrorReport report) {
+  /**
+   * Logs a failure with an error code once, unless it is an {@link UnloggedFailure} whose code is
+   * mapped, and returns its body with the mapped status.
+   */
+  private ProblemDetail answerAndLog(Throwable failure, FailureWithErrorCode codedFailure) {
+    var report = codedFailure.getReport();
     if (isWarning(report)) {
       var logLine = logLineOf(report, WARNING_THROWN_NOTE);
       log.error(logLine, failure);
@@ -237,8 +242,11 @@ public class ErrorResponseFactory {
     }
     var external = report.getExternal();
     var status = statusOf(external.code(), HttpStatus.INTERNAL_SERVER_ERROR);
-    var logLine =
-        logLineOf(report, statusesByCode.containsKey(external.code()) ? "" : UNMAPPED_CODE_NOTE);
+    var mapped = statusesByCode.containsKey(external.code());
+    if (mapped && codedFailure instanceof UnloggedFailure) {
+      return bodyOf(external, status);
+    }
+    var logLine = logLineOf(report, mapped ? "" : UNMAPPED_CODE_NOTE);
     if (status.is5xxServerError()) {
       log.error(logLine, failure);
     } else {

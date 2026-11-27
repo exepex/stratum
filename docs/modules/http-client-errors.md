@@ -61,7 +61,7 @@ error body and the status in the table above, as every failure with a Stratum co
 cannot be read are answered with `500` in both modes.
 
 What your service returns instead when a call fails, such as the last value it read, is your own business logic:
-catch the failure, as [resilience: use it](resilience.md#use-it) shows. The resilience starter is **Planned**. Do not
+catch the failure, as [resilience: when a call fails](resilience.md#when-a-call-to-another-service-fails) shows. Do not
 add a second retry layer, such as Resilience4j's `@Retry`, around a client: the client already retries
 ([ADR 0034](../adr/0034-http-client-auth-resilience-and-connections.md), decision 2.1).
 

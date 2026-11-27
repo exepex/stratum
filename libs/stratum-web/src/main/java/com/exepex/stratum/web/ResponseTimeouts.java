@@ -54,7 +54,9 @@ public class ResponseTimeouts implements AutoCloseable {
     this.defaultLimit =
         Optional.ofNullable(timeout.defaultLimit())
             .orElse(backwardCompatible ? Duration.ZERO : STANDARD_TIMEOUT);
-    this.routeLimits = new RouteValues<>(WebConstants.TIMEOUT_ROUTES, timeout.routes());
+    this.routeLimits =
+        new RouteValues<>(
+            WebConstants.TIMEOUT_ROUTES, timeout.routes(), WebErrorCode.INVALID_PATH_PATTERN);
     this.status =
         HttpStatusCode.valueOf(
             settings

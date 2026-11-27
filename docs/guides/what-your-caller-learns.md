@@ -34,6 +34,7 @@ Gateways and other client libraries have their own rules, which Stratum does not
 | Another service still answered `429`, `502`, `503` or `504` after the client's retries | `SX-HTTPC-0009` | `500` | no | yes after a `502` or `504` from a gateway in front of it |
 | Another service answered with an error status the client's `errors` maps to your own code | your code, such as `ORD-0409` | the status you give your code, else `500` | as you choose | as for `SX-HTTPC-0007` or `SX-HTTPC-0009` |
 | Your own request ran out of its time limit before its response started | `SX-WEB-1007` | `503` | yes | yes |
+| Your service refused the request: its route already had `max-concurrent` requests in progress ([Resilience](../modules/resilience.md)) | `SX-RESILIENCE-0001` | `503`, with `Retry-After` | yes | no: the request was not run |
 | The database was busy or too slow (outside [backward-compatible mode](../modules/web-compatible-mode.md)) | `SX-WEB-1010` | `503` | yes | not when its transaction was rolled back |
 | The request conflicts with the stored data (outside [backward-compatible mode](../modules/web-compatible-mode.md)) | `SX-WEB-1011` | `409` | no | no |
 | Anything else your service did not handle | `SX-WEB-1005` | `500` | no | yes |

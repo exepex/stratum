@@ -1,0 +1,9 @@
+stratum:
+  resilience:
+    incoming:
+      routes:
+        "[/reports/**]":
+          max-concurrent: 10
+        "[/exports/{id}]":
+          max-concurrent: 2
+      retry-after: 2s
