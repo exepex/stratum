@@ -43,7 +43,9 @@ class NoRouteIntegrationTest {
     await().atMost(RouteRequests.WAIT).until(() -> held.running() == REQUESTS);
     held.open();
 
-    assertThat(answers.stream().map(CompletableFuture::join)).allSatisfy(this::assertRan);
+    assertThat(answers.stream().map(CompletableFuture::join))
+        .hasSize(REQUESTS)
+        .allSatisfy(this::assertRan);
     assertThat(meterRegistry.find(ResilienceConstants.REFUSED_METER).meters()).isEmpty();
     assertThat(meterRegistry.find(ResilienceConstants.ACTIVE_METER).meters()).isEmpty();
   }

@@ -139,8 +139,10 @@ class ResiliencePropertiesTest {
     @FieldSource("BAD_LIMITS")
     @DisplayName("a route's max-concurrent stops startup, naming the key and the rule")
     void badLimitStopsStartup(String limit) {
+      var properties = Map.of(ResilienceTestData.REPORTS_MAX_CONCURRENT, limit);
+
       assertThatExceptionOfType(StratumException.class)
-          .isThrownBy(() -> resolve(Map.of(ResilienceTestData.REPORTS_MAX_CONCURRENT, limit)))
+          .isThrownBy(() -> resolve(properties))
           .withMessageStartingWith("SX-CORE-1003: ")
           .withMessageContaining("max-concurrent");
     }
@@ -149,8 +151,10 @@ class ResiliencePropertiesTest {
     @FieldSource("BAD_WAITS")
     @DisplayName("a retry-after out of 1s to 1h stops startup with retry-after-in-range")
     void badWaitStopsStartup(String wait) {
+      var properties = Map.of(ResilienceConstants.RETRY_AFTER, wait);
+
       assertThatExceptionOfType(StratumException.class)
-          .isThrownBy(() -> resolve(Map.of(ResilienceConstants.RETRY_AFTER, wait)))
+          .isThrownBy(() -> resolve(properties))
           .withMessageContaining("retry-after-in-range");
     }
   }

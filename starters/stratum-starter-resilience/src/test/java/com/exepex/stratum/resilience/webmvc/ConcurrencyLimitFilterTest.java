@@ -100,9 +100,11 @@ class ConcurrencyLimitFilterTest {
     void releasesOnFailure() throws Exception {
       var chain = mock(FilterChain.class);
       doThrow(new IllegalStateException("handler failed")).when(chain).doFilter(any(), any());
+      var filter = filter(List.of());
+      var request = get(REPORT_PATH);
 
       assertThatExceptionOfType(IllegalStateException.class)
-          .isThrownBy(() -> filter(List.of()).doFilter(get(REPORT_PATH), response, chain));
+          .isThrownBy(() -> filter.doFilter(request, response, chain));
       assertThat(reports.active()).isZero();
     }
 

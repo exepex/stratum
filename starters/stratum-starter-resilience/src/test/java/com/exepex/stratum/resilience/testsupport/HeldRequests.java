@@ -47,7 +47,7 @@ public class HeldRequests {
     mostAtOnce.accumulateAndGet(runningNow.incrementAndGet(), Math::max);
     try {
       gate.get().await(HOLD_LIMIT.toMillis(), TimeUnit.MILLISECONDS);
-    } catch (InterruptedException interrupted) {
+    } catch (InterruptedException _) {
       Thread.currentThread().interrupt();
     } finally {
       runningNow.decrementAndGet();

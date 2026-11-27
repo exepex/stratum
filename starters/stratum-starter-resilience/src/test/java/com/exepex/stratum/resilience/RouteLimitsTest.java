@@ -80,8 +80,10 @@ class RouteLimitsTest {
     @FieldSource("INVALID_PATTERNS")
     @DisplayName("startup stops with SX-RESILIENCE-1001, naming the key and the pattern")
     void stopsStartup(String pattern) {
+      var incoming = ResilienceTestData.incoming(Map.of(pattern, 1)).build();
+
       assertThatExceptionOfType(StratumException.class)
-          .isThrownBy(() -> limits(Map.of(pattern, 1)))
+          .isThrownBy(() -> new RouteLimits(incoming))
           .withMessageStartingWith(
               "SX-RESILIENCE-1001: A route of stratum.resilience.incoming.routes is not a valid"
                   + " path pattern: ")

@@ -212,8 +212,9 @@ class ExchangeRateService {
 
 ## Customize
 
-- **Your own route limits or filter:** declare a `RouteLimits` bean, or a filter registration bean named
-  `stratumConcurrencyLimitFilter`, and Stratum's backs off.
+- **Your own filter:** declare a bean named `stratumConcurrencyLimitFilter` of Spring Boot's type
+  `FilterRegistrationBean`. Stratum's filter backs off by that name, and no route is limited unless your filter
+  limits it.
 - **Another status:** set `stratum.web.error.statuses.SX-RESILIENCE-0001`, such as `429`.
 
 ## Switch it on or off

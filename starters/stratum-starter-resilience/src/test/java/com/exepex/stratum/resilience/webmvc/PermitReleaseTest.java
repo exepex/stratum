@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.exepex.stratum.resilience.LimitedRoute;
 import jakarta.servlet.AsyncEvent;
-import java.io.IOException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockAsyncContext;
@@ -29,7 +28,7 @@ class PermitReleaseTest {
 
   @Test
   @DisplayName("a timeout or an error keeps the permit; the completion after it gives it back")
-  void completionReleases() throws IOException {
+  void completionReleases() {
     route.tryAdmit();
 
     release.onTimeout(event);
@@ -42,7 +41,7 @@ class PermitReleaseTest {
 
   @Test
   @DisplayName("a second completion, as Tomcat sends after a timeout, gives nothing back")
-  void secondCompletionReleasesNothing() throws IOException {
+  void secondCompletionReleasesNothing() {
     route.tryAdmit();
     route.tryAdmit();
 
@@ -56,7 +55,7 @@ class PermitReleaseTest {
 
   @Test
   @DisplayName("a second start listens again, as the server drops its listeners then")
-  void secondStartListensAgain() throws IOException {
+  void secondStartListensAgain() {
     release.onStartAsync(event);
 
     assertThat(asyncContext.getListeners()).containsExactly(release);
