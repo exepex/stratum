@@ -59,8 +59,8 @@ order-service/
 
 **What Stratum did:** the parent set Java 25, every plugin version and the quality checks. It also
 brought the [microservice bundle](../modules/bundles.md), whose starters bring Spring MVC, Actuator,
-Micrometer, OpenTelemetry, structured logging, an HTTP client library and caching, and the test
-libraries, all at versions tested together.
+Micrometer, OpenTelemetry, structured logging, an HTTP client library, caching and per-route
+concurrency limits, off until you set a route, and the test libraries, all at versions tested together.
 
 ## Step 2: the application class
 

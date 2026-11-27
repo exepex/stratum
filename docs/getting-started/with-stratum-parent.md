@@ -73,7 +73,7 @@ There is no `<dependencies>` section. The parent brings:
 
 | Dependency | Scope | What it gives |
 | --- | --- | --- |
-| `stratum-starter-microservice` | compile | The single starters web MVC, logging, observability, HTTP client and cache ([Bundle starters](../modules/bundles.md)) |
+| `stratum-starter-microservice` | compile | The single starters web MVC, logging, observability, HTTP client, cache and resilience ([Bundle starters](../modules/bundles.md)) |
 | `stratum-test` | test | Stratum's test containers ([Testing](../modules/test.md)) |
 | `spring-boot-starter-test` | test | JUnit 5, AssertJ, Mockito and Spring Boot's test support |
 

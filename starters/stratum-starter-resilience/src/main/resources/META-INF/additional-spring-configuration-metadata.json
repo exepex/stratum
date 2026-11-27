@@ -1,0 +1,10 @@
+{
+  "properties": [
+    {
+      "name": "stratum.resilience.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether the resilience module is on. With false, no route is limited, no request is refused and SX-RESILIENCE-0001 gets no default status in stratum.web.error.statuses.",
+      "defaultValue": true
+    }
+  ]
+}

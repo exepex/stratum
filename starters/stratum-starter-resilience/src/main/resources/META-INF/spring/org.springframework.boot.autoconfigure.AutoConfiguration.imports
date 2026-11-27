@@ -1,0 +1,2 @@
+com.exepex.stratum.resilience.autoconfigure.ServletRouteLimitsAutoConfiguration
+com.exepex.stratum.resilience.autoconfigure.ReactiveRoutesAutoConfiguration

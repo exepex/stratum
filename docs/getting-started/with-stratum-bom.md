@@ -104,7 +104,7 @@ section adds back what `stratum-parent` would have given: the JDK check, `git.pr
 
   <dependencies>
     <!-- No <version>: stratum-bom manages every published Stratum module. -->
-    <!-- The microservice bundle: web MVC, logging, observability, HTTP client and cache. -->
+    <!-- The microservice bundle: web MVC, logging, observability, HTTP client, cache and resilience. -->
     <dependency>
       <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-microservice</artifactId>
@@ -237,7 +237,7 @@ itself, sets Java 25 and writes the plugin versions.
 
   <dependencies>
     <!-- No <version>: stratum-bom manages every published Stratum module. -->
-    <!-- The microservice bundle: web MVC, logging, observability, HTTP client and cache. -->
+    <!-- The microservice bundle: web MVC, logging, observability, HTTP client, cache and resilience. -->
     <dependency>
       <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-microservice</artifactId>

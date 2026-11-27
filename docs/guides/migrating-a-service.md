@@ -230,6 +230,7 @@ tests to `*IntegrationTest.java` so they run in `mvn verify`.
 | Error advice, correlation filter | `stratum-starter-webmvc` or `stratum-starter-webflux` |
 | `SecurityFilterChain`, `JwtDecoder`, converters | `stratum-starter-security` |
 | `RestTemplate` beans, interceptors, timeout config | `stratum-starter-http-client`, and the client's own `RestTemplate` or `RestClient` bean ([clients Stratum did not build](../modules/http-client-own-clients.md)) |
-| Retry loops, circuit breaker config | `stratum-starter-resilience` |
+| Retry loops, circuit breaker config | the HTTP client's own retries and breaker for calls ([retries and the circuit breaker](../modules/http-client-resilience.md)); policies for other methods are planned in `stratum-starter-resilience` |
+| Hand-written limits on how many requests an endpoint runs at once | `stratum-starter-resilience` ([Resilience](../modules/resilience.md)) |
 | PostgreSQL and Redis test containers | `stratum-test` |
 | Dozens of `<version>` tags | `stratum-microservice-parent`, `stratum-parent` or `stratum-bom` |

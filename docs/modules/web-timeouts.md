@@ -171,7 +171,9 @@ When the time is up, Stratum interrupts the request's thread, as Tomcat's stuck 
   `@ExceptionHandler` or from a filter such as Spring Security's or your own, the caller gets `503`,
   as on WebFlux. Only a response that started in time is sent as it is.
 - For a handler that returns a `Callable`, a `DeferredResult` or an `SseEmitter`, the limit ends
-  when the handler method returns. Spring's `spring.mvc.async.request-timeout` limits the rest.
+  when the handler method returns. Spring's `spring.mvc.async.request-timeout` limits the rest. On a
+  route the [resilience starter](resilience.md) limits, such a request holds its place until it
+  completes, so set `spring.mvc.async.request-timeout` there too.
 
 Stratum clears the interrupt before anything is written, because the server closes the connection
 when an interrupted thread writes to it, and before the server reuses the thread.

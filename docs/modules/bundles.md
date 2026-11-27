@@ -2,9 +2,9 @@
 
 **Status: Built as POMs, released in 0.1.0.** The five bundles are on Maven Central from version 0.1.0.
 A bundle lists only single starters that have code: the web and cache starters are built, and the logging,
-observability and HTTP client starters are partly built, as their pages say. The web starters bring
-their Spring web stack, Spring MVC or WebFlux, so a bundle starts a web server. The security,
-resilience, data-jpa and jdbc starters join no bundle until they are built.
+observability, HTTP client and resilience starters are partly built, as their pages say. The web starters
+bring their Spring web stack, Spring MVC or WebFlux, so a bundle starts a web server. The security,
+data-jpa and jdbc starters join no bundle until they are built.
 
 [← Documentation home](../README.md) · Decision record: [ADR 0024](../adr/0024-bundles-parents-and-module-switches.md)
 
@@ -23,9 +23,9 @@ classpath. A single starter never pulls in another unrelated starter.
 
 | Bundle | For | Single starters it adds |
 | --- | --- | --- |
-| `stratum-starter-microservice` | A REST service that other services call | webmvc, logging, observability, http-client, cache |
+| `stratum-starter-microservice` | A REST service that other services call | webmvc, logging, observability, http-client, cache, resilience |
 | `stratum-starter-reactive-microservice` | The same, written with WebFlux (`Mono` and `Flux`) | webflux, logging, observability; the reactive HTTP client starter joins it once built (planned) |
-| `stratum-starter-web-ui` | A server-rendered web application | webmvc, logging, observability |
+| `stratum-starter-web-ui` | A server-rendered web application | webmvc, logging, observability, resilience |
 | `stratum-starter-batch` | A batch job | logging, observability |
 | `stratum-starter-cli` | A command-line application | logging |
 

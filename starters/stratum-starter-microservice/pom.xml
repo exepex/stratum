@@ -20,7 +20,7 @@
   <artifactId>stratum-starter-microservice</artifactId>
 
   <name>Stratum bundle: microservice</name>
-  <description>Bundle for a REST microservice: web MVC, logging, observability, HTTP client and caching.</description>
+  <description>Bundle for a REST microservice: web MVC, logging, observability, HTTP client, caching and per-route concurrency limits.</description>
 
   <!-- No Java code, so Maven Central gets empty sources and Javadoc jars (root POM, stratum-release). -->
   <properties>
@@ -45,6 +45,10 @@
     <dependency>
       <groupId>io.github.exepex.stratum</groupId>
       <artifactId>stratum-starter-observability</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.github.exepex.stratum</groupId>
+      <artifactId>stratum-starter-resilience</artifactId>
     </dependency>
     <dependency>
       <groupId>io.github.exepex.stratum</groupId>

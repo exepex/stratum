@@ -129,6 +129,7 @@ whatever `spring.web.error.include-*` says.
 | Any other exception | `500` | `SX-WEB-1005`, with a fixed message |
 | A request whose response had not started within its [time limit](#timeouts) | `503`, unless `stratum.web.error.statuses` maps `SX-WEB-1007` | `SX-WEB-1007` |
 | A request whose body is larger than its [limit](#body-size-limit) | `413` | `SX-WEB-1008` |
+| A request refused because its route already ran its `max-concurrent` requests, with the [resilience starter](../../docs/modules/resilience.md) | `503`, unless `stratum.web.error.statuses` maps `SX-RESILIENCE-0001`; with `Retry-After` | `SX-RESILIENCE-0001` |
 
 The codes, with how to fix each, are in [Error and warning codes](../../docs/guides/error-codes.md#stratum-starter-webmvc-and-stratum-starter-webflux).
 
@@ -141,6 +142,9 @@ The codes, with how to fix each, are in [Error and warning codes](../../docs/gui
   testing.
 - A database failure answered with `503` or `409`: one line with its stack trace, ERROR for the
   `503` and WARN for the `409`.
+- A request the [resilience starter](../../docs/modules/resilience.md) refused: no line while
+  `SX-RESILIENCE-0001` has a status; the request log line records it. With no status, it is
+  logged as any code with no status.
 - Any other exception: Spring and Tomcat log it at ERROR with its stack trace, as without Stratum.
 - `400`, `404` and the other failures Spring answers itself are not logged, as in Spring Boot. To
   log Spring's reason, set `spring.mvc.log-resolved-exception=true`.

@@ -229,8 +229,8 @@ The workflow needs four repository secrets: `CENTRAL_TOKEN_USERNAME` and `CENTRA
 `GPG_PASSPHRASE`. It signs with the key's primary key, as Central requires.
 
 A module is published unless it sets `skipPublishing` to `true` in its `pom.xml`, which a planned
-module does; such a module is also left out of `stratum-bom`. Today these are the security,
-resilience and Kafka starters; when one gets its code, remove both. A module with no Java code, such as a bundle,
+module does; such a module is also left out of `stratum-bom`. Today these are the security and
+Kafka starters; when one gets its code, remove both. A module with no Java code, such as a bundle,
 sets the `stratum.placeholder-*.phase` properties to `package`, because Central needs a sources
 and a Javadoc jar next to every jar.
 

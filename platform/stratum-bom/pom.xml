@@ -109,6 +109,11 @@
       </dependency>
       <dependency>
         <groupId>io.github.exepex.stratum</groupId>
+        <artifactId>stratum-starter-resilience</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.github.exepex.stratum</groupId>
         <artifactId>stratum-starter-web-ui</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -146,6 +151,11 @@
         <groupId>commons-validator</groupId>
         <artifactId>commons-validator</artifactId>
         <version>${commons-validator.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.github.resilience4j</groupId>
+        <artifactId>resilience4j-bulkhead</artifactId>
+        <version>${resilience4j.version}</version>
       </dependency>
       <dependency>
         <groupId>io.github.resilience4j</groupId>

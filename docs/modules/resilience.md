@@ -1,37 +1,35 @@
 # Resilience: `stratum-starter-resilience`
 
-**Status: Planned.** Named policies for retries, circuit breakers, bulkheads and time limits, so a
-failing dependency slows one feature down instead of taking the whole service with it.
+**Status: Partly built.** The incoming part is built: a limit on how many requests each route of a Spring MVC
+service runs at once. Spring MVC only for now; WebFlux is planned in
+[issue #420](https://github.com/exepex/stratum/issues/420). Pausing message listeners while a circuit breaker is open
+is planned in [issue #421](https://github.com/exepex/stratum/issues/421). Policies for outgoing calls, such as
+retries and circuit breakers around your own methods, are **Planned**.
 
-[← Documentation home](../README.md) · Property prefix: `stratum.resilience`
+[← Documentation home](../README.md) · Property prefix: `stratum.resilience` · Decision record:
+[ADR 0035](../adr/0035-incoming-resilience-per-route-concurrency-limits.md)
 
 ## What it does
 
-| Pattern | Problem it solves | In one line |
-| --- | --- | --- |
-| **Retry** | A call fails once because of a brief network glitch | Try again a few times, waiting longer each time |
-| **Circuit breaker** | A dependency is down and every call waits for a timeout | After many failures, fail immediately for a while, then test again |
-| **Bulkhead** | One slow dependency uses up all threads | Limit how many calls to it can run at once |
-| **Time limit** | An operation takes far too long | Give up after a fixed time |
+When one endpoint gets slow, for example a report that waits on a busy database, its requests pile up. Each one
+holds a server thread, a database connection and memory, until the whole service slows down and every endpoint
+fails. A **concurrency limit** stops that: you say how many requests of a route may run at once, and the next one is
+refused at once instead of waiting. The caller gets `503 Service Unavailable` with a `Retry-After` header, which
+tells it how many seconds to wait before it sends the request again. The rest of the service keeps working.
 
-You define these as **policies** with a name in configuration and apply a policy by name to any
-method with an annotation. HTTP clients have their own retries and circuit breaker
-([ADR 0034](../adr/0034-http-client-auth-resilience-and-connections.md)). The implementation uses
-[Resilience4j](https://resilience4j.readme.io/), with Stratum's defaults and metrics.
+- Every limit is **off by default**. A service that adds the starter and sets no route behaves exactly as before:
+  no request is counted, refused or measured.
+- A **route** is a path pattern, such as `/reports/**`, as in `stratum.web.timeout.routes`. When several routes
+  match a request, the most specific one counts it.
+- A refused request **never waits** and never runs; there is no queue.
+- **Limits count per instance.** A limit of 10 on a service with 4 instances admits up to 40 requests in all.
 
-```mermaid
-stateDiagram-v2
-    [*] --> Closed
-    Closed --> Open: failure rate above threshold
-    Open --> HalfOpen: wait time elapsed
-    HalfOpen --> Closed: test calls succeed
-    HalfOpen --> Open: test calls fail
-```
-
-*Circuit breaker states: **Closed** lets calls through, **Open** rejects them at once, **Half-open**
-lets a few test calls through.*
+The limit is a [Resilience4j](https://resilience4j.readme.io/) semaphore bulkhead per route, held for the whole
+request.
 
 ## Add it
+
+The microservice and web-ui bundles bring this starter ([Bundle starters](bundles.md)). Without a bundle, add:
 
 ```xml
 <dependency>
@@ -40,15 +38,17 @@ lets a few test calls through.*
 </dependency>
 ```
 
-> [!NOTE]
-> Until this starter is built, it is not published to Maven Central or listed in `stratum-bom`, so
-> this dependency does not resolve yet ([Publishing](../contributing.md#publishing)).
+## Limit a route
 
-The starter is on as soon as it is on the classpath; no line is needed. To turn it off, set in
-`application.properties`:
+Set `max-concurrent` for each route you want to protect. The pattern is the path within your application, without
+`server.servlet.context-path`; write it in square brackets, as Spring Boot needs for a key with `/` or `*`.
+
+In `application.properties`:
 
 ```properties
-stratum.resilience.enabled=false
+stratum.resilience.incoming.routes[/reports/**].max-concurrent=10
+stratum.resilience.incoming.routes[/exports/{id}].max-concurrent=2
+stratum.resilience.incoming.retry-after=2s
 ```
 
 or in `application.yml`:
@@ -56,15 +56,136 @@ or in `application.yml`:
 ```yaml
 stratum:
   resilience:
-    enabled: false
+    incoming:
+      routes:
+        "[/reports/**]":
+          max-concurrent: 10
+        "[/exports/{id}]":
+          max-concurrent: 2
+      retry-after: 2s
 ```
 
-## Use it
+Choose the limit from what the route's slowest dependency can take: a route whose requests each hold a database
+connection should admit fewer requests than the pool has connections. Every HTTP method of the path counts against
+the same limit.
 
-**On an HTTP client:** the HTTP client starters set up their own retries and circuit breaker, with their own
-keys, and do not use this starter's policies ([ADR 0034](../adr/0034-http-client-auth-resilience-and-connections.md)). Do not put
-`@Retry` or `@CircuitBreaker` around a call of a `@StratumClient` interface: each of your attempts would run all of
-the client's own retries, and your breaker would also count the client's open-breaker refusals (`SX-HTTPC-0003`). To
+## Configure in Java
+
+Every setting on this page can also be set in Java. Write a class that implements `ResiliencePropertiesCustomizer`
+and list it in your service's `src/main/resources/META-INF/spring.factories`. A customizer is not a bean. When a
+setting is given in both a file and Java, Java wins.
+
+```java
+public class OrdersResilienceSettings implements ResiliencePropertiesCustomizer {
+
+  @Override
+  public ResilienceProperties customize(ResilienceProperties settings) {
+    var incoming = settings.incoming().toBuilder()
+        .routes(Map.of(
+            "/reports/**", RouteLimit.builder().maxConcurrent(10).build(),
+            "/exports/{id}", RouteLimit.builder().maxConcurrent(2).build()))
+        .retryAfter(Duration.ofSeconds(2))
+        .build();
+    return settings.toBuilder().incoming(incoming).build();
+  }
+}
+```
+
+```properties
+com.exepex.stratum.resilience.ResiliencePropertiesCustomizer=com.example.orders.OrdersResilienceSettings
+```
+
+The status of a refused request is a web setting: change it in a `WebPropertiesCustomizer`
+([Web](web.md)).
+
+## Properties
+
+| Property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `stratum.resilience.enabled` | boolean | `true` | Whether the module is on. With `false`, no route is limited and `SX-RESILIENCE-0001` gets no default status. |
+| `stratum.resilience.incoming.routes.<pattern>.max-concurrent` | int, 1 to 100000 | none: no route is limited | The most requests of the route that run at once, on this instance. Required for each route. |
+| `stratum.resilience.incoming.retry-after` | duration, 1s to 1h | `1s` | How long a refused caller is told to wait, in the `Retry-After` header, in whole seconds rounded up. |
+| `stratum.web.error.statuses.SX-RESILIENCE-0001` | int, 400 to 599 | `503`, given by this starter | The status of a refused request. A team that wants `429` sets it here; your value always wins. The key belongs to the [web module](web.md#properties). |
+
+A value out of range, or a pattern that is not a valid Spring path pattern (`SX-RESILIENCE-1001`), stops the
+application at startup with a message that names the key ([Error codes](../guides/error-codes.md#stratum-starter-resilience)).
+
+## What a refused caller gets
+
+With the web MVC starter, a refused request is answered by Stratum's error handling, like any failure with a code:
+
+```json
+{
+  "type": "about:blank",
+  "title": "Service Unavailable",
+  "status": 503,
+  "detail": "The service refused the request: its route already has as many requests in progress as it admits; send it again later",
+  "code": "SX-RESILIENCE-0001",
+  "severity": "ERROR",
+  "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "correlationId": "checkout-777"
+}
+```
+
+- The answer always carries `Retry-After: <seconds>`. A browser gets the HTML error page with the same status.
+- The status is the one mapped to `SX-RESILIENCE-0001`, `503` unless you set another. It stays so with
+  `spring.mvc.problemdetails.enabled=true`, with your own subclass of `ResponseEntityExceptionHandler`, and in
+  [backward-compatible mode](web-compatible-mode.md), where the limits apply too.
+- **Your own catch-all `@ExceptionHandler(Exception.class)` answers first**, as it does for every failure: the caller
+  then gets your status and body, and only the `Retry-After` header is left.
+- Without the web MVC starter, or with `stratum.web.enabled=false`, the caller gets `503` with Spring Boot's own
+  error body and the `Retry-After` header; `stratum.web.error.statuses` does not apply then.
+
+Other Stratum services that call yours honour the `503` and its `Retry-After` within their own time left
+([HTTP client: retries](http-client-resilience.md)).
+
+## What is never counted
+
+- **Actuator, on the same port as your service:** the endpoints' base path, such as `/actuator`, with its
+  discovery page and every endpoint below it, even under a route of `/**`. Your own actuator endpoints, `@Endpoint`
+  beans, are never counted either: they are read from Spring Boot's list of endpoint paths. With
+  `management.endpoints.web.base-path=/`, only each endpoint's own path is left out, such as `/health`, and `GET /`
+  is counted like any route. With actuator on its own `management.server.port`, the limit never sees its requests.
+- **Health probes on the main port:** `/livez` and `/readyz` with
+  `management.endpoint.health.probes.add-additional-paths=true`, and each health group's `server:` additional path.
+- **CORS preflight requests**, and the error and asynchronous dispatches of a request already counted.
+- **Requests Spring Security answers**, such as a `401` or `403`: the limit runs after Spring Security.
+
+## How a request is counted
+
+A request holds its place for its whole life: a plain handler until it returns, an asynchronous one, such as a
+`Callable`, `DeferredResult`, `CompletableFuture`, `SseEmitter` or `StreamingResponseBody`, until the server
+completes it, also after a timeout or an error. When the caller disconnects, the place is held until the handler's
+work ends. A request that `stratum.web.timeout` cuts off gives its place back when it is cut off; for asynchronous
+routes, also set `spring.mvc.async.request-timeout` ([Response timeouts](web-timeouts.md)).
+
+## Kinds of application
+
+| Application | What happens |
+| --- | --- |
+| Spring MVC (servlet) | The routes are limited. |
+| WebFlux (reactive) | Setting a route stops startup with `SX-RESILIENCE-1002`, as the limits do not work there yet ([#420](https://github.com/exepex/stratum/issues/420)). Without routes it starts. |
+| No web server: a listener application, a batch job, `spring.main.web-application-type=none`, `@SpringBootTest(webEnvironment = NONE)` | The routes do nothing, with no error and no warning. |
+
+## Watching it work
+
+| Meter | Type | Tags | What it shows |
+| --- | --- | --- | --- |
+| `stratum.resilience.requests.refused` | counter | `route`: the configured pattern | Requests refused because their route was full. |
+| `stratum.resilience.requests.active` | gauge | `route`: the configured pattern | Requests the route runs now. |
+
+The meters exist only for configured routes, so their number is small. A refused request writes **no log line** of
+its own while its code has a status; the [request log line](web-request-log.md) records its status. If your Java
+configuration replaces the whole status map and leaves `SX-RESILIENCE-0001` out, the caller gets `500` and one
+`ERROR` line says the code has no status. Alert on `stratum.resilience.requests.refused` rising: a route that refuses
+often is too slow or its limit too low.
+
+## When a call to another service fails
+
+The HTTP client starters set up their own retries and circuit breaker, with their own keys
+([ADR 0034](../adr/0034-http-client-auth-resilience-and-connections.md)). Do not put Resilience4j's `@Retry` or
+`@CircuitBreaker` around a call of a `@StratumClient` interface: each of your attempts would run all of the
+client's own retries, and your breaker would also count the client's open-breaker refusals (`SX-HTTPC-0003`). To
 return something else when the call fails, catch the client's failures in plain Java. Here `RatesClient` is a
 `@StratumClient` interface:
 
@@ -89,134 +210,32 @@ class ExchangeRateService {
 `StratumException` carries the client's `SX-HTTPC-` code, such as `SX-HTTPC-0003` for an open breaker, and
 `DownstreamException` is an error answer ([HTTP client: errors](http-client-errors.md)).
 
-**On any other method**, with Resilience4j's annotations; the `name` is the policy name:
+## Customize
 
-```java
-@Service
-@RequiredArgsConstructor
-class ReportService {
+- **Your own route limits or filter:** declare a `RouteLimits` bean, or a filter registration bean named
+  `stratumConcurrencyLimitFilter`, and Stratum's backs off.
+- **Another status:** set `stratum.web.error.statuses.SX-RESILIENCE-0001`, such as `429`.
 
-  private final ReportStore reportStore;
+## Switch it on or off
 
-  @CircuitBreaker(name = "reports", fallbackMethod = "emptyReport")
-  @Retry(name = "reports")
-  Report monthly(YearMonth month) {
-    return reportStore.monthly(month);
-  }
+The starter is on when it is on the classpath, but limits nothing until a route is set. Leaving
+`stratum.resilience.enabled` unset, or empty, is the same as `true`.
 
-  private Report emptyReport(YearMonth month, Throwable cause) {
-    return Report.empty(month);
-  }
-}
+```properties
+stratum.resilience.enabled=false
 ```
-
-## Retries are only safe for some operations
-
-> [!WARNING]
-> Retry only **idempotent** operations: ones that have the same effect whether they run once or
-> several times. `GET`, `PUT` and `DELETE` usually are; `POST` usually is not. Retrying "charge the
-> card" can charge the customer twice.
-
-Stratum's default policy therefore retries only `GET`, `HEAD`, `OPTIONS`, `PUT` and `DELETE` calls,
-and only on failures that are likely to be temporary: connection errors, timeouts, `502`, `503` and
-`504`. It never retries `4xx` answers.
-
-## Properties
-
-Policies live under `stratum.resilience.policies.<name>`. The `default` policy always exists;
-every other policy starts from `default` and overrides what it sets.
-
-| Property (under `stratum.resilience.policies.<name>.`) | Type | Default | Description |
-| --- | --- | --- | --- |
-| `retry.enabled` | boolean | `true` | Retries failed calls. |
-| `retry.max-attempts` | int | `3` | Total attempts, including the first. |
-| `retry.initial-backoff` | duration | `200ms` | Wait before the first retry. |
-| `retry.multiplier` | number | `2.0` | Each wait is this many times the previous one. |
-| `retry.max-backoff` | duration | `2s` | Upper limit for one wait. |
-| `retry.jitter` | number 0.0–1.0 | `0.5` | Random spread on waits, so many instances do not retry in step. |
-| `retry.retry-on-status` | list | `502`, `503`, `504` | HTTP statuses that are retried. |
-| `circuit-breaker.enabled` | boolean | `true` | Uses a circuit breaker. |
-| `circuit-breaker.failure-rate-threshold` | percent | `50` | Opens when this share of recent calls failed. |
-| `circuit-breaker.slow-call-threshold` | duration | `3s` | Calls slower than this count as slow. |
-| `circuit-breaker.slow-call-rate-threshold` | percent | `80` | Opens when this share of recent calls was slow. |
-| `circuit-breaker.sliding-window-size` | int | `50` | Number of recent calls looked at. |
-| `circuit-breaker.minimum-calls` | int | `20` | Calls needed before the rate is judged. |
-| `circuit-breaker.wait-in-open-state` | duration | `30s` | Time in Open before testing again. |
-| `circuit-breaker.half-open-calls` | int | `5` | Test calls allowed in Half-open. |
-| `bulkhead.enabled` | boolean | `false` | Limits concurrent calls. |
-| `bulkhead.max-concurrent-calls` | int | `25` | Calls allowed at once. |
-| `bulkhead.max-wait` | duration | `0ms` | Time a call waits for a free slot before being rejected. |
-| `time-limit.enabled` | boolean | `false` | Limits total time per call, including retries. |
-| `time-limit.timeout` | duration | `10s` | The limit. |
-
-| Property | Type | Default | Description |
-| --- | --- | --- | --- |
-| `stratum.resilience.enabled` | boolean | `true` | Whether the starter is on. With `false`, the starter sets up nothing. |
-
-## Examples
-
-A careful policy for payments (no retries, early circuit breaking) and a relaxed one for rates:
 
 ```yaml
 stratum:
   resilience:
-    policies:
-      payments:
-        retry:
-          enabled: false
-        circuit-breaker:
-          failure-rate-threshold: 25
-          wait-in-open-state: 60s
-        bulkhead:
-          enabled: true
-          max-concurrent-calls: 10
-      rates:
-        retry:
-          max-attempts: 5
-          max-backoff: 5s
+    enabled: false
 ```
-
-```properties
-stratum.resilience.policies.payments.retry.enabled=false
-stratum.resilience.policies.payments.circuit-breaker.failure-rate-threshold=25
-stratum.resilience.policies.payments.circuit-breaker.wait-in-open-state=60s
-stratum.resilience.policies.payments.bulkhead.enabled=true
-stratum.resilience.policies.payments.bulkhead.max-concurrent-calls=10
-stratum.resilience.policies.rates.retry.max-attempts=5
-stratum.resilience.policies.rates.retry.max-backoff=5s
-```
-
-## Watching it work
-
-Each policy publishes metrics (`resilience4j.circuitbreaker.state`, `resilience4j.retry.calls`, and
-others) tagged with the policy name, and logs every circuit breaker state change at `WARN`. Add the
-circuit breaker state to your service dashboard: an Open breaker is an early warning.
-
-## Configure in Java
-
-**Planned.** You will also be able to set every property on this page in Java code, through this module's
-customizer or builder, with the same names and defaults. This section will show how once that API is designed.
-
-## Customize
-
-- **Different failure rules:** declare a `CircuitBreakerConfigCustomizer` or `RetryConfigCustomizer`
-  bean for a policy name.
-- **Resilience4j properties:** `resilience4j.*` properties still work and win over Stratum's values
-  for the same instance name.
-
-## Switch it on or off
-
-The starter is on when it is on the classpath. Leaving `stratum.resilience.enabled` unset, or empty,
-is the same as `true`.
-
-`stratum.resilience.enabled=false` removes all policies. It does not change the HTTP clients, which have their
-own switches ([ADR 0034](../adr/0034-http-client-auth-resilience-and-connections.md)).
 
 ## Troubleshooting
 
 | Symptom | Likely cause and fix |
 | --- | --- |
-| `CallNotPermittedException` | The circuit breaker is Open. Look at why the downstream fails; do not just raise the threshold. |
-| A `POST` was not retried | Intended: `POST` is not idempotent. If your endpoint is idempotent (for example it takes an idempotency key), use the annotation on your method. |
-| Annotation has no effect | The method is called from the same class (Spring proxies are bypassed) or is `private`. Move it to another bean. |
-| Calls take much longer than the timeout | Retries multiply the time: 3 attempts × 5 s plus backoff. Use `time-limit` to cap the total. |
+| Many `503` with `SX-RESILIENCE-0001` | The route is full: its requests are slow or its limit is low. Look at `stratum.resilience.requests.active` and the route's latency before raising `max-concurrent`. |
+| A refused request gets your own status, not `503` | A catch-all `@ExceptionHandler(Exception.class)` answers it first; see [What a refused caller gets](#what-a-refused-caller-gets). |
+| Startup stops with `SX-RESILIENCE-1002` | The application is reactive; remove the routes until [#420](https://github.com/exepex/stratum/issues/420) is built. |
+| A route seems unlimited | Check the pattern is the path within the application, without the context path, and that a more specific route does not match first. |

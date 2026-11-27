@@ -80,7 +80,13 @@ final class ConfigReference {
               "Cache",
               "stratum.cache",
               "Cache → Properties",
-              "../modules/cache.md#properties"));
+              "../modules/cache.md#properties"),
+          new Module(
+              "starters/stratum-starter-resilience",
+              "Resilience",
+              "stratum.resilience",
+              "Resilience → Properties",
+              "../modules/resilience.md#properties"));
 
   /** The page's opening, up to its table of contents. */
   private static final String INTRO =

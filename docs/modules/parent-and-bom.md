@@ -41,7 +41,7 @@ used next to a company framework. The reasons are in
 The BOM manages versions of:
 
 - every Stratum module that is published to Maven Central, including the [bundle starters](bundles.md);
-  the security, resilience and Kafka starters are added when they are built. The build checks that
+  the security and Kafka starters are added when they are built. The build checks that
   these entries are exactly the published modules, in name order,
 - the extra libraries Stratum uses or recommends that Spring Boot does not manage (Resilience4j,
   cloud SDKs, and so on),
@@ -49,7 +49,7 @@ The BOM manages versions of:
   `testcontainers.image.redis`), each holding the full image, pinned and never `latest`.
 
 Today it lists Stratum's own modules, MapStruct (`mapstruct`, `mapstruct-processor` and
-`lombok-mapstruct-binding`), Resilience4j (`resilience4j-retry` and `resilience4j-circuitbreaker`),
+`lombok-mapstruct-binding`), Resilience4j (`resilience4j-bulkhead`, `resilience4j-retry` and `resilience4j-circuitbreaker`),
 `maxmind-db`, `yauaa`, `commons-validator`, ArchUnit (`archunit`) and JMH (`jmh-core` and
 `jmh-generator-annprocess`, for Stratum's own benchmarks). Each other extra library is added
 together with the first starter that uses it.
