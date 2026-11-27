@@ -15,9 +15,11 @@ import org.springframework.mock.env.MockEnvironment;
     "HealthProbePaths.onMainPort holds the main port's actuator paths within the application")
 class HealthProbePathsOnMainPortTest {
 
+  /** The path of the info endpoint with Spring Boot's defaults. */
+  private static final String INFO_PATH = "/actuator/info";
+
   /** The endpoint paths actuator serves with Spring Boot's defaults. */
-  private static final List<String> DEFAULT_ENDPOINT_PATHS =
-      List.of("/actuator/health", "/actuator/info");
+  private static final List<String> DEFAULT_ENDPOINT_PATHS = List.of("/actuator/health", INFO_PATH);
 
   /** The key of the endpoints' base path. */
   private static final String BASE_PATH = "management.endpoints.web.base-path";
@@ -36,7 +38,7 @@ class HealthProbePathsOnMainPortTest {
 
   /** Returns whether the path is an actuator path of the main port with the test's settings. */
   private boolean contains(Collection<String> endpointPaths, String path) {
-    return HealthProbePaths.onMainPort(environment, endpointPaths).contains(path);
+    return HealthProbePaths.onMainPort(environment, "", endpointPaths).contains(path);
   }
 
   @Nested
@@ -45,7 +47,7 @@ class HealthProbePathsOnMainPortTest {
 
     /** The discovery page, the endpoints and paths below them, all on the main port. */
     private static final List<String> ACTUATOR_PATHS =
-        List.of("/actuator", "/actuator/health", "/actuator/health/liveness", "/actuator/info");
+        List.of("/actuator", "/actuator/health", "/actuator/health/liveness", INFO_PATH);
 
     /** Paths that only start with the same letters, and service routes. */
     private static final List<String> OTHER_PATHS =
@@ -162,7 +164,42 @@ class HealthProbePathsOnMainPortTest {
     void samePortHoldsActuatorPaths() {
       environment.withProperty("server.port", "8081").setProperty("management.server.port", "8081");
 
-      assertThat(contains(DEFAULT_ENDPOINT_PATHS, "/actuator/info")).isTrue();
+      assertThat(contains(DEFAULT_ENDPOINT_PATHS, INFO_PATH)).isTrue();
+    }
+  }
+
+  @Nested
+  @DisplayName("with Spring MVC's servlet path /mvc")
+  class ServletPath {
+
+    /** Returns whether the path is held with the servlet path /mvc. */
+    private boolean containsBehindServletPath(Collection<String> endpointPaths, String path) {
+      return HealthProbePaths.onMainPort(environment, "/mvc", endpointPaths).contains(path);
+    }
+
+    @Test
+    @DisplayName("every actuator and probe path is held behind the servlet path, not without it")
+    void holdsPathsBehindServletPath() {
+      environment
+          .withProperty(PROBES_ON_MAIN_PORT, "true")
+          .setProperty(GROUP_PATH, "server:/healthz");
+
+      assertThat(containsBehindServletPath(DEFAULT_ENDPOINT_PATHS, "/mvc/actuator")).isTrue();
+      assertThat(containsBehindServletPath(DEFAULT_ENDPOINT_PATHS, "/mvc" + INFO_PATH)).isTrue();
+      assertThat(containsBehindServletPath(DEFAULT_ENDPOINT_PATHS, "/mvc/livez")).isTrue();
+      assertThat(containsBehindServletPath(DEFAULT_ENDPOINT_PATHS, "/mvc/healthz")).isTrue();
+      assertThat(containsBehindServletPath(DEFAULT_ENDPOINT_PATHS, INFO_PATH)).isFalse();
+    }
+
+    @Test
+    @DisplayName("with the root base path, the servlet path alone never holds a service route")
+    void rootBasePathKeepsServiceRoutesCounted() {
+      environment.setProperty(BASE_PATH, "/");
+      var endpointPaths = List.of("/health", "/", "");
+
+      assertThat(containsBehindServletPath(endpointPaths, "/mvc/health")).isTrue();
+      assertThat(containsBehindServletPath(endpointPaths, "/mvc/reports/1")).isFalse();
+      assertThat(containsBehindServletPath(endpointPaths, "/mvc")).isFalse();
     }
   }
 }

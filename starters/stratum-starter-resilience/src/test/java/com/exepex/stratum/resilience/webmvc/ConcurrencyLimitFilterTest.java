@@ -53,7 +53,7 @@ class ConcurrencyLimitFilterTest {
     resolvers.forEach(resolver -> beans.addBean("handlerExceptionResolver", resolver));
     return new ConcurrencyLimitFilter(
         routeLimits,
-        HealthProbePaths.onMainPort(new MockEnvironment(), List.of("/reports/health")),
+        HealthProbePaths.onMainPort(new MockEnvironment(), "", List.of("/reports/health")),
         "2",
         beans.getBeanProvider(HandlerExceptionResolver.class));
   }
@@ -149,6 +149,7 @@ class ConcurrencyLimitFilterTest {
 
       assertThat(response.getHeaders("Retry-After")).containsExactly("2");
       assertThat(resolved.get()).isInstanceOf(RequestRefusedException.class);
+      assertThat(resolved.get().getStackTrace()).isEmpty();
       assertThat(response.getStatus()).isEqualTo(HttpServletResponse.SC_OK);
       assertThat(reports.refusals()).isEqualTo(1);
       assertThat(reports.active()).isEqualTo(1);

@@ -46,8 +46,9 @@ public final class HealthProbePaths {
   }
 
   /** Reads the paths within the application that the main port serves to actuator. */
-  private HealthProbePaths(Environment environment, Collection<String> actuatorEndpointPaths) {
-    prefixes = mainPortPaths(environment, actuatorEndpointPaths);
+  private HealthProbePaths(
+      Environment environment, String servletPath, Collection<String> actuatorEndpointPaths) {
+    prefixes = mainPortPaths(environment, servletPath, actuatorEndpointPaths);
   }
 
   /**
@@ -63,18 +64,20 @@ public final class HealthProbePaths {
    * Returns the paths within the application, without its context path, that the main port serves
    * to actuator: each health group's {@code server:} path, {@code /livez} and {@code /readyz} when
    * Spring Boot serves them there, and, when actuator shares the main port, the health endpoint,
-   * the endpoints' base path with its discovery page, and each given endpoint's path. A path that
-   * is empty or {@code /}, such as the root base path, is left out, so it never holds every
-   * request.
+   * the endpoints' base path with its discovery page, and each given endpoint's path, each behind
+   * Spring MVC's servlet path, which serves them all. A path that is empty or {@code /}, such as
+   * the root base path, is left out, so it never holds every request.
    *
    * @param environment the service's environment
+   * @param servletPath the path of Spring MVC's dispatcher servlet, such as {@code /mvc}; empty for
+   *     the default {@code /}
    * @param actuatorEndpointPaths the path of each endpoint actuator serves, such as {@code
    *     /actuator/info}; empty without actuator
    * @return the paths
    */
   public static HealthProbePaths onMainPort(
-      Environment environment, Collection<String> actuatorEndpointPaths) {
-    return new HealthProbePaths(environment, actuatorEndpointPaths);
+      Environment environment, String servletPath, Collection<String> actuatorEndpointPaths) {
+    return new HealthProbePaths(environment, servletPath, actuatorEndpointPaths);
   }
 
   /**
@@ -118,10 +121,12 @@ public final class HealthProbePaths {
 
   /**
    * Returns the main port's actuator paths within the application, leaving out the management
-   * port's group paths and, when actuator has its own port, every actuator path.
+   * port's group paths and, when actuator has its own port, every actuator path. The empty and root
+   * paths are left out before the servlet path comes first, so the servlet path alone never holds
+   * every request.
    */
   private List<String> mainPortPaths(
-      Environment environment, Collection<String> actuatorEndpointPaths) {
+      Environment environment, String servletPath, Collection<String> actuatorEndpointPaths) {
     var binder = Binder.get(environment);
     var endpoints = webEndpoints(binder);
     var groupPaths =
@@ -137,6 +142,7 @@ public final class HealthProbePaths {
     return Stream.of(mainPortProbePaths(environment), groupPaths, actuatorPaths)
         .flatMap(Function.identity())
         .filter(path -> !path.isEmpty() && !path.equals(String.valueOf(SLASH)))
+        .map(servletPath::concat)
         .distinct()
         .toList();
   }

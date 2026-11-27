@@ -29,6 +29,9 @@ public class ResilienceTestData {
   /** The code of a refused request. */
   public static final String REFUSED_CODE = "SX-RESILIENCE-0001";
 
+  /** Spring Security's filter order, which the limit must run after; a test stands in for it. */
+  public static final int SPRING_SECURITY_ORDER = -100;
+
   /** The name of the tests that show a service's Java configuration wins. */
   public static final String JAVA_CONFIGURATION_WINS =
       "a customizer listed in spring.factories wins over the files";

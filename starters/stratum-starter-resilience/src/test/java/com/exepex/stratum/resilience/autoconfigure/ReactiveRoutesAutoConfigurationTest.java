@@ -12,9 +12,12 @@ import com.exepex.stratum.test.ErrorCodeChecks;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.context.annotation.ImportCandidates;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.context.runner.ReactiveWebApplicationContextRunner;
+import org.springframework.util.ClassUtils;
 
 @DisplayName("Each protection switches on only where its kind of incoming work exists")
 class ReactiveRoutesAutoConfigurationTest {
@@ -49,6 +52,35 @@ class ReactiveRoutesAutoConfigurationTest {
     }
 
     @Test
+    @DisplayName(
+        "through the starter's own AutoConfiguration.imports, routes stop startup with"
+            + " SX-RESILIENCE-1002")
+    void registeredAutoConfigurationsStopStartup() {
+      new ReactiveWebApplicationContextRunner()
+          .withConfiguration(AutoConfigurations.of(registeredResilienceAutoConfigurations()))
+          .withPropertyValues(ROUTE)
+          .run(
+              context ->
+                  assertThat(
+                          ErrorCodeChecks.startupFailureOf(
+                                  context, ResilienceErrorCode.ROUTES_IN_REACTIVE_APPLICATION)
+                              .getMessage())
+                      .contains(ResilienceConstants.INCOMING_ROUTES));
+    }
+
+    @Test
+    @DisplayName("the service's own check replaces Stratum's, so routes do not stop startup")
+    void serviceCheck() {
+      var serviceCheck = new ReactiveRoutesCheck(ResilienceTestData.defaults());
+      contextRunner
+          .withPropertyValues(ROUTE)
+          .withBean(ReactiveRoutesCheck.class, () -> serviceCheck)
+          .run(
+              context ->
+                  assertThat(context.getBean(ReactiveRoutesCheck.class)).isSameAs(serviceCheck));
+    }
+
+    @Test
     @DisplayName("without routes it starts, with the check and no servlet filter")
     void startsWithoutRoutes() {
       contextRunner.run(
@@ -66,6 +98,17 @@ class ReactiveRoutesAutoConfigurationTest {
           .withPropertyValues(ROUTE, ResilienceConstants.ENABLED + "=false")
           .run(context -> assertThat(context).hasNotFailed());
     }
+  }
+
+  /**
+   * Returns the module's auto-configurations as its jar registers them in {@code
+   * AutoConfiguration.imports}, so a line removed from that file fails the test.
+   */
+  private Class<?>[] registeredResilienceAutoConfigurations() {
+    return ImportCandidates.load(AutoConfiguration.class, null).getCandidates().stream()
+        .filter(name -> name.startsWith(ResilienceConstants.class.getPackageName()))
+        .map(name -> ClassUtils.resolveClassName(name, null))
+        .toArray(Class<?>[]::new);
   }
 
   @Nested

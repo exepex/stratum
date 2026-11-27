@@ -34,11 +34,13 @@ class UncountedPathsIntegrationTest {
 
   /** Returns the status a GET to the path gets while the /** route is full. */
   private int statusWhileFull(String path) throws Exception {
+    return statusWhileFull(HeldController.HELD_PATH, path);
+  }
+
+  /** Returns the status a GET to the path gets while a request to the held path fills /**. */
+  private int statusWhileFull(String heldPath, String path) throws Exception {
     return RouteRequests.whileFull(
-        port,
-        HeldController.HELD_PATH,
-        held,
-        () -> WebTestSupport.getFromService(port, path).statusCode());
+        port, heldPath, held, () -> WebTestSupport.getFromService(port, path).statusCode());
   }
 
   @Nested
@@ -134,6 +136,78 @@ class UncountedPathsIntegrationTest {
       assertThat(statusWhileFull("/actuator/health"))
           .isEqualTo(HttpStatus.SERVICE_UNAVAILABLE.value());
       assertThat(statusWhileFull("/mgmt-ping")).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE.value());
+    }
+  }
+
+  @Nested
+  @DisplayName("with Spring MVC's servlet path /mvc")
+  @TestPropertySource(
+      properties = {
+        "spring.mvc.servlet.path=/mvc",
+        "management.endpoint.health.probes.add-additional-paths=true",
+        "management.endpoint.health.group.edge.include=ping",
+        "management.endpoint.health.group.edge.additional-path=server:/healthz"
+      })
+  class ServletPath {
+
+    /** The actuator and probe paths, each behind the servlet path, where Spring MVC serves them. */
+    private static final List<String> ACTUATOR_PATHS =
+        List.of(
+            "/mvc/actuator",
+            "/mvc/actuator/health",
+            "/mvc/actuator/orders-admin",
+            "/mvc/livez",
+            "/mvc/readyz",
+            "/mvc/healthz");
+
+    @ParameterizedTest(name = "{0}")
+    @FieldSource("ACTUATOR_PATHS")
+    @DisplayName("each actuator and probe path behind the servlet path is answered")
+    void actuatorPathsAnswered(String path) throws Exception {
+      assertThat(statusWhileFull("/mvc" + HeldController.HELD_PATH, path))
+          .isEqualTo(HttpStatus.OK.value());
+    }
+
+    @Test
+    @DisplayName("a service route behind the servlet path is refused")
+    void serviceRouteRefused() throws Exception {
+      assertThat(statusWhileFull("/mvc" + HeldController.HELD_PATH, "/mvc/reports/1"))
+          .isEqualTo(HttpStatus.SERVICE_UNAVAILABLE.value());
+    }
+  }
+
+  @Nested
+  @DisplayName("with a context path /api and the servlet path /mvc")
+  @TestPropertySource(
+      properties = {"server.servlet.context-path=/api", "spring.mvc.servlet.path=/mvc"})
+  class ContextAndServletPath {
+
+    @Test
+    @DisplayName("/api/mvc/actuator/health is answered, /api/mvc/reports/1 is refused")
+    void bothPrefixes() throws Exception {
+      var heldPath = "/api/mvc" + HeldController.HELD_PATH;
+
+      assertThat(statusWhileFull(heldPath, "/api/mvc/actuator/health"))
+          .isEqualTo(HttpStatus.OK.value());
+      assertThat(statusWhileFull(heldPath, "/api/mvc/reports/1"))
+          .isEqualTo(HttpStatus.SERVICE_UNAVAILABLE.value());
+    }
+  }
+
+  @Nested
+  @DisplayName("with the servlet path /mvc and the root base path")
+  @TestPropertySource(
+      properties = {"spring.mvc.servlet.path=/mvc", "management.endpoints.web.base-path=/"})
+  class ServletPathAndRootBasePath {
+
+    @Test
+    @DisplayName("/mvc/health is answered, while /mvc/reports/1 is still refused")
+    void endpointsOnly() throws Exception {
+      var heldPath = "/mvc" + HeldController.HELD_PATH;
+
+      assertThat(statusWhileFull(heldPath, "/mvc/health")).isEqualTo(HttpStatus.OK.value());
+      assertThat(statusWhileFull(heldPath, "/mvc/reports/1"))
+          .isEqualTo(HttpStatus.SERVICE_UNAVAILABLE.value());
     }
   }
 }

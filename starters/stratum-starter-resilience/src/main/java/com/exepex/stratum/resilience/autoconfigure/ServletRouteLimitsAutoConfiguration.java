@@ -20,6 +20,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.health.autoconfigure.actuate.endpoint.HealthEndpointProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.boot.webmvc.autoconfigure.DispatcherServletPath;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Fallback;
@@ -95,6 +96,7 @@ public final class ServletRouteLimitsAutoConfiguration {
   @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
   @ConditionalOnClass({
     DispatcherServlet.class,
+    DispatcherServletPath.class,
     PathMappedEndpoints.class,
     HealthEndpointProperties.class
   })
@@ -104,6 +106,8 @@ public final class ServletRouteLimitsAutoConfiguration {
      * Holds the actuator and probe paths of the main port, which a route never counts.
      *
      * @param environment the service's environment
+     * @param servletPath the path of Spring MVC's dispatcher servlet, which serves actuator's
+     *     endpoints and probes on the main port, if the service has one
      * @param endpoints the endpoints actuator serves over HTTP, if any
      * @return the paths
      */
@@ -111,9 +115,13 @@ public final class ServletRouteLimitsAutoConfiguration {
     @Fallback
     @ConditionalOnMissingBean(name = ResilienceConstants.UNCOUNTED_PATHS)
     public HealthProbePaths stratumUncountedPaths(
-        Environment environment, ObjectProvider<PathMappedEndpoints> endpoints) {
+        Environment environment,
+        ObjectProvider<DispatcherServletPath> servletPath,
+        ObjectProvider<PathMappedEndpoints> endpoints) {
       return HealthProbePaths.onMainPort(
-          environment, endpoints.stream().flatMap(paths -> paths.getAllPaths().stream()).toList());
+          environment,
+          servletPath.stream().map(DispatcherServletPath::getPrefix).findFirst().orElse(""),
+          endpoints.stream().flatMap(paths -> paths.getAllPaths().stream()).toList());
     }
   }
 

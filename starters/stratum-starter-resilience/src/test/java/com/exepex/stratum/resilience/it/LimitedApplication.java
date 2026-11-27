@@ -1,6 +1,7 @@
 package com.exepex.stratum.resilience.it;
 
 import com.exepex.stratum.resilience.testsupport.HeldRequests;
+import com.exepex.stratum.resilience.testsupport.ResilienceTestData;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
@@ -33,9 +34,6 @@ public class LimitedApplication {
   /** The header with which a request is denied before it reaches the limit, as a 401. */
   static final String DENY_HEADER = "X-Deny";
 
-  /** Spring Security's filter order, at which the stand-in for its 401 runs. */
-  private static final int SPRING_SECURITY_ORDER = -100;
-
   /**
    * Returns the work the endpoints hold.
    *
@@ -55,7 +53,7 @@ public class LimitedApplication {
   @Bean
   FilterRegistrationBean<OncePerRequestFilter> denyingFilter() {
     var registration = new FilterRegistrationBean<OncePerRequestFilter>(new DenyingFilter());
-    registration.setOrder(SPRING_SECURITY_ORDER);
+    registration.setOrder(ResilienceTestData.SPRING_SECURITY_ORDER);
     return registration;
   }
 

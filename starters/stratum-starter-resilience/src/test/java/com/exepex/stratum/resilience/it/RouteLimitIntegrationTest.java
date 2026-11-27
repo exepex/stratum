@@ -4,19 +4,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 import com.exepex.stratum.resilience.ResilienceConstants;
+import com.exepex.stratum.resilience.testsupport.CapturedLines;
 import com.exepex.stratum.resilience.testsupport.HeldRequests;
 import com.exepex.stratum.resilience.testsupport.RefusalAssertions;
 import com.exepex.stratum.resilience.testsupport.RouteMeterReader;
 import com.exepex.stratum.resilience.testsupport.RouteRequests;
-import com.exepex.stratum.test.LogLineCapture;
-import com.exepex.stratum.web.ErrorResponseFactory;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.FieldSource;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,32 +49,19 @@ class RouteLimitIntegrationTest {
   private static final int REQUESTS = 30;
 
   /** The log lines of the error response factory, which must write none for a refusal. */
-  private final LogLineCapture factoryLines =
-      new LogLineCapture(ErrorResponseFactory.class.getName());
+  @RegisterExtension
+  private final CapturedLines factoryLines = CapturedLines.ofErrorResponseFactory();
 
   /** The log lines of the resilience module, which must write none for a refusal. */
-  private final LogLineCapture resilienceLines =
-      new LogLineCapture(ResilienceConstants.class.getPackageName());
+  @RegisterExtension
+  private final CapturedLines resilienceLines =
+      new CapturedLines(ResilienceConstants.class.getPackageName());
 
   @LocalServerPort private int port;
 
   @Autowired private HeldRequests held;
 
   @Autowired private MeterRegistry meterRegistry;
-
-  /** Captures the log lines. */
-  @BeforeEach
-  void captureLines() {
-    factoryLines.start();
-    resilienceLines.start();
-  }
-
-  /** Stops capturing. */
-  @AfterEach
-  void stopCapturing() {
-    factoryLines.stop();
-    resilienceLines.stop();
-  }
 
   @ParameterizedTest(name = "{0}")
   @FieldSource("HANDLER_TYPES")

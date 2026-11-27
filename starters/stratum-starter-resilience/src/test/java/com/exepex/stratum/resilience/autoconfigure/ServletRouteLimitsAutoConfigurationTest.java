@@ -41,9 +41,6 @@ class ServletRouteLimitsAutoConfigurationTest {
   /** The name of the filter's registration bean. */
   private static final String FILTER = "stratumConcurrencyLimitFilter";
 
-  /** Spring Security's filter order, which the limit must run after. */
-  private static final int SPRING_SECURITY_ORDER = -100;
-
   private final WebApplicationContextRunner contextRunner =
       new WebApplicationContextRunner()
           .withConfiguration(AutoConfigurations.of(ServletRouteLimitsAutoConfiguration.class))
@@ -73,7 +70,7 @@ class ServletRouteLimitsAutoConfigurationTest {
           context ->
               assertThat(context.getBean(FILTER, FilterRegistrationBean.class).getOrder())
                   .isEqualTo(ConcurrencyLimitFilter.ORDER)
-                  .isGreaterThan(SPRING_SECURITY_ORDER));
+                  .isGreaterThan(ResilienceTestData.SPRING_SECURITY_ORDER));
     }
 
     @Test
@@ -118,7 +115,10 @@ class ServletRouteLimitsAutoConfigurationTest {
       var serviceLimits = new RouteLimits(ResilienceTestData.incoming(Map.of()).build());
       contextRunner
           .withBean(RouteLimits.class, () -> serviceLimits)
-          .run(context -> assertThat(context.getBean(RouteLimits.class)).isSameAs(serviceLimits));
+          .run(
+              context ->
+                  assertThat(context.getBeansOfType(RouteLimits.class).values())
+                      .containsExactly(serviceLimits));
     }
 
     @Test
@@ -128,6 +128,43 @@ class ServletRouteLimitsAutoConfigurationTest {
       contextRunner
           .withBean(FILTER, FilterRegistrationBean.class, () -> serviceFilter)
           .run(context -> assertThat(context.getBean(FILTER)).isSameAs(serviceFilter));
+    }
+
+    @Test
+    @DisplayName("the service's own settings are used")
+    void serviceSettings() {
+      var serviceSettings = ResilienceTestData.defaults();
+      contextRunner
+          .withBean(ResilienceProperties.class, () -> serviceSettings)
+          .run(
+              context ->
+                  assertThat(context.getBeansOfType(ResilienceProperties.class).values())
+                      .containsExactly(serviceSettings));
+    }
+
+    @Test
+    @DisplayName("the service's own route meters are used")
+    void serviceRouteMeters() {
+      var serviceMeters =
+          new RouteMeters(new RouteLimits(ResilienceTestData.incoming(Map.of()).build()));
+      contextRunner
+          .withBean(RouteMeters.class, () -> serviceMeters)
+          .run(
+              context ->
+                  assertThat(context.getBeansOfType(RouteMeters.class).values())
+                      .containsExactly(serviceMeters));
+    }
+
+    @Test
+    @DisplayName("the service's own uncounted paths under the same name replace Stratum's")
+    void serviceUncountedPaths() {
+      var servicePaths = HealthProbePaths.none();
+      contextRunner
+          .withBean(ResilienceConstants.UNCOUNTED_PATHS, HealthProbePaths.class, () -> servicePaths)
+          .run(
+              context ->
+                  assertThat(context.getBean(ResilienceConstants.UNCOUNTED_PATHS))
+                      .isSameAs(servicePaths));
     }
 
     @Test

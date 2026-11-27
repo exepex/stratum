@@ -89,7 +89,8 @@ service:
 | --- | --- |
 | Requests return `401` or `403` | [Security → Troubleshooting](../modules/security.md#troubleshooting) |
 | Calls to another service time out | [HTTP client → Troubleshooting](../modules/http-client.md#troubleshooting) |
-| `CallNotPermittedException` | [Resilience → Troubleshooting](../modules/resilience.md#troubleshooting) |
+| `SX-HTTPC-0003`: another service's circuit breaker is open | [HTTP client: the circuit breaker](../modules/http-client-resilience.md#the-circuit-breaker-group) |
+| `503` with `SX-RESILIENCE-0001`: your own route refused requests | [Resilience → Troubleshooting](../modules/resilience.md#troubleshooting) |
 | No trace IDs in logs, or traces broken between services | [Observability → Troubleshooting](../../starters/stratum-starter-observability/README.md#troubleshooting) |
 | Connection pool exhausted | [Data → Troubleshooting](../modules/data.md#troubleshooting) |
 | A statement cancelled with `SX-DATA-1003` | [Data → Statement time limits](../modules/data-statement-limits.md) |

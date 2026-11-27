@@ -41,7 +41,8 @@ The microservice and web-ui bundles bring this starter ([Bundle starters](bundle
 ## Limit a route
 
 Set `max-concurrent` for each route you want to protect. The pattern is the path within your application, without
-`server.servlet.context-path`; write it in square brackets, as Spring Boot needs for a key with `/` or `*`.
+`server.servlet.context-path` but with `spring.mvc.servlet.path` if you set one, such as `/mvc/reports/**`; write it
+in square brackets, as Spring Boot needs for a key with `/` or `*`.
 
 In `application.properties`:
 
@@ -146,6 +147,8 @@ Other Stratum services that call yours honour the `503` and its `Retry-After` wi
   beans, are never counted either: they are read from Spring Boot's list of endpoint paths. With
   `management.endpoints.web.base-path=/`, only each endpoint's own path is left out, such as `/health`, and `GET /`
   is counted like any route. With actuator on its own `management.server.port`, the limit never sees its requests.
+  With `spring.mvc.servlet.path`, such as `/mvc`, these paths and the probes below are left out behind it, such as
+  `/mvc/actuator/health`, where Spring MVC serves them.
 - **Health probes on the main port:** `/livez` and `/readyz` with
   `management.endpoint.health.probes.add-additional-paths=true`, and each health group's `server:` additional path.
 - **CORS preflight requests**, and the error and asynchronous dispatches of a request already counted.

@@ -4,24 +4,22 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 import com.exepex.stratum.resilience.ResilienceConstants;
+import com.exepex.stratum.resilience.testsupport.CapturedLines;
 import com.exepex.stratum.resilience.testsupport.HeldRequests;
 import com.exepex.stratum.resilience.testsupport.RefusalAssertions;
 import com.exepex.stratum.resilience.testsupport.ResilienceTestData;
 import com.exepex.stratum.resilience.testsupport.RouteMeterReader;
 import com.exepex.stratum.resilience.testsupport.RouteRequests;
-import com.exepex.stratum.test.LogLineCapture;
 import com.exepex.stratum.test.WebTestSupport;
-import com.exepex.stratum.web.ErrorResponseFactory;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -46,26 +44,14 @@ class RefusalAnswerIntegrationTest {
   private static final String RETRY_AFTER = "2";
 
   /** The log lines of the error response factory. */
-  private final LogLineCapture factoryLines =
-      new LogLineCapture(ErrorResponseFactory.class.getName());
+  @RegisterExtension
+  private final CapturedLines factoryLines = CapturedLines.ofErrorResponseFactory();
 
   @LocalServerPort private int port;
 
   @Autowired private HeldRequests held;
 
   @Autowired private MeterRegistry meterRegistry;
-
-  /** Captures the factory's log lines. */
-  @BeforeEach
-  void captureLines() {
-    factoryLines.start();
-  }
-
-  /** Stops capturing. */
-  @AfterEach
-  void stopCapturing() {
-    factoryLines.stop();
-  }
 
   /** Returns the answer a GET to the path gets, with the headers, while the route is full. */
   private HttpResponse<String> getWhileFull(String path, String... headers) throws Exception {
